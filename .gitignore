@@ -1,0 +1,40 @@
+# Build outputs
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Maven
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+
+# Logs
+*.log
+logs/
+
+# Test
+*.exec
+.testmondata
+
+# Environment
+.env
+*.env
+
+# API Keys (safety)
+*apikey*
+*api-key*
+*secret*
