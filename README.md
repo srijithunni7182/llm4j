@@ -5,6 +5,8 @@ A flexible, configurable, and well-tested Java library for interacting with mult
 ## Features
 
 - **🔌 Multiple Provider Support**: OpenAI, Anthropic Claude, Google Gemini
+- **🤖 ReAct Agent Framework**: Build AI agents with reasoning and tool use
+- **🛠️ Pluggable Tools**: Easy-to-create tools for agent capabilities
 - **🎯 Unified API**: Single interface for all providers
 - **⚙️ Highly Configurable**: Flexible configuration with builder pattern
 - **🔄 Retry Logic**: Built-in retry mechanism with configurable backoff strategies
@@ -124,6 +126,90 @@ public class GoogleExample {
         LLMResponse response = client.chat(request);
         System.out.println(response.getContent());
     }
+```
+
+## ReAct Agent
+
+The library includes a powerful ReAct (Reasoning and Acting) agent framework that enables LLMs to use tools through a loop of thought, action, and observation.
+
+### Basic Agent Usage
+
+```java
+import io.github.llm4j.agent.ReActAgent;
+import io.github.llm4j.agent.AgentResult;
+import io.github.llm4j.agent.tools.CalculatorTool;
+import io.github.llm4j.agent.tools.CurrentTimeTool;
+
+// Create agent with tools
+ReActAgent agent = ReActAgent.builder()
+        .llmClient(client)
+        .addTool(new CalculatorTool())
+        .addTool(new CurrentTimeTool())
+        .maxIterations(10)
+        .temperature(0.7)
+        .build();
+
+// Run agent
+AgentResult result = agent.run("What is (15 * 23) + 47?");
+System.out.println(result.getFinalAnswer());
+
+// Inspect reasoning steps
+for (AgentResult.AgentStep step : result.getSteps()) {
+    System.out.println("Thought: " + step.getThought());
+    System.out.println("Action: " + step.getAction());
+    System.out.println("Observation: " + step.getObservation());
+}
+```
+
+### Built-in Tools
+
+- **CalculatorTool**: Evaluate mathematical expressions
+- **CurrentTimeTool**: Get current date and time
+- **EchoTool**: Simple echo tool (useful for testing)
+
+### Creating Custom Tools
+
+```java
+import io.github.llm4j.agent.Tool;
+
+public class WebSearchTool implements Tool {
+    @Override
+    public String getName() {
+        return "WebSearch";
+    }
+    
+    @Override
+    public String getDescription() {
+        return "Search the web for information. Input should be a search query.";
+    }
+    
+    @Override
+    public String execute(String input) throws Exception {
+        // Implement web search logic
+        return searchWeb(input);
+    }
+}
+
+// Use custom tool
+agent = ReActAgent.builder()
+        .llmClient(client)
+        .addTool(new WebSearchTool())
+        .build();
+```
+
+### Agent Configuration
+
+```java
+ReActAgent agent = ReActAgent.builder()
+        .llmClient(client)
+        .addTool(new CalculatorTool())
+        .maxIterations(15)              // Max reasoning steps
+        .temperature(0.7)                // LLM temperature
+        .systemPrompt(customPrompt)      // Custom prompt template
+        .build();
+```
+
+## Advanced Configuration
 }
 ```
 
