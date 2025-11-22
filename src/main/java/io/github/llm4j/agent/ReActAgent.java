@@ -22,9 +22,8 @@ public class ReActAgent {
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final String DEFAULT_SYSTEM_PROMPT = """
-            You are a helpful AI assistant that can use tools to answer questions.
+            Answer the following questions as best you can. You have access to the following tools:
 
-            You have access to the following tools:
             {tool_descriptions}
 
             Use the following format:
@@ -37,6 +36,8 @@ public class ReActAgent {
             ... (this Thought/Action/Action Input/Observation can repeat N times)
             Thought: I now know the final answer
             Final Answer: the final answer to the original input question
+
+            IMPORTANT: You must ONLY provide the Thought, Action, and Action Input. Do NOT generate the Observation yourself - the system will provide it after executing the action. STOP after providing the Action Input and wait for the Observation.
 
             Begin!
             """;
@@ -92,7 +93,9 @@ public class ReActAgent {
             LLMResponse response = llmClient.chat(request);
             String llmOutput = response.getContent();
 
-            logger.debug("LLM Output:\n{}", llmOutput);
+            logger.info("=== LLM Response (Iteration {}) ===", i + 1);
+            logger.info("{}", llmOutput);
+            logger.info("=====================================");
 
             // Check for final answer
             Matcher finalAnswerMatcher = FINAL_ANSWER_PATTERN.matcher(llmOutput);
@@ -112,6 +115,8 @@ public class ReActAgent {
             String thought = extractPattern(THOUGHT_PATTERN, llmOutput);
             String action = extractPattern(ACTION_PATTERN, llmOutput);
             String actionInput = extractPattern(ACTION_INPUT_PATTERN, llmOutput);
+
+            logger.info("Parsed - Thought: {}, Action: {}, ActionInput: {}", thought, action, actionInput);
 
             if (action == null || action.isEmpty()) {
                 logger.warn("No action found in iteration {}", i + 1);
@@ -164,7 +169,7 @@ public class ReActAgent {
                     }
 
                     observation = tool.execute(args);
-                    logger.debug("Tool observation: {}", observation);
+                    logger.info("Tool '{}' returned observation: {}", action, observation);
                 } catch (Exception e) {
                     observation = "Error executing tool: " + e.getMessage();
                     logger.error("Error executing tool {}: {}", action, e.getMessage(), e);

@@ -24,7 +24,7 @@ import java.util.stream.Stream;
  */
 public class GoogleProvider implements LLMProvider {
 
-    private static final String DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1";
+    private static final String DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private final LLMConfig config;
@@ -54,7 +54,9 @@ public class GoogleProvider implements LLMProvider {
             String requestJson = buildRequestJson(request);
             Headers headers = buildHeaders();
 
-            String responseJson = httpClient.post(baseUrl + endpoint, requestJson, headers);
+            String fullUrl = baseUrl + endpoint;
+            System.out.println("DEBUG: Calling Google API URL: " + fullUrl);
+            String responseJson = httpClient.post(fullUrl, requestJson, headers);
             return parseResponse(responseJson, model);
         } catch (IOException e) {
             throw new ProviderException(getProviderName(), "Failed to process request", e);
