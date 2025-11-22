@@ -14,11 +14,15 @@ public class EchoTool implements Tool {
 
     @Override
     public String getDescription() {
-        return "Returns exactly what you input. Useful for testing.";
+        return "Returns exactly what you input. Input should be a JSON object with a 'text' field.";
     }
 
     @Override
-    public String execute(String input) {
+    public String execute(java.util.Map<String, Object> args) {
+        String input = (String) args.get("text");
+        if (input == null) {
+            input = (String) args.get("input");
+        }
         return input != null ? input : "";
     }
 }

@@ -15,14 +15,20 @@ public class CalculatorTool implements Tool {
     @Override
     public String getDescription() {
         return "Useful for performing mathematical calculations. " +
-                "Input should be a valid mathematical expression like '2 + 2' or '15 * 23'. " +
+                "Input should be a JSON object with an 'expression' field, e.g., {\"expression\": \"2 + 2\"}. " +
                 "Supports +, -, *, / operators.";
     }
 
     @Override
-    public String execute(String input) {
+    public String execute(java.util.Map<String, Object> args) {
+        String input = (String) args.get("expression");
         if (input == null || input.trim().isEmpty()) {
-            return "Error: No expression provided";
+            // Fallback to "input" key if "expression" is missing
+            input = (String) args.get("input");
+        }
+
+        if (input == null || input.trim().isEmpty()) {
+            return "Error: No 'expression' provided in arguments";
         }
 
         try {

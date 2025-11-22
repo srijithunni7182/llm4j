@@ -1,5 +1,7 @@
 package io.github.llm4j.agent;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
@@ -17,6 +19,7 @@ import java.util.regex.Pattern;
 public class ReActAgent {
 
     private static final Logger logger = LoggerFactory.getLogger(ReActAgent.class);
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final String DEFAULT_SYSTEM_PROMPT = """
             You are a helpful AI assistant that can use tools to answer questions.
@@ -29,7 +32,7 @@ public class ReActAgent {
             Question: the input question you must answer
             Thought: you should always think about what to do
             Action: the action to take, should be one of [{tool_names}]
-            Action Input: the input to the action
+            Action Input: the input to the action as a valid JSON object
             Observation: the result of the action
             ... (this Thought/Action/Action Input/Observation can repeat N times)
             Thought: I now know the final answer
@@ -74,6 +77,8 @@ public class ReActAgent {
         StringBuilder scratchpad = new StringBuilder();
         scratchpad.append("Question: ").append(question).append("\n");
 
+        Set<String> actionHistory = new HashSet<>();
+
         for (int i = 0; i < maxIterations; i++) {
             logger.debug("Agent iteration {}/{}", i + 1, maxIterations);
 
@@ -115,6 +120,23 @@ public class ReActAgent {
                 continue;
             }
 
+            // Loop Detection
+            String actionKey = action + ":" + (actionInput != null ? actionInput : "");
+            if (actionHistory.contains(actionKey)) {
+                String observation = "Error: You have already taken this action with this input. Please try a different approach.";
+                logger.warn("Loop detected: {}", actionKey);
+
+                AgentResult.AgentStep step = new AgentResult.AgentStep(thought, action, actionInput, observation);
+                steps.add(step);
+
+                scratchpad.append("Thought: ").append(thought != null ? thought : "").append("\n");
+                scratchpad.append("Action: ").append(action).append("\n");
+                scratchpad.append("Action Input: ").append(actionInput != null ? actionInput : "").append("\n");
+                scratchpad.append("Observation: ").append(observation).append("\n");
+                continue;
+            }
+            actionHistory.add(actionKey);
+
             // Execute tool
             String observation;
             Tool tool = tools.get(action.toLowerCase());
@@ -126,7 +148,22 @@ public class ReActAgent {
             } else {
                 try {
                     logger.debug("Executing tool '{}' with input: {}", action, actionInput);
-                    observation = tool.execute(actionInput != null ? actionInput : "");
+                    Map<String, Object> args;
+                    if (actionInput != null && !actionInput.trim().isEmpty()) {
+                        try {
+                            args = objectMapper.readValue(actionInput, new TypeReference<Map<String, Object>>() {
+                            });
+                        } catch (Exception e) {
+                            // Try to treat as raw string if JSON parsing fails, for backward compatibility
+                            // or simple tools
+                            args = new HashMap<>();
+                            args.put("input", actionInput);
+                        }
+                    } else {
+                        args = new HashMap<>();
+                    }
+
+                    observation = tool.execute(args);
                     logger.debug("Tool observation: {}", observation);
                 } catch (Exception e) {
                     observation = "Error executing tool: " + e.getMessage();

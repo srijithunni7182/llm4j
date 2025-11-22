@@ -34,7 +34,7 @@ public class CurrentTimeTool implements Tool {
     }
 
     @Override
-    public String execute(String input) {
+    public String execute(java.util.Map<String, Object> args) {
         LocalDateTime now = LocalDateTime.now(zoneId);
         return now.atZone(zoneId).format(formatter);
     }

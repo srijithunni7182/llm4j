@@ -37,6 +37,11 @@ public class ConversationHistory {
         trimHistory();
     }
 
+    public void addMessage(Message message) {
+        messages.add(message);
+        trimHistory();
+    }
+
     public List<Message> getMessages() {
         return new ArrayList<>(messages);
     }

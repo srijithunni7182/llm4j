@@ -23,11 +23,11 @@ public interface Tool {
     String getDescription();
 
     /**
-     * Executes the tool with the given input.
+     * Executes the tool with the given input arguments.
      *
-     * @param input the input to the tool
+     * @param args the input arguments to the tool
      * @return the result of executing the tool
      * @throws Exception if the tool execution fails
      */
-    String execute(String input) throws Exception;
+    String execute(java.util.Map<String, Object> args) throws Exception;
 }

@@ -29,17 +29,19 @@ public class ChatbotApp {
             "Provide clear, concise, and accurate responses.";
 
     private final LLMClient llmClient;
-    private final ConversationHistory history;
+    private ConversationHistory history;
+    private String systemPrompt;
     private final Terminal terminal;
     private final LineReader reader;
 
     public ChatbotApp(LLMClient llmClient, String systemPrompt) throws IOException {
         this.llmClient = llmClient;
         this.history = new ConversationHistory();
+        this.systemPrompt = systemPrompt != null ? systemPrompt : DEFAULT_SYSTEM_PROMPT;
 
         // Add system prompt
-        if (systemPrompt != null && !systemPrompt.isEmpty()) {
-            history.addSystemMessage(systemPrompt);
+        if (this.systemPrompt != null && !this.systemPrompt.isEmpty()) {
+            history.addSystemMessage(this.systemPrompt);
         }
 
         // Setup terminal
@@ -81,6 +83,18 @@ public class ChatbotApp {
                     continue;
                 } else if (trimmed.equals("/history")) {
                     printHistory();
+                    continue;
+                } else if (trimmed.startsWith("/save ")) {
+                    handleSaveCommand(prompt.trim().substring(6));
+                    continue;
+                } else if (trimmed.startsWith("/load ")) {
+                    handleLoadCommand(prompt.trim().substring(6));
+                    continue;
+                } else if (trimmed.equals("/list")) {
+                    handleListCommand();
+                    continue;
+                } else if (trimmed.startsWith("/delete ")) {
+                    handleDeleteCommand(prompt.trim().substring(8));
                     continue;
                 }
 
@@ -157,10 +171,14 @@ public class ChatbotApp {
 
     private void printHelp() {
         System.out.println(ansi().fg(CYAN).a("Commands:").reset());
-        System.out.println("  /help     - Show this help message");
-        System.out.println("  /history  - Show conversation history");
-        System.out.println("  /clear    - Clear conversation history");
-        System.out.println("  /quit     - Exit the chatbot");
+        System.out.println("  /help          - Show this help message");
+        System.out.println("  /history       - Show conversation history");
+        System.out.println("  /clear         - Clear conversation history");
+        System.out.println("  /save <name>   - Save current conversation");
+        System.out.println("  /load <name>   - Load saved conversation");
+        System.out.println("  /list          - List all saved conversations");
+        System.out.println("  /delete <name> - Delete a saved conversation");
+        System.out.println("  /quit          - Exit the chatbot");
         System.out.println();
     }
 
@@ -187,6 +205,84 @@ public class ChatbotApp {
     private void printError(String error) {
         System.out.println(ansi().fg(RED).bold().a("✗ " + error).reset());
         System.out.println();
+        System.out.println();
+    }
+
+    private void handleSaveCommand(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            printError("Usage: /save <name>");
+            return;
+        }
+
+        try {
+            ConversationPersistence.saveConversation(name, history, systemPrompt);
+            System.out.println(ansi().fg(GREEN).a("✓ Conversation saved as '" + name + "'").reset());
+            System.out.println();
+        } catch (IOException e) {
+            printError("Failed to save conversation: " + e.getMessage());
+        }
+    }
+
+    private void handleLoadCommand(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            printError("Usage: /load <name>");
+            return;
+        }
+
+        try {
+            ConversationPersistence.LoadedConversation loaded = ConversationPersistence.loadConversation(name);
+            this.history = loaded.getHistory();
+            this.systemPrompt = loaded.getSystemPrompt();
+            System.out.println(ansi().fg(GREEN).a("✓ Loaded conversation '" + name + "' with " +
+                    history.size() + " messages").reset());
+            System.out.println();
+        } catch (IOException e) {
+            printError("Failed to load conversation: " + e.getMessage());
+        }
+    }
+
+    private void handleListCommand() {
+        try {
+            var conversations = ConversationPersistence.listConversations();
+
+            if (conversations.isEmpty()) {
+                System.out.println(ansi().fg(YELLOW).a("No saved conversations found.").reset());
+                System.out.println();
+                return;
+            }
+
+            System.out.println(ansi().fg(CYAN).a("\n=== Saved Conversations ===").reset());
+            for (var conv : conversations) {
+                System.out.println(ansi().fg(GREEN).a(
+                        String.format("  • %s (%d messages, saved: %s)",
+                                conv.getName(),
+                                conv.getMessageCount(),
+                                conv.getFormattedDate()))
+                        .reset());
+            }
+            System.out.println();
+        } catch (IOException e) {
+            printError("Failed to list conversations: " + e.getMessage());
+        }
+    }
+
+    private void handleDeleteCommand(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            printError("Usage: /delete <name>");
+            return;
+        }
+
+        try {
+            boolean deleted = ConversationPersistence.deleteConversation(name);
+            if (deleted) {
+                System.out.println(ansi().fg(GREEN).a("✓ Deleted conversation '" + name + "'").reset());
+            } else {
+                System.out.println(ansi().fg(YELLOW).a("Conversation '" + name + "' not found").reset());
+            }
+            System.out.println();
+        } catch (IOException e) {
+            printError("Failed to delete conversation: " + e.getMessage());
+        }
     }
 
     private void printGoodbye() {
