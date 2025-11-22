@@ -10,7 +10,7 @@ All tools implement the `Tool` interface:
 public interface Tool {
     String getName();           // Tool identifier
     String getDescription();    // What the tool does
-    String execute(String input) throws Exception;  // Tool logic
+    String execute(Map<String, Object> args) throws Exception;  // Tool logic
 }
 ```
 
@@ -20,6 +20,7 @@ public interface Tool {
 
 ```java
 import io.github.llm4j.agent.Tool;
+import java.util.Map;
 
 public class TextReverserTool implements Tool {
     
@@ -31,11 +32,12 @@ public class TextReverserTool implements Tool {
     @Override
     public String getDescription() {
         return "Reverses the order of characters in text. " +
-               "Input should be the text to reverse.";
+               "Input should be a JSON object with a 'text' field.";
     }
     
     @Override
-    public String execute(String input) throws Exception {
+    public String execute(Map<String, Object> args) throws Exception {
+        String input = (String) args.get("text");
         if (input == null || input.isEmpty()) {
             return "Error: No text provided";
         }
@@ -67,6 +69,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.URI;
+import java.util.Map;
 
 public class WebSearchTool implements Tool {
     
@@ -86,15 +89,20 @@ public class WebSearchTool implements Tool {
     @Override
     public String getDescription() {
         return "Search the web for current information. " +
-               "Input should be a search query like 'latest news about AI'.";
+               "Input should be a JSON object with a 'query' field.";
     }
     
     @Override
-    public String execute(String input) throws Exception {
+    public String execute(Map<String, Object> args) throws Exception {
+        String query = (String) args.get("query");
+        if (query == null || query.trim().isEmpty()) {
+            return "Error: No query provided";
+        }
+
         // Build search API request
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://api.search.com/search?q=" + 
-                               input + "&key=" + apiKey))
+                                query + "&key=" + apiKey))
                 .GET()
                 .build();
         
@@ -123,6 +131,7 @@ import io.github.llm4j.agent.Tool;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 
 public class FileReaderTool implements Tool {
     
@@ -140,21 +149,26 @@ public class FileReaderTool implements Tool {
     @Override
     public String getDescription() {
         return "Read contents of a text file. " +
-               "Input should be the filename (not full path).";
+               "Input should be a JSON object with a 'filename' field.";
     }
     
     @Override
-    public String execute(String input) throws Exception {
+    public String execute(Map<String, Object> args) throws Exception {
+        String filename = (String) args.get("filename");
+        if (filename == null || filename.trim().isEmpty()) {
+            return "Error: No filename provided";
+        }
+
         // Security: prevent path traversal
-        if (input.contains("..") || input.contains("/")) {
+        if (filename.contains("..") || filename.contains("/")) {
             return "Error: Invalid filename. Provide only the filename.";
         }
         
-        Path filePath = Paths.get(baseDirectory, input);
+        Path filePath = Paths.get(baseDirectory, filename);
         
         // Check if file exists
         if (!Files.exists(filePath)) {
-            return "Error: File not found: " + input;
+            return "Error: File not found: " + filename;
         }
         
         // Read file
@@ -175,6 +189,7 @@ public class FileReaderTool implements Tool {
 ```java
 import io.github.llm4j.agent.Tool;
 import java.sql.*;
+import java.util.Map;
 
 public class DatabaseQueryTool implements Tool {
     
@@ -192,12 +207,14 @@ public class DatabaseQueryTool implements Tool {
     @Override
     public String getDescription() {
         return "Query the database for information. " +
-               "Input should be a natural language query like " +
-               "'how many users are there?'";
+               "Input should be a JSON object with a 'query' field containing the natural language question.";
     }
     
     @Override
-    public String execute(String input) throws Exception {
+    public String execute(Map<String, Object> args) throws Exception {
+        String input = (String) args.get("query");
+        if (input == null) return "Error: No query provided";
+
         // Convert natural language to SQL (you might use another LLM for this)
         String sql = convertToSQL(input);
         
@@ -239,11 +256,11 @@ public class DatabaseQueryTool implements Tool {
 ### 1. Clear Descriptions
 
 ```java
-// Good: Specific and clear
+// Good: Specific and clear about JSON input
 @Override
 public String getDescription() {
     return "Convert temperature from Celsius to Fahrenheit. " +
-           "Input should be a number like '25' or '25.5'.";
+           "Input should be a JSON object with a 'celsius' field (number).";
 }
 
 // Bad: Vague
@@ -257,19 +274,26 @@ public String getDescription() {
 
 ```java
 @Override
-public String execute(String input) throws Exception {
+public String execute(Map<String, Object> args) throws Exception {
     // Validate input
-    if (input == null || input.trim().isEmpty()) {
-        return "Error: No input provided";
+    if (!args.containsKey("celsius")) {
+        return "Error: Missing 'celsius' field";
     }
     
-    // Validate format
-    if (!input.matches("\\d+(\\.\\d+)?")) {
-        return "Error: Input must be a number";
+    Object val = args.get("celsius");
+    double celsius;
+    
+    try {
+        if (val instanceof Number) {
+            celsius = ((Number) val).doubleValue();
+        } else {
+            celsius = Double.parseDouble(val.toString());
+        }
+    } catch (NumberFormatException e) {
+        return "Error: 'celsius' must be a number";
     }
     
     // Execute tool logic
-    double celsius = Double.parseDouble(input);
     double fahrenheit = (celsius * 9/5) + 32;
     
     return String.format("%.2f°F", fahrenheit);
@@ -280,12 +304,12 @@ public String execute(String input) throws Exception {
 
 ```java
 @Override
-public String execute(String input) throws Exception {
+public String execute(Map<String, Object> args) throws Exception {
     try {
         // Tool logic
-        return performOperation(input);
+        return performOperation(args);
     } catch (NumberFormatException e) {
-        return "Error: Invalid number format: " + input;
+        return "Error: Invalid number format";
     } catch (IOException e) {
         return "Error: Failed to access resource: " + e.getMessage();
     } catch (Exception e) {
@@ -298,7 +322,9 @@ public String execute(String input) throws Exception {
 
 ```java
 @Override
-public String execute(String input) throws Exception {
+public String execute(Map<String, Object> args) throws Exception {
+    String input = (String) args.get("input");
+    
     // Sanitize input
     String sanitized = input.replaceAll("[^a-zA-Z0-9\\s]", "");
     
@@ -321,20 +347,22 @@ public String execute(String input) throws Exception {
 
 ```java
 @Override
-public String execute(String input) throws Exception {
+public String execute(Map<String, Object> args) throws Exception {
+    String key = args.toString(); // Simple cache key
+    
     // Cache expensive operations
-    if (cache.containsKey(input)) {
-        return cache.get(input);
+    if (cache.containsKey(key)) {
+        return cache.get(key);
     }
     
     // Limit output size
-    String result = performExpensiveOperation(input);
+    String result = performExpensiveOperation(args);
     
     if (result.length() > 2000) {
         result = result.substring(0, 2000) + "... (truncated)";
     }
     
-    cache.put(input, result);
+    cache.put(key, result);
     return result;
 }
 ```
@@ -345,6 +373,7 @@ public String execute(String input) throws Exception {
 
 ```java
 import org.junit.jupiter.api.Test;
+import java.util.Map;
 import static org.assertj.core.api.Assertions.*;
 
 class TemperatureConverterToolTest {
@@ -354,22 +383,22 @@ class TemperatureConverterToolTest {
     
     @Test
     void testConversion() throws Exception {
-        String result = tool.execute("0");
+        String result = tool.execute(Map.of("celsius", 0));
         assertThat(result).isEqualTo("32.00°F");
         
-        result = tool.execute("100");
+        result = tool.execute(Map.of("celsius", 100));
         assertThat(result).isEqualTo("212.00°F");
     }
     
     @Test
     void testInvalidInput() throws Exception {
-        String result = tool.execute("abc");
+        String result = tool.execute(Map.of("celsius", "abc"));
         assertThat(result).contains("Error");
     }
     
     @Test
     void testEmptyInput() throws Exception {
-        String result = tool.execute("");
+        String result = tool.execute(Map.of());
         assertThat(result).contains("Error");
     }
 }
@@ -413,18 +442,18 @@ public class EmailSenderTool implements Tool {
     }
     
     @Override
-    public String execute(String input) throws Exception {
+    public String execute(Map<String, Object> args) throws Exception {
         // Parse input: "send email to John about meeting"
-        String recipient = extractRecipient(input);
-        String subject = extractSubject(input);
+        String recipientName = (String) args.get("recipient");
+        String subject = (String) args.get("subject");
         
         // Use another tool to lookup email
-        String email = userLookupTool.execute(recipient);
+        String email = userLookupTool.execute(Map.of("name", recipientName));
         
         // Send email
         emailService.send(email, subject, "Generated content");
         
-        return "Email sent successfully to " + recipient;
+        return "Email sent successfully to " + recipientName;
     }
 }
 ```
@@ -436,6 +465,7 @@ import io.github.llm4j.agent.Tool;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.http.*;
+import java.util.Map;
 
 public class WeatherTool implements Tool {
     
@@ -457,17 +487,17 @@ public class WeatherTool implements Tool {
     @Override
     public String getDescription() {
         return "Get current weather for a city. " +
-               "Input should be a city name like 'London' or 'New York'.";
+               "Input should be a JSON object with a 'city' field.";
     }
     
     @Override
-    public String execute(String input) throws Exception {
+    public String execute(Map<String, Object> args) throws Exception {
+        String city = (String) args.get("city");
+        
         // Validate input
-        if (input == null || input.trim().isEmpty()) {
+        if (city == null || city.trim().isEmpty()) {
             return "Error: Please provide a city name";
         }
-        
-        String city = input.trim();
         
         // Build API request
         String url = String.format(

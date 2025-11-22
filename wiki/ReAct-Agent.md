@@ -62,9 +62,10 @@ Evaluates mathematical expressions:
 
 ```java
 import io.github.llm4j.agent.tools.CalculatorTool;
+import java.util.Map;
 
 CalculatorTool calc = new CalculatorTool();
-String result = calc.execute("(100 - 25) * 2"); // Returns "150"
+String result = calc.execute(Map.of("expression", "(100 - 25) * 2")); // Returns "150"
 ```
 
 **Supported operations**: `+`, `-`, `*`, `/`, parentheses
@@ -79,9 +80,10 @@ Returns current date and time:
 
 ```java
 import io.github.llm4j.agent.tools.CurrentTimeTool;
+import java.util.Map;
 
 CurrentTimeTool time = new CurrentTimeTool();
-String result = time.execute(""); // Returns "2024-11-21 23:20:52 IST"
+String result = time.execute(Map.of()); // Returns "2024-11-21 23:20:52 IST"
 ```
 
 **Example queries**:
@@ -94,9 +96,10 @@ Simple echo tool (mainly for testing):
 
 ```java
 import io.github.llm4j.agent.tools.EchoTool;
+import java.util.Map;
 
 EchoTool echo = new EchoTool();
-String result = echo.execute("Hello"); // Returns "Hello"
+String result = echo.execute(Map.of("text", "Hello")); // Returns "Hello"
 ```
 
 ## Configuration Options
@@ -127,7 +130,7 @@ ReActAgent agent = ReActAgent.builder()
 
 ### Custom System Prompt
 
-Provide your own prompt template:
+Provide your own prompt template. Note that the agent expects `Action Input` to be a JSON object.
 
 ```java
 String customPrompt = """
@@ -141,7 +144,7 @@ String customPrompt = """
     Question: the question
     Thought: your reasoning
     Action: tool name
-    Action Input: tool input
+    Action Input: tool input as JSON object
     Observation: result
     Final Answer: the answer
     """;
@@ -211,12 +214,16 @@ Tools can throw exceptions which are caught and returned as observations:
 // Observation: "Error evaluating expression: Unexpected character"
 ```
 
+### Loop Detection
+
+The agent automatically detects if it repeats the same action and input. It will receive an error observation prompting it to try a different approach.
+
 ## Performance Tips
 
 1. **Use specific prompts**: Clear, specific questions get better results
 2. **Right temperature**: Use lower (0.2-0.5) for math, higher (0.7-0.9) for creative tasks
 3. **Limit iterations**: Set appropriate `maxIterations` based on task complexity
-4. **Tool descriptions**: Make tool descriptions clear and specific
+4. **Tool descriptions**: Make tool descriptions clear and specific about expected JSON inputs
 
 ## Best Practices
 
