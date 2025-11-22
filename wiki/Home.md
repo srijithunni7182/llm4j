@@ -1,81 +1,105 @@
-# Welcome to Gemini ReAct Java
+# 🚀 Gemini ReAct Java
 
-`gemini-react-java` is a flexible, configurable, and **comprehensively tested** Java library for interacting with Google Gemini through a clean, unified API.
+**The Production-Ready Java Client for Google Gemini**
 
-> **Note**: This library is specialized for **Google Gemini**. We believe in honest, verified support—every feature is backed by comprehensive integration tests.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Java 17+](https://img.shields.io/badge/Java-17%2B-orange)](https://www.oracle.com/java/technologies/downloads/#java17)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
 
-## Quick Links
+---
 
-- **[Getting Started](Getting-Started)** - Installation and first steps
-- **[ReAct Agent](ReAct-Agent)** - Building AI agents with tools
-- **[OpenAPI Tool](OpenAPI-Tool)** - Auto-discover APIs from specs
-- **[Custom Tools](Creating-Custom-Tools)** - Extending agent capabilities
+## 🌟 Why Gemini ReAct Java?
 
-## Features Overview
+`gemini-react-java` is not just another API wrapper. It's a **comprehensive framework** designed to help you build intelligent, reasoning AI agents in Java.
 
-### 🤖 Google Gemini Support
-- Full integration with Gemini 1.5 and 2.x models
-- Auto-discovery of latest available models
-- Comprehensive integration test coverage
+> **"Honest, Verified Support"** — Every feature is backed by comprehensive integration tests against real Gemini endpoints.
 
-### 🛠️ ReAct Agent Framework
-- Build AI agents that can use tools
-- Reasoning and action loop
-- Pluggable tool system
-- Built-in tools: Calculator, Time, Echo, **OpenAPI**
+---
 
-### 🎯 Clean API
-- Simple, intuitive interface
-- Consistent request/response format
-- Builder pattern for configuration
+## 🔥 Feature Spotlight: The OpenAPI Tool
 
-### ⚙️ Highly Configurable
-- Builder pattern for clean API
-- Retry policies with backoff strategies
-- Timeout management
-- Custom prompts
+**Turn any REST API into an AI Tool instantly.**
 
-### 🔄 Production Ready
-- Comprehensive error handling
-- Automatic retries
-- Thread-safe immutable objects
-- 100% integration test coverage
+The **[OpenAPI Tool](OpenAPI-Tool)** is a game-changer for building connected agents. Instead of writing manual tool code for every API endpoint, simply point the agent to an OpenAPI (Swagger) spec, and it will:
 
-## Architecture
+1.  **🔍 Auto-Discover**: Find all available endpoints (GET, POST, etc.).
+2.  **🧠 Auto-Understand**: Parse parameter requirements and descriptions.
+3.  **⚡ Auto-Execute**: Handle authentication and HTTP requests automatically.
 
-```
-User Code
-    ↓
-LLMClient Interface
-    ↓
-DefaultLLMClient
-    ↓
-LLMProvider Interface
-    ↓
-GoogleProvider
+```java
+// 1. Define the Tool
+OpenAPITool aviationTool = OpenAPITool.builder()
+    .name("AviationStack")
+    .specLocation("https://api.aviationstack.com/openapi.json")
+    .apiKeyAuth("access_key", "YOUR_KEY")
+    .build();
+
+// 2. Add to Agent
+ReActAgent agent = ReActAgent.builder()
+    .llmClient(client)
+    .addTool(aviationTool)
+    .build();
+
+// 3. Magic!
+agent.run("What is the status of flight AA100?");
 ```
 
-## Project Structure
+👉 **[Learn more about the OpenAPI Tool](OpenAPI-Tool)**
 
+---
+
+## 📚 Quick Links
+
+| Guide | Description |
+|-------|-------------|
+| **[🚀 Getting Started](Getting-Started)** | Installation, configuration, and your first "Hello World". |
+| **[🤖 ReAct Agent](ReAct-Agent)** | Build agents that can reason, plan, and use tools. |
+| **[🌐 OpenAPI Tool](OpenAPI-Tool)** | **NEW!** Auto-discover and use REST APIs dynamically. |
+| **[🛠️ Custom Tools](Creating-Custom-Tools)** | Extend your agent's capabilities with custom logic. |
+
+---
+
+## ✨ Key Features
+
+### 🤖 Google Gemini First
+- **Full Integration**: Native support for Gemini 1.5 Flash, Pro, and 2.x models.
+- **Auto-Discovery**: Automatically finds the latest available models.
+- **Type-Safe**: Strongly typed request/response models.
+
+### 🧠 Powerful ReAct Agents
+- **Reasoning Loop**: Implements the "Reasoning + Acting" paradigm.
+- **Pluggable Tools**: Easily add Calculator, Web Search, or custom tools.
+- **Loop Detection**: Smart detection of infinite loops or repetitive actions.
+
+### 🛡️ Production Ready
+- **Robust Error Handling**: Specific exceptions for Auth, Rate Limits, and more.
+- **Retry Policies**: Configurable exponential backoff strategies.
+- **Thread-Safe**: Designed for high-concurrency environments.
+
+---
+
+## 🏗️ Architecture
+
+Designed for simplicity and extensibility:
+
+```mermaid
+graph TD
+    User[User Code] --> Client[LLMClient]
+    Client --> Provider[GoogleProvider]
+    Provider --> API[Gemini API]
+    
+    subgraph "Agent Framework"
+    Agent[ReActAgent] --> Client
+    Agent --> Tools[Tools]
+    Tools --> Calc[Calculator]
+    Tools --> Time[CurrentTime]
+    Tools --> OpenAPI[OpenAPI Tool]
+    end
 ```
-gemini-react-java/
-├── src/main/java/io/github/llm4j/
-│   ├── LLMClient.java              # Main interface
-│   ├── model/                       # Request/Response models
-│   ├── provider/                    # Provider implementations
-│   ├── agent/                       # ReAct agent framework
-│   ├── config/                      # Configuration classes
-│   ├── http/                        # HTTP client wrapper
-│   └── exception/                   # Exception hierarchy
-└── src/test/java/                   # Test suite
-```
 
-## Requirements
+---
 
-- Java 17 or higher
-- Maven 3.6+ or Gradle 7+
-
-## Installation
+## 📦 Installation
 
 ### Maven
 ```xml
@@ -91,50 +115,14 @@ gemini-react-java/
 implementation 'io.github.llm4j:gemini-react-java:0.1.0-SNAPSHOT'
 ```
 
-## Simple Example
+---
 
-```java
-// Configure client
-LLMConfig config = LLMConfig.builder()
-        .apiKey(System.getenv("GOOGLE_API_KEY"))
-        .defaultModel("gemini-1.5-flash")
-        .build();
+## 🤝 Support & Community
 
-LLMClient client = new DefaultLLMClient(new GoogleProvider(config));
+- **Found a bug?** [Open an Issue](https://github.com/srijithunni7182/llm4j/issues)
+- **Have a question?** [Start a Discussion](https://github.com/srijithunni7182/llm4j/discussions)
+- **Want to contribute?** Check out our [Contributing Guidelines](Contributing)
 
-// Make request
-LLMRequest request = LLMRequest.builder()
-        .addUserMessage("What is the capital of France?")
-        .build();
+---
 
-LLMResponse response = client.chat(request);
-System.out.println(response.getContent());
-```
-
-## Agent Example
-
-```java
-// Create agent with tools
-ReActAgent agent = ReActAgent.builder()
-        .llmClient(client)
-        .addTool(new CalculatorTool())
-        .addTool(new CurrentTimeTool())
-        .build();
-
-// Run agent
-AgentResult result = agent.run("What is (15 * 23) + 47?");
-System.out.println(result.getFinalAnswer());
-```
-
-## Contributing
-
-Contributions are welcome! Please see our [Contributing Guidelines](Contributing) for details.
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/srijithunni7182/llm4j/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/srijithunni7182/llm4j/discussions)
-
-## License
-
-This project is licensed under the MIT License.
+*Built with ❤️ for the Java AI Community.*
