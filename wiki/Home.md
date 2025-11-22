@@ -8,6 +8,7 @@
 
 - **[Getting Started](Getting-Started)** - Installation and first steps
 - **[ReAct Agent](ReAct-Agent)** - Building AI agents with tools
+- **[OpenAPI Tool](OpenAPI-Tool)** - Auto-discover APIs from specs
 - **[Custom Tools](Creating-Custom-Tools)** - Extending agent capabilities
 
 ## Features Overview
@@ -21,7 +22,7 @@
 - Build AI agents that can use tools
 - Reasoning and action loop
 - Pluggable tool system
-- Built-in tools: Calculator, Time, Echo
+- Built-in tools: Calculator, Time, Echo, **OpenAPI**
 
 ### 🎯 Clean API
 - Simple, intuitive interface

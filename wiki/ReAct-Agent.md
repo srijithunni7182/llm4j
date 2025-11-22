@@ -102,6 +102,20 @@ EchoTool echo = new EchoTool();
 String result = echo.execute(Map.of("text", "Hello")); // Returns "Hello"
 ```
 
+### OpenAPITool
+
+Dynamic tool that discovers endpoints from an OpenAPI specification:
+
+```java
+OpenAPITool tool = OpenAPITool.builder()
+    .name("AviationStack")
+    .specLocation("https://api.aviationstack.com/openapi.json")
+    .apiKeyAuth("access_key", "YOUR_KEY")
+    .build();
+```
+
+See [OpenAPI Tool](OpenAPI-Tool) for details.
+
 ## Configuration Options
 
 ### Max Iterations

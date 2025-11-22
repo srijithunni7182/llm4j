@@ -130,6 +130,27 @@ for (AgentResult.AgentStep step : result.getSteps()) {
 - **CurrentTimeTool**: Get current date and time
 - **EchoTool**: Simple echo tool (useful for testing)
 
+### 🌐 OpenAPI Support (New!)
+
+The library now supports **dynamic tool generation** from OpenAPI/Swagger specifications. This allows your agents to automatically discover and use any REST API without writing manual tool code.
+
+```java
+// Create tool from OpenAPI spec (URL or file)
+OpenAPITool aviationTool = OpenAPITool.builder()
+    .name("AviationStack")
+    .specLocation("https://api.aviationstack.com/openapi.json")
+    .apiKeyAuth("access_key", System.getenv("AVIATION_STACK_API_KEY"))
+    .build();
+
+// Add to agent
+ReActAgent agent = ReActAgent.builder()
+    .llmClient(client)
+    .addTool(aviationTool)
+    .build();
+```
+
+See the [OpenAPI Tool Wiki](wiki/OpenAPI-Tool) for full documentation.
+
 ### Creating Custom Tools
 
 ```java

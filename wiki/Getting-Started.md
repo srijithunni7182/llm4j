@@ -146,6 +146,25 @@ AgentResult result = agent.run("What is 15 * 234 + 567?");
 System.out.println("Answer: " + result.getFinalAnswer());
 ```
 
+### Use OpenAPI Tools
+
+Automatically discover and use REST APIs:
+
+```java
+import io.github.llm4j.agent.tools.openapi.OpenAPITool;
+
+OpenAPITool aviationTool = OpenAPITool.builder()
+    .name("AviationStack")
+    .specLocation("https://api.aviationstack.com/openapi.json")
+    .apiKeyAuth("access_key", "YOUR_KEY")
+    .build();
+
+agent = ReActAgent.builder()
+    .llmClient(client)
+    .addTool(aviationTool)
+    .build();
+```
+
 ## Common Patterns
 
 ### Error Handling
@@ -202,6 +221,7 @@ LLMRequest request = LLMRequest.builder()
 ## What's Next?
 
 - **[ReAct Agent](ReAct-Agent)** - Build powerful AI agents
+- **[OpenAPI Tool](OpenAPI-Tool)** - Auto-discover APIs from specs
 - **[Creating Custom Tools](Creating-Custom-Tools)** - Extend agent capabilities
 
 ## Troubleshooting
