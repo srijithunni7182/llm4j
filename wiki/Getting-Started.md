@@ -1,12 +1,12 @@
 # Getting Started with LLM4J
 
-This guide will help you get started with LLM4J in minutes.
+This guide will help you get started with LLM4J and Google Gemini in minutes.
 
 ## Prerequisites
 
 - Java 17 or higher
 - Maven 3.6+ or Gradle 7+
-- API key from at least one LLM provider (OpenAI, Anthropic, or Google)
+- Google API key ([Get one here](https://makersuite.google.com/app/apikey))
 
 ## Installation
 
@@ -34,15 +34,12 @@ implementation 'io.github.llm4j:llm4j:0.1.0-SNAPSHOT'
 
 ### Step 1: Get an API Key
 
-Obtain an API key from your chosen provider:
-- **OpenAI**: https://platform.openai.com/api-keys
-- **Anthropic**: https://console.anthropic.com/
-- **Google**: https://makersuite.google.com/app/apikey
+Get your Google API key from: https://makersuite.google.com/app/apikey
 
 ### Step 2: Set Environment Variable
 
 ```bash
-export OPENAI_API_KEY="your-api-key-here"
+export GOOGLE_API_KEY="your-api-key-here"
 ```
 
 ### Step 3: Create Your First Program
@@ -53,26 +50,26 @@ import io.github.llm4j.LLMClient;
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
-import io.github.llm4j.provider.openai.OpenAIProvider;
+import io.github.llm4j.provider.google.GoogleProvider;
 
 public class HelloLLM {
     public static void main(String[] args) {
         // 1. Configure the client
         LLMConfig config = LLMConfig.builder()
-                .apiKey(System.getenv("OPENAI_API_KEY"))
-                .defaultModel("gpt-3.5-turbo")
+                .apiKey(System.getenv("GOOGLE_API_KEY"))
+                .defaultModel("gemini-1.5-flash")
                 .build();
         
         // 2. Create client
         LLMClient client = new DefaultLLMClient(
-            new OpenAIProvider(config)
+            new GoogleProvider(config)
         );
         
         // 3. Build request
         LLMRequest request = LLMRequest.builder()
                 .addUserMessage("Say hello in 5 different languages")
                 .temperature(0.7)
-                .maxTokens(200)
+                .maxTokens(500)
                 .build();
         
         // 4. Get response
@@ -94,6 +91,25 @@ mvn exec:java -Dexec.mainClass="HelloLLM"
 
 ## Next Steps
 
+### Auto-Discover Models
+
+The library can automatically discover the latest available Gemini models:
+
+```java
+LLMConfig tempConfig = LLMConfig.builder()
+        .apiKey(System.getenv("GOOGLE_API_KEY"))
+        .build();
+
+GoogleProvider provider = new GoogleProvider(tempConfig);
+String latestModel = provider.getFirstAvailableModel();  // e.g. "gemini-2.5-flash"
+
+// Use the discovered model
+LLMConfig config = LLMConfig.builder()
+        .apiKey(System.getenv("GOOGLE_API_KEY"))
+        .defaultModel(latestModel)
+        .build();
+```
+
 ### Multi-Turn Conversations
 
 ```java
@@ -105,37 +121,13 @@ LLMRequest request = LLMRequest.builder()
         .build();
 ```
 
-### Try Different Providers
+### Available Models
 
-#### Anthropic (Claude)
-
-```java
-import io.github.llm4j.provider.anthropic.AnthropicProvider;
-
-LLMConfig config = LLMConfig.builder()
-        .apiKey(System.getenv("ANTHROPIC_API_KEY"))
-        .defaultModel("claude-3-opus-20240229")
-        .build();
-
-LLMClient client = new DefaultLLMClient(
-    new AnthropicProvider(config)
-);
-```
-
-#### Google (Gemini)
-
-```java
-import io.github.llm4j.provider.google.GoogleProvider;
-
-LLMConfig config = LLMConfig.builder()
-        .apiKey(System.getenv("GOOGLE_API_KEY"))
-        .defaultModel("gemini-pro")
-        .build();
-
-LLMClient client = new DefaultLLMClient(
-    new GoogleProvider(config)
-);
-```
+| Model | Description | Best For |
+|-------|-------------|----------|
+| `gemini-1.5-flash` | Fast, efficient | General use, quick responses |
+| `gemini-1.5-pro` | More capable | Complex reasoning, longer context |
+| `gemini-2.5-flash` | Latest, fastest | Newest features, optimal performance |
 
 ### Build Your First Agent
 
@@ -195,28 +187,40 @@ LLMConfig config = LLMConfig.builder()
         .build();
 ```
 
+### Request Parameters
+
+```java
+LLMRequest request = LLMRequest.builder()
+        .addUserMessage("Explain quantum computing")
+        .model("gemini-1.5-pro")        // Specific model
+        .temperature(0.7)                // 0-1, creativity
+        .maxTokens(1000)                 // Max output tokens
+        .topP(0.9)                       // Nucleus sampling
+        .build();
+```
+
 ## What's Next?
 
-- **[Configuration Guide](Configuration-Guide)** - Learn about all configuration options
-- **[Provider Guides](Provider-Guides)** - Detailed guides for each provider
 - **[ReAct Agent](ReAct-Agent)** - Build powerful AI agents
-- **[Examples](Examples)** - More code examples
+- **[Creating Custom Tools](Creating-Custom-Tools)** - Extend agent capabilities
 
 ## Troubleshooting
 
 ### Common Issues
 
 **Issue**: `AuthenticationException`
-- **Solution**: Check that your API key is correct and set in the environment
+- **Solution**: Check that your `GOOGLE_API_KEY` is correct and set in the environment
 
 **Issue**: `RateLimitException`
 - **Solution**: Implement exponential backoff or reduce request rate
 
+**Issue**: `Content blocked by safety filters`
+- **Solution**: Rephrase your prompt or adjust content
+
 **Issue**: `NoClassDefFoundError`
-- **Solution**: Ensure all dependencies are properly included
+- **Solution**: Ensure all dependencies are properly included in your `pom.xml`
 
 ## Need Help?
 
-- Check the [FAQ](FAQ)
 - Search [GitHub Issues](https://github.com/srijithunni7182/llm4j/issues)
 - Ask in [Discussions](https://github.com/srijithunni7182/llm4j/discussions)

@@ -7,7 +7,7 @@ import io.github.llm4j.config.RetryPolicy;
 import io.github.llm4j.exception.*;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
-import io.github.llm4j.provider.openai.OpenAIProvider;
+import io.github.llm4j.provider.google.GoogleProvider;
 
 import java.time.Duration;
 
@@ -17,34 +17,33 @@ import java.time.Duration;
 public class AdvancedConfigExample {
 
     public static void main(String[] args) {
-        String apiKey = System.getenv("OPENAI_API_KEY");
+        // Check for API key
+        String apiKey = System.getenv("GOOGLE_API_KEY");
         if (apiKey == null || apiKey.isEmpty()) {
-            System.err.println("Please set OPENAI_API_KEY environment variable");
+            System.err.println("Please set GOOGLE_API_KEY environment variable");
             System.exit(1);
         }
 
-        // Create custom retry policy
-        RetryPolicy retryPolicy = RetryPolicy.builder()
+        // Custom retry policy with exponential backoff
+        RetryPolicy customRetry = RetryPolicy.builder()
                 .maxRetries(5)
                 .backoffStrategy(RetryPolicy.BackoffStrategy.EXPONENTIAL)
-                .initialBackoff(Duration.ofMillis(1000))
-                .maxBackoff(Duration.ofSeconds(30))
-                .addRetryableStatusCode(429) // Rate limit
-                .addRetryableStatusCode(500) // Server error
+                .initialBackoff(Duration.ofMillis(500))
+                .maxBackoff(Duration.ofSeconds(60))
                 .addRetryableStatusCode(503) // Service unavailable
                 .build();
 
-        // Create comprehensive config
+        // Advanced configuration
         LLMConfig config = LLMConfig.builder()
                 .apiKey(apiKey)
-                .defaultModel("gpt-3.5-turbo")
+                .defaultModel("gemini-1.5-flash")
                 .timeout(Duration.ofSeconds(90))
-                .connectTimeout(Duration.ofSeconds(10))
-                .retryPolicy(retryPolicy)
+                .connectTimeout(Duration.ofSeconds(30))
+                .retryPolicy(customRetry)
                 .enableLogging(true)
                 .build();
 
-        LLMClient client = new DefaultLLMClient(new OpenAIProvider(config));
+        LLMClient client = new DefaultLLMClient(new GoogleProvider(config));
 
         // Demonstrate error handling
         demonstrateErrorHandling(client);

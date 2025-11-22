@@ -24,7 +24,7 @@ import java.util.stream.Stream;
  */
 public class GoogleProvider implements LLMProvider {
 
-    private static final String DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+    private static final String DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1";
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private final LLMConfig config;
@@ -78,22 +78,113 @@ public class GoogleProvider implements LLMProvider {
         }
     }
 
+    /**
+     * List available models from Google Gemini API.
+     * 
+     * @return Array of available model names
+     */
+    public String[] listModels() {
+        try {
+            String endpoint = "/models?key=" + config.getApiKey();
+            Headers headers = buildHeaders();
+
+            String responseJson = httpClient.get(baseUrl + endpoint, headers);
+            JsonNode root = objectMapper.readTree(responseJson);
+
+            if (root.has("models")) {
+                JsonNode models = root.get("models");
+                return objectMapper.convertValue(models, String[].class);
+            }
+
+            return new String[0];
+        } catch (Exception e) {
+            // If listing fails, return empty array
+            return new String[0];
+        }
+    }
+
+    /**
+     * Get the first available Gemini model that supports generateContent.
+     * 
+     * @return Model name or null if none found
+     */
+    public String getFirstAvailableModel() {
+        try {
+            String endpoint = "/models?key=" + config.getApiKey();
+            Headers headers = buildHeaders();
+
+            String responseJson = httpClient.get(baseUrl + endpoint, headers);
+            JsonNode root = objectMapper.readTree(responseJson);
+
+            if (root.has("models")) {
+                JsonNode models = root.get("models");
+
+                for (JsonNode model : models) {
+                    String modelName = model.get("name").asText();
+                    // Extract just the model ID from "models/gemini-xxx"
+                    String modelId = modelName.replace("models/", "");
+
+                    // Check if this model supports generateContent
+                    if (model.has("supportedGenerationMethods")) {
+                        JsonNode methods = model.get("supportedGenerationMethods");
+                        for (JsonNode method : methods) {
+                            if (method.asText().equals("generateContent")) {
+                                // Return first gemini model that supports generateContent
+                                if (modelId.contains("gemini")) {
+                                    return modelId;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private String buildRequestJson(LLMRequest request) throws IOException {
         ObjectNode root = objectMapper.createObjectNode();
 
-        // Google Gemini uses "contents" array
+        // Google Gemini v1 API doesn't support systemInstruction field
+        // We need to convert system messages to user messages or prepend to first user
+        // message
         ArrayNode contentsArray = root.putArray("contents");
 
+        // Find system message if present
+        String systemMessage = null;
         for (Message message : request.getMessages()) {
+            if (message.getRole() == Message.Role.SYSTEM) {
+                systemMessage = message.getContent();
+                break;
+            }
+        }
+
+        boolean firstUserMessage = true;
+        for (Message message : request.getMessages()) {
+            // Skip system messages - we'll prepend to first user message
+            if (message.getRole() == Message.Role.SYSTEM) {
+                continue;
+            }
+
             ObjectNode contentNode = contentsArray.addObject();
 
-            // Google uses "user" and "model" roles instead of "assistant"
+            // Google uses "user" and "model" roles
             String role = message.getRole() == Message.Role.ASSISTANT ? "model" : "user";
             contentNode.put("role", role);
 
             ArrayNode partsArray = contentNode.putArray("parts");
             ObjectNode partNode = partsArray.addObject();
-            partNode.put("text", message.getContent());
+
+            // If this is the first user message and we have a system message, prepend it
+            if (role.equals("user") && firstUserMessage && systemMessage != null) {
+                partNode.put("text", systemMessage + "\n\n" + message.getContent());
+                firstUserMessage = false;
+            } else {
+                partNode.put("text", message.getContent());
+            }
         }
 
         // Generation config
@@ -147,18 +238,75 @@ public class GoogleProvider implements LLMProvider {
         // Extract response data
         JsonNode candidates = root.get("candidates");
         if (candidates == null || !candidates.isArray() || candidates.isEmpty()) {
-            throw new ProviderException(getProviderName(), "No candidates in response");
+            // Check for prompt feedback (safety filters)
+            if (root.has("promptFeedback")) {
+                JsonNode feedback = root.get("promptFeedback");
+                if (feedback.has("blockReason")) {
+                    String blockReason = feedback.get("blockReason").asText();
+                    throw new ProviderException(getProviderName(),
+                            "Content blocked by safety filters: " + blockReason);
+                }
+            }
+            throw new ProviderException(getProviderName(),
+                    "No candidates in response. Full response: " + responseJson);
         }
 
         JsonNode firstCandidate = candidates.get(0);
-        JsonNode content = firstCandidate.get("content");
-        JsonNode parts = content.get("parts");
 
-        if (parts == null || !parts.isArray() || parts.isEmpty()) {
-            throw new ProviderException(getProviderName(), "No parts in response");
+        // Check if content was blocked by safety filters
+        if (firstCandidate.has("finishReason")) {
+            String finishReason = firstCandidate.get("finishReason").asText();
+            if ("SAFETY".equals(finishReason)) {
+                String safetyInfo = "";
+                if (firstCandidate.has("safetyRatings")) {
+                    safetyInfo = " Safety ratings: " + firstCandidate.get("safetyRatings").toString();
+                }
+                throw new ProviderException(getProviderName(),
+                        "Content blocked by safety filters." + safetyInfo);
+            }
         }
 
-        String textContent = parts.get(0).get("text").asText();
+        // Extract content
+        JsonNode content = firstCandidate.get("content");
+        if (content == null) {
+            throw new ProviderException(getProviderName(),
+                    "No content in candidate. Candidate: " + firstCandidate.toString());
+        }
+
+        JsonNode parts = content.get("parts");
+        if (parts == null || !parts.isArray() || parts.isEmpty()) {
+            // Gemini 2.5 uses thinking tokens, and if MAX_TOKENS is hit during thinking,
+            // there may be no actual content part. Check if this is the case.
+            String finishReason = firstCandidate.has("finishReason") ? firstCandidate.get("finishReason").asText()
+                    : null;
+
+            if ("MAX_TOKENS".equals(finishReason)) {
+                // Model hit token limit before generating output
+                // Return a helpful message instead of throwing exception
+                return LLMResponse.builder()
+                        .content("[Response truncated: model hit token limit before generating output. " +
+                                "Please increase maxTokens parameter.]")
+                        .model(model)
+                        .finishReason(finishReason)
+                        .build();
+            }
+
+            // For other cases, log and throw exception
+            System.err.println("DEBUG: Full response JSON: " + responseJson);
+            System.err.println("DEBUG: Candidate: " + firstCandidate.toString());
+            System.err.println("DEBUG: Content: " + content.toString());
+
+            throw new ProviderException(getProviderName(),
+                    "No parts in response. Content: " + content.toString());
+        }
+
+        JsonNode firstPart = parts.get(0);
+        if (!firstPart.has("text")) {
+            throw new ProviderException(getProviderName(),
+                    "No text in first part. Part: " + firstPart.toString());
+        }
+
+        String textContent = firstPart.get("text").asText();
         String finishReason = firstCandidate.has("finishReason") ? firstCandidate.get("finishReason").asText() : null;
 
         // Extract usage metadata (if available)

@@ -1,16 +1,18 @@
 # LLM4J
 
-A flexible, configurable, and well-tested Java library for interacting with multiple Large Language Model (LLM) providers through a unified API.
+A flexible, configurable, and **comprehensively tested** Java library for interacting with Google Gemini through a clean, unified API.
+
+> **Note**: This library currently supports **Google Gemini only**. We believe in honest, verified support—every feature is backed by comprehensive integration tests. We may add other providers in the future once they have been properly tested and verified.
 
 ## Features
 
-- **🔌 Multiple Provider Support**: OpenAI, Anthropic Claude, Google Gemini
-- **🤖 ReAct Agent Framework**: Build AI agents with reasoning and tool use
-- **🛠️ Pluggable Tools**: Easy-to-create tools for agent capabilities
-- **🎯 Unified API**: Single interface for all providers
+- **🤖 Google Gemini Support**: Full integration with Google's Gemini AI models
+- **✅ 100% Tested**: Every feature verified with comprehensive integration tests
+- **🛠️ ReAct Agent Framework**: Build AI agents with reasoning and tool use
+- **🔧 Pluggable Tools**: Easy-to-create tools for agent capabilities
 - **⚙️ Highly Configurable**: Flexible configuration with builder pattern
-- **🔄 Retry Logic**: Built-in retry mechanism with configurable backoff strategies
-- **🧪 Well Tested**: Comprehensive test suite with 70%+ code coverage
+- **🔄 Auto-Discovery**: Automatically detects and uses latest available models
+- **🔁 Retry Logic**: Built-in retry mechanism with configurable backoff strategies
 - **🔒 Thread-Safe**: Immutable request/response objects
 - **📝 Clean Code**: Follows SOLID principles and best practices
 
@@ -34,73 +36,7 @@ implementation 'io.github.llm4j:llm4j:0.1.0-SNAPSHOT'
 
 ## Quick Start
 
-### OpenAI (ChatGPT)
-
-```java
-import io.github.llm4j.DefaultLLMClient;
-import io.github.llm4j.LLMClient;
-import io.github.llm4j.config.LLMConfig;
-import io.github.llm4j.model.LLMRequest;
-import io.github.llm4j.model.LLMResponse;
-import io.github.llm4j.provider.openai.OpenAIProvider;
-
-public class OpenAIExample {
-    public static void main(String[] args) {
-        // Configure the client
-        LLMConfig config = LLMConfig.builder()
-                .apiKey(System.getenv("OPENAI_API_KEY"))
-                .defaultModel("gpt-4")
-                .build();
-        
-        // Create client with OpenAI provider
-        LLMClient client = new DefaultLLMClient(new OpenAIProvider(config));
-        
-        // Build and send request
-        LLMRequest request = LLMRequest.builder()
-                .addUserMessage("What is the capital of France?")
-                .temperature(0.7)
-                .maxTokens(100)
-                .build();
-        
-        LLMResponse response = client.chat(request);
-        System.out.println(response.getContent());
-        System.out.println("Tokens used: " + response.getTokenUsage().getTotalTokens());
-    }
-}
-```
-
-### Anthropic (Claude)
-
-```java
-import io.github.llm4j.DefaultLLMClient;
-import io.github.llm4j.LLMClient;
-import io.github.llm4j.config.LLMConfig;
-import io.github.llm4j.model.LLMRequest;
-import io.github.llm4j.model.LLMResponse;
-import io.github.llm4j.provider.anthropic.AnthropicProvider;
-
-public class AnthropicExample {
-    public static void main(String[] args) {
-        LLMConfig config = LLMConfig.builder()
-                .apiKey(System.getenv("ANTHROPIC_API_KEY"))
-                .defaultModel("claude-3-opus-20240229")
-                .build();
-        
-        LLMClient client = new DefaultLLMClient(new AnthropicProvider(config));
-        
-        LLMRequest request = LLMRequest.builder()
-                .addSystemMessage("You are a helpful coding assistant.")
-                .addUserMessage("Write a hello world program in Python")
-                .maxTokens(500)
-                .build();
-        
-        LLMResponse response = client.chat(request);
-        System.out.println(response.getContent());
-    }
-}
-```
-
-### Google (Gemini)
+### Google Gemini
 
 ```java
 import io.github.llm4j.DefaultLLMClient;
@@ -110,22 +46,48 @@ import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.provider.google.GoogleProvider;
 
-public class GoogleExample {
+public class GeminiExample {
     public static void main(String[] args) {
+        // Configure the client
         LLMConfig config = LLMConfig.builder()
                 .apiKey(System.getenv("GOOGLE_API_KEY"))
-                .defaultModel("gemini-pro")
+                .defaultModel("gemini-1.5-flash")  // or "gemini-1.5-pro"
                 .build();
         
+        // Create client with Google provider
         LLMClient client = new DefaultLLMClient(new GoogleProvider(config));
         
+        // Build and send request
         LLMRequest request = LLMRequest.builder()
-                .addUserMessage("Explain quantum computing in simple terms")
+                .addUserMessage("What is the capital of France?")
+                .temperature(0.7)
+                .maxTokens(500)
                 .build();
         
         LLMResponse response = client.chat(request);
         System.out.println(response.getContent());
+        System.out.println("Tokens used: " + response.getTokenUsage().getTotalTokens());
     }
+}
+```
+
+### Auto-Discover Models
+
+```java
+// The library can automatically discover available Gemini models
+LLMConfig tempConfig = LLMConfig.builder()
+        .apiKey(System.getenv("GOOGLE_API_KEY"))
+        .build();
+
+GoogleProvider provider = new GoogleProvider(tempConfig);
+String latestModel = provider.getFirstAvailableModel();  // e.g. "gemini-2.5-flash"
+
+// Use the discovered model
+LLMConfig config = LLMConfig.builder()
+        .apiKey(System.getenv("GOOGLE_API_KEY"))
+        .defaultModel(latestModel)
+        .build();
+}
 ```
 
 ## ReAct Agent
@@ -251,13 +213,13 @@ LLMRequest request = LLMRequest.builder()
 LLMResponse response = client.chat(request);
 ```
 
-### Custom Base URL (for OpenAI-compatible APIs)
+### Custom Base URL
 
 ```java
 LLMConfig config = LLMConfig.builder()
         .apiKey("your-api-key")
-        .baseUrl("https://your-custom-endpoint.com/v1")
-        .defaultModel("custom-model")
+        .baseUrl("https://generativelanguage.googleapis.com/v1")
+        .defaultModel("gemini-1.5-flash")
         .build();
 ```
 
@@ -349,8 +311,6 @@ Coverage report will be available at `target/site/jacoco/index.html`.
 │ LLMProvider │ (Interface)
 └─────┬───────┘
       │
-      ├─────► OpenAIProvider
-      ├─────► AnthropicProvider
       └─────► GoogleProvider
 ```
 

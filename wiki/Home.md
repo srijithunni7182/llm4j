@@ -1,35 +1,32 @@
 # Welcome to LLM4J
 
-LLM4J is a flexible, configurable, and well-tested Java library for interacting with multiple Large Language Model providers through a unified API.
+LLM4J is a flexible, configurable, and **comprehensively tested** Java library for interacting with Google Gemini through a clean, unified API.
+
+> **Note**: This library currently supports **Google Gemini only**. We believe in honest, verified support—every feature is backed by comprehensive integration tests.
 
 ## Quick Links
 
 - **[Getting Started](Getting-Started)** - Installation and first steps
-- **[Configuration Guide](Configuration-Guide)** - Detailed configuration options
-- **[Provider Guides](Provider-Guides)** - OpenAI, Anthropic, Google Gemini
 - **[ReAct Agent](ReAct-Agent)** - Building AI agents with tools
 - **[Custom Tools](Creating-Custom-Tools)** - Extending agent capabilities
-- **[Examples](Examples)** - Code examples and use cases
-- **[API Reference](API-Reference)** - Complete API documentation
 
 ## Features Overview
 
-### 🔌 Multiple Provider Support
-- OpenAI (GPT-3.5, GPT-4)
-- Anthropic (Claude 3)
-- Google (Gemini Pro)
-- Easy to add new providers
+### 🤖 Google Gemini Support
+- Full integration with Gemini 1.5 and 2.x models
+- Auto-discovery of latest available models
+- Comprehensive integration test coverage
 
-### 🤖 ReAct Agent Framework
+### 🛠️ ReAct Agent Framework
 - Build AI agents that can use tools
 - Reasoning and action loop
 - Pluggable tool system
 - Built-in tools: Calculator, Time, Echo
 
-### 🎯 Unified API
-- Single interface for all providers
+### 🎯 Clean API
+- Simple, intuitive interface
 - Consistent request/response format
-- Provider-specific features accessible
+- Builder pattern for configuration
 
 ### ⚙️ Highly Configurable
 - Builder pattern for clean API
@@ -41,7 +38,7 @@ LLM4J is a flexible, configurable, and well-tested Java library for interacting 
 - Comprehensive error handling
 - Automatic retries
 - Thread-safe immutable objects
-- Extensive test coverage (47 tests)
+- 100% integration test coverage
 
 ## Architecture
 
@@ -54,9 +51,7 @@ DefaultLLMClient
     ↓
 LLMProvider Interface
     ↓
-┌─────────┬──────────────┬──────────┐
-│ OpenAI  │  Anthropic   │  Google  │
-└─────────┴──────────────┴──────────┘
+GoogleProvider
 ```
 
 ## Project Structure
@@ -100,11 +95,11 @@ implementation 'io.github.llm4j:llm4j:0.1.0-SNAPSHOT'
 ```java
 // Configure client
 LLMConfig config = LLMConfig.builder()
-        .apiKey(System.getenv("OPENAI_API_KEY"))
-        .defaultModel("gpt-3.5-turbo")
+        .apiKey(System.getenv("GOOGLE_API_KEY"))
+        .defaultModel("gemini-1.5-flash")
         .build();
 
-LLMClient client = new DefaultLLMClient(new OpenAIProvider(config));
+LLMClient client = new DefaultLLMClient(new GoogleProvider(config));
 
 // Make request
 LLMRequest request = LLMRequest.builder()

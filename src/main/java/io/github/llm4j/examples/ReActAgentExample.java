@@ -7,7 +7,7 @@ import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.agent.tools.CalculatorTool;
 import io.github.llm4j.agent.tools.CurrentTimeTool;
 import io.github.llm4j.config.LLMConfig;
-import io.github.llm4j.provider.openai.OpenAIProvider;
+import io.github.llm4j.provider.google.GoogleProvider;
 
 /**
  * Example demonstrating the ReAct agent with multiple tools.
@@ -16,19 +16,19 @@ public class ReActAgentExample {
 
     public static void main(String[] args) {
         // Check for API key
-        String apiKey = System.getenv("OPENAI_API_KEY");
+        String apiKey = System.getenv("GOOGLE_API_KEY");
         if (apiKey == null || apiKey.isEmpty()) {
-            System.err.println("Please set OPENAI_API_KEY environment variable");
+            System.err.println("Please set GOOGLE_API_KEY environment variable");
             System.exit(1);
         }
 
         // Create LLM client
         LLMConfig config = LLMConfig.builder()
                 .apiKey(apiKey)
-                .defaultModel("gpt-3.5-turbo")
+                .defaultModel("gemini-1.5-flash")
                 .build();
 
-        LLMClient llmClient = new DefaultLLMClient(new OpenAIProvider(config));
+        LLMClient llmClient = new DefaultLLMClient(new GoogleProvider(config));
 
         // Create ReAct agent with tools
         ReActAgent agent = ReActAgent.builder()
