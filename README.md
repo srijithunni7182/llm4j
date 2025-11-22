@@ -173,8 +173,8 @@ ReActAgent agent = ReActAgent.builder()
 ```
 
 ## Advanced Configuration
-}
-```
+
+```java
 
 ## Advanced Configuration
 
