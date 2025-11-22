@@ -1,6 +1,6 @@
-# Getting Started with LLM4J
+# Getting Started with Gemini ReAct Java
 
-This guide will help you get started with LLM4J and Google Gemini in minutes.
+This guide will help you get started with `gemini-react-java` and Google Gemini in minutes.
 
 ## Prerequisites
 
@@ -17,7 +17,7 @@ Add this dependency to your `pom.xml`:
 ```xml
 <dependency>
     <groupId>io.github.llm4j</groupId>
-    <artifactId>llm4j</artifactId>
+    <artifactId>gemini-react-java</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -27,7 +27,7 @@ Add this dependency to your `pom.xml`:
 Add this to your `build.gradle`:
 
 ```gradle
-implementation 'io.github.llm4j:llm4j:0.1.0-SNAPSHOT'
+implementation 'io.github.llm4j:gemini-react-java:0.1.0-SNAPSHOT'
 ```
 
 ## Your First LLM Call

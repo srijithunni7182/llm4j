@@ -1,20 +1,21 @@
-# LLM4J
+# Gemini ReAct Java
 
-A flexible, configurable, and **comprehensively tested** Java library for interacting with Google Gemini through a clean, unified API.
+**A production-ready Java client for Google Gemini with built-in ReAct Agents and Tooling.**
 
-> **Note**: This library currently supports **Google Gemini only**. We believe in honest, verified support—every feature is backed by comprehensive integration tests. We may add other providers in the future once they have been properly tested and verified.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Java 17+](https://img.shields.io/badge/Java-17%2B-orange)](https://www.oracle.com/java/technologies/downloads/#java17)
+
+`gemini-react-java` (formerly `llm4j`) is a flexible, configurable, and **comprehensively tested** Java library for interacting with Google Gemini through a clean, unified API. It features a robust **ReAct Agent** framework that allows you to build AI agents capable of using tools to solve complex problems.
+
+> **Note**: This library is specialized for **Google Gemini**. We believe in honest, verified support—every feature is backed by comprehensive integration tests against real Gemini endpoints.
 
 ## Features
 
-- **🤖 Google Gemini Support**: Full integration with Google's Gemini AI models
-- **✅ 100% Tested**: Every feature verified with comprehensive integration tests
-- **🛠️ ReAct Agent Framework**: Build AI agents with reasoning and tool use
-- **🔧 Pluggable Tools**: Easy-to-create tools for agent capabilities
-- **⚙️ Highly Configurable**: Flexible configuration with builder pattern
-- **🔄 Auto-Discovery**: Automatically detects and uses latest available models
-- **🔁 Retry Logic**: Built-in retry mechanism with configurable backoff strategies
-- **🔒 Thread-Safe**: Immutable request/response objects
-- **📝 Clean Code**: Follows SOLID principles and best practices
+- **🤖 Google Gemini First**: Full integration with Gemini 1.5 Flash, Pro, and 2.x models.
+- **🛠️ ReAct Agent Framework**: Build AI agents that can reason and use tools (Calculator, Web Search, etc.).
+- **⚡ Robust Tooling**: Typed tool interface with JSON input parsing and error feedback loops.
+- **🔄 Production Ready**: Automatic retries, error handling, and thread-safe design.
+- **🧪 100% Tested**: Comprehensive integration test suite verifying real-world usage.
 
 ## Installation
 
@@ -23,7 +24,7 @@ A flexible, configurable, and **comprehensively tested** Java library for intera
 ```xml
 <dependency>
     <groupId>io.github.llm4j</groupId>
-    <artifactId>llm4j</artifactId>
+    <artifactId>gemini-react-java</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -31,7 +32,7 @@ A flexible, configurable, and **comprehensively tested** Java library for intera
 ### Gradle
 
 ```gradle
-implementation 'io.github.llm4j:llm4j:0.1.0-SNAPSHOT'
+implementation 'io.github.llm4j:gemini-react-java:0.1.0-SNAPSHOT'
 ```
 
 ## Quick Start

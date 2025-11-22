@@ -1,8 +1,8 @@
-# Welcome to LLM4J
+# Welcome to Gemini ReAct Java
 
-LLM4J is a flexible, configurable, and **comprehensively tested** Java library for interacting with Google Gemini through a clean, unified API.
+`gemini-react-java` is a flexible, configurable, and **comprehensively tested** Java library for interacting with Google Gemini through a clean, unified API.
 
-> **Note**: This library currently supports **Google Gemini only**. We believe in honest, verified support—every feature is backed by comprehensive integration tests.
+> **Note**: This library is specialized for **Google Gemini**. We believe in honest, verified support—every feature is backed by comprehensive integration tests.
 
 ## Quick Links
 
@@ -57,7 +57,7 @@ GoogleProvider
 ## Project Structure
 
 ```
-llm4j/
+gemini-react-java/
 ├── src/main/java/io/github/llm4j/
 │   ├── LLMClient.java              # Main interface
 │   ├── model/                       # Request/Response models
@@ -80,14 +80,14 @@ llm4j/
 ```xml
 <dependency>
     <groupId>io.github.llm4j</groupId>
-    <artifactId>llm4j</artifactId>
+    <artifactId>gemini-react-java</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```
 
 ### Gradle
 ```gradle
-implementation 'io.github.llm4j:llm4j:0.1.0-SNAPSHOT'
+implementation 'io.github.llm4j:gemini-react-java:0.1.0-SNAPSHOT'
 ```
 
 ## Simple Example

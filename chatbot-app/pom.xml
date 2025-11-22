@@ -23,7 +23,7 @@
         <!-- LLM4J Library -->
         <dependency>
             <groupId>io.github.llm4j</groupId>
-            <artifactId>llm4j</artifactId>
+            <artifactId>gemini-react-java</artifactId>
             <version>0.1.0-SNAPSHOT</version>
         </dependency>
 
