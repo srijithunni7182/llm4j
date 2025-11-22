@@ -20,7 +20,7 @@
 
 **Turn any REST API into an AI Tool instantly.**
 
-The **[OpenAPI Tool](OpenAPI-Tool)** is a game-changer for building connected agents. Instead of writing manual tool code for every API endpoint, simply point the agent to an OpenAPI (Swagger) spec, and it will:
+The **[OpenAPI Tool](OpenAPI-Tool.md)** is a game-changer for building connected agents. Instead of writing manual tool code for every API endpoint, simply point the agent to an OpenAPI (Swagger) spec, and it will:
 
 1.  **🔍 Auto-Discover**: Find all available endpoints (GET, POST, etc.).
 2.  **🧠 Auto-Understand**: Parse parameter requirements and descriptions.
@@ -44,7 +44,7 @@ ReActAgent agent = ReActAgent.builder()
 agent.run("What is the status of flight AA100?");
 ```
 
-👉 **[Learn more about the OpenAPI Tool](OpenAPI-Tool)**
+👉 **[Learn more about the OpenAPI Tool](OpenAPI-Tool.md)**
 
 ---
 
@@ -52,10 +52,10 @@ agent.run("What is the status of flight AA100?");
 
 | Guide | Description |
 |-------|-------------|
-| **[🚀 Getting Started](Getting-Started)** | Installation, configuration, and your first "Hello World". |
-| **[🤖 ReAct Agent](ReAct-Agent)** | Build agents that can reason, plan, and use tools. |
-| **[🌐 OpenAPI Tool](OpenAPI-Tool)** | **NEW!** Auto-discover and use REST APIs dynamically. |
-| **[🛠️ Custom Tools](Creating-Custom-Tools)** | Extend your agent's capabilities with custom logic. |
+| **[🚀 Getting Started](Getting-Started.md)** | Installation, configuration, and your first "Hello World". |
+| **[🤖 ReAct Agent](ReAct-Agent.md)** | Build agents that can reason, plan, and use tools. |
+| **[🌐 OpenAPI Tool](OpenAPI-Tool.md)** | **NEW!** Auto-discover and use REST APIs dynamically. |
+| **[🛠️ Custom Tools](Creating-Custom-Tools.md)** | Extend your agent's capabilities with custom logic. |
 
 ---
 
@@ -121,7 +121,7 @@ implementation 'io.github.llm4j:gemini-react-java:0.1.0-SNAPSHOT'
 
 - **Found a bug?** [Open an Issue](https://github.com/srijithunni7182/llm4j/issues)
 - **Have a question?** [Start a Discussion](https://github.com/srijithunni7182/llm4j/discussions)
-- **Want to contribute?** Check out our [Contributing Guidelines](Contributing)
+- **Want to contribute?** Check out our [Contributing Guidelines](Contributing.md)
 
 ---
 

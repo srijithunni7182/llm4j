@@ -111,9 +111,29 @@ public class WeatherTool implements Tool {
         return "The weather in " + city + " is Sunny."; // Mock implementation
     }
 }
+
+## 6. Dynamic Tools (OpenAPI)
+
+The library supports generating tools dynamically from OpenAPI specifications.
+
+```java
+import io.github.llm4j.agent.tools.openapi.OpenAPITool;
+
+// Create tool from URL or file
+OpenAPITool aviationTool = OpenAPITool.builder()
+    .name("AviationStack")
+    .specLocation("https://api.aviationstack.com/openapi.json")
+    .apiKeyAuth("access_key", "YOUR_KEY")
+    .build();
+
+// Add to agent
+agent = ReActAgent.builder()
+    .llmClient(client)
+    .addTool(aviationTool)
+    .build();
 ```
 
-## 6. Best Practices
+## 7. Best Practices
 - **Tool Descriptions**: Always specify the expected JSON structure in the `getDescription()` method (e.g., "Input should be a JSON object with 'x' and 'y' fields").
 - **Error Handling**: Tools should return error strings rather than throwing unchecked exceptions, so the agent can self-correct.
 - **Loop Detection**: The agent has built-in loop detection; if it gets stuck, it will receive an error observation.
