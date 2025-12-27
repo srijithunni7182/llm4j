@@ -1,0 +1,34 @@
+.chat-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f0f2f5;
+  font-family: 'Inter', sans-serif;
+}
+
+.chat-header {
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  color: white;
+  padding: 1rem 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+}
+
+.chat-main {
+  flex: 1;
+  min-height: 0; // Important for flex child scrolling
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-footer {
+  background-color: white;
+  padding: 1rem 2rem;
+  border-top: 1px solid #e0e0e0;
+}

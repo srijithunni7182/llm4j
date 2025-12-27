@@ -3,6 +3,7 @@ package io.github.llm4j.agent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.github.llm4j.LLMClient;
+import io.github.llm4j.agent.persona.AgentPersona;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import org.slf4j.Logger;
@@ -56,10 +57,12 @@ public class ReActAgent {
     private final String systemPrompt;
     private final int maxIterations;
     private final double temperature;
+    private final AgentPersona persona;
 
     private ReActAgent(Builder builder) {
         this.llmClient = Objects.requireNonNull(builder.llmClient, "llmClient cannot be null");
         this.tools = new HashMap<>(builder.tools);
+        this.persona = builder.persona;
         this.systemPrompt = builder.systemPrompt != null ? builder.systemPrompt : buildDefaultSystemPrompt();
         this.maxIterations = builder.maxIterations;
         this.temperature = builder.temperature;
@@ -206,6 +209,13 @@ public class ReActAgent {
     }
 
     private String buildDefaultSystemPrompt() {
+        StringBuilder prompt = new StringBuilder();
+
+        // Add persona context if present
+        if (persona != null) {
+            prompt.append(persona.toSystemPromptAddition()).append("\n\n");
+        }
+
         StringBuilder toolDescriptions = new StringBuilder();
         List<String> toolNames = new ArrayList<>();
 
@@ -215,9 +225,11 @@ public class ReActAgent {
             toolNames.add(tool.getName());
         }
 
-        return DEFAULT_SYSTEM_PROMPT
+        prompt.append(DEFAULT_SYSTEM_PROMPT
                 .replace("{tool_descriptions}", toolDescriptions.toString())
-                .replace("{tool_names}", String.join(", ", toolNames));
+                .replace("{tool_names}", String.join(", ", toolNames)));
+
+        return prompt.toString();
     }
 
     public static Builder builder() {
@@ -230,6 +242,7 @@ public class ReActAgent {
         private String systemPrompt;
         private int maxIterations = 10;
         private double temperature = 0.7;
+        private AgentPersona persona;
 
         private Builder() {
         }
@@ -263,6 +276,11 @@ public class ReActAgent {
 
         public Builder temperature(double temperature) {
             this.temperature = temperature;
+            return this;
+        }
+
+        public Builder persona(AgentPersona persona) {
+            this.persona = persona;
             return this;
         }
 

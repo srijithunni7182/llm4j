@@ -1,0 +1,185 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "AviationStack API",
+        "version": "1.0.0",
+        "description": "Real-time and historical flight status and tracking information"
+    },
+    "servers": [
+        {
+            "url": "http://api.aviationstack.com/v1"
+        }
+    ],
+    "paths": {
+        "/flights": {
+            "get": {
+                "operationId": "getFlights",
+                "summary": "Get flight information",
+                "description": "Retrieve real-time and historical flight status and tracking information",
+                "parameters": [
+                    {
+                        "name": "flight_iata",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by flight IATA code (e.g., AA100, BA456)"
+                    },
+                    {
+                        "name": "flight_icao",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by flight ICAO code"
+                    },
+                    {
+                        "name": "airline_name",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by airline name (e.g., American Airlines)"
+                    },
+                    {
+                        "name": "airline_iata",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by airline IATA code (e.g., AA)"
+                    },
+                    {
+                        "name": "dep_iata",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by departure airport IATA code (e.g., BLR, JFK)"
+                    },
+                    {
+                        "name": "arr_iata",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by arrival airport IATA code (e.g., BLR, JFK)"
+                    },
+                    {
+                        "name": "flight_status",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "scheduled",
+                                "active",
+                                "landed",
+                                "cancelled",
+                                "incident",
+                                "diverted"
+                            ]
+                        },
+                        "description": "Filter by flight status"
+                    },
+                    {
+                        "name": "flight_date",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        },
+                        "description": "Filter by flight date (YYYY-MM-DD format). Note: May require paid plan"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/airlines": {
+            "get": {
+                "operationId": "getAirlines",
+                "summary": "Get airline information",
+                "description": "Retrieve information about airlines",
+                "parameters": [
+                    {
+                        "name": "airline_name",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by airline name"
+                    },
+                    {
+                        "name": "iata_code",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by airline IATA code"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response"
+                    }
+                }
+            }
+        },
+        "/airports": {
+            "get": {
+                "operationId": "getAirports",
+                "summary": "Get airport information",
+                "description": "Retrieve information about airports worldwide",
+                "parameters": [
+                    {
+                        "name": "airport_name",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by airport name"
+                    },
+                    {
+                        "name": "iata_code",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by airport IATA code (e.g., BLR, JFK)"
+                    },
+                    {
+                        "name": "city",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by city name"
+                    },
+                    {
+                        "name": "country_name",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Filter by country name"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response"
+                    }
+                }
+            }
+        }
+    }
+}

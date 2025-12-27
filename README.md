@@ -13,6 +13,9 @@
 
 - **🤖 Google Gemini First**: Full integration with Gemini 1.5 Flash, Pro, and 2.x models.
 - **🛠️ ReAct Agent Framework**: Build AI agents that can reason and use tools (Calculator, Web Search, etc.).
+- **🎭 Agent Personas**: Configurable behavioral characteristics for deterministic agent responses.
+- **📚 RAG Support**: Retrieval-Augmented Generation with vector similarity search.
+- **🕸️ Knowledge Graphs**: Structured knowledge representation with entity-relationship querying.
 - **⚡ Robust Tooling**: Typed tool interface with JSON input parsing and error feedback loops.
 - **🔄 Production Ready**: Automatic retries, error handling, and thread-safe design.
 - **🧪 100% Tested**: Comprehensive integration test suite verifying real-world usage.
@@ -150,6 +153,189 @@ ReActAgent agent = ReActAgent.builder()
 ```
 
 See the [OpenAPI Tool Wiki](wiki/OpenAPI-Tool) for full documentation.
+
+## Agent Personas
+
+Make your agents more deterministic and role-specific with configurable personas.
+
+### Using Pre-built Personas
+
+```java
+import io.github.llm4j.agent.persona.PersonaLibrary;
+
+// Technical analyst - data-driven and precise
+ReActAgent analyst = ReActAgent.builder()
+    .llmClient(client)
+    .addTool(new CalculatorTool())
+    .persona(PersonaLibrary.technicalAnalyst())
+    .build();
+
+// Customer support - empathetic and helpful
+ReActAgent support = ReActAgent.builder()
+    .llmClient(client)
+    .addTool(new CalculatorTool())
+    .persona(PersonaLibrary.customerSupport())
+    .build();
+```
+
+**Available Pre-built Personas:**
+
+- `technicalAnalyst()` - Data-driven, precise, analytical
+- `creativeWriter()` - Expressive, imaginative, engaging
+- `customerSupport()` - Empathetic, helpful, solution-focused
+- `softwareDeveloper()` - Technical, systematic, best-practices oriented
+- `researchScientist()` - Methodical, evidence-based, thorough
+- `businessConsultant()` - Strategic, pragmatic, ROI-focused
+- `educator()` - Clear, patient, encouraging
+- `medicalAdvisor()` - Careful, evidence-based, patient-centered
+
+### Creating Custom Personas
+
+```java
+import io.github.llm4j.agent.persona.AgentPersona;
+
+AgentPersona customPersona = AgentPersona.builder()
+    .name("Math Tutor")
+    .role("friendly mathematics teacher")
+    .expertise("Step-by-step problem solving and mathematics education")
+    .tone("Encouraging, patient, and educational")
+    .addConstraint("Break down problems into simple steps")
+    .addConstraint("Explain the reasoning behind each step")
+    .build();
+
+ReActAgent agent = ReActAgent.builder()
+    .llmClient(client)
+    .addTool(new CalculatorTool())
+    .persona(customPersona)
+    .build();
+```
+
+See the [Agent Personas Wiki](wiki/Agent-Personas) for more details.
+
+## RAG (Retrieval-Augmented Generation)
+
+Enhance your agents with document-based context retrieval using vector similarity search.
+
+### Basic RAG Setup
+
+```java
+import io.github.llm4j.agent.rag.*;
+import io.github.llm4j.agent.rag.document.*;
+import io.github.llm4j.agent.rag.embedding.*;
+import io.github.llm4j.agent.rag.store.*;
+
+// 1. Create embedding provider (uses Gemini text-embedding-004)
+EmbeddingProvider embeddingProvider = new GeminiEmbeddingProvider(config);
+
+// 2. Create vector store
+VectorStore vectorStore = new InMemoryVectorStore();
+
+// 3. Create base agent
+ReActAgent baseAgent = ReActAgent.builder()
+    .llmClient(client)
+    .addTool(new CalculatorTool())
+    .build();
+
+// 4. Create RAG agent
+RAGAgent ragAgent = RAGAgent.builder()
+    .agent(baseAgent)
+    .vectorStore(vectorStore)
+    .embeddingProvider(embeddingProvider)
+    .topK(3)  // Retrieve top 3 most relevant chunks
+    .build();
+
+// 5. Add documents
+Document doc = Document.builder()
+    .id("doc1")
+    .content("Your document content here...")
+    .addMetadata("source", "manual")
+    .build();
+
+// Chunk the document
+FixedSizeChunkingStrategy chunker = new FixedSizeChunkingStrategy(500, 50);
+List<DocumentChunk> chunks = chunker.chunk(doc);
+doc = Document.builder()
+    .id(doc.getId())
+    .content(doc.getContent())
+    .chunks(chunks)
+    .build();
+
+ragAgent.addDocument(doc);
+
+// 6. Query with context
+AgentResult result = ragAgent.run("What does the document say about X?");
+```
+
+### Document Chunking Strategies
+
+```java
+// Fixed-size chunking with overlap
+FixedSizeChunkingStrategy chunker = new FixedSizeChunkingStrategy(
+    500,  // chunk size in characters
+    50    // overlap between chunks
+);
+```
+
+See the [RAG Support Wiki](wiki/RAG-Support) for advanced usage.
+
+## Knowledge Graphs
+
+Enable your agents to reason over structured knowledge using entity-relationship graphs.
+
+### Building a Knowledge Graph
+
+```java
+import io.github.llm4j.agent.knowledge.*;
+import io.github.llm4j.agent.knowledge.model.*;
+import io.github.llm4j.agent.knowledge.store.*;
+import io.github.llm4j.agent.knowledge.tools.*;
+
+// 1. Create knowledge graph
+KnowledgeGraph graph = new InMemoryGraphStore();
+
+// 2. Add entities
+Entity alice = Entity.builder()
+    .id("alice")
+    .type("Person")
+    .addProperty("name", "Alice Johnson")
+    .addProperty("title", "CEO")
+    .build();
+
+Entity bob = Entity.builder()
+    .id("bob")
+    .type("Person")
+    .addProperty("name", "Bob Smith")
+    .addProperty("title", "CTO")
+    .build();
+
+// 3. Add relationships
+graph.addTriple(new Triple(
+    bob,
+    Relation.builder().type("REPORTS_TO").build(),
+    alice
+));
+
+// 4. Create agent with graph query tool
+ReActAgent agent = ReActAgent.builder()
+    .llmClient(client)
+    .addTool(new GraphQueryTool(graph))
+    .build();
+
+// 5. Query the graph
+AgentResult result = agent.run("Who does Bob report to?");
+```
+
+### Querying the Graph
+
+The `GraphQueryTool` allows agents to:
+
+- Find entities by ID or type
+- Query relationships between entities
+- Filter entities by properties
+
+See the [Knowledge Graphs Wiki](wiki/Knowledge-Graphs) for more details.
+
+## Advanced Configuration
 
 ### Creating Custom Tools
 
@@ -368,6 +554,7 @@ For issues and questions, please use the [GitHub Issues](https://github.com/srij
 ## Acknowledgments
 
 Built with:
+
 - [OkHttp](https://square.github.io/okhttp/) - HTTP client
 - [Jackson](https://github.com/FasterXML/jackson) - JSON processing
 - [SLF4J](http://www.slf4j.org/) - Logging facade

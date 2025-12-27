@@ -1,0 +1,13 @@
+<div class="chat-layout">
+  <header class="chat-header">
+    <h1>✈️ Aviation Chatbot</h1>
+  </header>
+  
+  <main class="chat-main">
+    <app-message-list [messages]="messages" [isLoading]="isLoading"></app-message-list>
+  </main>
+  
+  <footer class="chat-footer">
+    <app-input-area (sendMessage)="onSendMessage($event)" [disabled]="isLoading"></app-input-area>
+  </footer>
+</div>

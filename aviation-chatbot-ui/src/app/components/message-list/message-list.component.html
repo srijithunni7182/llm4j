@@ -1,0 +1,12 @@
+<div class="message-list" #scrollContainer>
+    <div *ngFor="let message of messages" class="message-wrapper"
+        [ngClass]="{'user': message.sender === 'user', 'bot': message.sender === 'bot'}">
+        <app-message-bubble [message]="message"></app-message-bubble>
+    </div>
+
+    <div *ngIf="isLoading" class="loading-indicator">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+    </div>
+</div>

@@ -1,0 +1,9 @@
+<div class="input-container">
+    <input type="text" [(ngModel)]="inputText" (keyup.enter)="onSend()" [disabled]="disabled"
+        placeholder="Type your message here..." class="message-input">
+    <button (click)="onSend()" [disabled]="!inputText.trim() || disabled" class="send-button">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+        </svg>
+    </button>
+</div>

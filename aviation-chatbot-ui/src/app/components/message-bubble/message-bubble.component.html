@@ -1,0 +1,4 @@
+<div class="bubble" [ngClass]="{'user': message.sender === 'user', 'bot': message.sender === 'bot'}">
+    <div class="content">{{ message.text }}</div>
+    <div class="timestamp">{{ message.timestamp | date:'shortTime' }}</div>
+</div>

@@ -57,6 +57,13 @@
             <version>2.1.19</version>
         </dependency>
 
+        <!-- Vector similarity calculations for RAG -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-math3</artifactId>
+            <version>3.6.1</version>
+        </dependency>
+
         <!-- Test Dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
