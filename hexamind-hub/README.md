@@ -1,8 +1,8 @@
 # Hexamind Hub
 
-![Hexamind Hub Logo](src/main/resources/static/images/hexamind_logo.png)
+<img src="src/main/resources/static/images/hexamind_logo.png" width="200" alt="Hexamind Hub Logo">
 
-**Hexamind Hub** (formerly Multi-Agent Collaboration Platform) is a cutting-edge platform for multi-agent collaboration, where a team of specialize AI agents work together to solve complex, multifaceted problems.
+**Hexamind Hub** (formerly Multi-Agent Collaboration Platform) is a cutting-edge platform for multi-agent collaboration, where a team of specialized AI agents work together to solve complex, multifaceted problems.
 
 ## 💡 The Idea
 
