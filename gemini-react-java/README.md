@@ -130,7 +130,11 @@ for (AgentResult.AgentStep step : result.getSteps()) {
 ### Built-in Tools
 
 - **CalculatorTool**: Evaluate mathematical expressions
-- **CurrentTimeTool**: Get current date and time
+- **DateTimeTool**: Get current date and time (RFC 1123 format)
+- **SerpApiSearchTool**: High-quality web search using SerpAPI
+- **DuckDuckGoSearchTool**: Free web search fallback using DuckDuckGo
+- **FallbackSearchTool**: Chained search implementation for high reliability
+- **CachedSearchTool**: Static caching wrapper to reduce API usage across agents
 - **EchoTool**: Simple echo tool (useful for testing)
 
 ### 🌐 OpenAPI Support (New!)
@@ -543,13 +547,15 @@ For issues and questions, please use the [GitHub Issues](https://github.com/srij
 
 ## Roadmap
 
-- [ ] Streaming support (Server-Sent Events)
-- [ ] Function calling / tool use support
+- [x] Streaming support (Server-Sent Events)
+- [x] Function calling / tool use support
+- [x] Search fallback and caching mechanisms
+- [x] Temporal awareness for agents
 - [ ] Additional providers (Cohere, Together AI, etc.)
-- [ ] Embeddings API support
-- [ ] Token counting utilities
+- [x] Embeddings API support
+- [x] Token counting utilities
 - [ ] Async API support
-- [ ] Spring Boot starter
+- [x] Spring Boot starter (Hexamind Hub)
 
 ## Acknowledgments
 

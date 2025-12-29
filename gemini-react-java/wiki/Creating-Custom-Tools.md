@@ -456,6 +456,36 @@ public class EmailSenderTool implements Tool {
         return "Email sent successfully to " + recipientName;
     }
 }
+
+## Advanced Tool Patterns
+
+### 1. The Fallback Pattern
+Use `FallbackSearchTool` to chain multiple search implementations for high reliability.
+
+```java
+Tool serpApi = new SerpApiSearchTool(apiKey);
+Tool duckDuckGo = new DuckDuckGoSearchTool();
+Tool fallback = new FallbackSearchTool("WebSearch", List.of(serpApi, duckDuckGo));
+```
+
+### 2. The Caching Pattern
+
+Use `CachedSearchTool` to wrap expensive tools and prevent redundant calls.
+
+```java
+Tool expensiveSearch = new SerpApiSearchTool(apiKey);
+Tool cachedSearch = new CachedSearchTool(expensiveSearch);
+```
+
+### 3. Base URL Override
+
+Most built-in tools support `baseUrl` overrides for testing or proxy support.
+
+```java
+// Connect to a local mock server for testing
+DuckDuckGoSearchTool tool = new DuckDuckGoSearchTool(httpClient, "http://localhost:8080");
+```
+
 ```
 
 ## Example: Complete Weather Tool

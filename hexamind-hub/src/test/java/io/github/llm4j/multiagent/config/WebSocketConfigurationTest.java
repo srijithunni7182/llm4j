@@ -98,4 +98,21 @@ class WebSocketConfigurationTest {
 
         verify(registry).setApplicationDestinationPrefixes("/app");
     }
+
+    @Test
+    void testConfigureWebSocketTransport() {
+        WebSocketConfiguration config = new WebSocketConfiguration();
+        org.springframework.web.socket.config.annotation.WebSocketTransportRegistration registration = mock(
+                org.springframework.web.socket.config.annotation.WebSocketTransportRegistration.class);
+
+        when(registration.setMessageSizeLimit(anyInt())).thenReturn(registration);
+        when(registration.setSendBufferSizeLimit(anyInt())).thenReturn(registration);
+        when(registration.setSendTimeLimit(anyInt())).thenReturn(registration);
+
+        config.configureWebSocketTransport(registration);
+
+        verify(registration).setMessageSizeLimit(512 * 1024);
+        verify(registration).setSendBufferSizeLimit(1024 * 1024);
+        verify(registration).setSendTimeLimit(20000);
+    }
 }

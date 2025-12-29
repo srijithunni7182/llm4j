@@ -20,14 +20,20 @@ public class SerpApiSearchTool implements Tool {
     private final String apiKey;
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final String baseUrl;
 
     public SerpApiSearchTool(String apiKey) {
-        this(apiKey, new OkHttpClient());
+        this(apiKey, new OkHttpClient(), "https://serpapi.com/search");
     }
 
     public SerpApiSearchTool(String apiKey, OkHttpClient httpClient) {
+        this(apiKey, httpClient, "https://serpapi.com/search");
+    }
+
+    public SerpApiSearchTool(String apiKey, OkHttpClient httpClient, String baseUrl) {
         this.apiKey = apiKey;
         this.httpClient = httpClient;
+        this.baseUrl = baseUrl;
         this.objectMapper = new ObjectMapper();
     }
 
@@ -43,7 +49,7 @@ public class SerpApiSearchTool implements Tool {
     }
 
     @Override
-    public String execute(Map<String, Object> args) {
+    public String execute(Map<String, Object> args) throws Exception {
         String query = (String) args.get("query");
         if (query == null || query.trim().isEmpty()) {
             query = (String) args.get("input");
@@ -57,18 +63,14 @@ public class SerpApiSearchTool implements Tool {
             return "Error: SerpAPI key not configured for SerpApiSearchTool.";
         }
 
-        try {
-            return performSearch(query);
-        } catch (IOException e) {
-            return "Error performing search with SerpAPI: " + e.getMessage();
-        }
+        return performSearch(query);
     }
 
     private String performSearch(String query) throws IOException {
         String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
         // Using engine=google by default
-        String url = String.format("https://serpapi.com/search?q=%s&api_key=%s&engine=google",
-                encodedQuery, apiKey);
+        String url = String.format("%s?q=%s&api_key=%s&engine=google",
+                baseUrl, encodedQuery, apiKey);
 
         Request request = new Request.Builder()
                 .url(url)

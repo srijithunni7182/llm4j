@@ -1,6 +1,5 @@
 package io.github.llm4j.agent.tools;
 
-import okhttp3.OkHttpClient;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
@@ -22,21 +21,8 @@ class SerpApiSearchToolTest {
     void setUp() throws IOException {
         mockWebServer = new MockWebServer();
         mockWebServer.start();
-
-        // Use an Interceptor to redirect serpapi.com to localhost for testing
-        OkHttpClient client = new OkHttpClient.Builder()
-                .addInterceptor(chain -> {
-                    okhttp3.Request original = chain.request();
-                    okhttp3.HttpUrl newUrl = original.url().newBuilder()
-                            .scheme("http")
-                            .host(mockWebServer.getHostName())
-                            .port(mockWebServer.getPort())
-                            .build();
-                    return chain.proceed(original.newBuilder().url(newUrl).build());
-                })
-                .build();
-
-        serpApiSearchTool = new SerpApiSearchTool(apiKey, client);
+        String baseUrl = mockWebServer.url("/search").toString();
+        serpApiSearchTool = new SerpApiSearchTool(apiKey, new okhttp3.OkHttpClient(), baseUrl);
     }
 
     @AfterEach
@@ -45,20 +31,20 @@ class SerpApiSearchToolTest {
     }
 
     @Test
-    void testMissingApiKey() {
+    void testMissingApiKey() throws Exception {
         SerpApiSearchTool tool = new SerpApiSearchTool(null);
         String result = tool.execute(Map.of("query", "test"));
         assertThat(result).contains("Error: SerpAPI key not configured");
     }
 
     @Test
-    void testMissingQuery() {
+    void testMissingQuery() throws Exception {
         String result = serpApiSearchTool.execute(Map.of());
         assertThat(result).contains("Error: No search 'query' provided");
     }
 
     @Test
-    void testSuccessfulSearch() {
+    void testSuccessfulSearch() throws Exception {
         String jsonResponse = """
                 {
                   "organic_results": [
@@ -81,7 +67,7 @@ class SerpApiSearchToolTest {
     }
 
     @Test
-    void testNoResults() {
+    void testNoResults() throws Exception {
         String jsonResponse = """
                 {
                   "organic_results": []
@@ -95,7 +81,7 @@ class SerpApiSearchToolTest {
     }
 
     @Test
-    void testApiError() {
+    void testApiError() throws Exception {
         mockWebServer.enqueue(new MockResponse().setResponseCode(401).setBody("Invalid API Key"));
 
         String result = serpApiSearchTool.execute(Map.of("query", "test serp query"));

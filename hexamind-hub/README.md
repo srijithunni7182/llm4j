@@ -66,14 +66,38 @@ Finally, the system acts as a "Master Coordinator" to synthesize all expert opin
 * Addresses critical risks raised (especially by Rahul).
 * Synthesizes a final, unified recommendation.
 
+## ✨ Key Enhancements
+
+### 🔍 Search Optimization & Fallback
+
+To ensure maximum reliability and efficiency, the hub uses a tiered search strategy:
+
+1. **SerpAPI**: Primary high-quality search (requires API key).
+2. **DuckDuckGo**: Reliable free fallback for instant answers.
+3. **Google Custom Search**: Secondary fallback.
+All results are managed by a **Cross-Agent Caching Layer**, which ensures that if one agent searches for a topic, all other agents can access that information instantly without making redundant API calls.
+
+### ⏰ Temporal Awareness
+
+Agents are no longer "stuck in time." Every agent is automatically aware of the current date and time via:
+* **Prompt Injection**: The current time is injected into every agent's system prompt during initialization.
+* **DateTimeTool**: Agents can explicitly use this tool to get the current timestamp in RFC 1123 format.
+
+### ⚡ UI Stability
+
+Optimized for large-scale analysis:
+* **WebSocket Tuning**: Increased server-side limits (512KB messages, 1MB buffer) to prevent truncation of deep-dive expert responses.
+* **Heartbeat Management**: Enhanced client-side stability for long-running collaborative sessions.
+
 ## 🚀 Setup & Running
 
 ### Prerequisites
 
 * **Java 17** or higher
 * **Maven** 3.8+
-* **Google Gemini API Key** (Get one [here](https://aistudio.google.com/))
-* **Google Custom Search Engine ID (CX)** (Required for Web Search/Fact-checking)
+* **Google Gemini API Key** (Required - [Get one here](https://aistudio.google.com/))
+* **SerpAPI API Key** (Highly Recommended for high-quality search)
+* **Google Custom Search Engine ID (CX)** (Optional fallback)
 
 ### Step 1: Clone & Build
 
@@ -108,6 +132,7 @@ You need to set your API keys. You can do this by exporting them in your termina
 
     ```bash
     export GOOGLE_API_KEY="AIzaSy..."
+    export SERPAPI_API_KEY="your_serp_key..."
     export GOOGLE_SEARCH_CX="012345..."
     ```
 

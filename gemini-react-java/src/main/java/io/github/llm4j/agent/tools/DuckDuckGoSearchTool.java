@@ -21,13 +21,15 @@ public class DuckDuckGoSearchTool implements Tool {
 
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final String baseUrl;
 
     public DuckDuckGoSearchTool() {
-        this(new OkHttpClient());
+        this(new OkHttpClient(), "https://api.duckduckgo.com/");
     }
 
-    public DuckDuckGoSearchTool(OkHttpClient httpClient) {
+    public DuckDuckGoSearchTool(OkHttpClient httpClient, String baseUrl) {
         this.httpClient = httpClient;
+        this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
         this.objectMapper = new ObjectMapper();
     }
 
@@ -61,8 +63,8 @@ public class DuckDuckGoSearchTool implements Tool {
     private String performSearch(String query) throws IOException {
         String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
         // Using the Abstract Answer API (Instant Answer)
-        String url = String.format("https://api.duckduckgo.com/?q=%s&format=json&pretty=1&no_html=1&skip_disambig=1",
-                encodedQuery);
+        String url = String.format("%s?q=%s&format=json&pretty=1&no_html=1&skip_disambig=1",
+                baseUrl, encodedQuery);
 
         Request request = new Request.Builder()
                 .url(url)
