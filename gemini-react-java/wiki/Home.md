@@ -16,35 +16,19 @@
 
 ---
 
-## 🔥 Feature Spotlight: The OpenAPI Tool
-
-**Turn any REST API into an AI Tool instantly.**
-
-The **[OpenAPI Tool](OpenAPI-Tool.md)** is a game-changer for building connected agents. Instead of writing manual tool code for every API endpoint, simply point the agent to an OpenAPI (Swagger) spec, and it will:
-
-1.  **🔍 Auto-Discover**: Find all available endpoints (GET, POST, etc.).
-2.  **🧠 Auto-Understand**: Parse parameter requirements and descriptions.
-3.  **⚡ Auto-Execute**: Handle authentication and HTTP requests automatically.
-
-```java
-// 1. Define the Tool
-OpenAPITool aviationTool = OpenAPITool.builder()
-    .name("AviationStack")
-    .specLocation("https://api.aviationstack.com/openapi.json")
-    .apiKeyAuth("access_key", "YOUR_KEY")
-    .build();
-
-// 2. Add to Agent
-ReActAgent agent = ReActAgent.builder()
-    .llmClient(client)
-    .addTool(aviationTool)
-    .build();
-
-// 3. Magic!
-agent.run("What is the status of flight AA100?");
-```
-
 👉 **[Learn more about the OpenAPI Tool](OpenAPI-Tool.md)**
+
+---
+
+## 🔥 Feature Spotlight: Search Optimization & Caching
+
+**Build lightning-fast, cost-effective agents with tiered search.**
+
+The new search framework allows you to chain multiple search providers (SerpAPI, DuckDuckGo, etc.) with a built-in **[Caching Layer](Creating-Custom-Tools.md#2-the-caching-pattern)**.
+
+1. **🚀 Performance**: Successful search results are cached case-insensitively, serving future identical queries in milliseconds.
+2. **💰 Cost Savings**: Dramatically reduces consumption of expensive search API credits by sharing results across agents.
+3. **🛡️ Reliability**: Automatically falls back to secondary providers if the primary (e.g., SerpAPI) hits a quota limit.
 
 ---
 
@@ -62,16 +46,19 @@ agent.run("What is the status of flight AA100?");
 ## ✨ Key Features
 
 ### 🤖 Google Gemini First
+
 - **Full Integration**: Native support for Gemini 1.5 Flash, Pro, and 2.x models.
 - **Auto-Discovery**: Automatically finds the latest available models.
 - **Type-Safe**: Strongly typed request/response models.
 
 ### 🧠 Powerful ReAct Agents
+
 - **Reasoning Loop**: Implements the "Reasoning + Acting" paradigm.
 - **Pluggable Tools**: Easily add Calculator, Web Search, or custom tools.
 - **Loop Detection**: Smart detection of infinite loops or repetitive actions.
 
 ### 🛡️ Production Ready
+
 - **Robust Error Handling**: Specific exceptions for Auth, Rate Limits, and more.
 - **Retry Policies**: Configurable exponential backoff strategies.
 - **Thread-Safe**: Designed for high-concurrency environments.
@@ -92,7 +79,8 @@ graph TD
     Agent[ReActAgent] --> Client
     Agent --> Tools[Tools]
     Tools --> Calc[Calculator]
-    Tools --> Time[CurrentTime]
+    Tools --> Time[DateTime]
+    Tools --> Search[Tiered Search + Cache]
     Tools --> OpenAPI[OpenAPI Tool]
     end
 ```
@@ -102,6 +90,7 @@ graph TD
 ## 📦 Installation
 
 ### Maven
+
 ```xml
 <dependency>
     <groupId>io.github.llm4j</groupId>
@@ -111,6 +100,7 @@ graph TD
 ```
 
 ### Gradle
+
 ```gradle
 implementation 'io.github.llm4j:gemini-react-java:0.1.0-SNAPSHOT'
 ```

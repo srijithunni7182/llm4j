@@ -5,6 +5,7 @@ The ReAct (Reasoning and Acting) agent framework enables LLMs to use tools throu
 ## What is ReAct?
 
 ReAct is a paradigm where an LLM:
+
 1. **Thinks** about what to do next
 2. **Acts** by calling a tool
 3. **Observes** the result
@@ -20,13 +21,13 @@ This enables LLMs to solve complex problems by breaking them down into steps and
 import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.agent.AgentResult;
 import io.github.llm4j.agent.tools.CalculatorTool;
-import io.github.llm4j.agent.tools.CurrentTimeTool;
+import io.github.llm4j.agent.tools.DateTimeTool;
 
 // Create agent with tools
 ReActAgent agent = ReActAgent.builder()
         .llmClient(client)                  // Your configured LLM client
         .addTool(new CalculatorTool())      // Add tools
-        .addTool(new CurrentTimeTool())
+        .addTool(new DateTimeTool())
         .maxIterations(10)                  // Max reasoning steps
         .temperature(0.7)                   // LLM temperature
         .build();
@@ -71,24 +72,45 @@ String result = calc.execute(Map.of("expression", "(100 - 25) * 2")); // Returns
 **Supported operations**: `+`, `-`, `*`, `/`, parentheses
 
 **Example queries**:
+
 - "What is 15 * 23 + 47?"
 - "Calculate (100 - 25) * 2 and add 50 to it"
 
-### CurrentTimeTool
+### DateTimeTool
 
-Returns current date and time:
+Returns current date and time in a standard RFC 1123 format (e.g., `Wed, 21 Oct 2025 07:28:00 GMT`). This is crucial for agents that need to be temporally grounded.
 
 ```java
-import io.github.llm4j.agent.tools.CurrentTimeTool;
+import io.github.llm4j.agent.tools.DateTimeTool;
 import java.util.Map;
 
-CurrentTimeTool time = new CurrentTimeTool();
-String result = time.execute(Map.of()); // Returns "2024-11-21 23:20:52 IST"
+DateTimeTool time = new DateTimeTool();
+String result = time.execute(Map.of()); 
 ```
 
 **Example queries**:
+
 - "What is the current date and time?"
 - "What day is it today?"
+
+### Search Tools (Tiered Strategy)
+
+The library provides several search implementations designed to be used together:
+
+1. **`SerpApiSearchTool`**: High-quality Google Search results via SerpAPI.
+2. **`DuckDuckGoSearchTool`**: Free fallback for instant answers.
+3. **`FallbackSearchTool`**: Chains multiple tools together.
+4. **`CachedSearchTool`**: Wraps any search tool to provide cross-agent caching of successful results.
+
+```java
+// Recommended High-Reliability Setup
+Tool search = new CachedSearchTool(
+    new FallbackSearchTool("WebSearch", List.of(
+        new SerpApiSearchTool(apiKey),
+        new DuckDuckGoSearchTool()
+    ))
+);
+```
 
 ### EchoTool
 
@@ -180,6 +202,7 @@ agent.run("I have $100. I spend $25 on lunch and $15 on coffee. " +
 ```
 
 The agent will:
+
 1. Calculate: 100 - 25 = 75
 2. Calculate: 75 - 15 = 60
 3. Calculate: 60 + 50 = 110
@@ -192,6 +215,7 @@ agent.run("What is the sum of the first 10 even numbers?");
 ```
 
 The agent will:
+
 1. Reason about the problem
 2. Calculate: 2 + 4 + 6 + 8 + 10 + 12 + 14 + 16 + 18 + 20
 3. Return: Final Answer: 110
@@ -295,16 +319,19 @@ for (AgentResult.AgentStep step : result.getSteps()) {
 ## Troubleshooting
 
 **Agent keeps hitting max iterations**
+
 - Increase `maxIterations`
 - Simplify your query
 - Provide more specific tool descriptions
 
 **Agent doesn't use tools**
+
 - Check tool descriptions are clear
 - Lower temperature (e.g., 0.3)
 - Ensure tools are actually needed for the query
 
 **Tool errors**
+
 - Validate tool input/output
 - Check tool implementation for bugs
 - Add try-catch in tool's `execute()` method
