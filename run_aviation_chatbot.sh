@@ -12,7 +12,7 @@ fi
 
 # Build Library
 echo "Building Library..."
-mvn install -DskipTests
+(cd gemini-react-java && mvn install -DskipTests)
 if [ $? -ne 0 ]; then
     echo "Library build failed."
     exit 1

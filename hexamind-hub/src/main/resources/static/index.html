@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HexaMind Hub - Neural Collective Intelligence</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #7c4dff;
+            --primary-light: #00e5ff;
+            --secondary: #d400ff;
+            --bg: #0b101a;
+            --card-bg: #151c2c;
+            --text-main: #e2e8f0;
+            --text-dim: #94a3b8;
+            --accent: #00e5ff;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --gradient-main: linear-gradient(135deg, #7c4dff 0%, #00e5ff 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            background-image:
+                radial-gradient(at 0% 0%, rgba(124, 77, 255, 0.2) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(0, 229, 255, 0.15) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(212, 0, 255, 0.1) 0px, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 40px 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        .logo-container {
+            margin-bottom: 1rem;
+        }
+
+        .main-logo {
+            width: 100px;
+            height: 100px;
+            filter: drop-shadow(0 0 20px var(--primary));
+            transition: all 0.5s ease;
+        }
+
+        .main-logo:hover {
+            transform: scale(1.1) rotate(5deg);
+            filter: drop-shadow(0 0 30px var(--primary-light));
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header h1 {
+            font-size: 4rem;
+            font-weight: 800;
+            background: var(--gradient-main);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            letter-spacing: -2px;
+        }
+
+        .header p {
+            color: var(--text-dim);
+            font-size: 1.25rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .input-section {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease;
+        }
+
+        .input-section:focus-within {
+            transform: translateY(-5px);
+            border-color: var(--primary-light);
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 20px;
+            background: rgba(15, 23, 42, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            color: white;
+            font-size: 1.1rem;
+            font-family: inherit;
+            resize: none;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(15, 23, 42, 0.8);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        #submitBtn {
+            background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #submitBtn:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+        }
+
+        #submitBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .agents-panel {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .agents-panel h3 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .agent-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            border-radius: 18px;
+            margin-bottom: 12px;
+            background: rgba(15, 23, 42, 0.3);
+            border: 1px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .agent-card.active {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--primary);
+            transform: translateX(10px);
+        }
+
+        .agent-avatar-small {
+            width: 50px;
+            height: 50px;
+            border-radius: 14px;
+            object-fit: cover;
+            border: 2px solid transparent;
+        }
+
+        .agent-card.active .agent-avatar-small {
+            border-color: var(--primary);
+        }
+
+        .agent-info {
+            flex: 1;
+        }
+
+        .agent-name-label {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text-main);
+        }
+
+        .agent-role-label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .typing-indicator {
+            display: none;
+            font-size: 0.75rem;
+            color: var(--accent);
+            font-style: italic;
+        }
+
+        .agent-card.active .typing-indicator {
+            display: block;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .status-bar {
+            background: var(--card-bg);
+            border-radius: 18px;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .status-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #statusText {
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .round-indicator {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 12px;
+            border-radius: 10px;
+        }
+
+        .debate-timeline {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            min-height: 500px;
+            max-height: 800px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            scroll-behavior: smooth;
+        }
+
+        .timeline-item {
+            display: flex;
+            gap: 20px;
+            max-width: 85%;
+            animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes bounceIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .timeline-item.self {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .avatar-container {
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .agent-avatar-main {
+            width: 60px;
+            height: 60px;
+            border-radius: 20px;
+            object-fit: cover;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .thought-bubble {
+            background: rgba(15, 23, 42, 0.4);
+            border-radius: 20px;
+            padding: 20px;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .thought-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .thought-name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--primary-light);
+        }
+
+        .thought-type-badge {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 4px 10px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-dim);
+        }
+
+        .thought-content {
+            font-size: 1.05rem;
+            line-height: 1.6;
+        }
+
+        .search-grounding {
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(34, 211, 238, 0.05);
+            border-radius: 12px;
+            border-left: 3px solid var(--accent);
+            font-size: 0.9rem;
+            color: var(--accent);
+            display: none;
+        }
+
+        .consensus-card {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%);
+            border-radius: 24px;
+            padding: 40px;
+            border: 2px solid var(--success);
+            margin-top: 20px;
+            animation: popUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+        }
+
+        @keyframes popUp {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .consensus-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--success);
+            margin-bottom: 30px;
+        }
+
+        .consensus-body {
+            display: flex;
+            gap: 40px;
+            text-align: left;
+            align-items: center;
+        }
+
+        .consensus-result {
+            flex: 1;
+        }
+
+        .consensus-result h4 {
+            color: var(--text-dim);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+        }
+
+        .consensus-text {
+            font-size: 1.25rem;
+            line-height: 1.7;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .consensus-text p {
+            margin-bottom: 16px;
+        }
+
+        .consensus-text ul,
+        .consensus-text ol {
+            margin-bottom: 16px;
+            padding-left: 25px;
+        }
+
+        .consensus-text li {
+            margin-bottom: 8px;
+        }
+
+        .consensus-text strong {
+            color: var(--primary-light);
+            font-weight: 700;
+        }
+
+        .thought-content p {
+            margin-bottom: 10px;
+        }
+
+        .thought-content ul,
+        .thought-content ol {
+            margin-bottom: 10px;
+            padding-left: 20px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo-container">
+                <img src="/images/hexamind_logo.png" alt="HexaMind Logo" class="main-logo">
+            </div>
+            <h1 id="main-title">HexaMind Hub</h1>
+            <p class="subtitle">A neural collective of 6 specialized expert personas.</p>
+        </header>
+
+        <section class="input-section">
+            <textarea id="problemInput"
+                placeholder="Present a complex problem or project idea to the circle..."></textarea>
+            <div class="controls">
+                <button id="submitBtn" onclick="submitProblem()">
+                    Start Discussion
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                    </svg>
+                </button>
+            </div>
+        </section>
+
+        <div class="workspace">
+            <aside class="agents-panel">
+                <h3>👥 The Circle</h3>
+                <div id="agentsList"></div>
+            </aside>
+
+            <main class="main-content">
+                <div class="status-bar">
+                    <div class="status-info">
+                        <span id="statusIcon">🟢</span>
+                        <span id="statusText">Ready to assist</span>
+                    </div>
+                    <div class="round-indicator" id="roundIndicator">Standby</div>
+                </div>
+
+                <div class="debate-timeline" id="timeline">
+                    <div style="margin: auto; text-align: center; color: var(--text-dim);">
+                        <p>Waiting for a problem to be presented...</p>
+                    </div>
+                </div>
+
+                <div id="consensusArea"></div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        let stompClient = null;
+        let currentSessionId = null;
+
+        const agentsConfig = [
+            { id: 'tech', name: 'Alex', role: 'Technical Analyst', avatar: '/images/alex.png' },
+            { id: 'business', name: 'Jordan', role: 'Business Consultant', avatar: '/images/jordan.png' },
+            { id: 'creative', name: 'Sasha', role: 'Creative Thinker', avatar: '/images/sasha.png' },
+            { id: 'research', name: 'Dr. Aris', role: 'Research Scientist', avatar: '/images/aris.png' },
+            { id: 'customer', name: 'Casey', role: 'Customer Advocate', avatar: '/images/casey.png' },
+            { id: 'rahul', name: 'Rahul', role: 'Analytical Skeptic', avatar: '/images/rahul.png' }
+        ];
+
+        marked.setOptions({
+            breaks: true,
+            gfm: true
+        });
+
+        function initUI() {
+            const list = document.getElementById('agentsList');
+            agentsConfig.forEach(agent => {
+                const card = document.createElement('div');
+                card.className = 'agent-card';
+                card.id = `card-${agent.id}`;
+                card.innerHTML = `
+                    <img src="${agent.avatar}" class="agent-avatar-small" alt="${agent.name}">
+                    <div class="agent-info">
+                        <div class="agent-name-label">${agent.name}</div>
+                        <div class="agent-role-label">${agent.role}</div>
+                        <div class="typing-indicator">Analyzing...</div>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        async function submitProblem() {
+            const problem = document.getElementById('problemInput').value.trim();
+            if (!problem) return;
+
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('timeline').innerHTML = '';
+            document.getElementById('consensusArea').innerHTML = '';
+            document.getElementById('statusText').innerText = 'Initializing Agents';
+
+            try {
+                const response = await fetch('/api/problems', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ problem })
+                });
+
+                const data = await response.json();
+                currentSessionId = data.sessionId;
+                connectWebSocket(currentSessionId);
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('submitBtn').disabled = false;
+                document.getElementById('statusText').innerText = 'System Error';
+            }
+        }
+
+        function connectWebSocket(sessionId) {
+            const socket = new SockJS('/ws');
+            stompClient = Stomp.over(socket);
+            stompClient.debug = null; // Disable debug logging
+
+            stompClient.connect({}, function () {
+                stompClient.subscribe(`/topic/session/${sessionId}/thoughts`, (msg) => addThought(JSON.parse(msg.body)));
+                stompClient.subscribe(`/topic/session/${sessionId}/status`, (msg) => updateGlobalStatus(JSON.parse(msg.body)));
+                stompClient.subscribe(`/topic/session/${sessionId}/consensus`, (msg) => renderConsensus(JSON.parse(msg.body)));
+            });
+        }
+
+        function addThought(thought) {
+            const timeline = document.getElementById('timeline');
+            const agent = agentsConfig.find(a => a.id === thought.agentId) || { name: thought.agentName, avatar: '' };
+
+            // Highlight active agent
+            document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('active'));
+            const activeCard = document.getElementById(`card-${thought.agentId}`);
+            if (activeCard) activeCard.classList.add('active');
+
+            const item = document.createElement('div');
+            item.className = 'timeline-item';
+
+            const isSeachUsed = thought.content.toLowerCase().includes('search') || thought.content.includes('study') || thought.content.includes('report');
+
+            item.innerHTML = `
+                <div class="avatar-container">
+                    <img src="${agent.avatar}" class="agent-avatar-main">
+                </div>
+                <div class="thought-bubble" style="${agent.id === 'rahul' ? 'border-color: var(--warning); background: rgba(245, 158, 11, 0.05);' : ''}">
+                    <div class="thought-meta">
+                        <span class="thought-name" style="${agent.id === 'rahul' ? 'color: var(--warning);' : ''}">${agent.name}</span>
+                        <span class="thought-type-badge" style="${thought.type === 'CRITIQUE' ? 'background: var(--warning); color: black;' : thought.type === 'REBUTTAL' ? 'background: var(--accent); color: black;' : ''}">${thought.type.replace('_', ' ')}</span>
+                    </div>
+                    <div class="thought-content">${marked.parse(thought.content)}</div>
+                    ${isSeachUsed ? `<div class="search-grounding" style="display:block;">✨ Grounded in real-time web data</div>` : ''}
+                </div>
+            `;
+
+            timeline.appendChild(item);
+            timeline.scrollTop = timeline.scrollHeight;
+        }
+
+        function updateGlobalStatus(session) {
+            const statuses = {
+                'ANALYZING': { icon: '🔍', text: 'Independent Analysis', label: 'Round 1: Analysis' },
+                'DEBATING': { icon: '🔥', text: 'Intense Debate', label: `Round ${session.currentRound}/5+` },
+                'REFINING': { icon: '♻️', text: 'Refining Consensus', label: 'Processing Feedback' },
+                'BUILDING_CONSENSUS': { icon: '🤝', text: 'Forging Consensus', label: 'Finalizing' },
+                'COMPLETED': { icon: '🏆', text: 'Consensus Reached', label: 'Done' }
+            };
+
+            const config = statuses[session.status] || { icon: '⚙️', text: session.status, label: '' };
+            document.getElementById('statusIcon').innerText = config.icon;
+            document.getElementById('statusText').innerText = config.text;
+            document.getElementById('roundIndicator').innerText = config.label;
+        }
+
+        function renderConsensus(consensus) {
+            const area = document.getElementById('consensusArea');
+            const score = Math.round(consensus.agreementScore * 100);
+
+            area.innerHTML = `
+                <div class="consensus-card">
+                    <h2 class="consensus-title">The Expert Consensus</h2>
+                    <div class="consensus-body">
+                        <div class="score-box">
+                            <span class="score-value">${score}%</span>
+                            <span class="score-label">Agreement</span>
+                        </div>
+                        <div class="consensus-result">
+                            <h4>Consolidated Strategy</h4>
+                            <div class="consensus-text">${marked.parse(consensus.recommendation)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('submitBtn').disabled = false;
+            document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('active'));
+
+            // Show feedback area
+            area.innerHTML += `
+                <div class="feedback-section" id="feedbackArea">
+                    <h3>Provide your feedback to the circle:</h3>
+                    <div class="feedback-controls">
+                        <textarea class="feedback-input" id="feedbackInput" placeholder="What do you think of this consensus? Challenge the experts..."></textarea>
+                        <button class="feedback-btn" onclick="submitFeedback()">Send Feedback</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function submitFeedback() {
+            const feedback = document.getElementById('feedbackInput').value.trim();
+            if (!feedback) return;
+
+            document.getElementById('feedbackArea').style.display = 'none';
+
+            // Add user feedback to timeline
+            const timeline = document.getElementById('timeline');
+            const item = document.createElement('div');
+            item.className = 'timeline-item user-feedback';
+            item.innerHTML = `
+                <div class="thought-bubble">
+                    <div class="thought-meta">
+                        <span class="thought-name" style="color: var(--primary-light)">User Feedback</span>
+                    </div>
+                    <div class="thought-content">${feedback}</div>
+                </div>
+            `;
+            timeline.appendChild(item);
+            timeline.scrollTop = timeline.scrollHeight;
+
+            try {
+                await fetch(`/api/sessions/${currentSessionId}/feedback`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ feedback })
+                });
+            } catch (error) {
+                console.error('Error submitting feedback:', error);
+            }
+        }
+
+        initUI();
+    </script>
+</body>
+
+</html>

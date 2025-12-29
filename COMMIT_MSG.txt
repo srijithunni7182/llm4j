@@ -1,0 +1,61 @@
+feat: Add Agent Personas, RAG Support, and Knowledge Graphs
+
+Implemented three major enhancements to the llm4j library:
+
+## 1. Agent Personas
+- Created AgentPersona class with builder pattern for configurable behavioral characteristics
+- Added PersonaLibrary with 8 pre-built personas (Technical Analyst, Creative Writer, Customer Support, etc.)
+- Integrated persona support into ReActAgent via builder pattern
+- Personas modify system prompts to guide agent behavior
+
+New files:
+- src/main/java/io/github/llm4j/agent/persona/AgentPersona.java
+- src/main/java/io/github/llm4j/agent/persona/PersonaLibrary.java
+- src/test/java/io/github/llm4j/agent/persona/AgentPersonaTest.java (8 tests)
+- src/test/java/io/github/llm4j/agent/persona/PersonaLibraryTest.java (9 tests)
+
+## 2. RAG (Retrieval-Augmented Generation)
+- Implemented document processing with chunking strategies
+- Created GeminiEmbeddingProvider using text-embedding-004 (768 dimensions)
+- Built InMemoryVectorStore with cosine similarity search
+- Developed RAGAgent for context-aware responses
+
+New files:
+- src/main/java/io/github/llm4j/agent/rag/document/* (Document, DocumentChunk, ChunkingStrategy, FixedSizeChunkingStrategy)
+- src/main/java/io/github/llm4j/agent/rag/embedding/* (EmbeddingProvider, GeminiEmbeddingProvider)
+- src/main/java/io/github/llm4j/agent/rag/store/* (VectorStore, InMemoryVectorStore)
+- src/main/java/io/github/llm4j/agent/rag/RAGAgent.java
+- src/test/java/io/github/llm4j/agent/rag/DocumentChunkingTest.java (7 tests)
+- src/test/java/io/github/llm4j/agent/rag/InMemoryVectorStoreTest.java (8 tests)
+
+## 3. Knowledge Graphs
+- Created Entity-Relation-Triple model for structured knowledge
+- Implemented InMemoryGraphStore with entity and triple querying
+- Built GraphQueryTool for agent integration
+
+New files:
+- src/main/java/io/github/llm4j/agent/knowledge/model/* (Entity, Relation, Triple)
+- src/main/java/io/github/llm4j/agent/knowledge/KnowledgeGraph.java
+- src/main/java/io/github/llm4j/agent/knowledge/store/InMemoryGraphStore.java
+- src/main/java/io/github/llm4j/agent/knowledge/tools/GraphQueryTool.java
+- src/test/java/io/github/llm4j/agent/knowledge/InMemoryGraphStoreTest.java (8 tests)
+
+## Examples
+- src/main/java/io/github/llm4j/examples/PersonaAgentExample.java
+- src/main/java/io/github/llm4j/examples/KnowledgeGraphExample.java
+
+## Documentation
+- Updated README.md with comprehensive sections for all three features
+- Created wiki/Agent-Personas.md
+- Created wiki/RAG-Support.md
+- Created wiki/Knowledge-Graphs.md
+
+## Dependencies
+- Added org.apache.commons:commons-math3:3.6.1 for vector similarity calculations
+
+## Test Results
+- All 84 unit tests passing
+- 40 new tests added (17 persona + 15 RAG + 8 KG)
+- Backward compatible - all existing tests still pass
+
+Breaking Changes: None

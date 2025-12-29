@@ -1,0 +1,61 @@
+package io.github.llm4j.multiagent.controller;
+
+import io.github.llm4j.multiagent.model.CollaborationSession;
+import io.github.llm4j.multiagent.service.MultiAgentOrchestrator;
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * REST controller for collaboration sessions.
+ */
+@RestController
+@RequestMapping("/api")
+@RequiredArgsConstructor
+@CrossOrigin(origins = "*")
+public class CollaborationController {
+
+    private final MultiAgentOrchestrator orchestrator;
+
+    @PostMapping("/problems")
+    public ResponseEntity<SessionResponse> submitProblem(@RequestBody ProblemRequest request) {
+        String sessionId = orchestrator.startCollaboration(request.getProblem());
+
+        return ResponseEntity.ok(new SessionResponse(sessionId, "Collaboration started"));
+    }
+
+    @GetMapping("/sessions/{sessionId}")
+    public ResponseEntity<CollaborationSession> getSession(@PathVariable String sessionId) {
+        CollaborationSession session = orchestrator.getSession(sessionId);
+
+        if (session == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(session);
+    }
+
+    @PostMapping("/sessions/{sessionId}/feedback")
+    public ResponseEntity<Void> submitFeedback(@PathVariable String sessionId, @RequestBody FeedbackRequest request) {
+        orchestrator.processFeedback(sessionId, request.getFeedback());
+        return ResponseEntity.accepted().build();
+    }
+
+    @Data
+    public static class FeedbackRequest {
+        private String feedback;
+    }
+
+    @Data
+    public static class ProblemRequest {
+        private String problem;
+    }
+
+    @Data
+    @RequiredArgsConstructor
+    public static class SessionResponse {
+        private final String sessionId;
+        private final String message;
+    }
+}
