@@ -1,37 +1,83 @@
 # Hexamind Hub
 
-**Hexamind Hub** (formerly Multi-Agent Collaboration Platform) is a web application where multiple AI agents with different personas collaborate to solve real-world problems.
+![Hexamind Hub Logo](src/main/resources/static/images/hexamind_logo.png)
 
-## Features
+**Hexamind Hub** (formerly Multi-Agent Collaboration Platform) is a cutting-edge platform for multi-agent collaboration, where a team of specialize AI agents work together to solve complex, multifaceted problems.
 
-- **5 AI Agents with Unique Personas**:
-  - Technical Analyst (data-driven)
-  - Business Consultant (strategic)
-  - Creative Thinker (innovative)
-  - Research Scientist (evidence-based)
-  - Customer Advocate (user-focused)
+## 💡 The Idea
 
-- **3-Round Debate Process**:
-  1. **Analysis**: Each agent analyzes the problem independently
-  2. **Arguments**: Agents present their main arguments
-  3. **Responses**: Agents respond to each other's points
-  4. **Consensus**: System synthesizes a final recommendation
+In traditional LLM interactions, you get a single perspective. Hexamind Hub breaks this paradigm by assembling a **digital boardroom** of expert personas. Just as a CEO wouldn't make a major decision without consulting their technical, financial, and creative leads, Hexamind Hub simulates this collaborative intelligence.
 
-- **Real-time Visualization**:
-  - Watch agents think in real-time
-  - See debate timeline with all thoughts
-  - View consensus building process
-  - Agreement score visualization
+Each agent is powered by the `gemini-react-java` library and configured with a distinct personality, expertise, and set of constraints. They don't just answer; they **debate**.
 
-## Quick Start
+## 👥 The Agents
+
+Meet the team of 6 specialized personas:
+
+1. **Technical Analyst (`Alex`)**:
+    * *Focus*: Feasibility, architecture, data, and implementation details.
+    * *Motto*: "Show me the code and the data."
+2. **Business Consultant (`Jordan`)**:
+    * *Focus*: Strategy, ROI, market fit, and business viability.
+    * *Motto*: "Does it make business sense?"
+3. **Creative Thinker (`Sasha`)**:
+    * *Focus*: Innovation, user experience, branding, and "wild ideas".
+    * *Motto*: "What if we broke the rules?"
+4. **Research Scientist (`Dr. Aris`)**:
+    * *Focus*: Evidence, academic backing, theoretical soundness, and citations.
+    * *Motto*: "What does the research say?"
+5. **Customer Advocate (`Casey`)**:
+    * *Focus*: User needs, accessibility, pain points, and customer satisfaction.
+    * *Motto*: "But how does the user feel?"
+6. **Cynical Skeptic (`Rahul`)**:
+    * *Focus*: Risk identification, logical fallacies, and challenging assumptions.
+    * *Motto*: "What if this fails? Where is the real data?"
+    * *Role*: Rahul is the "Devil's Advocate" who ensures the group doesn't fall into groupthink.
+
+## 🔄 How It Works
+
+The platform orchestrates a structured **5-Round Debate Process**:
+
+### Round 1: Initial Analysis & Fact-Checking
+
+Each agent independently analyzes the problem. Crucially, they perform **literal verification** using web tools to debunk any fabricated or hallucinated terms in the prompt.
+
+### Round 2: Arguments
+
+Agents present their main arguments based on their verified analysis, establishing their core positions.
+
+### Round 3: Critique
+
+Agents review each other's arguments and offer objective critiques, pointing out logical fallacies, missing data, or potential downsides.
+
+### Round 4: Rebuttal
+
+Agents defend their positions against the specific critiques they received, clarifying misunderstandings or refining their arguments.
+
+### Round 5: Final Refinement
+
+Agents provide a final response considering all viewpoints shared during the debate.
+
+### Consensus
+
+Finally, the system acts as a "Master Coordinator" to synthesize all expert opinions. It:
+
+* Merges perspectives into a coherent narrative.
+* Addresses critical risks raised (especially by Rahul).
+* Synthesizes a final, unified recommendation.
+
+## 🚀 Setup & Running
 
 ### Prerequisites
 
-- Java 17+
-- Maven
-- Google API Key (for Gemini)
+* **Java 17** or higher
+* **Maven** 3.8+
+* **Google Gemini API Key** (Get one [here](https://aistudio.google.com/))
+* **Google Custom Search Engine ID (CX)** (Required for Web Search/Fact-checking)
 
-### 1. Build the llm4j library
+### Step 1: Clone & Build
+
+First, build the core `gemini-react-java` library:
 
 ```bash
 cd gemini-react-java
@@ -39,44 +85,58 @@ mvn clean install -DskipTests
 cd ..
 ```
 
-### 2. Set your API key
+Then, build the Hexamind Hub platform:
 
 ```bash
-export GOOGLE_API_KEY=your_api_key_here
+cd hexamind-hub
+mvn clean package -DskipTests
 ```
 
-### 3. Run the application
+### Step 2: Configure Environment
+
+You need to set your API keys. You can do this by exporting them in your terminal, or by creating a `secrets.sh` file in the `hexamind-hub` directory (this file is git-ignored for safety).
+
+**Option A: Using secrets.sh (Recommended)**
+
+1. Copy the example template:
+
+    ```bash
+    cp hexamind-hub/example_env.sh hexamind-hub/secrets.sh
+    ```
+
+2. Edit `hexamind-hub/secrets.sh` and add your actual keys:
+
+    ```bash
+    export GOOGLE_API_KEY="AIzaSy..."
+    export GOOGLE_SEARCH_CX="012345..."
+    ```
+
+**Option B: Exporting Variables**
+
+```bash
+export GOOGLE_API_KEY="your_actual_key"
+export GOOGLE_SEARCH_CX="your_search_cx_id"
+```
+
+### Step 3: Run the Hub
+
+Launch the platform using the provided script:
 
 ```bash
 ./hexamind-hub/launch.sh
 ```
 
-Or manually:
+Or manually with Maven:
 
 ```bash
 cd hexamind-hub
 mvn spring-boot:run
 ```
 
-### 4. Open in browser
+### Step 4: Access the Boardroom
 
-Navigate to: `http://localhost:8080`
-
-## Usage
-
-1. Enter your problem in the text area
-2. Click "Start Collaboration"
-3. Watch the agents debate in real-time
-4. View the final consensus recommendation
-
-## Example Problems
-
-Try these sample problems:
-
-- "How can I improve team productivity in a remote work environment?"
-- "What's the best strategy to launch a new mobile app?"
-- "How should I approach learning a new programming language?"
-- "What factors should I consider when choosing a cloud provider?"
+Open your browser and navigate to:
+**<http://localhost:8080>**
 
 ## Architecture
 
@@ -87,31 +147,10 @@ Spring Boot REST API
          ↓
 MultiAgentOrchestrator
          ↓
-5 AI Agents (llm4j + Personas)
+6 AI Agents (llm4j + Personas)
          ↓
 Google Gemini API
 ```
-
-## API Endpoints
-
-### REST
-
-- `POST /api/problems` - Submit a problem
-- `GET /api/sessions/{id}` - Get session status
-
-### WebSocket
-
-- `/ws` - WebSocket endpoint
-- `/topic/session/{id}/thoughts` - Agent thoughts stream
-- `/topic/session/{id}/status` - Session status updates
-- `/topic/session/{id}/consensus` - Final consensus
-
-## Technology Stack
-
-- **Backend**: Spring Boot 3.2, Java 17
-- **AI**: llm4j library with Google Gemini
-- **Real-time**: WebSocket (SockJS + STOMP)
-- **Frontend**: HTML5, JavaScript, CSS3
 
 ## License
 
