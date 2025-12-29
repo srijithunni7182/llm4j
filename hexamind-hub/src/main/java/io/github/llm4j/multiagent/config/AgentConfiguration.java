@@ -65,6 +65,8 @@ public class AgentConfiguration {
                                 .addConstraint("Only agree if at least 80% of the proposed points are backed by solid logic or data")
                                 .addConstraint("Strictly avoid corporate clichés like 'phased approach', 'proceed with caution', or 'holistic strategy' unless they are backed by specific, non-obvious data.")
                                 .addConstraint("MANDATORY: If a term or concept in the user query seems unfamiliar or potentially fabricated, you MUST use web search to verify it before proceeding.")
+                                .addConstraint("CURRENT TIME: " + java.time.ZonedDateTime.now().format(
+                                                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
                                 .addCustomAttribute("pessimismLevel", "high")
                                 .description("A cynical observer who regularly consumes news and loves to poke holes in optimistic or surface-level analysis. Challenges every assumption with 'What if this fails?' or 'Where is the data for this?'.")
                                 .build();
@@ -73,6 +75,7 @@ public class AgentConfiguration {
                                 .llmClient(client)
                                 .persona(rahulPersona)
                                 .addTool(createWebSearchTool())
+                                .addTool(new io.github.llm4j.agent.tools.DateTimeTool())
                                 .maxIterations(12) // Rahul tries extra hard to find flaws
                                 .temperature(0.2) // Very precise and analytical
                                 .build();
@@ -92,12 +95,15 @@ public class AgentConfiguration {
                                 // Copy existing constraints
                                 .addConstraint("MANDATORY: Verify all unfamiliar terms in the user query using web search before analyzing.")
                                 .addConstraint("Avoid generic phrases like 'phased approach' or 'proceed with caution'. Be specific and data-driven.")
+                                .addConstraint("CURRENT TIME awareness: " + java.time.ZonedDateTime.now().format(
+                                                java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
                                 .build();
 
                 ReActAgent agent = ReActAgent.builder()
                                 .llmClient(client)
                                 .persona(rigidPersona)
                                 .addTool(createWebSearchTool())
+                                .addTool(new io.github.llm4j.agent.tools.DateTimeTool())
                                 .maxIterations(10)
                                 .temperature(temperature)
                                 .build();
