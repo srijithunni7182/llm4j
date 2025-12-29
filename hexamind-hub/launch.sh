@@ -21,8 +21,12 @@ if [ -z "$GOOGLE_API_KEY" ]; then
     exit 1
 fi
 
-if [ -z "$GOOGLE_SEARCH_CX" ]; then
-    echo "⚠️ Warning: GOOGLE_SEARCH_CX is not set. Web search capabilities may be limited."
+if [ -z "$GOOGLE_SEARCH_CX" ] && [ -z "$SERPAPI_API_KEY" ]; then
+    echo "⚠️ Warning: Neither GOOGLE_SEARCH_CX nor SERPAPI_API_KEY is set. Web search capabilities will be disabled."
+elif [ -n "$SERPAPI_API_KEY" ]; then
+    echo "✅ SerpAPI key detected. Using SerpAPI for web search."
+else
+    echo "ℹ️ Using Google Custom Search (CX set)."
 fi
 
 # Navigate to platform directory

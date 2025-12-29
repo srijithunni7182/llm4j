@@ -600,6 +600,10 @@
             const socket = new SockJS('/ws');
             stompClient = Stomp.over(socket);
             stompClient.debug = null; // Disable debug logging
+            // Some versions of stompjs allow setting maxWebSocketFrameSize
+            // or heartbeats which help with stability
+            stompClient.heartbeat.outgoing = 20000;
+            stompClient.heartbeat.incoming = 20000;
 
             stompClient.connect({}, function () {
                 stompClient.subscribe(`/topic/session/${sessionId}/thoughts`, (msg) => addThought(JSON.parse(msg.body)));

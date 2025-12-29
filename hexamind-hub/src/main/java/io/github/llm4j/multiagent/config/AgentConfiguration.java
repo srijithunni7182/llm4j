@@ -26,6 +26,9 @@ public class AgentConfiguration {
         @Value("${google.search.cx:}") // Optional search engine ID
         private String searchCx;
 
+        @Value("${serpapi.api.key:}")
+        private String serpApiKey;
+
         @Bean
         public LLMClient llmClient() {
                 LLMConfig config = LLMConfig.builder()
@@ -69,7 +72,7 @@ public class AgentConfiguration {
                 ReActAgent agent = ReActAgent.builder()
                                 .llmClient(client)
                                 .persona(rahulPersona)
-                                .addTool(new io.github.llm4j.agent.tools.WebSearchTool(apiKey, searchCx))
+                                .addTool(createWebSearchTool())
                                 .maxIterations(12) // Rahul tries extra hard to find flaws
                                 .temperature(0.2) // Very precise and analytical
                                 .build();
@@ -94,11 +97,35 @@ public class AgentConfiguration {
                 ReActAgent agent = ReActAgent.builder()
                                 .llmClient(client)
                                 .persona(rigidPersona)
-                                .addTool(new io.github.llm4j.agent.tools.WebSearchTool(apiKey, searchCx))
+                                .addTool(createWebSearchTool())
                                 .maxIterations(10)
                                 .temperature(temperature)
                                 .build();
 
                 return new AgentParticipant(id, name, rigidPersona, agent, avatarUrl);
+        }
+
+        private io.github.llm4j.agent.Tool createWebSearchTool() {
+                java.util.List<io.github.llm4j.agent.Tool> searchTools = new java.util.ArrayList<>();
+
+                // 1. SerpAPI (Premium - First Choice)
+                if (serpApiKey != null && !serpApiKey.trim().isEmpty()) {
+                        searchTools.add(new io.github.llm4j.agent.tools.SerpApiSearchTool(serpApiKey));
+                }
+
+                // 2. DuckDuckGo (Free Fallback)
+                searchTools.add(new io.github.llm4j.agent.tools.DuckDuckGoSearchTool());
+
+                // 3. Google Custom Search (Legacy Fallback)
+                if (apiKey != null && !apiKey.trim().isEmpty() && searchCx != null && !searchCx.trim().isEmpty()) {
+                        searchTools.add(new io.github.llm4j.agent.tools.WebSearchTool(apiKey, searchCx));
+                }
+
+                // Create fallback chain
+                io.github.llm4j.agent.Tool fallbackTool = new io.github.llm4j.agent.tools.FallbackSearchTool(
+                                "WebSearch", searchTools);
+
+                // Wrap in cache to save API credits and speed up repeated queries
+                return new io.github.llm4j.agent.tools.CachedSearchTool(fallbackTool);
         }
 }

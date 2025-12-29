@@ -200,6 +200,10 @@ public class ReActAgent {
                 .build();
     }
 
+    public Collection<Tool> getTools() {
+        return Collections.unmodifiableCollection(tools.values());
+    }
+
     private String extractPattern(Pattern pattern, String text) {
         Matcher matcher = pattern.matcher(text);
         if (matcher.find()) {
