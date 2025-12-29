@@ -8,8 +8,22 @@ echo "======================================"
 echo ""
 
 # Set API key and Search CX
-export GOOGLE_API_KEY="AIzaSyC1Kxs2UCzUcxpQFQ6tP918RdGQA3_rt1A"
-export GOOGLE_SEARCH_CX="f31333d48a729444c" # Add your Google Custom Search Engine ID here (cx parameter)
+# Try to source secrets from local file not in git
+if [ -f "secrets.sh" ]; then
+    source "secrets.sh"
+fi
+
+# Check variables
+if [ -z "$GOOGLE_API_KEY" ]; then
+    echo "❌ Error: GOOGLE_API_KEY is not set."
+    echo "Please set it using: export GOOGLE_API_KEY=your_key"
+    echo "Or create a secrets.sh file with the export."
+    exit 1
+fi
+
+if [ -z "$GOOGLE_SEARCH_CX" ]; then
+    echo "⚠️ Warning: GOOGLE_SEARCH_CX is not set. Web search capabilities may be limited."
+fi
 
 # Navigate to platform directory
 cd "$(dirname "$0")"
