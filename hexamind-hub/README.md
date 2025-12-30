@@ -80,12 +80,30 @@ All results are managed by a **Cross-Agent Caching Layer**, which ensures that i
 ### ⏰ Temporal Awareness
 
 Agents are no longer "stuck in time." Every agent is automatically aware of the current date and time via:
+
 * **Prompt Injection**: The current time is injected into every agent's system prompt during initialization.
 * **DateTimeTool**: Agents can explicitly use this tool to get the current timestamp in RFC 1123 format.
+
+### 🧠 Shared Brain (RAG + Knowledge Graph)
+
+**The hive mind is real.** Hexamind Hub implements a sophisticated "Shared Brain" architecture:
+
+* **Vector Memory (RAG)**: Every agent thought, argument, and critique is embedded and stored in a vector database. Agents can "recall" similar past discussions or relevant context using semantic search.
+* **Knowledge Graph**: Structured knowledge triples (Subject-Predicate-Object) are extracted from agent analyses in real-time. This builds a persistent graph of concepts that agents can query to understand relationships between entities.
+* **Persistence**: All knowledge is persisted to an embedded **H2 Database**, allowing sessions to be paused, resumed, and analyzed later.
+
+### 📊 Neural Metrics Visualization
+
+Watch the brain grow in real-time. The sidebar now features a "Neural Metrics" dashboard:
+
+* **Knowledge Nodes**: The number of structured facts in the Knowledge Graph.
+* **Memory Vectors**: The count of embedded thoughts in the Vector Store.
+* **Cognitive Steps**: A live counter of LLM reasoning steps performed by the swarm.
 
 ### ⚡ UI Stability
 
 Optimized for large-scale analysis:
+
 * **WebSocket Tuning**: Increased server-side limits (512KB messages, 1MB buffer) to prevent truncation of deep-dive expert responses.
 * **Heartbeat Management**: Enhanced client-side stability for long-running collaborative sessions.
 
@@ -170,9 +188,9 @@ Frontend (HTML/JS + WebSocket)
          ↓
 Spring Boot REST API
          ↓
-MultiAgentOrchestrator
-         ↓
-6 AI Agents (llm4j + Personas)
+MultiAgentOrchestrator ⟷ SharedKnowledgeService (RAG + KG)
+         ↓                           ↕
+6 AI Agents                  H2 Database (Persistence)
          ↓
 Google Gemini API
 ```

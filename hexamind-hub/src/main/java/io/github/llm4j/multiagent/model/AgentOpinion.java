@@ -27,4 +27,16 @@ public class AgentOpinion {
 
     @Builder.Default
     private List<String> concerns = new ArrayList<>();
+
+    public String getRecommendation() {
+        return recommendation;
+    }
+
+    public double getConfidence() {
+        return confidence;
+    }
+
+    public List<String> getKeyPoints() {
+        return keyPoints;
+    }
 }

@@ -32,4 +32,28 @@ public class Consensus {
     private List<String> considerations = new ArrayList<>();
 
     private String reasoning;
+
+    public String getRecommendation() {
+        return recommendation;
+    }
+
+    public double getAgreementScore() {
+        return agreementScore;
+    }
+
+    public Map<String, AgentOpinion> getAgentOpinions() {
+        return agentOpinions;
+    }
+
+    public List<String> getKeyPoints() {
+        return keyPoints;
+    }
+
+    public List<String> getConsiderations() {
+        return considerations;
+    }
+
+    public String getReasoning() {
+        return reasoning;
+    }
 }

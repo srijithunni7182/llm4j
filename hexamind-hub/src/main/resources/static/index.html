@@ -480,6 +480,55 @@
         ::-webkit-scrollbar-thumb:hover {
             background: rgba(255, 255, 255, 0.2);
         }
+
+        .metrics-card {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%);
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .metrics-title {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .metric-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-top: 4px;
+        }
+
+        .metric-item.full-width {
+            grid-column: span 2;
+        }
     </style>
 </head>
 
@@ -512,6 +561,30 @@
             <aside class="agents-panel">
                 <h3>👥 The Circle</h3>
                 <div id="agentsList"></div>
+
+                <div class="metrics-card">
+                    <div class="metrics-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 6L6 18M6 6l12 12"></path>
+                        </svg>
+                        Neural Metrics
+                    </div>
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <div class="metric-value" id="nodesCount">0</div>
+                            <div class="metric-label">Knowledge Nodes</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-value" id="vectorsCount">0</div>
+                            <div class="metric-label">Memory Vectors</div>
+                        </div>
+                        <div class="metric-item full-width">
+                            <div class="metric-value" id="stepsCount">0</div>
+                            <div class="metric-label">Cognitive Steps (LLM Calls)</div>
+                        </div>
+                    </div>
+                </div>
             </aside>
 
             <main class="main-content">
@@ -610,6 +683,26 @@
                 stompClient.subscribe(`/topic/session/${sessionId}/status`, (msg) => updateGlobalStatus(JSON.parse(msg.body)));
                 stompClient.subscribe(`/topic/session/${sessionId}/consensus`, (msg) => renderConsensus(JSON.parse(msg.body)));
             });
+
+            // Start polling stats
+            if (statsInterval) clearInterval(statsInterval);
+            statsInterval = setInterval(() => fetchStats(sessionId), 2000);
+        }
+
+        let statsInterval = null;
+
+        async function fetchStats(sessionId) {
+            try {
+                const response = await fetch(`/api/sessions/${sessionId}/stats`);
+                if (response.ok) {
+                    const stats = await response.json();
+                    document.getElementById('nodesCount').innerText = stats.knowledgeNodes;
+                    document.getElementById('vectorsCount').innerText = stats.memoryVectors;
+                    document.getElementById('stepsCount').innerText = stats.cognitiveSteps;
+                }
+            } catch (e) {
+                console.error("Failed to fetch stats", e);
+            }
         }
 
         function addThought(thought) {

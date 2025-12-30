@@ -19,240 +19,260 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(CollaborationController.class)
 class CollaborationControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+        @Autowired
+        private MockMvc mockMvc;
 
-    @MockBean
-    private MultiAgentOrchestrator orchestrator;
+        @MockBean
+        private MultiAgentOrchestrator orchestrator;
 
-    @Test
-    void testSubmitProblem() throws Exception {
-        when(orchestrator.startCollaboration(anyString())).thenReturn("session-123");
+        @MockBean
+        private io.github.llm4j.multiagent.service.SharedKnowledgeService sharedKnowledgeService;
 
-        String json = "{\"problem\": \"Solve X\"}";
+        @Test
+        void testSubmitProblem() throws Exception {
+                when(orchestrator.startCollaboration(anyString())).thenReturn("session-123");
 
-        mockMvc.perform(post("/api/problems")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.sessionId").value("session-123"))
-                .andExpect(jsonPath("$.message").value("Collaboration started"));
+                String json = "{\"problem\": \"Solve X\"}";
 
-        verify(orchestrator).startCollaboration("Solve X");
-    }
+                mockMvc.perform(post("/api/problems")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.sessionId").value("session-123"))
+                                .andExpect(jsonPath("$.message").value("Collaboration started"));
 
-    @Test
-    void testGetSessionFound() throws Exception {
-        CollaborationSession session = CollaborationSession.builder()
-                .sessionId("session-123")
-                .status(CollaborationSession.SessionStatus.CREATED)
-                .build();
-        when(orchestrator.getSession("session-123")).thenReturn(session);
+                verify(orchestrator).startCollaboration("Solve X");
+        }
 
-        mockMvc.perform(get("/api/sessions/session-123"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.sessionId").value("session-123"))
-                .andExpect(jsonPath("$.status").value("CREATED"));
-    }
+        @Test
+        void testGetSessionFound() throws Exception {
+                CollaborationSession session = new CollaborationSession();
+                session.setContents("session-123", "Test Problem");
+                session.setStatus(CollaborationSession.SessionStatus.CREATED);
+                when(orchestrator.getSession("session-123")).thenReturn(session);
 
-    @Test
-    void testGetSessionNotFound() throws Exception {
-        when(orchestrator.getSession("unknown")).thenReturn(null);
+                mockMvc.perform(get("/api/sessions/session-123"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.sessionId").value("session-123"))
+                                .andExpect(jsonPath("$.status").value("CREATED"));
+        }
 
-        mockMvc.perform(get("/api/sessions/unknown"))
-                .andExpect(status().isNotFound());
-    }
+        @Test
+        void testGetSessionNotFound() throws Exception {
+                when(orchestrator.getSession("unknown")).thenReturn(null);
 
-    @Test
-    void testSubmitFeedback() throws Exception {
-        String json = "{\"feedback\": \"Good job\"}";
+                mockMvc.perform(get("/api/sessions/unknown"))
+                                .andExpect(status().isNotFound());
+        }
 
-        mockMvc.perform(post("/api/sessions/session-123/feedback")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
-                .andExpect(status().isAccepted());
+        @Test
+        void testSubmitFeedback() throws Exception {
+                String json = "{\"feedback\": \"Good job\"}";
 
-        verify(orchestrator).processFeedback("session-123", "Good job");
-    }
+                mockMvc.perform(post("/api/sessions/session-123/feedback")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json))
+                                .andExpect(status().isAccepted());
 
-    // ===== NEW COMPREHENSIVE TESTS =====
+                verify(orchestrator).processFeedback("session-123", "Good job");
+        }
 
-    @Test
-    void testSubmitProblemWithEmptyString() throws Exception {
-        when(orchestrator.startCollaboration(anyString())).thenReturn("session-empty");
+        // ===== NEW COMPREHENSIVE TESTS =====
 
-        String json = "{\"problem\": \"\"}";
+        @Test
+        void testSubmitProblemWithEmptyString() throws Exception {
+                when(orchestrator.startCollaboration(anyString())).thenReturn("session-empty");
 
-        mockMvc.perform(post("/api/problems")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.sessionId").value("session-empty"));
+                String json = "{\"problem\": \"\"}";
 
-        verify(orchestrator).startCollaboration("");
-    }
+                mockMvc.perform(post("/api/problems")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.sessionId").value("session-empty"));
 
-    @Test
-    void testSubmitProblemWithNullValue() throws Exception {
-        when(orchestrator.startCollaboration(null)).thenReturn("session-null");
+                verify(orchestrator).startCollaboration("");
+        }
 
-        String json = "{\"problem\": null}";
+        @Test
+        void testSubmitProblemWithNullValue() throws Exception {
+                when(orchestrator.startCollaboration(null)).thenReturn("session-null");
 
-        mockMvc.perform(post("/api/problems")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
-                .andExpect(status().isOk());
+                String json = "{\"problem\": null}";
 
-        verify(orchestrator).startCollaboration(null);
-    }
+                mockMvc.perform(post("/api/problems")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json))
+                                .andExpect(status().isOk());
 
-    @Test
-    void testSubmitProblemWithMalformedJson() throws Exception {
-        String malformedJson = "{\"problem\": \"Test\" invalid}";
+                verify(orchestrator).startCollaboration(null);
+        }
 
-        mockMvc.perform(post("/api/problems")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(malformedJson))
-                .andExpect(status().isBadRequest());
+        @Test
+        void testSubmitProblemWithMalformedJson() throws Exception {
+                String malformedJson = "{\"problem\": \"Test\" invalid}";
 
-        verify(orchestrator, never()).startCollaboration(anyString());
-    }
+                mockMvc.perform(post("/api/problems")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(malformedJson))
+                                .andExpect(status().isBadRequest());
 
-    @Test
-    void testSubmitProblemWithVeryLongString() throws Exception {
-        when(orchestrator.startCollaboration(anyString())).thenReturn("session-long");
+                verify(orchestrator, never()).startCollaboration(anyString());
+        }
 
-        String longProblem = "A".repeat(10000);
-        String json = String.format("{\"problem\": \"%s\"}", longProblem);
+        @Test
+        void testSubmitProblemWithVeryLongString() throws Exception {
+                when(orchestrator.startCollaboration(anyString())).thenReturn("session-long");
 
-        mockMvc.perform(post("/api/problems")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.sessionId").value("session-long"));
+                String longProblem = "A".repeat(10000);
+                String json = String.format("{\"problem\": \"%s\"}", longProblem);
 
-        verify(orchestrator).startCollaboration(longProblem);
-    }
+                mockMvc.perform(post("/api/problems")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.sessionId").value("session-long"));
 
-    @Test
-    void testSubmitProblemWithSpecialCharacters() throws Exception {
-        when(orchestrator.startCollaboration(anyString())).thenReturn("session-special");
+                verify(orchestrator).startCollaboration(longProblem);
+        }
 
-        String json = "{\"problem\": \"Test with \\\"quotes\\\" and \\n newlines \\t tabs\"}";
+        @Test
+        void testSubmitProblemWithSpecialCharacters() throws Exception {
+                when(orchestrator.startCollaboration(anyString())).thenReturn("session-special");
 
-        mockMvc.perform(post("/api/problems")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
-                .andExpect(status().isOk());
+                String json = "{\"problem\": \"Test with \\\"quotes\\\" and \\n newlines \\t tabs\"}";
 
-        verify(orchestrator).startCollaboration(anyString());
-    }
+                mockMvc.perform(post("/api/problems")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json))
+                                .andExpect(status().isOk());
 
-    @Test
-    void testSubmitFeedbackWithEmptyString() throws Exception {
-        String json = "{\"feedback\": \"\"}";
+                verify(orchestrator).startCollaboration(anyString());
+        }
 
-        mockMvc.perform(post("/api/sessions/session-123/feedback")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
-                .andExpect(status().isAccepted());
+        @Test
+        void testSubmitFeedbackWithEmptyString() throws Exception {
+                String json = "{\"feedback\": \"\"}";
 
-        verify(orchestrator).processFeedback("session-123", "");
-    }
+                mockMvc.perform(post("/api/sessions/session-123/feedback")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json))
+                                .andExpect(status().isAccepted());
 
-    @Test
-    void testSubmitFeedbackWithNullValue() throws Exception {
-        String json = "{\"feedback\": null}";
+                verify(orchestrator).processFeedback("session-123", "");
+        }
 
-        mockMvc.perform(post("/api/sessions/session-123/feedback")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json))
-                .andExpect(status().isAccepted());
+        @Test
+        void testSubmitFeedbackWithNullValue() throws Exception {
+                String json = "{\"feedback\": null}";
 
-        verify(orchestrator).processFeedback("session-123", null);
-    }
+                mockMvc.perform(post("/api/sessions/session-123/feedback")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json))
+                                .andExpect(status().isAccepted());
 
-    @Test
-    void testSubmitFeedbackWithMalformedJson() throws Exception {
-        String malformedJson = "{\"feedback\": invalid}";
+                verify(orchestrator).processFeedback("session-123", null);
+        }
 
-        mockMvc.perform(post("/api/sessions/session-123/feedback")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(malformedJson))
-                .andExpect(status().isBadRequest());
+        @Test
+        void testSubmitFeedbackWithMalformedJson() throws Exception {
+                String malformedJson = "{\"feedback\": invalid}";
 
-        verify(orchestrator, never()).processFeedback(anyString(), anyString());
-    }
+                mockMvc.perform(post("/api/sessions/session-123/feedback")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(malformedJson))
+                                .andExpect(status().isBadRequest());
 
-    @Test
-    void testGetSessionWithSpecialCharactersInId() throws Exception {
-        String specialId = "session-with-special-chars-!@#$%";
-        when(orchestrator.getSession(specialId)).thenReturn(null);
+                verify(orchestrator, never()).processFeedback(anyString(), anyString());
+        }
 
-        mockMvc.perform(get("/api/sessions/" + specialId))
-                .andExpect(status().isNotFound());
-    }
+        @Test
+        void testGetSessionWithSpecialCharactersInId() throws Exception {
+                String specialId = "session-with-special-chars-!@#$%";
+                when(orchestrator.getSession(specialId)).thenReturn(null);
 
-    @Test
-    void testGetSessionWithCompletedStatus() throws Exception {
-        CollaborationSession session = CollaborationSession.builder()
-                .sessionId("session-completed")
-                .status(CollaborationSession.SessionStatus.COMPLETED)
-                .problem("Test problem")
-                .build();
-        when(orchestrator.getSession("session-completed")).thenReturn(session);
+                mockMvc.perform(get("/api/sessions/" + specialId))
+                                .andExpect(status().isNotFound());
+        }
 
-        mockMvc.perform(get("/api/sessions/session-completed"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.sessionId").value("session-completed"))
-                .andExpect(jsonPath("$.status").value("COMPLETED"))
-                .andExpect(jsonPath("$.problem").value("Test problem"));
-    }
+        @Test
+        void testGetSessionWithCompletedStatus() throws Exception {
+                CollaborationSession session = new CollaborationSession();
+                session.setContents("session-completed", "Test problem");
+                session.setStatus(CollaborationSession.SessionStatus.COMPLETED);
+                when(orchestrator.getSession("session-completed")).thenReturn(session);
 
-    @Test
-    void testGetSessionWithFailedStatus() throws Exception {
-        CollaborationSession session = CollaborationSession.builder()
-                .sessionId("session-failed")
-                .status(CollaborationSession.SessionStatus.FAILED)
-                .build();
-        when(orchestrator.getSession("session-failed")).thenReturn(session);
+                mockMvc.perform(get("/api/sessions/session-completed"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.sessionId").value("session-completed"))
+                                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                                .andExpect(jsonPath("$.problem").value("Test problem"));
+        }
 
-        mockMvc.perform(get("/api/sessions/session-failed"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("FAILED"));
-    }
+        @Test
+        void testGetSessionWithFailedStatus() throws Exception {
+                CollaborationSession session = new CollaborationSession();
+                session.setContents("session-failed", "Test Problem");
+                session.setStatus(CollaborationSession.SessionStatus.FAILED);
+                when(orchestrator.getSession("session-failed")).thenReturn(session);
 
-    @Test
-    void testCorsHeaders() throws Exception {
-        when(orchestrator.startCollaboration(anyString())).thenReturn("session-cors");
+                mockMvc.perform(get("/api/sessions/session-failed"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.status").value("FAILED"));
+        }
 
-        String json = "{\"problem\": \"Test CORS\"}";
+        @Test
+        void testCorsHeaders() throws Exception {
+                when(orchestrator.startCollaboration(anyString())).thenReturn("session-cors");
 
-        mockMvc.perform(post("/api/problems")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json)
-                .header("Origin", "http://localhost:3000"))
-                .andExpect(status().isOk());
-    }
+                String json = "{\"problem\": \"Test CORS\"}";
 
-    @Test
-    void testMissingContentType() throws Exception {
-        String json = "{\"problem\": \"Test\"}";
+                mockMvc.perform(post("/api/problems")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(json)
+                                .header("Origin", "http://localhost:3000"))
+                                .andExpect(status().isOk());
+        }
 
-        mockMvc.perform(post("/api/problems")
-                .content(json))
-                .andExpect(status().isUnsupportedMediaType());
+        @Test
+        void testMissingContentType() throws Exception {
+                String json = "{\"problem\": \"Test\"}";
 
-        verify(orchestrator, never()).startCollaboration(anyString());
-    }
+                mockMvc.perform(post("/api/problems")
+                                .content(json))
+                                .andExpect(status().isUnsupportedMediaType());
 
-    @Test
-    void testEmptyRequestBody() throws Exception {
-        mockMvc.perform(post("/api/problems")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
-                .andExpect(status().isOk());
+                verify(orchestrator, never()).startCollaboration(anyString());
+        }
 
-        verify(orchestrator).startCollaboration(null);
-    }
+        @Test
+        void testEmptyRequestBody() throws Exception {
+                mockMvc.perform(post("/api/problems")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{}"))
+                                .andExpect(status().isOk());
+
+                verify(orchestrator).startCollaboration(null);
+        }
+
+        @Test
+        void testGetSessionStats() throws Exception {
+                String sessionId = "session-stats";
+                CollaborationSession session = new CollaborationSession();
+                // Simulate some LLM calls
+                session.getStats().put("llm_calls", 42);
+
+                when(orchestrator.getSession(sessionId)).thenReturn(session);
+
+                io.github.llm4j.multiagent.service.SharedKnowledgeService.KnowledgeStats kStats = new io.github.llm4j.multiagent.service.SharedKnowledgeService.KnowledgeStats(
+                                5, 10);
+
+                when(sharedKnowledgeService.getKnowledgeStats(sessionId)).thenReturn(kStats);
+
+                mockMvc.perform(get("/api/sessions/" + sessionId + "/stats"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.knowledgeNodes").value(10))
+                                .andExpect(jsonPath("$.memoryVectors").value(5))
+                                .andExpect(jsonPath("$.cognitiveSteps").value(42));
+        }
 }

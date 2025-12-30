@@ -236,6 +236,10 @@ public class ReActAgent {
         return prompt.toString();
     }
 
+    public Builder toBuilder() {
+        return new Builder(this);
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -251,6 +255,20 @@ public class ReActAgent {
         private Builder() {
         }
 
+        private Builder(ReActAgent agent) {
+            this.llmClient = agent.llmClient;
+            this.tools = new HashMap<>(agent.tools);
+            this.systemPrompt = agent.systemPrompt;
+            this.maxIterations = agent.maxIterations;
+            this.temperature = agent.temperature;
+            this.persona = agent.persona;
+        }
+
+        public Builder clearTools() {
+            this.tools.clear();
+            return this;
+        }
+
         public Builder llmClient(LLMClient llmClient) {
             this.llmClient = llmClient;
             return this;
@@ -264,7 +282,14 @@ public class ReActAgent {
         }
 
         public Builder addTool(Tool tool) {
-            this.tools.put(tool.getName().toLowerCase(), tool);
+            this.tools.put(tool.getName(), tool);
+            return this;
+        }
+
+        public Builder addTools(Collection<Tool> tools) {
+            for (Tool tool : tools) {
+                addTool(tool);
+            }
             return this;
         }
 

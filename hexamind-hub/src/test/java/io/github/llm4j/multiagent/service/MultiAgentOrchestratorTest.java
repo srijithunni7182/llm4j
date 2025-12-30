@@ -1,9 +1,12 @@
 package io.github.llm4j.multiagent.service;
 
 import io.github.llm4j.LLMClient;
+import io.github.llm4j.agent.knowledge.KnowledgeGraph;
+import io.github.llm4j.agent.rag.store.VectorStore;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.multiagent.model.*;
+import io.github.llm4j.multiagent.service.SharedKnowledgeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -31,6 +34,9 @@ class MultiAgentOrchestratorTest {
         @Mock
         private AgentParticipant mockAgent;
 
+        @Mock
+        private SharedKnowledgeService mockSharedService;
+
         private List<AgentParticipant> agents;
         private MultiAgentOrchestrator orchestrator;
 
@@ -43,9 +49,9 @@ class MultiAgentOrchestratorTest {
                 when(mockAgent.getName()).thenReturn("Tester");
 
                 // Mock agent methods to return immediately
-                when(mockAgent.analyze(anyString())).thenReturn("Analysis");
-                when(mockAgent.argue(anyString(), anyString())).thenReturn("Argument");
-                when(mockAgent.respond(anyString())).thenReturn("Response");
+                when(mockAgent.analyze(anyString(), anyString())).thenReturn("Analysis");
+                when(mockAgent.argue(anyString(), anyString(), anyString())).thenReturn("Argument");
+                when(mockAgent.respond(anyString(), anyString())).thenReturn("Response");
 
                 AgentOpinion opinion = AgentOpinion.builder()
                                 .agentId("agent-1")
@@ -53,10 +59,13 @@ class MultiAgentOrchestratorTest {
                                 .confidence(0.9)
                                 .keyPoints(Collections.singletonList("Point"))
                                 .build();
-                when(mockAgent.formOpinion(anyString(), any())).thenReturn(opinion);
+                when(mockAgent.formOpinion(anyString(), anyString(), any())).thenReturn(opinion);
+
+                when(mockSharedService.getKnowledgeGraph(anyString())).thenReturn(mock(KnowledgeGraph.class));
+                when(mockSharedService.getVectorStore(anyString())).thenReturn(mock(VectorStore.class));
 
                 agents = Collections.singletonList(mockAgent);
-                orchestrator = new MultiAgentOrchestrator(agents, messagingTemplate, llmClient);
+                orchestrator = new MultiAgentOrchestrator(agents, messagingTemplate, llmClient, mockSharedService);
         }
 
         @Test
@@ -88,8 +97,8 @@ class MultiAgentOrchestratorTest {
                 assertThat(session.getConsensus().getRecommendation()).isEqualTo("Consensus Reached");
 
                 // Verify agent interactions
-                verify(mockAgent, atLeastOnce()).analyze(anyString());
-                verify(mockAgent, atLeastOnce()).argue(anyString(), anyString());
+                verify(mockAgent, atLeastOnce()).analyze(anyString(), anyString());
+                verify(mockAgent, atLeastOnce()).argue(anyString(), anyString(), anyString());
                 verify(messagingTemplate, atLeastOnce()).convertAndSend(anyString(), any(CollaborationSession.class));
         }
 
@@ -115,7 +124,7 @@ class MultiAgentOrchestratorTest {
                                 .until(() -> session.getStatus() == CollaborationSession.SessionStatus.COMPLETED
                                                 && session.getCurrentRound() > 5);
 
-                verify(mockAgent, atLeastOnce()).respond(contains("USER FEEDBACK"));
+                verify(mockAgent, atLeastOnce()).respond(anyString(), contains("USER FEEDBACK"));
         }
 
         @Test
@@ -183,9 +192,9 @@ class MultiAgentOrchestratorTest {
                 AgentParticipant mockAgent2 = mock(AgentParticipant.class);
                 when(mockAgent2.getId()).thenReturn("agent-2");
                 when(mockAgent2.getName()).thenReturn("Tester2");
-                when(mockAgent2.analyze(anyString())).thenReturn("Analysis 2");
-                when(mockAgent2.argue(anyString(), anyString())).thenReturn("Argument 2");
-                when(mockAgent2.respond(anyString())).thenReturn("Response 2");
+                when(mockAgent2.analyze(anyString(), anyString())).thenReturn("Analysis 2");
+                when(mockAgent2.argue(anyString(), anyString(), anyString())).thenReturn("Argument 2");
+                when(mockAgent2.respond(anyString(), anyString())).thenReturn("Response 2");
 
                 AgentOpinion opinion2 = AgentOpinion.builder()
                                 .agentId("agent-2")
@@ -193,11 +202,11 @@ class MultiAgentOrchestratorTest {
                                 .confidence(0.7)
                                 .keyPoints(Collections.singletonList("Point 2"))
                                 .build();
-                when(mockAgent2.formOpinion(anyString(), any())).thenReturn(opinion2);
+                when(mockAgent2.formOpinion(anyString(), anyString(), any())).thenReturn(opinion2);
 
                 List<AgentParticipant> multipleAgents = List.of(mockAgent, mockAgent2);
                 MultiAgentOrchestrator multiOrchestrator = new MultiAgentOrchestrator(multipleAgents, messagingTemplate,
-                                llmClient);
+                                llmClient, mockSharedService);
 
                 LLMResponse mockResponse = LLMResponse.builder()
                                 .content("Multi-agent Consensus")
@@ -214,15 +223,15 @@ class MultiAgentOrchestratorTest {
                 assertThat(session.getConsensus()).isNotNull();
                 assertThat(session.getConsensus().getAgentOpinions()).hasSize(2);
 
-                verify(mockAgent, atLeastOnce()).analyze(anyString());
-                verify(mockAgent2, atLeastOnce()).analyze(anyString());
+                verify(mockAgent, atLeastOnce()).analyze(anyString(), anyString());
+                verify(mockAgent2, atLeastOnce()).analyze(anyString(), anyString());
         }
 
         @Test
         void testEmptyAgentsList() {
                 List<AgentParticipant> emptyAgents = Collections.emptyList();
                 MultiAgentOrchestrator emptyOrchestrator = new MultiAgentOrchestrator(emptyAgents, messagingTemplate,
-                                llmClient);
+                                llmClient, mockSharedService);
 
                 LLMResponse mockResponse = LLMResponse.builder()
                                 .content("No agents consensus")
@@ -263,7 +272,7 @@ class MultiAgentOrchestratorTest {
 
         @Test
         void testAgentFailureDuringAnalysis() {
-                when(mockAgent.analyze(anyString())).thenThrow(new RuntimeException("Agent failure"));
+                when(mockAgent.analyze(anyString(), anyString())).thenThrow(new RuntimeException("Agent failure"));
 
                 LLMResponse mockResponse = LLMResponse.builder()
                                 .content("Partial consensus")

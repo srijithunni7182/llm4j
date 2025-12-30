@@ -84,6 +84,15 @@ public class InMemoryVectorStore implements VectorStore {
     }
 
     /**
+     * Returns all entries in the store. Useful for persistence/archiving.
+     *
+     * @return collection of vector entries
+     */
+    public Collection<VectorEntry> getAllEntries() {
+        return Collections.unmodifiableCollection(vectors.values());
+    }
+
+    /**
      * Calculates cosine similarity between two vectors.
      *
      * @param v1 first vector

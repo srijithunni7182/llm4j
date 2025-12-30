@@ -135,6 +135,8 @@ for (AgentResult.AgentStep step : result.getSteps()) {
 - **DuckDuckGoSearchTool**: Free web search fallback using DuckDuckGo
 - **FallbackSearchTool**: Chained search implementation for high reliability
 - **CachedSearchTool**: Static caching wrapper to reduce API usage across agents
+- **GraphQueryTool**: Query Knowledge Graphs for entities and relationships
+- **GraphExtractionTool**: Extract structured knowledge triples from text using LLM
 - **EchoTool**: Simple echo tool (useful for testing)
 
 ### 🌐 OpenAPI Support (New!)

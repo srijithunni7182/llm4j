@@ -3,7 +3,8 @@ package io.github.llm4j.multiagent.service;
 import io.github.llm4j.multiagent.model.*;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -15,21 +16,25 @@ import java.util.stream.Collectors;
 /**
  * Orchestrates multi-agent collaboration sessions.
  */
-@Slf4j
 @Service
 public class MultiAgentOrchestrator {
+
+    private static final Logger log = LoggerFactory.getLogger(MultiAgentOrchestrator.class);
 
     private final Map<String, CollaborationSession> sessions = new ConcurrentHashMap<>();
     private final List<AgentParticipant> agents;
     private final SimpMessagingTemplate messagingTemplate;
     private final io.github.llm4j.LLMClient llmClient;
+    private final SharedKnowledgeService sharedKnowledgeService;
 
     public MultiAgentOrchestrator(List<AgentParticipant> agents,
             SimpMessagingTemplate messagingTemplate,
-            io.github.llm4j.LLMClient llmClient) {
+            io.github.llm4j.LLMClient llmClient,
+            SharedKnowledgeService sharedKnowledgeService) {
         this.agents = agents;
         this.messagingTemplate = messagingTemplate;
         this.llmClient = llmClient;
+        this.sharedKnowledgeService = sharedKnowledgeService;
     }
 
     /**
@@ -38,14 +43,18 @@ public class MultiAgentOrchestrator {
     public String startCollaboration(String problem) {
         String sessionId = UUID.randomUUID().toString();
 
-        CollaborationSession session = CollaborationSession.builder()
-                .sessionId(sessionId)
-                .problem(problem)
-                .status(CollaborationSession.SessionStatus.CREATED)
-                .createdAt(Instant.now())
-                .currentRound(0)
-                .totalRounds(3)
-                .build();
+        CollaborationSession session = new CollaborationSession(
+                sessionId,
+                problem,
+                CollaborationSession.SessionStatus.CREATED,
+                Instant.now(),
+                null, // completedAt
+                new ArrayList<>(), // thoughts
+                null, // consensus
+                0, // currentRound
+                3, // totalRounds
+                new ConcurrentHashMap<>() // stats
+        );
 
         sessions.put(sessionId, session);
 
@@ -108,6 +117,9 @@ public class MultiAgentOrchestrator {
             broadcastSessionUpdate(sessionId, session);
             broadcastConsensus(sessionId, consensus);
 
+            // Archive knowledge to H2 for memory efficiency
+            sharedKnowledgeService.archiveSession(sessionId);
+
         } catch (Exception e) {
             log.error("Error in collaboration session {}", sessionId, e);
             CollaborationSession session = sessions.get(sessionId);
@@ -124,6 +136,9 @@ public class MultiAgentOrchestrator {
         CollaborationSession session = sessions.get(sessionId);
         if (session == null)
             return;
+
+        // Load session knowledge if it was archived
+        sharedKnowledgeService.loadSession(sessionId);
 
         // Start refinement in background thread
         new Thread(() -> conductRefinement(sessionId, feedback)).start();
@@ -154,6 +169,9 @@ public class MultiAgentOrchestrator {
             broadcastSessionUpdate(sessionId, session);
             broadcastConsensus(sessionId, consensus);
 
+            // Re-archive
+            sharedKnowledgeService.archiveSession(sessionId);
+
         } catch (Exception e) {
             log.error("Error during refinement in session {}", sessionId, e);
             CollaborationSession session = sessions.get(sessionId);
@@ -170,22 +188,25 @@ public class MultiAgentOrchestrator {
 
         for (AgentParticipant agent : getShuffledAgents()) {
             log.info("Agent {} refining based on feedback", agent.getName());
+            session.incrementStat("llm_calls");
 
-            String refinement = agent.respond("The user has provided the following feedback on the group's analysis. " +
-                    "Re-evaluate your previous stance and provide an updated perspective addressing this feedback:\n\n"
-                    +
-                    "USER FEEDBACK: " + feedback);
+            String refinement = agent.respond(sessionId,
+                    "The user has provided the following feedback on the group's analysis. " +
+                            "Re-evaluate your previous stance and provide an updated perspective addressing this feedback:\n\n"
+                            +
+                            "USER FEEDBACK: " + feedback);
 
-            AgentThought thought = AgentThought.builder()
-                    .id(UUID.randomUUID().toString())
-                    .agentId(agent.getId())
-                    .agentName(agent.getName())
-                    .content(refinement)
-                    .type(AgentThought.ThoughtType.REFINEMENT)
-                    .timestamp(Instant.now())
-                    .confidence(0.9) // Usually becomes more confident after feedback
-                    .build();
+            AgentThought thought = new AgentThought(
+                    UUID.randomUUID().toString(),
+                    agent.getId(),
+                    agent.getName(),
+                    refinement,
+                    AgentThought.ThoughtType.REFINEMENT,
+                    Instant.now(),
+                    new ArrayList<>(),
+                    0.9);
 
+            indexThought(sessionId, thought);
             session.addThought(thought);
             agent.addThought(thought);
             broadcastThought(sessionId, thought);
@@ -207,19 +228,21 @@ public class MultiAgentOrchestrator {
 
         for (AgentParticipant agent : getShuffledAgents()) {
             log.info("Agent {} analyzing problem with fact-check instruction", agent.getName());
+            session.incrementStat("llm_calls");
 
-            String analysis = agent.analyze(session.getProblem() + factCheckInstruction);
+            String analysis = agent.analyze(sessionId, session.getProblem() + factCheckInstruction);
 
-            AgentThought thought = AgentThought.builder()
-                    .id(UUID.randomUUID().toString())
-                    .agentId(agent.getId())
-                    .agentName(agent.getName())
-                    .content(analysis)
-                    .type(AgentThought.ThoughtType.ANALYSIS)
-                    .timestamp(Instant.now())
-                    .confidence(0.7)
-                    .build();
+            AgentThought thought = new AgentThought(
+                    UUID.randomUUID().toString(),
+                    agent.getId(),
+                    agent.getName(),
+                    analysis,
+                    AgentThought.ThoughtType.ANALYSIS,
+                    Instant.now(),
+                    new ArrayList<>(),
+                    0.7);
 
+            indexThought(sessionId, thought);
             session.addThought(thought);
             agent.addThought(thought);
             broadcastThought(sessionId, thought);
@@ -240,19 +263,21 @@ public class MultiAgentOrchestrator {
 
         for (AgentParticipant agent : getShuffledAgents()) {
             log.info("Agent {} presenting argument", agent.getName());
+            session.incrementStat("llm_calls");
 
-            String argument = agent.argue(session.getProblem(), context);
+            String argument = agent.argue(sessionId, session.getProblem(), context);
 
-            AgentThought thought = AgentThought.builder()
-                    .id(UUID.randomUUID().toString())
-                    .agentId(agent.getId())
-                    .agentName(agent.getName())
-                    .content(argument)
-                    .type(AgentThought.ThoughtType.ARGUMENT)
-                    .timestamp(Instant.now())
-                    .confidence(0.8)
-                    .build();
+            AgentThought thought = new AgentThought(
+                    UUID.randomUUID().toString(),
+                    agent.getId(),
+                    agent.getName(),
+                    argument,
+                    AgentThought.ThoughtType.ARGUMENT,
+                    Instant.now(),
+                    new ArrayList<>(),
+                    0.8);
 
+            indexThought(sessionId, thought);
             session.addThought(thought);
             agent.addThought(thought);
             broadcastThought(sessionId, thought);
@@ -269,24 +294,26 @@ public class MultiAgentOrchestrator {
 
         for (AgentParticipant agent : getShuffledAgents()) {
             log.info("Agent {} critiquing others", agent.getName());
+            session.incrementStat("llm_calls");
 
             // Get other agents' arguments
             String otherArguments = getOtherAgentsArguments(agent, session.getThoughts());
 
-            String critique = agent.respond(
+            String critique = agent.respond(sessionId,
                     "Critique the following arguments objectively. Look for logical fallacies, missing data, or potential downsides:\n\n"
                             + otherArguments);
 
-            AgentThought thought = AgentThought.builder()
-                    .id(UUID.randomUUID().toString())
-                    .agentId(agent.getId())
-                    .agentName(agent.getName())
-                    .content(critique)
-                    .type(AgentThought.ThoughtType.CRITIQUE)
-                    .timestamp(Instant.now())
-                    .confidence(0.8)
-                    .build();
+            AgentThought thought = new AgentThought(
+                    UUID.randomUUID().toString(),
+                    agent.getId(),
+                    agent.getName(),
+                    critique,
+                    AgentThought.ThoughtType.CRITIQUE,
+                    Instant.now(),
+                    new ArrayList<>(),
+                    0.8);
 
+            indexThought(sessionId, thought);
             session.addThought(thought);
             agent.addThought(thought);
             broadcastThought(sessionId, thought);
@@ -303,6 +330,7 @@ public class MultiAgentOrchestrator {
 
         for (AgentParticipant agent : getShuffledAgents()) {
             log.info("Agent {} rebutting critiques", agent.getName());
+            session.incrementStat("llm_calls");
 
             // Get critiques directed at or related to this agent's argument
             String relevantThoughts = session.getThoughts().stream()
@@ -311,19 +339,21 @@ public class MultiAgentOrchestrator {
                     .collect(Collectors.joining("\n\n"));
 
             String rebuttal = agent
-                    .respond("Defend your position against these critiques and clarify any misunderstandings:\n\n"
-                            + relevantThoughts);
+                    .respond(sessionId,
+                            "Defend your position against these critiques and clarify any misunderstandings:\n\n"
+                                    + relevantThoughts);
 
-            AgentThought thought = AgentThought.builder()
-                    .id(UUID.randomUUID().toString())
-                    .agentId(agent.getId())
-                    .agentName(agent.getName())
-                    .content(rebuttal)
-                    .type(AgentThought.ThoughtType.REBUTTAL)
-                    .timestamp(Instant.now())
-                    .confidence(0.85)
-                    .build();
+            AgentThought thought = new AgentThought(
+                    UUID.randomUUID().toString(),
+                    agent.getId(),
+                    agent.getName(),
+                    rebuttal,
+                    AgentThought.ThoughtType.REBUTTAL,
+                    Instant.now(),
+                    new ArrayList<>(),
+                    0.85);
 
+            indexThought(sessionId, thought);
             session.addThought(thought);
             agent.addThought(thought);
             broadcastThought(sessionId, thought);
@@ -340,22 +370,24 @@ public class MultiAgentOrchestrator {
 
         for (AgentParticipant agent : getShuffledAgents()) {
             log.info("Agent {} responding to others", agent.getName());
+            session.incrementStat("llm_calls");
 
             // Get other agents' arguments
             String otherArguments = getOtherAgentsArguments(agent, session.getThoughts());
 
-            String response = agent.respond(otherArguments);
+            String response = agent.respond(sessionId, otherArguments);
 
-            AgentThought thought = AgentThought.builder()
-                    .id(UUID.randomUUID().toString())
-                    .agentId(agent.getId())
-                    .agentName(agent.getName())
-                    .content(response)
-                    .type(AgentThought.ThoughtType.COUNTER_ARGUMENT)
-                    .timestamp(Instant.now())
-                    .confidence(0.75)
-                    .build();
+            AgentThought thought = new AgentThought(
+                    UUID.randomUUID().toString(),
+                    agent.getId(),
+                    agent.getName(),
+                    response,
+                    AgentThought.ThoughtType.COUNTER_ARGUMENT,
+                    Instant.now(),
+                    new ArrayList<>(),
+                    0.75);
 
+            indexThought(sessionId, thought);
             session.addThought(thought);
             agent.addThought(thought);
             broadcastThought(sessionId, thought);
@@ -373,7 +405,8 @@ public class MultiAgentOrchestrator {
         // Collect final opinions from all agents
         Map<String, AgentOpinion> opinions = new HashMap<>();
         for (AgentParticipant agent : getShuffledAgents()) {
-            AgentOpinion opinion = agent.formOpinion(session.getProblem(), session.getThoughts());
+            AgentOpinion opinion = agent.formOpinion(sessionId, session.getProblem(), session.getThoughts());
+            session.incrementStat("llm_calls");
             opinions.put(agent.getId(), opinion);
         }
 
@@ -381,18 +414,18 @@ public class MultiAgentOrchestrator {
         double agreementScore = calculateAgreementScore(opinions.values());
 
         // Synthesize recommendation
-        String recommendation = synthesizeRecommendation(opinions.values());
+        String recommendation = synthesizeRecommendation(session, opinions.values());
 
         // Extract key points
         List<String> keyPoints = extractKeyPoints(opinions.values());
 
-        return Consensus.builder()
-                .recommendation(recommendation)
-                .agreementScore(agreementScore)
-                .agentOpinions(opinions)
-                .keyPoints(keyPoints)
-                .reasoning("Based on collaborative analysis from " + agents.size() + " expert perspectives")
-                .build();
+        return new Consensus(
+                recommendation,
+                agreementScore,
+                opinions,
+                keyPoints,
+                new ArrayList<>(), // considerations
+                "Based on collaborative analysis from " + agents.size() + " expert perspectives");
     }
 
     private String buildContext(List<AgentThought> thoughts) {
@@ -427,7 +460,7 @@ public class MultiAgentOrchestrator {
         }
     }
 
-    private String synthesizeRecommendation(Collection<AgentOpinion> opinions) {
+    private String synthesizeRecommendation(CollaborationSession session, Collection<AgentOpinion> opinions) {
         // Collect all expert opinions into a readable context
         String context = opinions.stream()
                 .map(o -> String.format("Expert Recommendation: %s\nConfidence: %.2f\nKey Points: %s",
@@ -462,6 +495,7 @@ public class MultiAgentOrchestrator {
                     .temperature(0.3) // Lower temperature for more consistent synthesis
                     .build();
             LLMResponse response = llmClient.chat(request);
+            session.incrementStat("llm_calls");
             return response.getContent();
         } catch (Exception e) {
             log.error("Failed to synthesize consensus via LLM, falling back to basic join", e);
@@ -477,6 +511,83 @@ public class MultiAgentOrchestrator {
                 .distinct()
                 .limit(5)
                 .collect(Collectors.toList());
+    }
+
+    private void indexThought(String sessionId, AgentThought thought) {
+        try {
+            String content = String.format("[%s] %s: %s", thought.getType(), thought.getAgentName(),
+                    thought.getContent());
+            io.github.llm4j.agent.rag.document.Document doc = io.github.llm4j.agent.rag.document.Document.builder()
+                    .id(thought.getId())
+                    .content(content)
+                    .addMetadata("agent", thought.getAgentName())
+                    .addMetadata("type", thought.getType().toString())
+                    .build();
+
+            // We use a helper in SharedKnowledgeService if we want, but for now RAGAgent
+            // handles it.
+            // Wait, RAGAgent has addDocument.
+            // I'll add a helper to SharedKnowledgeService.
+            sharedKnowledgeService.indexDocument(sessionId, doc);
+
+            // Also extract knowledge triples
+            extractKnowledge(sessionId, thought);
+
+        } catch (Exception e) {
+            log.error("Failed to index thought for session {}", sessionId, e);
+        }
+    }
+
+    private void extractKnowledge(String sessionId, AgentThought thought) {
+        // Only extract from substantial thoughts
+        if (thought.getType() == AgentThought.ThoughtType.REFINEMENT
+                || thought.getType() == AgentThought.ThoughtType.REBUTTAL) {
+            return;
+        }
+
+        try {
+            String prompt = "Extract knowledge triples (Subject, Predicate, Object) from the following text. " +
+                    "Return ONLY a JSON array of objects with keys 'subject', 'predicate', 'object'. " +
+                    "Example: [{\"subject\": \"Solar Energy\", \"predicate\": \"is_source_of\", \"object\": \"Power\"}] \n\n"
+                    +
+                    "Text: " + thought.getContent();
+
+            LLMRequest request = LLMRequest.builder()
+                    .addUserMessage(prompt)
+                    .temperature(0.0)
+                    .build();
+
+            LLMResponse response = llmClient.chat(request);
+            // Increment stat but maybe separate it? For now assume it's an LLM call.
+            CollaborationSession session = sessions.get(sessionId);
+            if (session != null)
+                session.incrementStat("llm_calls");
+
+            String json = response.getContent().replaceAll("```json", "").replaceAll("```", "").trim();
+            // Simple parsing (assuming library doesn't have a parser helper exposed)
+            // We use Jackson if available? Or simple regex/string manipulation if Jackson
+            // isn't handy?
+            // Spring Boot has Jackson.
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            List<Map<String, String>> triples = mapper.readValue(json,
+                    new com.fasterxml.jackson.core.type.TypeReference<List<Map<String, String>>>() {
+                    });
+
+            io.github.llm4j.agent.knowledge.KnowledgeGraph graph = sharedKnowledgeService.getKnowledgeGraph(sessionId);
+            for (Map<String, String> t : triples) {
+                String s = t.get("subject");
+                String p = t.get("predicate");
+                String o = t.get("object");
+                if (s != null && p != null && o != null) {
+                    graph.addTriple(new io.github.llm4j.agent.knowledge.model.Triple(
+                            io.github.llm4j.agent.knowledge.model.Entity.builder().id(s).type("concept").build(),
+                            io.github.llm4j.agent.knowledge.model.Relation.builder().type(p).build(),
+                            io.github.llm4j.agent.knowledge.model.Entity.builder().id(o).type("concept").build()));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to extract knowledge from thought {}: {}", thought.getId(), e.getMessage());
+        }
     }
 
     private void broadcastThought(String sessionId, AgentThought thought) {

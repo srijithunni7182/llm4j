@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class CollaborationController {
 
     private final MultiAgentOrchestrator orchestrator;
+    private final io.github.llm4j.multiagent.service.SharedKnowledgeService sharedKnowledgeService;
 
     @PostMapping("/problems")
     public ResponseEntity<SessionResponse> submitProblem(@RequestBody ProblemRequest request) {
@@ -42,6 +43,25 @@ public class CollaborationController {
         return ResponseEntity.accepted().build();
     }
 
+    @GetMapping("/sessions/{sessionId}/stats")
+    public ResponseEntity<SessionStats> getSessionStats(@PathVariable String sessionId) {
+        CollaborationSession session = orchestrator.getSession(sessionId);
+        if (session == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        io.github.llm4j.multiagent.service.SharedKnowledgeService.KnowledgeStats knowledgeStats = sharedKnowledgeService
+                .getKnowledgeStats(sessionId);
+
+        // Safely get llm_calls, defaulting to 0
+        int llmCalls = session.getStats().getOrDefault("llm_calls", 0);
+
+        return ResponseEntity.ok(new SessionStats(
+                knowledgeStats.getTripleCount(),
+                knowledgeStats.getVectorCount(),
+                llmCalls));
+    }
+
     @Data
     public static class FeedbackRequest {
         private String feedback;
@@ -57,5 +77,13 @@ public class CollaborationController {
     public static class SessionResponse {
         private final String sessionId;
         private final String message;
+    }
+
+    @Data
+    @RequiredArgsConstructor
+    public static class SessionStats {
+        private final int knowledgeNodes;
+        private final int memoryVectors;
+        private final int cognitiveSteps;
     }
 }

@@ -83,6 +83,20 @@ public class InMemoryGraphStore implements KnowledgeGraph {
     }
 
     /**
+     * Returns all entities in the graph. Useful for persistence.
+     */
+    public Collection<Entity> getAllEntities() {
+        return Collections.unmodifiableCollection(entities.values());
+    }
+
+    /**
+     * Returns all triples in the graph. Useful for persistence.
+     */
+    public List<Triple> getAllTriples() {
+        return Collections.unmodifiableList(triples);
+    }
+
+    /**
      * Checks if an entity matches the given property filters.
      *
      * @param entity  the entity to check

@@ -18,8 +18,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @TestPropertySource(properties = {
-        "google.api.key=test-api-key",
-        "google.search.cx=test-search-cx"
+        "GOOGLE_API_KEY=test-api-key",
+        "GOOGLE_SEARCH_CX=test-search-cx"
 })
 class MultiAgentPlatformApplicationTest {
 

@@ -8,9 +8,14 @@ import io.github.llm4j.agent.persona.PersonaLibrary;
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.multiagent.model.AgentParticipant;
 import io.github.llm4j.provider.google.GoogleProvider;
+import io.github.llm4j.agent.rag.embedding.EmbeddingProvider;
+import io.github.llm4j.agent.rag.embedding.GeminiEmbeddingProvider;
+import io.github.llm4j.multiagent.service.SharedKnowledgeService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 
 import java.util.List;
 
@@ -19,6 +24,10 @@ import java.util.List;
  */
 @Configuration
 public class AgentConfiguration {
+
+        @Autowired
+        @Lazy
+        private SharedKnowledgeService sharedKnowledgeService;
 
         @Value("${google.api.key}")
         private String apiKey;
@@ -37,6 +46,14 @@ public class AgentConfiguration {
                                 .build();
 
                 return new DefaultLLMClient(new GoogleProvider(config));
+        }
+
+        @Bean
+        public EmbeddingProvider embeddingProvider(LLMClient client) {
+                LLMConfig config = LLMConfig.builder()
+                                .apiKey(apiKey)
+                                .build();
+                return new GeminiEmbeddingProvider(config);
         }
 
         @Bean
@@ -80,7 +97,8 @@ public class AgentConfiguration {
                                 .temperature(0.2) // Very precise and analytical
                                 .build();
 
-                return new AgentParticipant("rahul", "Rahul", rahulPersona, agent, "/images/rahul.png");
+                return new AgentParticipant("rahul", "Rahul", rahulPersona, agent, "/images/rahul.png",
+                                sharedKnowledgeService);
         }
 
         private AgentParticipant createAgent(String id, String name, AgentPersona persona, LLMClient client,
@@ -108,7 +126,7 @@ public class AgentConfiguration {
                                 .temperature(temperature)
                                 .build();
 
-                return new AgentParticipant(id, name, rigidPersona, agent, avatarUrl);
+                return new AgentParticipant(id, name, rigidPersona, agent, avatarUrl, sharedKnowledgeService);
         }
 
         private io.github.llm4j.agent.Tool createWebSearchTool() {

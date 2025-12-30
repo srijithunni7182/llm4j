@@ -7,31 +7,49 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CollaborationSessionTest {
 
+        private CollaborationSession createSession(String id, String problem,
+                        CollaborationSession.SessionStatus status) {
+                CollaborationSession session = new CollaborationSession();
+                session.setContents(id, problem);
+                session.setStatus(status);
+                return session;
+        }
+
+        private AgentThought createThought(String id, String content, AgentThought.ThoughtType type) {
+                return new AgentThought(id, "agent1", "Agent 1", content, type, Instant.now(), new ArrayList<>(), 0.5);
+        }
+
+        private Consensus createConsensus(String rec, double score) {
+                return new Consensus(rec, score, new HashMap<>(), new ArrayList<>(), new ArrayList<>(), "Reasoning");
+        }
+
         @Test
-        void testBuilderAndData() {
+        void testConstructorAndData() {
                 Instant now = Instant.now();
                 List<AgentThought> thoughts = new ArrayList<>();
-                thoughts.add(AgentThought.builder().id("t1").build());
+                thoughts.add(createThought("t1", "content", AgentThought.ThoughtType.ANALYSIS));
 
-                Consensus consensus = Consensus.builder()
-                                .recommendation("Test consensus")
-                                .build();
+                Consensus consensus = createConsensus("Test consensus", 0.9);
 
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("s1")
-                                .problem("The problem")
-                                .status(CollaborationSession.SessionStatus.CREATED)
-                                .createdAt(now)
-                                .currentRound(1)
-                                .totalRounds(5)
-                                .thoughts(thoughts)
-                                .consensus(consensus)
-                                .build();
+                CollaborationSession session = new CollaborationSession(
+                                "s1",
+                                "The problem",
+                                CollaborationSession.SessionStatus.CREATED,
+                                now,
+                                null,
+                                thoughts,
+                                consensus,
+                                1,
+                                5,
+                                new ConcurrentHashMap<>());
 
                 assertThat(session.getSessionId()).isEqualTo("s1");
                 assertThat(session.getProblem()).isEqualTo("The problem");
@@ -45,12 +63,11 @@ class CollaborationSessionTest {
 
         @Test
         void testDefaultValues() {
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("s2")
-                                .build();
+                CollaborationSession session = new CollaborationSession();
+                session.setContents("s2", null);
 
                 assertThat(session.getSessionId()).isEqualTo("s2");
-                assertThat(session.getThoughts()).isEmpty();
+                assertThat(session.getThoughts()).isEmpty(); // Default initialized in field
         }
 
         @Test
@@ -69,10 +86,8 @@ class CollaborationSessionTest {
 
         @Test
         void testStatusCreated() {
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("created")
-                                .status(CollaborationSession.SessionStatus.CREATED)
-                                .build();
+                CollaborationSession session = createSession("created", null,
+                                CollaborationSession.SessionStatus.CREATED);
 
                 assertThat(session.getStatus()).isEqualTo(CollaborationSession.SessionStatus.CREATED);
                 assertThat(session.getStatus().name()).isEqualTo("CREATED");
@@ -80,40 +95,31 @@ class CollaborationSessionTest {
 
         @Test
         void testStatusAnalyzing() {
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("analyzing")
-                                .status(CollaborationSession.SessionStatus.ANALYZING)
-                                .build();
+                CollaborationSession session = createSession("analyzing", null,
+                                CollaborationSession.SessionStatus.ANALYZING);
 
                 assertThat(session.getStatus()).isEqualTo(CollaborationSession.SessionStatus.ANALYZING);
         }
 
         @Test
         void testStatusCompleted() {
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("completed")
-                                .status(CollaborationSession.SessionStatus.COMPLETED)
-                                .build();
+                CollaborationSession session = createSession("completed", null,
+                                CollaborationSession.SessionStatus.COMPLETED);
 
                 assertThat(session.getStatus()).isEqualTo(CollaborationSession.SessionStatus.COMPLETED);
         }
 
         @Test
         void testStatusFailed() {
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("failed")
-                                .status(CollaborationSession.SessionStatus.FAILED)
-                                .build();
+                CollaborationSession session = createSession("failed", null, CollaborationSession.SessionStatus.FAILED);
 
                 assertThat(session.getStatus()).isEqualTo(CollaborationSession.SessionStatus.FAILED);
         }
 
         @Test
         void testStatusTransition() {
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("transition")
-                                .status(CollaborationSession.SessionStatus.CREATED)
-                                .build();
+                CollaborationSession session = createSession("transition", null,
+                                CollaborationSession.SessionStatus.CREATED);
 
                 assertThat(session.getStatus()).isEqualTo(CollaborationSession.SessionStatus.CREATED);
 
@@ -126,10 +132,8 @@ class CollaborationSessionTest {
 
         @Test
         void testEmptyThoughts() {
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("empty-thoughts")
-                                .thoughts(Collections.emptyList())
-                                .build();
+                CollaborationSession session = createSession("empty-thoughts", null, null);
+                session.setThoughts(Collections.emptyList());
 
                 assertThat(session.getThoughts()).isEmpty();
         }
@@ -137,14 +141,12 @@ class CollaborationSessionTest {
         @Test
         void testMultipleThoughts() {
                 List<AgentThought> thoughts = Arrays.asList(
-                                AgentThought.builder().id("t1").content("Thought 1").build(),
-                                AgentThought.builder().id("t2").content("Thought 2").build(),
-                                AgentThought.builder().id("t3").content("Thought 3").build());
+                                createThought("t1", "Thought 1", AgentThought.ThoughtType.ANALYSIS),
+                                createThought("t2", "Thought 2", AgentThought.ThoughtType.ARGUMENT),
+                                createThought("t3", "Thought 3", AgentThought.ThoughtType.CRITIQUE));
 
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("multi-thoughts")
-                                .thoughts(thoughts)
-                                .build();
+                CollaborationSession session = createSession("multi-thoughts", null, null);
+                session.setThoughts(thoughts);
 
                 assertThat(session.getThoughts()).hasSize(3);
                 assertThat(session.getThoughts().get(0).getId()).isEqualTo("t1");
@@ -154,11 +156,9 @@ class CollaborationSessionTest {
 
         @Test
         void testRoundProgression() {
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("rounds")
-                                .currentRound(1)
-                                .totalRounds(5)
-                                .build();
+                CollaborationSession session = createSession("rounds", null, null);
+                session.setCurrentRound(1);
+                session.setTotalRounds(5);
 
                 assertThat(session.getCurrentRound()).isEqualTo(1);
                 assertThat(session.getTotalRounds()).isEqualTo(5);
@@ -172,11 +172,9 @@ class CollaborationSessionTest {
 
         @Test
         void testZeroRounds() {
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("zero")
-                                .currentRound(0)
-                                .totalRounds(0)
-                                .build();
+                CollaborationSession session = createSession("zero", null, null);
+                session.setCurrentRound(0);
+                session.setTotalRounds(0);
 
                 assertThat(session.getCurrentRound()).isEqualTo(0);
                 assertThat(session.getTotalRounds()).isEqualTo(0);
@@ -184,20 +182,14 @@ class CollaborationSessionTest {
 
         @Test
         void testNullProblem() {
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("null-problem")
-                                .problem(null)
-                                .build();
+                CollaborationSession session = createSession("null-problem", null, null);
 
                 assertThat(session.getProblem()).isNull();
         }
 
         @Test
         void testEmptyProblem() {
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("empty-problem")
-                                .problem("")
-                                .build();
+                CollaborationSession session = createSession("empty-problem", "", null);
 
                 assertThat(session.getProblem()).isEmpty();
         }
@@ -205,35 +197,25 @@ class CollaborationSessionTest {
         @Test
         void testLongProblem() {
                 String longProblem = "A".repeat(10000);
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("long-problem")
-                                .problem(longProblem)
-                                .build();
+                CollaborationSession session = createSession("long-problem", longProblem, null);
 
                 assertThat(session.getProblem()).hasSize(10000);
         }
 
         @Test
         void testNullConsensus() {
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("no-consensus")
-                                .consensus(null)
-                                .build();
+                CollaborationSession session = createSession("no-consensus", null, null);
+                session.setConsensus(null);
 
                 assertThat(session.getConsensus()).isNull();
         }
 
         @Test
         void testWithConsensus() {
-                Consensus consensus = Consensus.builder()
-                                .recommendation("Final decision")
-                                .agreementScore(0.9)
-                                .build();
+                Consensus consensus = createConsensus("Final decision", 0.9);
 
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("with-consensus")
-                                .consensus(consensus)
-                                .build();
+                CollaborationSession session = createSession("with-consensus", null, null);
+                session.setConsensus(consensus);
 
                 assertThat(session.getConsensus()).isNotNull();
                 assertThat(session.getConsensus().getRecommendation()).isEqualTo("Final decision");
@@ -246,22 +228,16 @@ class CollaborationSessionTest {
                 Instant now = Instant.now();
                 Instant future = Instant.parse("2025-12-31T23:59:59Z");
 
-                CollaborationSession session1 = CollaborationSession.builder()
-                                .sessionId("past")
-                                .createdAt(past)
-                                .build();
+                CollaborationSession session1 = createSession("past", null, null);
+                session1.setCreatedAt(past);
                 assertThat(session1.getCreatedAt()).isEqualTo(past);
 
-                CollaborationSession session2 = CollaborationSession.builder()
-                                .sessionId("now")
-                                .createdAt(now)
-                                .build();
+                CollaborationSession session2 = createSession("now", null, null);
+                session2.setCreatedAt(now);
                 assertThat(session2.getCreatedAt()).isEqualTo(now);
 
-                CollaborationSession session3 = CollaborationSession.builder()
-                                .sessionId("future")
-                                .createdAt(future)
-                                .build();
+                CollaborationSession session3 = createSession("future", null, null);
+                session3.setCreatedAt(future);
                 assertThat(session3.getCreatedAt()).isEqualTo(future);
         }
 
@@ -270,34 +246,22 @@ class CollaborationSessionTest {
                 Instant now = Instant.now();
 
                 List<AgentThought> thoughts = Arrays.asList(
-                                AgentThought.builder()
-                                                .id("t1")
-                                                .agentId("a1")
-                                                .type(AgentThought.ThoughtType.ANALYSIS)
-                                                .content("Analysis")
-                                                .build(),
-                                AgentThought.builder()
-                                                .id("t2")
-                                                .agentId("a2")
-                                                .type(AgentThought.ThoughtType.ARGUMENT)
-                                                .content("Argument")
-                                                .build());
+                                createThought("t1", "Analysis", AgentThought.ThoughtType.ANALYSIS),
+                                createThought("t2", "Argument", AgentThought.ThoughtType.ARGUMENT));
 
-                Consensus consensus = Consensus.builder()
-                                .recommendation("Proceed")
-                                .agreementScore(0.85)
-                                .build();
+                Consensus consensus = createConsensus("Proceed", 0.85);
 
-                CollaborationSession session = CollaborationSession.builder()
-                                .sessionId("complete")
-                                .problem("Complex problem")
-                                .status(CollaborationSession.SessionStatus.COMPLETED)
-                                .createdAt(now)
-                                .currentRound(5)
-                                .totalRounds(5)
-                                .thoughts(thoughts)
-                                .consensus(consensus)
-                                .build();
+                CollaborationSession session = new CollaborationSession(
+                                "complete",
+                                "Complex problem",
+                                CollaborationSession.SessionStatus.COMPLETED,
+                                now,
+                                null,
+                                thoughts,
+                                consensus,
+                                5,
+                                5,
+                                new ConcurrentHashMap<>());
 
                 assertThat(session.getSessionId()).isEqualTo("complete");
                 assertThat(session.getProblem()).isEqualTo("Complex problem");
@@ -315,18 +279,17 @@ class CollaborationSessionTest {
                 CollaborationSession session = new CollaborationSession();
                 Instant now = Instant.now();
 
-                session.setSessionId("new-id");
-                session.setProblem("New problem");
+                session.setContents("new-id", "New problem");
                 session.setStatus(CollaborationSession.SessionStatus.ANALYZING);
                 session.setCreatedAt(now);
                 session.setCurrentRound(3);
                 session.setTotalRounds(10);
 
                 List<AgentThought> thoughts = Collections.singletonList(
-                                AgentThought.builder().id("t").build());
+                                createThought("t", "content", AgentThought.ThoughtType.ANALYSIS));
                 session.setThoughts(thoughts);
 
-                Consensus consensus = Consensus.builder().recommendation("Test").build();
+                Consensus consensus = createConsensus("Test", 0.8);
                 session.setConsensus(consensus);
 
                 assertThat(session.getSessionId()).isEqualTo("new-id");

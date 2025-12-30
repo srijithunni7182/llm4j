@@ -30,6 +30,34 @@ public class AgentThought {
 
     private double confidence;
 
+    public String getId() {
+        return id;
+    }
+
+    public String getAgentId() {
+        return agentId;
+    }
+
+    public String getAgentName() {
+        return agentName;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public ThoughtType getType() {
+        return type;
+    }
+
+    public Instant getTimestamp() {
+        return timestamp;
+    }
+
+    public double getConfidence() {
+        return confidence;
+    }
+
     public enum ThoughtType {
         ANALYSIS, // Initial analysis of the problem
         ARGUMENT, // Presenting an argument
