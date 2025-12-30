@@ -1007,11 +1007,24 @@
             window.location.reload();
         }
 
-        function openSessionsModal() {
+        async function openSessionsModal() {
             const modal = document.getElementById('sessionsModal');
             const list = document.getElementById('sessionsList');
-            list.innerHTML = '';
+            list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-dim)">Loading history...</div>';
+            modal.style.display = 'flex';
 
+            try {
+                const res = await fetch('/api/my-sessions');
+                if (res.ok) {
+                    mySessions = await res.json();
+                } else {
+                    console.error("Failed to refresh sessions");
+                }
+            } catch (e) {
+                console.error("Error fetching sessions", e);
+            }
+
+            list.innerHTML = '';
             if (mySessions.length === 0) {
                 list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-dim)">No history found. Start a new discussion!</div>';
             } else {
@@ -1027,8 +1040,6 @@
                     list.appendChild(el);
                 });
             }
-
-            modal.style.display = 'flex';
         }
 
         function closeSessionsModal() {
@@ -1245,10 +1256,36 @@
                     <h3>Provide your feedback to the circle:</h3>
                     <div class="feedback-controls">
                         <textarea class="feedback-input" id="feedbackInput" placeholder="What do you think of this consensus? Challenge the experts..."></textarea>
-                        <button class="feedback-btn" onclick="submitFeedback()">Send Feedback</button>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <button class="feedback-btn" onclick="startNewDebate()" style="background: rgba(255,255,255,0.1); color: var(--text-dim);">
+                                <span>↺</span> New Debate
+                            </button>
+                            <button class="feedback-btn" onclick="submitFeedback()">Send Feedback</button>
+                        </div>
                     </div>
                 </div>
             `;
+        }
+
+        function startNewDebate() {
+            resetUI();
+            document.getElementById('problemInput').value = '';
+            document.getElementById('problemInput').focus();
+        }
+
+        function resetUI() {
+            currentSessionId = null;
+            document.getElementById('submitBtn').disabled = false;
+            document.getElementById('timeline').innerHTML = '';
+            document.getElementById('consensusArea').innerHTML = '';
+            document.getElementById('statusText').innerText = 'Ready to Collaborate';
+            document.getElementById('statusIcon').innerText = '⚡';
+            document.getElementById('roundIndicator').innerText = '';
+            document.getElementById('nodesCount').innerText = '0';
+            document.getElementById('vectorsCount').innerText = '0';
+            document.getElementById('stepsCount').innerText = '0';
+            document.querySelectorAll('.agent-card').forEach(c => c.classList.remove('active'));
+            if (statsInterval) clearInterval(statsInterval);
         }
 
         async function submitFeedback() {
