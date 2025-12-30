@@ -86,6 +86,7 @@
             font-size: 4rem;
             font-weight: 800;
             background: var(--gradient-main);
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 10px;
@@ -529,6 +530,197 @@
         .metric-item.full-width {
             grid-column: span 2;
         }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            padding: 40px;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+            animation: fadeInDown 0.4s ease;
+            position: relative;
+        }
+
+        .close {
+            color: var(--text-dim);
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            position: absolute;
+            top: 20px;
+            right: 25px;
+        }
+
+        .close:hover {
+            color: white;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .auth-form input {
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.2);
+            color: white;
+            font-size: 1rem;
+        }
+
+        .auth-form button {
+            background: var(--gradient-main);
+            color: white;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+
+        .auth-switch {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            margin-top: 10px;
+        }
+
+        .auth-switch a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .error-msg {
+            color: #ef4444;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .session-item {
+            padding: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .session-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .session-date {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .session-topic {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .btn-auth {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.2);
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .btn-auth.btn-primary {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .btn-auth:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Feedback Section Styles */
+        .feedback-section {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            margin-top: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: fadeInDown 0.5s ease;
+        }
+
+        .feedback-section h3 {
+            margin-bottom: 15px;
+            color: var(--text-main);
+        }
+
+        .feedback-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .feedback-input {
+            width: 100%;
+            min-height: 80px;
+            padding: 15px;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: white;
+            font-family: inherit;
+            resize: vertical;
+            transition: all 0.3s;
+        }
+
+        .feedback-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(124, 77, 255, 0.1);
+        }
+
+        .feedback-btn {
+            align-self: flex-end;
+            background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .feedback-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 70, 229, 0.4);
+        }
     </style>
 </head>
 
@@ -607,6 +799,46 @@
         </div>
     </div>
 
+    <!-- Auth Modals -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeLoginModal()">&times;</span>
+            <h2>Login</h2>
+            <div class="auth-form">
+                <input type="text" id="loginUsername" placeholder="Username or Email">
+                <input type="password" id="loginPassword" placeholder="Password">
+                <button onclick="performLogin()">Login</button>
+                <p class="auth-switch">Don't have an account? <a href="#" onclick="switchToRegister()">Register</a></p>
+                <p id="loginError" class="error-msg"></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeRegisterModal()">&times;</span>
+            <h2>Register</h2>
+            <div class="auth-form">
+                <input type="text" id="regUsername" placeholder="Username">
+                <input type="email" id="regEmail" placeholder="Email">
+                <input type="text" id="regName" placeholder="Full Name">
+                <input type="password" id="regPassword" placeholder="Password">
+                <button onclick="performRegister()">Register</button>
+                <p class="auth-switch">Already have an account? <a href="#" onclick="switchToLogin()">Login</a></p>
+                <p id="regError" class="error-msg"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sessions Modal -->
+    <div id="sessionsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeSessionsModal()">&times;</span>
+            <h2>My Boardrooms</h2>
+            <div id="sessionsList" class="sessions-list"></div>
+        </div>
+    </div>
+
     <script>
         let stompClient = null;
         let currentSessionId = null;
@@ -626,6 +858,8 @@
         });
 
         function initUI() {
+            checkAuth();
+
             const list = document.getElementById('agentsList');
             agentsConfig.forEach(agent => {
                 const card = document.createElement('div');
@@ -641,6 +875,236 @@
                 `;
                 list.appendChild(card);
             });
+        }
+
+        // Auth & Sessions Logic
+        let mySessions = [];
+
+        async function checkAuth() {
+            // We'll create a header element dynamically if it doesn't exist, to put auth buttons
+            let authSection = document.getElementById('authSection');
+            if (!authSection) {
+                authSection = document.createElement('div');
+                authSection.id = 'authSection';
+                authSection.style.position = 'absolute';
+                authSection.style.top = '20px';
+                authSection.style.right = '20px';
+                authSection.style.display = 'flex';
+                authSection.style.gap = '10px';
+                document.body.appendChild(authSection);
+            }
+
+            try {
+                // Try to get sessions - if 401/403, we are not logged in
+                const res = await fetch('/api/my-sessions');
+                if (res.ok) {
+                    mySessions = await res.json();
+                    authSection.innerHTML = `
+                        <button class="btn-auth" onclick="openSessionsModal()">My Boardrooms</button>
+                        <button class="btn-auth" onclick="performLogout()">Logout</button>
+                    `;
+                } else {
+                    authSection.innerHTML = `
+                        <button class="btn-auth btn-primary" onclick="openLoginModal()">Login</button>
+                        <button class="btn-auth" onclick="openRegisterModal()">Register</button>
+                    `;
+                }
+            } catch (e) {
+                console.error("Auth check failed", e);
+                authSection.innerHTML = `
+                    <button class="btn-auth btn-primary" onclick="openLoginModal()">Login</button>
+                `;
+            }
+        }
+
+        function openLoginModal() {
+            document.getElementById('loginModal').style.display = 'flex';
+            document.getElementById('loginError').innerText = '';
+        }
+
+        function closeLoginModal() {
+            document.getElementById('loginModal').style.display = 'none';
+        }
+
+        function openRegisterModal() {
+            document.getElementById('registerModal').style.display = 'flex';
+            document.getElementById('regError').innerText = '';
+        }
+
+        function closeRegisterModal() {
+            document.getElementById('registerModal').style.display = 'none';
+        }
+
+        function switchToRegister() {
+            closeLoginModal();
+            openRegisterModal();
+        }
+
+        function switchToLogin() {
+            closeRegisterModal();
+            openLoginModal();
+        }
+
+        async function performLogin() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+
+            try {
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
+
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    body: formData // Form login usually expects form-data or x-www-form-urlencoded
+                });
+
+                if (res.ok) {
+                    closeLoginModal();
+                    checkAuth();
+                    // Reload page to refresh state or just checkAuth
+                } else {
+                    errorEl.innerText = 'Invalid username or password';
+                }
+            } catch (e) {
+                errorEl.innerText = 'Login error';
+                console.error(e);
+            }
+        }
+
+        async function performRegister() {
+            const username = document.getElementById('regUsername').value;
+            const email = document.getElementById('regEmail').value;
+            const name = document.getElementById('regName').value;
+            const password = document.getElementById('regPassword').value;
+            const errorEl = document.getElementById('regError');
+
+            try {
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, name, password })
+                });
+
+                if (res.ok) {
+                    closeRegisterModal();
+                    alert("Registration successful! Please login.");
+                    openLoginModal();
+                } else {
+                    const txt = await res.text();
+                    errorEl.innerText = txt || 'Registration failed';
+                }
+            } catch (e) {
+                errorEl.innerText = 'Error registering';
+                console.error(e);
+            }
+        }
+
+        async function performLogout() {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            checkAuth();
+            window.location.reload();
+        }
+
+        function openSessionsModal() {
+            const modal = document.getElementById('sessionsModal');
+            const list = document.getElementById('sessionsList');
+            list.innerHTML = '';
+
+            if (mySessions.length === 0) {
+                list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-dim)">No history found. Start a new discussion!</div>';
+            } else {
+                mySessions.forEach(session => {
+                    const el = document.createElement('div');
+                    el.className = 'session-item';
+                    const date = new Date(session.createdAt).toLocaleString();
+                    el.innerHTML = `
+                        <div class="session-date">${date}</div>
+                        <div class="session-topic">${session.topic}</div>
+                    `;
+                    el.onclick = () => loadSession(session.sessionId);
+                    list.appendChild(el);
+                });
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeSessionsModal() {
+            document.getElementById('sessionsModal').style.display = 'none';
+        }
+
+        // Click outside to close
+        window.onclick = function (event) {
+            const modal = document.getElementById('sessionsModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        async function loadSession(sessionId) {
+            closeSessionsModal();
+            // Fetch full session details including turns
+            try {
+                const res = await fetch(`/api/my-sessions/${sessionId}`);
+                if (!res.ok) throw new Error("Failed to load session");
+                const sessionData = await res.json();
+
+                restoreSessionState(sessionData);
+            } catch (e) {
+                console.error(e);
+                alert("Could not load session.");
+            }
+        }
+
+        function restoreSessionState(session) {
+            currentSessionId = session.sessionId;
+            document.getElementById('problemInput').value = session.topic;
+            document.getElementById('submitBtn').disabled = true; // Discussion active/done
+
+            // Clear timeline
+            const timeline = document.getElementById('timeline');
+            timeline.innerHTML = '';
+
+            // Replay turns
+            // Note: The turns from DB in 'session.turns' might need mapping to 'thought' format
+            if (session.turns && session.turns.length > 0) {
+                session.turns.forEach(turn => {
+                    // Map turn entity to UI thought format
+                    const thought = {
+                        id: turn.id,
+                        agentId: getAgentIdByName(turn.speaker),
+                        agentName: turn.speaker,
+                        content: turn.content,
+                        type: 'HISTORY' // Generic type for loaded history
+                    };
+                    addThought(thought);
+                });
+            }
+
+            connectWebSocket(currentSessionId);
+
+            // Restore status and consensus if available
+            if (session.status) {
+                updateGlobalStatus(session);
+                if (session.status === 'COMPLETED' || session.status === 'BUILDING_CONSENSUS') {
+                    if (session.consensusRecommendation) {
+                        const consensusFragment = {
+                            agreementScore: session.agreementScore || 0.85,
+                            recommendation: session.consensusRecommendation
+                        };
+                        renderConsensus(consensusFragment);
+                    }
+                }
+            } else {
+                document.getElementById('statusText').innerText = 'Resumed Session';
+            }
+        }
+
+        function getAgentIdByName(name) {
+            const agent = agentsConfig.find(a => a.name === name);
+            return agent ? agent.id : 'unknown';
         }
 
         async function submitProblem() {

@@ -26,22 +26,28 @@ public class MultiAgentOrchestrator {
     private final SimpMessagingTemplate messagingTemplate;
     private final io.github.llm4j.LLMClient llmClient;
     private final SharedKnowledgeService sharedKnowledgeService;
+    private final io.github.llm4j.hexamind.service.SessionService sessionService;
 
     public MultiAgentOrchestrator(List<AgentParticipant> agents,
             SimpMessagingTemplate messagingTemplate,
             io.github.llm4j.LLMClient llmClient,
-            SharedKnowledgeService sharedKnowledgeService) {
+            SharedKnowledgeService sharedKnowledgeService,
+            io.github.llm4j.hexamind.service.SessionService sessionService) {
         this.agents = agents;
         this.messagingTemplate = messagingTemplate;
         this.llmClient = llmClient;
         this.sharedKnowledgeService = sharedKnowledgeService;
+        this.sessionService = sessionService;
     }
 
     /**
      * Start a new collaboration session.
      */
-    public String startCollaboration(String problem) {
+    public String startCollaboration(String problem, io.github.llm4j.hexamind.model.User user) {
         String sessionId = UUID.randomUUID().toString();
+
+        // Persist session
+        sessionService.createSession(user, sessionId, problem);
 
         CollaborationSession session = new CollaborationSession(
                 sessionId,
@@ -533,6 +539,9 @@ public class MultiAgentOrchestrator {
             // Also extract knowledge triples
             extractKnowledge(sessionId, thought);
 
+            // Persist as Turn
+            sessionService.saveTurn(sessionId, thought.getAgentName(), thought.getContent());
+
         } catch (Exception e) {
             log.error("Failed to index thought for session {}", sessionId, e);
         }
@@ -595,10 +604,35 @@ public class MultiAgentOrchestrator {
     }
 
     private void broadcastSessionUpdate(String sessionId, CollaborationSession session) {
+        // Persist state
+        try {
+            sessionService.updateSessionState(
+                    sessionId,
+                    session.getStatus().toString(),
+                    session.getCurrentRound(),
+                    session.getConsensus() != null ? session.getConsensus().getRecommendation() : null,
+                    session.getConsensus() != null ? session.getConsensus().getAgreementScore() : null);
+        } catch (Exception e) {
+            log.warn("Failed to persist session state for {}: {}", sessionId, e.getMessage());
+        }
         messagingTemplate.convertAndSend("/topic/session/" + sessionId + "/status", session);
     }
 
     private void broadcastConsensus(String sessionId, Consensus consensus) {
+        // Persist consensus specifically
+        try {
+            CollaborationSession session = sessions.get(sessionId);
+            if (session != null) {
+                sessionService.updateSessionState(
+                        sessionId,
+                        session.getStatus().toString(),
+                        session.getCurrentRound(),
+                        consensus.getRecommendation(),
+                        consensus.getAgreementScore());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to persist consensus for {}: {}", sessionId, e.getMessage());
+        }
         messagingTemplate.convertAndSend("/topic/session/" + sessionId + "/consensus", consensus);
     }
 

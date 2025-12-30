@@ -18,10 +18,17 @@ public class CollaborationController {
 
     private final MultiAgentOrchestrator orchestrator;
     private final io.github.llm4j.multiagent.service.SharedKnowledgeService sharedKnowledgeService;
+    private final io.github.llm4j.hexamind.service.UserService userService;
 
     @PostMapping("/problems")
-    public ResponseEntity<SessionResponse> submitProblem(@RequestBody ProblemRequest request) {
-        String sessionId = orchestrator.startCollaboration(request.getProblem());
+    public ResponseEntity<SessionResponse> submitProblem(@RequestBody ProblemRequest request,
+            org.springframework.security.core.Authentication authentication) {
+        String username = authentication.getName();
+        io.github.llm4j.hexamind.model.User user = userService.findByUsername(username)
+                .or(() -> userService.findByEmail(username))
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
+
+        String sessionId = orchestrator.startCollaboration(request.getProblem(), user);
 
         return ResponseEntity.ok(new SessionResponse(sessionId, "Collaboration started"));
     }

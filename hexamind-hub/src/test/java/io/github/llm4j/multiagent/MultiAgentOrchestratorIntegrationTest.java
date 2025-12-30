@@ -11,7 +11,10 @@ import io.github.llm4j.multiagent.service.MultiAgentOrchestrator;
 import io.github.llm4j.agent.knowledge.KnowledgeGraph;
 import io.github.llm4j.agent.rag.store.VectorStore;
 import io.github.llm4j.agent.rag.embedding.EmbeddingProvider;
+import io.github.llm4j.agent.rag.embedding.EmbeddingProvider;
 import io.github.llm4j.multiagent.service.SharedKnowledgeService;
+import io.github.llm4j.hexamind.model.User;
+import io.github.llm4j.hexamind.service.SessionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -37,12 +40,16 @@ public class MultiAgentOrchestratorIntegrationTest {
         private MultiAgentOrchestrator orchestrator;
         private LLMClient mockLLMClient;
         private SharedKnowledgeService mockSharedService;
+        private SessionService mockSessionService;
+        private User mockUser;
 
         @BeforeEach
         void setUp() {
                 // Use mocked LLM client to avoid real API calls
                 mockLLMClient = mock(LLMClient.class);
                 mockSharedService = mock(SharedKnowledgeService.class);
+                mockSessionService = mock(SessionService.class);
+                mockUser = User.builder().id(1L).email("test@test.com").name("Test User").build();
 
                 // Mock shared service responses
                 when(mockSharedService.getKnowledgeGraph(anyString())).thenReturn(mock(KnowledgeGraph.class));
@@ -63,7 +70,8 @@ public class MultiAgentOrchestratorIntegrationTest {
                                                 PersonaLibrary.businessConsultant()));
 
                 SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
-                orchestrator = new MultiAgentOrchestrator(agents, messagingTemplate, mockLLMClient, mockSharedService);
+                orchestrator = new MultiAgentOrchestrator(agents, messagingTemplate, mockLLMClient, mockSharedService,
+                                mockSessionService);
         }
 
         private AgentParticipant createMockAgent(String id, String name,
@@ -87,7 +95,7 @@ public class MultiAgentOrchestratorIntegrationTest {
         @Test
         void testCollaborationFlow() {
                 String problem = "Should we invest in renewable energy infrastructure?";
-                String sessionId = orchestrator.startCollaboration(problem);
+                String sessionId = orchestrator.startCollaboration(problem, mockUser);
 
                 assertThat(sessionId).isNotNull();
 
@@ -112,7 +120,7 @@ public class MultiAgentOrchestratorIntegrationTest {
         @Test
         void testFeedbackAndRefinement() {
                 String problem = "How can we improve customer satisfaction?";
-                String sessionId = orchestrator.startCollaboration(problem);
+                String sessionId = orchestrator.startCollaboration(problem, mockUser);
 
                 // Wait for initial collaboration
                 await().atMost(30, TimeUnit.SECONDS)
@@ -145,9 +153,9 @@ public class MultiAgentOrchestratorIntegrationTest {
                 String problem2 = "Problem 2";
                 String problem3 = "Problem 3";
 
-                String sessionId1 = orchestrator.startCollaboration(problem1);
-                String sessionId2 = orchestrator.startCollaboration(problem2);
-                String sessionId3 = orchestrator.startCollaboration(problem3);
+                String sessionId1 = orchestrator.startCollaboration(problem1, mockUser);
+                String sessionId2 = orchestrator.startCollaboration(problem2, mockUser);
+                String sessionId3 = orchestrator.startCollaboration(problem3, mockUser);
 
                 assertThat(sessionId1).isNotEqualTo(sessionId2);
                 assertThat(sessionId2).isNotEqualTo(sessionId3);
@@ -175,7 +183,7 @@ public class MultiAgentOrchestratorIntegrationTest {
         @Test
         void testSessionRetrieval() {
                 String problem = "Test problem";
-                String sessionId = orchestrator.startCollaboration(problem);
+                String sessionId = orchestrator.startCollaboration(problem, mockUser);
 
                 CollaborationSession session = orchestrator.getSession(sessionId);
 
@@ -193,7 +201,7 @@ public class MultiAgentOrchestratorIntegrationTest {
         @Test
         void testConsensusBuilding() {
                 String problem = "What is the best approach for digital transformation?";
-                String sessionId = orchestrator.startCollaboration(problem);
+                String sessionId = orchestrator.startCollaboration(problem, mockUser);
 
                 await().atMost(30, TimeUnit.SECONDS)
                                 .until(() -> orchestrator.getSession(sessionId)

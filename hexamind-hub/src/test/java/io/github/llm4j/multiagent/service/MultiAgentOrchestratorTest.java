@@ -11,6 +11,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import io.github.llm4j.hexamind.model.User;
+import io.github.llm4j.hexamind.service.SessionService;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.util.Collections;
@@ -36,6 +38,10 @@ class MultiAgentOrchestratorTest {
 
         @Mock
         private SharedKnowledgeService mockSharedService;
+
+        @Mock
+        private SessionService mockSessionService;
+        private User mockUser;
 
         private List<AgentParticipant> agents;
         private MultiAgentOrchestrator orchestrator;
@@ -65,7 +71,9 @@ class MultiAgentOrchestratorTest {
                 when(mockSharedService.getVectorStore(anyString())).thenReturn(mock(VectorStore.class));
 
                 agents = Collections.singletonList(mockAgent);
-                orchestrator = new MultiAgentOrchestrator(agents, messagingTemplate, llmClient, mockSharedService);
+                mockUser = User.builder().id(1L).email("test@test.com").name("Test User").build();
+                orchestrator = new MultiAgentOrchestrator(agents, messagingTemplate, llmClient, mockSharedService,
+                                mockSessionService);
         }
 
         @Test
@@ -76,7 +84,7 @@ class MultiAgentOrchestratorTest {
                                 .build();
                 when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
-                String sessionId = orchestrator.startCollaboration("Test Problem");
+                String sessionId = orchestrator.startCollaboration("Test Problem", mockUser);
 
                 assertThat(sessionId).isNotNull();
                 CollaborationSession session = orchestrator.getSession(sessionId);
@@ -109,7 +117,7 @@ class MultiAgentOrchestratorTest {
                                 .build();
                 when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
-                String sessionId = orchestrator.startCollaboration("Problem");
+                String sessionId = orchestrator.startCollaboration("Problem", mockUser);
                 await().atMost(15, TimeUnit.SECONDS).until(
                                 () -> orchestrator.getSession(sessionId)
                                                 .getStatus() == CollaborationSession.SessionStatus.COMPLETED);
@@ -140,7 +148,7 @@ class MultiAgentOrchestratorTest {
                                 .build();
                 when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
-                String sessionId = orchestrator.startCollaboration(null);
+                String sessionId = orchestrator.startCollaboration(null, mockUser);
                 assertThat(sessionId).isNotNull();
 
                 CollaborationSession session = orchestrator.getSession(sessionId);
@@ -155,7 +163,7 @@ class MultiAgentOrchestratorTest {
                                 .build();
                 when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
-                String sessionId = orchestrator.startCollaboration("");
+                String sessionId = orchestrator.startCollaboration("", mockUser);
                 assertThat(sessionId).isNotNull();
 
                 CollaborationSession session = orchestrator.getSession(sessionId);
@@ -177,7 +185,7 @@ class MultiAgentOrchestratorTest {
                                 .build();
                 when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
-                String sessionId = orchestrator.startCollaboration("Problem");
+                String sessionId = orchestrator.startCollaboration("Problem", mockUser);
                 await().atMost(15, TimeUnit.SECONDS).until(
                                 () -> orchestrator.getSession(sessionId)
                                                 .getStatus() == CollaborationSession.SessionStatus.COMPLETED);
@@ -206,14 +214,14 @@ class MultiAgentOrchestratorTest {
 
                 List<AgentParticipant> multipleAgents = List.of(mockAgent, mockAgent2);
                 MultiAgentOrchestrator multiOrchestrator = new MultiAgentOrchestrator(multipleAgents, messagingTemplate,
-                                llmClient, mockSharedService);
+                                llmClient, mockSharedService, mockSessionService);
 
                 LLMResponse mockResponse = LLMResponse.builder()
                                 .content("Multi-agent Consensus")
                                 .build();
                 when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
-                String sessionId = multiOrchestrator.startCollaboration("Complex Problem");
+                String sessionId = multiOrchestrator.startCollaboration("Complex Problem", mockUser);
 
                 await().atMost(20, TimeUnit.SECONDS)
                                 .until(() -> multiOrchestrator.getSession(sessionId)
@@ -231,14 +239,14 @@ class MultiAgentOrchestratorTest {
         void testEmptyAgentsList() {
                 List<AgentParticipant> emptyAgents = Collections.emptyList();
                 MultiAgentOrchestrator emptyOrchestrator = new MultiAgentOrchestrator(emptyAgents, messagingTemplate,
-                                llmClient, mockSharedService);
+                                llmClient, mockSharedService, mockSessionService);
 
                 LLMResponse mockResponse = LLMResponse.builder()
                                 .content("No agents consensus")
                                 .build();
                 when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
-                String sessionId = emptyOrchestrator.startCollaboration("Problem");
+                String sessionId = emptyOrchestrator.startCollaboration("Problem", mockUser);
 
                 await().atMost(15, TimeUnit.SECONDS)
                                 .until(() -> emptyOrchestrator.getSession(sessionId)
@@ -257,9 +265,9 @@ class MultiAgentOrchestratorTest {
                                 .build();
                 when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
-                String sessionId1 = orchestrator.startCollaboration("Problem 1");
-                String sessionId2 = orchestrator.startCollaboration("Problem 2");
-                String sessionId3 = orchestrator.startCollaboration("Problem 3");
+                String sessionId1 = orchestrator.startCollaboration("Problem 1", mockUser);
+                String sessionId2 = orchestrator.startCollaboration("Problem 2", mockUser);
+                String sessionId3 = orchestrator.startCollaboration("Problem 3", mockUser);
 
                 assertThat(sessionId1).isNotEqualTo(sessionId2);
                 assertThat(sessionId2).isNotEqualTo(sessionId3);
@@ -279,7 +287,7 @@ class MultiAgentOrchestratorTest {
                                 .build();
                 when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
-                String sessionId = orchestrator.startCollaboration("Problem");
+                String sessionId = orchestrator.startCollaboration("Problem", mockUser);
 
                 await().atMost(15, TimeUnit.SECONDS)
                                 .until(() -> orchestrator.getSession(sessionId)
