@@ -181,19 +181,95 @@ mvn spring-boot:run
 Open your browser and navigate to:
 **<http://localhost:8080>**
 
-## Architecture
+## 🏗️ Architecture
 
+### High-Level Overview
+
+Hexamind Hub uses a modern modular architecture powered by Spring Boot, with a clear separation between the reactive frontend, the orchestration layer, and the intelligent agent swarm.
+
+```mermaid
+graph TD
+    %% Styling
+    classDef frontend fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef api fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef core fill:#fff3e0,stroke:#ef6c00,stroke-width:2px;
+    classDef agent fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    classDef ext fill:#fafafa,stroke:#616161,stroke-width:1px,stroke-dasharray: 5 5;
+    classDef db fill:#e0f7fa,stroke:#006064,stroke-width:2px,shape:cylinder;
+
+    subgraph User Interface
+        UI["<strong>Hexamind UI</strong><br/>(HTML/JS/WebSocket)"]:::frontend
+    end
+
+    subgraph "Backend (Spring Boot)"
+        direction TB
+        
+        subgraph "API Layer"
+            AuthCtrl[AuthController]:::api
+            SessCtrl[SessionController]:::api
+            CollabCtrl[CollaborationController]:::api
+            WSEndpoint((WebSocket)):::api
+        end
+
+        subgraph "Core Logic"
+            Orchestrator["<strong>MultiAgentOrchestrator</strong><br/>(The Conductor)"]:::core
+            SessService[SessionService]:::core
+            KnowService[SharedKnowledgeService]:::core
+        end
+
+        subgraph "Agent Layer"
+            Rahul["<strong>Agent: Rahul</strong><br/>(The Skeptic)"]:::agent
+            Experts["<strong>Expert Agents</strong><br/>(Dynamic Personas)"]:::agent
+            Tools["<strong>Tools</strong><br/>(Search, Date)"]:::agent
+        end
+    end
+
+    subgraph "Data Persistence"
+        H2[("<strong>H2 Database</strong>")]:::db
+    end
+
+    subgraph "External AI Services"
+        Gemini["<strong>Google Gemini Pro</strong><br/>(LLM)"]:::ext
+        SerpApi["<strong>SerpApi</strong><br/>(Web Search)"]:::ext
+    end
+
+    %% Connections
+    UI -- "REST (Login/Stats)" --> AuthCtrl & SessCtrl
+    UI -- "WebSocket (Live Updates)" --> WSEndpoint
+    
+    WSEndpoint <--> CollabCtrl
+    CollabCtrl --> Orchestrator
+
+    Orchestrator -- "Manages" --> Rahul & Experts
+    Orchestrator -- "Persists State" --> SessService
+    Orchestrator -- "Indexes Thoughts" --> KnowService
+
+    Rahul & Experts -- "Think/Act" --> Gemini
+    Rahul & Experts -- "Use" --> Tools
+    Tools --> SerpApi
+
+    KnowService -- "RAG & Graph" --> H2
+    SessService -- "User Data" --> H2
+
+    %% Knowledge Flow
+    KnowService -. "Retrieves Context" .-> Orchestrator
 ```
-Frontend (HTML/JS + WebSocket)
-         ↓
-Spring Boot REST API
-         ↓
-MultiAgentOrchestrator ⟷ SharedKnowledgeService (RAG + KG)
-         ↓                           ↕
-6 AI Agents                  H2 Database (Persistence)
-         ↓
-Google Gemini API
-```
+
+### Core Components
+
+1. **Multi-Agent Orchestrator (`io.github.llm4j.multiagent.service`)**:
+    * Acts as the central conductor.
+    * Manages the state machine for the 5-round debate protocol.
+    * Coordinates the "Round-Robin" interaction between agents.
+
+2. **Shared Knowledge Service (RAG + Graph)**:
+    * **Vector Store**: Uses `InMemoryVectorStore` (persisted to H2) to store embeddings of all agent thoughts.
+    * **Knowledge Graph**: Automatically extracts Subject-Predicate-Object triples from agent outputs to build a structured map of the conversation.
+
+3. **Agent Swarm**:
+    * Powered by `gemini-react-java`.
+    * Each agent is a `ReActAgent` capability of Reasoning, Acting (using tools), and Observing.
+    * **Rahul** is a statically defined persona; others are dynamically generated based on the topic.
 
 ## License
 
