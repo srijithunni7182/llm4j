@@ -190,12 +190,12 @@ Hexamind Hub uses a modern modular architecture powered by Spring Boot, with a c
 ```mermaid
 graph TD
     %% Styling
-    classDef frontend fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
-    classDef api fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
-    classDef core fill:#fff3e0,stroke:#ef6c00,stroke-width:2px;
-    classDef agent fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
-    classDef ext fill:#fafafa,stroke:#616161,stroke-width:1px,stroke-dasharray: 5 5;
-    classDef db fill:#e0f7fa,stroke:#006064,stroke-width:2px,shape:cylinder;
+    classDef frontend fill:#1565C0,stroke:#90CAF9,stroke-width:2px,color:white;
+    classDef api fill:#2E7D32,stroke:#A5D6A7,stroke-width:2px,color:white;
+    classDef core fill:#E65100,stroke:#FFCC80,stroke-width:2px,color:white;
+    classDef agent fill:#6A1B9A,stroke:#CE93D8,stroke-width:2px,color:white;
+    classDef ext fill:#424242,stroke:#BDBDBD,stroke-width:2px,stroke-dasharray: 5 5,color:white;
+    classDef db fill:#006064,stroke:#80DEEA,stroke-width:2px,shape:cylinder,color:white;
 
     subgraph User Interface
         UI["<strong>Hexamind UI</strong><br/>(HTML/JS/WebSocket)"]:::frontend
