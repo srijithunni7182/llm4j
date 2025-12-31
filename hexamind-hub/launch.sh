@@ -7,6 +7,27 @@ echo "🤖 Hexamind Hub"
 echo "======================================"
 echo ""
 
+# Parse arguments
+CLEAN_DB=false
+
+for arg in "$@"
+do
+    case $arg in
+        --clean)
+        CLEAN_DB=true
+        shift # Remove --clean from processing
+        ;;
+    esac
+done
+
+if [ "$CLEAN_DB" = true ]; then
+    echo "🧹 Cleaning up H2 database..."
+    rm -f data/hexamind-db.mv.db
+    rm -f data/hexamind-db.trace.db
+    echo "✨ Database reset complete."
+    echo ""
+fi
+
 # Set API key and Search CX
 # Try to source secrets from local file not in git
 if [ -f "secrets.sh" ]; then

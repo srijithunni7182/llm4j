@@ -30,6 +30,7 @@ public class Session {
     @com.fasterxml.jackson.annotation.JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
     private User user;
 
+    @Column(columnDefinition = "TEXT")
     private String topic;
 
     @Column(name = "created_at")

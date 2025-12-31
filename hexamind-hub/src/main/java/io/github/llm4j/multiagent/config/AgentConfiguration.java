@@ -19,9 +19,12 @@ import org.springframework.context.annotation.Lazy;
 
 import java.util.List;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Configuration for AI agents.
  */
+@Slf4j
 @Configuration
 public class AgentConfiguration {
 
@@ -58,18 +61,29 @@ public class AgentConfiguration {
 
         @Bean
         public List<AgentParticipant> agents(LLMClient client) {
-                return List.of(
-                                createAgent("tech", "Alex", PersonaLibrary.technicalAnalyst(), client,
-                                                "/images/alex.png", 0.3),
-                                createAgent("business", "Jordan", PersonaLibrary.businessConsultant(), client,
-                                                "/images/jordan.png", 0.5),
-                                createAgent("creative", "Sasha", PersonaLibrary.creativeWriter(), client,
-                                                "/images/sasha.png", 0.9),
-                                createAgent("research", "Dr. Aris", PersonaLibrary.researchScientist(), client,
-                                                "/images/aris.png", 0.1),
-                                createAgent("customer", "Casey", PersonaLibrary.customerSupport(), client,
-                                                "/images/casey.png", 0.6),
-                                createRahulAgent(client));
+                log.info("🚀 System Initialization: Booting up AI Agent Swarm...");
+                try {
+                        List<AgentParticipant> swarm = List.of(
+                                        createAgent("tech", "Alex", PersonaLibrary.technicalAnalyst(), client,
+                                                        "/images/alex.png", 0.3),
+                                        createAgent("business", "Jordan", PersonaLibrary.businessConsultant(), client,
+                                                        "/images/jordan.png", 0.5),
+                                        createAgent("creative", "Sasha", PersonaLibrary.creativeWriter(), client,
+                                                        "/images/sasha.png", 0.9),
+                                        createAgent("research", "Dr. Aris", PersonaLibrary.researchScientist(), client,
+                                                        "/images/aris.png", 0.1),
+                                        createAgent("customer", "Casey", PersonaLibrary.customerSupport(), client,
+                                                        "/images/casey.png", 0.6),
+                                        createRahulAgent(client));
+
+                        log.info("✅ Agent Swarm successfully initialized with {} active agents.", swarm.size());
+                        return swarm;
+                } catch (Exception e) {
+                        log.error("🛑 CRITICAL SYSTEM ERROR: Failed to initialize AI Agents.", e);
+                        log.error("👉 CAUSE: {}", e.getMessage());
+                        log.error("👉 SUGGESTION: Check your GOOGLE_API_KEY and network connection.");
+                        throw new RuntimeException("Agent Swarm Initialization Failed", e);
+                }
         }
 
         private AgentParticipant createRahulAgent(LLMClient client) {
@@ -134,7 +148,10 @@ public class AgentConfiguration {
 
                 // 1. SerpAPI (Premium - First Choice)
                 if (serpApiKey != null && !serpApiKey.trim().isEmpty()) {
+                        log.info("🔍 Search Capability: Enabled SerpAPI (High Quality)");
                         searchTools.add(new io.github.llm4j.agent.tools.SerpApiSearchTool(serpApiKey));
+                } else {
+                        log.warn("⚠️ Search Capability: SerpAPI key missing. Falling back to lower-quality alternatives.");
                 }
 
                 // 2. DuckDuckGo (Free Fallback)
@@ -142,6 +159,7 @@ public class AgentConfiguration {
 
                 // 3. Google Custom Search (Legacy Fallback)
                 if (apiKey != null && !apiKey.trim().isEmpty() && searchCx != null && !searchCx.trim().isEmpty()) {
+                        log.info("🔍 Search Capability: Enabled Google Custom Search");
                         searchTools.add(new io.github.llm4j.agent.tools.WebSearchTool(apiKey, searchCx));
                 }
 
