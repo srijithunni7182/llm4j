@@ -10,5 +10,7 @@ import java.util.List;
 public interface VectorEntryRepository extends JpaRepository<VectorEntryEntity, Long> {
     List<VectorEntryEntity> findBySessionId(String sessionId);
 
+    int countBySessionIdIn(List<String> sessionIds);
+
     void deleteBySessionId(String sessionId);
 }

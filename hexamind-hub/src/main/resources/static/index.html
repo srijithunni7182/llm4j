@@ -171,7 +171,7 @@
 
         .workspace {
             display: grid;
-            grid-template-columns: 320px 1fr;
+            grid-template-columns: 280px 1fr 280px;
             gap: 30px;
             align-items: start;
         }
@@ -721,6 +721,93 @@
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(79, 70, 229, 0.4);
         }
+
+        /* Knowledge Sidebar (Right) */
+        .knowledge-sidebar {
+            background: var(--card-bg);
+            border-radius: 24px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            height: calc(100vh - 140px);
+            position: sticky;
+            top: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .knowledge-header {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 15px;
+        }
+
+        .knowledge-stream-container {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            /* Mask for fading edges */
+            mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+            -webkit-mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+        }
+
+        .vertical-track {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            animation: scroll-up 60s linear infinite;
+        }
+
+        .vertical-track:hover {
+            animation-play-state: paused;
+        }
+
+        @keyframes scroll-up {
+            0% {
+                transform: translateY(0);
+            }
+
+            100% {
+                transform: translateY(-50%);
+            }
+        }
+
+        .stream-node {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--primary);
+            border-radius: 12px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.1);
+            transition: all 0.3s;
+        }
+
+        .stream-node:hover {
+            background: rgba(99, 102, 241, 0.2);
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .stream-node-id {
+            color: var(--primary-light);
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+
+        .stream-node-type {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
     </style>
 </head>
 
@@ -760,7 +847,7 @@
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M18 6L6 18M6 6l12 12"></path>
                         </svg>
-                        Neural Metrics
+                        My Stats
                     </div>
                     <div class="metrics-grid">
                         <div class="metric-item">
@@ -796,6 +883,19 @@
 
                 <div id="consensusArea"></div>
             </main>
+
+            <!-- Knowledge Sidebar -->
+            <aside class="knowledge-sidebar">
+                <div class="knowledge-header">
+                    <span>🧠 Neural Stream</span>
+                    <span class="live-dot"
+                        style="width:8px; height:8px; background:var(--success); border-radius:50%; box-shadow:0 0 10px var(--success);"></span>
+                </div>
+                <div class="knowledge-stream-container" id="knowledgeStreamContainer">
+                    <!-- Stream Content -->
+                    <div style="text-align:center; color: var(--text-dim); margin-top: 50px;">Initializing...</div>
+                </div>
+            </aside>
         </div>
     </div>
 
@@ -857,25 +957,7 @@
             gfm: true
         });
 
-        function initUI() {
-            checkAuth();
 
-            const list = document.getElementById('agentsList');
-            agentsConfig.forEach(agent => {
-                const card = document.createElement('div');
-                card.className = 'agent-card';
-                card.id = `card-${agent.id}`;
-                card.innerHTML = `
-                    <img src="${agent.avatar}" class="agent-avatar-small" alt="${agent.name}">
-                    <div class="agent-info">
-                        <div class="agent-name-label">${agent.name}</div>
-                        <div class="agent-role-label">${agent.role}</div>
-                        <div class="typing-indicator">Analyzing...</div>
-                    </div>
-                `;
-                list.appendChild(card);
-            });
-        }
 
         // Auth & Sessions Logic
         let mySessions = [];
@@ -1159,24 +1241,29 @@
                 stompClient.subscribe(`/topic/session/${sessionId}/consensus`, (msg) => renderConsensus(JSON.parse(msg.body)));
             });
 
-            // Start polling stats
+            // Start polling user stats (aggregated)
             if (statsInterval) clearInterval(statsInterval);
-            statsInterval = setInterval(() => fetchStats(sessionId), 2000);
+            statsInterval = setInterval(() => fetchUserStats(), 5000);
         }
 
         let statsInterval = null;
 
-        async function fetchStats(sessionId) {
+        async function fetchUserStats() {
             try {
-                const response = await fetch(`/api/sessions/${sessionId}/stats`);
+                const response = await fetch('/api/user/stats');
                 if (response.ok) {
                     const stats = await response.json();
-                    document.getElementById('nodesCount').innerText = stats.knowledgeNodes;
-                    document.getElementById('vectorsCount').innerText = stats.memoryVectors;
-                    document.getElementById('stepsCount').innerText = stats.cognitiveSteps;
+                    if (document.getElementById('nodesCount')) document.getElementById('nodesCount').innerText = stats.knowledgeNodes;
+                    if (document.getElementById('vectorsCount')) document.getElementById('vectorsCount').innerText = stats.memoryVectors;
+                    if (document.getElementById('stepsCount')) document.getElementById('stepsCount').innerText = stats.cognitiveSteps;
+                } else {
+                    // Silent fail or set to zero/dash?
+                    // Setting to dash to indicate connectivity issue or auth issue
+                    document.getElementById('nodesCount').innerText = '-';
                 }
             } catch (e) {
-                console.error("Failed to fetch stats", e);
+                // Network error, ignore or log quietly
+                console.debug("Stats poll failed", e);
             }
         }
 
@@ -1320,6 +1407,93 @@
             }
         }
 
+        // --- KNOWLEDGE STREAM LOGIC (Robust) ---
+
+        async function initKnowledgeStream() {
+            const container = document.getElementById('knowledgeStreamContainer');
+            if (!container) return;
+
+            try {
+                const res = await fetch('/api/knowledge/global');
+                if (!res.ok) throw new Error("Stream offline");
+
+                const data = await res.json();
+                renderVerticalStream(data);
+            } catch (e) {
+                console.warn("Knowledge Stream unavailable:", e);
+                container.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--text-dim); font-size: 0.8rem;">
+                    <div>Stream Offline</div>
+                    <div style="font-size:0.7rem; opacity:0.6; margin-top:5px;">Check backend connection</div>
+                </div>`;
+            }
+        }
+
+        function renderVerticalStream(data) {
+            const container = document.getElementById('knowledgeStreamContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (!data.nodes || data.nodes.length === 0) {
+                container.innerHTML = `<div style="text-align:center; color: var(--text-dim); margin-top: 50px;">Memory Empty</div>`;
+                return;
+            }
+
+            const track = document.createElement('div');
+            track.className = 'vertical-track';
+
+            // Seamless loop logic: Duplicate nodes if few
+            let nodesToRender = [...data.nodes];
+            while (nodesToRender.length < 10 && nodesToRender.length > 0) {
+                nodesToRender = [...nodesToRender, ...data.nodes];
+            }
+            // Double for loop
+            if (nodesToRender.length > 0) {
+                nodesToRender = [...nodesToRender, ...nodesToRender];
+            }
+
+            nodesToRender.forEach(node => {
+                const nodeEl = document.createElement('div');
+                nodeEl.className = 'stream-node';
+                nodeEl.innerHTML = `
+                    <div class="stream-node-id">${node.label || node.id}</div>
+                    <div class="stream-node-type">Concept</div>
+                `;
+                track.appendChild(nodeEl);
+            });
+
+            container.appendChild(track);
+        }
+
+        // Initialize UI
+        function initUI() {
+            // Render Agents
+            const list = document.getElementById('agentsList');
+            if (list) {
+                list.innerHTML = '';
+                agentsConfig.forEach(agent => {
+                    const card = document.createElement('div');
+                    card.className = 'agent-card';
+                    card.id = `card-${agent.id}`;
+                    card.innerHTML = `
+                        <img src="${agent.avatar}" class="agent-avatar-small" alt="${agent.name}">
+                        <div class="agent-info">
+                            <div class="agent-name-label">${agent.name}</div>
+                            <div class="agent-role-label">${agent.role}</div>
+                            <div class="typing-indicator">Analyzing...</div>
+                        </div>
+                    `;
+                    list.appendChild(card);
+                });
+            }
+
+            // Start Knowledge Stream
+            initKnowledgeStream();
+
+            // Check Auth
+            checkAuth();
+        }
+
+        // Start
         initUI();
     </script>
 </body>

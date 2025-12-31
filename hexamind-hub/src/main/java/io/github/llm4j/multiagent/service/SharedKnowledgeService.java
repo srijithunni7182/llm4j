@@ -206,6 +206,48 @@ public class SharedKnowledgeService {
         return new KnowledgeStats(vectorCount, tripleCount);
     }
 
+    @Transactional(readOnly = true)
+    public List<String> getGlobalConcepts() {
+        // 1. Get top persisted concepts
+        List<String> concepts = knowledgeTripleRepository
+                .findTopConcepts(org.springframework.data.domain.PageRequest.of(0, 50));
+
+        // 2. Add active in-memory concepts
+        for (KnowledgeGraph graph : activeGraphs.values()) {
+            if (graph instanceof InMemoryGraphStore inMemoryGraph) {
+                concepts.addAll(inMemoryGraph.getAllTriples().stream()
+                        .map(t -> t.getSubject().getId())
+                        .collect(Collectors.toList()));
+            }
+        }
+
+        // 3. Dedup and limit
+        return concepts.stream().distinct().limit(50).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public KnowledgeStats getAggregatedStats(List<String> sessionIds) {
+        if (sessionIds == null || sessionIds.isEmpty()) {
+            return new KnowledgeStats(0, 0);
+        }
+        int tripleCount = knowledgeTripleRepository.countBySessionIdIn(sessionIds);
+        int vectorCount = vectorEntryRepository.countBySessionIdIn(sessionIds);
+
+        // Add active in-memory stats
+        for (Map.Entry<String, KnowledgeGraph> entry : activeGraphs.entrySet()) {
+            if (sessionIds.contains(entry.getKey()) && entry.getValue() instanceof InMemoryGraphStore inMemoryGraph) {
+                tripleCount += inMemoryGraph.getAllTriples().size();
+            }
+        }
+        for (Map.Entry<String, VectorStore> entry : activeVectorStores.entrySet()) {
+            if (sessionIds.contains(entry.getKey()) && entry.getValue() instanceof InMemoryVectorStore inMemoryStore) {
+                vectorCount += inMemoryStore.getAllEntries().size();
+            }
+        }
+
+        return new KnowledgeStats(vectorCount, tripleCount);
+    }
+
     public static class KnowledgeStats {
         private final int vectorCount;
         private final int tripleCount;

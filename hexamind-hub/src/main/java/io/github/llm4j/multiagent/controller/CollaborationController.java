@@ -2,6 +2,10 @@ package io.github.llm4j.multiagent.controller;
 
 import io.github.llm4j.multiagent.model.CollaborationSession;
 import io.github.llm4j.multiagent.service.MultiAgentOrchestrator;
+import io.github.llm4j.hexamind.model.Session;
+import io.github.llm4j.hexamind.model.User;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +23,7 @@ public class CollaborationController {
     private final MultiAgentOrchestrator orchestrator;
     private final io.github.llm4j.multiagent.service.SharedKnowledgeService sharedKnowledgeService;
     private final io.github.llm4j.hexamind.service.UserService userService;
+    private final io.github.llm4j.hexamind.repository.SessionRepository sessionRepository;
 
     @PostMapping("/problems")
     public ResponseEntity<SessionResponse> submitProblem(@RequestBody ProblemRequest request,
@@ -69,6 +74,26 @@ public class CollaborationController {
                 llmCalls));
     }
 
+    @GetMapping("/user/stats")
+    public ResponseEntity<SessionStats> getUserStats(org.springframework.security.core.Authentication authentication) {
+        String username = authentication.getName();
+        User user = userService.findByUsername(username)
+                .or(() -> userService.findByEmail(username))
+                .orElseThrow(() -> new RuntimeException("User not found: " + username));
+
+        List<Session> sessions = sessionRepository.findByUserOrderByCreatedAtDesc(user);
+
+        // Approximate cognitive steps by counting total turns across all sessions
+        int totalTurns = sessions.stream().mapToInt(s -> s.getTurns().size()).sum();
+
+        List<String> sessionIds = sessions.stream().map(Session::getSessionId).collect(Collectors.toList());
+
+        io.github.llm4j.multiagent.service.SharedKnowledgeService.KnowledgeStats stats = sharedKnowledgeService
+                .getAggregatedStats(sessionIds);
+
+        return ResponseEntity.ok(new SessionStats(stats.getTripleCount(), stats.getVectorCount(), totalTurns));
+    }
+
     @Data
     public static class FeedbackRequest {
         private String feedback;
@@ -84,6 +109,37 @@ public class CollaborationController {
     public static class SessionResponse {
         private final String sessionId;
         private final String message;
+    }
+
+    @GetMapping("/knowledge/global")
+    public ResponseEntity<GlobalKnowledgeGraph> getGlobalKnowledge(
+            org.springframework.security.core.Authentication authentication) {
+
+        List<String> concepts = sharedKnowledgeService.getGlobalConcepts();
+
+        // If empty (fresh DB), provide some defaults to look nice
+        if (concepts.isEmpty()) {
+            concepts = List.of("Waiting for data...", "Start a debate", "Collective Brain", "Empty State");
+        }
+
+        List<KnowledgeNode> nodes = concepts.stream()
+                .map(label -> new KnowledgeNode(label, label))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(new GlobalKnowledgeGraph(nodes));
+    }
+
+    @Data
+    @RequiredArgsConstructor
+    public static class GlobalKnowledgeGraph {
+        private final List<KnowledgeNode> nodes;
+    }
+
+    @Data
+    @RequiredArgsConstructor
+    public static class KnowledgeNode {
+        private final String id;
+        private final String label;
     }
 
     @Data
