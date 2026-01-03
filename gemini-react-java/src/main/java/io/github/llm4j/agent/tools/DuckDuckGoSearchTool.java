@@ -114,8 +114,8 @@ public class DuckDuckGoSearchTool implements Tool {
             }
 
             if (!foundSomething) {
-                return "No instant answer found for '" + query
-                        + "' on DuckDuckGo. Try a more specific or common topic.";
+                return "Error: No instant answer found for '" + query
+                        + "' on DuckDuckGo. This tool only provides instant answers, not a full web search.";
             }
 
             return results.toString();

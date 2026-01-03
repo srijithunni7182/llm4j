@@ -83,26 +83,70 @@ public class SerpApiSearchTool implements Tool {
             }
 
             JsonNode root = objectMapper.readTree(response.body().string());
-
-            // SerpAPI returns results in 'organic_results'
-            JsonNode items = root.get("organic_results");
-
-            if (items == null || !items.isArray() || items.size() == 0) {
-                return "No search results found for '" + query + "' using SerpAPI.";
-            }
-
             StringBuilder results = new StringBuilder();
             results.append("Search Results for '").append(query).append("':\n");
+            boolean found = false;
 
-            for (int i = 0; i < Math.min(items.size(), 5); i++) {
-                JsonNode item = items.get(i);
-                String title = item.path("title").asText();
-                String snippet = item.path("snippet").asText();
-                String link = item.path("link").asText();
+            // 1. Top Stories (Very important for emerging situations)
+            JsonNode topStories = root.get("top_stories");
+            if (topStories != null && topStories.isArray() && topStories.size() > 0) {
+                results.append("\nTOP STORIES:\n");
+                for (int i = 0; i < Math.min(topStories.size(), 3); i++) {
+                    JsonNode story = topStories.get(i);
+                    results.append("- ").append(story.path("title").asText());
+                    if (story.has("source"))
+                        results.append(" (").append(story.get("source").asText()).append(")");
+                    if (story.has("date"))
+                        results.append(" - ").append(story.get("date").asText());
+                    results.append("\n  Link: ").append(story.path("link").asText()).append("\n");
+                }
+                found = true;
+            }
 
-                results.append(i + 1).append(". ").append(title).append("\n");
-                results.append("   - ").append(snippet).append("\n");
-                results.append("   - Link: ").append(link).append("\n\n");
+            // 2. News Results
+            JsonNode newsResults = root.get("news_results");
+            if (newsResults != null && newsResults.isArray() && newsResults.size() > 0) {
+                results.append("\nLATEST NEWS:\n");
+                for (int i = 0; i < Math.min(newsResults.size(), 3); i++) {
+                    JsonNode news = newsResults.get(i);
+                    results.append("- ").append(news.path("title").asText());
+                    if (news.has("source"))
+                        results.append(" (").append(news.get("source").asText()).append(")");
+                    if (news.has("date"))
+                        results.append(" - ").append(news.get("date").asText());
+                    results.append("\n  ").append(news.path("snippet").asText()).append("\n");
+                }
+                found = true;
+            }
+
+            // 3. Knowledge Graph
+            JsonNode kg = root.get("knowledge_graph");
+            if (kg != null && !kg.isMissingNode()) {
+                results.append("\nKNOWLEDGE GRAPH:\n");
+                results.append("- ").append(kg.path("title").asText()).append(": ")
+                        .append(kg.path("description").asText()).append("\n");
+                found = true;
+            }
+
+            // 4. Organic Results (Items)
+            JsonNode items = root.get("organic_results");
+            if (items != null && items.isArray() && items.size() > 0) {
+                results.append("\nWEB RESULTS:\n");
+                for (int i = 0; i < Math.min(items.size(), 5); i++) {
+                    JsonNode item = items.get(i);
+                    String title = item.path("title").asText();
+                    String snippet = item.path("snippet").asText();
+                    String link = item.path("link").asText();
+
+                    results.append(i + 1).append(". ").append(title).append("\n");
+                    results.append("   - ").append(snippet).append("\n");
+                    results.append("   - Link: ").append(link).append("\n");
+                }
+                found = true;
+            }
+
+            if (!found) {
+                return "No search results found for '" + query + "' using SerpAPI.";
             }
 
             return results.toString();

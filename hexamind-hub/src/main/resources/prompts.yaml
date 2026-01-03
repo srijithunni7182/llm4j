@@ -3,7 +3,7 @@ prompts:
     v1: |
       Analyze this problem from your perspective as a {{role}}: {{problem}}
 
-      MANDATORY: Before providing analysis, you MUST use web search to verify any unfamiliar terms or concepts. If the query contains fabricated, fictional, or incorrect terms, you MUST explicitly call this out and challenge the premise. Avoid corporate clichés like 'phased approach' and provide empirical, data-backed insights in 2-4 sentences.
+      MANDATORY: Before providing analysis, you MUST use web search to verify any unfamiliar terms or concepts. If the query seems related to an emerging situation, breaking news, or very recent event, you MUST prioritize searching for "latest news" or "recent developments" to ensure precision. If the query contains fabricated, fictional, or incorrect terms, you MUST explicitly call this out and challenge the premise. Avoid corporate clichés and provide empirical, data-backed insights in 2-4 sentences.
     latest: "v1"
 
   agent_argue:
