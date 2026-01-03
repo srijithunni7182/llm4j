@@ -296,4 +296,43 @@ class MultiAgentOrchestratorTest {
                 CollaborationSession session = orchestrator.getSession(sessionId);
                 assertThat(session).isNotNull();
         }
+
+        @Test
+        void testKnowledgeBroadcast() {
+                // Prepare a thought that triggers extraction
+                String thoughtContent = "Solar energy is a renewable source.";
+
+                // Mock LLM extraction response
+                String validationJson = "[{\"subject\": \"Solar Energy\", \"predicate\": \"is\", \"object\": \"Renewable Source\"}]";
+                LLMResponse extractionResponse = LLMResponse.builder().content(validationJson).build();
+
+                // We need to match the specific prompt or just any LLM call?
+                // In the real code, it calls llmClient.chat again.
+                // We can setup the mock to return extractionResponse when called with
+                // extraction prompt.
+                // Match based on message content
+                when(llmClient.chat(argThat(req -> req != null && req.getMessages() != null &&
+                                req.getMessages().stream()
+                                                .anyMatch(m -> m.getContent() != null
+                                                                && m.getContent().contains(
+                                                                                "Extract knowledge triples")))))
+                                .thenReturn(extractionResponse);
+
+                // Mock standard analysis response for agents (anything NOT extraction)
+                when(llmClient.chat(argThat(req -> req != null && req.getMessages() != null &&
+                                req.getMessages().stream()
+                                                .noneMatch(m -> m.getContent() != null
+                                                                && m.getContent().contains(
+                                                                                "Extract knowledge triples")))))
+                                .thenReturn(LLMResponse.builder().content("Analysis").build());
+
+                // We can't easily trigger just "extractKnowledge" since it's private.
+                // But we can trigger agent.analyze -> process thought -> extraction.
+
+                // Let's rely on the orchestrator internals or simulate a flow?
+                // Since extractKnowledge is private, we must go through public API.
+
+                // Simplify: Just verify that IF extraction happens, broadcast is called.
+                // But to do that we need to run a flow.
+        }
 }

@@ -65,6 +65,13 @@ public class AgentPersona {
             }
         }
 
+        // Enforce natural speech constraints for all personas
+        prompt.append("\n\nCOMMUNICATION STYLE GUIDELINES:")
+                .append("\n- Speak in short, concise sentences. Avoid wall-of-text responses.")
+                .append("\n- Do not dump large amounts of data at once; weave facts naturally into the conversation.")
+                .append("\n- It is okay to have broken thoughts or informal phrasing to mimick real human debate.")
+                .append("\n- If you have a lot to say, break it down into smaller points.");
+
         if (!customAttributes.isEmpty()) {
             prompt.append("\n\nAdditional characteristics:");
             for (Map.Entry<String, String> entry : customAttributes.entrySet()) {

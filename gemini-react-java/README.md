@@ -13,7 +13,7 @@
 
 - **🤖 Google Gemini First**: Full integration with Gemini 1.5 Flash, Pro, and 2.x models.
 - **🛠️ ReAct Agent Framework**: Build AI agents that can reason and use tools (Calculator, Web Search, etc.).
-- **🎭 Agent Personas**: Configurable behavioral characteristics for deterministic agent responses.
+- **🎭 Agent Personas**: Configurable behavioral characteristics (tone, expertise, natural speech patterns) for deterministic agent responses.
 - **📚 RAG Support**: Retrieval-Augmented Generation with vector similarity search.
 - **🕸️ Knowledge Graphs**: Structured knowledge representation with entity-relationship querying.
 - **⚡ Robust Tooling**: Typed tool interface with JSON input parsing and error feedback loops.

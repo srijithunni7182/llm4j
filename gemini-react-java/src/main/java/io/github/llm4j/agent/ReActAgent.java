@@ -282,7 +282,7 @@ public class ReActAgent {
         }
 
         public Builder addTool(Tool tool) {
-            this.tools.put(tool.getName(), tool);
+            this.tools.put(tool.getName().toLowerCase(), tool);
             return this;
         }
 

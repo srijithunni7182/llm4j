@@ -100,6 +100,16 @@ Watch the brain grow in real-time. The sidebar now features a "Neural Metrics" d
 * **Memory Vectors**: The count of embedded thoughts in the Vector Store.
 * **Cognitive Steps**: A live counter of LLM reasoning steps performed by the swarm.
 
+### 💬 Human-Like Conversation (Burst Logic)
+
+* **Burst Messaging**: Agents now mimic human typing patterns by breaking their thoughts into natural, sentence-based "bursts" rather than dumping wall-of-text responses.
+* **Natural Speech**: Enhanced persona prompts ensure agents speak in short, concise, and conversational sentences.
+
+### 🎯 Actionable Consensus
+
+* **Specifics Over Cliches**: The consensus engine is now strictly tuned to reject generic corporate cliches.
+* **Concrete Outputs**: Final recommendations MUST include specific locations for pilot programs and exact KPI metrics for success.
+
 ### ⚡ UI Stability
 
 Optimized for large-scale analysis:

@@ -1045,7 +1045,8 @@
                 if (res.ok) {
                     closeLoginModal();
                     checkAuth();
-                    // Reload page to refresh state or just checkAuth
+                    // Connect to neural stream immediately
+                    initKnowledgeStream();
                 } else {
                     errorEl.innerText = 'Invalid username or password';
                 }
@@ -1239,6 +1240,12 @@
                 stompClient.subscribe(`/topic/session/${sessionId}/thoughts`, (msg) => addThought(JSON.parse(msg.body)));
                 stompClient.subscribe(`/topic/session/${sessionId}/status`, (msg) => updateGlobalStatus(JSON.parse(msg.body)));
                 stompClient.subscribe(`/topic/session/${sessionId}/consensus`, (msg) => renderConsensus(JSON.parse(msg.body)));
+
+                // Live Knowledge Stream
+                stompClient.subscribe(`/topic/session/${sessionId}/knowledge`, (msg) => {
+                    const label = msg.body;
+                    injectKnowledgeNode(label);
+                });
             });
 
             // Start polling user stats (aggregated)
@@ -1462,6 +1469,23 @@
             });
 
             container.appendChild(track);
+        }
+
+        function injectKnowledgeNode(label) {
+            const container = document.getElementById('knowledgeStreamContainer');
+            if (!container) return;
+
+            const track = container.querySelector('.vertical-track');
+            if (!track) return;
+
+            const nodeEl = document.createElement('div');
+            nodeEl.className = 'stream-node new-node';
+            nodeEl.innerHTML = `
+                <div class="stream-node-id">${label}</div>
+                <div class="stream-node-type">Live Concept</div>
+            `;
+            nodeEl.style.animation = 'fadeIn 0.5s ease-in';
+            track.appendChild(nodeEl);
         }
 
         // Initialize UI
