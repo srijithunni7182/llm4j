@@ -15,24 +15,26 @@ Each agent is powered by the `gemini-react-java` library and configured with a d
 Meet the team of 6 specialized personas:
 
 1. **Technical Analyst (`Alex`)**:
-    * *Focus*: Feasibility, architecture, data, and implementation details.
-    * *Motto*: "Show me the code and the data."
+    * *Prong*: Technical Whitepapers, Documentation, and Manuals.
+    * *Temporal Weight*: Structural/Architectural (Weeks/Months).
+    * *Focus*: Feasibility, architecture, and system-wide shifts.
 2. **Business Consultant (`Jordan`)**:
-    * *Focus*: Strategy, ROI, market fit, and business viability.
-    * *Motto*: "Does it make business sense?"
+    * *Prong*: Latest News, Social Media Trends, and Market Pulse.
+    * *Temporal Weight*: Real-time/Emerging (Minutes/Hours).
+    * *Focus*: Breaking news, sentiment, and leading indicators.
 3. **Creative Thinker (`Sasha`)**:
     * *Focus*: Innovation, user experience, branding, and "wild ideas".
     * *Motto*: "What if we broke the rules?"
 4. **Research Scientist (`Dr. Aris`)**:
-    * *Focus*: Evidence, academic backing, theoretical soundness, and citations.
-    * *Motto*: "What does the research say?"
+    * *Prong*: Academic Journals, Peer-Reviewed Studies, and Institutional Reports.
+    * *Temporal Weight*: Foundational/Proven (Years).
+    * *Focus*: Evidence, academic backing, and historical analogs.
 5. **Customer Advocate (`Casey`)**:
-    * *Focus*: User needs, accessibility, pain points, and customer satisfaction.
-    * *Motto*: "But how does the user feel?"
-6. **Cynical Skeptic (`Rahul`)**:
-    * *Focus*: Risk identification, logical fallacies, and challenging assumptions.
-    * *Motto*: "What if this fails? Where is the real data?"
-    * *Role*: Rahul is the "Devil's Advocate" who ensures the group doesn't fall into groupthink.
+    * *Focus*: User needs, accessibility, and customer satisfaction.
+6. **Adversarial Source Researcher (`Rahul`)**:
+    * *Prong*: Adversarial Research & Source Verification.
+    * *Focus*: Hunting for alternate views, verifying citations, and breaking echo chambers.
+    * *Motto*: "Trust but verify. Where is the contradictory data?"
 
 ## 🔄 How It Works
 
@@ -73,9 +75,17 @@ Finally, the system acts as a "Master Coordinator" to synthesize all expert opin
 To ensure maximum reliability and efficiency, the hub uses a tiered search strategy:
 
 1. **SerpAPI**: Primary high-quality search (requires API key).
-2. **DuckDuckGo**: Reliable free fallback for instant answers.
+2. **DuckDuckGo Lite**: A custom **Jsoup-based scraper** for DuckDuckGo Lite. This provides actual search results for news and current events, bypassing the limitations of standard instant-answer APIs and requiring no API keys.
 3. **Google Custom Search**: Secondary fallback.
 All results are managed by a **Cross-Agent Caching Layer**, which ensures that if one agent searches for a topic, all other agents can access that information instantly without making redundant API calls.
+
+### ⏳ Multi-Pronged Research & Temporal Weights
+
+The platform implements an **Information Spectrum** strategy to prevent "Academic Amnesia" and ensure comprehensive coverage:
+
+* **Leading Indicators (Jordan)**: Real-time news and social pulse provide the "Radar" for emerging situations.
+* **Foundational Signal (Dr. Aris & Alex)**: Academic journals and technical whitepapers provide structural context and "First Principles."
+* **Adversarial Verification (Rahul)**: Every "fact" shared in the boardroom is subject to adversarial verification. Rahul is tasked with hunting for alternate views and hunting for contradictory data to kill collective hallucinations.
 
 ### ⏰ Temporal Awareness
 
@@ -102,7 +112,8 @@ Watch the brain grow in real-time. The sidebar now features a "Neural Metrics" d
 
 ### 💬 Human-Like Conversation (Burst Logic)
 
-* **Burst Messaging**: Agents now mimic human typing patterns by breaking their thoughts into natural, sentence-based "bursts" rather than dumping wall-of-text responses.
+* **Burst Messaging**: Agents mimic human typing patterns by breaking thoughts into natural "bursts."
+* **Markdown-Safe Splitting**: The orchestration layer uses paragraph-aware splitting logic. This ensures that **Lists, Tables, and Code Blocks** remain contiguous and render perfectly, while long narrative paragraphs still exhibit a real-time "thinking" effect.
 * **Natural Speech**: Enhanced persona prompts ensure agents speak in short, concise, and conversational sentences.
 
 ### 🎯 Actionable Consensus
