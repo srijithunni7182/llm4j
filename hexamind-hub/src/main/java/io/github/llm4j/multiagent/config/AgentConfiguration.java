@@ -80,14 +80,35 @@ public class AgentConfiguration {
                 log.info("🚀 System Initialization: Booting up AI Agent Swarm...");
                 try {
                         List<AgentParticipant> swarm = List.of(
-                                        createAgent("tech", "Alex", PersonaLibrary.technicalAnalyst(), client,
-                                                        "/images/alex.png", 0.3, promptRegistry),
-                                        createAgent("business", "Jordan", PersonaLibrary.businessConsultant(), client,
-                                                        "/images/jordan.png", 0.5, promptRegistry),
+                                        createAgent("tech", "Alex", AgentPersona.builder()
+                                                        .name("Alex")
+                                                        .role("Deep-Dive Technical Analyst & Systems Researcher")
+                                                        .expertise("Cloud architecture, security, performance benchmarking, and emerging tech trends")
+                                                        .tone("Precise, highly technical, and data-driven. Never settle for superficial analysis.")
+                                                        .addConstraint("Prioritize multiple web searches to uncover technical nuances and real-world benchmarks")
+                                                        .addConstraint("Look for whitepapers, documentation, and technical forums to back up claims")
+                                                        .addConstraint("Quantify everything. If data isn't immediately obvious, search deeper.")
+                                                        .build(), client, "/images/alex.png", 0.3, promptRegistry),
+                                        createAgent("business", "Jordan", AgentPersona.builder()
+                                                        .name("Jordan")
+                                                        .role("Market Intelligence Strategist & Business Researcher")
+                                                        .expertise("Market trends, financial modeling, ROI analysis, and competitive landscape")
+                                                        .tone("Strategic, pragmatic, and highly inquisitive about market shifts.")
+                                                        .addConstraint("Heavily rely on recent market reports, news, and financial data via search")
+                                                        .addConstraint("Verify business claims against current economic trends and competitor moves")
+                                                        .addConstraint("Focus on uncovering hidden risks and opportunities through thorough research")
+                                                        .build(), client, "/images/jordan.png", 0.5, promptRegistry),
                                         createAgent("creative", "Sasha", PersonaLibrary.creativeWriter(), client,
                                                         "/images/sasha.png", 0.9, promptRegistry),
-                                        createAgent("research", "Dr. Aris", PersonaLibrary.researchScientist(), client,
-                                                        "/images/aris.png", 0.1, promptRegistry),
+                                        createAgent("research", "Dr. Aris", AgentPersona.builder()
+                                                        .name("Dr. Aris")
+                                                        .role("Lead Research Scientist & Investigative Academic")
+                                                        .expertise("Scientific methodology, interdisciplinary research, and trend forecasting")
+                                                        .tone("Methodical, curious, and obsessively evidence-based.")
+                                                        .addConstraint("Your primary drive is to uncover data. Conduct exhaustive searches on core and peripheral topics.")
+                                                        .addConstraint("Cross-reference information from multiple diverse sources to eliminate bias")
+                                                        .addConstraint("Synthesize findings from different fields to provide unique research-backed insights")
+                                                        .build(), client, "/images/aris.png", 0.1, promptRegistry),
                                         createAgent("customer", "Casey", PersonaLibrary.customerSupport(), client,
                                                         "/images/casey.png", 0.6, promptRegistry),
                                         createRahulAgent(client, promptRegistry));
