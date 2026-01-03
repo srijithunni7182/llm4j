@@ -3,6 +3,8 @@ package io.github.llm4j.multiagent.service;
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.agent.knowledge.KnowledgeGraph;
 import io.github.llm4j.agent.rag.store.VectorStore;
+import io.github.llm4j.agent.prompt.FileSystemPromptRegistry;
+import io.github.llm4j.agent.prompt.PromptRegistry;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.multiagent.model.*;
@@ -15,6 +17,7 @@ import io.github.llm4j.hexamind.model.User;
 import io.github.llm4j.hexamind.service.SessionService;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +45,7 @@ class MultiAgentOrchestratorTest {
         @Mock
         private SessionService mockSessionService;
         private User mockUser;
+        private PromptRegistry promptRegistry;
 
         private List<AgentParticipant> agents;
         private MultiAgentOrchestrator orchestrator;
@@ -49,15 +53,16 @@ class MultiAgentOrchestratorTest {
         @BeforeEach
         void setUp() {
                 MockitoAnnotations.openMocks(this);
+                promptRegistry = new FileSystemPromptRegistry(Paths.get("src/main/resources/prompts.yaml"));
 
                 // Setup mock agent
                 when(mockAgent.getId()).thenReturn("agent-1");
                 when(mockAgent.getName()).thenReturn("Tester");
 
                 // Mock agent methods to return immediately
-                when(mockAgent.analyze(anyString(), anyString())).thenReturn("Analysis");
-                when(mockAgent.argue(anyString(), anyString(), anyString())).thenReturn("Argument");
-                when(mockAgent.respond(anyString(), anyString())).thenReturn("Response");
+                when(mockAgent.analyze(any(), any())).thenReturn("Analysis");
+                when(mockAgent.argue(any(), any(), any())).thenReturn("Argument");
+                when(mockAgent.respond(any(), any())).thenReturn("Response");
 
                 AgentOpinion opinion = AgentOpinion.builder()
                                 .agentId("agent-1")
@@ -65,15 +70,27 @@ class MultiAgentOrchestratorTest {
                                 .confidence(0.9)
                                 .keyPoints(Collections.singletonList("Point"))
                                 .build();
-                when(mockAgent.formOpinion(anyString(), anyString(), any())).thenReturn(opinion);
+                when(mockAgent.formOpinion(any(), any(), any())).thenReturn(opinion);
 
                 when(mockSharedService.getKnowledgeGraph(anyString())).thenReturn(mock(KnowledgeGraph.class));
                 when(mockSharedService.getVectorStore(anyString())).thenReturn(mock(VectorStore.class));
 
                 agents = Collections.singletonList(mockAgent);
                 mockUser = User.builder().id(1L).email("test@test.com").name("Test User").build();
+
+                // Handle both normal chat and extraction calls
+                when(llmClient.chat(any(LLMRequest.class))).thenAnswer(invocation -> {
+                        LLMRequest request = invocation.getArgument(0);
+                        String content = request.getMessages().get(0).getContent();
+
+                        if (content.contains("Extract knowledge triples")) {
+                                return LLMResponse.builder().content("[]").build();
+                        }
+                        return LLMResponse.builder().content("Consensus Reached").build();
+                });
+
                 orchestrator = new MultiAgentOrchestrator(agents, messagingTemplate, llmClient, mockSharedService,
-                                mockSessionService);
+                                mockSessionService, promptRegistry);
         }
 
         @Test
@@ -82,7 +99,6 @@ class MultiAgentOrchestratorTest {
                 LLMResponse mockResponse = LLMResponse.builder()
                                 .content("Consensus Reached")
                                 .build();
-                when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
                 String sessionId = orchestrator.startCollaboration("Test Problem", mockUser);
 
@@ -115,7 +131,6 @@ class MultiAgentOrchestratorTest {
                 LLMResponse mockResponse = LLMResponse.builder()
                                 .content("Consensus Reached")
                                 .build();
-                when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
                 String sessionId = orchestrator.startCollaboration("Problem", mockUser);
                 await().atMost(15, TimeUnit.SECONDS).until(
@@ -146,7 +161,6 @@ class MultiAgentOrchestratorTest {
                 LLMResponse mockResponse = LLMResponse.builder()
                                 .content("Consensus")
                                 .build();
-                when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
                 String sessionId = orchestrator.startCollaboration(null, mockUser);
                 assertThat(sessionId).isNotNull();
@@ -161,7 +175,6 @@ class MultiAgentOrchestratorTest {
                 LLMResponse mockResponse = LLMResponse.builder()
                                 .content("Consensus")
                                 .build();
-                when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
                 String sessionId = orchestrator.startCollaboration("", mockUser);
                 assertThat(sessionId).isNotNull();
@@ -183,7 +196,6 @@ class MultiAgentOrchestratorTest {
                 LLMResponse mockResponse = LLMResponse.builder()
                                 .content("Consensus")
                                 .build();
-                when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
                 String sessionId = orchestrator.startCollaboration("Problem", mockUser);
                 await().atMost(15, TimeUnit.SECONDS).until(
@@ -200,9 +212,9 @@ class MultiAgentOrchestratorTest {
                 AgentParticipant mockAgent2 = mock(AgentParticipant.class);
                 when(mockAgent2.getId()).thenReturn("agent-2");
                 when(mockAgent2.getName()).thenReturn("Tester2");
-                when(mockAgent2.analyze(anyString(), anyString())).thenReturn("Analysis 2");
-                when(mockAgent2.argue(anyString(), anyString(), anyString())).thenReturn("Argument 2");
-                when(mockAgent2.respond(anyString(), anyString())).thenReturn("Response 2");
+                when(mockAgent2.analyze(any(), any())).thenReturn("Analysis 2");
+                when(mockAgent2.argue(any(), any(), any())).thenReturn("Argument 2");
+                when(mockAgent2.respond(any(), any())).thenReturn("Response 2");
 
                 AgentOpinion opinion2 = AgentOpinion.builder()
                                 .agentId("agent-2")
@@ -210,16 +222,23 @@ class MultiAgentOrchestratorTest {
                                 .confidence(0.7)
                                 .keyPoints(Collections.singletonList("Point 2"))
                                 .build();
-                when(mockAgent2.formOpinion(anyString(), anyString(), any())).thenReturn(opinion2);
+                when(mockAgent2.formOpinion(any(), any(), any())).thenReturn(opinion2);
 
                 List<AgentParticipant> multipleAgents = List.of(mockAgent, mockAgent2);
                 MultiAgentOrchestrator multiOrchestrator = new MultiAgentOrchestrator(multipleAgents, messagingTemplate,
-                                llmClient, mockSharedService, mockSessionService);
+                                llmClient, mockSharedService, mockSessionService, promptRegistry);
 
                 LLMResponse mockResponse = LLMResponse.builder()
                                 .content("Multi-agent Consensus")
                                 .build();
-                when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
+                when(llmClient.chat(any(LLMRequest.class))).thenAnswer(invocation -> {
+                        LLMRequest request = invocation.getArgument(0);
+                        String content = request.getMessages().get(0).getContent();
+                        if (content.contains("Extract knowledge triples")) {
+                                return LLMResponse.builder().content("[]").build();
+                        }
+                        return mockResponse;
+                });
 
                 String sessionId = multiOrchestrator.startCollaboration("Complex Problem", mockUser);
 
@@ -239,12 +258,11 @@ class MultiAgentOrchestratorTest {
         void testEmptyAgentsList() {
                 List<AgentParticipant> emptyAgents = Collections.emptyList();
                 MultiAgentOrchestrator emptyOrchestrator = new MultiAgentOrchestrator(emptyAgents, messagingTemplate,
-                                llmClient, mockSharedService, mockSessionService);
+                                llmClient, mockSharedService, mockSessionService, promptRegistry);
 
                 LLMResponse mockResponse = LLMResponse.builder()
                                 .content("No agents consensus")
                                 .build();
-                when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
                 String sessionId = emptyOrchestrator.startCollaboration("Problem", mockUser);
 
@@ -263,7 +281,6 @@ class MultiAgentOrchestratorTest {
                 LLMResponse mockResponse = LLMResponse.builder()
                                 .content("Consensus")
                                 .build();
-                when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
                 String sessionId1 = orchestrator.startCollaboration("Problem 1", mockUser);
                 String sessionId2 = orchestrator.startCollaboration("Problem 2", mockUser);
@@ -285,7 +302,6 @@ class MultiAgentOrchestratorTest {
                 LLMResponse mockResponse = LLMResponse.builder()
                                 .content("Partial consensus")
                                 .build();
-                when(llmClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
 
                 String sessionId = orchestrator.startCollaboration("Problem", mockUser);
 

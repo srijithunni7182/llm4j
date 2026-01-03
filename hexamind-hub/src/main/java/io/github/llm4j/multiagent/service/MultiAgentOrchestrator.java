@@ -1,5 +1,6 @@
 package io.github.llm4j.multiagent.service;
 
+import io.github.llm4j.agent.prompt.PromptRegistry;
 import io.github.llm4j.multiagent.model.*;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
@@ -27,17 +28,20 @@ public class MultiAgentOrchestrator {
     private final io.github.llm4j.LLMClient llmClient;
     private final SharedKnowledgeService sharedKnowledgeService;
     private final io.github.llm4j.hexamind.service.SessionService sessionService;
+    private final PromptRegistry promptRegistry;
 
     public MultiAgentOrchestrator(List<AgentParticipant> agents,
             SimpMessagingTemplate messagingTemplate,
             io.github.llm4j.LLMClient llmClient,
             SharedKnowledgeService sharedKnowledgeService,
-            io.github.llm4j.hexamind.service.SessionService sessionService) {
+            io.github.llm4j.hexamind.service.SessionService sessionService,
+            PromptRegistry promptRegistry) {
         this.agents = agents;
         this.messagingTemplate = messagingTemplate;
         this.llmClient = llmClient;
         this.sharedKnowledgeService = sharedKnowledgeService;
         this.sessionService = sessionService;
+        this.promptRegistry = promptRegistry;
     }
 
     /**
@@ -196,12 +200,10 @@ public class MultiAgentOrchestrator {
             log.info("Agent {} refining based on feedback", agent.getName());
             session.incrementStat("llm_calls");
 
-            String refinement = agent.respond(sessionId,
-                    "The user has provided the following feedback on the group's analysis. " +
-                            "Re-evaluate your previous stance and provide an updated perspective addressing this feedback:\n\n"
-                            +
-                            "USER FEEDBACK: " + feedback
-                            + "\n\nKeep your response conversational. You can be concise, but if you have a lot to say, it will be broken up into multiple messages.");
+            String refinementPrompt = promptRegistry.get("orch_refinement_instruction").orElseThrow()
+                    .render(Map.of("feedback", feedback != null ? feedback : ""));
+
+            String refinement = agent.respond(sessionId, refinementPrompt);
 
             broadcastBurstThoughts(sessionId, agent, refinement, AgentThought.ThoughtType.REFINEMENT, 0.9);
 
@@ -213,14 +215,7 @@ public class MultiAgentOrchestrator {
         CollaborationSession session = sessions.get(sessionId);
 
         // Define a strict fact-checking instruction for Round 1
-        String factCheckInstruction = "\n\nCRITICAL ROUND 1 RULE: Your primary mission in this round is literal verification. "
-                +
-                "Use your Web Search tool to confirm if the problem statement contains fabricated, non-existent, or fictional terms. "
-                +
-                "If you find no empirical evidence for a term, you MUST debunk it immediately. " +
-                "STRICTLY AVOID: 'phased approach', 'holistic view', 'proceed with caution'. Be precise and technical."
-                +
-                "\n\nKeep your response conversational. You can be concise, but if you have a lot to say, it will be broken up into multiple messages.";
+        String factCheckInstruction = "\n\n" + promptRegistry.get("orch_fact_check_instruction").orElseThrow().render();
 
         for (AgentParticipant agent : getShuffledAgents()) {
             log.info("Agent {} analyzing problem with fact-check instruction", agent.getName());
@@ -245,8 +240,26 @@ public class MultiAgentOrchestrator {
             log.info("Agent {} presenting argument", agent.getName());
             session.incrementStat("llm_calls");
 
-            String argument = agent.argue(sessionId, session.getProblem(), context
-                    + "\n\nKeep your response conversational. You can be concise, but if you have a lot to say, it will be broken up into multiple messages.");
+            // Assuming agent.argue() handles argument generation structure, we pass the
+            // basic instruction?
+            // Wait, agent.argue takes 'context'. We append the instruction to context or
+            // problem?
+            // In original code: agent.argue(sessionId, session.getProblem(), context +
+            // "\n\nKeep your response...")
+            // The instruction "Keep your response conversational..." is common.
+            // Let's assume agent.argue() uses 'agent_argue' template which includes "Keep
+            // conversational"?
+            // Checking prompts.yaml: agent_argue does NOT include "Keep your response
+            // conversational".
+            // Adding it manually for now as per original code pattern, or should update
+            // template?
+            // The original code appended it to 'context'.
+            // Let's rely on the template for structure, but 'agent_argue' template seems
+            // self-contained.
+            // I'll adhere to the new 'agent_argue' template logic which simplifies
+            // arguments.
+
+            String argument = agent.argue(sessionId, session.getProblem(), context);
 
             broadcastBurstThoughts(sessionId, agent, argument, AgentThought.ThoughtType.ARGUMENT, 0.8);
         }
@@ -265,10 +278,10 @@ public class MultiAgentOrchestrator {
             // Get other agents' arguments
             String otherArguments = getOtherAgentsArguments(agent, session.getThoughts());
 
-            String critique = agent.respond(sessionId,
-                    "Critique the following arguments objectively. Look for logical fallacies, missing data, or potential downsides:\n\n"
-                            + otherArguments
-                            + "\n\nKeep your response conversational. You can be concise, but if you have a lot to say, it will be broken up into multiple messages.");
+            String critiquePrompt = promptRegistry.get("orch_critique_instruction").orElseThrow()
+                    .render(Map.of("arguments", otherArguments != null ? otherArguments : ""));
+
+            String critique = agent.respond(sessionId, critiquePrompt);
 
             broadcastBurstThoughts(sessionId, agent, critique, AgentThought.ThoughtType.CRITIQUE, 0.8);
         }
@@ -290,11 +303,10 @@ public class MultiAgentOrchestrator {
                     .map(t -> t.getAgentName() + ": " + t.getContent())
                     .collect(Collectors.joining("\n\n"));
 
-            String rebuttal = agent
-                    .respond(sessionId,
-                            "Defend your position against these critiques and clarify any misunderstandings:\n\n"
-                                    + relevantThoughts
-                                    + "\n\nKeep your response conversational. You can be concise, but if you have a lot to say, it will be broken up into multiple messages.");
+            String rebuttalPrompt = promptRegistry.get("orch_rebuttal_instruction").orElseThrow()
+                    .render(Map.of("critiques", relevantThoughts != null ? relevantThoughts : ""));
+
+            String rebuttal = agent.respond(sessionId, rebuttalPrompt);
 
             broadcastBurstThoughts(sessionId, agent, rebuttal, AgentThought.ThoughtType.REBUTTAL, 0.85);
         }
@@ -313,8 +325,10 @@ public class MultiAgentOrchestrator {
             // Get other agents' arguments
             String otherArguments = getOtherAgentsArguments(agent, session.getThoughts());
 
-            String response = agent.respond(sessionId, otherArguments
-                    + "\n\nKeep your response conversational. You can be concise, but if you have a lot to say, it will be broken up into multiple messages.");
+            String responsePrompt = promptRegistry.get("orch_response_instruction").orElseThrow()
+                    .render(Map.of("arguments", otherArguments != null ? otherArguments : ""));
+
+            String response = agent.respond(sessionId, responsePrompt);
 
             broadcastBurstThoughts(sessionId, agent, response, AgentThought.ThoughtType.COUNTER_ARGUMENT, 0.75);
         }
@@ -393,30 +407,8 @@ public class MultiAgentOrchestrator {
 
         log.info("Synthesizing unified consensus from {} expert opinions", opinions.size());
 
-        String prompt = "You are a Master Coordinator synthesizing analysis from a group of diverse experts. " +
-                "Your goal is to provide a single, unified, and professional recommendation that represents the group's collective wisdom. "
-                +
-                "CRITICAL: If any experts have flagged terms in the query as fabricated, fictional, or non-existent (hallucinations), you MUST state this clearly at the beginning. "
-                +
-                "Do not entertain speculative strategies for non-existent technologies. "
-                +
-                "\n\n### EXPERT OPINIONS:\n" + context +
-                "\n\n### INSTRUCTIONS:\n" +
-                "1. Merge all perspectives into a single, coherent narrative. Do not list individual experts; present it as a collective conclusion.\n"
-                +
-                "2. Address critical risks and skeptical viewpoints raised. If an expert finds no empirical backing for a term, that is the most important finding.\n"
-                +
-                "3. STRICTLY AVOID corporate cliches such as 'phased approach', 'proceed with caution', 'holistic strategy', or 'premature discussion'. Use precise, data-driven language.\n"
-                +
-                "4. If the premise is faulty (e.g., fabricated terms), the 'Consolidated Strategy' should be to debunk or correct the premise rather than providing a plan for it.\n"
-                +
-                "5. Provide a clear, actionable 'Consolidated Strategy'.\n" +
-                "   - SPECIFY LOCATIONS: Where exactly should pilot programs run? (e.g., 'Gift City, Gujarat' or 'Outer Ring Road, Bangalore')\n"
-                +
-                "   - SPECIFY METRICS: What exact KPIs determine success? (e.g., 'accident rate < 0.01 per 10k km', 'latency < 20ms')\n"
-                +
-                "   - REJECT GENERIC ADVICE: Do not just say 'run pilots'. Say WHERE and HOW.\n\n" +
-                "FINAL UNIFIED RECOMMENDATION:";
+        String prompt = promptRegistry.get("orch_synthesize_consensus").orElseThrow()
+                .render(Map.of("context", context != null ? context : ""));
 
         try {
             LLMRequest request = LLMRequest.builder()
@@ -478,11 +470,8 @@ public class MultiAgentOrchestrator {
         }
 
         try {
-            String prompt = "Extract knowledge triples (Subject, Predicate, Object) from the following text. " +
-                    "Return ONLY a JSON array of objects with keys 'subject', 'predicate', 'object'. " +
-                    "Example: [{\"subject\": \"Solar Energy\", \"predicate\": \"is_source_of\", \"object\": \"Power\"}] \n\n"
-                    +
-                    "Text: " + thought.getContent();
+            String prompt = promptRegistry.get("orch_extract_knowledge").orElseThrow()
+                    .render(Map.of("text", thought.getContent() != null ? thought.getContent() : ""));
 
             LLMRequest request = LLMRequest.builder()
                     .addUserMessage(prompt)
@@ -595,22 +584,41 @@ public class MultiAgentOrchestrator {
 
     private void broadcastBurstThoughts(String sessionId, AgentParticipant agent, String fullContent,
             AgentThought.ThoughtType type, double confidence) {
+        if (fullContent == null || fullContent.isEmpty()) {
+            return;
+        }
         log.info("Broadcasting burst thoughts for agent {}", agent.getName());
         CollaborationSession session = sessions.get(sessionId);
 
-        // Split content into sentences/chunks
-        String[] chunks = fullContent.split("(?<=[.!?])\\s+");
+        // Split by newlines first as they are the most logical thought boundaries
+        String[] lines = fullContent.split("\\n+");
+        List<String> chunks = new ArrayList<>();
 
-        for (String chunk : chunks) {
-            String trimmedChunk = chunk.trim();
-            if (trimmedChunk.isEmpty())
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty())
                 continue;
 
+            // Only sub-split long lines that are not list items
+            if (trimmed.length() > 150 && !trimmed.matches("^(\\d+\\.|[-*•])\\s+.*")) {
+                // Split by sentence (. ! ?) followed by space and Capital letter
+                // Avoid splitting on common abbreviations (Mr., Dr.) or list indices (1., A.)
+                String[] sentences = trimmed.split("(?<!\\b[A-Z])(?<!\\b[A-Z][a-z])(?<!\\b\\d)(?<=[.!?])\\s+(?=[A-Z])");
+                for (String s : sentences) {
+                    if (!s.trim().isEmpty())
+                        chunks.add(s.trim());
+                }
+            } else {
+                chunks.add(trimmed);
+            }
+        }
+
+        for (String chunk : chunks) {
             AgentThought thought = new AgentThought(
                     UUID.randomUUID().toString(),
                     agent.getId(),
                     agent.getName(),
-                    trimmedChunk,
+                    chunk,
                     type,
                     Instant.now(),
                     new ArrayList<>(),

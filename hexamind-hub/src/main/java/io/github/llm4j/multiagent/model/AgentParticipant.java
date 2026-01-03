@@ -3,6 +3,7 @@ package io.github.llm4j.multiagent.model;
 import io.github.llm4j.agent.AgentResult;
 import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.agent.persona.AgentPersona;
+import io.github.llm4j.agent.prompt.PromptRegistry;
 import io.github.llm4j.agent.rag.RAGAgent;
 import io.github.llm4j.agent.knowledge.tools.GraphExtractionTool;
 import io.github.llm4j.agent.knowledge.tools.GraphQueryTool;
@@ -11,6 +12,7 @@ import lombok.Data;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Represents an AI agent participant in the collaboration.
@@ -34,33 +36,31 @@ public class AgentParticipant {
         private final ReActAgent agent;
         private final String avatarUrl;
         private final SharedKnowledgeService sharedKnowledgeService;
+        private final PromptRegistry promptRegistry;
 
         private final List<AgentThought> thoughts = new ArrayList<>();
         private String currentThought;
         private AgentOpinion opinion;
 
         public AgentParticipant(String id, String name, AgentPersona persona, ReActAgent agent, String avatarUrl,
-                        SharedKnowledgeService sharedKnowledgeService) {
+                        SharedKnowledgeService sharedKnowledgeService, PromptRegistry promptRegistry) {
                 this.id = id;
                 this.name = name;
                 this.persona = persona;
                 this.agent = agent;
                 this.avatarUrl = avatarUrl;
                 this.sharedKnowledgeService = sharedKnowledgeService;
+                this.promptRegistry = promptRegistry;
         }
 
         /**
          * Agent analyzes the problem and returns their initial thoughts.
          */
         public String analyze(String sessionId, String problem) {
-                String prompt = String.format(
-                                "Analyze this problem from your perspective as a %s: %s\n\n" +
-                                                "MANDATORY: Before providing analysis, you MUST use web search to verify any unfamiliar terms or concepts. "
-                                                +
-                                                "If the query contains fabricated, fictional, or incorrect terms, you MUST explicitly call this out and challenge the premise. "
-                                                +
-                                                "Avoid corporate clichés like 'phased approach' and provide empirical, data-backed insights in 2-4 sentences.",
-                                persona.getRole(), problem);
+                String prompt = promptRegistry.get("agent_analyze").orElseThrow()
+                                .render(Map.of(
+                                                "role", persona.getRole() != null ? persona.getRole() : "",
+                                                "problem", problem != null ? problem : ""));
 
                 AgentResult result = getSessionAgent(sessionId).run(prompt);
                 this.currentThought = result.getFinalAnswer();
@@ -71,13 +71,10 @@ public class AgentParticipant {
          * Agent presents their argument based on the problem and context.
          */
         public String argue(String sessionId, String problem, String context) {
-                String prompt = String.format(
-                                "Problem: %s\n\n" +
-                                                "Context from other agents:\n%s\n\n" +
-                                                "Present your main argument or recommendation. Be specific, provide reasoning, and cite data where possible. "
-                                                +
-                                                "Avoid overly generic advice and stay true to your unique persona's creative or analytical bent.",
-                                problem, context);
+                String prompt = promptRegistry.get("agent_argue").orElseThrow()
+                                .render(Map.of(
+                                                "problem", problem != null ? problem : "",
+                                                "context", context != null ? context : ""));
 
                 AgentResult result = getSessionAgent(sessionId).run(prompt);
                 this.currentThought = result.getFinalAnswer();
@@ -88,12 +85,9 @@ public class AgentParticipant {
          * Agent responds to other agents' arguments.
          */
         public String respond(String sessionId, String otherArguments) {
-                String prompt = String.format(
-                                "Other agents have presented these arguments:\n%s\n\n" +
-                                                "Respond with your perspective. Do you agree, disagree, or have refinements? "
-                                                +
-                                                "Be constructive, specific, and challenge any collective hallucinations or unsupported assumptions you detect.",
-                                otherArguments);
+                String prompt = promptRegistry.get("agent_respond").orElseThrow()
+                                .render(Map.of(
+                                                "arguments", otherArguments != null ? otherArguments : ""));
 
                 AgentResult result = getSessionAgent(sessionId).run(prompt);
                 this.currentThought = result.getFinalAnswer();
@@ -109,11 +103,10 @@ public class AgentParticipant {
                         context.append(String.format("%s: %s\n", thought.getAgentName(), thought.getContent()));
                 }
 
-                String prompt = String.format(
-                                "Problem: %s\n\n" +
-                                                "Discussion so far:\n%s\n\n" +
-                                                "Provide your final recommendation in 2-3 sentences. Rate your confidence (0-100).",
-                                problem, context.toString());
+                String prompt = promptRegistry.get("agent_form_opinion").orElseThrow()
+                                .render(Map.of(
+                                                "problem", problem != null ? problem : "",
+                                                "discussion", context.toString()));
 
                 AgentResult result = getSessionAgent(sessionId).run(prompt);
 

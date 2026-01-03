@@ -55,7 +55,7 @@ class FileSystemPromptRegistryTest {
     }
 
     @Test
-    void testHotReload() throws IOException {
+    void testHotReload() throws IOException, InterruptedException {
         // Update file
         String newContent = "prompts:\n" +
                 "  test-prompt:\n" +

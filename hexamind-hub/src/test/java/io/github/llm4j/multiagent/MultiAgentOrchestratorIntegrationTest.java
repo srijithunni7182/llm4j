@@ -3,6 +3,8 @@ package io.github.llm4j.multiagent;
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.agent.persona.PersonaLibrary;
+import io.github.llm4j.agent.prompt.FileSystemPromptRegistry;
+import io.github.llm4j.agent.prompt.PromptRegistry;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.multiagent.model.AgentParticipant;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +45,7 @@ public class MultiAgentOrchestratorIntegrationTest {
         private SharedKnowledgeService mockSharedService;
         private SessionService mockSessionService;
         private User mockUser;
+        private PromptRegistry promptRegistry;
 
         @BeforeEach
         void setUp() {
@@ -50,6 +54,7 @@ public class MultiAgentOrchestratorIntegrationTest {
                 mockSharedService = mock(SharedKnowledgeService.class);
                 mockSessionService = mock(SessionService.class);
                 mockUser = User.builder().id(1L).email("test@test.com").name("Test User").build();
+                promptRegistry = new FileSystemPromptRegistry(Paths.get("src/main/resources/prompts.yaml"));
 
                 // Mock shared service responses
                 when(mockSharedService.getKnowledgeGraph(anyString())).thenReturn(mock(KnowledgeGraph.class));
@@ -59,10 +64,18 @@ public class MultiAgentOrchestratorIntegrationTest {
                 when(mockSharedService.getEmbeddingProvider()).thenReturn(mockEmbeddingProvider);
 
                 // Mock LLM responses
-                LLMResponse mockResponse = LLMResponse.builder()
-                                .content("Final Answer: This is a comprehensive consensus based on all agent inputs.")
-                                .build();
-                when(mockLLMClient.chat(any(LLMRequest.class))).thenReturn(mockResponse);
+                when(mockLLMClient.chat(any(LLMRequest.class))).thenAnswer(invocation -> {
+                        LLMRequest request = invocation.getArgument(0);
+                        String content = request.getMessages().get(0).getContent();
+
+                        if (content != null && content.contains("Extract knowledge triples")) {
+                                return LLMResponse.builder().content("[]").build();
+                        }
+
+                        return LLMResponse.builder()
+                                        .content("Final Answer: This is a comprehensive consensus based on all agent inputs.")
+                                        .build();
+                });
 
                 List<AgentParticipant> agents = List.of(
                                 createMockAgent("tech", "Technical Analyst", PersonaLibrary.technicalAnalyst()),
@@ -71,7 +84,7 @@ public class MultiAgentOrchestratorIntegrationTest {
 
                 SimpMessagingTemplate messagingTemplate = mock(SimpMessagingTemplate.class);
                 orchestrator = new MultiAgentOrchestrator(agents, messagingTemplate, mockLLMClient, mockSharedService,
-                                mockSessionService);
+                                mockSessionService, promptRegistry);
         }
 
         private AgentParticipant createMockAgent(String id, String name,
@@ -89,7 +102,8 @@ public class MultiAgentOrchestratorIntegrationTest {
                 // it should work fine without mocking toBuilder unless we spy on it.
                 // But AgentParticipant constructor now needs sharedService.
 
-                return new AgentParticipant(id, name, persona, agent, "/images/dummy.png", mockSharedService);
+                return new AgentParticipant(id, name, persona, agent, "/images/dummy.png", mockSharedService,
+                                promptRegistry);
         }
 
         @Test

@@ -5,6 +5,8 @@ import io.github.llm4j.LLMClient;
 import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.agent.persona.AgentPersona;
 import io.github.llm4j.agent.persona.PersonaLibrary;
+import io.github.llm4j.agent.prompt.FileSystemPromptRegistry;
+import io.github.llm4j.agent.prompt.PromptRegistry;
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.multiagent.model.AgentParticipant;
 import io.github.llm4j.provider.google.GoogleProvider;
@@ -17,6 +19,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
@@ -60,21 +64,33 @@ public class AgentConfiguration {
         }
 
         @Bean
-        public List<AgentParticipant> agents(LLMClient client) {
+        public PromptRegistry promptRegistry() {
+                // For development, point to src/main/resources/prompts.yaml
+                // In production, this should be configurable
+                Path promptsPath = Paths.get("src/main/resources/prompts.yaml");
+                // Fallback to absolute path if needed or handle classpath if
+                // FileSystemPromptRegistry supported it
+                // For now assuming running from project root
+                log.info("Loading PromptRegistry from: {}", promptsPath.toAbsolutePath());
+                return new FileSystemPromptRegistry(promptsPath);
+        }
+
+        @Bean
+        public List<AgentParticipant> agents(LLMClient client, PromptRegistry promptRegistry) {
                 log.info("🚀 System Initialization: Booting up AI Agent Swarm...");
                 try {
                         List<AgentParticipant> swarm = List.of(
                                         createAgent("tech", "Alex", PersonaLibrary.technicalAnalyst(), client,
-                                                        "/images/alex.png", 0.3),
+                                                        "/images/alex.png", 0.3, promptRegistry),
                                         createAgent("business", "Jordan", PersonaLibrary.businessConsultant(), client,
-                                                        "/images/jordan.png", 0.5),
+                                                        "/images/jordan.png", 0.5, promptRegistry),
                                         createAgent("creative", "Sasha", PersonaLibrary.creativeWriter(), client,
-                                                        "/images/sasha.png", 0.9),
+                                                        "/images/sasha.png", 0.9, promptRegistry),
                                         createAgent("research", "Dr. Aris", PersonaLibrary.researchScientist(), client,
-                                                        "/images/aris.png", 0.1),
+                                                        "/images/aris.png", 0.1, promptRegistry),
                                         createAgent("customer", "Casey", PersonaLibrary.customerSupport(), client,
-                                                        "/images/casey.png", 0.6),
-                                        createRahulAgent(client));
+                                                        "/images/casey.png", 0.6, promptRegistry),
+                                        createRahulAgent(client, promptRegistry));
 
                         log.info("✅ Agent Swarm successfully initialized with {} active agents.", swarm.size());
                         return swarm;
@@ -86,7 +102,7 @@ public class AgentConfiguration {
                 }
         }
 
-        private AgentParticipant createRahulAgent(LLMClient client) {
+        private AgentParticipant createRahulAgent(LLMClient client, PromptRegistry promptRegistry) {
                 AgentPersona rahulPersona = AgentPersona.builder()
                                 .name("Rahul")
                                 .role("Cynical Commoner & Analytical Skeptic")
@@ -109,14 +125,15 @@ public class AgentConfiguration {
                                 .addTool(new io.github.llm4j.agent.tools.DateTimeTool())
                                 .maxIterations(12) // Rahul tries extra hard to find flaws
                                 .temperature(0.2) // Very precise and analytical
+                                .promptRegistry(promptRegistry) // Register registry
                                 .build();
 
                 return new AgentParticipant("rahul", "Rahul", rahulPersona, agent, "/images/rahul.png",
-                                sharedKnowledgeService);
+                                sharedKnowledgeService, promptRegistry);
         }
 
         private AgentParticipant createAgent(String id, String name, AgentPersona persona, LLMClient client,
-                        String avatarUrl, double temperature) {
+                        String avatarUrl, double temperature, PromptRegistry promptRegistry) {
                 // Add common rigor constraints to every persona library template
                 AgentPersona rigidPersona = AgentPersona.builder()
                                 .name(persona.getName())
@@ -138,9 +155,11 @@ public class AgentConfiguration {
                                 .addTool(new io.github.llm4j.agent.tools.DateTimeTool())
                                 .maxIterations(10)
                                 .temperature(temperature)
+                                .promptRegistry(promptRegistry) // Register registry
                                 .build();
 
-                return new AgentParticipant(id, name, rigidPersona, agent, avatarUrl, sharedKnowledgeService);
+                return new AgentParticipant(id, name, rigidPersona, agent, avatarUrl, sharedKnowledgeService,
+                                promptRegistry);
         }
 
         private io.github.llm4j.agent.Tool createWebSearchTool() {

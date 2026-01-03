@@ -5,12 +5,15 @@ import io.github.llm4j.agent.knowledge.KnowledgeGraph;
 import io.github.llm4j.agent.rag.store.VectorStore;
 import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.agent.persona.AgentPersona;
+import io.github.llm4j.agent.prompt.FileSystemPromptRegistry;
+import io.github.llm4j.agent.prompt.PromptRegistry;
 import io.github.llm4j.multiagent.service.SharedKnowledgeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,10 +35,12 @@ class AgentParticipantTest {
 
     private AgentParticipant participant;
     private final String sessionId = "test-session";
+    private PromptRegistry promptRegistry;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        promptRegistry = new FileSystemPromptRegistry(Paths.get("src/main/resources/prompts.yaml"));
 
         when(mockPersona.getRole()).thenReturn("Test Role");
 
@@ -50,7 +55,8 @@ class AgentParticipantTest {
                 mockPersona,
                 mockAgent,
                 "/images/test.png",
-                mockSharedBrain);
+                mockSharedBrain,
+                promptRegistry);
     }
 
     @Test

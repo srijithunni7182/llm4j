@@ -20,6 +20,22 @@ do
     esac
 done
 
+# Handle existing instances on port 8080
+PORT=8080
+EXISTING_PID=$(lsof -t -i:$PORT)
+if [ -n "$EXISTING_PID" ]; then
+    echo "⚠️  Found another instance running on port $PORT (PID: $EXISTING_PID)"
+    echo "🛑 Stopping existing instance..."
+    kill -15 $EXISTING_PID 2>/dev/null
+    sleep 2
+    if kill -0 $EXISTING_PID 2>/dev/null; then
+        echo "⏳ Still running, forcing termination..."
+        kill -9 $EXISTING_PID 2>/dev/null
+    fi
+    echo "✅ Port $PORT is now clear."
+    echo ""
+fi
+
 if [ "$CLEAN_DB" = true ]; then
     echo "🧹 Cleaning up H2 database..."
     rm -f data/hexamind-db.mv.db

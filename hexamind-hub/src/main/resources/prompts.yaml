@@ -1,0 +1,105 @@
+prompts:
+  agent_analyze:
+    v1: |
+      Analyze this problem from your perspective as a {{role}}: {{problem}}
+
+      MANDATORY: Before providing analysis, you MUST use web search to verify any unfamiliar terms or concepts. If the query contains fabricated, fictional, or incorrect terms, you MUST explicitly call this out and challenge the premise. Avoid corporate clichés like 'phased approach' and provide empirical, data-backed insights in 2-4 sentences.
+    latest: "v1"
+
+  agent_argue:
+    v1: |
+      Problem: {{problem}}
+
+      Context from other agents:
+      {{context}}
+
+      Present your main argument or recommendation. Be specific, provide reasoning, and cite data where possible. Avoid overly generic advice and stay true to your unique persona's creative or analytical bent.
+    latest: "v1"
+
+  agent_respond:
+    v1: |
+      Other agents have presented these arguments:
+      {{arguments}}
+
+      Respond with your perspective. Do you agree, disagree, or have refinements? Be constructive, specific, and challenge any collective hallucinations or unsupported assumptions you detect.
+    latest: "v1"
+
+  agent_form_opinion:
+    v1: |
+      Problem: {{problem}}
+
+      Discussion so far:
+      {{discussion}}
+
+      Provide your final recommendation in 2-3 sentences. Rate your confidence (0-100).
+    latest: "v1"
+
+  orch_fact_check_instruction:
+    v1: |
+      CRITICAL ROUND 1 RULE: Your primary mission in this round is literal verification. Use your Web Search tool to confirm if the problem statement contains fabricated, non-existent, or fictional terms. If you find no empirical evidence for a term, you MUST debunk it immediately. STRICTLY AVOID: 'phased approach', 'holistic view', 'proceed with caution'. Be precise and technical.
+
+      Keep your response conversational. You can be concise, but if you have a lot to say, it will be broken up into multiple messages.
+    latest: "v1"
+
+  orch_refinement_instruction:
+    v1: |
+      The user has provided the following feedback on the group's analysis. Re-evaluate your previous stance and provide an updated perspective addressing this feedback:
+
+      USER FEEDBACK: {{feedback}}
+
+      Keep your response conversational. You can be concise, but if you have a lot to say, it will be broken up into multiple messages.
+    latest: "v1"
+    
+  orch_critique_instruction:
+    v1: |
+      Critique the following arguments objectively. Look for logical fallacies, missing data, or potential downsides:
+
+      {{arguments}}
+
+      Keep your response conversational. You can be concise, but if you have a lot to say, it will be broken up into multiple messages.
+    latest: "v1"
+
+  orch_rebuttal_instruction:
+    v1: |
+      Defend your position against these critiques and clarify any misunderstandings:
+
+      {{critiques}}
+
+      Keep your response conversational. You can be concise, but if you have a lot to say, it will be broken up into multiple messages.
+    latest: "v1"
+
+  orch_response_instruction:
+    v1: |
+      {{arguments}}
+
+      Keep your response conversational. You can be concise, but if you have a lot to say, it will be broken up into multiple messages.
+    latest: "v1"
+
+  orch_synthesize_consensus:
+    v1: |
+      You are a Master Coordinator synthesizing analysis from a group of diverse experts. Your goal is to provide a single, unified, and professional recommendation that represents the group's collective wisdom.
+
+      CRITICAL: If any experts have flagged terms in the query as fabricated, fictional, or non-existent (hallucinations), you MUST state this clearly at the beginning. Do not entertain speculative strategies for non-existent technologies.
+
+      ### EXPERT OPINIONS:
+      {{context}}
+
+      ### INSTRUCTIONS:
+      1. Merge all perspectives into a single, coherent narrative. Do not list individual experts; present it as a collective conclusion.
+      2. Address critical risks and skeptical viewpoints raised. If an expert finds no empirical backing for a term, that is the most important finding.
+      3. STRICTLY AVOID corporate cliches such as 'phased approach', 'proceed with caution', 'holistic strategy', or 'premature discussion'. Use precise, data-driven language.
+      4. If the premise is faulty (e.g., fabricated terms), the 'Consolidated Strategy' should be to debunk or correct the premise rather than providing a plan for it.
+      5. Provide a clear, actionable 'Consolidated Strategy'.
+         - SPECIFY LOCATIONS: Where exactly should pilot programs run? (e.g., 'Gift City, Gujarat' or 'Outer Ring Road, Bangalore')
+         - SPECIFY METRICS: What exact KPIs determine success? (e.g., 'accident rate < 0.01 per 10k km', 'latency < 20ms')
+         - REJECT GENERIC ADVICE: Do not just say 'run pilots'. Say WHERE and HOW.
+
+      FINAL UNIFIED RECOMMENDATION:
+    latest: "v1"
+
+  orch_extract_knowledge:
+    v1: |
+      Extract knowledge triples (Subject, Predicate, Object) from the following text. Return ONLY a JSON array of objects with keys 'subject', 'predicate', 'object'. Example: [{"subject": "Solar Energy", "predicate": "is_source_of", "object": "Power"}]
+
+      Text: {{text}}
+    latest: "v1"
