@@ -540,27 +540,73 @@ Coverage report will be available at `target/site/jacoco/index.html`.
 
 ## Architecture
 
-```
-┌─────────────┐
-│ User Code   │
-└─────┬───────┘
-      │
-      ▼
-┌─────────────┐
-│ LLMClient   │ (Interface)
-└─────┬───────┘
-      │
-      ▼
-┌──────────────────┐
-│ DefaultLLMClient │
-└─────┬────────────┘
-      │
-      ▼
-┌─────────────┐
-│ LLMProvider │ (Interface)
-└─────┬───────┘
-      │
-      └─────► GoogleProvider
+```mermaid
+flowchart TD
+    %% Styling
+    classDef user fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef core fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
+    classDef agent fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px;
+    classDef tool fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    classDef external fill:#fee,stroke:#b71c1c,stroke-width:2px;
+
+    %% User Layer
+    UserCode["User Application"]:::user
+
+    %% Agent Layer
+    subgraph "Agent Framework"
+        ReAct["ReAct Agent"]:::agent
+        RAG["RAG Agent"]:::agent
+        Persona["Persona Engine"]:::agent
+        Prompt["Prompt Registry"]:::agent
+        
+        ReAct --> Persona
+        ReAct --> Prompt
+    end
+
+    %% Tooling Layer
+    subgraph "Tooling Layer"
+        ToolRegistry["Tool Registry"]:::tool
+        StdTools["Standard Tools<br/>(Calc, Search, Time)"]:::tool
+        GraphTool["Graph Tools<br/>(Query, Extraction)"]:::tool
+        OpenAPI["OpenAPI Tools"]:::tool
+        
+        ToolRegistry --> StdTools
+        ToolRegistry --> GraphTool
+        ToolRegistry --> OpenAPI
+    end
+
+    %% Core Layer
+    subgraph "Core Library"
+        Client["LLM Client"]:::core
+        Provider["Google Provider"]:::core
+        Config["Configuration"]:::core
+        
+        Client --> Provider
+        Provider --> Config
+    end
+
+    %% External
+    subgraph "External Resources"
+        Gemini["Google Gemini API"]:::external
+        VectorDB[("Vector Store")]:::external
+        GraphDB[("Knowledge Graph")]:::external
+        Web["Web / APIs"]:::external
+    end
+
+    %% Connections
+    UserCode --> ReAct
+    UserCode --> RAG
+    UserCode --> Client
+
+    RAG --> VectorDB
+    ReAct --> ToolRegistry
+    ReAct --> Client
+
+    StdTools --> Web
+    GraphTool --> GraphDB
+    OpenAPI --> Web
+
+    Provider --> Gemini
 ```
 
 ## Contributing
