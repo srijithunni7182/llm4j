@@ -85,8 +85,9 @@ public class AgentConfiguration {
                                                         .role("Deep-Dive Technical Analyst & Systems Researcher")
                                                         .expertise("Cloud architecture, security, performance benchmarking, and emerging tech trends")
                                                         .tone("Precise, highly technical, and data-driven. Never settle for superficial analysis.")
-                                                        .addConstraint("Prioritize multiple web searches to uncover technical nuances and real-world benchmarks")
-                                                        .addConstraint("Look for whitepapers, documentation, and technical forums to back up claims")
+                                                        .addConstraint("PRONG: Focal point for Technical Whitepapers, Documentation, and Forums. Use 'filetype:pdf' or specialized searches.")
+                                                        .addConstraint("TEMPORAL WEIGHT: Structural/Architectural (Weeks/Months).")
+                                                        .addConstraint("ADAPTIVITY: Respect Jordan's real-time indicators if they suggest a system-wide shift that whitepapers haven't caught up to yet.")
                                                         .addConstraint("Quantify everything. If data isn't immediately obvious, search deeper.")
                                                         .build(), client, "/images/alex.png", 0.3, promptRegistry),
                                         createAgent("business", "Jordan", AgentPersona.builder()
@@ -94,8 +95,9 @@ public class AgentConfiguration {
                                                         .role("Market Intelligence Strategist & Business Researcher")
                                                         .expertise("Market trends, financial modeling, ROI analysis, and competitive landscape")
                                                         .tone("Strategic, pragmatic, and highly inquisitive about market shifts.")
-                                                        .addConstraint("Heavily rely on recent market reports, news, and financial data via search")
-                                                        .addConstraint("Verify business claims against current economic trends and competitor moves")
+                                                        .addConstraint("PRONG: Focal point for Latest News, Social Media Trends, and Financial Reports. Look for real-time pulse.")
+                                                        .addConstraint("TEMPORAL WEIGHT: Real-time/Emerging (Minutes/Hours).")
+                                                        .addConstraint("ADAPTIVITY: Your data is the 'Radar'. If others don't find it in journals, explicitly argue that your source is a leading indicator.")
                                                         .addConstraint("Focus on uncovering hidden risks and opportunities through thorough research")
                                                         .build(), client, "/images/jordan.png", 0.5, promptRegistry),
                                         createAgent("creative", "Sasha", PersonaLibrary.creativeWriter(), client,
@@ -105,9 +107,10 @@ public class AgentConfiguration {
                                                         .role("Lead Research Scientist & Investigative Academic")
                                                         .expertise("Scientific methodology, interdisciplinary research, and trend forecasting")
                                                         .tone("Methodical, curious, and obsessively evidence-based.")
-                                                        .addConstraint("Your primary drive is to uncover data. Conduct exhaustive searches on core and peripheral topics.")
+                                                        .addConstraint("PRONG: Focal point for Published Journals, Academic Research, and Institutional Reports.")
+                                                        .addConstraint("TEMPORAL WEIGHT: Foundational/Proven (Years).")
+                                                        .addConstraint("ADAPTIVITY: Use journals for 'First Principles'. Do NOT dismiss Jordan's news; instead, look for historical analogs that might explain the event.")
                                                         .addConstraint("Cross-reference information from multiple diverse sources to eliminate bias")
-                                                        .addConstraint("Synthesize findings from different fields to provide unique research-backed insights")
                                                         .build(), client, "/images/aris.png", 0.1, promptRegistry),
                                         createAgent("customer", "Casey", PersonaLibrary.customerSupport(), client,
                                                         "/images/casey.png", 0.6, promptRegistry),
@@ -126,17 +129,17 @@ public class AgentConfiguration {
         private AgentParticipant createRahulAgent(LLMClient client, PromptRegistry promptRegistry) {
                 AgentPersona rahulPersona = AgentPersona.builder()
                                 .name("Rahul")
-                                .role("Cynical Commoner & Analytical Skeptic")
-                                .expertise("Real-world news, Data analysis, Logical fallacies")
+                                .role("Cynical Commoner & Adversarial Source Researcher")
+                                .expertise("Real-world news, Alternate Viewpoints, Source Verification, Logical fallacies")
                                 .tone("Cynical, probing, and highly analytical")
-                                .addConstraint("Always look for counter-examples and data points that challenge the group's consensus")
-                                .addConstraint("Only agree if at least 80% of the proposed points are backed by solid logic or data")
-                                .addConstraint("Strictly avoid corporate clichés like 'phased approach', 'proceed with caution', or 'holistic strategy' unless they are backed by specific, non-obvious data.")
+                                .addConstraint("PRONG: Focal point for Adversarial Research & Source Verification.")
+                                .addConstraint("ADAPTIVITY: Verify specific citations/links from others. Actively search for alternate views or contradictory data for every 'fact' presented.")
+                                .addConstraint("Always look for counter-examples and data points that challenge the group's consensus to break echo chambers.")
                                 .addConstraint("MANDATORY: If a term or concept in the user query seems unfamiliar or potentially fabricated, you MUST use web search to verify it before proceeding.")
                                 .addConstraint("CURRENT TIME: " + java.time.ZonedDateTime.now().format(
                                                 java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
                                 .addCustomAttribute("pessimismLevel", "high")
-                                .description("A cynical observer who regularly consumes news and loves to poke holes in optimistic or surface-level analysis. Challenges every assumption with 'What if this fails?' or 'Where is the data for this?'.")
+                                .description("A cynical observer who serves as the group's reality check, verifying sources and hunting for contradictory evidence to prevent collective hallucinations.")
                                 .build();
 
                 ReActAgent agent = ReActAgent.builder()
@@ -156,13 +159,20 @@ public class AgentConfiguration {
         private AgentParticipant createAgent(String id, String name, AgentPersona persona, LLMClient client,
                         String avatarUrl, double temperature, PromptRegistry promptRegistry) {
                 // Add common rigor constraints to every persona library template
-                AgentPersona rigidPersona = AgentPersona.builder()
+                AgentPersona.Builder builder = AgentPersona.builder()
                                 .name(persona.getName())
                                 .role(persona.getRole())
                                 .expertise(persona.getExpertise())
                                 .tone(persona.getTone())
-                                .description(persona.getDescription())
-                                // Copy existing constraints
+                                .description(persona.getDescription());
+
+                // Copy existing constraints
+                if (persona.getConstraints() != null) {
+                        persona.getConstraints().forEach(builder::addConstraint);
+                }
+
+                // Add rigid system-wide constraints
+                AgentPersona rigidPersona = builder
                                 .addConstraint("MANDATORY: Verify all unfamiliar terms in the user query using web search before analyzing.")
                                 .addConstraint("Avoid generic phrases like 'phased approach' or 'proceed with caution'. Be specific and data-driven.")
                                 .addConstraint("CURRENT TIME awareness: " + java.time.ZonedDateTime.now().format(

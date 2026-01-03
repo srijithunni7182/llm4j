@@ -64,6 +64,13 @@
             <version>3.6.1</version>
         </dependency>
 
+        <!-- HTML Parsing for search tools -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.17.2</version>
+        </dependency>
+
         <!-- Test Dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>

@@ -590,23 +590,26 @@ public class MultiAgentOrchestrator {
         log.info("Broadcasting burst thoughts for agent {}", agent.getName());
         CollaborationSession session = sessions.get(sessionId);
 
-        // Split by newlines first as they are the most logical thought boundaries
-        String[] lines = fullContent.split("\\n+");
+        // Split by paragraphs (double newlines) to preserve lists and tables
+        String[] paragraphs = fullContent.split("\\n\\n+");
         List<String> chunks = new ArrayList<>();
 
-        for (String line : lines) {
-            String trimmed = line.trim();
+        for (String para : paragraphs) {
+            String trimmed = para.trim();
             if (trimmed.isEmpty())
                 continue;
 
-            // Only sub-split long lines that are not list items
-            if (trimmed.length() > 150 && !trimmed.matches("^(\\d+\\.|[-*•])\\s+.*")) {
-                // Split by sentence (. ! ?) followed by space and Capital letter
-                // Avoid splitting on common abbreviations (Mr., Dr.) or list indices (1., A.)
+            // Preserve lists, tables, and short paragraphs as single chunks
+            // Regex matches: starts with list indicators (- * • 1.) or table indicator (|)
+            boolean isMarkdownStructure = trimmed.matches("(?s)^(\\d+\\.|[-*•|])\\s+.*") || trimmed.contains("\n|");
+
+            if (trimmed.length() > 200 && !isMarkdownStructure) {
+                // Split long narrative paragraphs into sentences for the "burst" effect
                 String[] sentences = trimmed.split("(?<!\\b[A-Z])(?<!\\b[A-Z][a-z])(?<!\\b\\d)(?<=[.!?])\\s+(?=[A-Z])");
                 for (String s : sentences) {
-                    if (!s.trim().isEmpty())
+                    if (!s.trim().isEmpty()) {
                         chunks.add(s.trim());
+                    }
                 }
             } else {
                 chunks.add(trimmed);
