@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.agent.persona.AgentPersona;
+import io.github.llm4j.agent.prompt.PromptRegistry;
+import io.github.llm4j.agent.prompt.PromptTemplate;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import org.slf4j.Logger;
@@ -58,12 +60,16 @@ public class ReActAgent {
     private final int maxIterations;
     private final double temperature;
     private final AgentPersona persona;
+    private final PromptRegistry promptRegistry;
+    private final String systemPromptId;
 
     private ReActAgent(Builder builder) {
         this.llmClient = Objects.requireNonNull(builder.llmClient, "llmClient cannot be null");
         this.tools = new HashMap<>(builder.tools);
         this.persona = builder.persona;
-        this.systemPrompt = builder.systemPrompt != null ? builder.systemPrompt : buildDefaultSystemPrompt();
+        this.promptRegistry = builder.promptRegistry;
+        this.systemPromptId = builder.systemPromptId;
+        this.systemPrompt = resolveSystemPrompt(builder);
         this.maxIterations = builder.maxIterations;
         this.temperature = builder.temperature;
     }
@@ -212,7 +218,27 @@ public class ReActAgent {
         return null;
     }
 
-    private String buildDefaultSystemPrompt() {
+    private String resolveSystemPrompt(Builder builder) {
+        // 1. Explicit system prompt has highest precedence
+        if (builder.systemPrompt != null) {
+            return builder.systemPrompt;
+        }
+
+        // 2. Resolve from registry if ID provided
+        String baseTemplate = DEFAULT_SYSTEM_PROMPT;
+        if (builder.promptRegistry != null && builder.systemPromptId != null) {
+            Optional<PromptTemplate> template = builder.promptRegistry.get(builder.systemPromptId);
+            if (template.isPresent()) {
+                baseTemplate = template.get().getTemplate();
+            } else {
+                logger.warn("System prompt ID '{}' not found in registry. Using default.", builder.systemPromptId);
+            }
+        }
+
+        return buildSystemPromptInjections(baseTemplate);
+    }
+
+    private String buildSystemPromptInjections(String baseTemplate) {
         StringBuilder prompt = new StringBuilder();
 
         // Add persona context if present
@@ -229,7 +255,7 @@ public class ReActAgent {
             toolNames.add(tool.getName());
         }
 
-        prompt.append(DEFAULT_SYSTEM_PROMPT
+        prompt.append(baseTemplate
                 .replace("{tool_descriptions}", toolDescriptions.toString())
                 .replace("{tool_names}", String.join(", ", toolNames)));
 
@@ -251,6 +277,8 @@ public class ReActAgent {
         private int maxIterations = 10;
         private double temperature = 0.7;
         private AgentPersona persona;
+        private PromptRegistry promptRegistry;
+        private String systemPromptId;
 
         private Builder() {
         }
@@ -262,6 +290,8 @@ public class ReActAgent {
             this.maxIterations = agent.maxIterations;
             this.temperature = agent.temperature;
             this.persona = agent.persona;
+            this.promptRegistry = agent.promptRegistry;
+            this.systemPromptId = agent.systemPromptId;
         }
 
         public Builder clearTools() {
@@ -310,6 +340,16 @@ public class ReActAgent {
 
         public Builder persona(AgentPersona persona) {
             this.persona = persona;
+            return this;
+        }
+
+        public Builder promptRegistry(PromptRegistry promptRegistry) {
+            this.promptRegistry = promptRegistry;
+            return this;
+        }
+
+        public Builder systemPromptId(String systemPromptId) {
+            this.systemPromptId = systemPromptId;
             return this;
         }
 

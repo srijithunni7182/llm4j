@@ -218,6 +218,41 @@ ReActAgent agent = ReActAgent.builder()
 
 See the [Agent Personas Wiki](wiki/Agent-Personas) for more details.
 
+## Prompt Registry (xAI Standard)
+
+Externalize your prompts to adhere to Explainable AI (xAI) standards. The library supports a file-based registry with **versioning**, **templating**, and **hot-reloading**.
+
+### Creating a Registry File (prompts.yaml)
+
+```yaml
+prompts:
+  agent_system_prompt:
+    v1: "You are a helpful assistant."
+    v2: "You are a specialized {{role}}."
+    latest: "v2"
+```
+
+### Using the Registry
+
+```java
+import io.github.llm4j.agent.prompt.FileSystemPromptRegistry;
+import java.nio.file.Paths;
+
+// 1. Initialize registry (supports hot-reloading)
+FileSystemPromptRegistry registry = new FileSystemPromptRegistry(Paths.get("prompts.yaml"));
+
+// 2. Fetch templates
+PromptTemplate template = registry.get("agent_system_prompt").get();
+String rendered = template.render(Map.of("role", "Java Expert"));
+
+// 3. Use with ReAct Agent
+ReActAgent agent = ReActAgent.builder()
+    .llmClient(client)
+    .promptRegistry(registry)
+    .systemPromptId("agent_system_prompt") // Automatically fetches 'latest'
+    .build();
+```
+
 ## RAG (Retrieval-Augmented Generation)
 
 Enhance your agents with document-based context retrieval using vector similarity search.
