@@ -17,6 +17,13 @@ The heart of this repository is **gemini-react-java**, a lightweight yet powerfu
 * **Tooling**: Includes ready-to-use tools (Calculator, Web Search) and an **OpenAPI Tool** that can turn any REST API into an AI function instantly.
 * **Structured Output**: Native support for JSON modes and structured object mapping.
 
+### 🧩 The Extensions: [RAG Addons](gemini-react-java-rag-addons/)
+
+For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilities while keeping the core light:
+
+* **Local Embeddings**: Run **ONNX** and **DJL** models locally (no API costs).
+* **Persistent Storage**: Store vectors in **PostgreSQL (pgvector)** or **Pinecone**.
+
 👉 **[Read the Documentation](gemini-react-java/README.md)**
 
 ---
@@ -35,7 +42,7 @@ The heart of this repository is **gemini-react-java**, a lightweight yet powerfu
 
 ## 🧪 Incubator: Aviation Chatbot
 
-*Status: 🚧 Under Development*
+**Status: 🚧 Under Development**
 
 An experimental project pushing the boundaries of the **OpenAPI Tool**. This chatbot autonomously navigates the AviationStack API to answer real-time questions about flights, delays, and airports, demonstrating how LLMs can master dynamic external data sources.
 
@@ -49,4 +56,4 @@ An experimental project pushing the boundaries of the **OpenAPI Tool**. This cha
 
 ---
 
-*MIT License*
+MIT License

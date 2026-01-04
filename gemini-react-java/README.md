@@ -14,8 +14,8 @@
 - **🤖 Google Gemini First**: Full integration with Gemini 1.5 Flash, Pro, and 2.x models.
 - **🛠️ ReAct Agent Framework**: Build AI agents that can reason and use tools (Calculator, Web Search, etc.).
 - **🎭 Agent Personas**: Configurable behavioral characteristics (tone, expertise, natural speech patterns) for deterministic agent responses.
-- **📚 RAG Support**: Retrieval-Augmented Generation with vector similarity search. Supports both **Cloud (Gemini text-embedding-004)** and **Local (ONNX/DJL)** models.
-- **🔒 Private & Local**: Optional support for running embeddings entirely locally using ONNX/DJL for zero-cost, private retrieval.
+- **📚 RAG Support**: Retrieval-Augmented Generation. Core supports **Gemini Cloud** embeddings. **Local (ONNX/DJL)** inference is supported via the [RAG Addons](gemini-react-java-rag-addons) module.
+- **🔒 Private & Local**: Run entirely offline using local embedding models (requires `rag-addons`) for zero-cost, private retrieval.
 - **🕸️ Knowledge Graphs**: Structured knowledge representation with entity-relationship querying.
 - **⚡ Robust Tooling**: Typed tool interface with JSON input parsing and error feedback loops.
 - **🔄 Production Ready**: Automatic retries, error handling, and thread-safe design.
