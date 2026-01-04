@@ -84,9 +84,10 @@ We support two local providers to keep data completely private and reduce costs:
 
 ```
 
+```java
 ### 2. Create Vector Store
 
-```java
+
 import io.github.llm4j.agent.rag.store.*;
 
 VectorStore vectorStore = new InMemoryVectorStore();
