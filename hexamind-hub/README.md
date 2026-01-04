@@ -16,7 +16,7 @@ Each agent is powered by the `gemini-react-java` library and configured with a d
 
 ## 👥 The Agents
 
-Meet the team of 6 specialized personas:
+Meet the team of 6 specialized personas ([Read the full interview with the agents here](MEET_THE_TEAM.md)):
 
 1. **Technical Analyst (`Alex`)**:
     * *Prong*: Technical Whitepapers, Documentation, and Manuals.
