@@ -21,6 +21,20 @@
 - **🔄 Production Ready**: Automatic retries, error handling, and thread-safe design.
 - **🧪 100% Tested**: Comprehensive integration test suite verifying real-world usage.
 
+## 📚 Advanced RAG (Add-ons)
+
+To keep the core library lightweight, advanced RAG integrations (ONNX, DJL, Postgres, Pinecone) are available in a separate module: **`gemini-react-java-rag-addons`**.
+
+Add this dependency to unlock those features:
+
+```xml
+<dependency>
+    <groupId>io.github.llm4j</groupId>
+    <artifactId>gemini-react-java-rag-addons</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+</dependency>
+```
+
 ## Installation
 
 ### Maven
