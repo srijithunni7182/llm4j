@@ -84,8 +84,9 @@ We support two local providers to keep data completely private and reduce costs:
 
 ```
 
+### 2. Create vector store
+
 ```java
-### 2. Create Vector Store
 
 
 import io.github.llm4j.agent.rag.store.*;
