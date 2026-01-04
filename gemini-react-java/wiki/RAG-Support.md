@@ -13,7 +13,7 @@ RAG allows agents to:
 
 ## Architecture
 
-```
+```text
 Document → Chunking → Embedding → Vector Store
                                         ↓
 Question → Embedding → Similarity Search → Top-K Chunks
@@ -29,13 +29,59 @@ Question → Embedding → Similarity Search → Top-K Chunks
 import io.github.llm4j.agent.rag.embedding.*;
 import io.github.llm4j.config.LLMConfig;
 
+// Option 1: Google Gemini (Cloud)
 LLMConfig config = LLMConfig.builder()
     .apiKey(System.getenv("GOOGLE_API_KEY"))
     .defaultModel("gemini-1.5-flash")
     .build();
+EmbeddingProvider geminiProvider = new GeminiEmbeddingProvider(config);
 
-EmbeddingProvider embeddingProvider = new GeminiEmbeddingProvider(config);
-// Uses Gemini text-embedding-004 model (768 dimensions)
+// Option 2: ONNX Runtime (Local) - Lightweight & Fast
+// Download model: bash scripts/setup_test_models.sh
+EmbeddingProvider onnxProvider = new OnnxEmbeddingProvider(
+    "models/onnx/model.onnx", 
+    "models/onnx/tokenizer.json"
+);
+
+// Option 3: AWS DJL (Local) - Flexible (PyTorch/TensorFlow)
+EmbeddingProvider djlProvider = new DjlEmbeddingProvider(
+    "file:///path/to/pytorch_model_dir/"
+);
+```
+
+### Local Embedding Providers
+
+We support two local providers to keep data completely private and reduce costs:
+
+#### 1. ONNX Runtime Provider (`OnnxEmbeddingProvider`)
+
+- **Best for:** Production deployment, edge devices, and maximum performance.
+- **Engine:** Microsoft ONNX Runtime (fast C++ backend).
+- **Models:** Supports any ONNX format model (e.g., `all-MiniLM-L6-v2`, `bge-small`).
+- **Setup:**
+
+  ```bash
+  # Download sample models
+  bash scripts/setup_test_models.sh
+  ```
+
+#### 2. Deep Java Library Provider (`DjlEmbeddingProvider`)
+
+- **Best for:** Flexibility and using existing PyTorch/TensorFlow models without conversion.
+- **Engine:** Engine-agnostic (defaults to PyTorch, supports TensorFlow, ONNX, etc.).
+- **Models:** Loads models directly from HuggingFace cache or local files.
+- **Note:** Supports batch processing with auto-padding to 512 tokens.
+
+#### Choosing a Provider
+
+| Feature | ONNX Runtime | DJL (Deep Java Library) |
+| :--- | :--- | :--- |
+| **Speed** | 🚀 Extremely Fast | ⚡ Very Fast |
+| **Memory** | 📉 Low Footprint | 📊 Moderate |
+| **Model Support** | ONNX Only (Convert via `optimum`) | PyTorch, TF, MXNet, ONNX |
+| **Dependencies** | Minimal (Native binaries included) | Modular (Add engine deps) |
+| **Use Case** | Standard RAG, Microservices | Research, Complex Pipelines |
+
 ```
 
 ### 2. Create Vector Store
@@ -177,7 +223,7 @@ List<SearchResult> results = vectorStore.search(queryEmbedding, 5, filters);
 
 The RAG agent automatically formats retrieved context:
 
-```
+```text
 Use the following context to answer the question. If the context doesn't contain relevant information, say so.
 
 Context:

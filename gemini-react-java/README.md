@@ -14,7 +14,8 @@
 - **🤖 Google Gemini First**: Full integration with Gemini 1.5 Flash, Pro, and 2.x models.
 - **🛠️ ReAct Agent Framework**: Build AI agents that can reason and use tools (Calculator, Web Search, etc.).
 - **🎭 Agent Personas**: Configurable behavioral characteristics (tone, expertise, natural speech patterns) for deterministic agent responses.
-- **📚 RAG Support**: Retrieval-Augmented Generation with vector similarity search.
+- **📚 RAG Support**: Retrieval-Augmented Generation with vector similarity search. Supports both **Cloud (Gemini text-embedding-004)** and **Local (ONNX/DJL)** models.
+- **🔒 Private & Local**: Optional support for running embeddings entirely locally using ONNX/DJL for zero-cost, private retrieval.
 - **🕸️ Knowledge Graphs**: Structured knowledge representation with entity-relationship querying.
 - **⚡ Robust Tooling**: Typed tool interface with JSON input parsing and error feedback loops.
 - **🔄 Production Ready**: Automatic retries, error handling, and thread-safe design.
@@ -267,6 +268,9 @@ import io.github.llm4j.agent.rag.store.*;
 
 // 1. Create embedding provider (uses Gemini text-embedding-004)
 EmbeddingProvider embeddingProvider = new GeminiEmbeddingProvider(config);
+
+// OR use a local provider (ONNX / DJL)
+// EmbeddingProvider localProvider = new OnnxEmbeddingProvider("model.onnx", "tokenizer.json");
 
 // 2. Create vector store
 VectorStore vectorStore = new InMemoryVectorStore();
@@ -536,7 +540,72 @@ mvn test
 mvn jacoco:report
 ```
 
-Coverage report will be available at `target/site/jacoco/index.html`.
+Coverage report will be available at `target/site/lowchart TD
+    %% Styling
+    classDef user fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef core fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
+    classDef agent fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px;
+    classDef tool fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    classDef external fill:#fee,stroke:#b71c1c,stroke-width:2px;
+
+    %% User Layer
+    UserCode["User Application"]:::user
+
+    %% Agent Layer
+    subgraph "Agent Framework"
+        ReAct["ReAct Agent"]:::agent
+        RAG["RAG Agent"]:::agent
+        Persona["Persona Engine"]:::agent
+        Prompt["Prompt Registry"]:::agent
+        
+        ReAct --> Persona
+        ReAct --> Prompt
+    end
+
+    %% Tooling Layer
+    subgraph "Tooling Layer"
+        ToolRegistry["Tool Registry"]:::tool
+        StdTools["Standard Tools<br/>(Calc, Search, Time)"]:::tool
+        GraphTool["Graph Tools<br/>(Query, Extraction)"]:::tool
+        OpenAPI["OpenAPI Tools"]:::tool
+        
+        ToolRegistry --> StdTools
+        ToolRegistry --> GraphTool
+        ToolRegistry --> OpenAPI
+    end
+
+    %% Core Layer
+    subgraph "Core Library"
+        Client["LLM Client"]:::core
+        Provider["Google Provider"]:::core
+        Config["Configuration"]:::core
+        
+        Client --> Provider
+        Provider --> Config
+    end
+
+    %% External
+    subgraph "External Resources"
+        Gemini["Google Gemini API"]:::external
+        VectorDB[("Vector Store")]:::external
+        GraphDB[("Knowledge Graph")]:::external
+        Web["Web / APIs"]:::external
+    end
+
+    %% Connections
+    UserCode --> ReAct
+    UserCode --> RAG
+    UserCode --> Client
+
+    RAG --> VectorDB
+    ReAct --> ToolRegistry
+    ReAct --> Client
+
+    StdTools --> Web
+    GraphTool --> GraphDB
+    OpenAPI --> Web
+
+    Provider --> Geminijacoco/index.html`.
 
 ## Architecture
 

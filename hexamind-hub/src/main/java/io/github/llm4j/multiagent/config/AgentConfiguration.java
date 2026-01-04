@@ -12,6 +12,8 @@ import io.github.llm4j.multiagent.model.AgentParticipant;
 import io.github.llm4j.provider.google.GoogleProvider;
 import io.github.llm4j.agent.rag.embedding.EmbeddingProvider;
 import io.github.llm4j.agent.rag.embedding.GeminiEmbeddingProvider;
+import io.github.llm4j.agent.rag.embedding.OnnxEmbeddingProvider;
+import io.github.llm4j.agent.rag.embedding.DjlEmbeddingProvider;
 import io.github.llm4j.multiagent.service.SharedKnowledgeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,6 +47,21 @@ public class AgentConfiguration {
         @Value("${serpapi.api.key:}")
         private String serpApiKey;
 
+        @Value("${embedding.provider:gemini}")
+        private String embeddingProviderType;
+
+        @Value("${onnx.model.path:}")
+        private String onnxModelPath;
+
+        @Value("${onnx.tokenizer.path:}")
+        private String onnxTokenizerPath;
+
+        @Value("${djl.model.url:}")
+        private String djlModelUrl;
+
+        @Value("${djl.engine:}")
+        private String djlEngine;
+
         @Bean
         public LLMClient llmClient() {
                 LLMConfig config = LLMConfig.builder()
@@ -57,10 +74,33 @@ public class AgentConfiguration {
 
         @Bean
         public EmbeddingProvider embeddingProvider(LLMClient client) {
-                LLMConfig config = LLMConfig.builder()
-                                .apiKey(apiKey)
-                                .build();
-                return new GeminiEmbeddingProvider(config);
+                log.info("Initializing EmbeddingProvider type: {}", embeddingProviderType);
+                try {
+                        if ("onnx".equalsIgnoreCase(embeddingProviderType)) {
+                                if (onnxModelPath.isEmpty() || onnxTokenizerPath.isEmpty()) {
+                                        throw new IllegalArgumentException(
+                                                        "ONNX paths must be provided when using onnx provider");
+                                }
+                                return new OnnxEmbeddingProvider(onnxModelPath, onnxTokenizerPath);
+                        } else if ("djl".equalsIgnoreCase(embeddingProviderType)) {
+                                if (djlModelUrl.isEmpty()) {
+                                        throw new IllegalArgumentException(
+                                                        "DJL model URL must be provided when using djl provider");
+                                }
+                                return new DjlEmbeddingProvider(djlModelUrl, djlEngine.isEmpty() ? null : djlEngine);
+                        } else {
+                                LLMConfig config = LLMConfig.builder()
+                                                .apiKey(apiKey)
+                                                .build();
+                                return new GeminiEmbeddingProvider(config);
+                        }
+                } catch (Exception e) {
+                        log.error("Failed to initialize local embedding provider, falling back to Gemini", e);
+                        LLMConfig config = LLMConfig.builder()
+                                        .apiKey(apiKey)
+                                        .build();
+                        return new GeminiEmbeddingProvider(config);
+                }
         }
 
         @Bean
