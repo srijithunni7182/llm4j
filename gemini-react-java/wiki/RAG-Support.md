@@ -23,6 +23,18 @@ Question → Embedding → Similarity Search → Top-K Chunks
 
 ## Quick Start
 
+### 0. Add RAG Addons Dependency (Required for Local/Persistent RAG)
+
+For **Local Embeddings** (ONNX/DJL) or **Persistent Stores** (Postgres/Pinecone), you must include the addons library:
+
+```xml
+<dependency>
+    <groupId>io.github.llm4j</groupId>
+    <artifactId>gemini-react-java-rag-addons</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+</dependency>
+```
+
 ### 1. Create Embedding Provider
 
 ```java

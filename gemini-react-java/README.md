@@ -173,7 +173,7 @@ ReActAgent agent = ReActAgent.builder()
     .build();
 ```
 
-See the [OpenAPI Tool Wiki](wiki/OpenAPI-Tool) for full documentation.
+See the [OpenAPI Tool Wiki](wiki/OpenAPI-Tool.md) for full documentation.
 
 ## Agent Personas
 
@@ -231,7 +231,7 @@ ReActAgent agent = ReActAgent.builder()
     .build();
 ```
 
-See the [Agent Personas Wiki](wiki/Agent-Personas) for more details.
+See the [Agent Personas Wiki](wiki/Agent-Personas.md) for more details.
 
 ## Prompt Registry (xAI Standard)
 
@@ -335,7 +335,7 @@ FixedSizeChunkingStrategy chunker = new FixedSizeChunkingStrategy(
 );
 ```
 
-See the [RAG Support Wiki](wiki/RAG-Support) for advanced usage.
+See the [RAG Support Wiki](wiki/RAG-Support.md) for advanced usage.
 
 ## Knowledge Graphs
 
@@ -392,7 +392,7 @@ The `GraphQueryTool` allows agents to:
 - Query relationships between entities
 - Filter entities by properties
 
-See the [Knowledge Graphs Wiki](wiki/Knowledge-Graphs) for more details.
+See the [Knowledge Graphs Wiki](wiki/Knowledge-Graphs.md) for more details.
 
 ## Advanced Configuration
 
