@@ -540,7 +540,12 @@ mvn test
 mvn jacoco:report
 ```
 
-Coverage report will be available at `target/site/lowchart TD
+Coverage report will be available at `target/site/jacoco/index.html`.
+
+## Architecture
+
+```mermaid
+flowchart TD
     %% Styling
     classDef user fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
     classDef core fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
@@ -578,15 +583,18 @@ Coverage report will be available at `target/site/lowchart TD
     subgraph "Core Library"
         Client["LLM Client"]:::core
         Provider["Google Provider"]:::core
+        EmbeddingProvider["Embedding Provider<br/>(Gemini/ONNX/DJL)"]:::core
         Config["Configuration"]:::core
         
         Client --> Provider
         Provider --> Config
+        EmbeddingProvider --> Config
     end
 
     %% External
     subgraph "External Resources"
         Gemini["Google Gemini API"]:::external
+        LocalModels["Local Models<br/>(ONNX/DJL)"]:::external
         VectorDB[("Vector Store")]:::external
         GraphDB[("Knowledge Graph")]:::external
         Web["Web / APIs"]:::external
@@ -598,6 +606,7 @@ Coverage report will be available at `target/site/lowchart TD
     UserCode --> Client
 
     RAG --> VectorDB
+    RAG --> EmbeddingProvider
     ReAct --> ToolRegistry
     ReAct --> Client
 
@@ -605,7 +614,10 @@ Coverage report will be available at `target/site/lowchart TD
     GraphTool --> GraphDB
     OpenAPI --> Web
 
-    Provider --> Geminijacoco/index.html`.
+    Provider --> Gemini
+    EmbeddingProvider --> Gemini
+    EmbeddingProvider --> LocalModels
+jacoco/index.html`.
 
 ## Architecture
 

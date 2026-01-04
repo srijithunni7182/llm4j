@@ -74,13 +74,13 @@ We support two local providers to keep data completely private and reduce costs:
 
 #### Choosing a Provider
 
-| Feature | ONNX Runtime | DJL (Deep Java Library) |
-| :--- | :--- | :--- |
-| **Speed** | 🚀 Extremely Fast | ⚡ Very Fast |
-| **Memory** | 📉 Low Footprint | 📊 Moderate |
-| **Model Support** | ONNX Only (Convert via `optimum`) | PyTorch, TF, MXNet, ONNX |
-| **Dependencies** | Minimal (Native binaries included) | Modular (Add engine deps) |
-| **Use Case** | Standard RAG, Microservices | Research, Complex Pipelines |
+| Feature | Google Gemini (Cloud) | ONNX Runtime (Local) | DJL (Deep Java Library) |
+| :--- | :--- | :--- | :--- |
+| **Speed** | ⚡ Fast (API Latency) | 🚀 Extremely Fast | ⚡ Very Fast |
+| **Memory** | ☁️ None (Cloud) | 📉 Low Footprint | 📊 Moderate |
+| **Model Support** | Gemini Models (768d) | ONNX Only | PyTorch, TF, MXNet, ONNX |
+| **Dependencies** | Minimal | Minimal (Native binaries) | Modular (Add engine deps) |
+| **Use Case** | Zero Setup, High Quality | Production, Edge, Speed | Research, Complex Pipelines |
 
 ```
 
