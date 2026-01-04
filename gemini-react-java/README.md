@@ -1,11 +1,11 @@
-# Gemini ReAct Java
+# Gemini ReAct Java: The Lightweight LLM for Java
 
-**A production-ready Java client for Google Gemini with built-in ReAct Agents and Tooling.**
+**Build Agents, RAG, and Tools with Google Gemini. The simple, verified, and production-ready LLM library for Java developers.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-orange)](https://www.oracle.com/java/technologies/downloads/#java17)
 
-`gemini-react-java` (formerly `llm4j`) is a flexible, configurable, and **comprehensively tested** Java library for interacting with Google Gemini through a clean, unified API. It features a robust **ReAct Agent** framework that allows you to build AI agents capable of using tools to solve complex problems.
+`gemini-react-java` (formerly `llm4j`) is the **LLM for Java** that focuses on simplicity and correctness. Unlike other heavy frameworks, it provides a clean, unified API for Google Gemini with a robust **ReAct Agent** framework.
 
 > **Note**: This library is specialized for **Google Gemini**. We believe in honest, verified support—every feature is backed by comprehensive integration tests against real Gemini endpoints.
 
@@ -20,6 +20,18 @@
 - **⚡ Robust Tooling**: Typed tool interface with JSON input parsing and error feedback loops.
 - **🔄 Production Ready**: Automatic retries, error handling, and thread-safe design.
 - **🧪 100% Tested**: Comprehensive integration test suite verifying real-world usage.
+
+## 🚀 Why Gemini ReAct Java?
+
+If you are looking for an **LLM for Java**, you might have seen other libraries like LangChain4j. Here is why you should choose this one:
+
+| Feature | Gemini ReAct Java | Others / LangChain4j |
+| :--- | :--- | :--- |
+| **Philosophy** | **Lightweight & Verified**. Only what you need. | Kitchen sink. Heavy dependencies. |
+| **Google Gemini** | **First-Class**. Supports caching, search, 2.0 Pro. | Generic support. Often lags behind. |
+| **Agents** | **Native ReAct**. Built for reasoning loops. | Often complex abstractions. |
+| **RAG** | **Modular**. Core is <200KB. Addons are optional. | Often bundles heavy ML libs by default. |
+| **Reliability** | **100% Integration Tested**. We test against real APIs. | Varying quality. |
 
 ## 📚 Advanced RAG (Add-ons)
 
