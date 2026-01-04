@@ -82,9 +82,7 @@ We support two local providers to keep data completely private and reduce costs:
 | **Dependencies** | Minimal | Minimal (Native binaries) | Modular (Add engine deps) |
 | **Use Case** | Zero Setup, High Quality | Production, Edge, Speed | Research, Complex Pipelines |
 
-```
-
-### 2. Create vector store
+### 2. Create Vector Store
 
 ```java
 
