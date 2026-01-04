@@ -95,6 +95,7 @@ prompts:
          - SPECIFY LOCATIONS: Where exactly should pilot programs run? (e.g., 'Gift City, Gujarat' or 'Outer Ring Road, Bangalore')
          - SPECIFY METRICS: What exact KPIs determine success? (e.g., 'accident rate < 0.01 per 10k km', 'latency < 20ms')
          - REJECT GENERIC ADVICE: Do not just say 'run pilots'. Say WHERE and HOW.
+      6. INCORPORATE FUTURE OUTLOOK: Dedicate a specific section to 'Future Possibilities' based on visionary inputs (especially from Sasha), differentiating them from immediate actionable steps.
 
       FINAL UNIFIED RECOMMENDATION:
     latest: "v1"

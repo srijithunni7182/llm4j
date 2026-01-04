@@ -4,6 +4,10 @@
 
 **Hexamind Hub** (formerly Multi-Agent Collaboration Platform) is a cutting-edge platform for multi-agent collaboration, where a team of specialized AI agents work together to solve complex, multifaceted problems.
 
+[![Hexamind Hub Demo](https://img.youtube.com/vi/YOUR_VIDEO_ID/0.jpg)](assets/demo.mp4)
+
+> **Watch the Demo**: See the "Digital Boardroom" in action as agents debate and reason in real-time.
+
 ## 💡 The Idea
 
 In traditional LLM interactions, you get a single perspective. Hexamind Hub breaks this paradigm by assembling a **digital boardroom** of expert personas. Just as a CEO wouldn't make a major decision without consulting their technical, financial, and creative leads, Hexamind Hub simulates this collaborative intelligence.
@@ -22,9 +26,10 @@ Meet the team of 6 specialized personas:
     * *Prong*: Latest News, Social Media Trends, and Market Pulse.
     * *Temporal Weight*: Real-time/Emerging (Minutes/Hours).
     * *Focus*: Breaking news, sentiment, and leading indicators.
-3. **Creative Thinker (`Sasha`)**:
-    * *Focus*: Innovation, user experience, branding, and "wild ideas".
-    * *Motto*: "What if we broke the rules?"
+3. **Futurist (`Sasha`)**:
+    * *Prong*: Nascent Tech, Emerging Trends, and Weak Signals.
+    * *Temporal Weight*: Future/Speculative (5-10+ Years).
+    * *Focus*: Trend extrapolation, sci-fi prototyping, and predicting mature forms of infant tech.
 4. **Research Scientist (`Dr. Aris`)**:
     * *Prong*: Academic Journals, Peer-Reviewed Studies, and Institutional Reports.
     * *Temporal Weight*: Foundational/Proven (Years).
@@ -34,7 +39,7 @@ Meet the team of 6 specialized personas:
 6. **Adversarial Source Researcher (`Rahul`)**:
     * *Prong*: Adversarial Research & Source Verification.
     * *Focus*: Hunting for alternate views, verifying citations, and breaking echo chambers.
-    * *Motto*: "Trust but verify. Where is the contradictory data?"
+    * *Constraint*: **Constructive Skepticism**. Critique the *path* or *probability* of visionary ideas, but do not dismiss the possibility outright.
 
 ## 🔄 How It Works
 

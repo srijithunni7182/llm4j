@@ -30,7 +30,7 @@ To properly test a library, you need variability. A single chatbot is predictabl
 So I built **Hexamind Hub**—a multi-agent boardroom designed to generate conflict. I created specific personas not because they were fun, but because they stress-tested different aspects of the `gemini-react-java` architecture:
 
 * **Alex (Technical)** tests the *Code Execution* and *search* capabilities.
-* **Sasha (Creative)** tests the *Temperature* and *Creativity* settings.
+* **Sasha (Futurist)** tests the *Speculative Reasoning* and *Future Prediction* capabilities.
 * **Rahul (The Skeptic)** exists to find logical flaws, testing the *Reasoning Loop* itself.
 
 If the library could handle these three arguing simultaneously without crashing the WebSocket or confusing the context windows, I knew it could handle anything.

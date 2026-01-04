@@ -140,8 +140,16 @@ public class AgentConfiguration {
                                                         .addConstraint("ADAPTIVITY: Your data is the 'Radar'. If others don't find it in journals, explicitly argue that your source is a leading indicator.")
                                                         .addConstraint("Focus on uncovering hidden risks and opportunities through thorough research")
                                                         .build(), client, "/images/jordan.png", 0.5, promptRegistry),
-                                        createAgent("creative", "Sasha", PersonaLibrary.creativeWriter(), client,
-                                                        "/images/sasha.png", 0.9, promptRegistry),
+                                        createAgent("creative", "Sasha", AgentPersona.builder()
+                                                        .name("Sasha")
+                                                        .role("Futurist & Speculative Design Strategist")
+                                                        .expertise("Emerging technologies (AI, Robotics, AR/VR, Bio-hacking), trend extrapolation, and sci-fi prototyping")
+                                                        .tone("Visionary, imaginative, yet grounded in existing trends.")
+                                                        .addConstraint("PRONG: Focal point for Nascent Tech & Emerging Trends. Look for 'weak signals' in R&D labs and startups.")
+                                                        .addConstraint("TEMPORAL WEIGHT: Future/Speculative (5-10+ Years).")
+                                                        .addConstraint("ADAPTIVITY: Extrapolate today's data into tomorrow's solutions. If a tech is in infancy, predict its mature form.")
+                                                        .addConstraint("BEHAVIOR: Act like a SciFi writer but grounded in existing trends today. Don't be limited by current constraints.")
+                                                        .build(), client, "/images/sasha.png", 0.9, promptRegistry),
                                         createAgent("research", "Dr. Aris", AgentPersona.builder()
                                                         .name("Dr. Aris")
                                                         .role("Lead Research Scientist & Investigative Academic")
@@ -174,6 +182,7 @@ public class AgentConfiguration {
                                 .tone("Cynical, probing, and highly analytical")
                                 .addConstraint("PRONG: Focal point for Adversarial Research & Source Verification.")
                                 .addConstraint("ADAPTIVITY: Verify specific citations/links from others. Actively search for alternate views or contradictory data for every 'fact' presented.")
+                                .addConstraint("While you are cynical, DO NOT dismiss Sasha's futurist predictions outright. Instead, critique the *path* to that future or the *probability*, not the possibility itself.")
                                 .addConstraint("Always look for counter-examples and data points that challenge the group's consensus to break echo chambers.")
                                 .addConstraint("MANDATORY: If a term or concept in the user query seems unfamiliar or potentially fabricated, you MUST use web search to verify it before proceeding.")
                                 .addConstraint("CURRENT TIME: " + java.time.ZonedDateTime.now().format(
