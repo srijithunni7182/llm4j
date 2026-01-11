@@ -14,12 +14,12 @@ Meet the team responsible for building your software. Each agent has a distinct 
 
 <div align="center">
 
-| **Rishi (The Architect)** | **Vihaan (The Builder)** | **Dhruv (The Skeptic)** |
+| **Rishi (The Architect)** | **Vihaan (The Builder)** | **Dhruv (The Realist)** |
 | :---: | :---: | :---: |
 | <img src="nirmaan-yantra-ui/src/assets/personas/Rishi.png" width="150"/> | <img src="nirmaan-yantra-ui/src/assets/personas/Vihaan.png" width="150"/> | <img src="nirmaan-yantra-ui/src/assets/personas/Dhruv.png" width="150"/> |
 | **Role:** Product & Solutions<br>Converts concepts into Specs. | **Role:** Lead Developer<br>Writes code and fixes bugs. | **Role:** Build Engineer<br>Executes build & rejects failures. |
 
-| **Drishti (The Eye)** | **Vishnu (The Gatekeeper)** | **Aditi (The Support)** |
+| **Drishti (The Eye)** | **Vishnu (The Gatekeeper)** | **Aditi (The Visionary)** |
 | :---: | :---: | :---: |
 | <img src="nirmaan-yantra-ui/src/assets/personas/Drishti.png" width="150"/> | <img src="nirmaan-yantra-ui/src/assets/personas/Vishnu.png" width="150"/> | <img src="nirmaan-yantra-ui/src/assets/personas/Aditi.png" width="150"/> |
 | **Role:** QA Engineer<br>Automates E2E scenarios. | **Role:** Release Manager<br>Final approval & sign-off. | **Role:** Business Analyst<br>Understands users & creates PRDs. |
