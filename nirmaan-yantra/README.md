@@ -36,11 +36,12 @@ Nirmaan Yantra operates as a multi-agent system orchestrated by a Spring Boot se
 graph TD
     Client[React UI] <-->|WebSocket| Server[Nirmaan Server]
     
-    subgraph "Nirmaan Server (Spring Boot)"
+    subgraph ServerSide [Nirmaan Server (Spring Boot)]
         Orchestrator[Nirmaan Orchestrator]
         Context[Project Context]
         
-        subgraph "Agent Crew"
+        subgraph Agents [Agent Crew]
+            direction TB
             Rishi
             Vihaan
             Dhruv
@@ -48,8 +49,10 @@ graph TD
             Vishnu
         end
         
-        Orchestrator -->|Directs| Agent Crew
-        Agent Crew <-->|Reads/Writes| Context
+        Orchestrator -->|Directs| Rishi
+        Orchestrator -->|Directs| Vihaan
+        Vihaan <-->|Reads/Writes| Context
+        Rishi -->|Writes| Context
     end
     
     Context <-->|I/O| Sandbox[File System Sandbox]
