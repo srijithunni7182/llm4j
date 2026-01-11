@@ -12,6 +12,12 @@ import java.util.regex.Pattern;
 @Component
 public class VihaanAgent extends BaseNirmaanAgent {
 
+    private final io.github.llm4j.agent.prompt.PromptRegistry promptRegistry;
+
+    public VihaanAgent(io.github.llm4j.agent.prompt.PromptRegistry promptRegistry) {
+        this.promptRegistry = promptRegistry;
+    }
+
     @Override
     public String getName() {
         return "Vihaan";
@@ -46,29 +52,11 @@ public class VihaanAgent extends BaseNirmaanAgent {
                         + "\nEnsure the new test fails as expected.\n"
                 : "";
 
-        String prompt = String.format(
-                """
-                        You are Vihaan. Follow the **First Law of TDD**:
-                        "You are not allowed to write any production code unless it is to make a failing unit test pass."
-
-                        Task: Write a **Unit Test** for the application defined in the Spec.
-                        %s
-                        Spec:
-                        %s
-
-                        Instructions:
-                        1. Identify the Tech Stack.
-                        2. Write a Unit Test file (e.g., `AppTest.java`, `test_app.py`).
-                        3. **CRITICAL**: If the language (like Java) requires the implementation class to exist to compile, create a **Skeleton/Stub** implementation file as well. It MUST throw an Exception (e.g. `throw new UnsupportedOperationException()`) or fail to ensure the test turns RED.
-                        4. **CRITICAL**: Generate the **Build File** (pom.xml, package.json, requirements.txt) so the test can actually run.
-                        5. The test MUST FAIL when run.
-
-                        Output Format:
-                        [FILE: path/to/file.ext]
-                        ...content...
-                        [EOF]
-                        """,
-                feedbackSection, specContent);
+        String prompt = promptRegistry.get("vihaan.tdd_start")
+                .orElseThrow(() -> new RuntimeException("Prompt 'vihaan.tdd_start' not found"))
+                .render(java.util.Map.of(
+                        "feedback_section", feedbackSection,
+                        "spec_content", specContent));
 
         executeLLM(context, prompt, "Tests Generated (RED)");
     }
@@ -82,30 +70,11 @@ public class VihaanAgent extends BaseNirmaanAgent {
 
         String currentCode = readCurrentCode(context);
 
-        String prompt = String.format(
-                """
-                        You are Vihaan. Follow the **Third Law of TDD**:
-                        "You are not allowed to write more production code than is sufficient to pass the one failing unit test."
-
-                        Task: Write the **Implementation Code** to make the existing tests pass.
-
-                        Spec:
-                        %s
-
-                        Current Codebase:
-                        %s
-
-                        Instructions:
-                        1. Update/Overwrite the implementation files with working logic.
-                        2. Ensure it implements the requirements in the Spec.
-                        3. Do NOT modify the test files unless absolutely necessary to fix syntax errors.
-
-                        Output Format:
-                        [FILE: path/to/file.ext]
-                        ...content...
-                        [EOF]
-                        """,
-                specContent, currentCode);
+        String prompt = promptRegistry.get("vihaan.tdd_implement")
+                .orElseThrow(() -> new RuntimeException("Prompt 'vihaan.tdd_implement' not found"))
+                .render(java.util.Map.of(
+                        "spec_content", specContent,
+                        "current_code", currentCode));
 
         executeLLM(context, prompt, "Implementation Generated (GREEN)");
     }
@@ -119,28 +88,11 @@ public class VihaanAgent extends BaseNirmaanAgent {
         // Gather current code
         String currentCode = readCurrentCode(context);
 
-        String prompt = String.format(
-                """
-                        You are Vihaan.
-                        Task: Refactor the code based on the Lead Developer's feedback.
-
-                        Feedback:
-                        %s
-
-                        Current Code:
-                        %s
-
-                        Instructions:
-                        1. Apply changes ONLY requested in the Feedback.
-                        2. Maintain functional correctness (Tests must still pass).
-                        3. Output any modified files.
-
-                        Output Format:
-                        [FILE: path/to/file.ext]
-                        ...content...
-                        [EOF]
-                        """,
-                feedback, currentCode);
+        String prompt = promptRegistry.get("vihaan.refactor")
+                .orElseThrow(() -> new RuntimeException("Prompt 'vihaan.refactor' not found"))
+                .render(java.util.Map.of(
+                        "feedback", feedback,
+                        "current_code", currentCode));
 
         executeLLM(context, prompt, "Refactoring Complete");
     }
@@ -153,32 +105,11 @@ public class VihaanAgent extends BaseNirmaanAgent {
         // Gather current code (read all files)
         String currentCode = readSmartContext(context, errorLog);
 
-        String prompt = String.format(
-                """
-                        You are Vihaan, the Lead Developer.
-
-                        Problem: The current build/test failed.
-
-                        Error Log:
-                        %s
-
-                        Current Codebase:
-                        %s
-
-                        Instructions:
-                        1. Analyze the Error Log (Compilation failures, Test failures).
-                        2. If a Class/Symbol is missing, CHECK the `pom.xml` (or build file) included in the context.
-                           - If the library is missing, ADD the dependency to `pom.xml`.
-                           - If you don't know the dependency version, use `[SEARCH: maven central <library_name>]`.
-                        3. Fix the code (Implementation OR Tests) to resolve the error.
-                        4. If the Test is wrong (e.g., constructor mismatch), update the Test.
-
-                        Output Format:
-                        [FILE: path/to/file.ext]
-                        ...content...
-                        [EOF]
-                        """,
-                errorLog, currentCode);
+        String prompt = promptRegistry.get("vihaan.fix")
+                .orElseThrow(() -> new RuntimeException("Prompt 'vihaan.fix' not found"))
+                .render(java.util.Map.of(
+                        "error_log", errorLog,
+                        "current_code", currentCode));
 
         executeLLM(context, prompt, "Fixes Applied");
     }
@@ -197,35 +128,11 @@ public class VihaanAgent extends BaseNirmaanAgent {
         } catch (Exception e) {
         }
 
-        String prompt = String.format(
-                """
-                        You are Vihaan.
-                        Task: Self-Review against the Spec.
-
-                        Spec:
-                        %s
-
-                        Current Files:
-                        %s
-
-                        Instructions:
-                        1. Check if ANY required files (classes, resources, descriptors, docs, scripts) are missing.
-                        2. Do NOT generate them. Just list what is missing.
-                        3. If everything looks good, output "COMPLETE".
-                        4. If missing items are ONLY documentation (README, guides) or scripts (shell scripts, config), output "MISSING_ASSETS: [details]".
-                        5. If missing items include CODE LOGIC (classes, methods, tests), output "MISSING_LOGIC: [details]".
-                        6. If BOTH are missing, output "MISSING_ASSETS: [details] | MISSING_LOGIC: [details]".
-
-                        Output Format:
-                        MISSING_LOGIC: ...
-                        OR
-                        MISSING_ASSETS: ...
-                        OR
-                        MISSING_ASSETS: ... | MISSING_LOGIC: ...
-                        OR
-                        COMPLETE
-                        """,
-                specContent, fileList.toString());
+        String prompt = promptRegistry.get("vihaan.self_review")
+                .orElseThrow(() -> new RuntimeException("Prompt 'vihaan.self_review' not found"))
+                .render(java.util.Map.of(
+                        "spec_content", specContent,
+                        "file_list", fileList.toString()));
 
         try {
             // No tools needed, just analysis
@@ -251,30 +158,12 @@ public class VihaanAgent extends BaseNirmaanAgent {
         String specContent = getSpec(context);
         String currentCode = readCurrentCode(context);
 
-        String prompt = String.format(
-                """
-                        You are Vihaan.
-                        Task: Generate missing configuration/documentation files.
-
-                        Spec:
-                        %s
-
-                        Existing Files:
-                        %s
-
-                        Missing Items Description:
-                        %s
-
-                        Instructions:
-                        1. Generate the missing files described.
-                        2. Do NOT change existing code logic.
-
-                        Output Format:
-                        [FILE: path/to/file.ext]
-                        ...content...
-                        [EOF]
-                        """,
-                specContent, currentCode, missingDetails);
+        String prompt = promptRegistry.get("vihaan.generate_artifacts")
+                .orElseThrow(() -> new RuntimeException("Prompt 'vihaan.generate_artifacts' not found"))
+                .render(java.util.Map.of(
+                        "spec_content", specContent,
+                        "current_code", currentCode,
+                        "missing_details", missingDetails));
 
         executeLLM(context, prompt, "Artifacts Generated");
     }
@@ -304,32 +193,11 @@ public class VihaanAgent extends BaseNirmaanAgent {
             context.log(getName(), "Error reading tests: " + e.getMessage());
         }
 
-        String prompt = String.format(
-                """
-                        You are Vihaan.
-                        CRITICAL SITUATION: The previous implementation attempts have failed 5 times in a row.
-
-                        Action: IGNORE previous implementation files. We are starting FRESH.
-
-                        Task: Write the functional implementation for the provided Tests.
-
-                        Spec:
-                        %s
-
-                        Existing Tests (Do NOT Modify):
-                        %s
-
-                        Instructions:
-                        1. Write the Java classes required to pass these tests.
-                        2. Do not look at old implementation files (they are broken).
-                        3. Ensure strict adherence to the Spec.
-
-                        Output Format:
-                        [FILE: path/to/file.ext]
-                        ...content...
-                        [EOF]
-                        """,
-                specContent, testCode.toString());
+        String prompt = promptRegistry.get("vihaan.regenerate")
+                .orElseThrow(() -> new RuntimeException("Prompt 'vihaan.regenerate' not found"))
+                .render(java.util.Map.of(
+                        "spec_content", specContent,
+                        "test_code", testCode.toString()));
 
         executeLLM(context, prompt, "Implementation RE-GENERATED (Fresh Start)");
     }

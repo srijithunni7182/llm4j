@@ -6,7 +6,19 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class DrishtiAgentTest {
 
-    private final DrishtiAgent drishtiAgent = new DrishtiAgent();
+    private final io.github.llm4j.agent.prompt.PromptRegistry promptRegistry = org.mockito.Mockito
+            .mock(io.github.llm4j.agent.prompt.PromptRegistry.class);
+    private final DrishtiAgent drishtiAgent = new DrishtiAgent(promptRegistry);
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        io.github.llm4j.agent.prompt.PromptTemplate mockTemplate = org.mockito.Mockito
+                .mock(io.github.llm4j.agent.prompt.PromptTemplate.class);
+        org.mockito.Mockito.when(mockTemplate.render(org.mockito.ArgumentMatchers.anyMap()))
+                .thenReturn("Mocked Prompt");
+        org.mockito.Mockito.when(promptRegistry.get(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(java.util.Optional.of(mockTemplate));
+    }
 
     @Test
     void testIdentity() {

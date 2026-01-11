@@ -7,6 +7,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class VishnuAgent extends BaseNirmaanAgent {
 
+    private final io.github.llm4j.agent.prompt.PromptRegistry promptRegistry;
+
+    public VishnuAgent(io.github.llm4j.agent.prompt.PromptRegistry promptRegistry) {
+        this.promptRegistry = promptRegistry;
+    }
+
     @Override
     public String getName() {
         return "Vishnu";
@@ -57,22 +63,10 @@ public class VishnuAgent extends BaseNirmaanAgent {
         }
 
         // 2. LLM Review (Phase 1)
-        String prompt = String.format("""
-                You are Vishnu, the Lead Developer.
-                Goal: Phase 1 Code Review (Pre-QA).
-
-                Criteria:
-                1. Unit Tests MUST exist.
-                2. Code must handle basic errors.
-                3. Structure must match Spec.
-
-                Codebase:
-                %s
-
-                Output Decision:
-                - If passed (Unit tests present + decent code): [APPROVED]
-                - If failed: [REJECTED] followed by concise feedback.
-                """, codeContent.toString());
+        // 2. LLM Review (Phase 1)
+        String prompt = promptRegistry.get("vishnu.review_phase1")
+                .orElseThrow(() -> new RuntimeException("Prompt 'vishnu.review_phase1' not found"))
+                .render(java.util.Map.of("codebase", codeContent.toString()));
 
         try {
             String response = chatWithTools(context, prompt);
@@ -132,19 +126,10 @@ public class VishnuAgent extends BaseNirmaanAgent {
         }
 
         // 2. LLM Final Check
-        String prompt = String.format("""
-                You are Vishnu, the Lead Developer.
-                Goal: FINAL Sign-off for Release.
-
-                Context: QA has PASSED.
-
-                Codebase:
-                %s
-
-                Decision:
-                - If code looks ready for production: Output [APPROVED]
-                - If critical issues remain: Output [REJECTED] + Reasons.
-                """, codeContent.toString());
+        // 2. LLM Final Check
+        String prompt = promptRegistry.get("vishnu.review_final")
+                .orElseThrow(() -> new RuntimeException("Prompt 'vishnu.review_final' not found"))
+                .render(java.util.Map.of("codebase", codeContent.toString()));
 
         try {
             String response = chatWithTools(context, prompt);

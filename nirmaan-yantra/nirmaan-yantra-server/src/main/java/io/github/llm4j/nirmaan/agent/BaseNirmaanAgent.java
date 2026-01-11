@@ -12,12 +12,15 @@ public abstract class BaseNirmaanAgent implements NirmaanAgent {
 
     protected LLMClient llmClient;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    protected io.github.llm4j.nirmaan.service.KnowledgeService knowledgeService;
+
     @PostConstruct
     public void init() {
         String apiKey = System.getenv("GOOGLE_API_KEY");
         if (apiKey == null) {
-            System.err.println("GOOGLE_API_KEY environment variable is missing!");
-            throw new RuntimeException("GOOGLE_API_KEY not found in environment");
+            System.err.println("GOOGLE_API_KEY environment variable is missing! Using 'DUMMY_KEY' (Validation Mode).");
+            apiKey = "DUMMY_KEY";
         }
 
         this.llmClient = createLLMClient(apiKey);
@@ -74,10 +77,10 @@ public abstract class BaseNirmaanAgent implements NirmaanAgent {
 
                 if (matcher.find()) {
                     String query = matcher.group(1);
-                    context.log(getName(), "Searching Web: " + query);
+                    context.log(getName(), "Searching (Hybrid): " + query);
 
                     // Execute Search
-                    java.util.List<String> results = io.github.llm4j.nirmaan.util.SearchUtil.search(query);
+                    java.util.List<String> results = knowledgeService.hybridSearch(query);
                     String searchBlock = "\n\n[SEARCH_RESULTS]\n" + String.join("\n---\n", results)
                             + "\n[/SEARCH_RESULTS]\n\n";
 

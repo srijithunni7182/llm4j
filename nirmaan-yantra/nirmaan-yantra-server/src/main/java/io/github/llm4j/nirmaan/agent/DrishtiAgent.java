@@ -12,6 +12,12 @@ import java.util.regex.Pattern;
 @Component
 public class DrishtiAgent extends BaseNirmaanAgent {
 
+    private final io.github.llm4j.agent.prompt.PromptRegistry promptRegistry;
+
+    public DrishtiAgent(io.github.llm4j.agent.prompt.PromptRegistry promptRegistry) {
+        this.promptRegistry = promptRegistry;
+    }
+
     @Override
     public String getName() {
         return "Drishti";
@@ -138,37 +144,10 @@ public class DrishtiAgent extends BaseNirmaanAgent {
         }
 
         // 2. Prompt LLM
-        String prompt = String.format(
-                """
-                        You are Drishti, the QA Engineer.
-
-                        Goal: Create a robust End-to-End (E2E) Automation Test for the project.
-
-                        Project Codebase:
-                        %s
-
-                        Instructions:
-                        1. Analyze the code to understand the full user flow (e.g., Game Loop, Calculator Input/Output).
-                        2. Write a single, self-contained test file (e.g., `E2E_Suite.java`, `e2e_test.py`, `test_main.sh`) that verifies the core functionality.
-                        3. If it's a GUI app (like Snake), write a test that simulates the logic (Headless) or mocks the UI, as we are running in a CI environment (Headless Linux). DO NOT rely on visible windows.
-                        4. For Java, use JUnit 5. For Python, use `unittest`.
-                        5. Provide the RUN COMMAND to execute this test.
-
-                        STRICT Output Format:
-                        [FILE: path/to/TestFile.ext]
-                        ...content...
-                        [EOF]
-
-                        [RUN_COMMAND: command to run]
-
-                        IMPORTANT:
-                        - Do NOT include any conversational text outside the tags.
-                        - Do NOT include markdown formatting (like ```java) inside the content unless it's part of a string literal.
-
-                        **RESEARCH CAPABILITY**:
-                        If you need to find the correct library version for headless testing (e.g., TestFX, Selenium options), output `[SEARCH: <query>]`.
-                        """,
-                codebase.toString());
+        // 2. Prompt LLM
+        String prompt = promptRegistry.get("drishti.e2e_gen")
+                .orElseThrow(() -> new RuntimeException("Prompt 'drishti.e2e_gen' not found"))
+                .render(java.util.Map.of("codebase", codebase.toString()));
 
         String response = chatWithTools(context, prompt);
 

@@ -7,7 +7,19 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class VihaanAgentTest {
 
-    private final VihaanAgent vihaanAgent = new VihaanAgent();
+    private final io.github.llm4j.agent.prompt.PromptRegistry promptRegistry = org.mockito.Mockito
+            .mock(io.github.llm4j.agent.prompt.PromptRegistry.class);
+    private final VihaanAgent vihaanAgent = new VihaanAgent(promptRegistry);
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        io.github.llm4j.agent.prompt.PromptTemplate mockTemplate = org.mockito.Mockito
+                .mock(io.github.llm4j.agent.prompt.PromptTemplate.class);
+        org.mockito.Mockito.when(mockTemplate.render(org.mockito.ArgumentMatchers.anyMap()))
+                .thenReturn("Mocked Prompt");
+        org.mockito.Mockito.when(promptRegistry.get(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(java.util.Optional.of(mockTemplate));
+    }
 
     @Test
     void testParseFiles_SingleFile() {
@@ -69,6 +81,10 @@ class VihaanAgentTest {
     // Let's create a subclass of VihaanAgent within the test to expose the
     // protected method for testing.
     static class TestableVihaanAgent extends VihaanAgent {
+        public TestableVihaanAgent(io.github.llm4j.agent.prompt.PromptRegistry registry) {
+            super(registry);
+        }
+
         @Override
         public String readSmartContext(ProjectContext context, String errorLog) {
             return super.readSmartContext(context, errorLog);

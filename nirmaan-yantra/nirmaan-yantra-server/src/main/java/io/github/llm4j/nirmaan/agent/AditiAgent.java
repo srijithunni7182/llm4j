@@ -1,13 +1,22 @@
 package io.github.llm4j.nirmaan.agent;
 
+import io.github.llm4j.agent.prompt.PromptRegistry;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.nirmaan.model.ProjectContext;
 import io.github.llm4j.nirmaan.model.ProjectStatus;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+
 @Component
 public class AditiAgent extends BaseNirmaanAgent {
+
+    private final PromptRegistry promptRegistry;
+
+    public AditiAgent(PromptRegistry promptRegistry) {
+        this.promptRegistry = promptRegistry;
+    }
 
     @Override
     public String getName() {
@@ -26,22 +35,9 @@ public class AditiAgent extends BaseNirmaanAgent {
                 "I need to analyze the user's idea and break it down into actionable user stories and acceptance criteria.");
         context.log(getName(), "Analyzing user idea: " + context.getUserIdea());
 
-        String prompt = String.format(
-                """
-                        You are Aditi, an expert Product Manager at a top-tier tech company.
-                        Your goal is to transform the following user idea into a comprehensive Product Requirements Document (PRD).
-
-                        User Idea: "%s"
-
-                        Output the PRD in Markdown format with the following sections:
-                        1. **Goal Description**: Clear summary of the product.
-                        2. **User Stories**: Bullet points of key user flows.
-                        3. **Acceptance Criteria**: What must be true for the product to be shipped.
-                        4. **Feature List**: Defined MVP features.
-
-                        Do not include conversational filler. Output ONLY the Markdown PRD.
-                        """,
-                context.getUserIdea());
+        String prompt = promptRegistry.get("aditi.prd_gen")
+                .orElseThrow(() -> new RuntimeException("Prompt 'aditi.prd_gen' not found"))
+                .render(Map.of("user_idea", context.getUserIdea()));
 
         try {
             LLMRequest request = LLMRequest.builder()
