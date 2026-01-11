@@ -82,9 +82,14 @@ Nirmaan follows a strict **Test-Driven Development (TDD)** pipeline to ensure re
 
 ## 🧠 Key Features
 
-* **Smart Context**: Agents automatically identify and read relevant build files (e.g., `pom.xml`) to fix missing dependencies.
-* **Mixed Content Handling**: Can distinguish between generating code logic (Java) and assets (README, Scripts) during self-review.
-* **Fresh Start Strategy**: Automatically detects development dead-ends and "reboots" the implementation process to break infinite loops.
+* **Spec Generation**: Rishi (The Architect) autonomously converts vague one-liners into comprehensive technical specifications.
+* **Automated Testing**:
+  * **TDD**: Dhruv (QA) writes failing tests first, ensuring every line of code has a purpose.
+  * **E2E**: Drishti (Tester) validates the full system workflow after implementation.
+* **Feedback Loops**:
+  * **Self-Healing**: Vihaan (Dev) automatically detects compilation errors, reads build files (like `pom.xml`), and fixes missing dependencies.
+  * **Fresh Start**: The system detects when it's stuck in a loop (5 failed attempts) and triggers a "Brain Wipe" to rewrite the implementation from scratch.
+* **Code Review**: Agents perform self-review to ensure all assets (docs, scripts) are generated without disrupting the coding logic.
 * **Real-Time Visualization**: Watch the agents think, debate, and code in real-time via the React UI.
 
 ---
