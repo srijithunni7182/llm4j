@@ -22,7 +22,7 @@ Meet the team responsible for building your software. Each agent has a distinct 
 | **Drishti (The Eye)** | **Vishnu (The Gatekeeper)** | **Aditi (The Support)** |
 | :---: | :---: | :---: |
 | <img src="nirmaan-yantra-ui/src/assets/personas/Drishti.png" width="150"/> | <img src="nirmaan-yantra-ui/src/assets/personas/Vishnu.png" width="150"/> | <img src="nirmaan-yantra-ui/src/assets/personas/Aditi.png" width="150"/> |
-| **Role:** QA Engineer<br>Automates E2E scenarios. | **Role:** Release Manager<br>Final approval & sign-off. | **Role:** User Success<br>Support & Documentation. |
+| **Role:** QA Engineer<br>Automates E2E scenarios. | **Role:** Release Manager<br>Final approval & sign-off. | **Role:** Business Analyst<br>Understands users & creates PRDs. |
 
 </div>
 
