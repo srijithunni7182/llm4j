@@ -64,14 +64,15 @@ graph TD
 
 Nirmaan follows a strict **Test-Driven Development (TDD)** pipeline to ensure reliability.
 
-1. **Spec Phase (Rishi)**: You provide a one-line idea (e.g., *"Build a Snake Game"*). Rishi expands this into a detailed Technical Specification (`SPEC.md`).
-2. **Red Phase (Vihaan/Dhruv)**: A failing test is created to define the expected behavior. Dhruv (Build Engineer) executes it to confirm failure.
-3. **Green Phase (Vihaan)**: Vihaan writes the implementation code to make the test pass.
+1. **Planning Phase (Aditi)**: You provide a one-line idea (e.g., *"Build a Snake Game"*). Aditi transforms this into a **Product Requirements Document (PRD)**.
+2. **Spec Phase (Rishi)**: Rishi analyzes the PRD and creates a detailed **Technical Specification** (`SPEC.md`).
+3. **Red Phase (Vihaan/Dhruv)**: A failing test is created to define the expected behavior. Dhruv (Build Engineer) executes it to confirm failure.
+4. **Green Phase (Vihaan)**: Vihaan writes the implementation code to make the test pass.
     * *Self-Healing*: If compilation fails, Vihaan searches for dependencies (`pom.xml`) and fixes the code.
     * *Anti-Loop*: If Vihaan gets stuck (5 failed attempts), Nirmaan triggers a **Fresh Start**, discarding the bad code and retrying from the Spec.
-4. **Refinement Phase**: The code is polished and optimized.
-5. **QA Phase (Drishti)**: Drishti writes and runs **End-to-End (E2E)** tests to verify the application works as a whole.
-6. **Sign-Off (Vishnu)**: Vishnu reviews the artifacts and gives the final build approval.
+5. **Refinement Phase**: The code is polished and optimized.
+6. **QA Phase (Drishti)**: Drishti writes and runs **End-to-End (E2E)** tests to verify the application works as a whole.
+7. **Sign-Off (Vishnu)**: Vishnu reviews the artifacts and gives the final build approval.
 
 ```mermaid
 graph TD
@@ -152,7 +153,8 @@ graph TD
 
 ## 🧠 Key Features
 
-* **Spec Generation**: Rishi (The Architect) autonomously converts vague one-liners into comprehensive technical specifications.
+* **PRD Generation**: Aditi (Product Manager) transforms raw ideas into structured Product Requirements Documents.
+* **Spec Generation**: Rishi (The Architect) converts PRDs into comprehensive technical specifications.
 * **Automated Testing**:
   * **TDD**: Tests ensure every line of code has a purpose. Dhruv (Build Engineer) ruthlessly validates every build.
   * **E2E**: Drishti (QA Engineer) writes and validates the full system workflow after implementation.
