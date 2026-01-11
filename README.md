@@ -40,6 +40,19 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 
 ---
 
+## 🏭 The Factory: [Nirmaan Yantra](nirmaan-yantra/)
+
+**Nirmaan Yantra** is an autonomous software factory where a team of AI agents builds entire applications from a single-line prompt.
+
+* **Autonomous Workflow**: Spec -> Test -> Code -> QA -> Release.
+* **Self-Healing**: Automatically fixes compilation errors and missing dependencies.
+* **Loop Prevention**: Detects dead-ends and "reboots" the implementation process.
+* **Real-Time Dashboard**: Watch Vihaan (Dev), Dhruv (QA), and others collaborate live.
+
+👉 **[Enter the Factory](nirmaan-yantra/README.md)**
+
+---
+
 ## 🧪 Incubator: Aviation Chatbot
 
 **Status: 🚧 Under Development**
