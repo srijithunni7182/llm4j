@@ -73,6 +73,44 @@ Nirmaan follows a strict **Test-Driven Development (TDD)** pipeline to ensure re
 5. **QA Phase (Drishti)**: Drishti writes and runs **End-to-End (E2E)** tests to verify the application works as a whole.
 6. **Sign-Off (Vishnu)**: Vishnu reviews the artifacts and gives the final build approval.
 
+```mermaid
+graph TD
+    Start((Start)) --> Aditi[Aditi: Planning]
+    Aditi --> Rishi[Rishi: Architecture]
+    
+    subgraph TDD [Construction Phase - TDD]
+        Rishi --> Dhruv[Dhruv: Red Phase]
+        Dhruv --> Vihaan[Vihaan: Green Phase]
+        
+        Vihaan --> BuildCheck{Build Passes?}
+        BuildCheck -- No --> Fix[Fix Compilation]
+        Fix --> BuildCheck
+        
+        BuildCheck -- Yes --> Verify{Tests Pass?}
+        Verify -- No --> RetryCount{Retries > 5?}
+        RetryCount -- No --> Fix
+        RetryCount -- Yes --> FreshStart[Fresh Start]
+        FreshStart --> Vihaan
+        
+        Verify -- Yes --> SelfReview{Self Review?}
+        SelfReview -- Missing Logic --> Dhruv
+        SelfReview -- OK --> QA[Drishti: QA Phase]
+    end
+    
+    subgraph Release [QA and Release]
+        QA --> QAKey{E2E Pass?}
+        QAKey -- No --> SpecUpdate[Rishi: Update Spec]
+        SpecUpdate --> Vihaan
+        
+        QAKey -- Yes --> Vishnu[Vishnu: Sign Off]
+        Vishnu --> Approved{Approved?}
+        Approved -- No --> Refactor[Refactor]
+        Refactor --> Vishnu
+        
+        Approved -- Yes --> End((Released))
+    end
+```
+
 ---
 
 ## 🚀 Getting Started
