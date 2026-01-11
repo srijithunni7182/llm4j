@@ -28,7 +28,36 @@ Meet the team responsible for building your software. Each agent has a distinct 
 
 ---
 
-## ⚙️ How It Works (The Workflow)
+## 🏗️ System Architecture
+
+Nirmaan Yantra operates as a multi-agent system orchestrated by a Spring Boot server, with a React frontend for real-time visibility.
+
+```mermaid
+graph TD
+    Client[React UI] <-->|WebSocket| Server[Nirmaan Server]
+    
+    subgraph "Nirmaan Server (Spring Boot)"
+        Orchestrator[Nirmaan Orchestrator]
+        Context[Project Context]
+        
+        subgraph "Agent Crew"
+            Rishi
+            Vihaan
+            Dhruv
+            Drishti
+            Vishnu
+        end
+        
+        Orchestrator -->|Directs| Agent Crew
+        Agent Crew <-->|Reads/Writes| Context
+    end
+    
+    Context <-->|I/O| Sandbox[File System Sandbox]
+```
+
+---
+
+## ⚙️ Development Process
 
 Nirmaan follows a strict **Test-Driven Development (TDD)** pipeline to ensure reliability.
 
