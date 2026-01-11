@@ -17,12 +17,12 @@ Meet the team responsible for building your software. Each agent has a distinct 
 | **Rishi (The Architect)** | **Vihaan (The Builder)** | **Dhruv (The Skeptic)** |
 | :---: | :---: | :---: |
 | <img src="nirmaan-yantra-ui/src/assets/personas/Rishi.png" width="150"/> | <img src="nirmaan-yantra-ui/src/assets/personas/Vihaan.png" width="150"/> | <img src="nirmaan-yantra-ui/src/assets/personas/Dhruv.png" width="150"/> |
-| **Role:** Product & Solutions<br>Converts concepts into Specs. | **Role:** Lead Developer<br>Writes code and fixes bugs. | **Role:** QA Engineer<br>Finds what Vihaan broke. |
+| **Role:** Product & Solutions<br>Converts concepts into Specs. | **Role:** Lead Developer<br>Writes code and fixes bugs. | **Role:** Build Engineer<br>Executes build & rejects failures. |
 
 | **Drishti (The Eye)** | **Vishnu (The Gatekeeper)** | **Aditi (The Support)** |
 | :---: | :---: | :---: |
 | <img src="nirmaan-yantra-ui/src/assets/personas/Drishti.png" width="150"/> | <img src="nirmaan-yantra-ui/src/assets/personas/Vishnu.png" width="150"/> | <img src="nirmaan-yantra-ui/src/assets/personas/Aditi.png" width="150"/> |
-| **Role:** Test Engineer<br>Automates E2E scenarios. | **Role:** Release Manager<br>Final approval & sign-off. | **Role:** User Success<br>Support & Documentation. |
+| **Role:** QA Engineer<br>Automates E2E scenarios. | **Role:** Release Manager<br>Final approval & sign-off. | **Role:** User Success<br>Support & Documentation. |
 
 </div>
 
@@ -65,8 +65,8 @@ graph TD
 Nirmaan follows a strict **Test-Driven Development (TDD)** pipeline to ensure reliability.
 
 1. **Spec Phase (Rishi)**: You provide a one-line idea (e.g., *"Build a Snake Game"*). Rishi expands this into a detailed Technical Specification (`SPEC.md`).
-2. **Red Phase (Dhruv)**: Dhruv reads the Spec and writes a suite of **failing unit tests**.
-3. **Green Phase (Vihaan)**: Vihaan writes the implementation code to make Dhruv's tests pass.
+2. **Red Phase (Vihaan/Dhruv)**: A failing test is created to define the expected behavior. Dhruv (Build Engineer) executes it to confirm failure.
+3. **Green Phase (Vihaan)**: Vihaan writes the implementation code to make the test pass.
     * *Self-Healing*: If compilation fails, Vihaan searches for dependencies (`pom.xml`) and fixes the code.
     * *Anti-Loop*: If Vihaan gets stuck (5 failed attempts), Nirmaan triggers a **Fresh Start**, discarding the bad code and retrying from the Spec.
 4. **Refinement Phase**: The code is polished and optimized.
@@ -79,8 +79,8 @@ graph TD
     Aditi --> Rishi[Rishi: Architecture]
     
     subgraph TDD [Construction Phase - TDD]
-        Rishi --> Dhruv[Dhruv: Red Phase]
-        Dhruv --> Vihaan[Vihaan: Green Phase]
+        Rishi --> RedPhase[Red Phase: Fail Test]
+        RedPhase --> Vihaan[Vihaan: Green Phase]
         
         Vihaan --> BuildCheck{Build Passes?}
         BuildCheck -- No --> Fix[Fix Compilation]
@@ -93,7 +93,7 @@ graph TD
         FreshStart --> Vihaan
         
         Verify -- Yes --> SelfReview{Self Review?}
-        SelfReview -- Missing Logic --> Dhruv
+        SelfReview -- Missing Logic --> Dhruv[Dhruv: Validate]
         SelfReview -- OK --> QA[Drishti: QA Phase]
     end
     
@@ -154,8 +154,8 @@ graph TD
 
 * **Spec Generation**: Rishi (The Architect) autonomously converts vague one-liners into comprehensive technical specifications.
 * **Automated Testing**:
-  * **TDD**: Dhruv (QA) writes failing tests first, ensuring every line of code has a purpose.
-  * **E2E**: Drishti (Tester) validates the full system workflow after implementation.
+  * **TDD**: Tests ensure every line of code has a purpose. Dhruv (Build Engineer) ruthlessly validates every build.
+  * **E2E**: Drishti (QA Engineer) writes and validates the full system workflow after implementation.
 * **Feedback Loops**:
   * **Self-Healing**: Vihaan (Dev) automatically detects compilation errors, reads build files (like `pom.xml`), and fixes missing dependencies.
   * **Fresh Start**: The system detects when it's stuck in a loop (5 failed attempts) and triggers a "Brain Wipe" to rewrite the implementation from scratch.
