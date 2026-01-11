@@ -9,6 +9,7 @@ const Dashboard = ({ projectId, userIdea }) => {
     const [messages, setMessages] = useState([]);
     const [status, setStatus] = useState('Initializing Project...');
     const [isComplete, setIsComplete] = useState(false);
+    const [showTeamModal, setShowTeamModal] = useState(false);
     const messagesEndRef = useRef(null);
 
     // Helper to parse log into { agent, message }
@@ -116,36 +117,180 @@ const Dashboard = ({ projectId, userIdea }) => {
                         {isComplete ? 'ONLINE' : 'BUILDING'}
                     </div>
 
-                    {isComplete && (
-                        <button
-                            onClick={handleDownload}
-                            style={{
-                                padding: '0.6rem 1.2rem',
-                                background: 'transparent',
-                                border: '1px solid var(--accent-green)',
-                                color: 'var(--accent-green)',
-                                borderRadius: '4px',
-                                fontWeight: 'bold',
-                                cursor: 'pointer',
-                                transition: 'all 0.3s',
-                                fontSize: '0.85rem',
-                                letterSpacing: '1px',
-                                textTransform: 'uppercase'
-                            }}
-                            onMouseOver={(e) => {
-                                e.target.style.background = 'var(--accent-green)';
-                                e.target.style.color = 'black';
-                            }}
-                            onMouseOut={(e) => {
-                                e.target.style.background = 'transparent';
-                                e.target.style.color = 'var(--accent-green)';
-                            }}
-                        >
-                            Download Artifacts
-                        </button>
-                    )}
+                    <button
+                        onClick={() => setShowTeamModal(true)}
+                        style={{
+                            padding: '0.6rem 1.2rem',
+                            background: isComplete ? 'var(--accent-green)' : 'var(--brand-gold)',
+                            border: 'none',
+                            color: 'black',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s',
+                            fontSize: '0.85rem',
+                            letterSpacing: '1px',
+                            textTransform: 'uppercase',
+                            boxShadow: isComplete ? '0 0 15px rgba(0, 255, 157, 0.4)' : '0 0 10px rgba(255, 215, 0, 0.3)'
+                        }}
+                        onMouseOver={(e) => e.target.style.transform = 'translateY(-2px)'}
+                        onMouseOut={(e) => e.target.style.transform = 'translateY(0)'}
+                    >
+                        {isComplete ? 'View Team & Download' : 'Meet the Team'}
+                    </button>
                 </div>
             </header>
+
+            {/* Team Modal */}
+            {showTeamModal && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    background: 'rgba(0,0,0,0.85)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000,
+                    backdropFilter: 'blur(5px)'
+                }} onClick={() => setShowTeamModal(false)}>
+                    <div style={{
+                        background: 'var(--bg-secondary)',
+                        padding: '0',
+                        borderRadius: '12px',
+                        border: '1px solid var(--brand-gold)',
+                        maxWidth: '800px',
+                        width: '90%',
+                        position: 'relative',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        boxShadow: '0 0 40px rgba(0,0,0,0.7)',
+                        overflow: 'hidden'
+                    }} onClick={e => e.stopPropagation()}>
+                        <button
+                            onClick={() => setShowTeamModal(false)}
+                            style={{
+                                position: 'absolute',
+                                top: '1rem',
+                                right: '1rem',
+                                background: 'rgba(0,0,0,0.5)',
+                                border: 'none',
+                                color: 'white',
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                fontSize: '1.2rem',
+                                cursor: 'pointer',
+                                zIndex: 10,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}
+                        >×</button>
+
+                        {/* Banner Image */}
+                        <div style={{
+                            width: '100%',
+                            height: '300px',
+                            overflow: 'hidden',
+                            borderBottom: '1px solid var(--brand-gold)'
+                        }}>
+                            <img
+                                src="/nirmaan_team.png"
+                                alt="Nirmaan Yantra Team"
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'cover',
+                                    objectPosition: 'center 20%'
+                                }}
+                            />
+                        </div>
+
+                        {/* Content */}
+                        <div style={{
+                            padding: '2rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '1.5rem',
+                            width: '100%'
+                        }}>
+                            <h2 className="title-cursive" style={{ color: 'var(--brand-gold)', fontSize: '2rem', margin: 0, textAlign: 'center' }}>
+                                Project Nirmaan Team
+                            </h2>
+
+                            <p style={{ color: 'var(--text-secondary)', textAlign: 'center', maxWidth: '600px', lineHeight: '1.6' }}>
+                                The autonomous agents of Nirmaan Yantra have successfully collaborated to bring your idea to life.
+                            </p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', marginTop: '0.5rem', width: '100%' }}>
+
+                                {isComplete ? (
+                                    <button
+                                        onClick={handleDownload}
+                                        style={{
+                                            padding: '0.8rem 2.5rem',
+                                            background: 'var(--accent-green)',
+                                            color: 'black',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            fontWeight: 'bold',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '1px',
+                                            fontSize: '1rem',
+                                            cursor: 'pointer',
+                                            boxShadow: '0 0 15px rgba(0, 255, 157, 0.3)',
+                                            width: '100%',
+                                            maxWidth: '300px'
+                                        }}
+                                        onMouseOver={(e) => {
+                                            e.target.style.transform = 'translateY(-2px)';
+                                            e.target.style.boxShadow = '0 0 25px rgba(0, 255, 157, 0.5)';
+                                        }}
+                                        onMouseOut={(e) => {
+                                            e.target.style.transform = 'translateY(0)';
+                                            e.target.style.boxShadow = '0 0 15px rgba(0, 255, 157, 0.3)';
+                                        }}
+                                    >
+                                        Download Final Artifacts (ZIP)
+                                    </button>
+                                ) : (
+                                    <div style={{
+                                        padding: '0.8rem 2rem',
+                                        border: '1px dashed var(--text-secondary)',
+                                        color: 'var(--text-secondary)',
+                                        borderRadius: '4px',
+                                        fontSize: '0.9rem',
+                                        background: 'rgba(0,0,0,0.2)'
+                                    }}>
+                                        Build in Progress... Artifacts locked.
+                                    </div>
+                                )}
+
+                                <a
+                                    href="/nirmaan_team.png"
+                                    download="Nirmaan_Team_Photo.png"
+                                    style={{
+                                        color: 'var(--brand-gold)',
+                                        textDecoration: 'none',
+                                        fontSize: '0.8rem',
+                                        marginTop: '0.5rem',
+                                        opacity: 0.8
+                                    }}
+                                    onMouseOver={(e) => e.target.style.opacity = 1}
+                                    onMouseOut={(e) => e.target.style.opacity = 0.8}
+                                >
+                                    Download Team Photo
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Main Content Area - Split View */}
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
