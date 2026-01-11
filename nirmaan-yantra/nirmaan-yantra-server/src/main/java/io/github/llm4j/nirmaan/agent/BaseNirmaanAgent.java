@@ -102,4 +102,156 @@ public abstract class BaseNirmaanAgent implements NirmaanAgent {
     protected void logThought(ProjectContext context, String thought) {
         context.log(getName(), "[Thought] " + thought);
     }
+
+    protected String readCurrentCode(ProjectContext context) {
+        StringBuilder currentCode = new StringBuilder();
+        try {
+            if (java.nio.file.Files.exists(context.getSandboxPath())) {
+                java.nio.file.Files.walk(context.getSandboxPath())
+                        .filter(p -> java.nio.file.Files.isRegularFile(p))
+                        .forEach(p -> {
+                            try {
+                                String relativePath = context.getSandboxPath().relativize(p).toString();
+                                // Skip hidden files, logs, and target directory
+                                if (relativePath.contains(".git") || relativePath.endsWith(".log")
+                                        || relativePath.startsWith("target"))
+                                    return;
+
+                                currentCode.append("\n--- FILE: ").append(relativePath).append(" ---\n");
+                                currentCode.append(java.nio.file.Files.readString(p));
+                            } catch (Exception e) {
+                                // Ignore read errors
+                            }
+                        });
+            }
+        } catch (Exception e) {
+            context.log(getName(), "Error reading codebase: " + e.getMessage());
+        }
+        return currentCode.toString();
+    }
+
+    protected String readSmartContext(ProjectContext context, String errorLog) {
+        StringBuilder smartContext = new StringBuilder();
+        java.util.Set<java.nio.file.Path> processedFiles = new java.util.HashSet<>();
+
+        try {
+            // 1. Regex for Java Stack Traces: at com.pkg.Class.method(File.java:123)
+            // Group 2: File.java, Group 3: Line Number
+            java.util.regex.Pattern stackTracePattern = java.util.regex.Pattern
+                    .compile("at\\s+([a-zA-Z0-9_.$]+)\\(([a-zA-Z0-9_]+\\.java):(\\d+)\\)");
+            java.util.regex.Matcher stackMatcher = stackTracePattern.matcher(errorLog);
+
+            while (stackMatcher.find()) {
+                String fileName = stackMatcher.group(2);
+                int lineNumber = Integer.parseInt(stackMatcher.group(3));
+                appendFileSnippet(context, smartContext, processedFiles, fileName, lineNumber);
+            }
+
+            // 2. Regex for Compilation Errors: /path/to/File.java:123: error: ...
+            // Group 1: File Name/Path, Group 2: Line Number
+            java.util.regex.Pattern compileErrorPattern = java.util.regex.Pattern
+                    .compile("([a-zA-Z0-9_/-]+\\.java):(\\d+): error");
+            java.util.regex.Matcher compileMatcher = compileErrorPattern.matcher(errorLog);
+
+            while (compileMatcher.find()) {
+                String fileName = compileMatcher.group(1);
+                // Extract just basename if it's a path
+                if (fileName.contains("/")) {
+                    fileName = fileName.substring(fileName.lastIndexOf("/") + 1);
+                }
+                int lineNumber = Integer.parseInt(compileMatcher.group(2));
+                appendFileSnippet(context, smartContext, processedFiles, fileName, lineNumber);
+            }
+
+            // 3. Identify Failing Test Class to read full content
+            // Simple heuristic: match "Running com.pkg.TestClass" if followed by failure?
+            // Or just read if referenced in stack trace?
+            // Let's assume stack trace logic covers specific lines, but we might want the
+            // FULL
+            // test file.
+            // If a file ends in 'Test.java' and is in the stack trace, read the WHOLE file.
+            // (Implemented in appendFileSnippet logic)
+
+            if (smartContext.length() == 0) {
+                // Fallback: If no patterns match, read everything (safe mode)
+                return readCurrentCode(context);
+            }
+
+            // --- ENHANCEMENT: Always include Build Files for Context ---
+            // This allows the agent to check dependencies even if the error is in a Java
+            // file.
+            String[] buildFiles = { "pom.xml", "build.gradle", "package.json", "requirements.txt" };
+            for (String buildFile : buildFiles) {
+                // Only add if not already processed (unlikely, unless error was IN the build
+                // file)
+                appendFileSnippet(context, smartContext, processedFiles, buildFile, -1);
+            }
+
+        } catch (Exception e) {
+            context.log(getName(), "Smart Context Error: " + e.getMessage());
+            return readCurrentCode(context); // Fallback
+        }
+
+        return smartContext.toString();
+    }
+
+    private void appendFileSnippet(ProjectContext context, StringBuilder buffer,
+            java.util.Set<java.nio.file.Path> processedFiles, String fileName, int targetLine) {
+        try {
+            // Find the file in sandbox
+            java.util.concurrent.atomic.AtomicReference<java.nio.file.Path> foundPath = new java.util.concurrent.atomic.AtomicReference<>();
+            java.nio.file.Files.walk(context.getSandboxPath())
+                    .filter(p -> p.getFileName().toString().equals(fileName))
+                    .findFirst()
+                    .ifPresent(foundPath::set);
+
+            if (foundPath.get() == null)
+                return;
+
+            java.nio.file.Path path = foundPath.get();
+
+            // Avoid duplicate processing (unless we want to splice multiple ranges, simpler
+            // to skip for now or handle per file)
+            // Refinement: If we already processed it, we might be missing a new range.
+            // For MVP: If it's a TEST file, we likely read the whole thing once. If valid
+            // source, maybe multiple snippets?
+            // Let's just do: if Test -> Full Write (once). If Source -> Snippet.
+            // Re-visiting same file for different lines is acceptable but complex to merge.
+            // Simplified: Just write the snippet. Agents can handle repetition.
+
+            String relativePath = context.getSandboxPath().relativize(path).toString();
+            boolean isTestFile = fileName.endsWith("Test.java") || fileName.endsWith("Tests.java");
+
+            if (processedFiles.contains(path) && isTestFile)
+                return; // Already dumped full test
+
+            java.util.List<String> lines = java.nio.file.Files.readAllLines(path);
+
+            buffer.append("\n--- FILE: ").append(relativePath);
+
+            if (isTestFile) {
+                buffer.append(" (FULL CONTENT) ---\n");
+                buffer.append(String.join("\n", lines));
+                processedFiles.add(path);
+            } else {
+                buffer.append(" (LINES ").append(Math.max(1, targetLine - 10)).append("-")
+                        .append(Math.min(lines.size(), targetLine + 10)).append(") ---\n");
+
+                int start = Math.max(0, targetLine - 11); // 0-indexed, -10 lines
+                int end = Math.min(lines.size(), targetLine + 10);
+
+                for (int i = start; i < end; i++) {
+                    buffer.append(String.format("%4d: %s\n", i + 1, lines.get(i)));
+                }
+                // Don't mark as processed so we can append other chunks if needed
+                // But typically agents prefer one consolidated view.
+                // Creating a "Map<Path, Set<Integers>>" is better but higher complexity.
+                // Current approach: Appends snippets sequentially.
+            }
+            buffer.append("\n");
+
+        } catch (Exception e) {
+            // Ignore
+        }
+    }
 }

@@ -221,13 +221,28 @@ public class NirmaanOrchestrator {
                     greenVerified = true;
                 } else {
                     String buildLog = context.getArtifacts().getOrDefault("LAST_BUILD_LOG.txt", "");
-                    emitUpdate(projectId, "Vihaan", "Build/Test failed. Fixing...");
-                    vihaanAgent.fixCode(context, buildLog);
+
+                    if (greenAttempts == 5) {
+                        emitUpdate(projectId, "System",
+                                "Green Phase failed 5 verification attempts. Initiating **FRESH START**...");
+                        vihaanAgent.regenerateImplementation(context);
+                        // Give it one more chance after fresh start? Or just reset count?
+                        // Let's reset the attempt count to give the fresh code a fair chance similar to
+                        // new cycle
+                        greenAttempts = 0;
+                        // Limit total fresh starts? For now, infinite loop prevention is handled by
+                        // outer 'attempts' < 15
+                        emitUpdate(projectId, "System", "Code regenerated. Resuming verification...");
+                    } else {
+                        emitUpdate(projectId, "Vihaan", "Build/Test failed. Fixing...");
+                        vihaanAgent.fixCode(context, buildLog);
+                    }
                 }
             }
 
             if (!greenVerified) {
-                emitUpdate(projectId, "System", "Green Phase failed to stabilize. Restarting TDD cycle...");
+                emitUpdate(projectId, "System",
+                        "Green Phase failed to stabilize even after fresh start. Restarting TDD cycle...");
                 continue;
             }
 
@@ -236,16 +251,27 @@ public class NirmaanOrchestrator {
             if (missingItems == null) {
                 emitUpdate(projectId, "Vihaan", "Self-Review Complete. All requirements met.");
                 return true;
-            } else {
-                emitUpdate(projectId, "Vihaan", "Self-Review found missing items: " + missingItems);
-                emitUpdate(projectId, "System", "Restarting TDD Cycle to implement missing items...");
-                // Loop continues, effectively restarting Red Phase
+            }
 
-                // Inject feedback for next Red Phase?
-                // We can't easily pass variable to top of loop without refactoring specific
-                // feedback var.
-                // Simple hack: Context log is visible to agent. He will see his own
-                // "Self-Review found..." log.
+            boolean hasAssets = missingItems.contains("MISSING_ASSETS");
+            boolean hasLogic = missingItems.contains("MISSING_LOGIC");
+
+            if (hasAssets) {
+                emitUpdate(projectId, "Vihaan",
+                        "Self-Review found missing documentation/scripts. Generating them now...");
+                vihaanAgent.generateArtifacts(context, missingItems);
+                emitUpdate(projectId, "Vihaan", "Assets generated.");
+            }
+
+            if (hasLogic) {
+                // MISSING_LOGIC
+                emitUpdate(projectId, "Vihaan", "Self-Review found missing Code Logic: " + missingItems);
+                emitUpdate(projectId, "System", "Restarting TDD Cycle to implement missing logic...");
+                // Loop continues, effectively restarting Red Phase
+            } else {
+                // Only assets were missing, and we generated them.
+                emitUpdate(projectId, "Vihaan", "Construction Phase Complete.");
+                return true;
             }
         }
 
@@ -254,7 +280,7 @@ public class NirmaanOrchestrator {
     }
 
     private boolean executeQAPhase(ProjectContext context, String projectId) {
-        int maxRetries = 3;
+        int maxRetries = 15;
         int attempt = 0;
 
         while (attempt < maxRetries) {
@@ -319,7 +345,7 @@ public class NirmaanOrchestrator {
     }
 
     private void executeRefinementPhase(ProjectContext context, String projectId) {
-        int maxRefinementCycles = 3;
+        int maxRefinementCycles = 15;
         int cyles = 0;
 
         while (cyles < maxRefinementCycles) {

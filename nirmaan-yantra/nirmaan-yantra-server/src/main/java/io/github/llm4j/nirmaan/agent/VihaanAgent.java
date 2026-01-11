@@ -80,6 +80,8 @@ public class VihaanAgent extends BaseNirmaanAgent {
         if (specContent == null)
             return;
 
+        String currentCode = readCurrentCode(context);
+
         String prompt = String.format(
                 """
                         You are Vihaan. Follow the **Third Law of TDD**:
@@ -88,6 +90,9 @@ public class VihaanAgent extends BaseNirmaanAgent {
                         Task: Write the **Implementation Code** to make the existing tests pass.
 
                         Spec:
+                        %s
+
+                        Current Codebase:
                         %s
 
                         Instructions:
@@ -100,7 +105,7 @@ public class VihaanAgent extends BaseNirmaanAgent {
                         ...content...
                         [EOF]
                         """,
-                specContent);
+                specContent, currentCode);
 
         executeLLM(context, prompt, "Implementation Generated (GREEN)");
     }
@@ -112,19 +117,7 @@ public class VihaanAgent extends BaseNirmaanAgent {
         String specContent = getSpec(context);
 
         // Gather current code
-        StringBuilder currentCode = new StringBuilder();
-        try {
-            java.nio.file.Files.walk(context.getSandboxPath())
-                    .filter(p -> java.nio.file.Files.isRegularFile(p))
-                    .forEach(p -> {
-                        try {
-                            currentCode.append("\n--- FILE: ").append(p.getFileName()).append(" ---\n");
-                            currentCode.append(java.nio.file.Files.readString(p));
-                        } catch (Exception e) {
-                        }
-                    });
-        } catch (Exception e) {
-        }
+        String currentCode = readCurrentCode(context);
 
         String prompt = String.format(
                 """
@@ -147,7 +140,7 @@ public class VihaanAgent extends BaseNirmaanAgent {
                         ...content...
                         [EOF]
                         """,
-                feedback, currentCode.toString());
+                feedback, currentCode);
 
         executeLLM(context, prompt, "Refactoring Complete");
     }
@@ -158,24 +151,7 @@ public class VihaanAgent extends BaseNirmaanAgent {
         String specContent = getSpec(context);
 
         // Gather current code (read all files)
-        StringBuilder currentCode = new StringBuilder();
-        try {
-            java.nio.file.Files.walk(context.getSandboxPath())
-                    .filter(p -> java.nio.file.Files.isRegularFile(p))
-                    .forEach(p -> {
-                        try {
-                            // Skip hidden files or logs
-                            if (p.toString().contains(".git") || p.toString().endsWith(".log"))
-                                return;
-
-                            currentCode.append("\n--- FILE: ").append(context.getSandboxPath().relativize(p))
-                                    .append(" ---\n");
-                            currentCode.append(java.nio.file.Files.readString(p));
-                        } catch (Exception e) {
-                        }
-                    });
-        } catch (Exception e) {
-        }
+        String currentCode = readSmartContext(context, errorLog);
 
         String prompt = String.format(
                 """
@@ -191,16 +167,18 @@ public class VihaanAgent extends BaseNirmaanAgent {
 
                         Instructions:
                         1. Analyze the Error Log (Compilation failures, Test failures).
-                        2. Fix the code (Implementation OR Tests) to resolve the error.
-                        3. If the Test is wrong (e.g., constructor mismatch), update the Test.
-                        4. If the Implementation is wrong, update the Implementation.
+                        2. If a Class/Symbol is missing, CHECK the `pom.xml` (or build file) included in the context.
+                           - If the library is missing, ADD the dependency to `pom.xml`.
+                           - If you don't know the dependency version, use `[SEARCH: maven central <library_name>]`.
+                        3. Fix the code (Implementation OR Tests) to resolve the error.
+                        4. If the Test is wrong (e.g., constructor mismatch), update the Test.
 
                         Output Format:
                         [FILE: path/to/file.ext]
                         ...content...
                         [EOF]
                         """,
-                errorLog, currentCode.toString());
+                errorLog, currentCode);
 
         executeLLM(context, prompt, "Fixes Applied");
     }
@@ -231,12 +209,21 @@ public class VihaanAgent extends BaseNirmaanAgent {
                         %s
 
                         Instructions:
-                        1. Check if ANY required files (classes, resources, descriptors) are missing.
+                        1. Check if ANY required files (classes, resources, descriptors, docs, scripts) are missing.
                         2. Do NOT generate them. Just list what is missing.
                         3. If everything looks good, output "COMPLETE".
+                        4. If missing items are ONLY documentation (README, guides) or scripts (shell scripts, config), output "MISSING_ASSETS: [details]".
+                        5. If missing items include CODE LOGIC (classes, methods, tests), output "MISSING_LOGIC: [details]".
+                        6. If BOTH are missing, output "MISSING_ASSETS: [details] | MISSING_LOGIC: [details]".
 
                         Output Format:
-                        MISSING: [file1, file2...] or description of missing logic.
+                        MISSING_LOGIC: ...
+                        OR
+                        MISSING_ASSETS: ...
+                        OR
+                        MISSING_ASSETS: ... | MISSING_LOGIC: ...
+                        OR
+                        COMPLETE
                         """,
                 specContent, fileList.toString());
 
@@ -246,11 +233,105 @@ public class VihaanAgent extends BaseNirmaanAgent {
             if (response.contains("COMPLETE") && !response.contains("MISSING")) {
                 return null; // All good
             }
-            return response; // Return the missing details
+            // Return raw response (starting with MISSING_...)
+            // Simple cleanup to ensure we just return the line
+            if (response.contains("MISSING_"))
+                return response.trim();
+
+            return response;
         } catch (Exception e) {
             context.log(getName(), "Self-Review Error: " + e.getMessage());
         }
         return null;
+    }
+
+    public void generateArtifacts(ProjectContext context, String missingDetails) {
+        logThought(context, "I need to generate some missing non-code artifacts (docs/scripts).");
+        context.log(getName(), "Generating missing artifacts...");
+        String specContent = getSpec(context);
+        String currentCode = readCurrentCode(context);
+
+        String prompt = String.format(
+                """
+                        You are Vihaan.
+                        Task: Generate missing configuration/documentation files.
+
+                        Spec:
+                        %s
+
+                        Existing Files:
+                        %s
+
+                        Missing Items Description:
+                        %s
+
+                        Instructions:
+                        1. Generate the missing files described.
+                        2. Do NOT change existing code logic.
+
+                        Output Format:
+                        [FILE: path/to/file.ext]
+                        ...content...
+                        [EOF]
+                        """,
+                specContent, currentCode, missingDetails);
+
+        executeLLM(context, prompt, "Artifacts Generated");
+    }
+
+    public void regenerateImplementation(ProjectContext context) {
+        logThought(context,
+                "Verification failed repeatedly. Initiating **FRESH START**. discarding broken implementation.");
+        context.log(getName(),
+                "CRITICAL: Stuck in a loop. deleting implementation and regenerating from Spec + Tests...");
+
+        String specContent = getSpec(context);
+
+        // Read ONLY Test files (ignore broken source files)
+        StringBuilder testCode = new StringBuilder();
+        try {
+            java.nio.file.Files.walk(context.getSandboxPath())
+                    .filter(p -> p.toString().endsWith("Test.java") || p.toString().endsWith("Tests.java"))
+                    .forEach(p -> {
+                        try {
+                            testCode.append("\n--- TEST FILE: ").append(context.getSandboxPath().relativize(p))
+                                    .append(" ---\n");
+                            testCode.append(java.nio.file.Files.readString(p));
+                        } catch (Exception e) {
+                        }
+                    });
+        } catch (Exception e) {
+            context.log(getName(), "Error reading tests: " + e.getMessage());
+        }
+
+        String prompt = String.format(
+                """
+                        You are Vihaan.
+                        CRITICAL SITUATION: The previous implementation attempts have failed 5 times in a row.
+
+                        Action: IGNORE previous implementation files. We are starting FRESH.
+
+                        Task: Write the functional implementation for the provided Tests.
+
+                        Spec:
+                        %s
+
+                        Existing Tests (Do NOT Modify):
+                        %s
+
+                        Instructions:
+                        1. Write the Java classes required to pass these tests.
+                        2. Do not look at old implementation files (they are broken).
+                        3. Ensure strict adherence to the Spec.
+
+                        Output Format:
+                        [FILE: path/to/file.ext]
+                        ...content...
+                        [EOF]
+                        """,
+                specContent, testCode.toString());
+
+        executeLLM(context, prompt, "Implementation RE-GENERATED (Fresh Start)");
     }
 
     private String getSpec(ProjectContext context) {
@@ -301,7 +382,8 @@ public class VihaanAgent extends BaseNirmaanAgent {
     // Public for Testing
     public java.util.Map<String, String> parseFiles(String rawContent) {
         java.util.Map<String, String> startMap = new java.util.HashMap<>();
-        Pattern pattern = Pattern.compile("\\[FILE: (.*?)\\](.*?)\\[EOF\\]", Pattern.DOTALL);
+        // Fix: Use [^\\n\\]]+ to strictly forbid newlines in the filename capture
+        Pattern pattern = Pattern.compile("\\[FILE: ([^\\n\\]]+)\\](.*?)\\[EOF\\]", Pattern.DOTALL);
         Matcher matcher = pattern.matcher(rawContent);
 
         while (matcher.find()) {
