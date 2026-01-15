@@ -1,5 +1,7 @@
 # Gemini ReAct Java: The Lightweight LLM for Java
 
+![Gemini ReAct Java Hero](docs/images/hero.png)
+
 **Build Agents, RAG, and Tools with Google Gemini. The simple, verified, and production-ready LLM library for Java developers.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
