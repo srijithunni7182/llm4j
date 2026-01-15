@@ -23,7 +23,7 @@
 - **🔒 Private & Local**: Run entirely offline using local embedding models (requires `rag-addons`) for zero-cost, private retrieval.
 - **🕸️ Knowledge Graphs**: Structured knowledge representation with entity-relationship querying.
 - **⚡ Robust Tooling**: Typed tool interface with JSON input parsing and error feedback loops.
-- **🔍 xAI Standards (~95% Compliant)**: Explainable AI compliance with complete reasoning transparency, versioned prompt management, conversation tracking, audit logging, confidence scoring, PII detection, and **bias monitoring hooks**.
+- **🔍 xAI Standards (~95% Compliant)**: Explainable AI compliance with complete reasoning transparency, versioned prompt management, conversation tracking, audit logging, confidence scoring, PII detection, and **bias monitoring hooks**. [Read our Seminal Guide to xAI Compliance](wiki/xAI_BEYOND_BLACK_BOXES.md).
 - **💾 Conversation Persistence**: Built-in storage backends (file, in-memory, async) with metadata and auto-generated summaries.
 - **🔄 Production Ready**: Automatic retries, error handling, and thread-safe design.
 - **🧪 100% Tested**: Comprehensive integration test suite verifying real-world usage.
@@ -51,7 +51,7 @@ If you are looking for an **LLM for Java**, you might have seen other libraries 
 - Simple, testable code that runs anywhere (local, cloud, edge)
 - Full control over your agent logic without opinionated frameworks
 - **Modular Architecture**: Easily swap Google Gemini for any other LLM by implementing a single interface
-- **Best in class in industry for xAI standards compliance**
+- **Best in class in industry for xAI standards compliance**: [Read the Seminal Guide to xAI Compliance](wiki/xAI_BEYOND_BLACK_BOXES.md)
 
 ## 📚 Advanced RAG (Add-ons)
 
