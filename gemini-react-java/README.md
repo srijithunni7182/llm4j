@@ -7,7 +7,7 @@
 
 `gemini-react-java` (formerly `llm4j`) is the **LLM for Java** that focuses on simplicity and correctness. Unlike other heavy frameworks, it provides a clean, unified API for Google Gemini with a robust **ReAct Agent** framework.
 
-> **Note**: This library is specialized for **Google Gemini**. We believe in honest, verified support—every feature is backed by comprehensive integration tests against real Gemini endpoints.
+> **Note**: While this library is optimized and thoroughly tested for **Google Gemini** (as the author currently utilizes Google API keys), its architecture is entirely **modular and LLM-agnostic**. Any consumer can easily plug in their own implementation of the `LLMClient` interface to support OpenAI, Anthropic, or local models while retaining the full suite of xAI and ReAct agent capabilities.
 
 ## Features
 
@@ -48,6 +48,7 @@ If you are looking for an **LLM for Java**, you might have seen other libraries 
 - A lightweight library with zero cloud lock-in
 - Simple, testable code that runs anywhere (local, cloud, edge)
 - Full control over your agent logic without opinionated frameworks
+- **Modular Architecture**: Easily swap Google Gemini for any other LLM by implementing a single interface
 - **Best in class in industry for xAI standards compliance**
 
 ## 📚 Advanced RAG (Add-ons)
