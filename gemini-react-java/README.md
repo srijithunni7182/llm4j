@@ -1,6 +1,6 @@
 # Gemini ReAct Java: The Lightweight LLM for Java
 
-![Gemini ReAct Java Hero](docs/images/hero.png)
+<img src="docs/images/hero.png" width="50%" alt="Gemini ReAct Java Hero">
 
 **Build Agents, RAG, and Tools with Google Gemini. The simple, verified, and production-ready LLM library for Java developers.**
 
