@@ -1,5 +1,8 @@
 package io.github.llm4j.agent;
 
+import io.github.llm4j.model.ConfidenceScore;
+
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -13,12 +16,18 @@ public final class AgentResult {
     private final List<AgentStep> steps;
     private final int iterations;
     private final boolean completed;
+    private final ConfidenceScore confidence;
+    private final boolean uncertaintyDetected;
+    private final String uncertaintyReason;
 
     private AgentResult(Builder builder) {
         this.finalAnswer = builder.finalAnswer;
         this.steps = Collections.unmodifiableList(new ArrayList<>(builder.steps));
         this.iterations = builder.iterations;
         this.completed = builder.completed;
+        this.confidence = builder.confidence;
+        this.uncertaintyDetected = builder.uncertaintyDetected;
+        this.uncertaintyReason = builder.uncertaintyReason;
     }
 
     public String getFinalAnswer() {
@@ -35,6 +44,26 @@ public final class AgentResult {
 
     public boolean isCompleted() {
         return completed;
+    }
+
+    public ConfidenceScore getConfidence() {
+        return confidence;
+    }
+
+    public boolean isUncertaintyDetected() {
+        return uncertaintyDetected;
+    }
+
+    public String getUncertaintyReason() {
+        return uncertaintyReason;
+    }
+
+    public boolean isHighConfidence() {
+        return confidence != null && confidence.isHigh();
+    }
+
+    public boolean shouldEscalateToHuman() {
+        return (confidence != null && confidence.isLow()) || uncertaintyDetected;
     }
 
     public static Builder builder() {
@@ -59,12 +88,21 @@ public final class AgentResult {
         private final String action;
         private final String actionInput;
         private final String observation;
+        private final ConfidenceScore stepConfidence;
+        private final Instant timestamp;
 
         public AgentStep(String thought, String action, String actionInput, String observation) {
+            this(thought, action, actionInput, observation, null, Instant.now());
+        }
+
+        public AgentStep(String thought, String action, String actionInput, String observation,
+                ConfidenceScore stepConfidence, Instant timestamp) {
             this.thought = thought;
             this.action = action;
             this.actionInput = actionInput;
             this.observation = observation;
+            this.stepConfidence = stepConfidence;
+            this.timestamp = timestamp != null ? timestamp : Instant.now();
         }
 
         public String getThought() {
@@ -83,6 +121,14 @@ public final class AgentResult {
             return observation;
         }
 
+        public ConfidenceScore getStepConfidence() {
+            return stepConfidence;
+        }
+
+        public Instant getTimestamp() {
+            return timestamp;
+        }
+
         @Override
         public String toString() {
             return "AgentStep{" +
@@ -99,6 +145,9 @@ public final class AgentResult {
         private List<AgentStep> steps = new ArrayList<>();
         private int iterations;
         private boolean completed;
+        private ConfidenceScore confidence;
+        private boolean uncertaintyDetected;
+        private String uncertaintyReason;
 
         private Builder() {
         }
@@ -125,6 +174,21 @@ public final class AgentResult {
 
         public Builder completed(boolean completed) {
             this.completed = completed;
+            return this;
+        }
+
+        public Builder confidence(ConfidenceScore confidence) {
+            this.confidence = confidence;
+            return this;
+        }
+
+        public Builder uncertaintyDetected(boolean uncertaintyDetected) {
+            this.uncertaintyDetected = uncertaintyDetected;
+            return this;
+        }
+
+        public Builder uncertaintyReason(String uncertaintyReason) {
+            this.uncertaintyReason = uncertaintyReason;
             return this;
         }
 

@@ -4,14 +4,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.agent.persona.AgentPersona;
+import io.github.llm4j.agent.memory.ConversationHistory;
 import io.github.llm4j.agent.prompt.PromptRegistry;
 import io.github.llm4j.agent.prompt.PromptTemplate;
+import io.github.llm4j.audit.AuditEvent;
+import io.github.llm4j.audit.AuditLogger;
+import io.github.llm4j.audit.NoOpAuditLogger;
+import io.github.llm4j.exception.LLMException;
+import io.github.llm4j.model.ConfidenceScore;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
+import io.github.llm4j.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.github.llm4j.agent.memory.ConversationHistory;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -65,6 +71,8 @@ public class ReActAgent {
     private final String systemPromptId;
     private final ConversationHistory conversationHistory;
     private final List<AgentEventListener> listeners;
+    private final AuditLogger auditLogger;
+    private final String sessionId;
 
     private ReActAgent(Builder builder) {
         this.llmClient = Objects.requireNonNull(builder.llmClient, "llmClient cannot be null");
@@ -77,6 +85,8 @@ public class ReActAgent {
         this.temperature = builder.temperature;
         this.conversationHistory = builder.conversationHistory;
         this.listeners = new ArrayList<>(builder.listeners);
+        this.auditLogger = builder.auditLogger != null ? builder.auditLogger : new NoOpAuditLogger();
+        this.sessionId = builder.sessionId != null ? builder.sessionId : UUID.randomUUID().toString();
     }
 
     /**
@@ -132,12 +142,21 @@ public class ReActAgent {
                     conversationHistory.addAssistantMessage(finalAnswer);
                 }
 
-                return AgentResult.builder()
+                AgentResult result = AgentResult.builder()
                         .finalAnswer(finalAnswer)
                         .steps(steps)
                         .iterations(i + 1)
                         .completed(true)
+                        .confidence(calculateConfidence(steps, i + 1, finalAnswer))
                         .build();
+
+                // Audit logging
+                auditLogger.logAgentDecision(AuditEvent.builder()
+                        .sessionId(sessionId)
+                        .agentResult(result)
+                        .build());
+
+                return result;
             }
 
             // Parse thought, action, and action input
@@ -226,12 +245,24 @@ public class ReActAgent {
 
         logger.warn("Agent reached max iterations ({}) without finding final answer", maxIterations);
 
-        return AgentResult.builder()
+        String uncertaintyReason = "Agent reached maximum iterations without certainty";
+        AgentResult result = AgentResult.builder()
                 .finalAnswer("Maximum iterations reached without finding a final answer.")
                 .steps(steps)
                 .iterations(maxIterations)
                 .completed(false)
+                .confidence(ConfidenceScore.low(uncertaintyReason))
+                .uncertaintyDetected(true)
+                .uncertaintyReason(uncertaintyReason)
                 .build();
+
+        // Audit logging
+        auditLogger.logAgentDecision(AuditEvent.builder()
+                .sessionId(sessionId)
+                .agentResult(result)
+                .build());
+
+        return result;
     }
 
     public Collection<Tool> getTools() {
@@ -320,6 +351,53 @@ public class ReActAgent {
         }
     }
 
+    /**
+     * Calculates confidence score based on agent execution metrics.
+     */
+    private ConfidenceScore calculateConfidence(List<AgentResult.AgentStep> steps, int iterations, String finalAnswer) {
+        // Heuristics for confidence calculation
+        double baseScore = 0.7; // Start with medium-high
+        String reasoning = "Clean execution";
+
+        // Penalty for high iteration count (approaching max)
+        double iterationRatio = (double) iterations / maxIterations;
+        if (iterationRatio > 0.8) {
+            baseScore -= 0.3;
+            reasoning = "High iteration count (" + iterations + "/" + maxIterations + ")";
+        } else if (iterationRatio > 0.5) {
+            baseScore -= 0.1;
+        }
+
+        // Check for tool failures
+        long failureCount = steps.stream()
+                .filter(step -> step.getObservation() != null && step.getObservation().startsWith("Error"))
+                .count();
+        if (failureCount > 0) {
+            baseScore -= (failureCount * 0.15);
+            reasoning = failureCount + " tool failure(s)";
+        }
+
+        // Check for "I don't know" patterns in final answer
+        if (finalAnswer != null) {
+            String lowerAnswer = finalAnswer.toLowerCase();
+            if (lowerAnswer.contains("i don't know") ||
+                    lowerAnswer.contains("i'm not sure") ||
+                    lowerAnswer.contains("cannot determine") ||
+                    lowerAnswer.contains("insufficient information")) {
+                baseScore = 0.1; // Set to UNKNOWN
+                reasoning = "Agent expressed uncertainty";
+            }
+        }
+
+        // Clamp to valid range
+        baseScore = Math.max(0.0, Math.min(1.0, baseScore));
+
+        return ConfidenceScore.builder()
+                .score(baseScore)
+                .reasoning(reasoning)
+                .build();
+    }
+
     public Builder toBuilder() {
         return new Builder(this);
     }
@@ -339,6 +417,8 @@ public class ReActAgent {
         private String systemPromptId;
         private ConversationHistory conversationHistory;
         private List<AgentEventListener> listeners = new ArrayList<>();
+        private AuditLogger auditLogger;
+        private String sessionId;
 
         private Builder() {
         }
@@ -354,6 +434,8 @@ public class ReActAgent {
             this.systemPromptId = agent.systemPromptId;
             this.conversationHistory = agent.conversationHistory;
             this.listeners = new ArrayList<>(agent.listeners);
+            this.auditLogger = agent.auditLogger;
+            this.sessionId = agent.sessionId;
         }
 
         public Builder clearTools() {
@@ -422,6 +504,16 @@ public class ReActAgent {
 
         public Builder addListener(AgentEventListener listener) {
             this.listeners.add(listener);
+            return this;
+        }
+
+        public Builder auditLogger(AuditLogger auditLogger) {
+            this.auditLogger = auditLogger;
+            return this;
+        }
+
+        public Builder sessionId(String sessionId) {
+            this.sessionId = sessionId;
             return this;
         }
 
