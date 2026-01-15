@@ -11,6 +11,7 @@ import io.github.llm4j.model.LLMResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.github.llm4j.agent.memory.ConversationHistory;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -51,7 +52,7 @@ public class ReActAgent {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern ACTION_INPUT_PATTERN = Pattern.compile("Action Input:\\s*(.+?)(?=\\n|$)",
             Pattern.CASE_INSENSITIVE);
-    private static final Pattern FINAL_ANSWER_PATTERN = Pattern.compile("Final Answer:\\s*(.+?)(?=\\n|$)",
+    private static final Pattern FINAL_ANSWER_PATTERN = Pattern.compile("Final Answer:\\s*(.*)",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
 
     private final LLMClient llmClient;
@@ -62,6 +63,8 @@ public class ReActAgent {
     private final AgentPersona persona;
     private final PromptRegistry promptRegistry;
     private final String systemPromptId;
+    private final ConversationHistory conversationHistory;
+    private final List<AgentEventListener> listeners;
 
     private ReActAgent(Builder builder) {
         this.llmClient = Objects.requireNonNull(builder.llmClient, "llmClient cannot be null");
@@ -72,6 +75,8 @@ public class ReActAgent {
         this.systemPrompt = resolveSystemPrompt(builder);
         this.maxIterations = builder.maxIterations;
         this.temperature = builder.temperature;
+        this.conversationHistory = builder.conversationHistory;
+        this.listeners = new ArrayList<>(builder.listeners);
     }
 
     /**
@@ -93,9 +98,14 @@ public class ReActAgent {
             logger.debug("Agent iteration {}/{}", i + 1, maxIterations);
 
             // Get LLM response
+            String context = "";
+            if (conversationHistory != null) {
+                context = "Previous conversation history:\n" + conversationHistory.getFormattedHistory() + "\n";
+            }
+
             LLMRequest request = LLMRequest.builder()
                     .addSystemMessage(systemPrompt)
-                    .addUserMessage(scratchpad.toString())
+                    .addUserMessage(context + scratchpad.toString())
                     .temperature(temperature)
                     .build();
 
@@ -112,6 +122,16 @@ public class ReActAgent {
                 String finalAnswer = finalAnswerMatcher.group(1).trim();
                 logger.info("Agent found final answer: {}", finalAnswer);
 
+                String thought = extractPattern(THOUGHT_PATTERN, llmOutput);
+                if (thought != null) {
+                    notifyThought(thought);
+                }
+
+                if (conversationHistory != null) {
+                    conversationHistory.addUserMessage(question);
+                    conversationHistory.addAssistantMessage(finalAnswer);
+                }
+
                 return AgentResult.builder()
                         .finalAnswer(finalAnswer)
                         .steps(steps)
@@ -126,6 +146,13 @@ public class ReActAgent {
             String actionInput = extractPattern(ACTION_INPUT_PATTERN, llmOutput);
 
             logger.info("Parsed - Thought: {}, Action: {}, ActionInput: {}", thought, action, actionInput);
+
+            if (thought != null) {
+                notifyThought(thought);
+            }
+            if (action != null) {
+                notifyAction(action, actionInput);
+            }
 
             if (action == null || action.isEmpty()) {
                 logger.warn("No action found in iteration {}", i + 1);
@@ -179,6 +206,7 @@ public class ReActAgent {
 
                     observation = tool.execute(args);
                     logger.info("Tool '{}' returned observation: {}", action, observation);
+                    notifyObservation(observation);
                 } catch (Exception e) {
                     observation = "Error executing tool: " + e.getMessage();
                     logger.error("Error executing tool {}: {}", action, e.getMessage(), e);
@@ -262,6 +290,36 @@ public class ReActAgent {
         return prompt.toString();
     }
 
+    private void notifyThought(String thought) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onThought(thought);
+            } catch (Exception e) {
+                logger.error("Error in listener onThought", e);
+            }
+        }
+    }
+
+    private void notifyAction(String action, String input) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onAction(action, input);
+            } catch (Exception e) {
+                logger.error("Error in listener onAction", e);
+            }
+        }
+    }
+
+    private void notifyObservation(String observation) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onObservation(observation);
+            } catch (Exception e) {
+                logger.error("Error in listener onObservation", e);
+            }
+        }
+    }
+
     public Builder toBuilder() {
         return new Builder(this);
     }
@@ -279,6 +337,8 @@ public class ReActAgent {
         private AgentPersona persona;
         private PromptRegistry promptRegistry;
         private String systemPromptId;
+        private ConversationHistory conversationHistory;
+        private List<AgentEventListener> listeners = new ArrayList<>();
 
         private Builder() {
         }
@@ -292,6 +352,8 @@ public class ReActAgent {
             this.persona = agent.persona;
             this.promptRegistry = agent.promptRegistry;
             this.systemPromptId = agent.systemPromptId;
+            this.conversationHistory = agent.conversationHistory;
+            this.listeners = new ArrayList<>(agent.listeners);
         }
 
         public Builder clearTools() {
@@ -350,6 +412,16 @@ public class ReActAgent {
 
         public Builder systemPromptId(String systemPromptId) {
             this.systemPromptId = systemPromptId;
+            return this;
+        }
+
+        public Builder conversationHistory(ConversationHistory history) {
+            this.conversationHistory = history;
+            return this;
+        }
+
+        public Builder addListener(AgentEventListener listener) {
+            this.listeners.add(listener);
             return this;
         }
 

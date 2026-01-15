@@ -12,7 +12,10 @@
 ## Features
 
 - **🤖 Google Gemini First**: Full integration with Gemini 1.5 Flash, Pro, and 2.x models.
-- **🛠️ ReAct Agent Framework**: Build AI agents that can reason and use tools (Calculator, Web Search, etc.).
+- **🛠️ ReAct Agent Framework**: Build AI agents that can reason and use tools through a thought-action-observation loop.
+- **🔌 Model Context Protocol (MCP)**: Connect to any external tool server (Filesystem, GitHub, SQLite) using the standard protocol.
+- **🧠 Contextual Memory**: Built-in conversation history management for multi-turn chats.
+- **📡 Real-Time Streaming**: Event-driven architecture to stream agent thoughts, actions, and observations to UIs via SSE/WebSockets.
 - **🎭 Agent Personas**: Configurable behavioral characteristics (tone, expertise, natural speech patterns) for deterministic agent responses.
 - **📚 RAG Support**: Retrieval-Augmented Generation. Core supports **Gemini Cloud** embeddings. **Local (ONNX/DJL)** inference is supported via the [RAG Addons](gemini-react-java-rag-addons) module.
 - **🔒 Private & Local**: Run entirely offline using local embedding models (requires `rag-addons`) for zero-cost, private retrieval.
@@ -104,6 +107,9 @@ public class GeminiExample {
 
 ### Auto-Discover Models
 
+<details>
+<summary>👀 Show: Auto-Discover Models Example</summary>
+
 ```java
 // The library can automatically discover available Gemini models
 LLMConfig tempConfig = LLMConfig.builder()
@@ -120,6 +126,8 @@ LLMConfig config = LLMConfig.builder()
         .build();
 }
 ```
+
+</details>
 
 ## ReAct Agent
 
@@ -166,9 +174,79 @@ for (AgentResult.AgentStep step : result.getSteps()) {
 - **GraphExtractionTool**: Extract structured knowledge triples from text using LLM
 - **EchoTool**: Simple echo tool (useful for testing)
 
+### 🧠 Conversation Memory
+
+Enable your agents to remember previous interactions in a chat session.
+
+<details>
+<summary>👀 Show: Memory Usage Example</summary>
+
+```java
+import io.github.llm4j.agent.memory.ConversationHistory;
+
+// 1. Initialize ReAct Agent with memory
+ConversationHistory history = new ConversationHistory(10); // Keep last 10 messages
+
+ReActAgent agent = ReActAgent.builder()
+        .llmClient(client)
+        .addTool(new CalculatorTool())
+        .conversationHistory(history) // Add memory
+        .build();
+
+// 2. Run sequential queries
+agent.run("My name is Srijith.");
+AgentResult result = agent.run("What is my name?"); 
+// Result: "Your name is Srijith."
+```
+
+</details>
+
+### 📡 Real-time Thought Streaming
+
+Capture the agent's reasoning process as it happens using the `AgentEventListener`. This is critical for building responsive UIs.
+
+<details>
+<summary>👀 Show: Streaming Usage Example</summary>
+
+```java
+import io.github.llm4j.agent.AgentEventListener;
+
+// 1. Define a listener
+AgentEventListener listener = new AgentEventListener() {
+    @Override
+    public void onThought(String thought) {
+        System.out.println("Thinking: " + thought);
+        // e.g., send via SSE or WebSocket
+    }
+
+    @Override
+    public void onAction(String toolName, String toolInput) {
+        System.out.println("Executing: " + toolName + " with " + toolInput);
+    }
+
+    @Override
+    public void onObservation(String toolOutput) {
+        System.out.println("Result: " + toolOutput);
+    }
+};
+
+// 2. Attach usage
+ReActAgent agent = ReActAgent.builder()
+        .llmClient(client)
+        .addListener(listener) // Register listener
+        .build();
+
+agent.run("Check weather in Tokyo");
+```
+
+</details>
+
 ### 🌐 OpenAPI Support (New!)
 
 The library now supports **dynamic tool generation** from OpenAPI/Swagger specifications. This allows your agents to automatically discover and use any REST API without writing manual tool code.
+
+<details>
+<summary>👀 Show: OpenAPI Tool Example</summary>
 
 ```java
 // Create tool from OpenAPI spec (URL or file)
@@ -185,11 +263,16 @@ ReActAgent agent = ReActAgent.builder()
     .build();
 ```
 
+</details>
+
 See the [OpenAPI Tool Wiki](wiki/OpenAPI-Tool.md) for full documentation.
 
 ### 🔌 Model Context Protocol (MCP) Support
 
 Connect your agents to the external world using the **Model Context Protocol (MCP)**. This allows `gemini-react-java` to consume tools from any standard MCP server (Python, Node, Go, etc.).
+
+<details>
+<summary>👀 Show: MCP Client Example</summary>
 
 ```java
 // 1. Define Transport (e.g. connecting to a local filesystem server)
@@ -208,6 +291,8 @@ for (var toolDef : mcpClient.listTools()) {
 }
 ```
 
+</details>
+
 See the [MCP Integration Wiki](../wiki/MCP-Integration.md) for full documentation.
 
 ## Agent Personas
@@ -215,6 +300,9 @@ See the [MCP Integration Wiki](../wiki/MCP-Integration.md) for full documentatio
 Make your agents more deterministic and role-specific with configurable personas.
 
 ### Using Pre-built Personas
+
+<details>
+<summary>👀 Show: Pre-built Personas Example</summary>
 
 ```java
 import io.github.llm4j.agent.persona.PersonaLibrary;
@@ -234,6 +322,8 @@ ReActAgent support = ReActAgent.builder()
     .build();
 ```
 
+</details>
+
 **Available Pre-built Personas:**
 
 - `technicalAnalyst()` - Data-driven, precise, analytical
@@ -246,6 +336,9 @@ ReActAgent support = ReActAgent.builder()
 - `medicalAdvisor()` - Careful, evidence-based, patient-centered
 
 ### Creating Custom Personas
+
+<details>
+<summary>👀 Show: Custom Persona Example</summary>
 
 ```java
 import io.github.llm4j.agent.persona.AgentPersona;
@@ -265,6 +358,8 @@ ReActAgent agent = ReActAgent.builder()
     .persona(customPersona)
     .build();
 ```
+
+</details>
 
 See the [Agent Personas Wiki](wiki/Agent-Personas.md) for more details.
 
@@ -308,6 +403,9 @@ ReActAgent agent = ReActAgent.builder()
 Enhance your agents with document-based context retrieval using vector similarity search.
 
 ### Basic RAG Setup
+
+<details>
+<summary>👀 Show: RAG Setup Example</summary>
 
 ```java
 import io.github.llm4j.agent.rag.*;
@@ -370,6 +468,8 @@ FixedSizeChunkingStrategy chunker = new FixedSizeChunkingStrategy(
 );
 ```
 
+</details>
+
 See the [RAG Support Wiki](wiki/RAG-Support.md) for advanced usage.
 
 ## Knowledge Graphs
@@ -377,6 +477,9 @@ See the [RAG Support Wiki](wiki/RAG-Support.md) for advanced usage.
 Enable your agents to reason over structured knowledge using entity-relationship graphs.
 
 ### Building a Knowledge Graph
+
+<details>
+<summary>👀 Show: Knowledge Graph Example</summary>
 
 ```java
 import io.github.llm4j.agent.knowledge.*;
@@ -419,6 +522,8 @@ ReActAgent agent = ReActAgent.builder()
 AgentResult result = agent.run("Who does Bob report to?");
 ```
 
+</details>
+
 ### Querying the Graph
 
 The `GraphQueryTool` allows agents to:
@@ -430,6 +535,11 @@ The `GraphQueryTool` allows agents to:
 See the [Knowledge Graphs Wiki](wiki/Knowledge-Graphs.md) for more details.
 
 ## Advanced Configuration
+
+### Creating Custom Tools
+
+<details>
+<summary>👀 Show: Custom Tool & Config Examples</summary>
 
 ### Creating Custom Tools
 
@@ -473,11 +583,7 @@ ReActAgent agent = ReActAgent.builder()
         .build();
 ```
 
-## Advanced Configuration
-
-```java
-
-## Advanced Configuration
+</details>
 
 ### Custom Retry Policy
 
