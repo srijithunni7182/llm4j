@@ -123,6 +123,7 @@ public class WeatherTool implements Tool {
 
 }
 }
+```
 
 ## 6. Conversation Memory & Streaming (New!)
 
