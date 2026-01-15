@@ -187,6 +187,29 @@ ReActAgent agent = ReActAgent.builder()
 
 See the [OpenAPI Tool Wiki](wiki/OpenAPI-Tool.md) for full documentation.
 
+### 🔌 Model Context Protocol (MCP) Support
+
+Connect your agents to the external world using the **Model Context Protocol (MCP)**. This allows `gemini-react-java` to consume tools from any standard MCP server (Python, Node, Go, etc.).
+
+```java
+// 1. Define Transport (e.g. connecting to a local filesystem server)
+StdioMcpTransport transport = new StdioMcpTransport(
+    List.of("npx", "-y", "@modelcontextprotocol/server-filesystem", "."), 
+    null
+);
+
+// 2. Initialize Client
+McpClient mcpClient = new McpClient(transport);
+mcpClient.initialize();
+
+// 3. Adapt Tools for Agent
+for (var toolDef : mcpClient.listTools()) {
+    agentBuilder.addTool(new McpToolAdapter(mcpClient, toolDef));
+}
+```
+
+See the [MCP Integration Wiki](../wiki/MCP-Integration.md) for full documentation.
+
 ## Agent Personas
 
 Make your agents more deterministic and role-specific with configurable personas.
