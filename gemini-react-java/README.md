@@ -46,12 +46,6 @@ If you are looking for an **LLM for Java**, you might have seen other libraries 
 - Simple, testable code that runs anywhere (local, cloud, edge)
 - Full control over your agent logic without opinionated frameworks
 
-**Choose Google ADK if you need:**
-
-- Deep Google Cloud integration (Vertex AI, Cloud Storage, etc.)
-- Enterprise-grade orchestration and deployment tooling
-- Official Google support and tight ecosystem coupling
-
 ## 📚 Advanced RAG (Add-ons)
 
 To keep the core library lightweight, advanced RAG integrations (ONNX, DJL, Postgres, Pinecone) are available in a separate module: **`gemini-react-java-rag-addons`**.
