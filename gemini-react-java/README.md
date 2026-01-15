@@ -26,15 +26,31 @@
 
 ## 🚀 Why Gemini ReAct Java?
 
-If you are looking for an **LLM for Java**, you might have seen other libraries like LangChain4j. Here is why you should choose this one:
+If you are looking for an **LLM for Java**, you might have seen other libraries like LangChain4j or Google's ADK. Here is why you should choose this one:
 
-| Feature | Gemini ReAct Java | Others / LangChain4j |
-| :--- | :--- | :--- |
-| **Philosophy** | **Lightweight & Verified**. Only what you need. | Kitchen sink. Heavy dependencies. |
-| **Google Gemini** | **First-Class**. Supports caching, search, 2.0 Pro. | Generic support. Often lags behind. |
-| **Agents** | **Native ReAct**. Built for reasoning loops. | Often complex abstractions. |
-| **RAG** | **Modular**. Core is <200KB. Addons are optional. | Often bundles heavy ML libs by default. |
-| **Reliability** | **100% Integration Tested**. We test against real APIs. | Varying quality. |
+| Feature | Gemini ReAct Java | Google ADK | Others / LangChain4j |
+| :--- | :--- | :--- | :--- |
+| **Philosophy** | **Lightweight & Verified**. Only what you need. | Enterprise-focused. Google Cloud integration. | Kitchen sink. Heavy dependencies. |
+| **Size** | **Core < 200KB**. Minimal footprint. | Larger (includes dev UI, runtime). | Often bloated with unused features. |
+| **Google Gemini** | **First-Class**. Supports caching, search, 2.0 Pro. | First-class but cloud-centric. | Generic support. Often lags behind. |
+| **Agents** | **Native ReAct**. Built for reasoning loops. | Code-first agent orchestration. | Often complex abstractions. |
+| **RAG** | **Modular**. Core is tiny. Addons optional. | Integrated with Google ecosystem. | Often bundles heavy ML libs by default. |
+| **Deployment** | **Run anywhere**. No cloud lock-in. | Optimized for Google Cloud. | Varying portability. |
+| **Persistence** | **Built-in**. File, async, or custom stores. | Session management included. | Often requires external libs. |
+| **Reliability** | **100% Integration Tested**. Real API verification. | Official Google support. | Varying quality. |
+| **Learning Curve** | **Simple**. Pure Java, minimal concepts. | Steeper (enterprise patterns). | Complex APIs, many abstractions. |
+
+**Choose Gemini ReAct Java if you want:**
+
+- A lightweight library with zero cloud lock-in
+- Simple, testable code that runs anywhere (local, cloud, edge)
+- Full control over your agent logic without opinionated frameworks
+
+**Choose Google ADK if you need:**
+
+- Deep Google Cloud integration (Vertex AI, Cloud Storage, etc.)
+- Enterprise-grade orchestration and deployment tooling
+- Official Google support and tight ecosystem coupling
 
 ## 📚 Advanced RAG (Add-ons)
 
