@@ -1,0 +1,9 @@
+# gemini-react-java
+
+> The lightweight, verified ReAct Agent library for Google Gemini in Java.
+
+## Documentation
+
+- [README](README.md): Main overview, features, installation, and quick start guide.
+- [AI Context](wiki/LLM_CONTEXT.md): Optimized instructions for LLMs coding with this library.
+- [Wiki](wiki/): Detailed documentation including RAG, Tools, and Personas.
