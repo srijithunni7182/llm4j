@@ -15,6 +15,7 @@ The heart of this repository is **gemini-react-java**, a lightweight yet powerfu
 * **Zero Magic**: No confusing "magic" abstractions. Just clean, typed Java code.
 * **ReAct Agents**: Implements the **Re**asoning + **Act**ing paradigm, allowing agents to solve complex problems by thinking and using tools.
 * **Tooling**: Includes ready-to-use tools (Calculator, Web Search) and an **OpenAPI Tool** that can turn any REST API into an AI function instantly.
+* **MCP Support**: Full support for the **Model Context Protocol (MCP)**, enabling connection to any external MCP server (Python, Node, etc.) to instantaneously ingest tools and resources.
 * **Structured Output**: Native support for JSON modes and structured object mapping.
 
 ### 🧩 The Extensions: [RAG Addons](gemini-react-java-rag-addons/)
