@@ -196,6 +196,39 @@ agent = ReActAgent.builder()
 
 ## 7. Best Practices
 
-- **Tool Descriptions**: Always specify the expected JSON structure in the `getDescription()` method (e.g., "Input should be a JSON object with 'x' and 'y' fields").
-- **Error Handling**: Tools should return error strings rather than throwing unchecked exceptions, so the agent can self-correct.
 - **Loop Detection**: The agent has built-in loop detection; if it gets stuck, it will receive an error observation.
+
+## 9. Extending the Library (Custom Providers)
+
+To utilize other LLM providers (e.g., Vertex AI, OpenAI, Local models), implement the `LLMProvider` interface.
+
+```java
+import io.github.llm4j.provider.LLMProvider;
+import io.github.llm4j.model.LLMRequest;
+import io.github.llm4j.model.LLMResponse;
+
+public class MyCustomProvider implements LLMProvider {
+    @Override
+    public LLMResponse chat(LLMRequest request) {
+        // 1. Convert LLMRequest to provider-specific format
+        // 2. Make HTTP call
+        // 3. Convert response to LLMResponse
+        return LLMResponse.builder()
+                .content("Response from custom model")
+                .build();
+    }
+}
+
+// Usage
+LLMClient client = new DefaultLLMClient(new MyCustomProvider());
+```
+
+## 10. Comparison to Alternatives
+
+| Feature | gemini-react-java | LangChain4j / Spring AI |
+| :--- | :--- | :--- |
+| **Philosophy** | **Gemini-Native & Lightweight**. Optimized for Gemini's reasoning. | **Model-Agnostic & Heavy**. Generic abstractions. |
+| **Agentic Loop** | **Transparent ReAct**. Full visibility via `AgentEventListener`. | Hidden behind complex `AgentExecutor` abstractions. |
+| **Tooling Standard** | **MCP First**. Native Model Context Protocol support. | Experimental or via adapters. |
+| **Dependency Footprint** | **Tiny (<200KB)**. Only OkHttp + Jackson. | **Large**. Pulls in heavy frameworks. |
+| **Streaming** | **Granular Thought Streaming**. Stream reasoning steps, not just tokens. | Usually just token streaming. |
