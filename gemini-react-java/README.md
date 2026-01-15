@@ -201,6 +201,72 @@ AgentResult result = agent.run("What is my name?");
 
 </details>
 
+### 💾 Persistent Conversation Storage
+
+Store conversations across sessions with pluggable storage backends.
+
+<details>
+<summary>👀 Show: Conversation Persistence Example</summary>
+
+```java
+import io.github.llm4j.agent.memory.*;
+import java.nio.file.Paths;
+
+// 1. Create a file-based store (conversations saved as JSON)
+ConversationStore fileStore = new FileConversationStore(Paths.get("conversations"));
+
+// 2. Optional: Wrap with async store for non-blocking I/O
+ConversationStore asyncStore = new AsyncConversationStore(fileStore);
+
+// 3. Create history with persistent store
+ConversationHistory history = new ConversationHistory(
+    "user-session-123",  // unique session ID
+    asyncStore,          // persistent store
+    20                   // max messages in memory
+);
+
+// 4. Use with agent - conversations survive app restarts!
+ReActAgent agent = ReActAgent.builder()
+    .llmClient(client)
+    .conversationHistory(history)
+    .build();
+```
+
+**Generating Summaries:**
+
+```java
+import io.github.llm4j.util.ConversationSummarizer;
+
+// Auto-generate one-line summaries
+ConversationSummarizer summarizer = new ConversationSummarizer(llmClient);
+String summary = summarizer.summarize(history.getMessages());
+
+// Update metadata
+asyncStore.updateSummary("user-session-123", summary);
+```
+
+**Listing Conversations:**
+
+```java
+// Get all conversations with metadata
+List<ConversationMetadata> sessions = asyncStore.listSessions();
+
+for (ConversationMetadata meta : sessions) {
+    System.out.println(meta.getSessionId() + ": " + meta.getSummary());
+    System.out.println("  Last updated: " + meta.getLastUpdated());
+}
+```
+
+</details>
+
+**Available Stores:**
+
+- `InMemoryConversationStore` - Default, ephemeral storage
+- `FileConversationStore` - JSON file-based persistence
+- `AsyncConversationStore` - Non-blocking wrapper for any store
+
+</details>
+
 ### 📡 Real-time Thought Streaming
 
 Capture the agent's reasoning process as it happens using the `AgentEventListener`. This is critical for building responsive UIs.

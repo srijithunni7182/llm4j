@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gmail MCP Chat</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts for Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="chat-container">
+        <!-- Tools Sidebar -->
+        <div class="tools-sidebar">
+            <h2>🛠️ Active Tools</h2>
+            <div id="toolsList">
+                <div style="color: var(--text-secondary); text-align: center; margin-top: 40px; font-size: 0.9rem;">
+                    Connecting to agents...
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="main-chat">
+            <header>
+                <h1>✨ Gmail + Filesystem Agent</h1>
+                <div class="status" id="status">Connecting...</div>
+            </header>
+
+            <div id="messages" class="messages">
+                <div class="message system">
+                    👋 <strong>Hello!</strong> I can help you manage your emails and files.<br>
+                    Try asking: <em>"Check my unread emails"</em> or <em>"List files in this folder"</em>.
+                </div>
+            </div>
+
+            <div class="input-area">
+                <input type="text" id="userInput" placeholder="Type your request here..." autofocus>
+                <button id="sendBtn">Send</button>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+
+</html>
