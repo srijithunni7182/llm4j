@@ -11,6 +11,10 @@ import io.github.llm4j.audit.AuditEvent;
 import io.github.llm4j.audit.AuditLogger;
 import io.github.llm4j.audit.NoOpAuditLogger;
 import io.github.llm4j.exception.LLMException;
+import io.github.llm4j.fairness.BiasContext;
+import io.github.llm4j.fairness.BiasEvent;
+import io.github.llm4j.fairness.BiasMonitor;
+import io.github.llm4j.fairness.NoOpBiasMonitor;
 import io.github.llm4j.model.ConfidenceScore;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
@@ -73,6 +77,7 @@ public class ReActAgent {
     private final List<AgentEventListener> listeners;
     private final AuditLogger auditLogger;
     private final String sessionId;
+    private final BiasMonitor biasMonitor;
 
     private ReActAgent(Builder builder) {
         this.llmClient = Objects.requireNonNull(builder.llmClient, "llmClient cannot be null");
@@ -87,6 +92,7 @@ public class ReActAgent {
         this.listeners = new ArrayList<>(builder.listeners);
         this.auditLogger = builder.auditLogger != null ? builder.auditLogger : new NoOpAuditLogger();
         this.sessionId = builder.sessionId != null ? builder.sessionId : UUID.randomUUID().toString();
+        this.biasMonitor = builder.biasMonitor != null ? builder.biasMonitor : new NoOpBiasMonitor();
     }
 
     /**
@@ -155,6 +161,20 @@ public class ReActAgent {
                         .sessionId(sessionId)
                         .agentResult(result)
                         .build());
+
+                // Bias monitoring
+                BiasContext biasContext = BiasContext.builder()
+                        .sessionId(sessionId)
+                        .taskType("final_answer")
+                        .build();
+                List<BiasEvent> biasEvents = biasMonitor.detectBias(finalAnswer, biasContext);
+                if (!biasEvents.isEmpty()) {
+                    logger.warn("Bias detected in final answer: {} events", biasEvents.size());
+                    for (BiasEvent event : biasEvents) {
+                        logger.warn("  - {}: {} (severity: {})", event.getType(), event.getExplanation(),
+                                event.getSeverity());
+                    }
+                }
 
                 return result;
             }
@@ -419,6 +439,7 @@ public class ReActAgent {
         private List<AgentEventListener> listeners = new ArrayList<>();
         private AuditLogger auditLogger;
         private String sessionId;
+        private BiasMonitor biasMonitor;
 
         private Builder() {
         }
@@ -436,6 +457,7 @@ public class ReActAgent {
             this.listeners = new ArrayList<>(agent.listeners);
             this.auditLogger = agent.auditLogger;
             this.sessionId = agent.sessionId;
+            this.biasMonitor = agent.biasMonitor;
         }
 
         public Builder clearTools() {
@@ -514,6 +536,11 @@ public class ReActAgent {
 
         public Builder sessionId(String sessionId) {
             this.sessionId = sessionId;
+            return this;
+        }
+
+        public Builder biasMonitor(BiasMonitor biasMonitor) {
+            this.biasMonitor = biasMonitor;
             return this;
         }
 

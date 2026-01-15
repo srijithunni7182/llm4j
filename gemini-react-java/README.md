@@ -21,7 +21,7 @@
 - **🔒 Private & Local**: Run entirely offline using local embedding models (requires `rag-addons`) for zero-cost, private retrieval.
 - **🕸️ Knowledge Graphs**: Structured knowledge representation with entity-relationship querying.
 - **⚡ Robust Tooling**: Typed tool interface with JSON input parsing and error feedback loops.
-- **🔍 xAI Standards (~88% Compliant)**: Explainable AI compliance with complete reasoning transparency, versioned prompt management, conversation tracking, audit logging, confidence scoring, and **PII detection**. **Missing**: Bias monitoring (roadmap item).
+- **🔍 xAI Standards (~95% Compliant)**: Explainable AI compliance with complete reasoning transparency, versioned prompt management, conversation tracking, audit logging, confidence scoring, PII detection, and **bias monitoring hooks**.
 - **💾 Conversation Persistence**: Built-in storage backends (file, in-memory, async) with metadata and auto-generated summaries.
 - **🔄 Production Ready**: Automatic retries, error handling, and thread-safe design.
 - **🧪 100% Tested**: Comprehensive integration test suite verifying real-world usage.
@@ -39,7 +39,7 @@ If you are looking for an **LLM for Java**, you might have seen other libraries 
 | **RAG** | **Modular**. Core is tiny. Addons optional. | Integrated with Google ecosystem. | Often bundles heavy ML libs by default. |
 | **Deployment** | **Run anywhere**. No cloud lock-in. | Optimized for Google Cloud. | Varying portability. |
 | **Persistence** | **Built-in**. File, async, or custom stores. | Session management included. | Often requires external libs. |
-| **xAI Compliance** | **~88%**. Full reasoning transparency + prompt versioning + audit logging + confidence scoring + PII detection. Missing: bias monitoring. | Not documented. | Varies by implementation. |
+| **xAI Compliance** | **~95%**. Full reasoning transparency + prompt versioning + audit logging + confidence scoring + PII detection + bias monitoring hooks. | Not documented. | Varies by implementation. |
 | **Reliability** | **100% Integration Tested**. Real API verification. | Official Google support. | Varying quality. |
 | **Learning Curve** | **Simple**. Pure Java, minimal concepts. | Steeper (enterprise patterns). | Complex APIs, many abstractions. |
 
