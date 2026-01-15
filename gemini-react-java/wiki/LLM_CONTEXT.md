@@ -3,14 +3,17 @@
 > **Instructions for the AI**: The user is working with a Java library called `gemini-react-java` (formerly `llm4j`). This library was created after your knowledge cutoff. Use the following documentation and examples to understand how to write code for it.
 
 ## 1. Overview
+
 **gemini-react-java** is a Java library for interacting with Google Gemini. It provides a unified `LLMClient` interface and a `ReActAgent` framework for building agentic applications.
 
 **Key Features**:
+
 - Supports Google Gemini models (e.g., `gemini-1.5-flash`, `gemini-1.5-pro`).
 - **ReAct Agent**: A framework for agents that use tools.
 - **Tools**: A typed interface for custom tools using `Map<String, Object>` arguments.
 
 ## 2. Installation (Maven)
+
 ```xml
 <dependency>
     <groupId>io.github.llm4j</groupId>
@@ -22,6 +25,7 @@
 ## 3. Core API: LLMClient
 
 ### Initialization
+
 ```java
 import io.github.llm4j.DefaultLLMClient;
 import io.github.llm4j.LLMClient;
@@ -37,6 +41,7 @@ LLMClient client = new DefaultLLMClient(new GoogleProvider(config));
 ```
 
 ### Chat Request
+
 ```java
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
@@ -56,6 +61,7 @@ System.out.println(response.getContent());
 The agent uses a "Thought -> Action -> Observation" loop.
 
 ### Creating an Agent
+
 ```java
 import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.agent.tools.CalculatorTool;
@@ -68,6 +74,7 @@ ReActAgent agent = ReActAgent.builder()
 ```
 
 ### Running an Agent
+
 ```java
 import io.github.llm4j.agent.AgentResult;
 
@@ -80,6 +87,7 @@ System.out.println(result.getFinalAnswer());
 Tools must implement the `Tool` interface. **Crucially, the `execute` method takes a `Map<String, Object>`**.
 
 ### Interface Definition
+
 ```java
 public interface Tool {
     String getName();
@@ -90,6 +98,7 @@ public interface Tool {
 ```
 
 ### Example: Weather Tool
+
 ```java
 import io.github.llm4j.agent.Tool;
 import java.util.Map;
@@ -112,7 +121,59 @@ public class WeatherTool implements Tool {
     }
 }
 
-## 6. Dynamic Tools (OpenAPI)
+}
+}
+
+## 6. Conversation Memory & Streaming (New!)
+
+### Chat Memory
+Use `ConversationHistory` to maintain context.
+```java
+import io.github.llm4j.agent.memory.ConversationHistory;
+
+ConversationHistory history = new ConversationHistory(10);
+ReActAgent agent = ReActAgent.builder()
+    .llmClient(client)
+    .addTool(new CalculatorTool())
+    .conversationHistory(history)
+    .build();
+```
+
+### Real-Time Streaming
+
+Use `AgentEventListener` to stream thoughts.
+
+```java
+import io.github.llm4j.agent.AgentEventListener;
+
+ReActAgent agent = ReActAgent.builder()
+    .llmClient(client)
+    .addListener(new AgentEventListener() {
+        public void onThought(String t) { System.out.println("Thinking: " + t); }
+        public void onAction(String n, String i) { ... }
+        public void onObservation(String o) { ... }
+    })
+    .build();
+```
+
+## 7. Model Context Protocol (MCP)
+
+Connect to external MCP servers (filesystem, git, etc.).
+
+```java
+import io.github.llm4j.mcp.*;
+
+// 1. Connect to server
+McpClient mcpClient = new McpClient(new StdioMcpTransport(List.of("npx", "-y", "@modelcontextprotocol/server-filesystem", "."), null));
+mcpClient.initialize();
+
+// 2. Add tools to agent
+for (var tool : mcpClient.listTools()) {
+    agentBuilder.addTool(new McpToolAdapter(mcpClient, tool));
+}
+```
+
+## 8. Dynamic Tools (OpenAPI)
 
 The library supports generating tools dynamically from OpenAPI specifications.
 
@@ -134,6 +195,7 @@ agent = ReActAgent.builder()
 ```
 
 ## 7. Best Practices
+
 - **Tool Descriptions**: Always specify the expected JSON structure in the `getDescription()` method (e.g., "Input should be a JSON object with 'x' and 'y' fields").
 - **Error Handling**: Tools should return error strings rather than throwing unchecked exceptions, so the agent can self-correct.
 - **Loop Detection**: The agent has built-in loop detection; if it gets stuck, it will receive an error observation.

@@ -1,6 +1,7 @@
 # gemini-react-java
 
 > The lightweight, verified ReAct Agent library for Google Gemini in Java.
+> Now with **Model Context Protocol (MCP)**, **Conversation Memory**, and **Real-time Thought Streaming**!
 
 ## Documentation
 
