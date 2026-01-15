@@ -48,6 +48,7 @@ If you are looking for an **LLM for Java**, you might have seen other libraries 
 - A lightweight library with zero cloud lock-in
 - Simple, testable code that runs anywhere (local, cloud, edge)
 - Full control over your agent logic without opinionated frameworks
+- **Best in class in industry for xAI standards compliance**
 
 ## 📚 Advanced RAG (Add-ons)
 
