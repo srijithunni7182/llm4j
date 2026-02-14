@@ -65,6 +65,8 @@ To keep the core library lightweight, advanced RAG integrations (ONNX, DJL, Post
 
 Add this dependency to unlock those features:
 
+> **Note**: This artifact is also not on Maven Central yet. Please install locally first as described below.
+
 ```xml
 <dependency>
     <groupId>io.github.llm4j</groupId>
@@ -75,7 +77,17 @@ Add this dependency to unlock those features:
 
 ## Installation
 
-### Maven
+### Maven (Local Install)
+
+Since `ai-agent4j` is not yet on Maven Central, you must first build and install it locally:
+
+```bash
+git clone https://github.com/srijithunni7182/llm4j.git
+cd llm4j
+mvn clean install
+```
+
+Then add the dependency to your project:
 
 ```xml
 <dependency>
@@ -85,10 +97,23 @@ Add this dependency to unlock those features:
 </dependency>
 ```
 
-### Gradle
+### JitPack
 
-```gradle
-implementation 'io.github.llm4j:ai-agent4j:0.1.0-SNAPSHOT'
+Alternatively, you can use JitPack:
+
+```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+
+<dependency>
+    <groupId>com.github.srijithunni7182.llm4j</groupId>
+    <artifactId>ai-agent4j</artifactId>
+    <version>main-SNAPSHOT</version>
+</dependency>
 ```
 
 ## Quick Start
