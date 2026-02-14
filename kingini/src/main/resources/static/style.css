@@ -1,0 +1,216 @@
+:root {
+    /* Kerala Theme Palette */
+    --kerala-gold: #F2C94C;   /* Kasavu / Nendran Banana Yellow */
+    --kerala-cream: #FCF7E6;  /* Mundu / Old paper */
+    --kerala-green: #2E7D32;  /* Banana Leaf Green */
+    --wood-brown: #5D4037;    /* Teak Wood */
+    --clay-red: #D84315;      /* Tile Roof */
+    
+    --text-dark: #3E2723;
+    --text-light: #5d4037;
+}
+
+body {
+    font-family: 'Noto Serif Malayalam', 'Manjari', serif;
+    background-color: var(--kerala-cream);
+    color: var(--text-dark);
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Immersive fixed view */
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Background */
+.background-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background: linear-gradient(to bottom, #81C784, #AED581); /* Fallback nature gradient */
+}
+
+.tharavad-bg {
+    width: 100%;
+    height: 100%;
+    /* Use the local tharavad background */
+    background: 
+        linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.3)),
+        url('images/tharavad.jpg') no-repeat center center;
+    background-size: cover;
+    /* filter: blur(2px); /* Removed blur to show off the beautiful image */
+}
+
+/* App Wrapper */
+.app-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 800px; /* Increased width for landscape background */
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* ... (skip header styles) ... */
+
+/* Cat Stage */
+.cat-stage {
+    position: relative;
+    flex-grow: 1; 
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end; /* Align cat to bottom for lying pose */
+    align-items: center;
+    padding-bottom: 0px; /* Remove padding to let it touch the bottom edge if needed, visual improvement */
+    margin-bottom: -160px; /* Cheat it lower to look 'on' the floor perspective-wise */
+}
+
+.cat-avatar {
+    position: relative;
+    width: 90%; /* Responsive width */
+    max-width: 500px; /* Limit max size */
+    height: auto; /* Maintain aspect ratio */
+}
+
+.cat-img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3));
+}
+
+/* Mouth Overlay Logic */
+.mouth-overlay-wrapper {
+    position: absolute;
+    /* Adjusted for lying cat - usually head is lower/different */
+    /* Based on typical lying cat image, mouth is near bottom-right or center-right of head */
+    /* This is a GUESS. User might need to tweak. */
+    top: 65%; 
+    left: 72%; /* Lying cat often faces side? Or front? Promoting front-ish. */
+    /* Actually, user said "superimposed on top". If it's the specific image 0, it looked like lying side view? */
+    /* Let's try a safe bet: Center-ish low? No, lying cat head is usually to one side. */
+    /* I'll stick to center-low for now, assuming user will feedback or I'll see it. */
+    /* Re-reading user request: "cat image that can be superimposed..." */
+    /* Let's assume standard front/side. */
+    top: 61%; 
+    left: 65%; /* Moved right and up as requested */
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    /* border: 1px solid red; /* Debug box */ 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transform: rotate(10deg); /* Slight tilt for natural head angle */
+}
+
+.mouth-shape {
+    width: 30px;
+    height: 4px; /* Closed state */
+    background-color: #2c0e0e; /* Dark mouth interior */
+    border-radius: 50%; /* Oval shape */
+    transition: height 0.05s ease;
+}
+
+/* Controls */
+.controls-area {
+    margin-bottom: 20px;
+    z-index: 10;
+}
+
+.talk-btn {
+    background: linear-gradient(135deg, var(--kerala-gold), #FBC02D);
+    border: none;
+    padding: 15px 40px;
+    border-radius: 50px;
+    font-size: 1.2rem;
+    color: var(--wood-brown);
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.talk-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(242, 201, 76, 0.4);
+}
+
+.talk-btn.recording {
+    background: linear-gradient(135deg, #e53935, #c62828);
+    color: white;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.status-pill {
+    margin-top: 15px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 5px 15px;
+    border-radius: 15px;
+    font-size: 0.9rem;
+}
+
+/* Chat Area */
+.chat-area {
+    width: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 100px;
+}
+
+.chat-bubble {
+    padding: 12px 20px;
+    border-radius: 20px;
+    max-width: 80%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    opacity: 1;
+    transition: opacity 0.5s ease;
+}
+
+.chat-bubble.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.chat-bubble.agent {
+    background-color: white;
+    align-self: flex-start;
+    border-bottom-left-radius: 2px;
+    border: 1px solid var(--kerala-gold);
+    color: var(--text-dark);
+}
+
+.chat-bubble.user {
+    background-color: var(--kerala-green);
+    align-self: flex-end;
+    border-bottom-right-radius: 2px;
+    color: white;
+}
+
+.chat-bubble p {
+    margin: 0;
+    font-weight: normal;
+    color: inherit;
+}

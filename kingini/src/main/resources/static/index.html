@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kingini - The Kerala Storyteller</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Manjari:wght@100;400;700&family=Noto+Serif+Malayalam:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Immersive Background Container -->
+    <div class="background-container">
+        <!-- Placeholder for Tharavad Image -->
+        <!-- User can replace 'bg-placeholder.jpg' with real image later -->
+        <div class="tharavad-bg" id="tharavadBg"></div>
+    </div>
+
+    <!-- Main Content Wrapper -->
+    <div class="app-wrapper">
+        
+        <header class="kerala-header">
+            <h1>Kingini 😺</h1>
+            <p>സംസാരിക്കൂ... (Speak to me)</p>
+        </header>
+
+        <!-- Cat Container -->
+        <div class="cat-stage">
+            <div class="cat-avatar">
+                <!-- Placeholder/Real Cat Image -->
+                <img src="images/cat.png" alt="Kingini the Cat" class="cat-img" id="catImg">
+                
+                <!-- Mouth Overlay (Absolute positioning over the cat image) -->
+                <div class="mouth-overlay-wrapper">
+                    <div class="mouth-shape" id="mouth"></div>
+                </div>
+            </div>
+            
+            <div class="status-pill" id="status">Ready to listen...</div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-area">
+            <button id="talkBtn" class="talk-btn">
+                <span class="btn-icon">🎤</span> 
+                <span class="btn-text">Talk to Kingini</span>
+            </button>
+        </div>
+
+        <!-- Chat Bubbles -->
+        <div class="chat-area">
+            <div class="chat-container">
+                <div class="chat-bubble agent hidden" id="agentBubble">
+                    <p id="agentText">Namaskaram! I am Kingini.</p>
+                </div>
+                <div class="chat-bubble user hidden" id="userBubble">
+                    <p id="userText">...</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const talkBtn = document.getElementById('talkBtn');
+        const statusEl = document.getElementById('status');
+        const mouthEl = document.getElementById('mouth');
+        const userBubble = document.getElementById('userBubble');
+        const agentBubble = document.getElementById('agentBubble');
+        const userTextEl = document.getElementById('userText');
+        const agentTextEl = document.getElementById('agentText');
+
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let audioContext;
+        let analyser;
+        let animationId;
+
+        talkBtn.addEventListener('click', async () => {
+            if (!isRecording) {
+                await startRecording();
+            } else {
+                stopRecording();
+            }
+        });
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
+                mediaRecorder.onstop = sendAudio;
+
+                mediaRecorder.start();
+                isRecording = true;
+                talkBtn.classList.add('recording');
+                talkBtn.innerHTML = '<span class="btn-icon">🛑</span> <span class="btn-text">Stop</span>';
+                statusEl.textContent = 'Listening...';
+                
+                // Reset bubbles
+                userBubble.classList.add('hidden');
+                agentBubble.classList.add('hidden');
+            } catch (err) {
+                console.error("Mic error:", err);
+                statusEl.textContent = 'Mic Error!';
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                talkBtn.classList.remove('recording');
+                talkBtn.innerHTML = '<span class="btn-icon">🎤</span> <span class="btn-text">Talk</span>';
+                statusEl.textContent = 'Thinking...';
+            }
+        }
+
+        async function sendAudio() {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'input.wav');
+
+            try {
+                const response = await fetch('/api/chat/audio', { method: 'POST', body: formData });
+                if (!response.ok) throw new Error('Network error');
+
+                const data = await response.json();
+                
+                // Show User Text
+                userTextEl.textContent = data.user_query;
+                userBubble.classList.remove('hidden');
+
+                // Prepare Agent Text
+                agentTextEl.textContent = data.agent_response;
+                // Don't show immediately, wait for audio to start? No, show now.
+                agentBubble.classList.remove('hidden');
+
+                statusEl.textContent = 'Speaking...';
+
+                if (data.audio_base64) {
+                    playAudio(data.audio_base64);
+                } else {
+                    statusEl.textContent = 'Done.';
+                }
+            } catch (error) {
+                console.error(error);
+                statusEl.textContent = 'Error!';
+            }
+        }
+
+        function playAudio(base64Audio) {
+            const audioSrc = 'data:audio/wav;base64,' + base64Audio;
+            const audio = new Audio(audioSrc);
+            
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            const source = audioContext.createMediaElementSource(audio);
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            source.connect(analyser);
+            analyser.connect(audioContext.destination);
+
+            audio.play();
+            animateMouth();
+
+            audio.onended = () => {
+                statusEl.textContent = 'Ready...';
+                cancelAnimationFrame(animationId);
+                mouthEl.style.height = '4px'; // Close mouth
+            };
+        }
+
+        function animateMouth() {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            let sum = 0;
+            for(let i = 0; i < bufferLength; i++) sum += dataArray[i];
+            const average = sum / bufferLength;
+
+            // Lip Sync Sensitivity
+            // Scale average (0-255) to mouth height (4px to 30px)
+            const height = Math.max(4, (average / 100) * 20); 
+            
+            mouthEl.style.height = `${height}px`;
+            // Add some width variation too for realism
+            const width = 30 + (average / 255) * 10;
+            mouthEl.style.width = `${width}px`;
+
+            animationId = requestAnimationFrame(animateMouth);
+        }
+    </script>
+</body>
+</html>
