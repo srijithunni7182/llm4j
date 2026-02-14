@@ -1,16 +1,16 @@
 package io.github.llm4j.agent;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.llm4j.LLMClient;
-import io.github.llm4j.agent.persona.AgentPersona;
 import io.github.llm4j.agent.memory.ConversationHistory;
+import io.github.llm4j.agent.persona.AgentPersona;
 import io.github.llm4j.agent.prompt.PromptRegistry;
 import io.github.llm4j.agent.prompt.PromptTemplate;
 import io.github.llm4j.audit.AuditEvent;
 import io.github.llm4j.audit.AuditLogger;
 import io.github.llm4j.audit.NoOpAuditLogger;
-import io.github.llm4j.exception.LLMException;
 import io.github.llm4j.fairness.BiasContext;
 import io.github.llm4j.fairness.BiasEvent;
 import io.github.llm4j.fairness.BiasMonitor;
@@ -18,7 +18,6 @@ import io.github.llm4j.fairness.NoOpBiasMonitor;
 import io.github.llm4j.model.ConfidenceScore;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
-import io.github.llm4j.model.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,10 +25,6 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Implementation of a ReAct (Reasoning and Acting) agent.
- * The agent uses a loop of Thought -> Action -> Observation to solve tasks.
- */
 public class ReActAgent {
 
     private static final Logger logger = LoggerFactory.getLogger(ReActAgent.class);
@@ -40,31 +35,33 @@ public class ReActAgent {
 
             {tool_descriptions}
 
-            Use the following format:
+            Use the following format as a JSON object inside a ```json code block:
 
-            Question: the input question you must answer
-            Thought: you should always think about what to do
-            Action: the action to take, should be one of [{tool_names}]
-            Action Input: the input to the action as a valid JSON object
-            Observation: the result of the action
-            ... (this Thought/Action/Action Input/Observation can repeat N times)
-            Thought: I now know the final answer
-            Final Answer: the final answer to the original input question
+            {
+              "thought": "you should always think about what to do",
+              "action": "the action to take, should be one of [{tool_names}]",
+              "action_input": {
+                "parameter_name": "parameter_value"
+              }
+            }
 
-            IMPORTANT: You must ONLY provide the Thought, Action, and Action Input. Do NOT generate the Observation yourself - the system will provide it after executing the action. STOP after providing the Action Input and wait for the Observation.
+            When you have the final answer, use this format:
+            {
+              "thought": "I now know the final answer",
+              "final_answer": "the final answer to the original input question"
+            }
 
-            Begin!
+            IMPORTANT: You must ONLY provide a single valid JSON object inside a ```json code block. Do NOT generate the Observation yourself.
             """;
-
-    private static final Pattern THOUGHT_PATTERN = Pattern.compile("Thought:\\s*(.+?)(?=\\n|$)",
-            Pattern.CASE_INSENSITIVE);
-    private static final Pattern ACTION_PATTERN = Pattern.compile("Action:\\s*(.+?)(?=\\n|$)",
-            Pattern.CASE_INSENSITIVE);
-    private static final Pattern ACTION_INPUT_PATTERN = Pattern.compile("Action Input:\\s*(.+?)(?=\\n|$)",
-            Pattern.CASE_INSENSITIVE);
-    private static final Pattern FINAL_ANSWER_PATTERN = Pattern.compile("Final Answer:\\s*(.*)",
-            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-
+            
+    // Legacy patterns for backward compatibility
+    private static final Pattern THOUGHT_PATTERN = Pattern.compile("Thought:\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ACTION_PATTERN = Pattern.compile("Action:\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern ACTION_INPUT_PATTERN = Pattern.compile("Action Input:\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern FINAL_ANSWER_PATTERN = Pattern.compile("Final Answer:\\s*(.*)", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern JSON_PATTERN = Pattern.compile("```json\\n(.*?)\\n```", Pattern.DOTALL);
+    
+    // ... (fields remain the same)
     private final LLMClient llmClient;
     private final Map<String, Tool> tools;
     private final String systemPrompt;
@@ -79,7 +76,9 @@ public class ReActAgent {
     private final String sessionId;
     private final BiasMonitor biasMonitor;
 
+
     private ReActAgent(Builder builder) {
+        // ... (constructor remains the same)
         this.llmClient = Objects.requireNonNull(builder.llmClient, "llmClient cannot be null");
         this.tools = new HashMap<>(builder.tools);
         this.persona = builder.persona;
@@ -94,14 +93,9 @@ public class ReActAgent {
         this.sessionId = builder.sessionId != null ? builder.sessionId : UUID.randomUUID().toString();
         this.biasMonitor = builder.biasMonitor != null ? builder.biasMonitor : new NoOpBiasMonitor();
     }
-
-    /**
-     * Runs the agent to answer a question or complete a task.
-     *
-     * @param question the input question or task
-     * @return the agent result containing the answer and execution steps
-     */
+    
     public AgentResult run(String question) {
+        // ... (run method setup is the same)
         Objects.requireNonNull(question, "question cannot be null");
 
         List<AgentResult.AgentStep> steps = new ArrayList<>();
@@ -112,159 +106,157 @@ public class ReActAgent {
 
         for (int i = 0; i < maxIterations; i++) {
             logger.debug("Agent iteration {}/{}", i + 1, maxIterations);
-
-            // Get LLM response
+            
+            // ... (request building is the same)
             String context = "";
             if (conversationHistory != null) {
                 context = "Previous conversation history:\n" + conversationHistory.getFormattedHistory() + "\n";
             }
-
             LLMRequest request = LLMRequest.builder()
                     .addSystemMessage(systemPrompt)
                     .addUserMessage(context + scratchpad.toString())
                     .temperature(temperature)
                     .build();
-
             LLMResponse response = llmClient.chat(request);
             String llmOutput = response.getContent();
+            logger.info("=== LLM Response (Iteration {}) ===\n{}", i + 1, llmOutput);
 
-            logger.info("=== LLM Response (Iteration {}) ===", i + 1);
-            logger.info("{}", llmOutput);
-            logger.info("=====================================");
+            try {
+                Map<String, Object> responseJson = parseResponse(llmOutput);
 
-            // Check for final answer
-            Matcher finalAnswerMatcher = FINAL_ANSWER_PATTERN.matcher(llmOutput);
-            if (finalAnswerMatcher.find()) {
-                String finalAnswer = finalAnswerMatcher.group(1).trim();
-                logger.info("Agent found final answer: {}", finalAnswer);
-
-                String thought = extractPattern(THOUGHT_PATTERN, llmOutput);
-                if (thought != null) {
-                    notifyThought(thought);
+                if (responseJson.containsKey("final_answer")) {
+                    String finalAnswer = (String) responseJson.get("final_answer");
+                    String thought = (String) responseJson.get("thought");
+                    return processFinalAnswer(question, finalAnswer, thought, steps, i);
                 }
 
-                if (conversationHistory != null) {
-                    conversationHistory.addUserMessage(question);
-                    conversationHistory.addAssistantMessage(finalAnswer);
+                String thought = (String) responseJson.get("thought");
+                String action = (String) responseJson.get("action");
+                Object actionInputObj = responseJson.get("action_input");
+
+                String actionInput = (actionInputObj instanceof String) 
+                    ? (String) actionInputObj 
+                    : objectMapper.writeValueAsString(actionInputObj);
+
+                logger.info("Parsed - Thought: {}, Action: {}, ActionInput: {}", thought, action, actionInput);
+                if (thought != null) notifyThought(thought);
+                if (action != null) notifyAction(action, actionInput);
+                
+                if (action == null || action.isEmpty()) {
+                    scratchpad.append(llmOutput).append("\nObservation: No valid action found.\n");
+                    continue;
                 }
 
-                AgentResult result = AgentResult.builder()
-                        .finalAnswer(finalAnswer)
-                        .steps(steps)
-                        .iterations(i + 1)
-                        .completed(true)
-                        .confidence(calculateConfidence(steps, i + 1, finalAnswer))
-                        .build();
-
-                // Audit logging
-                auditLogger.logAgentDecision(AuditEvent.builder()
-                        .sessionId(sessionId)
-                        .agentResult(result)
-                        .build());
-
-                // Bias monitoring
-                BiasContext biasContext = BiasContext.builder()
-                        .sessionId(sessionId)
-                        .taskType("final_answer")
-                        .build();
-                List<BiasEvent> biasEvents = biasMonitor.detectBias(finalAnswer, biasContext);
-                if (!biasEvents.isEmpty()) {
-                    logger.warn("Bias detected in final answer: {} events", biasEvents.size());
-                    for (BiasEvent event : biasEvents) {
-                        logger.warn("  - {}: {} (severity: {})", event.getType(), event.getExplanation(),
-                                event.getSeverity());
-                    }
-                }
-
-                return result;
-            }
-
-            // Parse thought, action, and action input
-            String thought = extractPattern(THOUGHT_PATTERN, llmOutput);
-            String action = extractPattern(ACTION_PATTERN, llmOutput);
-            String actionInput = extractPattern(ACTION_INPUT_PATTERN, llmOutput);
-
-            logger.info("Parsed - Thought: {}, Action: {}, ActionInput: {}", thought, action, actionInput);
-
-            if (thought != null) {
-                notifyThought(thought);
-            }
-            if (action != null) {
-                notifyAction(action, actionInput);
-            }
-
-            if (action == null || action.isEmpty()) {
-                logger.warn("No action found in iteration {}", i + 1);
-                scratchpad.append(llmOutput).append("\n");
-                scratchpad.append("Observation: No valid action found. Please use the format specified.\n");
-                continue;
-            }
-
-            // Loop Detection
-            String actionKey = action + ":" + (actionInput != null ? actionInput : "");
-            if (actionHistory.contains(actionKey)) {
-                String observation = "Error: You have already taken this action with this input. Please try a different approach.";
-                logger.warn("Loop detected: {}", actionKey);
-
+                String observation = executeAction(action, actionInput, actionHistory);
+                
                 AgentResult.AgentStep step = new AgentResult.AgentStep(thought, action, actionInput, observation);
                 steps.add(step);
-
+                
                 scratchpad.append("Thought: ").append(thought != null ? thought : "").append("\n");
                 scratchpad.append("Action: ").append(action).append("\n");
                 scratchpad.append("Action Input: ").append(actionInput != null ? actionInput : "").append("\n");
                 scratchpad.append("Observation: ").append(observation).append("\n");
-                continue;
+
+            } catch (Exception e) {
+                logger.error("Failed to parse or process LLM response: {}", e.getMessage());
+                scratchpad.append(llmOutput).append("\nObservation: Invalid response format.\n");
             }
-            actionHistory.add(actionKey);
-
-            // Execute tool
-            String observation;
-            Tool tool = tools.get(action.toLowerCase());
-
-            if (tool == null) {
-                observation = "Error: Unknown tool '" + action + "'. Available tools: " +
-                        String.join(", ", tools.keySet());
-                logger.warn("Unknown tool: {}", action);
-            } else {
-                try {
-                    logger.debug("Executing tool '{}' with input: {}", action, actionInput);
-                    Map<String, Object> args;
-                    if (actionInput != null && !actionInput.trim().isEmpty()) {
-                        try {
-                            args = objectMapper.readValue(actionInput, new TypeReference<Map<String, Object>>() {
-                            });
-                        } catch (Exception e) {
-                            // Try to treat as raw string if JSON parsing fails, for backward compatibility
-                            // or simple tools
-                            args = new HashMap<>();
-                            args.put("input", actionInput);
-                        }
-                    } else {
-                        args = new HashMap<>();
-                    }
-
-                    observation = tool.execute(args);
-                    logger.info("Tool '{}' returned observation: {}", action, observation);
-                    notifyObservation(observation);
-                } catch (Exception e) {
-                    observation = "Error executing tool: " + e.getMessage();
-                    logger.error("Error executing tool {}: {}", action, e.getMessage(), e);
-                }
-            }
-
-            // Add step
-            AgentResult.AgentStep step = new AgentResult.AgentStep(thought, action, actionInput, observation);
-            steps.add(step);
-
-            // Update scratchpad
-            scratchpad.append("Thought: ").append(thought != null ? thought : "").append("\n");
-            scratchpad.append("Action: ").append(action).append("\n");
-            scratchpad.append("Action Input: ").append(actionInput != null ? actionInput : "").append("\n");
-            scratchpad.append("Observation: ").append(observation).append("\n");
+        }
+        return buildFailureResult(steps);
+    }
+    
+    private Map<String, Object> parseResponse(String llmOutput) throws Exception {
+        Matcher jsonMatcher = JSON_PATTERN.matcher(llmOutput);
+        if (jsonMatcher.find()) {
+            String jsonBlock = jsonMatcher.group(1);
+            return objectMapper.readValue(jsonBlock, new TypeReference<>() {});
+        }
+        
+        // Fallback for backward compatibility with old tests
+        Map<String, Object> map = new HashMap<>();
+        Matcher finalAnswerMatcher = FINAL_ANSWER_PATTERN.matcher(llmOutput);
+        if (finalAnswerMatcher.find()) {
+            map.put("thought", extractPattern(THOUGHT_PATTERN, llmOutput));
+            map.put("final_answer", finalAnswerMatcher.group(1).trim());
+            return map;
         }
 
-        logger.warn("Agent reached max iterations ({}) without finding final answer", maxIterations);
+        Matcher actionMatcher = ACTION_PATTERN.matcher(llmOutput);
+        if (actionMatcher.find()) {
+            map.put("thought", extractPattern(THOUGHT_PATTERN, llmOutput));
+            map.put("action", actionMatcher.group(1).trim());
+            map.put("action_input", extractPattern(ACTION_INPUT_PATTERN, llmOutput));
+            return map;
+        }
+        
+        throw new Exception("No valid JSON block or legacy format found in LLM output.");
+    }
 
+    private String executeAction(String action, String actionInput, Set<String> actionHistory) {
+        String actionKey = action + ":" + (actionInput != null ? actionInput : "");
+        if (actionHistory.contains(actionKey)) {
+            logger.warn("Loop detected: {}", actionKey);
+            return "Error: You have already taken this action with this input. Please try a different approach.";
+        }
+        actionHistory.add(actionKey);
+
+        Tool tool = tools.get(action.toLowerCase());
+        if (tool == null) {
+            logger.warn("Unknown tool: {}", action);
+            return "Error: Unknown tool '" + action + "'. Available tools: " + String.join(", ", tools.keySet());
+        }
+
+        try {
+            logger.debug("Executing tool '{}' with input: {}", action, actionInput);
+            Map<String, Object> args;
+            if (actionInput != null && !actionInput.trim().isEmpty()) {
+                try {
+                    args = objectMapper.readValue(actionInput, new TypeReference<>() {});
+                } catch (JsonProcessingException e) {
+                    args = Map.of("input", actionInput); // Fallback for raw string
+                }
+            } else {
+                args = new HashMap<>();
+            }
+
+            String observation = tool.execute(args);
+            logger.info("Tool '{}' returned observation: {}", action, observation);
+            notifyObservation(observation);
+            return observation;
+        } catch (Exception e) {
+            logger.error("Error executing tool {}: {}", action, e.getMessage(), e);
+            return "Error executing tool: " + e.getMessage();
+        }
+    }
+
+    private AgentResult processFinalAnswer(String question, String finalAnswer, String thought, List<AgentResult.AgentStep> steps, int iteration) {
+        if (thought != null) notifyThought(thought);
+        if (conversationHistory != null) {
+            conversationHistory.addUserMessage(question);
+            conversationHistory.addAssistantMessage(finalAnswer);
+        }
+
+        AgentResult result = AgentResult.builder()
+                .finalAnswer(finalAnswer)
+                .steps(steps)
+                .iterations(iteration + 1)
+                .completed(true)
+                .confidence(calculateConfidence(steps, iteration + 1, finalAnswer))
+                .build();
+
+        auditLogger.logAgentDecision(AuditEvent.builder().sessionId(sessionId).agentResult(result).build());
+
+        BiasContext biasContext = BiasContext.builder().sessionId(sessionId).taskType("final_answer").build();
+        List<BiasEvent> biasEvents = biasMonitor.detectBias(finalAnswer, biasContext);
+        if (!biasEvents.isEmpty()) {
+            logger.warn("Bias detected in final answer: {} events", biasEvents.size());
+            biasEvents.forEach(event -> logger.warn("  - {}: {} (severity: {})", event.getType(), event.getExplanation(), event.getSeverity()));
+        }
+        return result;
+    }
+
+    private AgentResult buildFailureResult(List<AgentResult.AgentStep> steps) {
+        logger.warn("Agent reached max iterations ({}) without finding final answer", maxIterations);
         String uncertaintyReason = "Agent reached maximum iterations without certainty";
         AgentResult result = AgentResult.builder()
                 .finalAnswer("Maximum iterations reached without finding a final answer.")
@@ -275,21 +267,18 @@ public class ReActAgent {
                 .uncertaintyDetected(true)
                 .uncertaintyReason(uncertaintyReason)
                 .build();
-
-        // Audit logging
-        auditLogger.logAgentDecision(AuditEvent.builder()
-                .sessionId(sessionId)
-                .agentResult(result)
-                .build());
-
+        auditLogger.logAgentDecision(AuditEvent.builder().sessionId(sessionId).agentResult(result).build());
         return result;
     }
 
+    // ... (rest of the class remains the same: getTools, extractPattern, resolveSystemPrompt, buildSystemPromptInjections, notify methods, calculateConfidence, toBuilder, builder)
+    
     public Collection<Tool> getTools() {
         return Collections.unmodifiableCollection(tools.values());
     }
 
     private String extractPattern(Pattern pattern, String text) {
+        if (text == null) return null;
         Matcher matcher = pattern.matcher(text);
         if (matcher.find()) {
             return matcher.group(1).trim();
@@ -298,12 +287,10 @@ public class ReActAgent {
     }
 
     private String resolveSystemPrompt(Builder builder) {
-        // 1. Explicit system prompt has highest precedence
+        // ... (same)
         if (builder.systemPrompt != null) {
             return builder.systemPrompt;
         }
-
-        // 2. Resolve from registry if ID provided
         String baseTemplate = DEFAULT_SYSTEM_PROMPT;
         if (builder.promptRegistry != null && builder.systemPromptId != null) {
             Optional<PromptTemplate> template = builder.promptRegistry.get(builder.systemPromptId);
@@ -313,34 +300,27 @@ public class ReActAgent {
                 logger.warn("System prompt ID '{}' not found in registry. Using default.", builder.systemPromptId);
             }
         }
-
         return buildSystemPromptInjections(baseTemplate);
     }
 
     private String buildSystemPromptInjections(String baseTemplate) {
+        // ... (same)
         StringBuilder prompt = new StringBuilder();
-
-        // Add persona context if present
         if (persona != null) {
             prompt.append(persona.toSystemPromptAddition()).append("\n\n");
         }
-
         StringBuilder toolDescriptions = new StringBuilder();
         List<String> toolNames = new ArrayList<>();
-
         for (Tool tool : tools.values()) {
-            toolDescriptions.append("- ").append(tool.getName())
-                    .append(": ").append(tool.getDescription()).append("\n");
+            toolDescriptions.append("- ").append(tool.getName()).append(": ").append(tool.getDescription()).append("\n");
             toolNames.add(tool.getName());
         }
-
         prompt.append(baseTemplate
                 .replace("{tool_descriptions}", toolDescriptions.toString())
                 .replace("{tool_names}", String.join(", ", toolNames)));
-
         return prompt.toString();
     }
-
+    
     private void notifyThought(String thought) {
         for (AgentEventListener listener : listeners) {
             try {
@@ -370,16 +350,11 @@ public class ReActAgent {
             }
         }
     }
-
-    /**
-     * Calculates confidence score based on agent execution metrics.
-     */
+    
     private ConfidenceScore calculateConfidence(List<AgentResult.AgentStep> steps, int iterations, String finalAnswer) {
-        // Heuristics for confidence calculation
-        double baseScore = 0.7; // Start with medium-high
+        // ... (same)
+        double baseScore = 0.7;
         String reasoning = "Clean execution";
-
-        // Penalty for high iteration count (approaching max)
         double iterationRatio = (double) iterations / maxIterations;
         if (iterationRatio > 0.8) {
             baseScore -= 0.3;
@@ -387,35 +362,20 @@ public class ReActAgent {
         } else if (iterationRatio > 0.5) {
             baseScore -= 0.1;
         }
-
-        // Check for tool failures
-        long failureCount = steps.stream()
-                .filter(step -> step.getObservation() != null && step.getObservation().startsWith("Error"))
-                .count();
+        long failureCount = steps.stream().filter(step -> step.getObservation() != null && step.getObservation().startsWith("Error")).count();
         if (failureCount > 0) {
             baseScore -= (failureCount * 0.15);
             reasoning = failureCount + " tool failure(s)";
         }
-
-        // Check for "I don't know" patterns in final answer
         if (finalAnswer != null) {
             String lowerAnswer = finalAnswer.toLowerCase();
-            if (lowerAnswer.contains("i don't know") ||
-                    lowerAnswer.contains("i'm not sure") ||
-                    lowerAnswer.contains("cannot determine") ||
-                    lowerAnswer.contains("insufficient information")) {
-                baseScore = 0.1; // Set to UNKNOWN
+            if (lowerAnswer.contains("i don't know") || lowerAnswer.contains("i'm not sure") || lowerAnswer.contains("cannot determine") || lowerAnswer.contains("insufficient information")) {
+                baseScore = 0.1;
                 reasoning = "Agent expressed uncertainty";
             }
         }
-
-        // Clamp to valid range
         baseScore = Math.max(0.0, Math.min(1.0, baseScore));
-
-        return ConfidenceScore.builder()
-                .score(baseScore)
-                .reasoning(reasoning)
-                .build();
+        return ConfidenceScore.builder().score(baseScore).reasoning(reasoning).build();
     }
 
     public Builder toBuilder() {
@@ -425,8 +385,9 @@ public class ReActAgent {
     public static Builder builder() {
         return new Builder();
     }
-
+    
     public static final class Builder {
+        // ... (same)
         private LLMClient llmClient;
         private Map<String, Tool> tools = new HashMap<>();
         private String systemPrompt;
@@ -441,9 +402,7 @@ public class ReActAgent {
         private String sessionId;
         private BiasMonitor biasMonitor;
 
-        private Builder() {
-        }
-
+        private Builder() {}
         private Builder(ReActAgent agent) {
             this.llmClient = agent.llmClient;
             this.tools = new HashMap<>(agent.tools);
@@ -459,93 +418,20 @@ public class ReActAgent {
             this.sessionId = agent.sessionId;
             this.biasMonitor = agent.biasMonitor;
         }
-
-        public Builder clearTools() {
-            this.tools.clear();
-            return this;
-        }
-
-        public Builder llmClient(LLMClient llmClient) {
-            this.llmClient = llmClient;
-            return this;
-        }
-
-        public Builder tools(List<Tool> tools) {
-            for (Tool tool : tools) {
-                this.tools.put(tool.getName().toLowerCase(), tool);
-            }
-            return this;
-        }
-
-        public Builder addTool(Tool tool) {
-            this.tools.put(tool.getName().toLowerCase(), tool);
-            return this;
-        }
-
-        public Builder addTools(Collection<Tool> tools) {
-            for (Tool tool : tools) {
-                addTool(tool);
-            }
-            return this;
-        }
-
-        public Builder systemPrompt(String systemPrompt) {
-            this.systemPrompt = systemPrompt;
-            return this;
-        }
-
-        public Builder maxIterations(int maxIterations) {
-            this.maxIterations = maxIterations;
-            return this;
-        }
-
-        public Builder temperature(double temperature) {
-            this.temperature = temperature;
-            return this;
-        }
-
-        public Builder persona(AgentPersona persona) {
-            this.persona = persona;
-            return this;
-        }
-
-        public Builder promptRegistry(PromptRegistry promptRegistry) {
-            this.promptRegistry = promptRegistry;
-            return this;
-        }
-
-        public Builder systemPromptId(String systemPromptId) {
-            this.systemPromptId = systemPromptId;
-            return this;
-        }
-
-        public Builder conversationHistory(ConversationHistory history) {
-            this.conversationHistory = history;
-            return this;
-        }
-
-        public Builder addListener(AgentEventListener listener) {
-            this.listeners.add(listener);
-            return this;
-        }
-
-        public Builder auditLogger(AuditLogger auditLogger) {
-            this.auditLogger = auditLogger;
-            return this;
-        }
-
-        public Builder sessionId(String sessionId) {
-            this.sessionId = sessionId;
-            return this;
-        }
-
-        public Builder biasMonitor(BiasMonitor biasMonitor) {
-            this.biasMonitor = biasMonitor;
-            return this;
-        }
-
-        public ReActAgent build() {
-            return new ReActAgent(this);
-        }
+        
+        public Builder llmClient(LLMClient llmClient) { this.llmClient = llmClient; return this; }
+        public Builder addTool(Tool tool) { this.tools.put(tool.getName().toLowerCase(), tool); return this; }
+        public Builder systemPrompt(String systemPrompt) { this.systemPrompt = systemPrompt; return this; }
+        public Builder maxIterations(int maxIterations) { this.maxIterations = maxIterations; return this; }
+        public Builder temperature(double temperature) { this.temperature = temperature; return this; }
+        public Builder persona(AgentPersona persona) { this.persona = persona; return this; }
+        public Builder promptRegistry(PromptRegistry promptRegistry) { this.promptRegistry = promptRegistry; return this; }
+        public Builder systemPromptId(String systemPromptId) { this.systemPromptId = systemPromptId; return this; }
+        public Builder conversationHistory(ConversationHistory history) { this.conversationHistory = history; return this; }
+        public Builder addListener(AgentEventListener listener) { this.listeners.add(listener); return this; }
+        public Builder auditLogger(AuditLogger auditLogger) { this.auditLogger = auditLogger; return this; }
+        public Builder sessionId(String sessionId) { this.sessionId = sessionId; return this; }
+        public Builder biasMonitor(BiasMonitor biasMonitor) { this.biasMonitor = biasMonitor; return this; }
+        public ReActAgent build() { return new ReActAgent(this); }
     }
 }

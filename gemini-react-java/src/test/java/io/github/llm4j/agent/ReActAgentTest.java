@@ -57,6 +57,42 @@ class ReActAgentTest {
         assertThat(step.getActionInput()).isEqualTo("2 + 2");
         assertThat(step.getObservation()).isEqualTo("4");
     }
+    
+    @Test
+    void testAgentWithJsonToolCall() {
+        String jsonResponse = """
+            ```json
+            {
+              "thought": "I need to calculate 2 + 2",
+              "action": "Calculator",
+              "action_input": {
+                "expression": "2 + 2"
+              }
+            }
+            ```
+            """;
+        when(mockClient.chat(any(LLMRequest.class)))
+                .thenReturn(createResponse(jsonResponse))
+                .thenReturn(createResponse(
+                        "Thought: I now know the final answer\n" +
+                                "Final Answer: 4"));
+
+        agent = ReActAgent.builder()
+                .llmClient(mockClient)
+                .addTool(new CalculatorTool())
+                .maxIterations(5)
+                .build();
+
+        AgentResult result = agent.run("What is 2 + 2?");
+
+        assertThat(result.isCompleted()).isTrue();
+        assertThat(result.getFinalAnswer()).isEqualTo("4");
+        assertThat(result.getSteps()).hasSize(1);
+        AgentResult.AgentStep step = result.getSteps().get(0);
+        assertThat(step.getAction()).isEqualToIgnoringCase("Calculator");
+        assertThat(step.getActionInput()).contains("\"expression\":\"2 + 2\"");
+        assertThat(step.getObservation()).isEqualTo("4");
+    }
 
     @Test
     void testAgentWithMultipleToolCalls() {
