@@ -1,4 +1,5 @@
 # Build outputs
+node_modules/
 target/
 *.class
 *.jar
