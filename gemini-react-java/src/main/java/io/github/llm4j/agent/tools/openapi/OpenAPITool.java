@@ -2,6 +2,9 @@ package io.github.llm4j.agent.tools.openapi;
 
 import io.github.llm4j.agent.Tool;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -17,6 +20,8 @@ import java.util.stream.Collectors;
  * endpoints.
  */
 public class OpenAPITool implements Tool {
+
+    private static final Logger logger = LoggerFactory.getLogger(OpenAPITool.class);
 
     private final String name;
     private final OpenAPISpec spec;
@@ -121,6 +126,13 @@ public class OpenAPITool implements Tool {
         String baseUrl = spec.getServers().isEmpty() ? "" : spec.getServers().get(0);
         String path = endpoint.getPath();
 
+        // Validate required parameters
+        for (OpenAPIParameter param : endpoint.getParameters()) {
+            if (param.isRequired() && !parameters.containsKey(param.getName())) {
+                return String.format("Error: Missing required parameter '%s'", param.getName());
+            }
+        }
+
         // Separate path and query parameters
         Map<String, String> pathParams = new HashMap<>();
         Map<String, String> queryParams = new HashMap<>(authQueryParams);
@@ -152,10 +164,7 @@ public class OpenAPITool implements Tool {
 
         String fullUrl = baseUrl + path;
 
-        System.out.println("=== OpenAPI Tool Request ===");
-        System.out.println("URL: " + fullUrl.replace(authQueryParams.values().stream().findFirst().orElse(""), "***"));
-        System.out.println("Method: " + endpoint.getMethod());
-        System.out.println("============================");
+        logger.info("Executing OpenAPI Tool request to URL: {} with method: {}", fullUrl, endpoint.getMethod());
 
         // Build HTTP request
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
@@ -185,10 +194,7 @@ public class OpenAPITool implements Tool {
         HttpRequest request = requestBuilder.build();
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-        System.out.println("=== OpenAPI Tool Response ===");
-        System.out.println("Status: " + response.statusCode());
-        System.out.println("Body: " + response.body());
-        System.out.println("=============================");
+        logger.info("OpenAPI Tool Response - Status: {}, Body: {}", response.statusCode(), response.body());
 
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
             String body = response.body();
