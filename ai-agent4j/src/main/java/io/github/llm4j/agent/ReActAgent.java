@@ -549,6 +549,18 @@ public class ReActAgent {
             return this;
         }
 
+        public Builder addTools(Collection<Tool> tools) {
+            for (Tool tool : tools) {
+                addTool(tool);
+            }
+            return this;
+        }
+
+        public Builder clearTools() {
+            this.tools.clear();
+            return this;
+        }
+
         public Builder systemPrompt(String systemPrompt) {
             this.systemPrompt = systemPrompt;
             return this;

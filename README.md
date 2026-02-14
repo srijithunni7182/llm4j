@@ -8,9 +8,9 @@ It provides a complete stack: from a low-level Gemini client to a high-level ReA
 
 ---
 
-## 🏗️ The Core: [Gemini ReAct Java](gemini-react-java/)
+## 🏗️ The Core: [AI Agent4J](ai-agent4j/)
 
-The heart of this repository is **gemini-react-java**, a lightweight yet powerful library designed for the Google Gemini API.
+The heart of this repository is **ai-agent4j**, a lightweight yet powerful library designed for the Google Gemini API.
 
 * **Zero Magic**: No confusing "magic" abstractions. Just clean, typed Java code.
 * **ReAct Agents**: Implements the **Re**asoning + **Act**ing paradigm, allowing agents to solve complex problems by thinking and using tools.
@@ -18,20 +18,20 @@ The heart of this repository is **gemini-react-java**, a lightweight yet powerfu
 * **MCP Support**: Full support for the **Model Context Protocol (MCP)**, enabling connection to any external MCP server (Python, Node, etc.) to instantaneously ingest tools and resources.
 * **Structured Output**: Native support for JSON modes and structured object mapping.
 
-### 🧩 The Extensions: [RAG Addons](gemini-react-java-rag-addons/)
+### 🧩 The Extensions: [RAG Addons](ai-agent4j-addons/)
 
 For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilities while keeping the core light:
 
 * **Local Embeddings**: Run **ONNX** and **DJL** models locally (no API costs).
 * **Persistent Storage**: Store vectors in **PostgreSQL (pgvector)** or **Pinecone**.
 
-👉 **[Read the Documentation](gemini-react-java/README.md)**
+👉 **[Read the Documentation](ai-agent4j/README.md)**
 
 ---
 
 ## 🚀 The Showcase: [Hexamind Hub](hexamind-hub/)
 
-**Hexamind Hub** demonstrates what `gemini-react-java` can do. It is a "Digital Boardroom" where 6 specialized AI agents (including a Cynical Skeptic and a Creative Thinker) collaborate to solve your problems.
+**Hexamind Hub** demonstrates what `ai-agent4j` can do. It is a "Digital Boardroom" where 6 specialized AI agents (including a Cynical Skeptic and a Creative Thinker) collaborate to solve your problems.
 
 * **Multi-Agent Orchestration**: See how different personas debate, critique, and build consensus.
 * **Real-Time**: Built with Spring Boot and WebSockets for a live, streaming experience.

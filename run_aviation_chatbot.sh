@@ -12,7 +12,7 @@ fi
 
 # Build Library
 echo "Building Library..."
-(cd gemini-react-java && mvn install -DskipTests)
+(cd ai-agent4j && mvn install -DskipTests)
 if [ $? -ne 0 ]; then
     echo "Library build failed."
     exit 1

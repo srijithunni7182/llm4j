@@ -30,7 +30,7 @@ For **Local Embeddings** (ONNX/DJL) or **Persistent Stores** (Postgres/Pinecone)
 ```xml
 <dependency>
     <groupId>io.github.llm4j</groupId>
-    <artifactId>gemini-react-java-rag-addons</artifactId>
+    <artifactId>ai-agent4j-addons</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```

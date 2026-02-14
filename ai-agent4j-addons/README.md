@@ -1,6 +1,6 @@
-# Gemini ReAct Java - RAG Addons
+# AI Agent4J - RAG Addons
 
-This library provides powerful add-on capabilities for [gemini-react-java](../gemini-react-java), focusing on **Local RAG (Retrieval Augmented Generation)** and **Persistent Vector Stores**.
+This library provides powerful add-on capabilities for [AI Agent4J](../ai-agent4j), focusing on **Local RAG (Retrieval Augmented Generation)** and **Persistent Vector Stores**.
 
 It is separated from the core library to keep the main dependency lightweight.
 
@@ -27,7 +27,7 @@ Add this dependency alongside the core library:
 ```xml
 <dependency>
     <groupId>io.github.llm4j</groupId>
-    <artifactId>gemini-react-java-rag-addons</artifactId>
+    <artifactId>ai-agent4j-addons</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -43,7 +43,7 @@ We provide a script in the core repository to download tested models (e.g., `all
 
 ```bash
 # From the project root
-bash gemini-react-java/scripts/setup_test_models.sh
+bash ai-agent4j/scripts/setup_test_models.sh
 ```
 
 **Step 2: Verify Files**

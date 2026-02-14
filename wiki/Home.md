@@ -11,10 +11,10 @@ This wiki documents the **LLM4J** library and the **Hexamind Hub** multi-agent p
 
 ## 🚀 Projects
 
-### 1. Gemini ReAct Java (LLM4J)
+### 1. AI Agent4J (LLM4J)
 
 A production-ready Java client for Google Gemini with built-in ReAct Agents.
-[Github Repository](../gemini-react-java)
+[Github Repository](../ai-agent4j)
 
 ### 2. Hexamind Hub
 
