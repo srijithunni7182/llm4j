@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-orange)](https://www.oracle.com/java/technologies/downloads/#java17)
 
-`ai-agent4j` (formerly `gemini-react-java`) is the **LLM for Java** that focuses on simplicity and correctness. Unlike other heavy frameworks, it provides a clean, unified API for Google Gemini with a robust **ReAct Agent** framework.
+`ai-agent4j` (formerly `gemini-react-java`) is the **LLM for Java** that focuses on simplicity and correctness. Unlike other heavy frameworks, it provides a clean, unified API for **Google Gemini, Sarvam AI**, and more, with a robust **ReAct Agent** framework.
 
 > **Note**: While this library is optimized and thoroughly tested for **Google Gemini** (as the author currently utilizes Google API keys), its architecture is entirely **modular and LLM-agnostic**. Any consumer can easily plug in their own implementation of the `LLMClient` interface to support OpenAI, Anthropic, or local models while retaining the full suite of xAI and ReAct agent capabilities.
 
@@ -41,7 +41,8 @@ If you are looking for an **LLM for Java**, you might have seen other libraries 
 | :--- | :--- | :--- | :--- |
 | **Philosophy** | **Lightweight & Verified**. Only what you need. | Enterprise-focused. Google Cloud integration. | Kitchen sink. Heavy dependencies. |
 | **Size** | **Core < 200KB**. Minimal footprint. | Larger (includes dev UI, runtime). | Often bloated with unused features. |
-| **Google Gemini** | **First-Class**. Supports caching, search, 2.0 Pro. | First-class but cloud-centric. | Generic support. Often lags behind. |
+| **LLM Support** | **Multi-Provider**. Gemini, Sarvam, OpenAI (via interface). | Google Cloud only. | Generic support for everything. |
+| **Voice / Multimodal** | **Native**. First-class STT/TTS pipelines. | Cloud storage/processing. | Often requires separate audio libs. |
 | **Agents** | **Native ReAct**. Built for reasoning loops. | Code-first agent orchestration. | Often complex abstractions. |
 | **RAG** | **Modular**. Core is tiny. Addons optional. | Integrated with Google ecosystem. | Often bundles heavy ML libs by default. |
 | **Deployment** | **Run anywhere**. No cloud lock-in. | Optimized for Google Cloud. | Varying portability. |
