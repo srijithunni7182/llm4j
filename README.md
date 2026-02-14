@@ -54,11 +54,25 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 
 ---
 
-## 🧪 Incubator: Aviation Chatbot
+## 🐈 The Companion: [Kingini](kingini/)
 
-**Status: 🚧 Under Development**
+**Kingini** is a voice-first AI agent designed for children, featuring a wise and whimsical Kerala cat persona.
 
-An experimental project pushing the boundaries of the **OpenAPI Tool**. This chatbot autonomously navigates the AviationStack API to answer real-time questions about flights, delays, and airports, demonstrating how LLMs can master dynamic external data sources.
+*   **Voice-First**: Talk naturally in Malayalam.
+*   **Persona**: A character-driven AI with a unique backstory and voice ("Ritu").
+*   **Tech**: Spring Boot + Sarvam AI (STT/LLM/TTS) + Web Audio API.
+
+👉 **[Meet Kingini](kingini/README.md)**
+
+---
+
+## 📧 The Connector: [Gmail MCP App](gmail-mcp-app/)
+
+**Gmail MCP App** demonstrates the power of the **Model Context Protocol**. It connects your LLM directly to your Gmail inbox, allowing agents to read, draft, and send emails securely.
+
+*   **MCP Server**: Implements the Model Context Protocol for email.
+*   **Secure**: Uses OAuth2 for authentication.
+*   **Agent-Ready**: Plug-and-play with any MCP-compliant client (like Claude or `ai-agent4j` agents).
 
 ---
 
