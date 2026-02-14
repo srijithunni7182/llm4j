@@ -6,11 +6,12 @@
 
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j-addons</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <packaging>jar</packaging>
 
     <name>AI Agent4J - RAG Addons</name>
     <description>Add-ons for ai-agent4j: Local Embeddings (ONNX/DJL), Vector Stores (Postgres, Pinecone)</description>
+    <url>https://github.com/srijithunni7182/llm4j</url>
 
     <licenses>
         <license>
@@ -63,7 +64,7 @@
         <dependency>
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>ai-agent4j</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>0.1.0</version>
         </dependency>
 
         <!-- Local Embedding: ONNX Runtime -->
