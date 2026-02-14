@@ -33,7 +33,7 @@
         <!-- The star of the show -->
         <dependency>
             <groupId>io.github.llm4j</groupId>
-            <artifactId>gemini-react-java</artifactId>
+            <artifactId>ai-agent4j</artifactId>
             <version>0.1.0-SNAPSHOT</version>
         </dependency>
     </dependencies>

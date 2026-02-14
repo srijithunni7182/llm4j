@@ -1,23 +1,22 @@
-# Getting Started with Gemini ReAct Java
+# Getting Started with AI Agent4J
 
-This guide will help you get started with `gemini-react-java` and Google Gemini in minutes.
+This guide will help you get started with **AI Agent4J**, a Java library for building ReAct agents powered by Google's Gemini models.
 
 ## Prerequisites
 
 - Java 17 or higher
-- Maven 3.6+ or Gradle 7+
-- Google API key ([Get one here](https://makersuite.google.com/app/apikey))
+- Maven 3.6 or higher
+- A Google Cloud Project with Vertex AI API enabled
+- [Optional] Google Application Default Credentials set up
 
 ## Installation
 
-### Maven
-
-Add this dependency to your `pom.xml`:
+Add the following dependency to your `pom.xml`:
 
 ```xml
 <dependency>
     <groupId>io.github.llm4j</groupId>
-    <artifactId>gemini-react-java</artifactId>
+    <artifactId>ai-agent4j</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```

@@ -1,4 +1,8 @@
-# Gemini ReAct Java: The Lightweight LLM for Java
+# AI Agent4J (Formerly Gemini ReAct Java)
+
+> [!NOTE]
+> This project was formerly known as `gemini-react-java`.
+: The Lightweight LLM for Java
 
 <img src="docs/images/hero.png" width="50%" alt="Gemini ReAct Java Hero">
 
@@ -75,7 +79,7 @@ Add this dependency to unlock those features:
 ```xml
 <dependency>
     <groupId>io.github.llm4j</groupId>
-    <artifactId>gemini-react-java</artifactId>
+    <artifactId>ai-agent4j</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```

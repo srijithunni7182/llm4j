@@ -16,7 +16,7 @@ Instead of manually creating a `Tool` class for every API endpoint, you simply p
 
 ### 1. Add Dependency
 
-Ensure you have the `swagger-parser` dependency (included in `gemini-react-java`):
+Ensure you have the `swagger-parser` dependency (included in `ai-agent4j`):
 
 ```xml
 <dependency>

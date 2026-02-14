@@ -39,7 +39,7 @@ public class McpClient implements AutoCloseable {
         Map<String, Object> params = new HashMap<>();
         params.put("protocolVersion", "2024-11-05");
         params.put("capabilities", Collections.emptyMap()); // Client capabilities
-        params.put("clientInfo", Map.of("name", "gemini-react-java", "version", "0.1.0"));
+        params.put("clientInfo", Map.of("name", "ai-agent4j", "version", "0.1.0"));
 
         JsonRpcResponse response = sendRequest("initialize", params);
 

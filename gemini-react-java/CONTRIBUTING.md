@@ -1,6 +1,7 @@
-# Contributing to Gemini ReAct Java
+# Contributing to AI Agent4J
 
-We love your input! We want to make contributing to `gemini-react-java` as easy and transparent as possible, whether it's:
+Thank you for your interest in contributing to **AI Agent4J**! We welcome contributions from the community to help make this project better.
+We love your input! We want to make contributing to `AI Agent4J` as easy and transparent as possible, whether it's:
 
 - Reporting a bug
 - Discussing the current state of the code

@@ -33,8 +33,8 @@
         <!-- Core Library -->
         <dependency>
             <groupId>io.github.llm4j</groupId>
-            <artifactId>gemini-react-java</artifactId>
-            <version>${gemini.version}</version>
+            <artifactId>ai-agent4j</artifactId>
+            <version>0.1.0-SNAPSHOT</version>
         </dependency>
 
         <!-- Local Embedding: ONNX Runtime -->

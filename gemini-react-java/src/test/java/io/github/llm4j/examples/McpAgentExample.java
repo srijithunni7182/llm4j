@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Example of using MCP with Gemini ReAct Agent.
+ * Example of using MCP with AI Agent4J.
  */
 public class McpAgentExample {
 

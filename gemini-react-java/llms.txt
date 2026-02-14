@@ -1,4 +1,4 @@
-# gemini-react-java
+# AI Agent4J (formerly Gemini ReAct Java)
 
 > The lightweight, verified ReAct Agent library for Google Gemini in Java.
 > Now with **Model Context Protocol (MCP)**, **Conversation Memory**, and **Real-time Thought Streaming**!
