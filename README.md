@@ -10,8 +10,10 @@ It provides a complete stack: from a low-level Gemini client to a high-level ReA
 
 ## 🏗️ The Core: [AI Agent4J](ai-agent4j/)
 
-The heart of this repository is **ai-agent4j**, a lightweight yet powerful library designed for the Google Gemini API.
+The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java library for building LLM-powered applications.
 
+* **Multi-Provider**: Native support for **Google Gemini** and **Sarvam AI**, with an extensible architecture for others.
+* **Voice-Native**: First-class support for Speech-to-Text (STT) and Text-to-Speech (TTS) pipelines.
 * **Zero Magic**: No confusing "magic" abstractions. Just clean, typed Java code.
 * **ReAct Agents**: Implements the **Re**asoning + **Act**ing paradigm, allowing agents to solve complex problems by thinking and using tools.
 * **Tooling**: Includes ready-to-use tools (Calculator, Web Search) and an **OpenAPI Tool** that can turn any REST API into an AI function instantly.
