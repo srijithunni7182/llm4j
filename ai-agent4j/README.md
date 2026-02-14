@@ -11,7 +11,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-orange)](https://www.oracle.com/java/technologies/downloads/#java17)
 
-`gemini-react-java` (formerly `llm4j`) is the **LLM for Java** that focuses on simplicity and correctness. Unlike other heavy frameworks, it provides a clean, unified API for Google Gemini with a robust **ReAct Agent** framework.
+`ai-agent4j` (formerly `gemini-react-java`) is the **LLM for Java** that focuses on simplicity and correctness. Unlike other heavy frameworks, it provides a clean, unified API for Google Gemini with a robust **ReAct Agent** framework.
 
 > **Note**: While this library is optimized and thoroughly tested for **Google Gemini** (as the author currently utilizes Google API keys), its architecture is entirely **modular and LLM-agnostic**. Any consumer can easily plug in their own implementation of the `LLMClient` interface to support OpenAI, Anthropic, or local models while retaining the full suite of xAI and ReAct agent capabilities.
 
@@ -24,7 +24,7 @@
 - **🧠 Contextual Memory**: Built-in conversation history management for multi-turn chats.
 - **📡 Real-Time Streaming**: Event-driven architecture to stream agent thoughts, actions, and observations to UIs via SSE/WebSockets.
 - **🎭 Agent Personas**: Configurable behavioral characteristics (tone, expertise, natural speech patterns) for deterministic agent responses.
-- **📚 RAG Support**: Retrieval-Augmented Generation. Core supports **Gemini Cloud** embeddings. **Local (ONNX/DJL)** inference is supported via the [RAG Addons](gemini-react-java-rag-addons) module.
+- **📚 RAG Support**: Retrieval-Augmented Generation. Core supports **Gemini Cloud** embeddings. **Local (ONNX/DJL)** inference is supported via the [RAG Addons](../ai-agent4j-addons) module.
 - **🔒 Private & Local**: Run entirely offline using local embedding models (requires `rag-addons`) for zero-cost, private retrieval.
 - **🕸️ Knowledge Graphs**: Structured knowledge representation with entity-relationship querying.
 - **⚡ Robust Tooling**: Typed tool interface with JSON input parsing and error feedback loops.
@@ -33,11 +33,11 @@
 - **🔄 Production Ready**: Automatic retries, error handling, and thread-safe design.
 - **🧪 100% Tested**: Comprehensive integration test suite verifying real-world usage.
 
-## 🚀 Why Gemini ReAct Java?
+## 🚀 Why AI Agent4J?
 
 If you are looking for an **LLM for Java**, you might have seen other libraries like LangChain4j or Google's ADK. Here is why you should choose this one:
 
-| Feature | Gemini ReAct Java | Google ADK | Others / LangChain4j |
+| Feature | AI Agent4J | Google ADK | Others / LangChain4j |
 | :--- | :--- | :--- | :--- |
 | **Philosophy** | **Lightweight & Verified**. Only what you need. | Enterprise-focused. Google Cloud integration. | Kitchen sink. Heavy dependencies. |
 | **Size** | **Core < 200KB**. Minimal footprint. | Larger (includes dev UI, runtime). | Often bloated with unused features. |
@@ -50,7 +50,7 @@ If you are looking for an **LLM for Java**, you might have seen other libraries 
 | **Reliability** | **100% Integration Tested**. Real API verification. | Official Google support. | Varying quality. |
 | **Learning Curve** | **Simple**. Pure Java, minimal concepts. | Steeper (enterprise patterns). | Complex APIs, many abstractions. |
 
-**Choose Gemini ReAct Java if you want:**
+**Choose AI Agent4J if you want:**
 
 - A lightweight library with zero cloud lock-in
 - Simple, testable code that runs anywhere (local, cloud, edge)
@@ -60,14 +60,14 @@ If you are looking for an **LLM for Java**, you might have seen other libraries 
 
 ## 📚 Advanced RAG (Add-ons)
 
-To keep the core library lightweight, advanced RAG integrations (ONNX, DJL, Postgres, Pinecone) are available in a separate module: **`gemini-react-java-rag-addons`**.
+To keep the core library lightweight, advanced RAG integrations (ONNX, DJL, Postgres, Pinecone) are available in a separate module: **`ai-agent4j-addons`**.
 
 Add this dependency to unlock those features:
 
 ```xml
 <dependency>
     <groupId>io.github.llm4j</groupId>
-    <artifactId>gemini-react-java-rag-addons</artifactId>
+    <artifactId>ai-agent4j-addons</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -87,7 +87,7 @@ Add this dependency to unlock those features:
 ### Gradle
 
 ```gradle
-implementation 'io.github.llm4j:gemini-react-java:0.1.0-SNAPSHOT'
+implementation 'io.github.llm4j:ai-agent4j:0.1.0-SNAPSHOT'
 ```
 
 ## Quick Start
@@ -129,7 +129,7 @@ public class GeminiExample {
 
 ### 🇮🇳 Sarvam AI Integration
 
-**Unlock the power of conversational AI for India with `gemini-react-java`.**
+**Unlock the power of conversational AI for India with `ai-agent4j`.**
 
 We provide first-class, production-ready support for [Sarvam AI](https://sarvam.ai/), enabling you to build agents that speak, listen, and understand 10+ Indian languages with native fluency.
 
@@ -395,7 +395,7 @@ See the [OpenAPI Tool Wiki](wiki/OpenAPI-Tool.md) for full documentation.
 
 ### 🔌 Model Context Protocol (MCP) Support
 
-Connect your agents to the external world using the **Model Context Protocol (MCP)**. This allows `gemini-react-java` to consume tools from any standard MCP server (Python, Node, Go, etc.).
+Connect your agents to the external world using the **Model Context Protocol (MCP)**. This allows `ai-agent4j` to consume tools from any standard MCP server (Python, Node, Go, etc.).
 
 <details>
 <summary>👀 Show: MCP Client Example</summary>

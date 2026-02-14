@@ -74,7 +74,7 @@ True xAI compliance is built on four non-negotiable pillars. Each pillar address
 
 While general libraries like LangChain or Spring AI focus on **"Broad Features,"** Gemini ReAct Java focuses on **"Deep Trust."**
 
-| Feature | `gemini-react-java` | Generic Frameworks |
+| Feature | `ai-agent4j` | Generic Frameworks |
 | :--- | :--- | :--- |
 | **Philosophy** | **Compliance First**. All xAI primitives are built-in. | **Feature First**. Compliance is an "addon." |
 | **Logic** | **Transparent ReAct Engine** natively exposed. | Often hides thinking behind opaque abstractions. |

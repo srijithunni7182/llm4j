@@ -10,7 +10,7 @@
 
 ## 🌟 Why Gemini ReAct Java?
 
-`gemini-react-java` is not just another API wrapper. It's a **comprehensive framework** designed to help you build intelligent, reasoning AI agents in Java.
+`ai-agent4j` is not just another API wrapper. It's a **comprehensive framework** designed to help you build intelligent, reasoning AI agents in Java.
 
 > **"Honest, Verified Support"** — Every feature is backed by comprehensive integration tests against real Gemini endpoints.
 
@@ -94,7 +94,7 @@ graph TD
 ```xml
 <dependency>
     <groupId>io.github.llm4j</groupId>
-    <artifactId>gemini-react-java</artifactId>
+    <artifactId>ai-agent4j</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -102,7 +102,7 @@ graph TD
 ### Gradle
 
 ```gradle
-implementation 'io.github.llm4j:gemini-react-java:0.1.0-SNAPSHOT'
+implementation 'io.github.llm4j:ai-agent4j:0.1.0-SNAPSHOT'
 ```
 
 ---

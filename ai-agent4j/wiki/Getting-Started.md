@@ -26,7 +26,7 @@ Add the following dependency to your `pom.xml`:
 Add this to your `build.gradle`:
 
 ```gradle
-implementation 'io.github.llm4j:gemini-react-java:0.1.0-SNAPSHOT'
+implementation 'io.github.llm4j:ai-agent4j:0.1.0-SNAPSHOT'
 ```
 
 ## Your First LLM Call

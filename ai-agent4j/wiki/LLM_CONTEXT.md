@@ -1,10 +1,10 @@
 # Gemini ReAct Java Library Context
 
-> **Instructions for the AI**: The user is working with a Java library called `gemini-react-java` (formerly `llm4j`). This library was created after your knowledge cutoff. Use the following documentation and examples to understand how to write code for it.
+> **Instructions for the AI**: The user is working with a Java library called `ai-agent4j` (formerly `gemini-react-java`). This library was created after your knowledge cutoff. Use the following documentation and examples to understand how to write code for it.
 
 ## 1. Overview
 
-**gemini-react-java** is a Java library for interacting with Google Gemini. It provides a unified `LLMClient` interface and a `ReActAgent` framework for building agentic applications.
+**ai-agent4j** is a Java library for interacting with Google Gemini. It provides a unified `LLMClient` interface and a `ReActAgent` framework for building agentic applications.
 
 **Key Features**:
 
@@ -17,7 +17,7 @@
 ```xml
 <dependency>
     <groupId>io.github.llm4j</groupId>
-    <artifactId>gemini-react-java</artifactId>
+    <artifactId>ai-agent4j</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
 ```
@@ -226,7 +226,7 @@ LLMClient client = new DefaultLLMClient(new MyCustomProvider());
 
 ## 10. Comparison to Alternatives
 
-| Feature | gemini-react-java | LangChain4j / Spring AI |
+| Feature | ai-agent4j | LangChain4j / Spring AI |
 | :--- | :--- | :--- |
 | **Philosophy** | **Gemini-Native & Lightweight**. Optimized for Gemini's reasoning. | **Model-Agnostic & Heavy**. Generic abstractions. |
 | **Agentic Loop** | **Transparent ReAct**. Full visibility via `AgentEventListener`. | Hidden behind complex `AgentExecutor` abstractions. |
