@@ -18,9 +18,18 @@ import io.github.llm4j.fairness.NoOpBiasMonitor;
 import io.github.llm4j.model.ConfidenceScore;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
+import io.github.llm4j.provider.SpeechToTextProvider;
+import io.github.llm4j.provider.TextToSpeechProvider;
+import io.github.llm4j.model.TextToSpeechRequest;
+import io.github.llm4j.model.TextToSpeechResponse;
+import io.github.llm4j.model.TranscriptionRequest;
+import io.github.llm4j.model.TranscriptionResponse;
+import io.github.llm4j.media.AudioPlayer;
+import io.github.llm4j.media.JavaAudioPlayer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -53,14 +62,18 @@ public class ReActAgent {
 
             IMPORTANT: You must ONLY provide a single valid JSON object inside a ```json code block. Do NOT generate the Observation yourself.
             """;
-            
+
     // Legacy patterns for backward compatibility
-    private static final Pattern THOUGHT_PATTERN = Pattern.compile("Thought:\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern ACTION_PATTERN = Pattern.compile("Action:\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern ACTION_INPUT_PATTERN = Pattern.compile("Action Input:\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern FINAL_ANSWER_PATTERN = Pattern.compile("Final Answer:\\s*(.*)", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern THOUGHT_PATTERN = Pattern.compile("Thought:\\s*(.+?)(?=\\n|$)",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern ACTION_PATTERN = Pattern.compile("Action:\\s*(.+?)(?=\\n|$)",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern ACTION_INPUT_PATTERN = Pattern.compile("Action Input:\\s*(.+?)(?=\\n|$)",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern FINAL_ANSWER_PATTERN = Pattern.compile("Final Answer:\\s*(.*)",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final Pattern JSON_PATTERN = Pattern.compile("```json\\n(.*?)\\n```", Pattern.DOTALL);
-    
+
     // ... (fields remain the same)
     private final LLMClient llmClient;
     private final Map<String, Tool> tools;
@@ -75,7 +88,13 @@ public class ReActAgent {
     private final AuditLogger auditLogger;
     private final String sessionId;
     private final BiasMonitor biasMonitor;
+    private final TextToSpeechProvider ttsProvider;
 
+    private final SpeechToTextProvider sttProvider;
+    private final AudioPlayer audioPlayer;
+    private final boolean autoPlayAudio;
+    private final String ttsLanguage;
+    private final String ttsModel;
 
     private ReActAgent(Builder builder) {
         // ... (constructor remains the same)
@@ -92,11 +111,21 @@ public class ReActAgent {
         this.auditLogger = builder.auditLogger != null ? builder.auditLogger : new NoOpAuditLogger();
         this.sessionId = builder.sessionId != null ? builder.sessionId : UUID.randomUUID().toString();
         this.biasMonitor = builder.biasMonitor != null ? builder.biasMonitor : new NoOpBiasMonitor();
+        this.ttsProvider = builder.ttsProvider;
+
+        this.sttProvider = builder.sttProvider;
+        this.audioPlayer = builder.audioPlayer != null ? builder.audioPlayer : new JavaAudioPlayer();
+        this.autoPlayAudio = builder.autoPlayAudio;
+        this.ttsLanguage = builder.ttsLanguage;
+        this.ttsModel = builder.ttsModel;
     }
-    
+
     public AgentResult run(String question) {
         // ... (run method setup is the same)
         Objects.requireNonNull(question, "question cannot be null");
+
+        // If question starts with "VOICE:" (or similar marker), we could infer?
+        // But better to have explicit methods.
 
         List<AgentResult.AgentStep> steps = new ArrayList<>();
         StringBuilder scratchpad = new StringBuilder();
@@ -106,7 +135,7 @@ public class ReActAgent {
 
         for (int i = 0; i < maxIterations; i++) {
             logger.debug("Agent iteration {}/{}", i + 1, maxIterations);
-            
+
             // ... (request building is the same)
             String context = "";
             if (conversationHistory != null) {
@@ -122,7 +151,16 @@ public class ReActAgent {
             logger.info("=== LLM Response (Iteration {}) ===\n{}", i + 1, llmOutput);
 
             try {
-                Map<String, Object> responseJson = parseResponse(llmOutput);
+                Map<String, Object> responseJson;
+                try {
+                    responseJson = parseResponse(llmOutput);
+                } catch (Exception e) {
+                    // Fallback: If parsing fails, treat the entire output as the final answer
+                    logger.warn("Failed to parse JSON, treating output as final answer: {}", e.getMessage());
+                    responseJson = new HashMap<>();
+                    responseJson.put("final_answer", llmOutput);
+                    responseJson.put("thought", "The model responded directly without JSON format.");
+                }
 
                 if (responseJson.containsKey("final_answer")) {
                     String finalAnswer = (String) responseJson.get("final_answer");
@@ -134,44 +172,48 @@ public class ReActAgent {
                 String action = (String) responseJson.get("action");
                 Object actionInputObj = responseJson.get("action_input");
 
-                String actionInput = (actionInputObj instanceof String) 
-                    ? (String) actionInputObj 
-                    : objectMapper.writeValueAsString(actionInputObj);
+                String actionInput = (actionInputObj instanceof String)
+                        ? (String) actionInputObj
+                        : objectMapper.writeValueAsString(actionInputObj);
 
                 logger.info("Parsed - Thought: {}, Action: {}, ActionInput: {}", thought, action, actionInput);
-                if (thought != null) notifyThought(thought);
-                if (action != null) notifyAction(action, actionInput);
-                
+                if (thought != null)
+                    notifyThought(thought);
+                if (action != null)
+                    notifyAction(action, actionInput);
+
                 if (action == null || action.isEmpty()) {
                     scratchpad.append(llmOutput).append("\nObservation: No valid action found.\n");
                     continue;
                 }
 
                 String observation = executeAction(action, actionInput, actionHistory);
-                
+
                 AgentResult.AgentStep step = new AgentResult.AgentStep(thought, action, actionInput, observation);
                 steps.add(step);
-                
+
                 scratchpad.append("Thought: ").append(thought != null ? thought : "").append("\n");
                 scratchpad.append("Action: ").append(action).append("\n");
                 scratchpad.append("Action Input: ").append(actionInput != null ? actionInput : "").append("\n");
                 scratchpad.append("Observation: ").append(observation).append("\n");
 
             } catch (Exception e) {
-                logger.error("Failed to parse or process LLM response: {}", e.getMessage());
-                scratchpad.append(llmOutput).append("\nObservation: Invalid response format.\n");
+                logger.error("Critical error in agent loop: {}", e.getMessage(), e);
+                scratchpad.append(llmOutput).append("\nObservation: System Error: ").append(e.getMessage())
+                        .append("\n");
             }
         }
         return buildFailureResult(steps);
     }
-    
+
     private Map<String, Object> parseResponse(String llmOutput) throws Exception {
         Matcher jsonMatcher = JSON_PATTERN.matcher(llmOutput);
         if (jsonMatcher.find()) {
             String jsonBlock = jsonMatcher.group(1);
-            return objectMapper.readValue(jsonBlock, new TypeReference<>() {});
+            return objectMapper.readValue(jsonBlock, new TypeReference<>() {
+            });
         }
-        
+
         // Fallback for backward compatibility with old tests
         Map<String, Object> map = new HashMap<>();
         Matcher finalAnswerMatcher = FINAL_ANSWER_PATTERN.matcher(llmOutput);
@@ -188,7 +230,7 @@ public class ReActAgent {
             map.put("action_input", extractPattern(ACTION_INPUT_PATTERN, llmOutput));
             return map;
         }
-        
+
         throw new Exception("No valid JSON block or legacy format found in LLM output.");
     }
 
@@ -211,7 +253,8 @@ public class ReActAgent {
             Map<String, Object> args;
             if (actionInput != null && !actionInput.trim().isEmpty()) {
                 try {
-                    args = objectMapper.readValue(actionInput, new TypeReference<>() {});
+                    args = objectMapper.readValue(actionInput, new TypeReference<>() {
+                    });
                 } catch (JsonProcessingException e) {
                     args = Map.of("input", actionInput); // Fallback for raw string
                 }
@@ -229,8 +272,10 @@ public class ReActAgent {
         }
     }
 
-    private AgentResult processFinalAnswer(String question, String finalAnswer, String thought, List<AgentResult.AgentStep> steps, int iteration) {
-        if (thought != null) notifyThought(thought);
+    private AgentResult processFinalAnswer(String question, String finalAnswer, String thought,
+            List<AgentResult.AgentStep> steps, int iteration) {
+        if (thought != null)
+            notifyThought(thought);
         if (conversationHistory != null) {
             conversationHistory.addUserMessage(question);
             conversationHistory.addAssistantMessage(finalAnswer);
@@ -250,7 +295,8 @@ public class ReActAgent {
         List<BiasEvent> biasEvents = biasMonitor.detectBias(finalAnswer, biasContext);
         if (!biasEvents.isEmpty()) {
             logger.warn("Bias detected in final answer: {} events", biasEvents.size());
-            biasEvents.forEach(event -> logger.warn("  - {}: {} (severity: {})", event.getType(), event.getExplanation(), event.getSeverity()));
+            biasEvents.forEach(event -> logger.warn("  - {}: {} (severity: {})", event.getType(),
+                    event.getExplanation(), event.getSeverity()));
         }
         return result;
     }
@@ -271,14 +317,72 @@ public class ReActAgent {
         return result;
     }
 
-    // ... (rest of the class remains the same: getTools, extractPattern, resolveSystemPrompt, buildSystemPromptInjections, notify methods, calculateConfidence, toBuilder, builder)
-    
+    // ... (rest of the class remains the same: getTools, extractPattern,
+    // resolveSystemPrompt, buildSystemPromptInjections, notify methods,
+    // calculateConfidence, toBuilder, builder)
+
+    /**
+     * Speaks the given text using the configured TTS provider.
+     * 
+     * @param text The text to speak.
+     * @return The audio data as byte array.
+     */
+    public byte[] speak(String text) {
+        if (ttsProvider == null) {
+            throw new IllegalStateException("TextToSpeechProvider is not configured for this agent.");
+        }
+        try {
+            TextToSpeechRequest.Builder requestBuilder = TextToSpeechRequest.builder().text(text);
+
+            // Resolve language and model
+            if (ttsLanguage != null) {
+                // Use LanguageMapper (assuming it's imported or fully qualified)
+                String languageCode = io.github.llm4j.util.LanguageMapper.getLanguageCode(ttsLanguage);
+                requestBuilder.targetLanguageCode(languageCode);
+            }
+
+            // Default to bulbul:v2 if not specified, but only if we are using Sarvam
+            // (implied by this logic being generic but we want smart defaults)
+            String modelToUse = ttsModel != null ? ttsModel : "bulbul:v2";
+            requestBuilder.model(modelToUse);
+
+            TextToSpeechRequest request = requestBuilder.build();
+            TextToSpeechResponse response = ttsProvider.generateSpeech(request);
+            byte[] audioData = response.getAudioData();
+
+            if (autoPlayAudio && audioPlayer != null) {
+                audioPlayer.play(audioData, this.sessionId);
+            }
+            return audioData;
+        } catch (Exception e) {
+            logger.error("Failed to speak text", e);
+            throw new RuntimeException("Failed to speak text", e);
+        }
+    }
+
+    /**
+     * Listens to the given audio file and transcribes it using the configured STT
+     * provider.
+     * 
+     * @param audioFile The audio file to listen to.
+     * @return The transcribed text.
+     */
+    public String listen(File audioFile) {
+        if (sttProvider == null) {
+            throw new IllegalStateException("SpeechToTextProvider is not configured for this agent.");
+        }
+        TranscriptionRequest request = TranscriptionRequest.builder().build(); // Default request
+        TranscriptionResponse response = sttProvider.transcribe(audioFile, request);
+        return response.getText();
+    }
+
     public Collection<Tool> getTools() {
         return Collections.unmodifiableCollection(tools.values());
     }
 
     private String extractPattern(Pattern pattern, String text) {
-        if (text == null) return null;
+        if (text == null)
+            return null;
         Matcher matcher = pattern.matcher(text);
         if (matcher.find()) {
             return matcher.group(1).trim();
@@ -312,7 +416,8 @@ public class ReActAgent {
         StringBuilder toolDescriptions = new StringBuilder();
         List<String> toolNames = new ArrayList<>();
         for (Tool tool : tools.values()) {
-            toolDescriptions.append("- ").append(tool.getName()).append(": ").append(tool.getDescription()).append("\n");
+            toolDescriptions.append("- ").append(tool.getName()).append(": ").append(tool.getDescription())
+                    .append("\n");
             toolNames.add(tool.getName());
         }
         prompt.append(baseTemplate
@@ -320,7 +425,7 @@ public class ReActAgent {
                 .replace("{tool_names}", String.join(", ", toolNames)));
         return prompt.toString();
     }
-    
+
     private void notifyThought(String thought) {
         for (AgentEventListener listener : listeners) {
             try {
@@ -350,7 +455,7 @@ public class ReActAgent {
             }
         }
     }
-    
+
     private ConfidenceScore calculateConfidence(List<AgentResult.AgentStep> steps, int iterations, String finalAnswer) {
         // ... (same)
         double baseScore = 0.7;
@@ -362,14 +467,16 @@ public class ReActAgent {
         } else if (iterationRatio > 0.5) {
             baseScore -= 0.1;
         }
-        long failureCount = steps.stream().filter(step -> step.getObservation() != null && step.getObservation().startsWith("Error")).count();
+        long failureCount = steps.stream()
+                .filter(step -> step.getObservation() != null && step.getObservation().startsWith("Error")).count();
         if (failureCount > 0) {
             baseScore -= (failureCount * 0.15);
             reasoning = failureCount + " tool failure(s)";
         }
         if (finalAnswer != null) {
             String lowerAnswer = finalAnswer.toLowerCase();
-            if (lowerAnswer.contains("i don't know") || lowerAnswer.contains("i'm not sure") || lowerAnswer.contains("cannot determine") || lowerAnswer.contains("insufficient information")) {
+            if (lowerAnswer.contains("i don't know") || lowerAnswer.contains("i'm not sure")
+                    || lowerAnswer.contains("cannot determine") || lowerAnswer.contains("insufficient information")) {
                 baseScore = 0.1;
                 reasoning = "Agent expressed uncertainty";
             }
@@ -385,7 +492,7 @@ public class ReActAgent {
     public static Builder builder() {
         return new Builder();
     }
-    
+
     public static final class Builder {
         // ... (same)
         private LLMClient llmClient;
@@ -401,8 +508,16 @@ public class ReActAgent {
         private AuditLogger auditLogger;
         private String sessionId;
         private BiasMonitor biasMonitor;
+        private TextToSpeechProvider ttsProvider;
+        private SpeechToTextProvider sttProvider;
+        private AudioPlayer audioPlayer;
+        private boolean autoPlayAudio = true;
+        private String ttsLanguage;
+        private String ttsModel;
 
-        private Builder() {}
+        private Builder() {
+        }
+
         private Builder(ReActAgent agent) {
             this.llmClient = agent.llmClient;
             this.tools = new HashMap<>(agent.tools);
@@ -417,21 +532,110 @@ public class ReActAgent {
             this.auditLogger = agent.auditLogger;
             this.sessionId = agent.sessionId;
             this.biasMonitor = agent.biasMonitor;
+            this.ttsProvider = agent.ttsProvider;
+
+            this.sttProvider = agent.sttProvider;
+            this.audioPlayer = agent.audioPlayer;
+            this.autoPlayAudio = agent.autoPlayAudio;
         }
-        
-        public Builder llmClient(LLMClient llmClient) { this.llmClient = llmClient; return this; }
-        public Builder addTool(Tool tool) { this.tools.put(tool.getName().toLowerCase(), tool); return this; }
-        public Builder systemPrompt(String systemPrompt) { this.systemPrompt = systemPrompt; return this; }
-        public Builder maxIterations(int maxIterations) { this.maxIterations = maxIterations; return this; }
-        public Builder temperature(double temperature) { this.temperature = temperature; return this; }
-        public Builder persona(AgentPersona persona) { this.persona = persona; return this; }
-        public Builder promptRegistry(PromptRegistry promptRegistry) { this.promptRegistry = promptRegistry; return this; }
-        public Builder systemPromptId(String systemPromptId) { this.systemPromptId = systemPromptId; return this; }
-        public Builder conversationHistory(ConversationHistory history) { this.conversationHistory = history; return this; }
-        public Builder addListener(AgentEventListener listener) { this.listeners.add(listener); return this; }
-        public Builder auditLogger(AuditLogger auditLogger) { this.auditLogger = auditLogger; return this; }
-        public Builder sessionId(String sessionId) { this.sessionId = sessionId; return this; }
-        public Builder biasMonitor(BiasMonitor biasMonitor) { this.biasMonitor = biasMonitor; return this; }
-        public ReActAgent build() { return new ReActAgent(this); }
+
+        public Builder llmClient(LLMClient llmClient) {
+            this.llmClient = llmClient;
+            return this;
+        }
+
+        public Builder addTool(Tool tool) {
+            this.tools.put(tool.getName().toLowerCase(), tool);
+            return this;
+        }
+
+        public Builder systemPrompt(String systemPrompt) {
+            this.systemPrompt = systemPrompt;
+            return this;
+        }
+
+        public Builder maxIterations(int maxIterations) {
+            this.maxIterations = maxIterations;
+            return this;
+        }
+
+        public Builder temperature(double temperature) {
+            this.temperature = temperature;
+            return this;
+        }
+
+        public Builder persona(AgentPersona persona) {
+            this.persona = persona;
+            return this;
+        }
+
+        public Builder promptRegistry(PromptRegistry promptRegistry) {
+            this.promptRegistry = promptRegistry;
+            return this;
+        }
+
+        public Builder systemPromptId(String systemPromptId) {
+            this.systemPromptId = systemPromptId;
+            return this;
+        }
+
+        public Builder conversationHistory(ConversationHistory history) {
+            this.conversationHistory = history;
+            return this;
+        }
+
+        public Builder addListener(AgentEventListener listener) {
+            this.listeners.add(listener);
+            return this;
+        }
+
+        public Builder auditLogger(AuditLogger auditLogger) {
+            this.auditLogger = auditLogger;
+            return this;
+        }
+
+        public Builder sessionId(String sessionId) {
+            this.sessionId = sessionId;
+            return this;
+        }
+
+        public Builder biasMonitor(BiasMonitor biasMonitor) {
+            this.biasMonitor = biasMonitor;
+            return this;
+        }
+
+        public Builder ttsProvider(TextToSpeechProvider ttsProvider) {
+            this.ttsProvider = ttsProvider;
+            return this;
+        }
+
+        public Builder sttProvider(SpeechToTextProvider sttProvider) {
+            this.sttProvider = sttProvider;
+            return this;
+        }
+
+        public Builder audioPlayer(AudioPlayer audioPlayer) {
+            this.audioPlayer = audioPlayer;
+            return this;
+        }
+
+        public Builder autoPlayAudio(boolean autoPlayAudio) {
+            this.autoPlayAudio = autoPlayAudio;
+            return this;
+        }
+
+        public Builder ttsLanguage(String ttsLanguage) {
+            this.ttsLanguage = ttsLanguage;
+            return this;
+        }
+
+        public Builder ttsModel(String ttsModel) {
+            this.ttsModel = ttsModel;
+            return this;
+        }
+
+        public ReActAgent build() {
+            return new ReActAgent(this);
+        }
     }
 }
