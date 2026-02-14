@@ -7,8 +7,8 @@ This guide outlines the steps to publish the `ai-agent4j` library to Maven Centr
 1.  **Sonatype OSSRH Account**:
     - Sign up at [issues.sonatype.org](https://issues.sonatype.org/).
     - Create a "New Project" ticket to claim your namespace.
-    - **Namespace**: `io.github.llm4j` (if you own the GitHub org) or `io.github.srijithunni7182` (if you own the user).
-    - *Note*: If using `io.github.llm4j`, you must own https://github.com/llm4j. If you only own `srijithunni7182/llm4j`, you should change the Group ID in `pom.xml` to `io.github.srijithunni7182`.
+    - **Namespace**: `io.github.srijithunni7182` (since the repo is under `srijithunni7182`).
+    - *Note*: Ensure this matches the `groupId` in your `pom.xml` files.
 
 2.  **GPG Key**:
     - You need a GPG key to sign artifacts.

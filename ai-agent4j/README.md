@@ -69,7 +69,7 @@ Add this dependency to unlock those features:
 
 ```xml
 <dependency>
-    <groupId>io.github.llm4j</groupId>
+    <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j-addons</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
@@ -91,7 +91,7 @@ Then add the dependency to your project:
 
 ```xml
 <dependency>
-    <groupId>io.github.llm4j</groupId>
+    <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j</artifactId>
     <version>0.1.0-SNAPSHOT</version>
 </dependency>
@@ -110,8 +110,8 @@ Alternatively, you can use JitPack:
 </repositories>
 
 <dependency>
-    <groupId>com.github.srijithunni7182.llm4j</groupId>
-    <artifactId>ai-agent4j</artifactId>
+    <groupId>com.github.srijithunni7182</groupId>
+    <artifactId>llm4j</artifactId>
     <version>main-SNAPSHOT</version>
 </dependency>
 ```
