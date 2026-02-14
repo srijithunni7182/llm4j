@@ -70,7 +70,7 @@ public class SarvamAudioProvider implements SpeechToTextProvider {
             // If request has model? request doesn't have model field in my simple
             // TranscriptionRequest.
             // I'll default to standard or let API decice.
-            parts.put("model", "saaras:v1"); // Explicitly setting model as it might be required.
+            parts.put("model", "saaras:v3"); // Explicitly setting model; v1 deprecated/removed.
 
             if (request.getPrompt().isPresent()) {
                 parts.put("prompt", request.getPrompt().get());

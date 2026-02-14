@@ -107,7 +107,11 @@ public class SarvamTextToSpeechProvider implements TextToSpeechProvider {
         request.getPace().ifPresent(p -> root.put("pace", p));
         request.getSpeechSampleRate().ifPresent(r -> root.put("speech_sample_rate", r));
         request.getEnablePreprocessing().ifPresent(e -> root.put("enable_preprocessing", e));
-        request.getModel().ifPresent(m -> root.put("model", m));
+        request.getModel().ifPresentOrElse(
+                m -> root.put("model", m),
+                () -> root.put("model", "bulbul:v3") // Default to bulbul:v3 (latest stable)
+
+        );
 
         return objectMapper.writeValueAsString(root);
     }
