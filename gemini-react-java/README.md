@@ -14,6 +14,7 @@
 ## Features
 
 - **🤖 Google Gemini First**: Full integration with Gemini 1.5 Flash, Pro, and 2.x models.
+- **🇮🇳 Sarvam AI Support**: Complete Indian language stack (Chat, TTS, STT, Translation) with **Multi-Language Voice Agents** that can listen and speak in 10+ languages.
 - **🛠️ ReAct Agent Framework**: Build AI agents that can reason and use tools through a thought-action-observation loop.
 - **🔌 Model Context Protocol (MCP)**: Connect to any external tool server (Filesystem, GitHub, SQLite) using the standard protocol.
 - **🧠 Contextual Memory**: Built-in conversation history management for multi-turn chats.
@@ -121,6 +122,44 @@ public class GeminiExample {
     }
 }
 ```
+
+### 🇮🇳 Sarvam AI Integration
+
+**Unlock the power of conversational AI for India with `gemini-react-java`.**
+
+We provide first-class, production-ready support for [Sarvam AI](https://sarvam.ai/), enabling you to build agents that speak, listen, and understand 10+ Indian languages with native fluency.
+
+**Why Sarvam?**
+
+- **🗣️ Hyper-Realistic TTS**: Generate natural-sounding speech in Hindi, Tamil, Malayalam, Bengali, and more.
+- **👂 High-Accuracy ASR**: Transcribe audio with best-in-class accuracy for Indian accents and dialects.
+- **🚀 Ultra-Low Latency**: Optimized for real-time voice agents.
+- **🧠 Native Understanding**: Models trained specifically on Indian cultural and linguistic contexts.
+
+**Example: Building a Multi-Listening Voice Agent**
+
+```java
+// 1. Configure Sarvam AI
+LLMConfig config = LLMConfig.builder()
+    .apiKey(System.getenv("SARVAM_API_KEY"))
+    .build();
+
+// 2. Create a Voice-Enabled Agent
+ReActAgent agent = ReActAgent.builder()
+    .llmClient(new DefaultLLMClient(new SarvamChatProvider(config))) // Use Sarvam-2B
+    .sttProvider(new SarvamAudioProvider(config))       // native-STT
+    .ttsProvider(new SarvamTextToSpeechProvider(config)) // native-TTS
+    .audioPlayer(new JavaAudioPlayer())                 // Playback
+    .ttsLanguage("Hindi")                               // Speak in Hindi
+    .autoPlayAudio(true)                                // Auto-speak responses
+    .build();
+
+// 3. Run the Agent (Listen -> Think -> Speak)
+agent.listen(new File("user_query_hindi.wav"));
+// Agent listens, thinks, and responds typically in < 2 seconds!
+```
+
+> **[Read the Full Sarvam AI Guide](docs/SARVAM.md)** for advanced configuration, including specific models (`sarvam-2b`, `bulbul:v1`) and language codes.
 
 ### Auto-Discover Models
 
