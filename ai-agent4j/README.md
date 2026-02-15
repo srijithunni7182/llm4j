@@ -66,13 +66,11 @@ To keep the core library lightweight, advanced RAG integrations (ONNX, DJL, Post
 
 Add this dependency to unlock those features:
 
-> **Note**: This artifact is also not on Maven Central yet. Please install locally first as described below.
-
 ```xml
 <dependency>
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j-addons</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 
