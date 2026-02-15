@@ -8,6 +8,7 @@
 
 **Build Agents, RAG, and Tools with Google Gemini. The simple, verified, and production-ready LLM library for Java developers.**
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.srijithunni7182/ai-agent4j.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.srijithunni7182/ai-agent4j)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-orange)](https://www.oracle.com/java/technologies/downloads/#java17)
 
@@ -77,24 +78,32 @@ Add this dependency to unlock those features:
 
 ## Installation
 
-### Maven (Local Install)
+### Maven
 
-Since `ai-agent4j` is not yet on Maven Central, you must first build and install it locally:
-
-```bash
-git clone https://github.com/srijithunni7182/llm4j.git
-cd llm4j
-mvn clean install
-```
-
-Then add the dependency to your project:
+Simply add the dependency to your `pom.xml`:
 
 ```xml
 <dependency>
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
 </dependency>
+```
+
+### Gradle
+
+```kotlin
+implementation("io.github.srijithunni7182:ai-agent4j:0.1.0")
+```
+
+### Local Install (for development)
+
+If you want to modify the library yourself:
+
+```bash
+git clone https://github.com/srijithunni7182/llm4j.git
+cd llm4j
+mvn clean install
 ```
 
 ### JitPack
