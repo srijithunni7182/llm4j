@@ -10,6 +10,7 @@ import io.github.llm4j.http.HttpClientWrapper;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.Message;
+import io.github.llm4j.provider.DescribableProvider;
 import io.github.llm4j.provider.LLMProvider;
 import okhttp3.Headers;
 import org.slf4j.Logger;
@@ -19,25 +20,25 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.stream.Stream;
 
-public class GoogleProvider implements LLMProvider {
+public class GoogleProvider implements DescribableProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(GoogleProvider.class);
     private static final String DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private final LLMConfig config;
     private final HttpClientWrapper httpClient;
+    private final ObjectMapper objectMapper;
     private final String baseUrl;
 
     public GoogleProvider(LLMConfig config) {
-        this(config, new HttpClientWrapper(config));
+        this(config, new HttpClientWrapper(config), new ObjectMapper());
     }
 
-    // Constructor for testing
-    GoogleProvider(LLMConfig config, HttpClientWrapper httpClient) {
+    public GoogleProvider(LLMConfig config, HttpClientWrapper httpClient, ObjectMapper objectMapper) {
         this.config = Objects.requireNonNull(config, "config cannot be null");
         this.baseUrl = config.getBaseUrl() != null ? config.getBaseUrl() : DEFAULT_BASE_URL;
         this.httpClient = httpClient;
+        this.objectMapper = objectMapper;
         validate();
     }
 
@@ -50,20 +51,27 @@ public class GoogleProvider implements LLMProvider {
             }
 
             String endpoint = String.format("/models/%s:generateContent", model);
-            String urlWithKey = baseUrl + endpoint + "?key=" + config.getApiKey();
+            String url = baseUrl + endpoint;
             String requestJson = buildRequestJson(request);
             Headers headers = buildHeaders();
 
-            logger.debug("Calling Google API URL: {}", baseUrl + endpoint);
-            String responseJson = httpClient.post(urlWithKey, requestJson, headers);
+            logger.debug("Calling Google API URL: {}", url);
+            String responseJson = httpClient.post(url, requestJson, headers);
             return parseResponse(responseJson, model);
         } catch (IOException e) {
             throw new ProviderException(getProviderName(), "Failed to process request", e);
         }
     }
-    
+
+    /**
+     * Note: This method is not yet implemented for the Google provider.
+     * It will throw an {@link UnsupportedOperationException} if called.
+     * @param request The LLMRequest object.
+     * @return A stream of LLMResponse objects.
+     */
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
+        logger.warn("chatStream is not yet implemented for the Google provider.");
         throw new UnsupportedOperationException("Streaming is not yet implemented for Google provider");
     }
 
@@ -79,10 +87,11 @@ public class GoogleProvider implements LLMProvider {
         }
     }
 
+    @Override
     public String[] listModels() {
         try {
-            String endpoint = "/models?key=" + config.getApiKey();
-            String responseJson = httpClient.get(baseUrl + endpoint, buildHeaders());
+            String url = baseUrl + "/models";
+            String responseJson = httpClient.get(url, buildHeaders());
             JsonNode root = objectMapper.readTree(responseJson);
 
             if (root.has("models")) {
@@ -95,10 +104,11 @@ public class GoogleProvider implements LLMProvider {
         }
     }
 
+    @Override
     public String getFirstAvailableModel() {
         try {
-            String endpoint = "/models?key=" + config.getApiKey();
-            String responseJson = httpClient.get(baseUrl + endpoint, buildHeaders());
+            String url = baseUrl + "/models";
+            String responseJson = httpClient.get(url, buildHeaders());
             JsonNode root = objectMapper.readTree(responseJson);
 
             if (root.has("models")) {
@@ -143,7 +153,7 @@ public class GoogleProvider implements LLMProvider {
 
             ArrayNode partsArray = contentNode.putArray("parts");
             ObjectNode partNode = partsArray.addObject();
-            
+
             String content = message.getContent();
             if (role.equals("user") && firstUserMessage && systemMessage != null) {
                 content = systemMessage + "\n\n" + content;
@@ -165,7 +175,10 @@ public class GoogleProvider implements LLMProvider {
     }
 
     private Headers buildHeaders() {
-        return new Headers.Builder().add("Content-Type", "application/json").build();
+        return new Headers.Builder()
+                .add("Content-Type", "application/json")
+                .add("x-goog-api-key", config.getApiKey())
+                .build();
     }
 
     private LLMResponse parseResponse(String responseJson, String model) throws IOException {
@@ -210,7 +223,7 @@ public class GoogleProvider implements LLMProvider {
         }
 
         String textContent = parts.get(0).path("text").asText();
-        
+
         LLMResponse.TokenUsage tokenUsage = null;
         JsonNode usage = root.path("usageMetadata");
         if (!usage.isMissingNode()) {

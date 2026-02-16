@@ -75,7 +75,7 @@ public class SarvamTextProvider implements TranslationProvider, TransliterationP
 
             return new TranslationResponse(translatedText, request.getSourceLanguageCode().orElse(null));
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new ProviderException(getProviderName(), "Translation failed", e);
         }
     }
@@ -110,7 +110,7 @@ public class SarvamTextProvider implements TranslationProvider, TransliterationP
 
             return new TransliterationResponse(transliterated);
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new ProviderException(getProviderName(), "Transliteration failed", e);
         }
     }
@@ -156,7 +156,7 @@ public class SarvamTextProvider implements TranslationProvider, TransliterationP
 
             return new LanguageDetectionResponse(languageCode, null, confidence);
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new ProviderException(getProviderName(), "Language detection failed", e);
         }
     }
