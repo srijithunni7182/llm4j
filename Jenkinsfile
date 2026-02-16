@@ -97,10 +97,10 @@ pipeline {
                         sh 'gpg --batch --import $GPG_SECRET_KEYring'
                         
                         dir('ai-agent4j') {
-                            sh 'mvn deploy -P release -DskipTests --settings ../settings.xml'
+                            sh 'mvn deploy -P release -DskipTests -Djacoco.skip=true --settings ../settings.xml'
                         }
                         dir('ai-agent4j-addons') {
-                            sh 'mvn deploy -P release -DskipTests --settings ../settings.xml'
+                            sh 'mvn deploy -P release -DskipTests -Djacoco.skip=true --settings ../settings.xml'
                         }
                     }
                 }
