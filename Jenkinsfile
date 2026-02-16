@@ -13,6 +13,8 @@ pipeline {
         // Central Portal Token
         CENTRAL_TOKEN = credentials('central-token')
         CENTRAL_USER = credentials('central-user')
+        // NVD API Key for OWASP Dependency Check
+        NVD_API_KEY = credentials('nvd-api-key')
     }
 
     stages {
