@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        maven 'maven-3.9.6' // Adjust version as needed for your Jenkins environment
+        maven 'maven'       // Adjust version as needed for your Jenkins environment
         jdk 'jdk21'         // Adjust version as needed
     }
 
