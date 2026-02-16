@@ -3,7 +3,7 @@ pipeline {
 
     tools {
         maven 'maven-3.9.6' // Adjust version as needed for your Jenkins environment
-        jdk 'jdk-17'        // Adjust version as needed
+        jdk 'jdk21'         // Adjust version as needed
     }
 
     environment {
