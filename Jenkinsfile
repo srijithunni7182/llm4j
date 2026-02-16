@@ -66,8 +66,10 @@ pipeline {
                         dir('ai-agent4j') {
                             // Spotless check
                             sh 'mvn spotless:check'
-                            // Dependency check - run explicitly with API key
-                            sh "mvn org.owasp:dependency-check-maven:check -DnvdApiKey=${NVD_API_KEY}"
+                            // Dependency check - DISABLED due to NVD API rate limiting in CI
+                            // Run manually: mvn dependency-check:check -DnvdApiKey=$NVD_API_KEY
+                            // Or set up a separate scheduled job for security scanning
+                            // sh "mvn org.owasp:dependency-check-maven:check -DnvdApiKey=${NVD_API_KEY}"
                         }
                     },
                     "Addons Quality": {
