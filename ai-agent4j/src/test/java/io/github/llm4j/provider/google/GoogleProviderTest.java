@@ -62,7 +62,7 @@ class GoogleProviderTest {
 
     @Test
     void testChat_successfulResponse() throws IOException {
-        provider = new GoogleProvider(createValidConfig(), mockHttpClient);
+        provider = new GoogleProvider(createValidConfig(), mockHttpClient, new com.fasterxml.jackson.databind.ObjectMapper());
         String mockResponse = "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Hello there\"}]}}], \"usageMetadata\": {\"promptTokenCount\": 1, \"candidatesTokenCount\": 2, \"totalTokenCount\": 3}}";
         when(mockHttpClient.post(anyString(), anyString(), any(Headers.class))).thenReturn(mockResponse);
 
@@ -75,7 +75,7 @@ class GoogleProviderTest {
 
     @Test
     void testChat_handlesSystemMessageCorrectly() throws IOException {
-        provider = new GoogleProvider(createValidConfig(), mockHttpClient);
+        provider = new GoogleProvider(createValidConfig(), mockHttpClient, new com.fasterxml.jackson.databind.ObjectMapper());
         String mockResponse = "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Yes, I am a bot\"}]}}]}";
         when(mockHttpClient.post(anyString(), anyString(), any(Headers.class))).thenReturn(mockResponse);
 
@@ -92,7 +92,7 @@ class GoogleProviderTest {
     
     @Test
     void testChat_throwsContentBlockedException_fromPromptFeedback() throws IOException {
-        provider = new GoogleProvider(createValidConfig(), mockHttpClient);
+        provider = new GoogleProvider(createValidConfig(), mockHttpClient, new com.fasterxml.jackson.databind.ObjectMapper());
         String mockResponse = "{\"promptFeedback\":{\"blockReason\":\"SAFETY\"}}";
         when(mockHttpClient.post(anyString(), anyString(), any(Headers.class))).thenReturn(mockResponse);
 
@@ -103,7 +103,7 @@ class GoogleProviderTest {
 
     @Test
     void testChat_throwsContentBlockedException_fromFinishReason() throws IOException {
-        provider = new GoogleProvider(createValidConfig(), mockHttpClient);
+        provider = new GoogleProvider(createValidConfig(), mockHttpClient, new com.fasterxml.jackson.databind.ObjectMapper());
         String mockResponse = "{\"candidates\":[{\"finishReason\":\"SAFETY\"}]}";
         when(mockHttpClient.post(anyString(), anyString(), any(Headers.class))).thenReturn(mockResponse);
 
@@ -114,7 +114,7 @@ class GoogleProviderTest {
 
     @Test
     void testChat_handlesMaxTokensFinishReason() throws IOException {
-        provider = new GoogleProvider(createValidConfig(), mockHttpClient);
+        provider = new GoogleProvider(createValidConfig(), mockHttpClient, new com.fasterxml.jackson.databind.ObjectMapper());
         String mockResponse = "{\"candidates\":[{\"finishReason\":\"MAX_TOKENS\",\"content\":{\"parts\":[]}}]}";
         when(mockHttpClient.post(anyString(), anyString(), any(Headers.class))).thenReturn(mockResponse);
 
@@ -125,17 +125,17 @@ class GoogleProviderTest {
 
     @Test
     void testListModels_throwsProviderException_onHttpError() throws IOException {
-        provider = new GoogleProvider(createValidConfig(), mockHttpClient);
-        when(mockHttpClient.get(anyString(), any())).thenThrow(new IOException("Network error"));
+        provider = new GoogleProvider(createValidConfig(), mockHttpClient, new com.fasterxml.jackson.databind.ObjectMapper());
+        when(mockHttpClient.get(anyString(), any())).thenThrow(new io.github.llm4j.exception.LLMException("Network error"));
 
         assertThatThrownBy(() -> provider.listModels())
                 .isInstanceOf(ProviderException.class)
-                .hasMessage("Failed to list models");
+                .hasMessage("[google] Failed to list models");
     }
 
     @Test
     void testGetFirstAvailableModel_successful() throws IOException {
-        provider = new GoogleProvider(createValidConfig(), mockHttpClient);
+        provider = new GoogleProvider(createValidConfig(), mockHttpClient, new com.fasterxml.jackson.databind.ObjectMapper());
         String mockResponse = "{\"models\":[{\"name\":\"models/gemini-1.0-pro\",\"supportedGenerationMethods\":[\"generateContent\"]},{\"name\":\"models/text-bison-001\"}]}";
         when(mockHttpClient.get(anyString(), any())).thenReturn(mockResponse);
 

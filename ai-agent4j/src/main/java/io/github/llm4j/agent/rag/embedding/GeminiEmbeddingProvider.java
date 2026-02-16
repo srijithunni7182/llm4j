@@ -34,14 +34,18 @@ public class GeminiEmbeddingProvider implements EmbeddingProvider {
     }
 
     public GeminiEmbeddingProvider(LLMConfig config, String model) {
+        this(config, model, new OkHttpClient.Builder()
+                .connectTimeout(config.getConnectTimeout())
+                .readTimeout(config.getTimeout())
+                .build());
+    }
+
+    protected GeminiEmbeddingProvider(LLMConfig config, String model, OkHttpClient httpClient) {
         this.apiKey = Objects.requireNonNull(config.getApiKey(), "API key cannot be null");
         this.model = model != null ? model : DEFAULT_MODEL;
         this.baseUrl = config.getBaseUrl() != null ? config.getBaseUrl()
                 : "https://generativelanguage.googleapis.com/v1";
-        this.httpClient = new OkHttpClient.Builder()
-                .connectTimeout(config.getConnectTimeout())
-                .readTimeout(config.getTimeout())
-                .build();
+        this.httpClient = httpClient;
         this.objectMapper = new ObjectMapper();
     }
 

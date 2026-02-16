@@ -68,7 +68,7 @@ public class PGVectorStore implements VectorStore {
         }
     }
 
-    private Connection getConnection() throws SQLException {
+    protected Connection getConnection() throws SQLException {
         Connection conn = DriverManager.getConnection(url, user, password);
         // Register vector type
         PGvector.addVectorType(conn);

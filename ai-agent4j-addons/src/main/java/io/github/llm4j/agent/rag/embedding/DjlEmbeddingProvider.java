@@ -66,6 +66,12 @@ public class DjlEmbeddingProvider implements EmbeddingProvider, AutoCloseable {
 
         logger.info("Initialized DjlEmbeddingProvider with model: {} and dimensions: {}", modelUrl, dimensions);
     }
+    
+    DjlEmbeddingProvider(ZooModel<String, float[]> model, Predictor<String, float[]> predictor, int dimensions) {
+        this.model = model;
+        this.predictor = predictor;
+        this.dimensions = dimensions;
+    }
 
     @Override
     public float[] embed(String text) {

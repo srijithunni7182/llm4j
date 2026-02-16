@@ -69,7 +69,9 @@ public class SarvamTextToSpeechProvider implements TextToSpeechProvider {
 
             String responseJson = httpClient.post(url, requestJson, headers);
             return parseResponse(responseJson);
-        } catch (IOException e) {
+        } catch (ProviderException e) {
+            throw e;
+        } catch (IOException | io.github.llm4j.exception.LLMException e) {
             throw new ProviderException(getProviderName(), "Failed to process TTS request", e);
         }
     }
@@ -142,7 +144,13 @@ public class SarvamTextToSpeechProvider implements TextToSpeechProvider {
         // Let's handle "audios" (array) and take the first one.
 
         if (root.has("audios") && root.get("audios").isArray() && root.get("audios").size() > 0) {
-            String base64Audio = root.get("audios").get(0).asText();
+            JsonNode audioNode = root.get("audios").get(0);
+            String base64Audio;
+            if (audioNode.isObject() && audioNode.has("audio_b64")) {
+                base64Audio = audioNode.get("audio_b64").asText();
+            } else {
+                base64Audio = audioNode.asText();
+            }
             byte[] audioData = Base64.getDecoder().decode(base64Audio);
             return new TextToSpeechResponse(audioData, "audio/wav"); // Sarvam usually outputs WAV
         } else {

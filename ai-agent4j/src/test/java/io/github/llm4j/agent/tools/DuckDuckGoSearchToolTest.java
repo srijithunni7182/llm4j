@@ -36,7 +36,7 @@ class DuckDuckGoSearchToolTest {
 
     @Test
     void testDescription() {
-        assertThat(tool.getDescription()).contains("DuckDuckGo");
+        assertThat(tool.getDescription()).contains("current information");
     }
 
     @Test
@@ -47,41 +47,55 @@ class DuckDuckGoSearchToolTest {
 
     @Test
     void testPerformSearchSuccess() throws Exception {
+        String htmlResponse = "<html><body>" +
+                "<table><tr>" +
+                "<td><a class=\"result-link\" href=\"https://en.wikipedia.org/wiki/Tokyo\">Tokyo - Wikipedia</a></td>" +
+                "<td class=\"result-snippet\">Tokyo is the capital of Japan.</td>" +
+                "</tr></table>" +
+                "</body></html>";
+
         mockWebServer.enqueue(new MockResponse()
-                .setBody(
-                        "{\"AbstractText\": \"Tokyo is the capital of Japan.\", \"AbstractSource\": \"Wikipedia\", \"AbstractURL\": \"https://en.wikipedia.org/wiki/Tokyo\"}")
-                .addHeader("Content-Type", "application/json"));
+                .setBody(htmlResponse)
+                .addHeader("Content-Type", "text/html"));
 
         String result = tool.execute(Map.of("query", "Tokyo"));
 
+        assertThat(result).contains("Search Results (DuckDuckGo Lite) for 'Tokyo':");
+        assertThat(result).contains("1. Tokyo - Wikipedia");
         assertThat(result).contains("Tokyo is the capital of Japan.");
-        assertThat(result).contains("Source: Wikipedia");
         assertThat(result).contains("Link: https://en.wikipedia.org/wiki/Tokyo");
     }
 
     @Test
-    void testPerformSearchRelatedTopics() throws Exception {
+    void testPerformSearchWithRedirect() throws Exception {
+        String htmlResponse = "<html><body>" +
+                "<table><tr>" +
+                "<td><a class=\"result-link\" href=\"/l/?uddg=https%3A%2F%2Fjava.com%2F&rut=...\">Java | Oracle</a></td>" +
+                "<td class=\"result-snippet\">Java Download.</td>" +
+                "</tr></table>" +
+                "</body></html>";
+
         mockWebServer.enqueue(new MockResponse()
-                .setBody(
-                        "{\"AbstractText\": \"\", \"RelatedTopics\": [{\"Text\": \"Java is a programming language\", \"FirstURL\": \"https://java.com\"}]}")
-                .addHeader("Content-Type", "application/json"));
+                .setBody(htmlResponse)
+                .addHeader("Content-Type", "text/html"));
 
         String result = tool.execute(Map.of("query", "Java"));
 
-        assertThat(result).contains("Related Information:");
-        assertThat(result).contains("Java is a programming language");
-        assertThat(result).contains("Link: https://java.com");
+        assertThat(result).contains("1. Java | Oracle");
+        assertThat(result).contains("Link: https://java.com/");
     }
 
     @Test
     void testNoResults() throws Exception {
+        String htmlResponse = "<html><body>No results found</body></html>";
+
         mockWebServer.enqueue(new MockResponse()
-                .setBody("{\"AbstractText\": \"\", \"RelatedTopics\": []}")
-                .addHeader("Content-Type", "application/json"));
+                .setBody(htmlResponse)
+                .addHeader("Content-Type", "text/html"));
 
         String result = tool.execute(Map.of("query", "UnknownThing"));
 
-        assertThat(result).contains("No instant answer found");
+        assertThat(result).contains("Error: No search results found for 'UnknownThing' on DuckDuckGo Lite.");
     }
 
     @Test
@@ -90,6 +104,6 @@ class DuckDuckGoSearchToolTest {
 
         String result = tool.execute(Map.of("query", "error"));
 
-        assertThat(result).contains("DuckDuckGo API error (HTTP 500)");
+        assertThat(result).contains("Error: DuckDuckGo Lite returned HTTP 500");
     }
 }

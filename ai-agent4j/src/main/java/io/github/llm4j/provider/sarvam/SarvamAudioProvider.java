@@ -83,7 +83,9 @@ public class SarvamAudioProvider implements SpeechToTextProvider {
             String responseJson = httpClient.postMultipart(url, parts, headers);
             return parseResponse(responseJson);
 
-        } catch (IOException e) { // Catching Exception because postMultipart might throw runtime exceptions or
+        } catch (ProviderException e) {
+            throw e;
+        } catch (IOException | io.github.llm4j.exception.LLMException e) { // Catching Exception because postMultipart might throw runtime exceptions or
                                 // checked if modified
             throw new ProviderException(getProviderName(), "Failed to transcribe audio", e);
         }

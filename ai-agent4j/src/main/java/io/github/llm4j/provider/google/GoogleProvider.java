@@ -58,7 +58,9 @@ public class GoogleProvider implements DescribableProvider {
             logger.debug("Calling Google API URL: {}", url);
             String responseJson = httpClient.post(url, requestJson, headers);
             return parseResponse(responseJson, model);
-        } catch (IOException e) {
+        } catch (ProviderException e) {
+            throw e;
+        } catch (IOException | LLMException e) {
             throw new ProviderException(getProviderName(), "Failed to process request", e);
         }
     }
@@ -98,7 +100,9 @@ public class GoogleProvider implements DescribableProvider {
                 return objectMapper.convertValue(root.get("models"), String[].class);
             }
             return new String[0];
-        } catch (IOException e) {
+        } catch (ProviderException e) {
+            throw e;
+        } catch (IOException | LLMException e) {
             logger.error("Failed to list models from Google API", e);
             throw new ProviderException(getProviderName(), "Failed to list models", e);
         }
@@ -125,7 +129,9 @@ public class GoogleProvider implements DescribableProvider {
                 }
             }
             return null;
-        } catch (IOException e) {
+        } catch (ProviderException e) {
+            throw e;
+        } catch (IOException | LLMException e) {
             logger.error("Failed to get available models from Google API", e);
             throw new ProviderException(getProviderName(), "Failed to get available models", e);
         }

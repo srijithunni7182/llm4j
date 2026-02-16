@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.exception.AuthenticationException;
 import io.github.llm4j.exception.InvalidRequestException;
+import io.github.llm4j.exception.LLMException;
 import io.github.llm4j.exception.ProviderException;
 import io.github.llm4j.http.HttpClientWrapper;
 import io.github.llm4j.model.LLMRequest;
@@ -57,7 +58,7 @@ public class SarvamChatProvider implements LLMProvider {
             logger.debug("Calling Sarvam AI Chat API URL: {}", url);
             String responseJson = httpClient.post(url, requestJson, headers);
             return parseResponse(responseJson, request.getModel());
-        } catch (IOException e) {
+        } catch (IOException | LLMException e) {
             throw new ProviderException(getProviderName(), "Failed to process chat request", e);
         }
     }

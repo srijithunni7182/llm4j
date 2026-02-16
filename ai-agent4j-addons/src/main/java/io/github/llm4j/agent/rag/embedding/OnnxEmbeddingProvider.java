@@ -48,6 +48,17 @@ public class OnnxEmbeddingProvider implements EmbeddingProvider, AutoCloseable {
         logger.info("Initialized OnnxEmbeddingProvider with model: {} and dimensions: {}", modelPath, dimensions);
     }
 
+    OnnxEmbeddingProvider(OrtEnvironment env, OrtSession session, HuggingFaceTokenizer tokenizer) throws OrtException {
+        this.env = env;
+        this.session = session;
+        this.tokenizer = tokenizer;
+
+        // Extract dimensions from model output
+        TensorInfo info = (TensorInfo) session.getOutputInfo().values().iterator().next().getInfo();
+        long[] shape = info.getShape();
+        this.dimensions = (int) shape[shape.length - 1];
+    }
+
     @Override
     public float[] embed(String text) {
         return embedBatch(Collections.singletonList(text)).get(0);

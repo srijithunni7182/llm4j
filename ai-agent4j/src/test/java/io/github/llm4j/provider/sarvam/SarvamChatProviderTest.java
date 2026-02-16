@@ -70,7 +70,7 @@ class SarvamChatProviderTest {
         // Assert
         assertNotNull(response);
         assertEquals("Hi there!", response.getContent());
-        assertEquals("STOP", response.getFinishReason());
+        assertEquals(LLMResponse.FinishReason.STOP, response.getFinishReason());
     }
 
     @Test

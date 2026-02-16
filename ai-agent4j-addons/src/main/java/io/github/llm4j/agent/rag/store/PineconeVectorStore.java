@@ -30,6 +30,11 @@ public class PineconeVectorStore implements VectorStore {
         this.namespace = namespace != null ? namespace : "";
     }
 
+    protected PineconeVectorStore(Index index, String namespace) {
+        this.index = index;
+        this.namespace = namespace != null ? namespace : "";
+    }
+
     @Override
     public void add(String id, float[] embedding, Map<String, Object> metadata) {
         List<Float> values = toFloatList(embedding);

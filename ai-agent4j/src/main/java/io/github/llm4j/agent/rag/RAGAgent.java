@@ -94,10 +94,11 @@ public class RAGAgent {
             float[] embedding = embeddings.get(i);
 
             // Store chunk content in metadata
-            chunk.getMetadata().put("content", chunk.getContent());
-            chunk.getMetadata().put("documentId", document.getId());
+            java.util.Map<String, Object> metadata = new java.util.HashMap<>(chunk.getMetadata());
+            metadata.put("content", chunk.getContent());
+            metadata.put("documentId", document.getId());
 
-            vectorStore.add(chunk.getId(), embedding, chunk.getMetadata());
+            vectorStore.add(chunk.getId(), embedding, metadata);
         }
 
         logger.info("Added {} chunks from document {}", chunks.size(), document.getId());
