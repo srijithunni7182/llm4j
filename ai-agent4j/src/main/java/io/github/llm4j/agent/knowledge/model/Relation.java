@@ -2,9 +2,7 @@ package io.github.llm4j.agent.knowledge.model;
 
 import java.util.*;
 
-/**
- * Represents a relationship between entities in a knowledge graph.
- */
+/** Represents a relationship between entities in a knowledge graph. */
 public class Relation {
 
     private final String type;
@@ -35,8 +33,7 @@ public class Relation {
         private String type;
         private Map<String, Object> properties = new HashMap<>();
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder type(String type) {
             this.type = type;
@@ -60,9 +57,6 @@ public class Relation {
 
     @Override
     public String toString() {
-        return "Relation{" +
-                "type='" + type + '\'' +
-                ", properties=" + properties.size() +
-                '}';
+        return "Relation{" + "type='" + type + '\'' + ", properties=" + properties.size() + '}';
     }
 }

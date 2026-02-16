@@ -1,12 +1,10 @@
 package io.github.llm4j.agent.persona;
 
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Unit tests for PersonaLibrary
- */
+import org.junit.jupiter.api.Test;
+
+/** Unit tests for PersonaLibrary */
 class PersonaLibraryTest {
 
     @Test
@@ -86,14 +84,14 @@ class PersonaLibraryTest {
     @Test
     void testAllPersonasGenerateValidPrompts() {
         AgentPersona[] personas = {
-                PersonaLibrary.technicalAnalyst(),
-                PersonaLibrary.creativeWriter(),
-                PersonaLibrary.customerSupport(),
-                PersonaLibrary.softwareDeveloper(),
-                PersonaLibrary.researchScientist(),
-                PersonaLibrary.businessConsultant(),
-                PersonaLibrary.educator(),
-                PersonaLibrary.medicalAdvisor()
+            PersonaLibrary.technicalAnalyst(),
+            PersonaLibrary.creativeWriter(),
+            PersonaLibrary.customerSupport(),
+            PersonaLibrary.softwareDeveloper(),
+            PersonaLibrary.researchScientist(),
+            PersonaLibrary.businessConsultant(),
+            PersonaLibrary.educator(),
+            PersonaLibrary.medicalAdvisor()
         };
 
         for (AgentPersona persona : personas) {

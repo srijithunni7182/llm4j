@@ -1,17 +1,14 @@
 package io.github.llm4j.agent.rag;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.llm4j.agent.rag.store.InMemoryVectorStore;
 import io.github.llm4j.agent.rag.store.VectorStore;
+import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.*;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * Unit tests for InMemoryVectorStore
- */
+/** Unit tests for InMemoryVectorStore */
 class InMemoryVectorStoreTest {
 
     private InMemoryVectorStore vectorStore;
@@ -23,9 +20,9 @@ class InMemoryVectorStoreTest {
 
     @Test
     void testAddAndSearch() {
-        float[] embedding1 = { 1.0f, 0.0f, 0.0f };
-        float[] embedding2 = { 0.0f, 1.0f, 0.0f };
-        float[] embedding3 = { 0.0f, 0.0f, 1.0f };
+        float[] embedding1 = {1.0f, 0.0f, 0.0f};
+        float[] embedding2 = {0.0f, 1.0f, 0.0f};
+        float[] embedding3 = {0.0f, 0.0f, 1.0f};
 
         vectorStore.add("vec1", embedding1, Map.of("type", "A"));
         vectorStore.add("vec2", embedding2, Map.of("type", "B"));
@@ -38,14 +35,15 @@ class InMemoryVectorStoreTest {
 
         assertThat(results).hasSize(2);
         assertThat(results.get(0).getId()).isEqualTo("vec1"); // Should be most similar to itself
-        assertThat(results.get(0).getSimilarity()).isCloseTo(1.0f, org.assertj.core.data.Offset.offset(0.01f));
+        assertThat(results.get(0).getSimilarity())
+                .isCloseTo(1.0f, org.assertj.core.data.Offset.offset(0.01f));
     }
 
     @Test
     void testCosineSimilarity() {
         // Identical vectors should have similarity of 1
-        float[] vec1 = { 1.0f, 2.0f, 3.0f };
-        float[] vec2 = { 1.0f, 2.0f, 3.0f };
+        float[] vec1 = {1.0f, 2.0f, 3.0f};
+        float[] vec2 = {1.0f, 2.0f, 3.0f};
 
         vectorStore.add("vec1", vec1, new HashMap<>());
         vectorStore.add("vec2", vec2, new HashMap<>());
@@ -54,13 +52,15 @@ class InMemoryVectorStoreTest {
 
         assertThat(results).hasSize(2);
         // Both should have similarity close to 1
-        assertThat(results.get(0).getSimilarity()).isCloseTo(1.0f, org.assertj.core.data.Offset.offset(0.01f));
-        assertThat(results.get(1).getSimilarity()).isCloseTo(1.0f, org.assertj.core.data.Offset.offset(0.01f));
+        assertThat(results.get(0).getSimilarity())
+                .isCloseTo(1.0f, org.assertj.core.data.Offset.offset(0.01f));
+        assertThat(results.get(1).getSimilarity())
+                .isCloseTo(1.0f, org.assertj.core.data.Offset.offset(0.01f));
     }
 
     @Test
     void testMetadataFiltering() {
-        float[] embedding = { 1.0f, 0.0f, 0.0f };
+        float[] embedding = {1.0f, 0.0f, 0.0f};
 
         vectorStore.add("vec1", embedding, Map.of("category", "science", "year", 2020));
         vectorStore.add("vec2", embedding, Map.of("category", "history", "year", 2020));
@@ -76,7 +76,7 @@ class InMemoryVectorStoreTest {
 
     @Test
     void testDelete() {
-        float[] embedding = { 1.0f, 0.0f, 0.0f };
+        float[] embedding = {1.0f, 0.0f, 0.0f};
         vectorStore.add("vec1", embedding, new HashMap<>());
 
         assertThat(vectorStore.size()).isEqualTo(1);
@@ -92,8 +92,8 @@ class InMemoryVectorStoreTest {
 
     @Test
     void testClear() {
-        vectorStore.add("vec1", new float[] { 1.0f, 0.0f }, new HashMap<>());
-        vectorStore.add("vec2", new float[] { 0.0f, 1.0f }, new HashMap<>());
+        vectorStore.add("vec1", new float[] {1.0f, 0.0f}, new HashMap<>());
+        vectorStore.add("vec2", new float[] {0.0f, 1.0f}, new HashMap<>());
 
         assertThat(vectorStore.size()).isEqualTo(2);
 
@@ -103,10 +103,14 @@ class InMemoryVectorStoreTest {
 
     @Test
     void testBatchAdd() {
-        List<VectorStore.VectorEntry> entries = Arrays.asList(
-                new VectorStore.VectorEntry("vec1", new float[] { 1.0f, 0.0f }, Map.of("id", 1)),
-                new VectorStore.VectorEntry("vec2", new float[] { 0.0f, 1.0f }, Map.of("id", 2)),
-                new VectorStore.VectorEntry("vec3", new float[] { 1.0f, 1.0f }, Map.of("id", 3)));
+        List<VectorStore.VectorEntry> entries =
+                Arrays.asList(
+                        new VectorStore.VectorEntry(
+                                "vec1", new float[] {1.0f, 0.0f}, Map.of("id", 1)),
+                        new VectorStore.VectorEntry(
+                                "vec2", new float[] {0.0f, 1.0f}, Map.of("id", 2)),
+                        new VectorStore.VectorEntry(
+                                "vec3", new float[] {1.0f, 1.0f}, Map.of("id", 3)));
 
         vectorStore.addBatch(entries);
         assertThat(vectorStore.size()).isEqualTo(3);
@@ -115,11 +119,11 @@ class InMemoryVectorStoreTest {
     @Test
     void testTopKLimiting() {
         for (int i = 0; i < 10; i++) {
-            float[] embedding = new float[] { (float) i, 0.0f };
+            float[] embedding = new float[] {(float) i, 0.0f};
             vectorStore.add("vec" + i, embedding, new HashMap<>());
         }
 
-        float[] query = { 5.0f, 0.0f };
+        float[] query = {5.0f, 0.0f};
         List<VectorStore.SearchResult> results = vectorStore.search(query, 3);
 
         assertThat(results).hasSize(3);
@@ -127,7 +131,7 @@ class InMemoryVectorStoreTest {
 
     @Test
     void testEmptyStoreSearch() {
-        float[] query = { 1.0f, 0.0f };
+        float[] query = {1.0f, 0.0f};
         List<VectorStore.SearchResult> results = vectorStore.search(query, 5);
 
         assertThat(results).isEmpty();

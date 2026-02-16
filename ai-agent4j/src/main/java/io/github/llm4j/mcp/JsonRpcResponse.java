@@ -14,8 +14,7 @@ public class JsonRpcResponse extends JsonRpcMessage {
     @JsonProperty("error")
     private JsonRpcError error;
 
-    public JsonRpcResponse() {
-    }
+    public JsonRpcResponse() {}
 
     public Object getId() {
         return id;

@@ -13,20 +13,15 @@ import ai.djl.training.util.ProgressBar;
 import ai.djl.translate.TranslateException;
 import ai.djl.translate.Translator;
 import ai.djl.translate.TranslatorContext;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
 /**
- * Local embedding provider using Deep Java Library (DJL).
- * Supports PyTorch, TensorFlow, and other engines based on registered
- * dependencies.
+ * Local embedding provider using Deep Java Library (DJL). Supports PyTorch, TensorFlow, and other
+ * engines based on registered dependencies.
  */
 public class DjlEmbeddingProvider implements EmbeddingProvider, AutoCloseable {
 
@@ -41,10 +36,11 @@ public class DjlEmbeddingProvider implements EmbeddingProvider, AutoCloseable {
     }
 
     public DjlEmbeddingProvider(String modelUrl, String engine) throws ModelException, IOException {
-        Criteria.Builder<String, float[]> builder = Criteria.builder()
-                .setTypes(String.class, float[].class)
-                .optModelUrls(modelUrl)
-                .optProgress(new ProgressBar());
+        Criteria.Builder<String, float[]> builder =
+                Criteria.builder()
+                        .setTypes(String.class, float[].class)
+                        .optModelUrls(modelUrl)
+                        .optProgress(new ProgressBar());
 
         if (engine != null) {
             builder.optEngine(engine);
@@ -64,10 +60,14 @@ public class DjlEmbeddingProvider implements EmbeddingProvider, AutoCloseable {
             throw new IOException("Failed to perform dry run for dimension extraction", e);
         }
 
-        logger.info("Initialized DjlEmbeddingProvider with model: {} and dimensions: {}", modelUrl, dimensions);
+        logger.info(
+                "Initialized DjlEmbeddingProvider with model: {} and dimensions: {}",
+                modelUrl,
+                dimensions);
     }
-    
-    DjlEmbeddingProvider(ZooModel<String, float[]> model, Predictor<String, float[]> predictor, int dimensions) {
+
+    DjlEmbeddingProvider(
+            ZooModel<String, float[]> model, Predictor<String, float[]> predictor, int dimensions) {
         this.model = model;
         this.predictor = predictor;
         this.dimensions = dimensions;
@@ -100,15 +100,11 @@ public class DjlEmbeddingProvider implements EmbeddingProvider, AutoCloseable {
 
     @Override
     public void close() {
-        if (predictor != null)
-            predictor.close();
-        if (model != null)
-            model.close();
+        if (predictor != null) predictor.close();
+        if (model != null) model.close();
     }
 
-    /**
-     * A basic translator for BERT-like embedding models.
-     */
+    /** A basic translator for BERT-like embedding models. */
     private static class DefaultBertTranslator implements Translator<String, float[]> {
         private HuggingFaceTokenizer tokenizer;
 
@@ -116,12 +112,13 @@ public class DjlEmbeddingProvider implements EmbeddingProvider, AutoCloseable {
         public void prepare(TranslatorContext ctx) throws IOException {
             Path modelPath = ctx.getModel().getModelPath();
             Path tokenizerPath = modelPath.resolve("tokenizer.json");
-            this.tokenizer = HuggingFaceTokenizer.builder()
-                    .optTokenizerPath(tokenizerPath)
-                    .optPadding(true)
-                    .optTruncation(true)
-                    .optMaxLength(512)
-                    .build();
+            this.tokenizer =
+                    HuggingFaceTokenizer.builder()
+                            .optTokenizerPath(tokenizerPath)
+                            .optPadding(true)
+                            .optTruncation(true)
+                            .optMaxLength(512)
+                            .build();
         }
 
         @Override
@@ -171,7 +168,7 @@ public class DjlEmbeddingProvider implements EmbeddingProvider, AutoCloseable {
             NDArray lastHiddenState = list.get(0);
 
             // Simple Mean Pooling
-            NDArray meanPooled = lastHiddenState.mean(new int[] { 0 });
+            NDArray meanPooled = lastHiddenState.mean(new int[] {0});
 
             // Normalize
             NDArray normalized = meanPooled.div(meanPooled.norm());
@@ -180,8 +177,7 @@ public class DjlEmbeddingProvider implements EmbeddingProvider, AutoCloseable {
         }
 
         public void close() {
-            if (tokenizer != null)
-                tokenizer.close();
+            if (tokenizer != null) tokenizer.close();
         }
     }
 }

@@ -3,22 +3,19 @@ package io.github.llm4j.agent.tools.openapi;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
-import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.parser.OpenAPIV3Parser;
 import io.swagger.v3.parser.core.models.ParseOptions;
 import io.swagger.v3.parser.core.models.SwaggerParseResult;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Parser for OpenAPI/Swagger specifications.
- */
+/** Parser for OpenAPI/Swagger specifications. */
 public class OpenAPIParser {
 
     /**
@@ -36,8 +33,8 @@ public class OpenAPIParser {
         SwaggerParseResult result = new OpenAPIV3Parser().readLocation(location, null, options);
 
         if (result.getMessages() != null && !result.getMessages().isEmpty()) {
-            throw new IllegalArgumentException("Failed to parse OpenAPI spec: " +
-                    String.join(", ", result.getMessages()));
+            throw new IllegalArgumentException(
+                    "Failed to parse OpenAPI spec: " + String.join(", ", result.getMessages()));
         }
 
         OpenAPI openAPI = result.getOpenAPI();
@@ -52,29 +49,40 @@ public class OpenAPIParser {
         // Extract servers
         List<String> servers = new ArrayList<>();
         if (openAPI.getServers() != null) {
-            servers = openAPI.getServers().stream()
-                    .map(Server::getUrl)
-                    .collect(Collectors.toList());
+            servers =
+                    openAPI.getServers().stream().map(Server::getUrl).collect(Collectors.toList());
         }
 
         // Extract endpoints
         List<OpenAPIEndpoint> endpoints = new ArrayList<>();
         if (openAPI.getPaths() != null) {
-            openAPI.getPaths().forEach((path, pathItem) -> {
-                endpoints.addAll(extractEndpoints(path, pathItem));
-            });
+            openAPI.getPaths()
+                    .forEach(
+                            (path, pathItem) -> {
+                                endpoints.addAll(extractEndpoints(path, pathItem));
+                            });
         }
 
         // Extract security schemes
         Map<String, Object> securitySchemes = new HashMap<>();
-        if (openAPI.getComponents() != null && openAPI.getComponents().getSecuritySchemes() != null) {
-            openAPI.getComponents().getSecuritySchemes().forEach((name, scheme) -> {
-                Map<String, Object> schemeMap = new HashMap<>();
-                schemeMap.put("type", scheme.getType() != null ? scheme.getType().toString() : null);
-                schemeMap.put("in", scheme.getIn() != null ? scheme.getIn().toString() : null);
-                schemeMap.put("name", scheme.getName());
-                securitySchemes.put(name, schemeMap);
-            });
+        if (openAPI.getComponents() != null
+                && openAPI.getComponents().getSecuritySchemes() != null) {
+            openAPI.getComponents()
+                    .getSecuritySchemes()
+                    .forEach(
+                            (name, scheme) -> {
+                                Map<String, Object> schemeMap = new HashMap<>();
+                                schemeMap.put(
+                                        "type",
+                                        scheme.getType() != null
+                                                ? scheme.getType().toString()
+                                                : null);
+                                schemeMap.put(
+                                        "in",
+                                        scheme.getIn() != null ? scheme.getIn().toString() : null);
+                                schemeMap.put("name", scheme.getName());
+                                securitySchemes.put(name, schemeMap);
+                            });
         }
 
         return OpenAPISpec.builder()
@@ -115,14 +123,15 @@ public class OpenAPIParser {
         if (operation.getParameters() != null) {
             for (Parameter param : operation.getParameters()) {
                 Schema schema = param.getSchema();
-                parameters.add(OpenAPIParameter.builder()
-                        .name(param.getName())
-                        .in(param.getIn())
-                        .description(param.getDescription())
-                        .required(param.getRequired() != null ? param.getRequired() : false)
-                        .type(schema != null ? schema.getType() : "string")
-                        .format(schema != null ? schema.getFormat() : null)
-                        .build());
+                parameters.add(
+                        OpenAPIParameter.builder()
+                                .name(param.getName())
+                                .in(param.getIn())
+                                .description(param.getDescription())
+                                .required(param.getRequired() != null ? param.getRequired() : false)
+                                .type(schema != null ? schema.getType() : "string")
+                                .format(schema != null ? schema.getFormat() : null)
+                                .build());
             }
         }
 

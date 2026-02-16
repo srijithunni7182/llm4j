@@ -2,10 +2,7 @@ package io.github.llm4j.agent.rag.document;
 
 import java.util.*;
 
-/**
- * Represents a chunk of a document with its content, position, and optional
- * embedding.
- */
+/** Represents a chunk of a document with its content, position, and optional embedding. */
 public class DocumentChunk {
 
     private final String id;
@@ -75,8 +72,7 @@ public class DocumentChunk {
         private Map<String, Object> metadata = new HashMap<>();
         private float[] embedding;
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder id(String id) {
             this.id = id;
@@ -125,11 +121,17 @@ public class DocumentChunk {
 
     @Override
     public String toString() {
-        return "DocumentChunk{" +
-                "id='" + id + '\'' +
-                ", documentId='" + documentId + '\'' +
-                ", contentLength=" + content.length() +
-                ", hasEmbedding=" + hasEmbedding() +
-                '}';
+        return "DocumentChunk{"
+                + "id='"
+                + id
+                + '\''
+                + ", documentId='"
+                + documentId
+                + '\''
+                + ", contentLength="
+                + content.length()
+                + ", hasEmbedding="
+                + hasEmbedding()
+                + '}';
     }
 }

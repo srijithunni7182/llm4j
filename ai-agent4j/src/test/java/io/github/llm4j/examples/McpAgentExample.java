@@ -1,16 +1,12 @@
 package io.github.llm4j.examples;
 
-import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.mcp.McpClient;
 import io.github.llm4j.mcp.McpToolAdapter;
 import io.github.llm4j.mcp.StdioMcpTransport;
-
 import java.util.List;
 import java.util.Map;
 
-/**
- * Example of using MCP with AI Agent4J.
- */
+/** Example of using MCP with AI Agent4J. */
 public class McpAgentExample {
 
     public static void main(String[] args) throws Exception {
@@ -18,9 +14,14 @@ public class McpAgentExample {
         // Use the Real MCP Filesystem Server via npx
         // We expose the current project root directory
         String projectRoot = System.getProperty("user.dir");
-        StdioMcpTransport transport = new StdioMcpTransport(
-                List.of("npx", "-y", "@modelcontextprotocol/server-filesystem", projectRoot),
-                null);
+        StdioMcpTransport transport =
+                new StdioMcpTransport(
+                        List.of(
+                                "npx",
+                                "-y",
+                                "@modelcontextprotocol/server-filesystem",
+                                projectRoot),
+                        null);
         try (McpClient mcpClient = new McpClient(transport)) {
             mcpClient.initialize();
 

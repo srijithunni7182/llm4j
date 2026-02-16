@@ -14,8 +14,7 @@ public class JsonRpcError {
     @JsonProperty("data")
     private Object data;
 
-    public JsonRpcError() {
-    }
+    public JsonRpcError() {}
 
     public JsonRpcError(int code, String message, Object data) {
         this.code = code;

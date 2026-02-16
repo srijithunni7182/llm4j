@@ -1,12 +1,11 @@
 package io.github.llm4j.audit;
 
-import io.github.llm4j.agent.AgentResult;
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
+import io.github.llm4j.agent.AgentResult;
 import java.time.Instant;
 import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 class AuditEventTest {
 
@@ -17,9 +16,7 @@ class AuditEventTest {
 
     @Test
     void testBuilder_allowsNullUserId() {
-        AuditEvent event = AuditEvent.builder()
-                .sessionId("session-123")
-                .build();
+        AuditEvent event = AuditEvent.builder().sessionId("session-123").build();
 
         assertNull(event.getUserId());
     }
@@ -27,9 +24,7 @@ class AuditEventTest {
     @Test
     void testBuilder_defaultsToCurrentTimestamp() {
         Instant before = Instant.now();
-        AuditEvent event = AuditEvent.builder()
-                .sessionId("session-123")
-                .build();
+        AuditEvent event = AuditEvent.builder().sessionId("session-123").build();
         Instant after = Instant.now();
 
         assertNotNull(event.getTimestamp());
@@ -40,10 +35,8 @@ class AuditEventTest {
     @Test
     void testBuilder_customTimestamp() {
         Instant customTime = Instant.parse("2024-01-01T12:00:00Z");
-        AuditEvent event = AuditEvent.builder()
-                .sessionId("session-123")
-                .timestamp(customTime)
-                .build();
+        AuditEvent event =
+                AuditEvent.builder().sessionId("session-123").timestamp(customTime).build();
 
         assertEquals(customTime, event.getTimestamp());
     }
@@ -51,18 +44,17 @@ class AuditEventTest {
     @Test
     void testBuilder_allFields() {
         Instant timestamp = Instant.now();
-        AgentResult result = AgentResult.builder()
-                .finalAnswer("Test answer")
-                .build();
+        AgentResult result = AgentResult.builder().finalAnswer("Test answer").build();
 
-        AuditEvent event = AuditEvent.builder()
-                .sessionId("session-123")
-                .userId("user-456")
-                .agentResult(result)
-                .timestamp(timestamp)
-                .addMetadata("key1", "value1")
-                .addMetadata("key2", 123)
-                .build();
+        AuditEvent event =
+                AuditEvent.builder()
+                        .sessionId("session-123")
+                        .userId("user-456")
+                        .agentResult(result)
+                        .timestamp(timestamp)
+                        .addMetadata("key1", "value1")
+                        .addMetadata("key2", 123)
+                        .build();
 
         assertEquals("session-123", event.getSessionId());
         assertEquals("user-456", event.getUserId());
@@ -74,10 +66,8 @@ class AuditEventTest {
 
     @Test
     void testMetadata_isDefensiveCopy() {
-        AuditEvent event = AuditEvent.builder()
-                .sessionId("session-123")
-                .addMetadata("key", "value")
-                .build();
+        AuditEvent event =
+                AuditEvent.builder().sessionId("session-123").addMetadata("key", "value").build();
 
         Map<String, Object> metadata = event.getMetadata();
         metadata.put("newKey", "newValue");
@@ -90,17 +80,19 @@ class AuditEventTest {
     void testEquals_sameValues() {
         Instant timestamp = Instant.now();
 
-        AuditEvent event1 = AuditEvent.builder()
-                .sessionId("session-123")
-                .userId("user-456")
-                .timestamp(timestamp)
-                .build();
+        AuditEvent event1 =
+                AuditEvent.builder()
+                        .sessionId("session-123")
+                        .userId("user-456")
+                        .timestamp(timestamp)
+                        .build();
 
-        AuditEvent event2 = AuditEvent.builder()
-                .sessionId("session-123")
-                .userId("user-456")
-                .timestamp(timestamp)
-                .build();
+        AuditEvent event2 =
+                AuditEvent.builder()
+                        .sessionId("session-123")
+                        .userId("user-456")
+                        .timestamp(timestamp)
+                        .build();
 
         assertEquals(event1, event2);
     }
@@ -109,15 +101,11 @@ class AuditEventTest {
     void testEquals_differentSessionId() {
         Instant timestamp = Instant.now();
 
-        AuditEvent event1 = AuditEvent.builder()
-                .sessionId("session-123")
-                .timestamp(timestamp)
-                .build();
+        AuditEvent event1 =
+                AuditEvent.builder().sessionId("session-123").timestamp(timestamp).build();
 
-        AuditEvent event2 = AuditEvent.builder()
-                .sessionId("session-456")
-                .timestamp(timestamp)
-                .build();
+        AuditEvent event2 =
+                AuditEvent.builder().sessionId("session-456").timestamp(timestamp).build();
 
         assertNotEquals(event1, event2);
     }
@@ -126,11 +114,12 @@ class AuditEventTest {
     void testHashCode_consistent() {
         Instant timestamp = Instant.now();
 
-        AuditEvent event = AuditEvent.builder()
-                .sessionId("session-123")
-                .userId("user-456")
-                .timestamp(timestamp)
-                .build();
+        AuditEvent event =
+                AuditEvent.builder()
+                        .sessionId("session-123")
+                        .userId("user-456")
+                        .timestamp(timestamp)
+                        .build();
 
         int hash1 = event.hashCode();
         int hash2 = event.hashCode();
@@ -140,10 +129,7 @@ class AuditEventTest {
 
     @Test
     void testToString_readable() {
-        AuditEvent event = AuditEvent.builder()
-                .sessionId("session-123")
-                .userId("user-456")
-                .build();
+        AuditEvent event = AuditEvent.builder().sessionId("session-123").userId("user-456").build();
 
         String str = event.toString();
         assertTrue(str.contains("session-123"));

@@ -3,18 +3,15 @@ package io.github.llm4j.agent.tools;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.llm4j.agent.Tool;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
-/**
- * A tool that allows agents to search the web using Google Custom Search API.
- */
+/** A tool that allows agents to search the web using Google Custom Search API. */
 public class WebSearchTool implements Tool {
 
     private final String apiKey;
@@ -40,8 +37,8 @@ public class WebSearchTool implements Tool {
 
     @Override
     public String getDescription() {
-        return "Useful for searching the web for current information, facts, and news. " +
-                "Input should be a JSON object with a 'query' field, e.g., {\"query\": \"current population of Tokyo\"}.";
+        return "Useful for searching the web for current information, facts, and news. "
+                + "Input should be a JSON object with a 'query' field, e.g., {\"query\": \"current population of Tokyo\"}.";
     }
 
     @Override
@@ -60,8 +57,8 @@ public class WebSearchTool implements Tool {
         }
 
         if (cx == null || cx.isEmpty()) {
-            return "Error: Google Custom Search CX (Search Engine ID) not configured. " +
-                    "Please set the GOOGLE_SEARCH_CX environment variable or configure it in AgentConfiguration.";
+            return "Error: Google Custom Search CX (Search Engine ID) not configured. "
+                    + "Please set the GOOGLE_SEARCH_CX environment variable or configure it in AgentConfiguration.";
         }
 
         try {
@@ -73,16 +70,17 @@ public class WebSearchTool implements Tool {
 
     private String performSearch(String query) throws IOException {
         String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
-        String url = String.format("https://www.googleapis.com/customsearch/v1?key=%s&cx=%s&q=%s",
-                apiKey, cx, encodedQuery);
+        String url =
+                String.format(
+                        "https://www.googleapis.com/customsearch/v1?key=%s&cx=%s&q=%s",
+                        apiKey, cx, encodedQuery);
 
-        Request request = new Request.Builder()
-                .url(url)
-                .build();
+        Request request = new Request.Builder().url(url).build();
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                String errorBody = response.body() != null ? response.body().string() : "No error body";
+                String errorBody =
+                        response.body() != null ? response.body().string() : "No error body";
                 return "Search API error (HTTP " + response.code() + "): " + errorBody;
             }
 

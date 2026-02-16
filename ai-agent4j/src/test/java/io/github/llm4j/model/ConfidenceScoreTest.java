@@ -1,8 +1,8 @@
 package io.github.llm4j.model;
 
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.*;
+
+import org.junit.jupiter.api.Test;
 
 class ConfidenceScoreTest {
 
@@ -14,17 +14,18 @@ class ConfidenceScoreTest {
 
     @Test
     void testBuilder_validateScoreRange() {
-        ConfidenceScore score = ConfidenceScore.builder()
-                .score(0.75)
-                .build();
+        ConfidenceScore score = ConfidenceScore.builder().score(0.75).build();
         assertEquals(0.75, score.getScore());
     }
 
     @Test
     void testBuilder_throwsOnInvalidScore() {
-        assertThrows(IllegalArgumentException.class, () -> ConfidenceScore.builder().score(-0.1).build());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ConfidenceScore.builder().score(-0.1).build());
 
-        assertThrows(IllegalArgumentException.class, () -> ConfidenceScore.builder().score(1.1).build());
+        assertThrows(
+                IllegalArgumentException.class, () -> ConfidenceScore.builder().score(1.1).build());
     }
 
     @Test
@@ -82,10 +83,8 @@ class ConfidenceScoreTest {
 
     @Test
     void testReasoning_isPreserved() {
-        ConfidenceScore score = ConfidenceScore.builder()
-                .score(0.7)
-                .reasoning("All tools succeeded")
-                .build();
+        ConfidenceScore score =
+                ConfidenceScore.builder().score(0.7).reasoning("All tools succeeded").build();
         assertEquals("All tools succeeded", score.getReasoning());
     }
 
@@ -106,10 +105,7 @@ class ConfidenceScoreTest {
 
     @Test
     void testToString_readable() {
-        ConfidenceScore score = ConfidenceScore.builder()
-                .score(0.75)
-                .reasoning("test")
-                .build();
+        ConfidenceScore score = ConfidenceScore.builder().score(0.75).reasoning("test").build();
         String str = score.toString();
         assertTrue(str.contains("0.75"));
         assertTrue(str.contains("MEDIUM"));

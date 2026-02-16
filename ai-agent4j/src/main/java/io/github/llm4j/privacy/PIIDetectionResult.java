@@ -4,9 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Result of PII detection in text.
- */
+/** Result of PII detection in text. */
 public class PIIDetectionResult {
     private final List<PIIEntity> entities;
     private final boolean containsPII;
@@ -52,9 +50,11 @@ public class PIIDetectionResult {
 
     @Override
     public String toString() {
-        return "PIIDetectionResult{" +
-                "containsPII=" + containsPII +
-                ", entityCount=" + entities.size() +
-                '}';
+        return "PIIDetectionResult{"
+                + "containsPII="
+                + containsPII
+                + ", entityCount="
+                + entities.size()
+                + '}';
     }
 }

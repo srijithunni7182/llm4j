@@ -1,10 +1,9 @@
 package io.github.llm4j.config;
 
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.*;
 
 import java.time.Duration;
-
-import static org.assertj.core.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 class RetryPolicyTest {
 
@@ -28,11 +27,12 @@ class RetryPolicyTest {
 
     @Test
     void testExponentialBackoff() {
-        RetryPolicy policy = RetryPolicy.builder()
-                .backoffStrategy(RetryPolicy.BackoffStrategy.EXPONENTIAL)
-                .initialBackoff(Duration.ofMillis(100))
-                .maxBackoff(Duration.ofSeconds(10))
-                .build();
+        RetryPolicy policy =
+                RetryPolicy.builder()
+                        .backoffStrategy(RetryPolicy.BackoffStrategy.EXPONENTIAL)
+                        .initialBackoff(Duration.ofMillis(100))
+                        .maxBackoff(Duration.ofSeconds(10))
+                        .build();
 
         assertThat(policy.calculateBackoff(0)).isEqualTo(Duration.ofMillis(100));
         assertThat(policy.calculateBackoff(1)).isEqualTo(Duration.ofMillis(200));
@@ -42,11 +42,12 @@ class RetryPolicyTest {
 
     @Test
     void testLinearBackoff() {
-        RetryPolicy policy = RetryPolicy.builder()
-                .backoffStrategy(RetryPolicy.BackoffStrategy.LINEAR)
-                .initialBackoff(Duration.ofMillis(100))
-                .maxBackoff(Duration.ofSeconds(10))
-                .build();
+        RetryPolicy policy =
+                RetryPolicy.builder()
+                        .backoffStrategy(RetryPolicy.BackoffStrategy.LINEAR)
+                        .initialBackoff(Duration.ofMillis(100))
+                        .maxBackoff(Duration.ofSeconds(10))
+                        .build();
 
         assertThat(policy.calculateBackoff(0)).isEqualTo(Duration.ofMillis(100));
         assertThat(policy.calculateBackoff(1)).isEqualTo(Duration.ofMillis(200));
@@ -56,11 +57,12 @@ class RetryPolicyTest {
 
     @Test
     void testFixedBackoff() {
-        RetryPolicy policy = RetryPolicy.builder()
-                .backoffStrategy(RetryPolicy.BackoffStrategy.FIXED)
-                .initialBackoff(Duration.ofMillis(100))
-                .maxBackoff(Duration.ofSeconds(10))
-                .build();
+        RetryPolicy policy =
+                RetryPolicy.builder()
+                        .backoffStrategy(RetryPolicy.BackoffStrategy.FIXED)
+                        .initialBackoff(Duration.ofMillis(100))
+                        .maxBackoff(Duration.ofSeconds(10))
+                        .build();
 
         assertThat(policy.calculateBackoff(0)).isEqualTo(Duration.ofMillis(100));
         assertThat(policy.calculateBackoff(1)).isEqualTo(Duration.ofMillis(100));
@@ -69,11 +71,12 @@ class RetryPolicyTest {
 
     @Test
     void testMaxBackoff() {
-        RetryPolicy policy = RetryPolicy.builder()
-                .backoffStrategy(RetryPolicy.BackoffStrategy.EXPONENTIAL)
-                .initialBackoff(Duration.ofMillis(1000))
-                .maxBackoff(Duration.ofMillis(2000))
-                .build();
+        RetryPolicy policy =
+                RetryPolicy.builder()
+                        .backoffStrategy(RetryPolicy.BackoffStrategy.EXPONENTIAL)
+                        .initialBackoff(Duration.ofMillis(1000))
+                        .maxBackoff(Duration.ofMillis(2000))
+                        .build();
 
         // Should cap at maxBackoff
         assertThat(policy.calculateBackoff(0)).isEqualTo(Duration.ofMillis(1000));
@@ -83,9 +86,10 @@ class RetryPolicyTest {
 
     @Test
     void testCustomRetryableStatusCodes() {
-        RetryPolicy policy = RetryPolicy.builder()
-                .addRetryableStatusCode(418) // I'm a teapot
-                .build();
+        RetryPolicy policy =
+                RetryPolicy.builder()
+                        .addRetryableStatusCode(418) // I'm a teapot
+                        .build();
 
         assertThat(policy.isRetryable(418)).isTrue();
         assertThat(policy.isRetryable(500)).isFalse();

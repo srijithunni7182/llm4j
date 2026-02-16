@@ -8,12 +8,9 @@ import io.github.llm4j.exception.*;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.provider.google.GoogleProvider;
-
 import java.time.Duration;
 
-/**
- * Example demonstrating advanced configuration options.
- */
+/** Example demonstrating advanced configuration options. */
 public class AdvancedConfigExample {
 
     public static void main(String[] args) {
@@ -25,23 +22,25 @@ public class AdvancedConfigExample {
         }
 
         // Custom retry policy with exponential backoff
-        RetryPolicy customRetry = RetryPolicy.builder()
-                .maxRetries(5)
-                .backoffStrategy(RetryPolicy.BackoffStrategy.EXPONENTIAL)
-                .initialBackoff(Duration.ofMillis(500))
-                .maxBackoff(Duration.ofSeconds(60))
-                .addRetryableStatusCode(503) // Service unavailable
-                .build();
+        RetryPolicy customRetry =
+                RetryPolicy.builder()
+                        .maxRetries(5)
+                        .backoffStrategy(RetryPolicy.BackoffStrategy.EXPONENTIAL)
+                        .initialBackoff(Duration.ofMillis(500))
+                        .maxBackoff(Duration.ofSeconds(60))
+                        .addRetryableStatusCode(503) // Service unavailable
+                        .build();
 
         // Advanced configuration
-        LLMConfig config = LLMConfig.builder()
-                .apiKey(apiKey)
-                .defaultModel("gemini-1.5-flash")
-                .timeout(Duration.ofSeconds(90))
-                .connectTimeout(Duration.ofSeconds(30))
-                .retryPolicy(customRetry)
-                .enableLogging(true)
-                .build();
+        LLMConfig config =
+                LLMConfig.builder()
+                        .apiKey(apiKey)
+                        .defaultModel("gemini-1.5-flash")
+                        .timeout(Duration.ofSeconds(90))
+                        .connectTimeout(Duration.ofSeconds(30))
+                        .retryPolicy(customRetry)
+                        .enableLogging(true)
+                        .build();
 
         LLMClient client = new DefaultLLMClient(new GoogleProvider(config));
 
@@ -51,11 +50,12 @@ public class AdvancedConfigExample {
 
     private static void demonstrateErrorHandling(LLMClient client) {
         try {
-            LLMRequest request = LLMRequest.builder()
-                    .addUserMessage("Tell me a joke about programming")
-                    .temperature(0.8)
-                    .maxTokens(200)
-                    .build();
+            LLMRequest request =
+                    LLMRequest.builder()
+                            .addUserMessage("Tell me a joke about programming")
+                            .temperature(0.8)
+                            .maxTokens(200)
+                            .build();
 
             LLMResponse response = client.chat(request);
             System.out.println("Success!");

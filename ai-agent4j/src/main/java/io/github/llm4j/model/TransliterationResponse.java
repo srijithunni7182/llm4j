@@ -2,15 +2,14 @@ package io.github.llm4j.model;
 
 import java.util.Objects;
 
-/**
- * Standardized response for Transliteration.
- */
+/** Standardized response for Transliteration. */
 public class TransliterationResponse {
 
     private final String transliteratedText;
 
     public TransliterationResponse(String transliteratedText) {
-        this.transliteratedText = Objects.requireNonNull(transliteratedText, "Transliterated text cannot be null");
+        this.transliteratedText =
+                Objects.requireNonNull(transliteratedText, "Transliterated text cannot be null");
     }
 
     public String getTransliteratedText() {
@@ -19,8 +18,10 @@ public class TransliterationResponse {
 
     @Override
     public String toString() {
-        return "TransliterationResponse{" +
-                "transliteratedText='" + transliteratedText + '\'' +
-                '}';
+        return "TransliterationResponse{"
+                + "transliteratedText='"
+                + transliteratedText
+                + '\''
+                + '}';
     }
 }

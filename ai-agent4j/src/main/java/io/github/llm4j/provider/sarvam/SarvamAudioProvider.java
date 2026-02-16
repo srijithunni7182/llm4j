@@ -9,19 +9,18 @@ import io.github.llm4j.http.HttpClientWrapper;
 import io.github.llm4j.model.TranscriptionRequest;
 import io.github.llm4j.model.TranscriptionResponse;
 import io.github.llm4j.provider.SpeechToTextProvider;
+import java.io.File;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import okhttp3.Headers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException; // This was flagged as unused in other files but needed here for IO operations
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-
 /**
- * Implementation of {@link SpeechToTextProvider} for Sarvam AI.
- * Supports both /speech-to-text and /speech-to-text-translate.
+ * Implementation of {@link SpeechToTextProvider} for Sarvam AI. Supports both /speech-to-text and
+ * /speech-to-text-translate.
  */
 public class SarvamAudioProvider implements SpeechToTextProvider {
 
@@ -85,8 +84,11 @@ public class SarvamAudioProvider implements SpeechToTextProvider {
 
         } catch (ProviderException e) {
             throw e;
-        } catch (IOException | io.github.llm4j.exception.LLMException e) { // Catching Exception because postMultipart might throw runtime exceptions or
-                                // checked if modified
+        } catch (IOException
+                | io.github.llm4j.exception.LLMException
+                        e) { // Catching Exception because postMultipart might throw runtime
+            // exceptions or
+            // checked if modified
             throw new ProviderException(getProviderName(), "Failed to transcribe audio", e);
         }
     }
@@ -107,9 +109,7 @@ public class SarvamAudioProvider implements SpeechToTextProvider {
         // Content-Type is multipart/form-data, but OkHttp handles that when using
         // MultipartBody.
         // We just need the API key.
-        return new Headers.Builder()
-                .add("api-subscription-key", config.getApiKey())
-                .build();
+        return new Headers.Builder().add("api-subscription-key", config.getApiKey()).build();
     }
 
     private TranscriptionResponse parseResponse(String responseJson) throws IOException {

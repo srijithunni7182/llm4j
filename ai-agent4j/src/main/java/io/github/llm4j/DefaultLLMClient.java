@@ -3,13 +3,10 @@ package io.github.llm4j;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.provider.LLMProvider;
-
 import java.util.Objects;
 import java.util.stream.Stream;
 
-/**
- * Default implementation of LLMClient that delegates to a configured provider.
- */
+/** Default implementation of LLMClient that delegates to a configured provider. */
 public class DefaultLLMClient implements LLMClient {
 
     private final LLMProvider provider;

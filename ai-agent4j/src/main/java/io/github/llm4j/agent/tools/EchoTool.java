@@ -2,9 +2,7 @@ package io.github.llm4j.agent.tools;
 
 import io.github.llm4j.agent.Tool;
 
-/**
- * A simple echo tool that returns the input. Useful for testing.
- */
+/** A simple echo tool that returns the input. Useful for testing. */
 public class EchoTool implements Tool {
 
     @Override

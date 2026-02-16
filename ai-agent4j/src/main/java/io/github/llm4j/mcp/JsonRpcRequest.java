@@ -2,7 +2,6 @@ package io.github.llm4j.mcp;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.Map;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class JsonRpcRequest extends JsonRpcMessage {
@@ -15,8 +14,7 @@ public class JsonRpcRequest extends JsonRpcMessage {
     @JsonProperty("id")
     private Object id; // String or Number
 
-    public JsonRpcRequest() {
-    }
+    public JsonRpcRequest() {}
 
     public JsonRpcRequest(String method, Object params, Object id) {
         this.method = method;

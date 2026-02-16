@@ -1,11 +1,8 @@
 package io.github.llm4j.model;
 
-import java.util.Objects;
 import java.util.Optional;
 
-/**
- * Standardized request for Speech-to-Text (STT) transcription.
- */
+/** Standardized request for Speech-to-Text (STT) transcription. */
 public class TranscriptionRequest {
 
     // Optional prompts, language hints, etc. can be added here.
@@ -49,8 +46,7 @@ public class TranscriptionRequest {
         private Boolean withTimestamps;
         private Boolean translateToEnglish;
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder languageCode(String languageCode) {
             this.languageCode = languageCode;

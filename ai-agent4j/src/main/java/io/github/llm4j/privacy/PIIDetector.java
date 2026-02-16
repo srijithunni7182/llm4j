@@ -1,9 +1,8 @@
 package io.github.llm4j.privacy;
 
 /**
- * Interface for detecting and masking Personally Identifiable Information (PII)
- * in text.
- * Supports xAI compliance by enabling privacy-preserving data handling.
+ * Interface for detecting and masking Personally Identifiable Information (PII) in text. Supports
+ * xAI compliance by enabling privacy-preserving data handling.
  */
 public interface PIIDetector {
 
@@ -18,7 +17,7 @@ public interface PIIDetector {
     /**
      * Masks PII in the given text using the specified strategy.
      *
-     * @param text     the text containing PII
+     * @param text the text containing PII
      * @param strategy the masking strategy to use
      * @return text with PII masked
      */

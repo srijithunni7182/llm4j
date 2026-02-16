@@ -2,13 +2,10 @@ package io.github.llm4j.agent.knowledge;
 
 import io.github.llm4j.agent.knowledge.model.Entity;
 import io.github.llm4j.agent.knowledge.model.Triple;
-
 import java.util.List;
 import java.util.Map;
 
-/**
- * Interface for knowledge graph storage and querying.
- */
+/** Interface for knowledge graph storage and querying. */
 public interface KnowledgeGraph {
 
     /**
@@ -29,7 +26,7 @@ public interface KnowledgeGraph {
     /**
      * Finds entities by type and optional property filters.
      *
-     * @param type    the entity type
+     * @param type the entity type
      * @param filters optional property filters
      * @return list of matching entities
      */
@@ -51,12 +48,11 @@ public interface KnowledgeGraph {
     List<Triple> getTriples(String subjectId);
 
     /**
-     * Finds triples matching the given pattern.
-     * Use null for wildcards.
+     * Finds triples matching the given pattern. Use null for wildcards.
      *
-     * @param subjectId     subject entity ID (null for any)
+     * @param subjectId subject entity ID (null for any)
      * @param predicateType predicate type (null for any)
-     * @param objectId      object entity ID (null for any)
+     * @param objectId object entity ID (null for any)
      * @return list of matching triples
      */
     List<Triple> findTriples(String subjectId, String predicateType, String objectId);
@@ -75,8 +71,6 @@ public interface KnowledgeGraph {
      */
     int getTripleCount();
 
-    /**
-     * Clears all entities and triples from the graph.
-     */
+    /** Clears all entities and triples from the graph. */
     void clear();
 }

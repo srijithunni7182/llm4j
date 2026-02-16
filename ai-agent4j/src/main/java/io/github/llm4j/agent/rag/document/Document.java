@@ -3,8 +3,8 @@ package io.github.llm4j.agent.rag.document;
 import java.util.*;
 
 /**
- * Represents a document with its content and metadata.
- * Documents can be chunked for efficient retrieval and embedding.
+ * Represents a document with its content and metadata. Documents can be chunked for efficient
+ * retrieval and embedding.
  */
 public class Document {
 
@@ -46,8 +46,7 @@ public class Document {
         private Map<String, Object> metadata = new HashMap<>();
         private List<DocumentChunk> chunks = new ArrayList<>();
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder id(String id) {
             this.id = id;
@@ -86,10 +85,14 @@ public class Document {
 
     @Override
     public String toString() {
-        return "Document{" +
-                "id='" + id + '\'' +
-                ", contentLength=" + content.length() +
-                ", chunks=" + chunks.size() +
-                '}';
+        return "Document{"
+                + "id='"
+                + id
+                + '\''
+                + ", contentLength="
+                + content.length()
+                + ", chunks="
+                + chunks.size()
+                + '}';
     }
 }

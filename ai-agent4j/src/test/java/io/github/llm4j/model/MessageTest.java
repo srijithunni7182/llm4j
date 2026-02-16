@@ -1,18 +1,19 @@
 package io.github.llm4j.model;
 
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.*;
+
+import org.junit.jupiter.api.Test;
 
 class MessageTest {
 
     @Test
     void testMessageBuilder() {
-        Message message = Message.builder()
-                .role(Message.Role.USER)
-                .content("Hello, world!")
-                .name("testUser")
-                .build();
+        Message message =
+                Message.builder()
+                        .role(Message.Role.USER)
+                        .content("Hello, world!")
+                        .name("testUser")
+                        .build();
 
         assertThat(message.getRole()).isEqualTo(Message.Role.USER);
         assertThat(message.getContent()).isEqualTo("Hello, world!");
@@ -37,7 +38,8 @@ class MessageTest {
 
     @Test
     void testNullRoleThrows() {
-        assertThatThrownBy(() -> Message.builder().content("test").build()).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> Message.builder().content("test").build())
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -66,6 +68,7 @@ class MessageTest {
 
     @Test
     void testInvalidRoleThrows() {
-        assertThatThrownBy(() -> Message.Role.fromValue("invalid")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> Message.Role.fromValue("invalid"))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

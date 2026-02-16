@@ -11,8 +11,7 @@ public class JsonRpcNotification extends JsonRpcMessage {
     @JsonProperty("params")
     private Object params;
 
-    public JsonRpcNotification() {
-    }
+    public JsonRpcNotification() {}
 
     public JsonRpcNotification(String method, Object params) {
         this.method = method;

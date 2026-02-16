@@ -1,11 +1,19 @@
 package io.github.llm4j.provider.sarvam;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.exception.LLMException;
 import io.github.llm4j.exception.ProviderException;
 import io.github.llm4j.http.HttpClientWrapper;
 import io.github.llm4j.model.TextToSpeechRequest;
 import io.github.llm4j.model.TextToSpeechResponse;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+import java.util.Optional;
 import okhttp3.Headers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,23 +21,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class SarvamTextToSpeechProviderTest {
 
-    @Mock
-    private LLMConfig config;
-    @Mock
-    private HttpClientWrapper httpClient;
+    @Mock private LLMConfig config;
+    @Mock private HttpClientWrapper httpClient;
 
     private SarvamTextToSpeechProvider provider;
 
@@ -46,16 +42,15 @@ class SarvamTextToSpeechProviderTest {
     @Test
     void generateSpeech_withValidRequest_shouldReturnSuccessResponse() {
         // Arrange
-        TextToSpeechRequest request = TextToSpeechRequest.builder()
-                .text("Hello world")
-                .build();
+        TextToSpeechRequest request = TextToSpeechRequest.builder().text("Hello world").build();
 
         String url = DEFAULT_BASE_URL + TTS_ENDPOINT;
         byte[] audioBytes = "audio data".getBytes(StandardCharsets.UTF_8);
         String base64Audio = Base64.getEncoder().encodeToString(audioBytes);
         String successResponse = "{\"audios\": [{\"audio_b64\": \"" + base64Audio + "\"}]}";
 
-        when(httpClient.post(eq(url), any(String.class), any(Headers.class))).thenReturn(successResponse);
+        when(httpClient.post(eq(url), any(String.class), any(Headers.class)))
+                .thenReturn(successResponse);
 
         // Act
         TextToSpeechResponse response = provider.generateSpeech(request);
@@ -71,7 +66,8 @@ class SarvamTextToSpeechProviderTest {
         // Arrange
         TextToSpeechRequest request = TextToSpeechRequest.builder().text("test").build();
         String url = DEFAULT_BASE_URL + TTS_ENDPOINT;
-        when(httpClient.post(eq(url), any(String.class), any(Headers.class))).thenThrow(new LLMException("Network error"));
+        when(httpClient.post(eq(url), any(String.class), any(Headers.class)))
+                .thenThrow(new LLMException("Network error"));
 
         // Act & Assert
         assertThrows(ProviderException.class, () -> provider.generateSpeech(request));

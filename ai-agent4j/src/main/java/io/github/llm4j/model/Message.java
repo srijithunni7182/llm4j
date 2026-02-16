@@ -3,13 +3,11 @@ package io.github.llm4j.model;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
-
 import java.util.Objects;
 
 /**
- * Represents a message in a conversation with an LLM.
- * Messages can have different roles (system, user, assistant) and contain text
- * content.
+ * Represents a message in a conversation with an LLM. Messages can have different roles (system,
+ * user, assistant) and contain text content.
  */
 public final class Message {
 
@@ -51,7 +49,8 @@ public final class Message {
     }
 
     @JsonCreator
-    public Message(@JsonProperty("role") Role role,
+    public Message(
+            @JsonProperty("role") Role role,
             @JsonProperty("content") String content,
             @JsonProperty("name") String name) {
         this.role = Objects.requireNonNull(role, "role cannot be null");
@@ -89,14 +88,12 @@ public final class Message {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (o == null || getClass() != o.getClass())
-            return false;
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
         Message message = (Message) o;
-        return role == message.role &&
-                Objects.equals(content, message.content) &&
-                Objects.equals(name, message.name);
+        return role == message.role
+                && Objects.equals(content, message.content)
+                && Objects.equals(name, message.name);
     }
 
     @Override
@@ -106,11 +103,14 @@ public final class Message {
 
     @Override
     public String toString() {
-        return "Message{" +
-                "role=" + role +
-                ", content='" + content + '\'' +
-                (name != null ? ", name='" + name + '\'' : "") +
-                '}';
+        return "Message{"
+                + "role="
+                + role
+                + ", content='"
+                + content
+                + '\''
+                + (name != null ? ", name='" + name + '\'' : "")
+                + '}';
     }
 
     public static final class Builder {
@@ -118,8 +118,7 @@ public final class Message {
         private String content;
         private String name;
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder role(Role role) {
             this.role = role;

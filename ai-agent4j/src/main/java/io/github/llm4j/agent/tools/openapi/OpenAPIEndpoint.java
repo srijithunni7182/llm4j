@@ -3,9 +3,7 @@ package io.github.llm4j.agent.tools.openapi;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Represents a single API endpoint from an OpenAPI specification.
- */
+/** Represents a single API endpoint from an OpenAPI specification. */
 public class OpenAPIEndpoint {
     private final String path;
     private final String method;

@@ -2,9 +2,7 @@ package io.github.llm4j.privacy;
 
 import java.util.Objects;
 
-/**
- * Represents a detected PII entity in text.
- */
+/** Represents a detected PII entity in text. */
 public class PIIEntity {
     private final PIIType type;
     private final String value;
@@ -18,7 +16,8 @@ public class PIIEntity {
         this.endIndex = builder.endIndex;
 
         if (startIndex < 0 || endIndex < startIndex) {
-            throw new IllegalArgumentException("Invalid indices: start=" + startIndex + ", end=" + endIndex);
+            throw new IllegalArgumentException(
+                    "Invalid indices: start=" + startIndex + ", end=" + endIndex);
         }
     }
 
@@ -75,15 +74,13 @@ public class PIIEntity {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (o == null || getClass() != o.getClass())
-            return false;
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
         PIIEntity piiEntity = (PIIEntity) o;
-        return startIndex == piiEntity.startIndex &&
-                endIndex == piiEntity.endIndex &&
-                type == piiEntity.type &&
-                Objects.equals(value, piiEntity.value);
+        return startIndex == piiEntity.startIndex
+                && endIndex == piiEntity.endIndex
+                && type == piiEntity.type
+                && Objects.equals(value, piiEntity.value);
     }
 
     @Override
@@ -93,11 +90,16 @@ public class PIIEntity {
 
     @Override
     public String toString() {
-        return "PIIEntity{" +
-                "type=" + type +
-                ", value='" + value + '\'' +
-                ", startIndex=" + startIndex +
-                ", endIndex=" + endIndex +
-                '}';
+        return "PIIEntity{"
+                + "type="
+                + type
+                + ", value='"
+                + value
+                + '\''
+                + ", startIndex="
+                + startIndex
+                + ", endIndex="
+                + endIndex
+                + '}';
     }
 }

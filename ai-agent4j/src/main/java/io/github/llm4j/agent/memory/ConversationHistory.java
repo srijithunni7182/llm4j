@@ -1,15 +1,14 @@
 package io.github.llm4j.agent.memory;
 
 import io.github.llm4j.model.Message;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
 /**
- * Manages conversation history for the agent, supporting a sliding window of
- * messages and optional persistence.
+ * Manages conversation history for the agent, supporting a sliding window of messages and optional
+ * persistence.
  */
 public class ConversationHistory {
 

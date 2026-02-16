@@ -6,16 +6,15 @@ import io.github.llm4j.agent.rag.document.Document;
 import io.github.llm4j.agent.rag.document.DocumentChunk;
 import io.github.llm4j.agent.rag.embedding.EmbeddingProvider;
 import io.github.llm4j.agent.rag.store.VectorStore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * RAG (Retrieval-Augmented Generation) agent that retrieves relevant context
- * from a vector store before generating responses.
+ * RAG (Retrieval-Augmented Generation) agent that retrieves relevant context from a vector store
+ * before generating responses.
  */
 public class RAGAgent {
 
@@ -29,17 +28,18 @@ public class RAGAgent {
 
     private RAGAgent(Builder builder) {
         this.agent = Objects.requireNonNull(builder.agent, "agent cannot be null");
-        this.vectorStore = Objects.requireNonNull(builder.vectorStore, "vectorStore cannot be null");
-        this.embeddingProvider = Objects.requireNonNull(builder.embeddingProvider,
-                "embeddingProvider cannot be null");
+        this.vectorStore =
+                Objects.requireNonNull(builder.vectorStore, "vectorStore cannot be null");
+        this.embeddingProvider =
+                Objects.requireNonNull(
+                        builder.embeddingProvider, "embeddingProvider cannot be null");
         this.topK = builder.topK;
         this.includeMetadata = builder.includeMetadata;
     }
 
     /**
-     * Runs the RAG agent with the given question.
-     * Retrieves relevant context and augments the question before passing to the
-     * agent.
+     * Runs the RAG agent with the given question. Retrieves relevant context and augments the
+     * question before passing to the agent.
      *
      * @param question the input question
      * @return the agent result
@@ -82,9 +82,8 @@ public class RAGAgent {
         }
 
         // Generate embeddings for all chunks
-        List<String> chunkContents = chunks.stream()
-                .map(DocumentChunk::getContent)
-                .collect(Collectors.toList());
+        List<String> chunkContents =
+                chunks.stream().map(DocumentChunk::getContent).collect(Collectors.toList());
 
         List<float[]> embeddings = embeddingProvider.embedBatch(chunkContents);
 
@@ -108,7 +107,7 @@ public class RAGAgent {
      * Builds an augmented prompt by prepending retrieved context to the question.
      *
      * @param question the original question
-     * @param results  the search results
+     * @param results the search results
      * @return augmented prompt
      */
     private String buildAugmentedPrompt(String question, List<VectorStore.SearchResult> results) {
@@ -132,8 +131,10 @@ public class RAGAgent {
                 if (includeMetadata) {
                     String documentId = (String) result.getMetadata().get("documentId");
                     if (documentId != null) {
-                        prompt.append(String.format("    (Source: %s, Relevance: %.2f)\n",
-                                documentId, result.getSimilarity()));
+                        prompt.append(
+                                String.format(
+                                        "    (Source: %s, Relevance: %.2f)\n",
+                                        documentId, result.getSimilarity()));
                     }
                 }
                 prompt.append("\n");
@@ -157,8 +158,7 @@ public class RAGAgent {
         private int topK = 3;
         private boolean includeMetadata = false;
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder agent(ReActAgent agent) {
             this.agent = agent;

@@ -1,16 +1,12 @@
 package io.github.llm4j.examples;
 
-import io.github.llm4j.model.LLMRequest;
-import io.github.llm4j.model.LLMResponse;
-import io.github.llm4j.model.Message;
+import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.media.AudioPlayer;
 import io.github.llm4j.media.JavaAudioPlayer;
 import io.github.llm4j.provider.sarvam.SarvamAudioProvider;
 import io.github.llm4j.provider.sarvam.SarvamChatProvider;
 import io.github.llm4j.provider.sarvam.SarvamTextToSpeechProvider;
-import io.github.llm4j.agent.ReActAgent;
-
 import java.io.File;
 import java.util.Scanner;
 
@@ -22,13 +18,12 @@ public class SarvamVoiceAgentExample {
             apiKey = System.getenv("SARVAM_API_KEY");
         }
         if (apiKey == null || apiKey.isEmpty()) {
-            System.err.println("Please set SARVAM_API_KEY environment variable or sarvam.api.key system property");
+            System.err.println(
+                    "Please set SARVAM_API_KEY environment variable or sarvam.api.key system property");
             System.exit(1);
         }
 
-        LLMConfig config = LLMConfig.builder()
-                .apiKey(apiKey)
-                .build();
+        LLMConfig config = LLMConfig.builder().apiKey(apiKey).build();
 
         // Initialize Providers
         SarvamChatProvider chatProvider = new SarvamChatProvider(config);
@@ -41,16 +36,17 @@ public class SarvamVoiceAgentExample {
         System.out.println("Running with Session ID: " + sessionId);
 
         // Initialize Agent with Auto-Play enabled
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(new io.github.llm4j.DefaultLLMClient(chatProvider))
-                .sttProvider(audioProvider)
-                .ttsProvider(ttsProvider)
-                .audioPlayer(audioPlayer)
-                .autoPlayAudio(true)
-                .sessionId(sessionId) // Set explicit session ID
-                .systemPrompt("You are a helpful voice assistant.")
-                .maxIterations(5)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(new io.github.llm4j.DefaultLLMClient(chatProvider))
+                        .sttProvider(audioProvider)
+                        .ttsProvider(ttsProvider)
+                        .audioPlayer(audioPlayer)
+                        .autoPlayAudio(true)
+                        .sessionId(sessionId) // Set explicit session ID
+                        .systemPrompt("You are a helpful voice assistant.")
+                        .maxIterations(5)
+                        .build();
 
         Scanner scanner = new Scanner(System.in);
         System.out.println("Select mode:");

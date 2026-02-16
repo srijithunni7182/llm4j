@@ -1,15 +1,14 @@
 package io.github.llm4j.agent.knowledge.tools;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.llm4j.agent.knowledge.KnowledgeGraph;
 import io.github.llm4j.agent.knowledge.model.Entity;
 import io.github.llm4j.agent.knowledge.model.Triple;
 import io.github.llm4j.agent.knowledge.store.InMemoryGraphStore;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class GraphExtractionToolTest {
 
@@ -24,16 +23,19 @@ class GraphExtractionToolTest {
 
     @Test
     void testExecuteSuccess() throws Exception {
-        Map<String, Object> args = Map.of(
-                "subject", Map.of(
-                        "id", "alice",
-                        "type", "Person",
-                        "properties", Map.of("name", "Alice")),
-                "predicate", "REPORTS_TO",
-                "object", Map.of(
-                        "id", "bob",
-                        "type", "Person",
-                        "properties", Map.of("name", "Bob")));
+        Map<String, Object> args =
+                Map.of(
+                        "subject",
+                                Map.of(
+                                        "id", "alice",
+                                        "type", "Person",
+                                        "properties", Map.of("name", "Alice")),
+                        "predicate", "REPORTS_TO",
+                        "object",
+                                Map.of(
+                                        "id", "bob",
+                                        "type", "Person",
+                                        "properties", Map.of("name", "Bob")));
 
         String result = tool.execute(args);
 
@@ -51,8 +53,7 @@ class GraphExtractionToolTest {
 
     @Test
     void testExecuteMissingFields() throws Exception {
-        Map<String, Object> args = Map.of(
-                "subject", Map.of("id", "alice"));
+        Map<String, Object> args = Map.of("subject", Map.of("id", "alice"));
 
         String result = tool.execute(args);
 

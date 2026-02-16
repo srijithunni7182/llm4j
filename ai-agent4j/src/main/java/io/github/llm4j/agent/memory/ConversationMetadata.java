@@ -2,12 +2,9 @@ package io.github.llm4j.agent.memory;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.time.Instant;
 
-/**
- * Metadata for a conversation session.
- */
+/** Metadata for a conversation session. */
 public class ConversationMetadata {
     private final String sessionId;
     private final String summary;

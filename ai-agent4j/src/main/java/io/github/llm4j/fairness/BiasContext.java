@@ -3,10 +3,7 @@ package io.github.llm4j.fairness;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Context information for bias detection.
- * Helps bias detectors make more informed decisions.
- */
+/** Context information for bias detection. Helps bias detectors make more informed decisions. */
 public class BiasContext {
     private final String sessionId;
     private final String userId;

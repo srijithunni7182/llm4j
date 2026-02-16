@@ -1,15 +1,14 @@
 package io.github.llm4j.agent.tools;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.IOException;
+import java.util.Map;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class DuckDuckGoSearchToolTest {
 
@@ -47,16 +46,16 @@ class DuckDuckGoSearchToolTest {
 
     @Test
     void testPerformSearchSuccess() throws Exception {
-        String htmlResponse = "<html><body>" +
-                "<table><tr>" +
-                "<td><a class=\"result-link\" href=\"https://en.wikipedia.org/wiki/Tokyo\">Tokyo - Wikipedia</a></td>" +
-                "<td class=\"result-snippet\">Tokyo is the capital of Japan.</td>" +
-                "</tr></table>" +
-                "</body></html>";
+        String htmlResponse =
+                "<html><body>"
+                        + "<table><tr>"
+                        + "<td><a class=\"result-link\" href=\"https://en.wikipedia.org/wiki/Tokyo\">Tokyo - Wikipedia</a></td>"
+                        + "<td class=\"result-snippet\">Tokyo is the capital of Japan.</td>"
+                        + "</tr></table>"
+                        + "</body></html>";
 
-        mockWebServer.enqueue(new MockResponse()
-                .setBody(htmlResponse)
-                .addHeader("Content-Type", "text/html"));
+        mockWebServer.enqueue(
+                new MockResponse().setBody(htmlResponse).addHeader("Content-Type", "text/html"));
 
         String result = tool.execute(Map.of("query", "Tokyo"));
 
@@ -68,16 +67,16 @@ class DuckDuckGoSearchToolTest {
 
     @Test
     void testPerformSearchWithRedirect() throws Exception {
-        String htmlResponse = "<html><body>" +
-                "<table><tr>" +
-                "<td><a class=\"result-link\" href=\"/l/?uddg=https%3A%2F%2Fjava.com%2F&rut=...\">Java | Oracle</a></td>" +
-                "<td class=\"result-snippet\">Java Download.</td>" +
-                "</tr></table>" +
-                "</body></html>";
+        String htmlResponse =
+                "<html><body>"
+                        + "<table><tr>"
+                        + "<td><a class=\"result-link\" href=\"/l/?uddg=https%3A%2F%2Fjava.com%2F&rut=...\">Java | Oracle</a></td>"
+                        + "<td class=\"result-snippet\">Java Download.</td>"
+                        + "</tr></table>"
+                        + "</body></html>";
 
-        mockWebServer.enqueue(new MockResponse()
-                .setBody(htmlResponse)
-                .addHeader("Content-Type", "text/html"));
+        mockWebServer.enqueue(
+                new MockResponse().setBody(htmlResponse).addHeader("Content-Type", "text/html"));
 
         String result = tool.execute(Map.of("query", "Java"));
 
@@ -89,13 +88,13 @@ class DuckDuckGoSearchToolTest {
     void testNoResults() throws Exception {
         String htmlResponse = "<html><body>No results found</body></html>";
 
-        mockWebServer.enqueue(new MockResponse()
-                .setBody(htmlResponse)
-                .addHeader("Content-Type", "text/html"));
+        mockWebServer.enqueue(
+                new MockResponse().setBody(htmlResponse).addHeader("Content-Type", "text/html"));
 
         String result = tool.execute(Map.of("query", "UnknownThing"));
 
-        assertThat(result).contains("Error: No search results found for 'UnknownThing' on DuckDuckGo Lite.");
+        assertThat(result)
+                .contains("Error: No search results found for 'UnknownThing' on DuckDuckGo Lite.");
     }
 
     @Test

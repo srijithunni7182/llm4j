@@ -6,10 +6,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
-/**
- * Defines the retry behavior for failed API requests.
- * This class is immutable and thread-safe.
- */
+/** Defines the retry behavior for failed API requests. This class is immutable and thread-safe. */
 public final class RetryPolicy {
 
     public enum BackoffStrategy {
@@ -29,7 +26,8 @@ public final class RetryPolicy {
         this.backoffStrategy = builder.backoffStrategy;
         this.initialBackoff = builder.initialBackoff;
         this.maxBackoff = builder.maxBackoff;
-        this.retryableStatusCodes = Collections.unmodifiableSet(new HashSet<>(builder.retryableStatusCodes));
+        this.retryableStatusCodes =
+                Collections.unmodifiableSet(new HashSet<>(builder.retryableStatusCodes));
     }
 
     public int getMaxRetries() {
@@ -120,32 +118,36 @@ public final class RetryPolicy {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (o == null || getClass() != o.getClass())
-            return false;
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
         RetryPolicy that = (RetryPolicy) o;
-        return maxRetries == that.maxRetries &&
-                backoffStrategy == that.backoffStrategy &&
-                Objects.equals(initialBackoff, that.initialBackoff) &&
-                Objects.equals(maxBackoff, that.maxBackoff) &&
-                Objects.equals(retryableStatusCodes, that.retryableStatusCodes);
+        return maxRetries == that.maxRetries
+                && backoffStrategy == that.backoffStrategy
+                && Objects.equals(initialBackoff, that.initialBackoff)
+                && Objects.equals(maxBackoff, that.maxBackoff)
+                && Objects.equals(retryableStatusCodes, that.retryableStatusCodes);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(maxRetries, backoffStrategy, initialBackoff, maxBackoff, retryableStatusCodes);
+        return Objects.hash(
+                maxRetries, backoffStrategy, initialBackoff, maxBackoff, retryableStatusCodes);
     }
 
     @Override
     public String toString() {
-        return "RetryPolicy{" +
-                "maxRetries=" + maxRetries +
-                ", backoffStrategy=" + backoffStrategy +
-                ", initialBackoff=" + initialBackoff +
-                ", maxBackoff=" + maxBackoff +
-                ", retryableStatusCodes=" + retryableStatusCodes +
-                '}';
+        return "RetryPolicy{"
+                + "maxRetries="
+                + maxRetries
+                + ", backoffStrategy="
+                + backoffStrategy
+                + ", initialBackoff="
+                + initialBackoff
+                + ", maxBackoff="
+                + maxBackoff
+                + ", retryableStatusCodes="
+                + retryableStatusCodes
+                + '}';
     }
 
     public static final class Builder {
@@ -155,8 +157,7 @@ public final class RetryPolicy {
         private Duration maxBackoff = Duration.ofSeconds(10);
         private Set<Integer> retryableStatusCodes = new HashSet<>();
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder maxRetries(int maxRetries) {
             this.maxRetries = maxRetries;

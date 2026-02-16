@@ -2,9 +2,7 @@ package io.github.llm4j.agent.rag.document;
 
 import java.util.List;
 
-/**
- * Strategy interface for chunking documents into smaller pieces.
- */
+/** Strategy interface for chunking documents into smaller pieces. */
 public interface ChunkingStrategy {
 
     /**

@@ -4,10 +4,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 
-/**
- * Standardized response for Text-to-Speech (TTS) generation.
- * Contains the generated audio data.
- */
+/** Standardized response for Text-to-Speech (TTS) generation. Contains the generated audio data. */
 public class TextToSpeechResponse {
 
     private final byte[] audioData;
@@ -19,8 +16,9 @@ public class TextToSpeechResponse {
     }
 
     public byte[] getAudioData() {
-        return audioData; // Consider returning a copy if immutability is strict, but usually fine for
-                          // perf
+        return audioData; // Consider returning a copy if immutability is strict, but usually fine
+        // for
+        // perf
     }
 
     public Optional<String> getContentType() {
@@ -29,13 +27,11 @@ public class TextToSpeechResponse {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (o == null || getClass() != o.getClass())
-            return false;
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
         TextToSpeechResponse that = (TextToSpeechResponse) o;
-        return Arrays.equals(audioData, that.audioData) &&
-                Objects.equals(contentType, that.contentType);
+        return Arrays.equals(audioData, that.audioData)
+                && Objects.equals(contentType, that.contentType);
     }
 
     @Override
@@ -47,9 +43,13 @@ public class TextToSpeechResponse {
 
     @Override
     public String toString() {
-        return "TextToSpeechResponse{" +
-                "audioDataParams=" + audioData.length + " bytes" +
-                ", contentType='" + contentType + '\'' +
-                '}';
+        return "TextToSpeechResponse{"
+                + "audioDataParams="
+                + audioData.length
+                + " bytes"
+                + ", contentType='"
+                + contentType
+                + '\''
+                + '}';
     }
 }

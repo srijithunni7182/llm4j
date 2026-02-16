@@ -1,13 +1,12 @@
 package io.github.llm4j.agent.tools;
 
 import io.github.llm4j.agent.Tool;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * A wrapper tool that adds caching capabilities to any search tool.
- * This helps reduce API usage and speed up responses for repeated queries.
+ * A wrapper tool that adds caching capabilities to any search tool. This helps reduce API usage and
+ * speed up responses for repeated queries.
  */
 public class CachedSearchTool implements Tool {
 
@@ -47,16 +46,16 @@ public class CachedSearchTool implements Tool {
         String result = delegate.execute(args);
 
         // Only cache successful results (not errors)
-        if (result != null && !result.startsWith("Error") && !result.toLowerCase().contains("api error")) {
+        if (result != null
+                && !result.startsWith("Error")
+                && !result.toLowerCase().contains("api error")) {
             cache.put(cacheKey, result);
         }
 
         return result;
     }
 
-    /**
-     * Clears the search cache.
-     */
+    /** Clears the search cache. */
     public static void clearCache() {
         cache.clear();
     }

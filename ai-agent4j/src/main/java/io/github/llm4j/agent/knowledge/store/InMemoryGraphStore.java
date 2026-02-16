@@ -3,15 +3,11 @@ package io.github.llm4j.agent.knowledge.store;
 import io.github.llm4j.agent.knowledge.KnowledgeGraph;
 import io.github.llm4j.agent.knowledge.model.Entity;
 import io.github.llm4j.agent.knowledge.model.Triple;
-
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-/**
- * In-memory implementation of a knowledge graph.
- * Suitable for small to medium-sized graphs.
- */
+/** In-memory implementation of a knowledge graph. Suitable for small to medium-sized graphs. */
 public class InMemoryGraphStore implements KnowledgeGraph {
 
     private final Map<String, Entity> entities;
@@ -60,8 +56,13 @@ public class InMemoryGraphStore implements KnowledgeGraph {
     @Override
     public List<Triple> findTriples(String subjectId, String predicateType, String objectId) {
         return triples.stream()
-                .filter(triple -> subjectId == null || triple.getSubject().getId().equals(subjectId))
-                .filter(triple -> predicateType == null || triple.getPredicate().getType().equals(predicateType))
+                .filter(
+                        triple ->
+                                subjectId == null || triple.getSubject().getId().equals(subjectId))
+                .filter(
+                        triple ->
+                                predicateType == null
+                                        || triple.getPredicate().getType().equals(predicateType))
                 .filter(triple -> objectId == null || triple.getObject().getId().equals(objectId))
                 .collect(Collectors.toList());
     }
@@ -82,16 +83,12 @@ public class InMemoryGraphStore implements KnowledgeGraph {
         triples.clear();
     }
 
-    /**
-     * Returns all entities in the graph. Useful for persistence.
-     */
+    /** Returns all entities in the graph. Useful for persistence. */
     public Collection<Entity> getAllEntities() {
         return Collections.unmodifiableCollection(entities.values());
     }
 
-    /**
-     * Returns all triples in the graph. Useful for persistence.
-     */
+    /** Returns all triples in the graph. Useful for persistence. */
     public List<Triple> getAllTriples() {
         return Collections.unmodifiableList(triples);
     }
@@ -99,7 +96,7 @@ public class InMemoryGraphStore implements KnowledgeGraph {
     /**
      * Checks if an entity matches the given property filters.
      *
-     * @param entity  the entity to check
+     * @param entity the entity to check
      * @param filters the filters to apply
      * @return true if entity matches all filters
      */

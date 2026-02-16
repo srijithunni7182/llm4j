@@ -2,7 +2,6 @@ package io.github.llm4j.mcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.llm4j.agent.Tool;
-
 import java.util.Map;
 
 public class McpToolAdapter implements Tool {

@@ -1,7 +1,6 @@
 package io.github.llm4j.agent.memory;
 
 import io.github.llm4j.model.Message;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -9,8 +8,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Thread-safe in-memory implementation of ConversationStore.
- * Useful for testing or ephemeral sessions.
+ * Thread-safe in-memory implementation of ConversationStore. Useful for testing or ephemeral
+ * sessions.
  */
 public class InMemoryConversationStore implements ConversationStore {
 
@@ -18,16 +17,22 @@ public class InMemoryConversationStore implements ConversationStore {
 
     @Override
     public void saveMessage(String sessionId, Message message) {
-        store.compute(sessionId, (k, v) -> {
-            if (v == null) {
-                v = new StoredSession(
-                        new ConversationMetadata(k, "New Conversation", java.time.Instant.now()),
-                        Collections.synchronizedList(new ArrayList<>()));
-            }
-            v.messages.add(message);
-            v.metadata = new ConversationMetadata(k, v.metadata.getSummary(), java.time.Instant.now());
-            return v;
-        });
+        store.compute(
+                sessionId,
+                (k, v) -> {
+                    if (v == null) {
+                        v =
+                                new StoredSession(
+                                        new ConversationMetadata(
+                                                k, "New Conversation", java.time.Instant.now()),
+                                        Collections.synchronizedList(new ArrayList<>()));
+                    }
+                    v.messages.add(message);
+                    v.metadata =
+                            new ConversationMetadata(
+                                    k, v.metadata.getSummary(), java.time.Instant.now());
+                    return v;
+                });
     }
 
     @Override
@@ -48,10 +53,12 @@ public class InMemoryConversationStore implements ConversationStore {
 
     @Override
     public void updateSummary(String sessionId, String summary) {
-        store.computeIfPresent(sessionId, (k, v) -> {
-            v.metadata = new ConversationMetadata(k, summary, java.time.Instant.now());
-            return v;
-        });
+        store.computeIfPresent(
+                sessionId,
+                (k, v) -> {
+                    v.metadata = new ConversationMetadata(k, summary, java.time.Instant.now());
+                    return v;
+                });
     }
 
     @Override

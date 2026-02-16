@@ -1,8 +1,6 @@
 package io.github.llm4j.agent.tools.openapi;
 
-/**
- * Represents a parameter for an API endpoint.
- */
+/** Represents a parameter for an API endpoint. */
 public class OpenAPIParameter {
     private final String name;
     private final String in; // query, path, header, cookie

@@ -1,16 +1,12 @@
 package io.github.llm4j.audit;
 
 import io.github.llm4j.agent.AgentResult;
-
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Represents an auditable event in the system.
- * Used for compliance tracking and explainability.
- */
+/** Represents an auditable event in the system. Used for compliance tracking and explainability. */
 public class AuditEvent {
     private final String sessionId;
     private final String userId;
@@ -94,14 +90,12 @@ public class AuditEvent {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (o == null || getClass() != o.getClass())
-            return false;
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
         AuditEvent that = (AuditEvent) o;
-        return Objects.equals(sessionId, that.sessionId) &&
-                Objects.equals(userId, that.userId) &&
-                Objects.equals(timestamp, that.timestamp);
+        return Objects.equals(sessionId, that.sessionId)
+                && Objects.equals(userId, that.userId)
+                && Objects.equals(timestamp, that.timestamp);
     }
 
     @Override
@@ -111,11 +105,17 @@ public class AuditEvent {
 
     @Override
     public String toString() {
-        return "AuditEvent{" +
-                "sessionId='" + sessionId + '\'' +
-                ", userId='" + userId + '\'' +
-                ", timestamp=" + timestamp +
-                ", metadata=" + metadata +
-                '}';
+        return "AuditEvent{"
+                + "sessionId='"
+                + sessionId
+                + '\''
+                + ", userId='"
+                + userId
+                + '\''
+                + ", timestamp="
+                + timestamp
+                + ", metadata="
+                + metadata
+                + '}';
     }
 }

@@ -3,18 +3,15 @@ package io.github.llm4j.agent.tools;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.llm4j.agent.Tool;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
-/**
- * A tool that allows agents to search the web using SerpAPI.
- */
+/** A tool that allows agents to search the web using SerpAPI. */
 public class SerpApiSearchTool implements Tool {
 
     private final String apiKey;
@@ -44,8 +41,8 @@ public class SerpApiSearchTool implements Tool {
 
     @Override
     public String getDescription() {
-        return "Useful for searching the web for current information, facts, and news. " +
-                "Input should be a JSON object with a 'query' field, e.g., {\"query\": \"current population of Tokyo\"}.";
+        return "Useful for searching the web for current information, facts, and news. "
+                + "Input should be a JSON object with a 'query' field, e.g., {\"query\": \"current population of Tokyo\"}.";
     }
 
     @Override
@@ -69,16 +66,15 @@ public class SerpApiSearchTool implements Tool {
     private String performSearch(String query) throws IOException {
         String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
         // Using engine=google by default
-        String url = String.format("%s?q=%s&api_key=%s&engine=google",
-                baseUrl, encodedQuery, apiKey);
+        String url =
+                String.format("%s?q=%s&api_key=%s&engine=google", baseUrl, encodedQuery, apiKey);
 
-        Request request = new Request.Builder()
-                .url(url)
-                .build();
+        Request request = new Request.Builder().url(url).build();
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                String errorBody = response.body() != null ? response.body().string() : "No error body";
+                String errorBody =
+                        response.body() != null ? response.body().string() : "No error body";
                 return "SerpAPI error (HTTP " + response.code() + "): " + errorBody;
             }
 
@@ -96,8 +92,7 @@ public class SerpApiSearchTool implements Tool {
                     results.append("- ").append(story.path("title").asText());
                     if (story.has("source"))
                         results.append(" (").append(story.get("source").asText()).append(")");
-                    if (story.has("date"))
-                        results.append(" - ").append(story.get("date").asText());
+                    if (story.has("date")) results.append(" - ").append(story.get("date").asText());
                     results.append("\n  Link: ").append(story.path("link").asText()).append("\n");
                 }
                 found = true;
@@ -112,8 +107,7 @@ public class SerpApiSearchTool implements Tool {
                     results.append("- ").append(news.path("title").asText());
                     if (news.has("source"))
                         results.append(" (").append(news.get("source").asText()).append(")");
-                    if (news.has("date"))
-                        results.append(" - ").append(news.get("date").asText());
+                    if (news.has("date")) results.append(" - ").append(news.get("date").asText());
                     results.append("\n  ").append(news.path("snippet").asText()).append("\n");
                 }
                 found = true;
@@ -123,8 +117,11 @@ public class SerpApiSearchTool implements Tool {
             JsonNode kg = root.get("knowledge_graph");
             if (kg != null && !kg.isMissingNode()) {
                 results.append("\nKNOWLEDGE GRAPH:\n");
-                results.append("- ").append(kg.path("title").asText()).append(": ")
-                        .append(kg.path("description").asText()).append("\n");
+                results.append("- ")
+                        .append(kg.path("title").asText())
+                        .append(": ")
+                        .append(kg.path("description").asText())
+                        .append("\n");
                 found = true;
             }
 

@@ -11,19 +11,18 @@ import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.Message;
 import io.github.llm4j.provider.DescribableProvider;
-import io.github.llm4j.provider.LLMProvider;
+import java.io.IOException;
+import java.util.Objects;
+import java.util.stream.Stream;
 import okhttp3.Headers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.Objects;
-import java.util.stream.Stream;
-
 public class GoogleProvider implements DescribableProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(GoogleProvider.class);
-    private static final String DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+    private static final String DEFAULT_BASE_URL =
+            "https://generativelanguage.googleapis.com/v1beta";
 
     private final LLMConfig config;
     private final HttpClientWrapper httpClient;
@@ -34,7 +33,8 @@ public class GoogleProvider implements DescribableProvider {
         this(config, new HttpClientWrapper(config), new ObjectMapper());
     }
 
-    public GoogleProvider(LLMConfig config, HttpClientWrapper httpClient, ObjectMapper objectMapper) {
+    public GoogleProvider(
+            LLMConfig config, HttpClientWrapper httpClient, ObjectMapper objectMapper) {
         this.config = Objects.requireNonNull(config, "config cannot be null");
         this.baseUrl = config.getBaseUrl() != null ? config.getBaseUrl() : DEFAULT_BASE_URL;
         this.httpClient = httpClient;
@@ -45,7 +45,8 @@ public class GoogleProvider implements DescribableProvider {
     @Override
     public LLMResponse chat(LLMRequest request) {
         try {
-            String model = request.getModel() != null ? request.getModel() : config.getDefaultModel();
+            String model =
+                    request.getModel() != null ? request.getModel() : config.getDefaultModel();
             if (model == null) {
                 throw new InvalidRequestException("Model must be specified in request or config");
             }
@@ -66,15 +67,17 @@ public class GoogleProvider implements DescribableProvider {
     }
 
     /**
-     * Note: This method is not yet implemented for the Google provider.
-     * It will throw an {@link UnsupportedOperationException} if called.
+     * Note: This method is not yet implemented for the Google provider. It will throw an {@link
+     * UnsupportedOperationException} if called.
+     *
      * @param request The LLMRequest object.
      * @return A stream of LLMResponse objects.
      */
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
         logger.warn("chatStream is not yet implemented for the Google provider.");
-        throw new UnsupportedOperationException("Streaming is not yet implemented for Google provider");
+        throw new UnsupportedOperationException(
+                "Streaming is not yet implemented for Google provider");
     }
 
     @Override
@@ -122,7 +125,8 @@ public class GoogleProvider implements DescribableProvider {
 
                     JsonNode methods = model.path("supportedGenerationMethods");
                     for (JsonNode method : methods) {
-                        if ("generateContent".equals(method.asText()) && modelId.contains("gemini")) {
+                        if ("generateContent".equals(method.asText())
+                                && modelId.contains("gemini")) {
                             return modelId;
                         }
                     }
@@ -141,11 +145,12 @@ public class GoogleProvider implements DescribableProvider {
         ObjectNode root = objectMapper.createObjectNode();
         ArrayNode contentsArray = root.putArray("contents");
 
-        String systemMessage = request.getMessages().stream()
-                .filter(m -> m.getRole() == Message.Role.SYSTEM)
-                .map(Message::getContent)
-                .findFirst()
-                .orElse(null);
+        String systemMessage =
+                request.getMessages().stream()
+                        .filter(m -> m.getRole() == Message.Role.SYSTEM)
+                        .map(Message::getContent)
+                        .findFirst()
+                        .orElse(null);
 
         boolean firstUserMessage = true;
         for (Message message : request.getMessages()) {
@@ -169,8 +174,10 @@ public class GoogleProvider implements DescribableProvider {
         }
 
         ObjectNode generationConfig = root.putObject("generationConfig");
-        if (request.getTemperature() != null) generationConfig.put("temperature", request.getTemperature());
-        if (request.getMaxTokens() != null) generationConfig.put("maxOutputTokens", request.getMaxTokens());
+        if (request.getTemperature() != null)
+            generationConfig.put("temperature", request.getTemperature());
+        if (request.getMaxTokens() != null)
+            generationConfig.put("maxOutputTokens", request.getMaxTokens());
         if (request.getTopP() != null) generationConfig.put("topP", request.getTopP());
         if (request.getStopSequences() != null && !request.getStopSequences().isEmpty()) {
             ArrayNode stopArray = generationConfig.putArray("stopSequences");
@@ -203,29 +210,40 @@ public class GoogleProvider implements DescribableProvider {
         if (candidates.isMissingNode() || !candidates.isArray() || candidates.isEmpty()) {
             JsonNode feedback = root.path("promptFeedback");
             if (feedback.has("blockReason")) {
-                throw new ContentBlockedException(getProviderName(), "Content blocked by safety filters: " + feedback.get("blockReason").asText());
+                throw new ContentBlockedException(
+                        getProviderName(),
+                        "Content blocked by safety filters: "
+                                + feedback.get("blockReason").asText());
             }
-            throw new ProviderException(getProviderName(), "No candidates in response: " + responseJson);
+            throw new ProviderException(
+                    getProviderName(), "No candidates in response: " + responseJson);
         }
 
         JsonNode candidate = candidates.get(0);
         String finishReason = candidate.path("finishReason").asText(null);
 
         if ("SAFETY".equals(finishReason)) {
-            String safetyInfo = candidate.has("safetyRatings") ? " Safety ratings: " + candidate.get("safetyRatings") : "";
-            throw new ContentBlockedException(getProviderName(), "Content blocked by safety filters." + safetyInfo);
+            String safetyInfo =
+                    candidate.has("safetyRatings")
+                            ? " Safety ratings: " + candidate.get("safetyRatings")
+                            : "";
+            throw new ContentBlockedException(
+                    getProviderName(), "Content blocked by safety filters." + safetyInfo);
         }
 
         JsonNode parts = candidate.path("content").path("parts");
         if (parts.isMissingNode() || !parts.isArray() || parts.isEmpty()) {
             if ("MAX_TOKENS".equals(finishReason)) {
                 return LLMResponse.builder()
-                        .content("[Response truncated: model hit token limit before generating output.]")
+                        .content(
+                                "[Response truncated: model hit token limit before generating output.]")
                         .model(model)
                         .finishReason(finishReason)
                         .build();
             }
-            throw new ProviderException(getProviderName(), "No parts in response content: " + candidate.path("content"));
+            throw new ProviderException(
+                    getProviderName(),
+                    "No parts in response content: " + candidate.path("content"));
         }
 
         String textContent = parts.get(0).path("text").asText();
@@ -233,11 +251,11 @@ public class GoogleProvider implements DescribableProvider {
         LLMResponse.TokenUsage tokenUsage = null;
         JsonNode usage = root.path("usageMetadata");
         if (!usage.isMissingNode()) {
-            tokenUsage = new LLMResponse.TokenUsage(
-                    usage.path("promptTokenCount").asInt(0),
-                    usage.path("candidatesTokenCount").asInt(0),
-                    usage.path("totalTokenCount").asInt(0)
-            );
+            tokenUsage =
+                    new LLMResponse.TokenUsage(
+                            usage.path("promptTokenCount").asInt(0),
+                            usage.path("candidatesTokenCount").asInt(0),
+                            usage.path("totalTokenCount").asInt(0));
         }
 
         return LLMResponse.builder()

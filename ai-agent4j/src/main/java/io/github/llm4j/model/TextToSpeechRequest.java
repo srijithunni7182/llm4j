@@ -1,13 +1,11 @@
 package io.github.llm4j.model;
 
-import io.github.llm4j.exception.LLMException;
-
 import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Standardized request for Text-to-Speech (TTS) generation.
- * This class uses the Builder pattern for construction.
+ * Standardized request for Text-to-Speech (TTS) generation. This class uses the Builder pattern for
+ * construction.
  */
 public class TextToSpeechRequest {
 
@@ -71,36 +69,52 @@ public class TextToSpeechRequest {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (o == null || getClass() != o.getClass())
-            return false;
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
         TextToSpeechRequest that = (TextToSpeechRequest) o;
-        return Objects.equals(text, that.text) &&
-                Objects.equals(targetLanguageCode, that.targetLanguageCode) &&
-                Objects.equals(speaker, that.speaker) &&
-                Objects.equals(pace, that.pace) &&
-                Objects.equals(speechSampleRate, that.speechSampleRate) &&
-                Objects.equals(enablePreprocessing, that.enablePreprocessing) &&
-                Objects.equals(model, that.model);
+        return Objects.equals(text, that.text)
+                && Objects.equals(targetLanguageCode, that.targetLanguageCode)
+                && Objects.equals(speaker, that.speaker)
+                && Objects.equals(pace, that.pace)
+                && Objects.equals(speechSampleRate, that.speechSampleRate)
+                && Objects.equals(enablePreprocessing, that.enablePreprocessing)
+                && Objects.equals(model, that.model);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(text, targetLanguageCode, speaker, pace, speechSampleRate, enablePreprocessing, model);
+        return Objects.hash(
+                text,
+                targetLanguageCode,
+                speaker,
+                pace,
+                speechSampleRate,
+                enablePreprocessing,
+                model);
     }
 
     @Override
     public String toString() {
-        return "TextToSpeechRequest{" +
-                "text='" + text + '\'' +
-                ", targetLanguageCode='" + targetLanguageCode + '\'' +
-                ", speaker='" + speaker + '\'' +
-                ", pace=" + pace +
-                ", speechSampleRate=" + speechSampleRate +
-                ", enablePreprocessing=" + enablePreprocessing +
-                ", model='" + model + '\'' +
-                '}';
+        return "TextToSpeechRequest{"
+                + "text='"
+                + text
+                + '\''
+                + ", targetLanguageCode='"
+                + targetLanguageCode
+                + '\''
+                + ", speaker='"
+                + speaker
+                + '\''
+                + ", pace="
+                + pace
+                + ", speechSampleRate="
+                + speechSampleRate
+                + ", enablePreprocessing="
+                + enablePreprocessing
+                + ", model='"
+                + model
+                + '\''
+                + '}';
     }
 
     public static class Builder {
@@ -112,8 +126,7 @@ public class TextToSpeechRequest {
         private Boolean enablePreprocessing;
         private String model;
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder text(String text) {
             this.text = text;

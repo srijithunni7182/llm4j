@@ -2,9 +2,7 @@ package io.github.llm4j.agent.tools;
 
 import io.github.llm4j.agent.Tool;
 
-/**
- * A calculator tool that can evaluate basic mathematical expressions.
- */
+/** A calculator tool that can evaluate basic mathematical expressions. */
 public class CalculatorTool implements Tool {
 
     @Override
@@ -14,9 +12,9 @@ public class CalculatorTool implements Tool {
 
     @Override
     public String getDescription() {
-        return "Useful for performing mathematical calculations. " +
-                "Input should be a JSON object with an 'expression' field, e.g., {\"expression\": \"2 + 2\"}. " +
-                "Supports +, -, *, / operators.";
+        return "Useful for performing mathematical calculations. "
+                + "Input should be a JSON object with an 'expression' field, e.g., {\"expression\": \"2 + 2\"}. "
+                + "Supports +, -, *, / operators.";
     }
 
     @Override
@@ -44,8 +42,8 @@ public class CalculatorTool implements Tool {
     }
 
     /**
-     * Simple expression evaluator that handles basic arithmetic.
-     * Supports +, -, *, / and parentheses with proper precedence.
+     * Simple expression evaluator that handles basic arithmetic. Supports +, -, *, / and
+     * parentheses with proper precedence.
      */
     private double evaluate(String expression) {
         return new ExpressionParser(expression).parse();
@@ -65,8 +63,7 @@ public class CalculatorTool implements Tool {
         }
 
         boolean eat(int charToEat) {
-            while (ch == ' ')
-                nextChar();
+            while (ch == ' ') nextChar();
             if (ch == charToEat) {
                 nextChar();
                 return true;
@@ -85,33 +82,25 @@ public class CalculatorTool implements Tool {
 
         double parseExpression() {
             double x = parseTerm();
-            for (;;) {
-                if (eat('+'))
-                    x += parseTerm();
-                else if (eat('-'))
-                    x -= parseTerm();
-                else
-                    return x;
+            for (; ; ) {
+                if (eat('+')) x += parseTerm();
+                else if (eat('-')) x -= parseTerm();
+                else return x;
             }
         }
 
         double parseTerm() {
             double x = parseFactor();
-            for (;;) {
-                if (eat('*'))
-                    x *= parseFactor();
-                else if (eat('/'))
-                    x /= parseFactor();
-                else
-                    return x;
+            for (; ; ) {
+                if (eat('*')) x *= parseFactor();
+                else if (eat('/')) x /= parseFactor();
+                else return x;
             }
         }
 
         double parseFactor() {
-            if (eat('+'))
-                return parseFactor();
-            if (eat('-'))
-                return -parseFactor();
+            if (eat('+')) return parseFactor();
+            if (eat('-')) return -parseFactor();
 
             double x;
             int startPos = this.pos;
@@ -119,8 +108,7 @@ public class CalculatorTool implements Tool {
                 x = parseExpression();
                 eat(')');
             } else if ((ch >= '0' && ch <= '9') || ch == '.') {
-                while ((ch >= '0' && ch <= '9') || ch == '.')
-                    nextChar();
+                while ((ch >= '0' && ch <= '9') || ch == '.') nextChar();
                 x = Double.parseDouble(expression.substring(startPos, this.pos));
             } else {
                 throw new RuntimeException("Unexpected: " + (char) ch);

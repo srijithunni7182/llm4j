@@ -4,13 +4,12 @@ import com.google.protobuf.Struct;
 import com.google.protobuf.Value;
 import io.pinecone.clients.Index;
 import io.pinecone.clients.Pinecone;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Vector store implementation using Pinecone (managed cloud service).
- * Requires 'pinecone-client' dependency.
+ * Vector store implementation using Pinecone (managed cloud service). Requires 'pinecone-client'
+ * dependency.
  */
 public class PineconeVectorStore implements VectorStore {
 
@@ -20,7 +19,7 @@ public class PineconeVectorStore implements VectorStore {
     /**
      * Creates a new PineconeVectorStore.
      *
-     * @param apiKey    Pinecone API Key
+     * @param apiKey Pinecone API Key
      * @param indexName Name of the index to use
      * @param namespace Optional namespace (can be null or empty for default)
      */
@@ -56,7 +55,8 @@ public class PineconeVectorStore implements VectorStore {
     }
 
     @Override
-    public List<SearchResult> search(float[] queryEmbedding, int topK, Map<String, Object> filters) {
+    public List<SearchResult> search(
+            float[] queryEmbedding, int topK, Map<String, Object> filters) {
         // Filters are passed as Struct to 'filter' arg
         Struct filterStruct = filters != null && !filters.isEmpty() ? mapToStruct(filters) : null;
         return executeSearch(queryEmbedding, topK, filterStruct);
@@ -82,10 +82,12 @@ public class PineconeVectorStore implements VectorStore {
         // If this fails compile, I will check the error for return type of
         // index.query().
         return response.getMatchesList().stream()
-                .map(match -> new SearchResult(
-                        match.getId(),
-                        match.getScore(),
-                        structToMap(match.getMetadata())))
+                .map(
+                        match ->
+                                new SearchResult(
+                                        match.getId(),
+                                        match.getScore(),
+                                        structToMap(match.getMetadata())))
                 .collect(Collectors.toList());
     }
 

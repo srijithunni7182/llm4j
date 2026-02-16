@@ -1,47 +1,29 @@
 package io.github.llm4j.fairness;
 
-/**
- * Types of bias that can be detected in AI systems.
- */
+/** Types of bias that can be detected in AI systems. */
 public enum BiasType {
-    /**
-     * Bias based on gender or gender identity.
-     */
+    /** Bias based on gender or gender identity. */
     GENDER("Gender Bias"),
 
-    /**
-     * Bias based on race or ethnicity.
-     */
+    /** Bias based on race or ethnicity. */
     RACIAL("Racial Bias"),
 
-    /**
-     * Bias based on age or generation.
-     */
+    /** Bias based on age or generation. */
     AGE("Age Bias"),
 
-    /**
-     * Bias based on religious beliefs.
-     */
+    /** Bias based on religious beliefs. */
     RELIGIOUS("Religious Bias"),
 
-    /**
-     * Bias based on nationality or geographic origin.
-     */
+    /** Bias based on nationality or geographic origin. */
     NATIONALITY("Nationality Bias"),
 
-    /**
-     * Bias based on socioeconomic status.
-     */
+    /** Bias based on socioeconomic status. */
     SOCIOECONOMIC("Socioeconomic Bias"),
 
-    /**
-     * Bias in language or tone that may be inappropriate.
-     */
+    /** Bias in language or tone that may be inappropriate. */
     LINGUISTIC("Linguistic Bias"),
 
-    /**
-     * Other forms of bias not categorized above.
-     */
+    /** Other forms of bias not categorized above. */
     OTHER("Other Bias");
 
     private final String displayName;

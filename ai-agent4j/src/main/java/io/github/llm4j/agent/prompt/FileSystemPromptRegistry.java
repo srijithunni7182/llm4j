@@ -3,28 +3,20 @@ package io.github.llm4j.agent.prompt;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * A file-system based implementation of PromptRegistry.
- * Supports hot-reloading via WatchService.
- * Expects a YAML file structure:
- * prompts:
- * prompt_id:
- * v1: "Template content..."
- * v2: "Updated content..."
- * latest: "v2"
+ * A file-system based implementation of PromptRegistry. Supports hot-reloading via WatchService.
+ * Expects a YAML file structure: prompts: prompt_id: v1: "Template content..." v2: "Updated
+ * content..." latest: "v2"
  */
 public class FileSystemPromptRegistry implements PromptRegistry, AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(FileSystemPromptRegistry.class);
@@ -56,11 +48,13 @@ public class FileSystemPromptRegistry implements PromptRegistry, AutoCloseable {
             if (parent != null) {
                 parent.register(watchService, StandardWatchEventKinds.ENTRY_MODIFY);
 
-                this.watchExecutor = Executors.newSingleThreadExecutor(r -> {
-                    Thread t = new Thread(r, "PromptRegistry-Watcher");
-                    t.setDaemon(true);
-                    return t;
-                });
+                this.watchExecutor =
+                        Executors.newSingleThreadExecutor(
+                                r -> {
+                                    Thread t = new Thread(r, "PromptRegistry-Watcher");
+                                    t.setDaemon(true);
+                                    return t;
+                                });
 
                 watchExecutor.submit(this::watchLoop);
             }
@@ -98,8 +92,7 @@ public class FileSystemPromptRegistry implements PromptRegistry, AutoCloseable {
     @Override
     public Optional<PromptTemplate> get(String id) {
         Map<String, String> versions = promptStorage.get(id);
-        if (versions == null)
-            return Optional.empty();
+        if (versions == null) return Optional.empty();
 
         String latestVersion = versions.get("latest");
         if (latestVersion == null) {
@@ -115,12 +108,10 @@ public class FileSystemPromptRegistry implements PromptRegistry, AutoCloseable {
     @Override
     public Optional<PromptTemplate> get(String id, String version) {
         Map<String, String> versions = promptStorage.get(id);
-        if (versions == null)
-            return Optional.empty();
+        if (versions == null) return Optional.empty();
 
         String content = versions.get(version);
-        if (content == null)
-            return Optional.empty();
+        if (content == null) return Optional.empty();
 
         return Optional.of(new PromptTemplate(id, version, content));
     }
@@ -134,10 +125,10 @@ public class FileSystemPromptRegistry implements PromptRegistry, AutoCloseable {
 
         try {
             // Structure: { "prompts": { "id": { "v1": "...", "latest": "..." } } }
-            Map<String, Map<String, Map<String, String>>> root = mapper.readValue(
-                    promptsFile.toFile(),
-                    new TypeReference<Map<String, Map<String, Map<String, String>>>>() {
-                    });
+            Map<String, Map<String, Map<String, String>>> root =
+                    mapper.readValue(
+                            promptsFile.toFile(),
+                            new TypeReference<Map<String, Map<String, Map<String, String>>>>() {});
 
             if (root.containsKey("prompts")) {
                 Map<String, Map<String, String>> newPrompts = root.get("prompts");

@@ -1,5 +1,12 @@
 package io.github.llm4j.provider.google;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.exception.AuthenticationException;
 import io.github.llm4j.exception.ContentBlockedException;
@@ -7,6 +14,9 @@ import io.github.llm4j.exception.ProviderException;
 import io.github.llm4j.http.HttpClientWrapper;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
 import okhttp3.Headers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,24 +25,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 class GoogleProviderTest {
 
     private final PrintStream originalSystemErr = System.err;
     private final ByteArrayOutputStream systemErrContent = new ByteArrayOutputStream();
 
-    @Mock
-    private HttpClientWrapper mockHttpClient;
+    @Mock private HttpClientWrapper mockHttpClient;
 
     private GoogleProvider provider;
 
@@ -47,7 +45,7 @@ class GoogleProviderTest {
     void tearDown() {
         System.setErr(originalSystemErr);
     }
-    
+
     private LLMConfig createValidConfig() {
         return LLMConfig.builder().apiKey("test-key").defaultModel("gemini-pro").build();
     }
@@ -62,9 +60,15 @@ class GoogleProviderTest {
 
     @Test
     void testChat_successfulResponse() throws IOException {
-        provider = new GoogleProvider(createValidConfig(), mockHttpClient, new com.fasterxml.jackson.databind.ObjectMapper());
-        String mockResponse = "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Hello there\"}]}}], \"usageMetadata\": {\"promptTokenCount\": 1, \"candidatesTokenCount\": 2, \"totalTokenCount\": 3}}";
-        when(mockHttpClient.post(anyString(), anyString(), any(Headers.class))).thenReturn(mockResponse);
+        provider =
+                new GoogleProvider(
+                        createValidConfig(),
+                        mockHttpClient,
+                        new com.fasterxml.jackson.databind.ObjectMapper());
+        String mockResponse =
+                "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Hello there\"}]}}], \"usageMetadata\": {\"promptTokenCount\": 1, \"candidatesTokenCount\": 2, \"totalTokenCount\": 3}}";
+        when(mockHttpClient.post(anyString(), anyString(), any(Headers.class)))
+                .thenReturn(mockResponse);
 
         LLMResponse response = provider.chat(LLMRequest.builder().addUserMessage("Hi").build());
 
@@ -75,26 +79,38 @@ class GoogleProviderTest {
 
     @Test
     void testChat_handlesSystemMessageCorrectly() throws IOException {
-        provider = new GoogleProvider(createValidConfig(), mockHttpClient, new com.fasterxml.jackson.databind.ObjectMapper());
-        String mockResponse = "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Yes, I am a bot\"}]}}]}";
-        when(mockHttpClient.post(anyString(), anyString(), any(Headers.class))).thenReturn(mockResponse);
+        provider =
+                new GoogleProvider(
+                        createValidConfig(),
+                        mockHttpClient,
+                        new com.fasterxml.jackson.databind.ObjectMapper());
+        String mockResponse =
+                "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"Yes, I am a bot\"}]}}]}";
+        when(mockHttpClient.post(anyString(), anyString(), any(Headers.class)))
+                .thenReturn(mockResponse);
 
-        provider.chat(LLMRequest.builder()
-                .addSystemMessage("You are a helpful bot.")
-                .addUserMessage("Are you a bot?")
-                .build());
+        provider.chat(
+                LLMRequest.builder()
+                        .addSystemMessage("You are a helpful bot.")
+                        .addUserMessage("Are you a bot?")
+                        .build());
 
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(mockHttpClient).post(anyString(), captor.capture(), any(Headers.class));
-        
+
         assertThat(captor.getValue()).contains("You are a helpful bot.\\n\\nAre you a bot?");
     }
-    
+
     @Test
     void testChat_throwsContentBlockedException_fromPromptFeedback() throws IOException {
-        provider = new GoogleProvider(createValidConfig(), mockHttpClient, new com.fasterxml.jackson.databind.ObjectMapper());
+        provider =
+                new GoogleProvider(
+                        createValidConfig(),
+                        mockHttpClient,
+                        new com.fasterxml.jackson.databind.ObjectMapper());
         String mockResponse = "{\"promptFeedback\":{\"blockReason\":\"SAFETY\"}}";
-        when(mockHttpClient.post(anyString(), anyString(), any(Headers.class))).thenReturn(mockResponse);
+        when(mockHttpClient.post(anyString(), anyString(), any(Headers.class)))
+                .thenReturn(mockResponse);
 
         assertThatThrownBy(() -> provider.chat(LLMRequest.builder().addUserMessage("...").build()))
                 .isInstanceOf(ContentBlockedException.class)
@@ -103,9 +119,14 @@ class GoogleProviderTest {
 
     @Test
     void testChat_throwsContentBlockedException_fromFinishReason() throws IOException {
-        provider = new GoogleProvider(createValidConfig(), mockHttpClient, new com.fasterxml.jackson.databind.ObjectMapper());
+        provider =
+                new GoogleProvider(
+                        createValidConfig(),
+                        mockHttpClient,
+                        new com.fasterxml.jackson.databind.ObjectMapper());
         String mockResponse = "{\"candidates\":[{\"finishReason\":\"SAFETY\"}]}";
-        when(mockHttpClient.post(anyString(), anyString(), any(Headers.class))).thenReturn(mockResponse);
+        when(mockHttpClient.post(anyString(), anyString(), any(Headers.class)))
+                .thenReturn(mockResponse);
 
         assertThatThrownBy(() -> provider.chat(LLMRequest.builder().addUserMessage("...").build()))
                 .isInstanceOf(ContentBlockedException.class)
@@ -114,9 +135,15 @@ class GoogleProviderTest {
 
     @Test
     void testChat_handlesMaxTokensFinishReason() throws IOException {
-        provider = new GoogleProvider(createValidConfig(), mockHttpClient, new com.fasterxml.jackson.databind.ObjectMapper());
-        String mockResponse = "{\"candidates\":[{\"finishReason\":\"MAX_TOKENS\",\"content\":{\"parts\":[]}}]}";
-        when(mockHttpClient.post(anyString(), anyString(), any(Headers.class))).thenReturn(mockResponse);
+        provider =
+                new GoogleProvider(
+                        createValidConfig(),
+                        mockHttpClient,
+                        new com.fasterxml.jackson.databind.ObjectMapper());
+        String mockResponse =
+                "{\"candidates\":[{\"finishReason\":\"MAX_TOKENS\",\"content\":{\"parts\":[]}}]}";
+        when(mockHttpClient.post(anyString(), anyString(), any(Headers.class)))
+                .thenReturn(mockResponse);
 
         LLMResponse response = provider.chat(LLMRequest.builder().addUserMessage("...").build());
 
@@ -125,8 +152,13 @@ class GoogleProviderTest {
 
     @Test
     void testListModels_throwsProviderException_onHttpError() throws IOException {
-        provider = new GoogleProvider(createValidConfig(), mockHttpClient, new com.fasterxml.jackson.databind.ObjectMapper());
-        when(mockHttpClient.get(anyString(), any())).thenThrow(new io.github.llm4j.exception.LLMException("Network error"));
+        provider =
+                new GoogleProvider(
+                        createValidConfig(),
+                        mockHttpClient,
+                        new com.fasterxml.jackson.databind.ObjectMapper());
+        when(mockHttpClient.get(anyString(), any()))
+                .thenThrow(new io.github.llm4j.exception.LLMException("Network error"));
 
         assertThatThrownBy(() -> provider.listModels())
                 .isInstanceOf(ProviderException.class)
@@ -135,8 +167,13 @@ class GoogleProviderTest {
 
     @Test
     void testGetFirstAvailableModel_successful() throws IOException {
-        provider = new GoogleProvider(createValidConfig(), mockHttpClient, new com.fasterxml.jackson.databind.ObjectMapper());
-        String mockResponse = "{\"models\":[{\"name\":\"models/gemini-1.0-pro\",\"supportedGenerationMethods\":[\"generateContent\"]},{\"name\":\"models/text-bison-001\"}]}";
+        provider =
+                new GoogleProvider(
+                        createValidConfig(),
+                        mockHttpClient,
+                        new com.fasterxml.jackson.databind.ObjectMapper());
+        String mockResponse =
+                "{\"models\":[{\"name\":\"models/gemini-1.0-pro\",\"supportedGenerationMethods\":[\"generateContent\"]},{\"name\":\"models/text-bison-001\"}]}";
         when(mockHttpClient.get(anyString(), any())).thenReturn(mockResponse);
 
         String model = provider.getFirstAvailableModel();

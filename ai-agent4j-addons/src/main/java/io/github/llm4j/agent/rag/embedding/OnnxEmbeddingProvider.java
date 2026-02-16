@@ -7,16 +7,15 @@ import ai.onnxruntime.OrtEnvironment;
 import ai.onnxruntime.OrtException;
 import ai.onnxruntime.OrtSession;
 import ai.onnxruntime.TensorInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Local embedding provider using ONNX Runtime.
- * Requires an ONNX model file and a tokenizer.json file.
+ * Local embedding provider using ONNX Runtime. Requires an ONNX model file and a tokenizer.json
+ * file.
  */
 public class OnnxEmbeddingProvider implements EmbeddingProvider, AutoCloseable {
 
@@ -45,10 +44,14 @@ public class OnnxEmbeddingProvider implements EmbeddingProvider, AutoCloseable {
         long[] shape = info.getShape();
         this.dimensions = (int) shape[shape.length - 1];
 
-        logger.info("Initialized OnnxEmbeddingProvider with model: {} and dimensions: {}", modelPath, dimensions);
+        logger.info(
+                "Initialized OnnxEmbeddingProvider with model: {} and dimensions: {}",
+                modelPath,
+                dimensions);
     }
 
-    OnnxEmbeddingProvider(OrtEnvironment env, OrtSession session, HuggingFaceTokenizer tokenizer) throws OrtException {
+    OnnxEmbeddingProvider(OrtEnvironment env, OrtSession session, HuggingFaceTokenizer tokenizer)
+            throws OrtException {
         this.env = env;
         this.session = session;
         this.tokenizer = tokenizer;
@@ -130,12 +133,10 @@ public class OnnxEmbeddingProvider implements EmbeddingProvider, AutoCloseable {
 
     private float[] normalize(float[] v) {
         double sum = 0;
-        for (float f : v)
-            sum += f * f;
+        for (float f : v) sum += f * f;
         float norm = (float) Math.sqrt(sum);
         if (norm > 0) {
-            for (int i = 0; i < v.length; i++)
-                v[i] /= norm;
+            for (int i = 0; i < v.length; i++) v[i] /= norm;
         }
         return v;
     }
@@ -147,11 +148,8 @@ public class OnnxEmbeddingProvider implements EmbeddingProvider, AutoCloseable {
 
     @Override
     public void close() throws OrtException {
-        if (session != null)
-            session.close();
-        if (env != null)
-            env.close();
-        if (tokenizer != null)
-            tokenizer.close();
+        if (session != null) session.close();
+        if (env != null) env.close();
+        if (tokenizer != null) tokenizer.close();
     }
 }

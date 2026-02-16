@@ -1,17 +1,15 @@
 package io.github.llm4j.model;
 
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.*;
+
+import org.junit.jupiter.api.Test;
 
 class LLMResponseTest {
 
     @Test
     void testBasicResponse() {
-        LLMResponse response = LLMResponse.builder()
-                .content("Hello, World!")
-                .model("gpt-4")
-                .build();
+        LLMResponse response =
+                LLMResponse.builder().content("Hello, World!").model("gpt-4").build();
 
         assertThat(response.getContent()).isEqualTo("Hello, World!");
         assertThat(response.getModel()).isEqualTo("gpt-4");
@@ -21,10 +19,8 @@ class LLMResponseTest {
     void testResponseWithTokenUsage() {
         LLMResponse.TokenUsage tokenUsage = new LLMResponse.TokenUsage(10, 20, 30);
 
-        LLMResponse response = LLMResponse.builder()
-                .content("Response")
-                .tokenUsage(tokenUsage)
-                .build();
+        LLMResponse response =
+                LLMResponse.builder().content("Response").tokenUsage(tokenUsage).build();
 
         assertThat(response.getTokenUsage()).isNotNull();
         assertThat(response.getTokenUsage().getPromptTokens()).isEqualTo(10);
@@ -34,10 +30,11 @@ class LLMResponseTest {
 
     @Test
     void testResponseWithFinishReason() {
-        LLMResponse response = LLMResponse.builder()
-                .content("Response")
-                .finishReason(LLMResponse.FinishReason.STOP)
-                .build();
+        LLMResponse response =
+                LLMResponse.builder()
+                        .content("Response")
+                        .finishReason(LLMResponse.FinishReason.STOP)
+                        .build();
 
         assertThat(response.getFinishReason()).isEqualTo(LLMResponse.FinishReason.STOP);
     }
@@ -56,11 +53,12 @@ class LLMResponseTest {
 
     @Test
     void testResponseWithMetadata() {
-        LLMResponse response = LLMResponse.builder()
-                .content("Response")
-                .addMetadata("key1", "value1")
-                .addMetadata("key2", 123)
-                .build();
+        LLMResponse response =
+                LLMResponse.builder()
+                        .content("Response")
+                        .addMetadata("key1", "value1")
+                        .addMetadata("key2", 123)
+                        .build();
 
         assertThat(response.getMetadata()).containsEntry("key1", "value1");
         assertThat(response.getMetadata()).containsEntry("key2", 123);

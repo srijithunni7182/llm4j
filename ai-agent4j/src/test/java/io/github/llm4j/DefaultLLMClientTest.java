@@ -1,5 +1,9 @@
 package io.github.llm4j;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.provider.LLMProvider;
@@ -8,14 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
 class DefaultLLMClientTest {
 
-    @Mock
-    private LLMProvider mockProvider;
+    @Mock private LLMProvider mockProvider;
 
     private DefaultLLMClient client;
 
@@ -30,13 +29,9 @@ class DefaultLLMClientTest {
 
     @Test
     void testChatDelegatesToProvider() {
-        LLMRequest request = LLMRequest.builder()
-                .addUserMessage("Hello")
-                .build();
+        LLMRequest request = LLMRequest.builder().addUserMessage("Hello").build();
 
-        LLMResponse expectedResponse = LLMResponse.builder()
-                .content("Hi there!")
-                .build();
+        LLMResponse expectedResponse = LLMResponse.builder().content("Hi there!").build();
 
         when(mockProvider.chat(any(LLMRequest.class))).thenReturn(expectedResponse);
 
@@ -54,8 +49,7 @@ class DefaultLLMClientTest {
 
     @Test
     void testNullRequestThrows() {
-        assertThatThrownBy(() -> client.chat(null))
-                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> client.chat(null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test

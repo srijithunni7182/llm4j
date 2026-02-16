@@ -3,18 +3,18 @@ package io.github.llm4j.model;
 import java.util.Objects;
 import java.util.Optional;
 
-/**
- * Standardized response for Language Detection.
- */
+/** Standardized response for Language Detection. */
 public class LanguageDetectionResponse {
 
     private final String detectedLanguageCode;
     private final String detectedScript;
     private final Double confidenceScore;
 
-    public LanguageDetectionResponse(String detectedLanguageCode, String detectedScript, Double confidenceScore) {
-        this.detectedLanguageCode = Objects.requireNonNull(detectedLanguageCode,
-                "Detected language code cannot be null");
+    public LanguageDetectionResponse(
+            String detectedLanguageCode, String detectedScript, Double confidenceScore) {
+        this.detectedLanguageCode =
+                Objects.requireNonNull(
+                        detectedLanguageCode, "Detected language code cannot be null");
         this.detectedScript = detectedScript;
         this.confidenceScore = confidenceScore;
     }
@@ -33,10 +33,15 @@ public class LanguageDetectionResponse {
 
     @Override
     public String toString() {
-        return "LanguageDetectionResponse{" +
-                "detectedLanguageCode='" + detectedLanguageCode + '\'' +
-                ", detectedScript='" + detectedScript + '\'' +
-                ", confidenceScore=" + confidenceScore +
-                '}';
+        return "LanguageDetectionResponse{"
+                + "detectedLanguageCode='"
+                + detectedLanguageCode
+                + '\''
+                + ", detectedScript='"
+                + detectedScript
+                + '\''
+                + ", confidenceScore="
+                + confidenceScore
+                + '}';
     }
 }

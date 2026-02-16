@@ -1,15 +1,14 @@
 package io.github.llm4j.agent.rag.store;
 
-import org.apache.commons.math3.linear.ArrayRealVector;
-import org.apache.commons.math3.linear.RealVector;
-
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import org.apache.commons.math3.linear.ArrayRealVector;
+import org.apache.commons.math3.linear.RealVector;
 
 /**
- * In-memory vector store using cosine similarity for search.
- * Suitable for small to medium datasets (up to ~10K vectors).
+ * In-memory vector store using cosine similarity for search. Suitable for small to medium datasets
+ * (up to ~10K vectors).
  */
 public class InMemoryVectorStore implements VectorStore {
 
@@ -24,7 +23,8 @@ public class InMemoryVectorStore implements VectorStore {
         Objects.requireNonNull(id, "id cannot be null");
         Objects.requireNonNull(embedding, "embedding cannot be null");
 
-        Map<String, Object> metadataCopy = metadata != null ? new HashMap<>(metadata) : new HashMap<>();
+        Map<String, Object> metadataCopy =
+                metadata != null ? new HashMap<>(metadata) : new HashMap<>();
 
         vectors.put(id, new VectorEntry(id, embedding, metadataCopy));
     }
@@ -44,7 +44,8 @@ public class InMemoryVectorStore implements VectorStore {
     }
 
     @Override
-    public List<SearchResult> search(float[] queryEmbedding, int topK, Map<String, Object> filters) {
+    public List<SearchResult> search(
+            float[] queryEmbedding, int topK, Map<String, Object> filters) {
         Objects.requireNonNull(queryEmbedding, "queryEmbedding cannot be null");
 
         if (topK <= 0) {
@@ -54,16 +55,22 @@ public class InMemoryVectorStore implements VectorStore {
         RealVector queryVector = new ArrayRealVector(toDoubleArray(queryEmbedding));
 
         // Calculate similarities for all vectors
-        List<SearchResult> results = vectors.values().stream()
-                .filter(entry -> matchesFilters(entry.getMetadata(), filters))
-                .map(entry -> {
-                    RealVector entryVector = new ArrayRealVector(toDoubleArray(entry.getEmbedding()));
-                    float similarity = (float) cosineSimilarity(queryVector, entryVector);
-                    return new SearchResult(entry.getId(), similarity, entry.getMetadata());
-                })
-                .sorted((a, b) -> Float.compare(b.getSimilarity(), a.getSimilarity()))
-                .limit(topK)
-                .collect(Collectors.toList());
+        List<SearchResult> results =
+                vectors.values().stream()
+                        .filter(entry -> matchesFilters(entry.getMetadata(), filters))
+                        .map(
+                                entry -> {
+                                    RealVector entryVector =
+                                            new ArrayRealVector(
+                                                    toDoubleArray(entry.getEmbedding()));
+                                    float similarity =
+                                            (float) cosineSimilarity(queryVector, entryVector);
+                                    return new SearchResult(
+                                            entry.getId(), similarity, entry.getMetadata());
+                                })
+                        .sorted((a, b) -> Float.compare(b.getSimilarity(), a.getSimilarity()))
+                        .limit(topK)
+                        .collect(Collectors.toList());
 
         return results;
     }
@@ -115,7 +122,7 @@ public class InMemoryVectorStore implements VectorStore {
      * Checks if metadata matches the given filters.
      *
      * @param metadata the metadata to check
-     * @param filters  the filters to apply (null means no filtering)
+     * @param filters the filters to apply (null means no filtering)
      * @return true if metadata matches all filters
      */
     private boolean matchesFilters(Map<String, Object> metadata, Map<String, Object> filters) {

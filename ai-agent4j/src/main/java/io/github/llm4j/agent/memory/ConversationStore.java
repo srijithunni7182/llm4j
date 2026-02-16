@@ -4,8 +4,8 @@ import io.github.llm4j.model.Message;
 import java.util.List;
 
 /**
- * Interface for persistent conversation storage.
- * Implementations can store messages in memory, files, or databases.
+ * Interface for persistent conversation storage. Implementations can store messages in memory,
+ * files, or databases.
  */
 public interface ConversationStore {
 
@@ -13,7 +13,7 @@ public interface ConversationStore {
      * Saves a single message to the store for a specific session.
      *
      * @param sessionId the unique session identifier
-     * @param message   the message to save
+     * @param message the message to save
      */
     void saveMessage(String sessionId, Message message);
 
@@ -21,7 +21,7 @@ public interface ConversationStore {
      * Loads the most recent messages for a session.
      *
      * @param sessionId the unique session identifier
-     * @param limit     the maximum number of messages to return
+     * @param limit the maximum number of messages to return
      * @return list of messages, ordered chronologically
      */
     List<Message> loadHistory(String sessionId, int limit);
@@ -51,7 +51,7 @@ public interface ConversationStore {
      * Updates the summary for a specific session.
      *
      * @param sessionId the unique session identifier
-     * @param summary   the new summary text
+     * @param summary the new summary text
      */
     void updateSummary(String sessionId, String summary);
 

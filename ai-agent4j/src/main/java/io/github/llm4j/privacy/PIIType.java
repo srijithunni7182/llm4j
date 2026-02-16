@@ -1,8 +1,6 @@
 package io.github.llm4j.privacy;
 
-/**
- * Types of Personally Identifiable Information (PII) that can be detected.
- */
+/** Types of Personally Identifiable Information (PII) that can be detected. */
 public enum PIIType {
     EMAIL("Email Address"),
     PHONE("Phone Number"),

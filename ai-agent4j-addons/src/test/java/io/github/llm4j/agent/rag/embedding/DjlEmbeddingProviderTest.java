@@ -1,28 +1,25 @@
 package io.github.llm4j.agent.rag.embedding;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import ai.djl.inference.Predictor;
 import ai.djl.repository.zoo.ZooModel;
 import ai.djl.translate.TranslateException;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Arrays;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
 @ExtendWith(MockitoExtension.class)
 class DjlEmbeddingProviderTest {
 
-    @Mock
-    private ZooModel<String, float[]> model;
+    @Mock private ZooModel<String, float[]> model;
 
-    @Mock
-    private Predictor<String, float[]> predictor;
+    @Mock private Predictor<String, float[]> predictor;
 
     private DjlEmbeddingProvider embeddingProvider;
 
@@ -81,7 +78,8 @@ class DjlEmbeddingProviderTest {
     @Test
     void testEmbedBatchFailure() throws TranslateException {
         List<String> texts = Arrays.asList("This", "will", "fail.");
-        when(predictor.batchPredict(texts)).thenThrow(new TranslateException("Batch embedding failed"));
+        when(predictor.batchPredict(texts))
+                .thenThrow(new TranslateException("Batch embedding failed"));
 
         assertThrows(RuntimeException.class, () -> embeddingProvider.embedBatch(texts));
     }

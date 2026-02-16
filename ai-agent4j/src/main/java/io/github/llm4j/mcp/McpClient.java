@@ -1,8 +1,5 @@
 package io.github.llm4j.mcp;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -10,10 +7,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class McpClient implements AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(McpClient.class);
@@ -21,7 +19,8 @@ public class McpClient implements AutoCloseable {
 
     private final McpTransport transport;
     private final AtomicLong requestIdCounter = new AtomicLong(0);
-    private final Map<Object, CompletableFuture<JsonRpcResponse>> pendingRequests = new ConcurrentHashMap<>();
+    private final Map<Object, CompletableFuture<JsonRpcResponse>> pendingRequests =
+            new ConcurrentHashMap<>();
 
     private boolean initialized = false;
     private Map<String, Object> serverCapabilities;
@@ -44,7 +43,8 @@ public class McpClient implements AutoCloseable {
         JsonRpcResponse response = sendRequest("initialize", params);
 
         if (response.isError()) {
-            throw new RuntimeException("MCP Initialization failed: " + response.getError().getMessage());
+            throw new RuntimeException(
+                    "MCP Initialization failed: " + response.getError().getMessage());
         }
 
         // Parse result
@@ -78,7 +78,8 @@ public class McpClient implements AutoCloseable {
 
         JsonRpcResponse response = sendRequest("tools/call", params);
         if (response.isError()) {
-            throw new RuntimeException("Tool execution failed: " + response.getError().getMessage());
+            throw new RuntimeException(
+                    "Tool execution failed: " + response.getError().getMessage());
         }
 
         Map<String, Object> result = (Map<String, Object>) response.getResult();
@@ -143,7 +144,9 @@ public class McpClient implements AutoCloseable {
             // Log or handle specific notifications
         } else if (message instanceof JsonRpcRequest) {
             // Server sending request to client (e.g. sampling). Not implemented yet.
-            logger.warn("Received request from server, not implemented: {}", ((JsonRpcRequest) message).getMethod());
+            logger.warn(
+                    "Received request from server, not implemented: {}",
+                    ((JsonRpcRequest) message).getMethod());
         }
     }
 

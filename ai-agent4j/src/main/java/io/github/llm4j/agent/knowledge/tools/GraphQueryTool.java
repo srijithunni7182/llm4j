@@ -4,14 +4,11 @@ import io.github.llm4j.agent.Tool;
 import io.github.llm4j.agent.knowledge.KnowledgeGraph;
 import io.github.llm4j.agent.knowledge.model.Entity;
 import io.github.llm4j.agent.knowledge.model.Triple;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Tool for querying a knowledge graph.
- */
+/** Tool for querying a knowledge graph. */
 public class GraphQueryTool implements Tool {
 
     private final KnowledgeGraph graph;
@@ -27,12 +24,12 @@ public class GraphQueryTool implements Tool {
 
     @Override
     public String getDescription() {
-        return "Query the knowledge graph to find entities and relationships. " +
-                "Input should be a JSON object with one of: " +
-                "{'entityId': 'id'} to get entity details, " +
-                "{'entityType': 'type'} to find entities by type, " +
-                "{'subjectId': 'id'} to get all relationships from an entity, " +
-                "{'subjectId': 'id', 'predicateType': 'type'} to find specific relationships.";
+        return "Query the knowledge graph to find entities and relationships. "
+                + "Input should be a JSON object with one of: "
+                + "{'entityId': 'id'} to get entity details, "
+                + "{'entityType': 'type'} to find entities by type, "
+                + "{'subjectId': 'id'} to get all relationships from an entity, "
+                + "{'subjectId': 'id', 'predicateType': 'type'} to find specific relationships.";
     }
 
     @Override
@@ -108,10 +105,12 @@ public class GraphQueryTool implements Tool {
         result.append(String.format("Found %d relationships:\n", triples.size()));
 
         for (Triple triple : triples) {
-            result.append(String.format("- %s -[%s]-> %s\n",
-                    triple.getSubject().getId(),
-                    triple.getPredicate().getType(),
-                    triple.getObject().getId()));
+            result.append(
+                    String.format(
+                            "- %s -[%s]-> %s\n",
+                            triple.getSubject().getId(),
+                            triple.getPredicate().getType(),
+                            triple.getObject().getId()));
         }
 
         return result.toString();

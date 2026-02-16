@@ -3,18 +3,17 @@ package io.github.llm4j.agent.rag.embedding;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.llm4j.config.LLMConfig;
-import okhttp3.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import okhttp3.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Embedding provider using Google Gemini's text-embedding-004 model.
- * Generates 768-dimensional embeddings.
+ * Embedding provider using Google Gemini's text-embedding-004 model. Generates 768-dimensional
+ * embeddings.
  */
 public class GeminiEmbeddingProvider implements EmbeddingProvider {
 
@@ -34,17 +33,22 @@ public class GeminiEmbeddingProvider implements EmbeddingProvider {
     }
 
     public GeminiEmbeddingProvider(LLMConfig config, String model) {
-        this(config, model, new OkHttpClient.Builder()
-                .connectTimeout(config.getConnectTimeout())
-                .readTimeout(config.getTimeout())
-                .build());
+        this(
+                config,
+                model,
+                new OkHttpClient.Builder()
+                        .connectTimeout(config.getConnectTimeout())
+                        .readTimeout(config.getTimeout())
+                        .build());
     }
 
     protected GeminiEmbeddingProvider(LLMConfig config, String model, OkHttpClient httpClient) {
         this.apiKey = Objects.requireNonNull(config.getApiKey(), "API key cannot be null");
         this.model = model != null ? model : DEFAULT_MODEL;
-        this.baseUrl = config.getBaseUrl() != null ? config.getBaseUrl()
-                : "https://generativelanguage.googleapis.com/v1";
+        this.baseUrl =
+                config.getBaseUrl() != null
+                        ? config.getBaseUrl()
+                        : "https://generativelanguage.googleapis.com/v1";
         this.httpClient = httpClient;
         this.objectMapper = new ObjectMapper();
     }
@@ -54,17 +58,17 @@ public class GeminiEmbeddingProvider implements EmbeddingProvider {
         Objects.requireNonNull(text, "text cannot be null");
 
         try {
-            String url = String.format("%s/models/%s:embedContent?key=%s",
-                    baseUrl, model, apiKey);
+            String url = String.format("%s/models/%s:embedContent?key=%s", baseUrl, model, apiKey);
 
-            String requestBody = String.format(
-                    "{\"content\":{\"parts\":[{\"text\":\"%s\"}]}}",
-                    escapeJson(text));
+            String requestBody =
+                    String.format(
+                            "{\"content\":{\"parts\":[{\"text\":\"%s\"}]}}", escapeJson(text));
 
-            Request request = new Request.Builder()
-                    .url(url)
-                    .post(RequestBody.create(requestBody, JSON))
-                    .build();
+            Request request =
+                    new Request.Builder()
+                            .url(url)
+                            .post(RequestBody.create(requestBody, JSON))
+                            .build();
 
             try (Response response = httpClient.newCall(request).execute()) {
                 if (!response.isSuccessful()) {

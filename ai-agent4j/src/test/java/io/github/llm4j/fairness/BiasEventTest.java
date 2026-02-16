@@ -1,24 +1,26 @@
 package io.github.llm4j.fairness;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
 import java.time.Instant;
 import java.util.Map;
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 class BiasEventTest {
 
     @Test
     void testBuilderAndGetters() {
         Instant now = Instant.now();
-        BiasEvent event = BiasEvent.builder()
-                .type(BiasType.GENDER)
-                .severity(BiasSeverity.HIGH)
-                .text("biased text")
-                .explanation("contains gender steering")
-                .confidence(0.95)
-                .timestamp(now)
-                .addMetadata("engine", "test-v1")
-                .build();
+        BiasEvent event =
+                BiasEvent.builder()
+                        .type(BiasType.GENDER)
+                        .severity(BiasSeverity.HIGH)
+                        .text("biased text")
+                        .explanation("contains gender steering")
+                        .confidence(0.95)
+                        .timestamp(now)
+                        .addMetadata("engine", "test-v1")
+                        .build();
 
         assertEquals(BiasType.GENDER, event.getType());
         assertEquals(BiasSeverity.HIGH, event.getSeverity());
@@ -31,11 +33,12 @@ class BiasEventTest {
 
     @Test
     void testDefaultTimestampAndConfidence() {
-        BiasEvent event = BiasEvent.builder()
-                .type(BiasType.RACIAL)
-                .severity(BiasSeverity.LOW)
-                .text("some text")
-                .build();
+        BiasEvent event =
+                BiasEvent.builder()
+                        .type(BiasType.RACIAL)
+                        .severity(BiasSeverity.LOW)
+                        .text("some text")
+                        .build();
 
         assertNotNull(event.getTimestamp());
         assertEquals(0.5, event.getConfidence());
@@ -43,13 +46,14 @@ class BiasEventTest {
 
     @Test
     void testToString() {
-        BiasEvent event = BiasEvent.builder()
-                .type(BiasType.RELIGIOUS)
-                .severity(BiasSeverity.MEDIUM)
-                .text("text")
-                .explanation("expl")
-                .confidence(0.8)
-                .build();
+        BiasEvent event =
+                BiasEvent.builder()
+                        .type(BiasType.RELIGIOUS)
+                        .severity(BiasSeverity.MEDIUM)
+                        .text("text")
+                        .explanation("expl")
+                        .confidence(0.8)
+                        .build();
 
         String str = event.toString();
         assertTrue(str.contains("RELIGIOUS"));
@@ -60,10 +64,8 @@ class BiasEventTest {
 
     @Test
     void testMetadataImmutability() {
-        BiasEvent.Builder builder = BiasEvent.builder()
-                .type(BiasType.AGE)
-                .severity(BiasSeverity.LOW)
-                .text("text");
+        BiasEvent.Builder builder =
+                BiasEvent.builder().type(BiasType.AGE).severity(BiasSeverity.LOW).text("text");
 
         BiasEvent event = builder.build();
         Map<String, Object> metadata = event.getMetadata();

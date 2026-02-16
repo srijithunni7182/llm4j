@@ -3,8 +3,8 @@ package io.github.llm4j.model;
 import java.util.Objects;
 
 /**
- * Represents a confidence score for an agent decision or step.
- * Provides quantified uncertainty to support xAI compliance.
+ * Represents a confidence score for an agent decision or step. Provides quantified uncertainty to
+ * support xAI compliance.
  */
 public class ConfidenceScore {
 
@@ -14,7 +14,8 @@ public class ConfidenceScore {
 
     private ConfidenceScore(Builder builder) {
         if (builder.score < 0.0 || builder.score > 1.0) {
-            throw new IllegalArgumentException("Score must be between 0.0 and 1.0, got: " + builder.score);
+            throw new IllegalArgumentException(
+                    "Score must be between 0.0 and 1.0, got: " + builder.score);
         }
         this.score = builder.score;
         this.level = ConfidenceLevel.fromScore(builder.score);
@@ -82,14 +83,12 @@ public class ConfidenceScore {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (o == null || getClass() != o.getClass())
-            return false;
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
         ConfidenceScore that = (ConfidenceScore) o;
-        return Double.compare(that.score, score) == 0 &&
-                level == that.level &&
-                Objects.equals(reasoning, that.reasoning);
+        return Double.compare(that.score, score) == 0
+                && level == that.level
+                && Objects.equals(reasoning, that.reasoning);
     }
 
     @Override
@@ -99,16 +98,18 @@ public class ConfidenceScore {
 
     @Override
     public String toString() {
-        return "ConfidenceScore{" +
-                "score=" + score +
-                ", level=" + level +
-                ", reasoning='" + reasoning + '\'' +
-                '}';
+        return "ConfidenceScore{"
+                + "score="
+                + score
+                + ", level="
+                + level
+                + ", reasoning='"
+                + reasoning
+                + '\''
+                + '}';
     }
 
-    /**
-     * Confidence level based on score thresholds.
-     */
+    /** Confidence level based on score thresholds. */
     public enum ConfidenceLevel {
         HIGH(0.8, 1.0),
         MEDIUM(0.5, 0.8),

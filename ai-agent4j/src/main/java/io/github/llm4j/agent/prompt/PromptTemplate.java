@@ -6,8 +6,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Represents a single version of a prompt template.
- * Supports mustache-style variable substitution {{variable}}.
+ * Represents a single version of a prompt template. Supports mustache-style variable substitution
+ * {{variable}}.
  */
 public class PromptTemplate {
     private final String id;
@@ -35,7 +35,7 @@ public class PromptTemplate {
 
     /**
      * Renders the template by substituting variables.
-     * 
+     *
      * @param variables Map of variable names to values
      * @return Rendered string
      */

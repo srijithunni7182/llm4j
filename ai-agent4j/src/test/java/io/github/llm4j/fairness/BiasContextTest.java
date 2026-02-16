@@ -1,18 +1,20 @@
 package io.github.llm4j.fairness;
 
-import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
+
+import org.junit.jupiter.api.Test;
 
 class BiasContextTest {
 
     @Test
     void testBuilder() {
-        BiasContext context = BiasContext.builder()
-                .sessionId("session-1")
-                .userId("user-1")
-                .taskType("summarization")
-                .addContext("key", "value")
-                .build();
+        BiasContext context =
+                BiasContext.builder()
+                        .sessionId("session-1")
+                        .userId("user-1")
+                        .taskType("summarization")
+                        .addContext("key", "value")
+                        .build();
 
         assertEquals("session-1", context.getSessionId());
         assertEquals("user-1", context.getUserId());

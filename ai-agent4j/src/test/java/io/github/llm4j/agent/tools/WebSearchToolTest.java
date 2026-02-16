@@ -1,16 +1,15 @@
 package io.github.llm4j.agent.tools;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.IOException;
+import java.util.Map;
 import okhttp3.OkHttpClient;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class WebSearchToolTest {
 
@@ -46,17 +45,21 @@ class WebSearchToolTest {
 
         // Let's use the Interceptor approach to redirect googleapis.com to localhost
         // for testing.
-        OkHttpClient client = new OkHttpClient.Builder()
-                .addInterceptor(chain -> {
-                    okhttp3.Request original = chain.request();
-                    okhttp3.HttpUrl newUrl = original.url().newBuilder()
-                            .scheme("http")
-                            .host(mockWebServer.getHostName())
-                            .port(mockWebServer.getPort())
-                            .build();
-                    return chain.proceed(original.newBuilder().url(newUrl).build());
-                })
-                .build();
+        OkHttpClient client =
+                new OkHttpClient.Builder()
+                        .addInterceptor(
+                                chain -> {
+                                    okhttp3.Request original = chain.request();
+                                    okhttp3.HttpUrl newUrl =
+                                            original.url()
+                                                    .newBuilder()
+                                                    .scheme("http")
+                                                    .host(mockWebServer.getHostName())
+                                                    .port(mockWebServer.getPort())
+                                                    .build();
+                                    return chain.proceed(original.newBuilder().url(newUrl).build());
+                                })
+                        .build();
 
         webSearchTool = new WebSearchTool(apiKey, cx, client);
     }
@@ -88,7 +91,8 @@ class WebSearchToolTest {
 
     @Test
     void testSuccessfulSearch() {
-        String jsonResponse = """
+        String jsonResponse =
+                """
                 {
                   "items": [
                     {
@@ -111,7 +115,8 @@ class WebSearchToolTest {
 
     @Test
     void testNoResults() {
-        String jsonResponse = """
+        String jsonResponse =
+                """
                 {
                   "items": []
                 }

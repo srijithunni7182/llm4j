@@ -1,10 +1,10 @@
 package io.github.llm4j.mcp;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.Test;
-import java.util.Map;
-
 import static org.assertj.core.api.Assertions.assertThat;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
 
 class JsonRpcTest {
     private final ObjectMapper mapper = new ObjectMapper();
@@ -31,7 +31,8 @@ class JsonRpcTest {
 
     @Test
     void testErrorDeserialization() throws Exception {
-        String json = "{\"jsonrpc\": \"2.0\", \"error\": {\"code\": -32601, \"message\": \"Method not found\"}, \"id\": 1}";
+        String json =
+                "{\"jsonrpc\": \"2.0\", \"error\": {\"code\": -32601, \"message\": \"Method not found\"}, \"id\": 1}";
         JsonRpcResponse response = mapper.readValue(json, JsonRpcResponse.class);
 
         assertThat(response.isError()).isTrue();

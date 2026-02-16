@@ -1,8 +1,8 @@
 package io.github.llm4j.model;
 
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.*;
+
+import org.junit.jupiter.api.Test;
 
 class ConfidenceLevelTest {
 
@@ -32,12 +32,16 @@ class ConfidenceLevelTest {
 
     @Test
     void testFromScore_negative_throwsException() {
-        assertThrows(IllegalArgumentException.class, () -> ConfidenceScore.ConfidenceLevel.fromScore(-0.1));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ConfidenceScore.ConfidenceLevel.fromScore(-0.1));
     }
 
     @Test
     void testFromScore_greaterThan1_throwsException() {
-        assertThrows(IllegalArgumentException.class, () -> ConfidenceScore.ConfidenceLevel.fromScore(1.1));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ConfidenceScore.ConfidenceLevel.fromScore(1.1));
     }
 
     @Test

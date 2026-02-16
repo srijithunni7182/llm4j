@@ -2,9 +2,7 @@ package io.github.llm4j.model;
 
 import java.util.Objects;
 
-/**
- * Standardized response for Speech-to-Text (STT) transcription.
- */
+/** Standardized response for Speech-to-Text (STT) transcription. */
 public class TranscriptionResponse {
 
     private final String text;
@@ -25,9 +23,13 @@ public class TranscriptionResponse {
 
     @Override
     public String toString() {
-        return "TranscriptionResponse{" +
-                "text='" + text + '\'' +
-                ", languageCode='" + languageCode + '\'' +
-                '}';
+        return "TranscriptionResponse{"
+                + "text='"
+                + text
+                + '\''
+                + ", languageCode='"
+                + languageCode
+                + '\''
+                + '}';
     }
 }

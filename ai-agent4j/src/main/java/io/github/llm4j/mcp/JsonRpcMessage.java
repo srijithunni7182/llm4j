@@ -1,15 +1,16 @@
 package io.github.llm4j.mcp;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.JsonNode;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION, include = JsonTypeInfo.As.PROPERTY, property = "method")
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.DEDUCTION,
+        include = JsonTypeInfo.As.PROPERTY,
+        property = "method")
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = JsonRpcRequest.class, name = "request"),
-        @JsonSubTypes.Type(value = JsonRpcNotification.class, name = "notification"),
-        @JsonSubTypes.Type(value = JsonRpcResponse.class, name = "response")
+    @JsonSubTypes.Type(value = JsonRpcRequest.class, name = "request"),
+    @JsonSubTypes.Type(value = JsonRpcNotification.class, name = "notification"),
+    @JsonSubTypes.Type(value = JsonRpcResponse.class, name = "response")
 })
 // Note: Responses don't strictly have "method", they have "id" and ("result" or
 // "error").

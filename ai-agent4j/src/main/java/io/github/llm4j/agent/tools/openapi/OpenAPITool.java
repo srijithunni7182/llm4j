@@ -2,9 +2,6 @@ package io.github.llm4j.agent.tools.openapi;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.llm4j.agent.Tool;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -14,6 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class OpenAPITool implements Tool {
 
@@ -29,9 +28,11 @@ public class OpenAPITool implements Tool {
     private OpenAPITool(Builder builder) {
         this.name = builder.name;
         this.spec = builder.spec;
-        this.httpClient = builder.httpClient != null ? builder.httpClient : HttpClient.newHttpClient();
+        this.httpClient =
+                builder.httpClient != null ? builder.httpClient : HttpClient.newHttpClient();
         this.authHeaders = builder.authHeaders != null ? builder.authHeaders : new HashMap<>();
-        this.authQueryParams = builder.authQueryParams != null ? builder.authQueryParams : new HashMap<>();
+        this.authQueryParams =
+                builder.authQueryParams != null ? builder.authQueryParams : new HashMap<>();
     }
 
     @Override
@@ -42,27 +43,31 @@ public class OpenAPITool implements Tool {
     @Override
     public String getDescription() {
         // ... (description logic remains the same)
-        return " ... "; 
+        return " ... ";
     }
 
     @Override
     public String execute(Map<String, Object> args) {
         try {
-            if (!(args.get("endpoint") instanceof String) || !(args.get("method") instanceof String)) {
+            if (!(args.get("endpoint") instanceof String)
+                    || !(args.get("method") instanceof String)) {
                 return "Error: 'endpoint' and 'method' arguments must be strings";
             }
             String endpointPath = (String) args.get("endpoint");
             String method = (String) args.get("method");
 
             @SuppressWarnings("unchecked")
-            Map<String, Object> parameters = (Map<String, Object>) args.getOrDefault("parameters", new HashMap<>());
-            
+            Map<String, Object> parameters =
+                    (Map<String, Object>) args.getOrDefault("parameters", new HashMap<>());
+
             @SuppressWarnings("unchecked")
             Map<String, Object> body = (Map<String, Object>) args.get("body");
 
             OpenAPIEndpoint endpoint = findEndpoint(endpointPath, method);
             if (endpoint == null) {
-                return String.format("Error: Endpoint '%s %s' not found in API specification", method, endpointPath);
+                return String.format(
+                        "Error: Endpoint '%s %s' not found in API specification",
+                        method, endpointPath);
             }
 
             return executeRequest(endpoint, parameters, body);
@@ -79,7 +84,9 @@ public class OpenAPITool implements Tool {
                 .orElse(null);
     }
 
-    private String executeRequest(OpenAPIEndpoint endpoint, Map<String, Object> parameters, Map<String, Object> body) throws Exception {
+    private String executeRequest(
+            OpenAPIEndpoint endpoint, Map<String, Object> parameters, Map<String, Object> body)
+            throws Exception {
         // Validation for required parameters
         if (endpoint.getParameters() != null) {
             for (OpenAPIParameter param : endpoint.getParameters()) {
@@ -88,7 +95,7 @@ public class OpenAPITool implements Tool {
                 }
             }
         }
-        
+
         String baseUrl = spec.getServers().isEmpty() ? "" : spec.getServers().get(0);
         String path = endpoint.getPath();
         Map<String, String> pathParams = new HashMap<>();
@@ -113,14 +120,23 @@ public class OpenAPITool implements Tool {
         }
 
         if (!queryParams.isEmpty()) {
-            String queryString = queryParams.entrySet().stream()
-                    .map(e -> e.getKey() + "=" + URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8))
-                    .collect(Collectors.joining("&"));
+            String queryString =
+                    queryParams.entrySet().stream()
+                            .map(
+                                    e ->
+                                            e.getKey()
+                                                    + "="
+                                                    + URLEncoder.encode(
+                                                            e.getValue(), StandardCharsets.UTF_8))
+                            .collect(Collectors.joining("&"));
             path += "?" + queryString;
         }
 
         String fullUrl = baseUrl + path;
-        logger.info("Executing OpenAPI Tool request to URL: {} with method: {}", fullUrl, endpoint.getMethod());
+        logger.info(
+                "Executing OpenAPI Tool request to URL: {} with method: {}",
+                fullUrl,
+                endpoint.getMethod());
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder().uri(URI.create(fullUrl));
         authHeaders.forEach(requestBuilder::header);
@@ -147,9 +163,13 @@ public class OpenAPITool implements Tool {
         }
 
         HttpRequest request = requestBuilder.build();
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> response =
+                httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-        logger.info("OpenAPI Tool Response - Status: {}, Body: {}", response.statusCode(), response.body());
+        logger.info(
+                "OpenAPI Tool Response - Status: {}, Body: {}",
+                response.statusCode(),
+                response.body());
 
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
             String responseBody = response.body();
@@ -158,7 +178,9 @@ public class OpenAPITool implements Tool {
             }
             return responseBody;
         } else {
-            return String.format("Error: API returned status code %d. Body: %s", response.statusCode(), response.body());
+            return String.format(
+                    "Error: API returned status code %d. Body: %s",
+                    response.statusCode(), response.body());
         }
     }
 
@@ -173,10 +195,21 @@ public class OpenAPITool implements Tool {
         private Map<String, String> authHeaders;
         private Map<String, String> authQueryParams;
 
-        public Builder name(String name) { this.name = name; return this; }
-        public Builder spec(OpenAPISpec spec) { this.spec = spec; return this; }
-        public Builder httpClient(HttpClient client) { this.httpClient = client; return this; }
-        
+        public Builder name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        public Builder spec(OpenAPISpec spec) {
+            this.spec = spec;
+            return this;
+        }
+
+        public Builder httpClient(HttpClient client) {
+            this.httpClient = client;
+            return this;
+        }
+
         public Builder apiKeyAuth(String paramName, String apiKey) {
             if (this.authQueryParams == null) this.authQueryParams = new HashMap<>();
             this.authQueryParams.put(paramName, apiKey);

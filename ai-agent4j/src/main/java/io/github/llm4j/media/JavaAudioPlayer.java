@@ -1,10 +1,5 @@
 package io.github.llm4j.media;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.sound.sampled.*;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -13,10 +8,13 @@ import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.CountDownLatch;
+import javax.sound.sampled.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Default implementation of {@link AudioPlayer} using Java Sound API.
- * Caches audio data to temporary files.
+ * Default implementation of {@link AudioPlayer} using Java Sound API. Caches audio data to
+ * temporary files.
  */
 public class JavaAudioPlayer implements AudioPlayer {
 
@@ -43,8 +41,7 @@ public class JavaAudioPlayer implements AudioPlayer {
 
     @Override
     public void play(byte[] audioData, String sessionId) {
-        if (audioData == null || audioData.length == 0)
-            return;
+        if (audioData == null || audioData.length == 0) return;
 
         try {
             String hash = computeHash(audioData);
@@ -89,11 +86,12 @@ public class JavaAudioPlayer implements AudioPlayer {
             clip.open(audioStream);
 
             CountDownLatch latch = new CountDownLatch(1);
-            clip.addLineListener(event -> {
-                if (event.getType() == LineEvent.Type.STOP) {
-                    latch.countDown();
-                }
-            });
+            clip.addLineListener(
+                    event -> {
+                        if (event.getType() == LineEvent.Type.STOP) {
+                            latch.countDown();
+                        }
+                    });
 
             clip.start();
             latch.await(); // Block until playback finishes

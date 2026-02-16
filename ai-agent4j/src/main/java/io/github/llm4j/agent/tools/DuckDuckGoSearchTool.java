@@ -1,6 +1,10 @@
 package io.github.llm4j.agent.tools;
 
 import io.github.llm4j.agent.Tool;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
@@ -9,15 +13,9 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
-
 /**
- * A tool that allows agents to search the web using DuckDuckGo Lite.
- * This provides actual search results for news and current events,
- * unlike the limited Instant Answer API.
+ * A tool that allows agents to search the web using DuckDuckGo Lite. This provides actual search
+ * results for news and current events, unlike the limited Instant Answer API.
  */
 public class DuckDuckGoSearchTool implements Tool {
 
@@ -40,10 +38,9 @@ public class DuckDuckGoSearchTool implements Tool {
 
     @Override
     public String getDescription() {
-        return "Useful for searching the web for current information, facts, and news. " +
-                "Input should be a JSON object with a 'query' field, e.g., {\"query\": \"current population of Tokyo\"}. "
-                +
-                "This tool is highly reliable for latest news and emerging situations.";
+        return "Useful for searching the web for current information, facts, and news. "
+                + "Input should be a JSON object with a 'query' field, e.g., {\"query\": \"current population of Tokyo\"}. "
+                + "This tool is highly reliable for latest news and emerging situations.";
     }
 
     @Override
@@ -64,11 +61,13 @@ public class DuckDuckGoSearchTool implements Tool {
         String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
         String url = String.format("%s?q=%s", baseUrl, encodedQuery);
 
-        Request request = new Request.Builder()
-                .url(url)
-                .header("User-Agent",
-                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-                .build();
+        Request request =
+                new Request.Builder()
+                        .url(url)
+                        .header(
+                                "User-Agent",
+                                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+                        .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (!response.isSuccessful()) {
@@ -110,7 +109,8 @@ public class DuckDuckGoSearchTool implements Tool {
                     }
                 }
 
-                String snippet = (i < snippets.size()) ? snippets.get(i).text() : "No snippet available.";
+                String snippet =
+                        (i < snippets.size()) ? snippets.get(i).text() : "No snippet available.";
 
                 results.append(i + 1).append(". ").append(title).append("\n");
                 results.append("   - ").append(snippet).append("\n");

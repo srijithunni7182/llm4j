@@ -2,9 +2,7 @@ package io.github.llm4j.agent.knowledge.model;
 
 import java.util.Objects;
 
-/**
- * Represents a triple (subject-predicate-object) in a knowledge graph.
- */
+/** Represents a triple (subject-predicate-object) in a knowledge graph. */
 public class Triple {
 
     private final Entity subject;
@@ -31,14 +29,12 @@ public class Triple {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (o == null || getClass() != o.getClass())
-            return false;
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
         Triple triple = (Triple) o;
-        return Objects.equals(subject, triple.subject) &&
-                Objects.equals(predicate.getType(), triple.predicate.getType()) &&
-                Objects.equals(object, triple.object);
+        return Objects.equals(subject, triple.subject)
+                && Objects.equals(predicate.getType(), triple.predicate.getType())
+                && Objects.equals(object, triple.object);
     }
 
     @Override
@@ -48,9 +44,7 @@ public class Triple {
 
     @Override
     public String toString() {
-        return String.format("(%s)-[%s]->(%s)",
-                subject.getId(),
-                predicate.getType(),
-                object.getId());
+        return String.format(
+                "(%s)-[%s]->(%s)", subject.getId(), predicate.getType(), object.getId());
     }
 }

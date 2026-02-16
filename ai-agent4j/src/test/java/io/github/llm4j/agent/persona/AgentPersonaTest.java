@@ -1,23 +1,22 @@
 package io.github.llm4j.agent.persona;
 
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- * Unit tests for AgentPersona
- */
+import org.junit.jupiter.api.Test;
+
+/** Unit tests for AgentPersona */
 class AgentPersonaTest {
 
     @Test
     void testBasicPersonaCreation() {
-        AgentPersona persona = AgentPersona.builder()
-                .name("Test Agent")
-                .role("test specialist")
-                .expertise("Testing and quality assurance")
-                .tone("Professional and thorough")
-                .build();
+        AgentPersona persona =
+                AgentPersona.builder()
+                        .name("Test Agent")
+                        .role("test specialist")
+                        .expertise("Testing and quality assurance")
+                        .tone("Professional and thorough")
+                        .build();
 
         assertThat(persona.getName()).isEqualTo("Test Agent");
         assertThat(persona.getRole()).isEqualTo("test specialist");
@@ -29,11 +28,12 @@ class AgentPersonaTest {
 
     @Test
     void testPersonaWithConstraints() {
-        AgentPersona persona = AgentPersona.builder()
-                .name("Constrained Agent")
-                .addConstraint("Always verify facts")
-                .addConstraint("Never speculate")
-                .build();
+        AgentPersona persona =
+                AgentPersona.builder()
+                        .name("Constrained Agent")
+                        .addConstraint("Always verify facts")
+                        .addConstraint("Never speculate")
+                        .build();
 
         assertThat(persona.getConstraints()).hasSize(2);
         assertThat(persona.getConstraints()).contains("Always verify facts", "Never speculate");
@@ -41,11 +41,12 @@ class AgentPersonaTest {
 
     @Test
     void testPersonaWithCustomAttributes() {
-        AgentPersona persona = AgentPersona.builder()
-                .name("Custom Agent")
-                .addCustomAttribute("language", "formal")
-                .addCustomAttribute("domain", "finance")
-                .build();
+        AgentPersona persona =
+                AgentPersona.builder()
+                        .name("Custom Agent")
+                        .addCustomAttribute("language", "formal")
+                        .addCustomAttribute("domain", "finance")
+                        .build();
 
         assertThat(persona.getCustomAttributes()).hasSize(2);
         assertThat(persona.getCustomAttributes()).containsEntry("language", "formal");
@@ -54,14 +55,15 @@ class AgentPersonaTest {
 
     @Test
     void testSystemPromptGeneration() {
-        AgentPersona persona = AgentPersona.builder()
-                .name("Test Analyst")
-                .role("data analyst")
-                .expertise("Statistical analysis and data visualization")
-                .tone("Analytical and precise")
-                .addConstraint("Always cite data sources")
-                .addConstraint("Use quantitative evidence")
-                .build();
+        AgentPersona persona =
+                AgentPersona.builder()
+                        .name("Test Analyst")
+                        .role("data analyst")
+                        .expertise("Statistical analysis and data visualization")
+                        .tone("Analytical and precise")
+                        .addConstraint("Always cite data sources")
+                        .addConstraint("Use quantitative evidence")
+                        .build();
 
         String prompt = persona.toSystemPromptAddition();
 
@@ -75,9 +77,7 @@ class AgentPersonaTest {
 
     @Test
     void testMinimalPersona() {
-        AgentPersona persona = AgentPersona.builder()
-                .name("Minimal")
-                .build();
+        AgentPersona persona = AgentPersona.builder().name("Minimal").build();
 
         String prompt = persona.toSystemPromptAddition();
         assertThat(prompt).contains("You are Minimal");
@@ -87,35 +87,36 @@ class AgentPersonaTest {
 
     @Test
     void testNameIsRequired() {
-        assertThrows(NullPointerException.class, () -> {
-            AgentPersona.builder().build();
-        });
+        assertThrows(
+                NullPointerException.class,
+                () -> {
+                    AgentPersona.builder().build();
+                });
     }
 
     @Test
     void testPersonaImmutability() {
-        AgentPersona persona = AgentPersona.builder()
-                .name("Immutable")
-                .addConstraint("Test constraint")
-                .build();
+        AgentPersona persona =
+                AgentPersona.builder().name("Immutable").addConstraint("Test constraint").build();
 
         // Verify collections are unmodifiable
-        assertThrows(UnsupportedOperationException.class, () -> {
-            persona.getConstraints().add("New constraint");
-        });
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    persona.getConstraints().add("New constraint");
+                });
 
-        assertThrows(UnsupportedOperationException.class, () -> {
-            persona.getCustomAttributes().put("new", "value");
-        });
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> {
+                    persona.getCustomAttributes().put("new", "value");
+                });
     }
 
     @Test
     void testToString() {
-        AgentPersona persona = AgentPersona.builder()
-                .name("Test")
-                .role("tester")
-                .tone("friendly")
-                .build();
+        AgentPersona persona =
+                AgentPersona.builder().name("Test").role("tester").tone("friendly").build();
 
         String str = persona.toString();
         assertThat(str).contains("Test");

@@ -3,17 +3,15 @@ package io.github.llm4j.agent.rag.store;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pgvector.PGvector;
-import org.postgresql.PGConnection;
-
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.sql.*;
 import java.util.*;
 
 /**
- * Persistent vector store using PostgreSQL and the 'pgvector' extension.
- * Requires a running PostgreSQL instance with 'vector' extension installed.
- * Add 'postgresql' and 'pgvector' dependencies to use this.
+ * Persistent vector store using PostgreSQL and the 'pgvector' extension. Requires a running
+ * PostgreSQL instance with 'vector' extension installed. Add 'postgresql' and 'pgvector'
+ * dependencies to use this.
  */
 public class PGVectorStore implements VectorStore {
 
@@ -25,14 +23,14 @@ public class PGVectorStore implements VectorStore {
     private final ObjectMapper objectMapper;
 
     /**
-     * @param url       JDBC URL (e.g., jdbc:postgresql://localhost:5432/mydb)
-     * @param user      Database user
-     * @param password  Database password
+     * @param url JDBC URL (e.g., jdbc:postgresql://localhost:5432/mydb)
+     * @param user Database user
+     * @param password Database password
      * @param tableName Table name to store vectors
-     * @param dimension Dimension of vectors (must match model output, usually 384
-     *                  or 768)
+     * @param dimension Dimension of vectors (must match model output, usually 384 or 768)
      */
-    public PGVectorStore(String url, String user, String password, String tableName, int dimension) {
+    public PGVectorStore(
+            String url, String user, String password, String tableName, int dimension) {
         this.url = url;
         this.user = user;
         this.password = password;
@@ -49,13 +47,14 @@ public class PGVectorStore implements VectorStore {
                 // Enable extension
                 stmt.execute("CREATE EXTENSION IF NOT EXISTS vector");
                 // Create table
-                String sql = String.format(
-                        "CREATE TABLE IF NOT EXISTS %s (" +
-                                "id TEXT PRIMARY KEY, " +
-                                "embedding vector(%d), " +
-                                "metadata JSONB" +
-                                ")",
-                        tableName, dimension);
+                String sql =
+                        String.format(
+                                "CREATE TABLE IF NOT EXISTS %s ("
+                                        + "id TEXT PRIMARY KEY, "
+                                        + "embedding vector(%d), "
+                                        + "metadata JSONB"
+                                        + ")",
+                                tableName, dimension);
                 stmt.execute(sql);
 
                 // Create index (optional but recommended for speed)
@@ -77,10 +76,11 @@ public class PGVectorStore implements VectorStore {
 
     @Override
     public void add(String id, float[] embedding, Map<String, Object> metadata) {
-        String sql = String.format(
-                "INSERT INTO %s (id, embedding, metadata) VALUES (?, ?, ?::jsonb) " +
-                        "ON CONFLICT (id) DO UPDATE SET embedding = EXCLUDED.embedding, metadata = EXCLUDED.metadata",
-                tableName);
+        String sql =
+                String.format(
+                        "INSERT INTO %s (id, embedding, metadata) VALUES (?, ?, ?::jsonb) "
+                                + "ON CONFLICT (id) DO UPDATE SET embedding = EXCLUDED.embedding, metadata = EXCLUDED.metadata",
+                        tableName);
 
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -97,10 +97,11 @@ public class PGVectorStore implements VectorStore {
 
     @Override
     public void addBatch(List<VectorEntry> entries) {
-        String sql = String.format(
-                "INSERT INTO %s (id, embedding, metadata) VALUES (?, ?, ?::jsonb) " +
-                        "ON CONFLICT (id) DO UPDATE SET embedding = EXCLUDED.embedding, metadata = EXCLUDED.metadata",
-                tableName);
+        String sql =
+                String.format(
+                        "INSERT INTO %s (id, embedding, metadata) VALUES (?, ?, ?::jsonb) "
+                                + "ON CONFLICT (id) DO UPDATE SET embedding = EXCLUDED.embedding, metadata = EXCLUDED.metadata",
+                        tableName);
 
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -120,16 +121,18 @@ public class PGVectorStore implements VectorStore {
     }
 
     @Override
-    public List<SearchResult> search(float[] queryEmbedding, int topK, Map<String, Object> filters) {
+    public List<SearchResult> search(
+            float[] queryEmbedding, int topK, Map<String, Object> filters) {
         // Simple search without complex metadata filtering for now.
         // Implementing JSONB filtering dynamically is complex; avoiding for MVP unless
         // requested.
         // We filter in-memory if needed, but SQL filtering is better.
         // Let's implement basic cosine distance: <=> operator
 
-        String sql = String.format(
-                "SELECT id, embedding, metadata, embedding <=> ? as distance FROM %s ORDER BY distance ASC LIMIT ?",
-                tableName);
+        String sql =
+                String.format(
+                        "SELECT id, embedding, metadata, embedding <=> ? as distance FROM %s ORDER BY distance ASC LIMIT ?",
+                        tableName);
 
         List<SearchResult> results = new ArrayList<>();
         try (Connection conn = getConnection();
@@ -216,11 +219,9 @@ public class PGVectorStore implements VectorStore {
     }
 
     private Map<String, Object> fromJson(String json) {
-        if (json == null)
-            return Collections.emptyMap();
+        if (json == null) return Collections.emptyMap();
         try {
-            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {
-            });
+            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {});
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -229,13 +230,11 @@ public class PGVectorStore implements VectorStore {
     // Duplicated from InMemoryVectorStore for now, ideally strictly in abstract
     // base
     private boolean matchesFilters(Map<String, Object> metadata, Map<String, Object> filters) {
-        if (filters == null || filters.isEmpty())
-            return true;
+        if (filters == null || filters.isEmpty()) return true;
         for (Map.Entry<String, Object> filter : filters.entrySet()) {
             Object metaVal = metadata.get(filter.getKey());
             Object filterVal = filter.getValue();
-            if (metaVal == null || !metaVal.equals(filterVal))
-                return false;
+            if (metaVal == null || !metaVal.equals(filterVal)) return false;
         }
         return true;
     }

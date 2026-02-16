@@ -6,9 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Represents a detected bias event in agent output.
- */
+/** Represents a detected bias event in agent output. */
 public class BiasEvent {
     private final BiasType type;
     private final BiasSeverity severity;
@@ -116,11 +114,16 @@ public class BiasEvent {
 
     @Override
     public String toString() {
-        return "BiasEvent{" +
-                "type=" + type +
-                ", severity=" + severity +
-                ", confidence=" + confidence +
-                ", explanation='" + explanation + '\'' +
-                '}';
+        return "BiasEvent{"
+                + "type="
+                + type
+                + ", severity="
+                + severity
+                + ", confidence="
+                + confidence
+                + ", explanation='"
+                + explanation
+                + '\''
+                + '}';
     }
 }

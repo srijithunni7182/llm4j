@@ -1,20 +1,17 @@
 package io.github.llm4j.agent.knowledge;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import io.github.llm4j.agent.knowledge.model.Entity;
 import io.github.llm4j.agent.knowledge.model.Relation;
 import io.github.llm4j.agent.knowledge.model.Triple;
 import io.github.llm4j.agent.knowledge.store.InMemoryGraphStore;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * Unit tests for InMemoryGraphStore
- */
+/** Unit tests for InMemoryGraphStore */
 class InMemoryGraphStoreTest {
 
     private InMemoryGraphStore graph;
@@ -26,12 +23,13 @@ class InMemoryGraphStoreTest {
 
     @Test
     void testAddAndGetEntity() {
-        Entity entity = Entity.builder()
-                .id("person1")
-                .type("Person")
-                .addProperty("name", "Alice")
-                .addProperty("age", 30)
-                .build();
+        Entity entity =
+                Entity.builder()
+                        .id("person1")
+                        .type("Person")
+                        .addProperty("name", "Alice")
+                        .addProperty("age", 30)
+                        .build();
 
         graph.addEntity(entity);
 
@@ -55,17 +53,10 @@ class InMemoryGraphStoreTest {
 
     @Test
     void testFindEntitiesWithFilters() {
-        graph.addEntity(Entity.builder()
-                .id("p1")
-                .type("Person")
-                .addProperty("city", "NYC")
-                .build());
+        graph.addEntity(
+                Entity.builder().id("p1").type("Person").addProperty("city", "NYC").build());
 
-        graph.addEntity(Entity.builder()
-                .id("p2")
-                .type("Person")
-                .addProperty("city", "SF")
-                .build());
+        graph.addEntity(Entity.builder().id("p2").type("Person").addProperty("city", "SF").build());
 
         List<Entity> nycPeople = graph.findEntities("Person", Map.of("city", "NYC"));
         assertThat(nycPeople).hasSize(1);
@@ -115,10 +106,11 @@ class InMemoryGraphStoreTest {
     @Test
     void testClear() {
         graph.addEntity(Entity.builder().id("e1").type("Test").build());
-        graph.addTriple(new Triple(
-                Entity.builder().id("e2").type("Test").build(),
-                Relation.builder().type("REL").build(),
-                Entity.builder().id("e3").type("Test").build()));
+        graph.addTriple(
+                new Triple(
+                        Entity.builder().id("e2").type("Test").build(),
+                        Relation.builder().type("REL").build(),
+                        Entity.builder().id("e3").type("Test").build()));
 
         assertThat(graph.getEntityCount()).isGreaterThan(0);
         assertThat(graph.getTripleCount()).isGreaterThan(0);
@@ -139,10 +131,11 @@ class InMemoryGraphStoreTest {
 
     @Test
     void testTripleToString() {
-        Triple triple = new Triple(
-                Entity.builder().id("alice").type("Person").build(),
-                Relation.builder().type("KNOWS").build(),
-                Entity.builder().id("bob").type("Person").build());
+        Triple triple =
+                new Triple(
+                        Entity.builder().id("alice").type("Person").build(),
+                        Relation.builder().type("KNOWS").build(),
+                        Entity.builder().id("bob").type("Person").build());
 
         String str = triple.toString();
         assertThat(str).contains("alice");

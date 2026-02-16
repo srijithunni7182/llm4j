@@ -2,14 +2,12 @@ package io.github.llm4j.media;
 
 import java.io.File;
 
-/**
- * Interface for playing audio.
- */
+/** Interface for playing audio. */
 public interface AudioPlayer {
 
     /**
      * Plays audio from byte array.
-     * 
+     *
      * @param audioData The audio data (typically WAV).
      */
     void play(byte[] audioData);
@@ -26,7 +24,7 @@ public interface AudioPlayer {
 
     /**
      * Plays audio from a file.
-     * 
+     *
      * @param audioFile The audio file.
      */
     void play(File audioFile);

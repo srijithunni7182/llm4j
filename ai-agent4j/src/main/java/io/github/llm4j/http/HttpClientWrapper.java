@@ -2,17 +2,14 @@ package io.github.llm4j.http;
 
 import io.github.llm4j.config.RetryPolicy;
 import io.github.llm4j.exception.LLMException;
+import java.io.IOException;
+import java.time.Duration;
+import java.util.Objects;
 import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.time.Duration;
-import java.util.Objects;
-
-/**
- * Wrapper around OkHttp client with retry logic and logging.
- */
+/** Wrapper around OkHttp client with retry logic and logging. */
 public class HttpClientWrapper {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpClientWrapper.class);
@@ -22,38 +19,42 @@ public class HttpClientWrapper {
     private final RetryPolicy retryPolicy;
     private final boolean enableLogging;
 
-    public HttpClientWrapper(Duration timeout, Duration connectTimeout, RetryPolicy retryPolicy,
+    public HttpClientWrapper(
+            Duration timeout,
+            Duration connectTimeout,
+            RetryPolicy retryPolicy,
             boolean enableLogging) {
         this.retryPolicy = Objects.requireNonNull(retryPolicy, "retryPolicy cannot be null");
         this.enableLogging = enableLogging;
-        this.client = new OkHttpClient.Builder()
-                .callTimeout(timeout)
-                .connectTimeout(connectTimeout)
-                .readTimeout(timeout)
-                .writeTimeout(timeout)
-                .build();
+        this.client =
+                new OkHttpClient.Builder()
+                        .callTimeout(timeout)
+                        .connectTimeout(connectTimeout)
+                        .readTimeout(timeout)
+                        .writeTimeout(timeout)
+                        .build();
     }
 
     public HttpClientWrapper(io.github.llm4j.config.LLMConfig config) {
-        this(config.getTimeout(), config.getConnectTimeout(), config.getRetryPolicy(), config.isEnableLogging());
+        this(
+                config.getTimeout(),
+                config.getConnectTimeout(),
+                config.getRetryPolicy(),
+                config.isEnableLogging());
     }
 
     /**
      * Executes an HTTP POST request with retry logic.
      *
-     * @param url      the request URL
+     * @param url the request URL
      * @param jsonBody the JSON request body
-     * @param headers  additional headers to include
+     * @param headers additional headers to include
      * @return the response body as a string
      * @throws LLMException if the request fails after all retries
      */
     public String post(String url, String jsonBody, Headers headers) {
         RequestBody body = RequestBody.create(jsonBody, JSON);
-        Request request = new Request.Builder()
-                .url(url)
-                .headers(headers)
-                .post(body)
-                .build();
+        Request request = new Request.Builder().url(url).headers(headers).post(body).build();
 
         return executeWithRetry(request);
     }
@@ -61,17 +62,13 @@ public class HttpClientWrapper {
     /**
      * Executes an HTTP GET request with retry logic.
      *
-     * @param url     the request URL
+     * @param url the request URL
      * @param headers additional headers to include
      * @return the response body as a string
      * @throws LLMException if the request fails after all retries
      */
     public String get(String url, Headers headers) {
-        Request request = new Request.Builder()
-                .url(url)
-                .headers(headers)
-                .get()
-                .build();
+        Request request = new Request.Builder().url(url).headers(headers).get().build();
 
         return executeWithRetry(request);
     }
@@ -79,18 +76,14 @@ public class HttpClientWrapper {
     /**
      * Creates an OkHttp call for streaming responses.
      *
-     * @param url      the request URL
+     * @param url the request URL
      * @param jsonBody the JSON request body
-     * @param headers  additional headers to include
+     * @param headers additional headers to include
      * @return the OkHttp Call object
      */
     public Call createStreamingCall(String url, String jsonBody, Headers headers) {
         RequestBody body = RequestBody.create(jsonBody, JSON);
-        Request request = new Request.Builder()
-                .url(url)
-                .headers(headers)
-                .post(body)
-                .build();
+        Request request = new Request.Builder().url(url).headers(headers).post(body).build();
 
         return client.newCall(request);
     }
@@ -98,10 +91,9 @@ public class HttpClientWrapper {
     /**
      * Executes an HTTP POST request with multipart/form-data.
      *
-     * @param url     the request URL
-     * @param parts   the parts to include in the multipart body (String key ->
-     *                Object value).
-     *                Values can be File or String.
+     * @param url the request URL
+     * @param parts the parts to include in the multipart body (String key -> Object value). Values
+     *     can be File or String.
      * @param headers additional headers to include
      * @return the response body as a string
      */
@@ -116,7 +108,8 @@ public class HttpClientWrapper {
                 // We could use Files.probeContentType(path) but for simplicity, let's assume
                 // binary or let OkHttp handle it?
                 // OkHttp RequestBody.create(file, contentType)
-                builder.addFormDataPart(entry.getKey(), file.getName(), RequestBody.create(file, contentType));
+                builder.addFormDataPart(
+                        entry.getKey(), file.getName(), RequestBody.create(file, contentType));
             } else if (entry.getValue() instanceof String) {
                 builder.addFormDataPart(entry.getKey(), (String) entry.getValue());
             } else {
@@ -127,11 +120,7 @@ public class HttpClientWrapper {
         }
 
         RequestBody body = builder.build();
-        Request request = new Request.Builder()
-                .url(url)
-                .headers(headers)
-                .post(body)
-                .build();
+        Request request = new Request.Builder().url(url).headers(headers).post(body).build();
 
         return executeWithRetry(request);
     }
@@ -145,8 +134,11 @@ public class HttpClientWrapper {
                 if (attempt > 0) {
                     Duration backoff = retryPolicy.calculateBackoff(attempt - 1);
                     if (enableLogging) {
-                        logger.info("Retrying request after {} ms (attempt {}/{})",
-                                backoff.toMillis(), attempt, retryPolicy.getMaxRetries());
+                        logger.info(
+                                "Retrying request after {} ms (attempt {}/{})",
+                                backoff.toMillis(),
+                                attempt,
+                                retryPolicy.getMaxRetries());
                     }
                     Thread.sleep(backoff.toMillis());
                 }
@@ -163,14 +155,22 @@ public class HttpClientWrapper {
                         int statusCode = response.code();
 
                         if (enableLogging) {
-                            logger.warn("HTTP request failed with status {}: {}", statusCode, bodyString);
+                            logger.warn(
+                                    "HTTP request failed with status {}: {}",
+                                    statusCode,
+                                    bodyString);
                         }
 
                         // Check if we should retry
-                        if (attempt < retryPolicy.getMaxRetries() && retryPolicy.isRetryable(statusCode)) {
-                            lastException = new LLMException(
-                                    "HTTP request failed with status " + statusCode + ": " + bodyString,
-                                    statusCode);
+                        if (attempt < retryPolicy.getMaxRetries()
+                                && retryPolicy.isRetryable(statusCode)) {
+                            lastException =
+                                    new LLMException(
+                                            "HTTP request failed with status "
+                                                    + statusCode
+                                                    + ": "
+                                                    + bodyString,
+                                            statusCode);
                             attempt++;
                             continue;
                         }
@@ -205,13 +205,13 @@ public class HttpClientWrapper {
             }
         }
 
-        throw lastException != null ? lastException
-                : new LLMException("Request failed after " + retryPolicy.getMaxRetries() + " retries");
+        throw lastException != null
+                ? lastException
+                : new LLMException(
+                        "Request failed after " + retryPolicy.getMaxRetries() + " retries");
     }
 
-    /**
-     * Closes the HTTP client and releases resources.
-     */
+    /** Closes the HTTP client and releases resources. */
     public void close() {
         client.dispatcher().executorService().shutdown();
         client.connectionPool().evictAll();

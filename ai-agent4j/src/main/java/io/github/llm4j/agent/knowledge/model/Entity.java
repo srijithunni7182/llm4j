@@ -2,9 +2,7 @@ package io.github.llm4j.agent.knowledge.model;
 
 import java.util.*;
 
-/**
- * Represents an entity in a knowledge graph.
- */
+/** Represents an entity in a knowledge graph. */
 public class Entity {
 
     private final String id;
@@ -42,8 +40,7 @@ public class Entity {
         private String type;
         private Map<String, Object> properties = new HashMap<>();
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder id(String id) {
             this.id = id;
@@ -72,10 +69,8 @@ public class Entity {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
-            return true;
-        if (o == null || getClass() != o.getClass())
-            return false;
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
         Entity entity = (Entity) o;
         return Objects.equals(id, entity.id);
     }
@@ -87,10 +82,15 @@ public class Entity {
 
     @Override
     public String toString() {
-        return "Entity{" +
-                "id='" + id + '\'' +
-                ", type='" + type + '\'' +
-                ", properties=" + properties.size() +
-                '}';
+        return "Entity{"
+                + "id='"
+                + id
+                + '\''
+                + ", type='"
+                + type
+                + '\''
+                + ", properties="
+                + properties.size()
+                + '}';
     }
 }

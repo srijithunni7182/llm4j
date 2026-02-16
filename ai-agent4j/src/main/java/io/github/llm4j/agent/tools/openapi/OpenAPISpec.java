@@ -3,9 +3,7 @@ package io.github.llm4j.agent.tools.openapi;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Represents a parsed OpenAPI specification.
- */
+/** Represents a parsed OpenAPI specification. */
 public class OpenAPISpec {
     private final String title;
     private final String version;

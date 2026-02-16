@@ -14,8 +14,8 @@ import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.provider.google.GoogleProvider;
 
 /**
- * Example demonstrating knowledge graph integration with agents.
- * Creates a simple organizational knowledge graph and queries it.
+ * Example demonstrating knowledge graph integration with agents. Creates a simple organizational
+ * knowledge graph and queries it.
  */
 public class KnowledgeGraphExample {
 
@@ -36,37 +36,41 @@ public class KnowledgeGraphExample {
         KnowledgeGraph graph = new InMemoryGraphStore();
 
         // Add entities (employees)
-        Entity alice = Entity.builder()
-                .id("alice")
-                .type("Person")
-                .addProperty("name", "Alice Johnson")
-                .addProperty("title", "CEO")
-                .addProperty("department", "Executive")
-                .build();
+        Entity alice =
+                Entity.builder()
+                        .id("alice")
+                        .type("Person")
+                        .addProperty("name", "Alice Johnson")
+                        .addProperty("title", "CEO")
+                        .addProperty("department", "Executive")
+                        .build();
 
-        Entity bob = Entity.builder()
-                .id("bob")
-                .type("Person")
-                .addProperty("name", "Bob Smith")
-                .addProperty("title", "CTO")
-                .addProperty("department", "Engineering")
-                .build();
+        Entity bob =
+                Entity.builder()
+                        .id("bob")
+                        .type("Person")
+                        .addProperty("name", "Bob Smith")
+                        .addProperty("title", "CTO")
+                        .addProperty("department", "Engineering")
+                        .build();
 
-        Entity charlie = Entity.builder()
-                .id("charlie")
-                .type("Person")
-                .addProperty("name", "Charlie Davis")
-                .addProperty("title", "Senior Engineer")
-                .addProperty("department", "Engineering")
-                .build();
+        Entity charlie =
+                Entity.builder()
+                        .id("charlie")
+                        .type("Person")
+                        .addProperty("name", "Charlie Davis")
+                        .addProperty("title", "Senior Engineer")
+                        .addProperty("department", "Engineering")
+                        .build();
 
-        Entity diana = Entity.builder()
-                .id("diana")
-                .type("Person")
-                .addProperty("name", "Diana Martinez")
-                .addProperty("title", "CFO")
-                .addProperty("department", "Finance")
-                .build();
+        Entity diana =
+                Entity.builder()
+                        .id("diana")
+                        .type("Person")
+                        .addProperty("name", "Diana Martinez")
+                        .addProperty("title", "CFO")
+                        .addProperty("department", "Finance")
+                        .build();
 
         // Add relationships
         graph.addTriple(new Triple(bob, Relation.builder().type("REPORTS_TO").build(), alice));
@@ -81,26 +85,25 @@ public class KnowledgeGraphExample {
         // 2. Create agent with knowledge graph tool
         System.out.println("\n2. Creating Agent with Knowledge Graph Access...\n");
 
-        LLMConfig config = LLMConfig.builder()
-                .apiKey(apiKey)
-                .defaultModel("gemini-1.5-flash")
-                .build();
+        LLMConfig config =
+                LLMConfig.builder().apiKey(apiKey).defaultModel("gemini-1.5-flash").build();
 
         LLMClient client = new DefaultLLMClient(new GoogleProvider(config));
 
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new GraphQueryTool(graph))
-                .maxIterations(5)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new GraphQueryTool(graph))
+                        .maxIterations(5)
+                        .build();
 
         // 3. Query the knowledge graph through the agent
         System.out.println("3. Querying Knowledge Graph through Agent...\n");
 
         String[] questions = {
-                "Who does Charlie report to?",
-                "Who are all the people in the Engineering department?",
-                "What is Bob's title and who does he report to?"
+            "Who does Charlie report to?",
+            "Who are all the people in the Engineering department?",
+            "What is Bob's title and who does he report to?"
         };
 
         for (int i = 0; i < questions.length; i++) {

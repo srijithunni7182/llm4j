@@ -3,19 +3,18 @@ package io.github.llm4j.fairness;
 import java.util.List;
 
 /**
- * Interface for monitoring and detecting bias in AI agent outputs.
- * Implementations can use various techniques including pattern matching,
- * ML models, or external bias detection services.
- * 
- * This interface provides hooks for xAI compliance without prescribing
- * a specific bias detection methodology.
+ * Interface for monitoring and detecting bias in AI agent outputs. Implementations can use various
+ * techniques including pattern matching, ML models, or external bias detection services.
+ *
+ * <p>This interface provides hooks for xAI compliance without prescribing a specific bias detection
+ * methodology.
  */
 public interface BiasMonitor {
 
     /**
      * Analyzes text for potential bias.
      *
-     * @param text    the text to analyze
+     * @param text the text to analyze
      * @param context optional context about where the text came from
      * @return list of detected bias events (empty if no bias detected)
      */
@@ -39,7 +38,9 @@ public interface BiasMonitor {
      */
     default boolean shouldIntervene(List<BiasEvent> events) {
         return events.stream()
-                .anyMatch(event -> event.getSeverity() == BiasSeverity.HIGH ||
-                        event.getSeverity() == BiasSeverity.CRITICAL);
+                .anyMatch(
+                        event ->
+                                event.getSeverity() == BiasSeverity.HIGH
+                                        || event.getSeverity() == BiasSeverity.CRITICAL);
     }
 }

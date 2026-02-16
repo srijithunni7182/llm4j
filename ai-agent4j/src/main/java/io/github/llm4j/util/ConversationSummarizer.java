@@ -5,20 +5,17 @@ import io.github.llm4j.exception.LLMException;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.Message;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-
-/**
- * Utility to generate concise summaries of conversations using an LLM.
- */
+/** Utility to generate concise summaries of conversations using an LLM. */
 public class ConversationSummarizer {
 
     private static final Logger logger = LoggerFactory.getLogger(ConversationSummarizer.class);
-    private static final String SUMMARY_PROMPT = "Summarize the following conversation in a single concise sentence (max 10 words). "
-            +
-            "Focus on the main topic or user intent. Do not use prefixes like 'The user wants to'.";
+    private static final String SUMMARY_PROMPT =
+            "Summarize the following conversation in a single concise sentence (max 10 words). "
+                    + "Focus on the main topic or user intent. Do not use prefixes like 'The user wants to'.";
 
     private final LLMClient llmClient;
 
@@ -38,12 +35,13 @@ public class ConversationSummarizer {
         }
 
         try {
-            LLMRequest request = LLMRequest.builder()
-                    .addSystemMessage(SUMMARY_PROMPT)
-                    .addUserMessage(formatHistory(messages))
-                    .maxTokens(50)
-                    .temperature(0.3)
-                    .build();
+            LLMRequest request =
+                    LLMRequest.builder()
+                            .addSystemMessage(SUMMARY_PROMPT)
+                            .addUserMessage(formatHistory(messages))
+                            .maxTokens(50)
+                            .temperature(0.3)
+                            .build();
 
             LLMResponse response = llmClient.chat(request);
             String summary = response.getContent().trim();

@@ -1,15 +1,14 @@
 package io.github.llm4j.agent.tools;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.io.IOException;
+import java.util.Map;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.io.IOException;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class SerpApiSearchToolTest {
 
@@ -45,7 +44,8 @@ class SerpApiSearchToolTest {
 
     @Test
     void testSuccessfulSearch() throws Exception {
-        String jsonResponse = """
+        String jsonResponse =
+                """
                 {
                   "organic_results": [
                     {
@@ -68,7 +68,8 @@ class SerpApiSearchToolTest {
 
     @Test
     void testNoResults() throws Exception {
-        String jsonResponse = """
+        String jsonResponse =
+                """
                 {
                   "organic_results": []
                 }

@@ -1,17 +1,14 @@
 package io.github.llm4j.model;
 
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.*;
+
+import org.junit.jupiter.api.Test;
 
 class LLMRequestTest {
 
     @Test
     void testBasicRequest() {
-        LLMRequest request = LLMRequest.builder()
-                .addUserMessage("Hello")
-                .model("gpt-4")
-                .build();
+        LLMRequest request = LLMRequest.builder().addUserMessage("Hello").model("gpt-4").build();
 
         assertThat(request.getMessages()).hasSize(1);
         assertThat(request.getMessages().get(0).getContent()).isEqualTo("Hello");
@@ -20,15 +17,16 @@ class LLMRequestTest {
 
     @Test
     void testRequestWithAllParameters() {
-        LLMRequest request = LLMRequest.builder()
-                .addSystemMessage("You are helpful")
-                .addUserMessage("Hello")
-                .model("gpt-4")
-                .temperature(0.7)
-                .maxTokens(100)
-                .topP(0.9)
-                .addParameter("customParam", "value")
-                .build();
+        LLMRequest request =
+                LLMRequest.builder()
+                        .addSystemMessage("You are helpful")
+                        .addUserMessage("Hello")
+                        .model("gpt-4")
+                        .temperature(0.7)
+                        .maxTokens(100)
+                        .topP(0.9)
+                        .addParameter("customParam", "value")
+                        .build();
 
         assertThat(request.getMessages()).hasSize(2);
         assertThat(request.getTemperature()).isEqualTo(0.7);
@@ -46,48 +44,38 @@ class LLMRequestTest {
 
     @Test
     void testInvalidTemperatureThrows() {
-        assertThatThrownBy(() -> LLMRequest.builder()
-                .addUserMessage("test")
-                .temperature(-0.1)
-                .build()).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(
+                        () -> LLMRequest.builder().addUserMessage("test").temperature(-0.1).build())
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("temperature");
 
-        assertThatThrownBy(() -> LLMRequest.builder()
-                .addUserMessage("test")
-                .temperature(2.1)
-                .build()).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(
+                        () -> LLMRequest.builder().addUserMessage("test").temperature(2.1).build())
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("temperature");
     }
 
     @Test
     void testInvalidMaxTokensThrows() {
-        assertThatThrownBy(() -> LLMRequest.builder()
-                .addUserMessage("test")
-                .maxTokens(-1)
-                .build()).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(() -> LLMRequest.builder().addUserMessage("test").maxTokens(-1).build())
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("maxTokens");
     }
 
     @Test
     void testInvalidTopPThrows() {
-        assertThatThrownBy(() -> LLMRequest.builder()
-                .addUserMessage("test")
-                .topP(-0.1)
-                .build()).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(() -> LLMRequest.builder().addUserMessage("test").topP(-0.1).build())
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("topP");
 
-        assertThatThrownBy(() -> LLMRequest.builder()
-                .addUserMessage("test")
-                .topP(1.1)
-                .build()).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(() -> LLMRequest.builder().addUserMessage("test").topP(1.1).build())
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("topP");
     }
 
     @Test
     void testImmutability() {
-        LLMRequest request = LLMRequest.builder()
-                .addUserMessage("Hello")
-                .build();
+        LLMRequest request = LLMRequest.builder().addUserMessage("Hello").build();
 
         assertThatThrownBy(() -> request.getMessages().add(Message.user("Another")))
                 .isInstanceOf(UnsupportedOperationException.class);

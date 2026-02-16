@@ -9,9 +9,7 @@ import io.github.llm4j.agent.tools.CurrentTimeTool;
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.provider.google.GoogleProvider;
 
-/**
- * Example demonstrating the ReAct agent with multiple tools.
- */
+/** Example demonstrating the ReAct agent with multiple tools. */
 public class ReActAgentExample {
 
     public static void main(String[] args) {
@@ -23,21 +21,20 @@ public class ReActAgentExample {
         }
 
         // Create LLM client
-        LLMConfig config = LLMConfig.builder()
-                .apiKey(apiKey)
-                .defaultModel("gemini-1.5-flash")
-                .build();
+        LLMConfig config =
+                LLMConfig.builder().apiKey(apiKey).defaultModel("gemini-1.5-flash").build();
 
         LLMClient llmClient = new DefaultLLMClient(new GoogleProvider(config));
 
         // Create ReAct agent with tools
-        ReActAgent agent = ReActAgent.builder()
-                .llmClient(llmClient)
-                .addTool(new CalculatorTool())
-                .addTool(new CurrentTimeTool())
-                .maxIterations(10)
-                .temperature(0.7)
-                .build();
+        ReActAgent agent =
+                ReActAgent.builder()
+                        .llmClient(llmClient)
+                        .addTool(new CalculatorTool())
+                        .addTool(new CurrentTimeTool())
+                        .maxIterations(10)
+                        .temperature(0.7)
+                        .build();
 
         // Example 1: Math calculation
         System.out.println("=== Example 1: Math Calculation ===");

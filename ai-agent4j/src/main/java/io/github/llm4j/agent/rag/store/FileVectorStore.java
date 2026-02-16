@@ -2,7 +2,6 @@ package io.github.llm4j.agent.rag.store;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -12,10 +11,8 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * A persistent vector store that saves data to a JSON file.
- * Extends {@link InMemoryVectorStore} for in-memory search performance while
- * ensuring durability.
- * Valid for small-to-medium datasets.
+ * A persistent vector store that saves data to a JSON file. Extends {@link InMemoryVectorStore} for
+ * in-memory search performance while ensuring durability. Valid for small-to-medium datasets.
  */
 public class FileVectorStore extends InMemoryVectorStore {
 
@@ -34,15 +31,16 @@ public class FileVectorStore extends InMemoryVectorStore {
         lock.writeLock().lock();
         try {
             if (file.exists() && file.length() > 0) {
-                List<SerializationEntry> entries = objectMapper.readValue(file,
-                        new TypeReference<List<SerializationEntry>>() {
-                        });
+                List<SerializationEntry> entries =
+                        objectMapper.readValue(
+                                file, new TypeReference<List<SerializationEntry>>() {});
                 for (SerializationEntry entry : entries) {
                     super.add(entry.id, entry.embedding, entry.metadata);
                 }
             }
         } catch (IOException e) {
-            throw new UncheckedIOException("Failed to load vector store from file: " + file.getAbsolutePath(), e);
+            throw new UncheckedIOException(
+                    "Failed to load vector store from file: " + file.getAbsolutePath(), e);
         } finally {
             lock.writeLock().unlock();
         }
@@ -52,21 +50,27 @@ public class FileVectorStore extends InMemoryVectorStore {
         lock.writeLock().lock();
         try {
             // Convert to simple serialization objects
-            List<SerializationEntry> entries = super.getAllEntries().stream()
-                    .map(e -> new SerializationEntry(e.getId(), e.getEmbedding(), e.getMetadata()))
-                    .toList();
+            List<SerializationEntry> entries =
+                    super.getAllEntries().stream()
+                            .map(
+                                    e ->
+                                            new SerializationEntry(
+                                                    e.getId(), e.getEmbedding(), e.getMetadata()))
+                            .toList();
 
             // Ensure parent directory exists
             File parent = file.getParentFile();
             if (parent != null && !parent.exists()) {
                 if (!parent.mkdirs()) {
-                    throw new IOException("Failed to create directory: " + parent.getAbsolutePath());
+                    throw new IOException(
+                            "Failed to create directory: " + parent.getAbsolutePath());
                 }
             }
 
             objectMapper.writeValue(file, entries);
         } catch (IOException e) {
-            throw new UncheckedIOException("Failed to save vector store to file: " + file.getAbsolutePath(), e);
+            throw new UncheckedIOException(
+                    "Failed to save vector store to file: " + file.getAbsolutePath(), e);
         } finally {
             lock.writeLock().unlock();
         }
@@ -126,7 +130,8 @@ public class FileVectorStore extends InMemoryVectorStore {
     // For now, ConcurrentHashMap in parent handles read concurrency well enough,
     // but let's be safe.
     @Override
-    public List<SearchResult> search(float[] queryEmbedding, int topK, Map<String, Object> filters) {
+    public List<SearchResult> search(
+            float[] queryEmbedding, int topK, Map<String, Object> filters) {
         lock.readLock().lock();
         try {
             return super.search(queryEmbedding, topK, filters);
@@ -136,8 +141,8 @@ public class FileVectorStore extends InMemoryVectorStore {
     }
 
     /**
-     * DTO for JSON serialization to avoid dragging strict VectorEntry logic/deps
-     * into JSON if schema changes.
+     * DTO for JSON serialization to avoid dragging strict VectorEntry logic/deps into JSON if
+     * schema changes.
      */
     private static class SerializationEntry {
         public String id;
@@ -145,8 +150,7 @@ public class FileVectorStore extends InMemoryVectorStore {
         public Map<String, Object> metadata;
 
         // Default constructor for Jackson
-        public SerializationEntry() {
-        }
+        public SerializationEntry() {}
 
         public SerializationEntry(String id, float[] embedding, Map<String, Object> metadata) {
             this.id = id;

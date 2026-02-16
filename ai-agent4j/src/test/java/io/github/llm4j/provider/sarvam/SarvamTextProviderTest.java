@@ -1,10 +1,16 @@
 package io.github.llm4j.provider.sarvam;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.exception.LLMException;
 import io.github.llm4j.exception.ProviderException;
 import io.github.llm4j.http.HttpClientWrapper;
 import io.github.llm4j.model.*;
+import java.io.IOException;
 import okhttp3.Headers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,20 +18,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.io.IOException;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class SarvamTextProviderTest {
 
-    @Mock
-    private LLMConfig config;
-    @Mock
-    private HttpClientWrapper httpClient;
+    @Mock private LLMConfig config;
+    @Mock private HttpClientWrapper httpClient;
 
     private SarvamTextProvider provider;
 
@@ -42,10 +39,12 @@ class SarvamTextProviderTest {
     // Translation Tests
     @Test
     void translate_withValidRequest_shouldReturnSuccessResponse() throws Exception {
-        TranslationRequest request = TranslationRequest.builder().text("Hello").targetLanguageCode("hi-IN").build();
+        TranslationRequest request =
+                TranslationRequest.builder().text("Hello").targetLanguageCode("hi-IN").build();
         String url = DEFAULT_BASE_URL + "/translate";
         String successResponse = "{\"translated_text\": \"नमस्ते\"}";
-        when(httpClient.post(eq(url), any(String.class), any(Headers.class))).thenReturn(successResponse);
+        when(httpClient.post(eq(url), any(String.class), any(Headers.class)))
+                .thenReturn(successResponse);
 
         TranslationResponse response = provider.translate(request);
 
@@ -55,7 +54,8 @@ class SarvamTextProviderTest {
 
     @Test
     void translate_whenHttpClientThrowsException_shouldThrowProviderException() {
-        TranslationRequest request = TranslationRequest.builder().text("Hello").targetLanguageCode("hi-IN").build();
+        TranslationRequest request =
+                TranslationRequest.builder().text("Hello").targetLanguageCode("hi-IN").build();
         String url = DEFAULT_BASE_URL + "/translate";
         when(httpClient.post(eq(url), any(String.class), any(Headers.class)))
                 .thenThrow(new LLMException("Network error", new IOException()));
@@ -66,10 +66,15 @@ class SarvamTextProviderTest {
     // Transliteration Tests
     @Test
     void transliterate_withValidRequest_shouldReturnSuccessResponse() throws Exception {
-        TransliterationRequest request = TransliterationRequest.builder().text("namaste").targetLanguageCode("hi-IN").build();
+        TransliterationRequest request =
+                TransliterationRequest.builder()
+                        .text("namaste")
+                        .targetLanguageCode("hi-IN")
+                        .build();
         String url = DEFAULT_BASE_URL + "/transliterate";
         String successResponse = "{\"transliterated_text\": \"नमस्ते\"}";
-        when(httpClient.post(eq(url), any(String.class), any(Headers.class))).thenReturn(successResponse);
+        when(httpClient.post(eq(url), any(String.class), any(Headers.class)))
+                .thenReturn(successResponse);
 
         TransliterationResponse response = provider.transliterate(request);
 
@@ -79,7 +84,11 @@ class SarvamTextProviderTest {
 
     @Test
     void transliterate_whenHttpClientThrowsException_shouldThrowProviderException() {
-        TransliterationRequest request = TransliterationRequest.builder().text("namaste").targetLanguageCode("hi-IN").build();
+        TransliterationRequest request =
+                TransliterationRequest.builder()
+                        .text("namaste")
+                        .targetLanguageCode("hi-IN")
+                        .build();
         String url = DEFAULT_BASE_URL + "/transliterate";
         when(httpClient.post(eq(url), any(String.class), any(Headers.class)))
                 .thenThrow(new LLMException("Network error", new IOException()));
@@ -93,7 +102,8 @@ class SarvamTextProviderTest {
         String text = "नमस्ते";
         String url = DEFAULT_BASE_URL + "/detect-language";
         String successResponse = "{\"language_code\": \"hi-IN\", \"confidence\": 0.99}";
-        when(httpClient.post(eq(url), any(String.class), any(Headers.class))).thenReturn(successResponse);
+        when(httpClient.post(eq(url), any(String.class), any(Headers.class)))
+                .thenReturn(successResponse);
 
         LanguageDetectionResponse response = provider.detectLanguage(text);
 

@@ -1,14 +1,11 @@
 package io.github.llm4j.agent.tools;
 
 import io.github.llm4j.agent.Tool;
-
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
-/**
- * A tool that returns the current date and time.
- */
+/** A tool that returns the current date and time. */
 public class CurrentTimeTool implements Tool {
 
     private final DateTimeFormatter formatter;

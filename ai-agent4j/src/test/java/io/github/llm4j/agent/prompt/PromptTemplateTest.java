@@ -1,9 +1,10 @@
 package io.github.llm4j.agent.prompt;
 
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.Collections;
 import java.util.Map;
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 class PromptTemplateTest {
 
@@ -31,9 +32,11 @@ class PromptTemplateTest {
     @Test
     void testRenderWithMultipleVariables() {
         PromptTemplate template = new PromptTemplate("id", "v1", "{{greeting}} {{name}}");
-        String result = template.render(Map.of(
-                "greeting", "Hi",
-                "name", "User"));
+        String result =
+                template.render(
+                        Map.of(
+                                "greeting", "Hi",
+                                "name", "User"));
         assertThat(result).isEqualTo("Hi User");
     }
 }

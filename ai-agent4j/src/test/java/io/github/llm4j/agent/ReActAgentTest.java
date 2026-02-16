@@ -1,5 +1,9 @@
 package io.github.llm4j.agent;
 
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.agent.tools.CalculatorTool;
 import io.github.llm4j.agent.tools.EchoTool;
@@ -11,14 +15,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
 class ReActAgentTest {
 
-    @Mock
-    private LLMClient mockClient;
+    @Mock private LLMClient mockClient;
 
     private ReActAgent agent;
 
@@ -31,19 +30,21 @@ class ReActAgentTest {
     void testAgentWithSingleToolCall() {
         // Mock LLM to return a thought, action, and then final answer
         when(mockClient.chat(any(LLMRequest.class)))
-                .thenReturn(createResponse(
-                        "Thought: I need to calculate 2 + 2\n" +
-                                "Action: Calculator\n" +
-                                "Action Input: 2 + 2"))
-                .thenReturn(createResponse(
-                        "Thought: I now know the final answer\n" +
-                                "Final Answer: 4"));
+                .thenReturn(
+                        createResponse(
+                                "Thought: I need to calculate 2 + 2\n"
+                                        + "Action: Calculator\n"
+                                        + "Action Input: 2 + 2"))
+                .thenReturn(
+                        createResponse(
+                                "Thought: I now know the final answer\n" + "Final Answer: 4"));
 
-        agent = ReActAgent.builder()
-                .llmClient(mockClient)
-                .addTool(new CalculatorTool())
-                .maxIterations(5)
-                .build();
+        agent =
+                ReActAgent.builder()
+                        .llmClient(mockClient)
+                        .addTool(new CalculatorTool())
+                        .maxIterations(5)
+                        .build();
 
         AgentResult result = agent.run("What is 2 + 2?");
 
@@ -57,10 +58,11 @@ class ReActAgentTest {
         assertThat(step.getActionInput()).isEqualTo("2 + 2");
         assertThat(step.getObservation()).isEqualTo("4");
     }
-    
+
     @Test
     void testAgentWithJsonToolCall() {
-        String jsonResponse = """
+        String jsonResponse =
+                """
             ```json
             {
               "thought": "I need to calculate 2 + 2",
@@ -73,15 +75,16 @@ class ReActAgentTest {
             """;
         when(mockClient.chat(any(LLMRequest.class)))
                 .thenReturn(createResponse(jsonResponse))
-                .thenReturn(createResponse(
-                        "Thought: I now know the final answer\n" +
-                                "Final Answer: 4"));
+                .thenReturn(
+                        createResponse(
+                                "Thought: I now know the final answer\n" + "Final Answer: 4"));
 
-        agent = ReActAgent.builder()
-                .llmClient(mockClient)
-                .addTool(new CalculatorTool())
-                .maxIterations(5)
-                .build();
+        agent =
+                ReActAgent.builder()
+                        .llmClient(mockClient)
+                        .addTool(new CalculatorTool())
+                        .maxIterations(5)
+                        .build();
 
         AgentResult result = agent.run("What is 2 + 2?");
 
@@ -97,23 +100,27 @@ class ReActAgentTest {
     @Test
     void testAgentWithMultipleToolCalls() {
         when(mockClient.chat(any(LLMRequest.class)))
-                .thenReturn(createResponse(
-                        "Thought: I need to calculate first number\n" +
-                                "Action: Calculator\n" +
-                                "Action Input: 5 * 3"))
-                .thenReturn(createResponse(
-                        "Thought: Now I need to add 10\n" +
-                                "Action: Calculator\n" +
-                                "Action Input: 15 + 10"))
-                .thenReturn(createResponse(
-                        "Thought: I now know the final answer\n" +
-                                "Final Answer: The result is 25"));
+                .thenReturn(
+                        createResponse(
+                                "Thought: I need to calculate first number\n"
+                                        + "Action: Calculator\n"
+                                        + "Action Input: 5 * 3"))
+                .thenReturn(
+                        createResponse(
+                                "Thought: Now I need to add 10\n"
+                                        + "Action: Calculator\n"
+                                        + "Action Input: 15 + 10"))
+                .thenReturn(
+                        createResponse(
+                                "Thought: I now know the final answer\n"
+                                        + "Final Answer: The result is 25"));
 
-        agent = ReActAgent.builder()
-                .llmClient(mockClient)
-                .addTool(new CalculatorTool())
-                .maxIterations(10)
-                .build();
+        agent =
+                ReActAgent.builder()
+                        .llmClient(mockClient)
+                        .addTool(new CalculatorTool())
+                        .maxIterations(10)
+                        .build();
 
         AgentResult result = agent.run("Calculate (5 * 3) + 10");
 
@@ -125,19 +132,22 @@ class ReActAgentTest {
     @Test
     void testAgentWithUnknownTool() {
         when(mockClient.chat(any(LLMRequest.class)))
-                .thenReturn(createResponse(
-                        "Thought: I'll use the web search tool\n" +
-                                "Action: WebSearch\n" +
-                                "Action Input: current weather"))
-                .thenReturn(createResponse(
-                        "Thought: The tool doesn't exist, I cannot answer\n" +
-                                "Final Answer: I don't have access to the required tools"));
+                .thenReturn(
+                        createResponse(
+                                "Thought: I'll use the web search tool\n"
+                                        + "Action: WebSearch\n"
+                                        + "Action Input: current weather"))
+                .thenReturn(
+                        createResponse(
+                                "Thought: The tool doesn't exist, I cannot answer\n"
+                                        + "Final Answer: I don't have access to the required tools"));
 
-        agent = ReActAgent.builder()
-                .llmClient(mockClient)
-                .addTool(new EchoTool())
-                .maxIterations(5)
-                .build();
+        agent =
+                ReActAgent.builder()
+                        .llmClient(mockClient)
+                        .addTool(new EchoTool())
+                        .maxIterations(5)
+                        .build();
 
         AgentResult result = agent.run("What's the weather?");
 
@@ -151,16 +161,18 @@ class ReActAgentTest {
     void testAgentMaxIterations() {
         // Always return action without final answer
         when(mockClient.chat(any(LLMRequest.class)))
-                .thenReturn(createResponse(
-                        "Thought: Let me think\n" +
-                                "Action: Echo\n" +
-                                "Action Input: test"));
+                .thenReturn(
+                        createResponse(
+                                "Thought: Let me think\n"
+                                        + "Action: Echo\n"
+                                        + "Action Input: test"));
 
-        agent = ReActAgent.builder()
-                .llmClient(mockClient)
-                .addTool(new EchoTool())
-                .maxIterations(3)
-                .build();
+        agent =
+                ReActAgent.builder()
+                        .llmClient(mockClient)
+                        .addTool(new EchoTool())
+                        .maxIterations(3)
+                        .build();
 
         AgentResult result = agent.run("Test question");
 
@@ -171,11 +183,12 @@ class ReActAgentTest {
 
     @Test
     void testAgentSystemPromptContainsTools() {
-        agent = ReActAgent.builder()
-                .llmClient(mockClient)
-                .addTool(new CalculatorTool())
-                .addTool(new EchoTool())
-                .build();
+        agent =
+                ReActAgent.builder()
+                        .llmClient(mockClient)
+                        .addTool(new CalculatorTool())
+                        .addTool(new EchoTool())
+                        .build();
 
         when(mockClient.chat(any(LLMRequest.class)))
                 .thenReturn(createResponse("Final Answer: Done"));
@@ -194,13 +207,11 @@ class ReActAgentTest {
 
     @Test
     void testBuilderValidation() {
-        assertThatThrownBy(() -> ReActAgent.builder().build()).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> ReActAgent.builder().build())
+                .isInstanceOf(NullPointerException.class);
     }
 
     private LLMResponse createResponse(String content) {
-        return LLMResponse.builder()
-                .content(content)
-                .model("test-model")
-                .build();
+        return LLMResponse.builder().content(content).model("test-model").build();
     }
 }

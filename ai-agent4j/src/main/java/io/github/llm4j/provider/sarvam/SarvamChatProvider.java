@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.exception.AuthenticationException;
-import io.github.llm4j.exception.InvalidRequestException;
 import io.github.llm4j.exception.LLMException;
 import io.github.llm4j.exception.ProviderException;
 import io.github.llm4j.http.HttpClientWrapper;
@@ -14,17 +13,14 @@ import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.Message;
 import io.github.llm4j.provider.LLMProvider;
+import java.io.IOException;
+import java.util.Objects;
+import java.util.stream.Stream;
 import okhttp3.Headers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.Objects;
-import java.util.stream.Stream;
-
-/**
- * Implementation of {@link LLMProvider} for Sarvam AI Chat Completions.
- */
+/** Implementation of {@link LLMProvider} for Sarvam AI Chat Completions. */
 public class SarvamChatProvider implements LLMProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(SarvamChatProvider.class);
@@ -65,7 +61,8 @@ public class SarvamChatProvider implements LLMProvider {
 
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
-        throw new UnsupportedOperationException("Streaming is not yet implemented for Sarvam provider");
+        throw new UnsupportedOperationException(
+                "Streaming is not yet implemented for Sarvam provider");
     }
 
     @Override
@@ -96,12 +93,9 @@ public class SarvamChatProvider implements LLMProvider {
             messageNode.put("content", message.getContent());
         }
 
-        if (request.getTemperature() != null)
-            root.put("temperature", request.getTemperature());
-        if (request.getMaxTokens() != null)
-            root.put("max_tokens", request.getMaxTokens());
-        if (request.getTopP() != null)
-            root.put("top_p", request.getTopP());
+        if (request.getTemperature() != null) root.put("temperature", request.getTemperature());
+        if (request.getMaxTokens() != null) root.put("max_tokens", request.getMaxTokens());
+        if (request.getTopP() != null) root.put("top_p", request.getTopP());
         if (request.getStopSequences() != null && !request.getStopSequences().isEmpty()) {
             ArrayNode stopArray = root.putArray("stop");
             request.getStopSequences().forEach(stopArray::add);
@@ -117,7 +111,8 @@ public class SarvamChatProvider implements LLMProvider {
                 .build();
     }
 
-    private LLMResponse parseResponse(String responseJson, String requestedModel) throws IOException {
+    private LLMResponse parseResponse(String responseJson, String requestedModel)
+            throws IOException {
         JsonNode root = objectMapper.readTree(responseJson);
 
         if (root.has("error")) {
@@ -126,7 +121,8 @@ public class SarvamChatProvider implements LLMProvider {
 
         JsonNode choices = root.path("choices");
         if (choices.isMissingNode() || !choices.isArray() || choices.isEmpty()) {
-            throw new ProviderException(getProviderName(), "No choices in response: " + responseJson);
+            throw new ProviderException(
+                    getProviderName(), "No choices in response: " + responseJson);
         }
 
         JsonNode choice = choices.get(0);
@@ -137,10 +133,11 @@ public class SarvamChatProvider implements LLMProvider {
         LLMResponse.TokenUsage tokenUsage = null;
         if (root.has("usage")) {
             JsonNode usage = root.get("usage");
-            tokenUsage = new LLMResponse.TokenUsage(
-                    usage.path("prompt_tokens").asInt(0),
-                    usage.path("completion_tokens").asInt(0),
-                    usage.path("total_tokens").asInt(0));
+            tokenUsage =
+                    new LLMResponse.TokenUsage(
+                            usage.path("prompt_tokens").asInt(0),
+                            usage.path("completion_tokens").asInt(0),
+                            usage.path("total_tokens").asInt(0));
         }
 
         return LLMResponse.builder()

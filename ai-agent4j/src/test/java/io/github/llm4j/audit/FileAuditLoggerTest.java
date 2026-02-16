@@ -1,24 +1,21 @@
 package io.github.llm4j.audit;
 
-import io.github.llm4j.agent.AgentResult;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import static org.junit.jupiter.api.Assertions.*;
 
+import io.github.llm4j.agent.AgentResult;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class FileAuditLoggerTest {
 
-    @TempDir
-    Path tempDir;
+    @TempDir Path tempDir;
 
     private Path auditFile;
     private FileAuditLogger logger;
@@ -39,10 +36,8 @@ class FileAuditLoggerTest {
 
     @Test
     void testLogAgentDecision_createsJsonFile() throws IOException {
-        AuditEvent event = AuditEvent.builder()
-                .sessionId("test-session")
-                .userId("test-user")
-                .build();
+        AuditEvent event =
+                AuditEvent.builder().sessionId("test-session").userId("test-user").build();
 
         logger.logAgentDecision(event);
 
@@ -67,23 +62,17 @@ class FileAuditLoggerTest {
 
     @Test
     void testLogAgentDecision_handlesNullMetadata() {
-        AuditEvent event = AuditEvent.builder()
-                .sessionId("test-session")
-                .build();
+        AuditEvent event = AuditEvent.builder().sessionId("test-session").build();
 
         assertDoesNotThrow(() -> logger.logAgentDecision(event));
     }
 
     @Test
     void testLogAgentDecision_handlesLargePayload() {
-        AgentResult largeResult = AgentResult.builder()
-                .finalAnswer("A".repeat(10000))
-                .build();
+        AgentResult largeResult = AgentResult.builder().finalAnswer("A".repeat(10000)).build();
 
-        AuditEvent event = AuditEvent.builder()
-                .sessionId("test-session")
-                .agentResult(largeResult)
-                .build();
+        AuditEvent event =
+                AuditEvent.builder().sessionId("test-session").agentResult(largeResult).build();
 
         assertDoesNotThrow(() -> logger.logAgentDecision(event));
     }
@@ -126,16 +115,18 @@ class FileAuditLoggerTest {
         // Write enough data to trigger rotation
         String largePayload = "A".repeat(500);
         for (int i = 0; i < 10; i++) {
-            AuditEvent event = AuditEvent.builder()
-                    .sessionId("session-" + i)
-                    .addMetadata("payload", largePayload)
-                    .build();
+            AuditEvent event =
+                    AuditEvent.builder()
+                            .sessionId("session-" + i)
+                            .addMetadata("payload", largePayload)
+                            .build();
             smallLogger.logAgentDecision(event);
         }
 
         // Check that rotation occurred
         Path rotatedFile = auditFile.getParent().resolve(auditFile.getFileName() + ".0");
-        assertTrue(Files.exists(auditFile) || Files.exists(rotatedFile),
+        assertTrue(
+                Files.exists(auditFile) || Files.exists(rotatedFile),
                 "Either current file or rotated file should exist");
     }
 
@@ -145,10 +136,11 @@ class FileAuditLoggerTest {
 
         // Trigger multiple rotations
         for (int i = 0; i < 50; i++) {
-            AuditEvent event = AuditEvent.builder()
-                    .sessionId("session-" + i)
-                    .addMetadata("data", "test data for rotation")
-                    .build();
+            AuditEvent event =
+                    AuditEvent.builder()
+                            .sessionId("session-" + i)
+                            .addMetadata("data", "test data for rotation")
+                            .build();
             smallLogger.logAgentDecision(event);
         }
 
@@ -163,14 +155,17 @@ class FileAuditLoggerTest {
 
         for (int i = 0; i < threads.length; i++) {
             final int threadId = i;
-            threads[i] = new Thread(() -> {
-                for (int j = 0; j < 10; j++) {
-                    AuditEvent event = AuditEvent.builder()
-                            .sessionId("thread-" + threadId + "-event-" + j)
-                            .build();
-                    logger.logAgentDecision(event);
-                }
-            });
+            threads[i] =
+                    new Thread(
+                            () -> {
+                                for (int j = 0; j < 10; j++) {
+                                    AuditEvent event =
+                                            AuditEvent.builder()
+                                                    .sessionId("thread-" + threadId + "-event-" + j)
+                                                    .build();
+                                    logger.logAgentDecision(event);
+                                }
+                            });
         }
 
         for (Thread thread : threads) {

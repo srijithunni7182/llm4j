@@ -11,19 +11,17 @@ import io.github.llm4j.model.*;
 import io.github.llm4j.provider.LanguageDetectionProvider;
 import io.github.llm4j.provider.TranslationProvider;
 import io.github.llm4j.provider.TransliterationProvider;
+import java.util.Objects;
 import okhttp3.Headers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.Objects;
-
 /**
- * Implementation of {@link TranslationProvider},
- * {@link TransliterationProvider},
- * and {@link LanguageDetectionProvider} for Sarvam AI.
+ * Implementation of {@link TranslationProvider}, {@link TransliterationProvider}, and {@link
+ * LanguageDetectionProvider} for Sarvam AI.
  */
-public class SarvamTextProvider implements TranslationProvider, TransliterationProvider, LanguageDetectionProvider {
+public class SarvamTextProvider
+        implements TranslationProvider, TransliterationProvider, LanguageDetectionProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(SarvamTextProvider.class);
     private static final String DEFAULT_BASE_URL = "https://api.sarvam.ai";
@@ -50,9 +48,11 @@ public class SarvamTextProvider implements TranslationProvider, TransliterationP
         try {
             ObjectNode root = objectMapper.createObjectNode();
             root.put("input", request.getText());
-            root.put("source_language_code", request.getSourceLanguageCode().orElse("en-IN")); // Default is often
-                                                                                               // required or auto. Docs
-                                                                                               // check?
+            root.put(
+                    "source_language_code",
+                    request.getSourceLanguageCode().orElse("en-IN")); // Default is often
+            // required or auto. Docs
+            // check?
             // Docs imply source_language_code and target_language_code are required.
             root.put("target_language_code", request.getTargetLanguageCode());
             root.put("speaker_gender", request.getSpeakerGender().orElse("Male"));
@@ -60,7 +60,8 @@ public class SarvamTextProvider implements TranslationProvider, TransliterationP
             // Sarvam Translate typically implies enabling processing? Or just standard.
 
             logger.debug("Calling Sarvam AI Translate API");
-            String responseJson = httpClient.post(url, objectMapper.writeValueAsString(root), buildHeaders());
+            String responseJson =
+                    httpClient.post(url, objectMapper.writeValueAsString(root), buildHeaders());
 
             JsonNode responseRoot = objectMapper.readTree(responseJson);
             if (responseRoot.has("error")) {
@@ -73,7 +74,8 @@ public class SarvamTextProvider implements TranslationProvider, TransliterationP
                 translatedText = responseRoot.get("text").asText();
             }
 
-            return new TranslationResponse(translatedText, request.getSourceLanguageCode().orElse(null));
+            return new TranslationResponse(
+                    translatedText, request.getSourceLanguageCode().orElse(null));
 
         } catch (Exception e) {
             throw new ProviderException(getProviderName(), "Translation failed", e);
@@ -96,7 +98,8 @@ public class SarvamTextProvider implements TranslationProvider, TransliterationP
             }
 
             logger.debug("Calling Sarvam AI Transliterate API");
-            String responseJson = httpClient.post(url, objectMapper.writeValueAsString(root), buildHeaders());
+            String responseJson =
+                    httpClient.post(url, objectMapper.writeValueAsString(root), buildHeaders());
 
             JsonNode responseRoot = objectMapper.readTree(responseJson);
             if (responseRoot.has("error")) {
@@ -142,7 +145,8 @@ public class SarvamTextProvider implements TranslationProvider, TransliterationP
             root.put("input", text);
 
             logger.debug("Calling Sarvam AI Language Detection API");
-            String responseJson = httpClient.post(url, objectMapper.writeValueAsString(root), buildHeaders());
+            String responseJson =
+                    httpClient.post(url, objectMapper.writeValueAsString(root), buildHeaders());
 
             JsonNode responseRoot = objectMapper.readTree(responseJson);
             // {"language_code": "hi-IN", "confidence": 0.99} (hypothetical)
@@ -152,7 +156,10 @@ public class SarvamTextProvider implements TranslationProvider, TransliterationP
             }
 
             String languageCode = responseRoot.path("language_code").asText();
-            Double confidence = responseRoot.has("confidence") ? responseRoot.get("confidence").asDouble() : null;
+            Double confidence =
+                    responseRoot.has("confidence")
+                            ? responseRoot.get("confidence").asDouble()
+                            : null;
 
             return new LanguageDetectionResponse(languageCode, null, confidence);
 

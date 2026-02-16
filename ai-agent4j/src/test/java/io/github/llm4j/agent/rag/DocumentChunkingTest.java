@@ -1,27 +1,25 @@
 package io.github.llm4j.agent.rag;
 
-import io.github.llm4j.agent.rag.document.Document;
-import io.github.llm4j.agent.rag.document.DocumentChunk;
-import io.github.llm4j.agent.rag.document.FixedSizeChunkingStrategy;
-import org.junit.jupiter.api.Test;
-
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/**
- * Unit tests for document chunking
- */
+import io.github.llm4j.agent.rag.document.Document;
+import io.github.llm4j.agent.rag.document.DocumentChunk;
+import io.github.llm4j.agent.rag.document.FixedSizeChunkingStrategy;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+/** Unit tests for document chunking */
 class DocumentChunkingTest {
 
     @Test
     void testDocumentCreation() {
-        Document doc = Document.builder()
-                .id("doc1")
-                .content("This is a test document")
-                .addMetadata("source", "test")
-                .build();
+        Document doc =
+                Document.builder()
+                        .id("doc1")
+                        .content("This is a test document")
+                        .addMetadata("source", "test")
+                        .build();
 
         assertThat(doc.getId()).isEqualTo("doc1");
         assertThat(doc.getContent()).isEqualTo("This is a test document");
@@ -30,10 +28,12 @@ class DocumentChunkingTest {
 
     @Test
     void testFixedSizeChunking() {
-        Document doc = Document.builder()
-                .id("doc1")
-                .content("This is a longer document that needs to be chunked into smaller pieces for processing.")
-                .build();
+        Document doc =
+                Document.builder()
+                        .id("doc1")
+                        .content(
+                                "This is a longer document that needs to be chunked into smaller pieces for processing.")
+                        .build();
 
         FixedSizeChunkingStrategy strategy = new FixedSizeChunkingStrategy(20, 5);
         List<DocumentChunk> chunks = strategy.chunk(doc);
@@ -46,10 +46,7 @@ class DocumentChunkingTest {
     @Test
     void testFixedSizeChunkingWithOverlap() {
         String content = "0123456789012345678901234567890123456789"; // 40 chars
-        Document doc = Document.builder()
-                .id("doc1")
-                .content(content)
-                .build();
+        Document doc = Document.builder().id("doc1").content(content).build();
 
         FixedSizeChunkingStrategy strategy = new FixedSizeChunkingStrategy(15, 5);
         List<DocumentChunk> chunks = strategy.chunk(doc);
@@ -73,12 +70,13 @@ class DocumentChunkingTest {
 
     @Test
     void testChunkingPreservesMetadata() {
-        Document doc = Document.builder()
-                .id("doc1")
-                .content("Test content for chunking")
-                .addMetadata("author", "Test Author")
-                .addMetadata("date", "2024-01-01")
-                .build();
+        Document doc =
+                Document.builder()
+                        .id("doc1")
+                        .content("Test content for chunking")
+                        .addMetadata("author", "Test Author")
+                        .addMetadata("date", "2024-01-01")
+                        .build();
 
         FixedSizeChunkingStrategy strategy = new FixedSizeChunkingStrategy(10);
         List<DocumentChunk> chunks = strategy.chunk(doc);
@@ -91,32 +89,37 @@ class DocumentChunkingTest {
 
     @Test
     void testInvalidChunkSize() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new FixedSizeChunkingStrategy(0);
-        });
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new FixedSizeChunkingStrategy(0);
+                });
 
-        assertThrows(IllegalArgumentException.class, () -> {
-            new FixedSizeChunkingStrategy(-1);
-        });
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new FixedSizeChunkingStrategy(-1);
+                });
     }
 
     @Test
     void testInvalidOverlap() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            new FixedSizeChunkingStrategy(10, -1);
-        });
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new FixedSizeChunkingStrategy(10, -1);
+                });
 
-        assertThrows(IllegalArgumentException.class, () -> {
-            new FixedSizeChunkingStrategy(10, 10); // overlap >= chunkSize
-        });
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> {
+                    new FixedSizeChunkingStrategy(10, 10); // overlap >= chunkSize
+                });
     }
 
     @Test
     void testChunkPositionTracking() {
-        Document doc = Document.builder()
-                .id("doc1")
-                .content("0123456789")
-                .build();
+        Document doc = Document.builder().id("doc1").content("0123456789").build();
 
         FixedSizeChunkingStrategy strategy = new FixedSizeChunkingStrategy(5);
         List<DocumentChunk> chunks = strategy.chunk(doc);

@@ -3,10 +3,7 @@ package io.github.llm4j.provider;
 import io.github.llm4j.model.TextToSpeechRequest;
 import io.github.llm4j.model.TextToSpeechResponse;
 
-/**
- * Service Provider Interface (SPI) for implementing Text-to-Speech (TTS)
- * provider integrations.
- */
+/** Service Provider Interface (SPI) for implementing Text-to-Speech (TTS) provider integrations. */
 public interface TextToSpeechProvider {
 
     /**
@@ -27,8 +24,7 @@ public interface TextToSpeechProvider {
     /**
      * Validates that the provider is properly configured.
      *
-     * @throws io.github.llm4j.exception.LLMException if the provider is not
-     *                                                properly configured
+     * @throws io.github.llm4j.exception.LLMException if the provider is not properly configured
      */
     void validate();
 }

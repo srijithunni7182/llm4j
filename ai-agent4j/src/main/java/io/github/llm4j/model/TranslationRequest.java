@@ -3,9 +3,7 @@ package io.github.llm4j.model;
 import java.util.Objects;
 import java.util.Optional;
 
-/**
- * Standardized request for Translation.
- */
+/** Standardized request for Translation. */
 public class TranslationRequest {
 
     private final String text;
@@ -17,8 +15,9 @@ public class TranslationRequest {
     private TranslationRequest(Builder builder) {
         this.text = Objects.requireNonNull(builder.text, "Text cannot be null");
         this.sourceLanguageCode = builder.sourceLanguageCode;
-        this.targetLanguageCode = Objects.requireNonNull(builder.targetLanguageCode,
-                "Target language code cannot be null");
+        this.targetLanguageCode =
+                Objects.requireNonNull(
+                        builder.targetLanguageCode, "Target language code cannot be null");
         this.speakerGender = builder.speakerGender;
         this.mode = builder.mode;
     }
@@ -54,8 +53,7 @@ public class TranslationRequest {
         private String speakerGender;
         private String mode;
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder text(String text) {
             this.text = text;

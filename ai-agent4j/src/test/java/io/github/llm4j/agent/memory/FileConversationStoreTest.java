@@ -1,9 +1,8 @@
 package io.github.llm4j.agent.memory;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import io.github.llm4j.model.Message;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,8 +10,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
-
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 class FileConversationStoreTest {
 
@@ -29,13 +29,14 @@ class FileConversationStoreTest {
     void tearDown() throws IOException {
         try (Stream<Path> walk = Files.walk(tempDir)) {
             walk.sorted(Comparator.reverseOrder())
-                    .forEach(path -> {
-                        try {
-                            Files.delete(path);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    });
+                    .forEach(
+                            path -> {
+                                try {
+                                    Files.delete(path);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            });
         }
     }
 

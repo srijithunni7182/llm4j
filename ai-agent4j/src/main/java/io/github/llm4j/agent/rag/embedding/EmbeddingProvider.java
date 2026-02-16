@@ -2,9 +2,7 @@ package io.github.llm4j.agent.rag.embedding;
 
 import java.util.List;
 
-/**
- * Interface for generating embeddings from text.
- */
+/** Interface for generating embeddings from text. */
 public interface EmbeddingProvider {
 
     /**
@@ -16,8 +14,8 @@ public interface EmbeddingProvider {
     float[] embed(String text);
 
     /**
-     * Generates embedding vectors for a batch of texts.
-     * Implementations may optimize batch processing.
+     * Generates embedding vectors for a batch of texts. Implementations may optimize batch
+     * processing.
      *
      * @param texts the texts to embed
      * @return list of embedding vectors

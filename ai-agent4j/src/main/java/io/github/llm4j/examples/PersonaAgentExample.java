@@ -11,8 +11,8 @@ import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.provider.google.GoogleProvider;
 
 /**
- * Example demonstrating agent personas.
- * Shows how different personas respond differently to the same question.
+ * Example demonstrating agent personas. Shows how different personas respond differently to the
+ * same question.
  */
 public class PersonaAgentExample {
 
@@ -24,10 +24,8 @@ public class PersonaAgentExample {
         }
 
         // Create LLM client
-        LLMConfig config = LLMConfig.builder()
-                .apiKey(apiKey)
-                .defaultModel("gemini-1.5-flash")
-                .build();
+        LLMConfig config =
+                LLMConfig.builder().apiKey(apiKey).defaultModel("gemini-1.5-flash").build();
 
         LLMClient client = new DefaultLLMClient(new GoogleProvider(config));
 
@@ -43,12 +41,13 @@ public class PersonaAgentExample {
         System.out.println("1. TECHNICAL ANALYST PERSONA");
         System.out.println("-".repeat(80));
 
-        ReActAgent analystAgent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .persona(PersonaLibrary.technicalAnalyst())
-                .maxIterations(5)
-                .build();
+        ReActAgent analystAgent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .persona(PersonaLibrary.technicalAnalyst())
+                        .maxIterations(5)
+                        .build();
 
         AgentResult analystResult = analystAgent.run(question);
         System.out.println("\nAnswer: " + analystResult.getFinalAnswer());
@@ -59,12 +58,13 @@ public class PersonaAgentExample {
         System.out.println("2. SOFTWARE DEVELOPER PERSONA");
         System.out.println("-".repeat(80));
 
-        ReActAgent developerAgent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .persona(PersonaLibrary.softwareDeveloper())
-                .maxIterations(5)
-                .build();
+        ReActAgent developerAgent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .persona(PersonaLibrary.softwareDeveloper())
+                        .maxIterations(5)
+                        .build();
 
         AgentResult developerResult = developerAgent.run(question);
         System.out.println("\nAnswer: " + developerResult.getFinalAnswer());
@@ -75,21 +75,23 @@ public class PersonaAgentExample {
         System.out.println("3. CUSTOM PERSONA (Friendly Math Tutor)");
         System.out.println("-".repeat(80));
 
-        AgentPersona tutorPersona = AgentPersona.builder()
-                .name("Math Tutor")
-                .role("friendly mathematics teacher")
-                .expertise("Mathematics education and step-by-step problem solving")
-                .tone("Encouraging, patient, and educational. Always explain the steps.")
-                .addConstraint("Break down problems into simple steps")
-                .addConstraint("Explain the reasoning behind each step")
-                .build();
+        AgentPersona tutorPersona =
+                AgentPersona.builder()
+                        .name("Math Tutor")
+                        .role("friendly mathematics teacher")
+                        .expertise("Mathematics education and step-by-step problem solving")
+                        .tone("Encouraging, patient, and educational. Always explain the steps.")
+                        .addConstraint("Break down problems into simple steps")
+                        .addConstraint("Explain the reasoning behind each step")
+                        .build();
 
-        ReActAgent tutorAgent = ReActAgent.builder()
-                .llmClient(client)
-                .addTool(new CalculatorTool())
-                .persona(tutorPersona)
-                .maxIterations(5)
-                .build();
+        ReActAgent tutorAgent =
+                ReActAgent.builder()
+                        .llmClient(client)
+                        .addTool(new CalculatorTool())
+                        .persona(tutorPersona)
+                        .maxIterations(5)
+                        .build();
 
         AgentResult tutorResult = tutorAgent.run(question);
         System.out.println("\nAnswer: " + tutorResult.getFinalAnswer());

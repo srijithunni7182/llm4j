@@ -4,9 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Fixed-size chunking strategy that splits documents into chunks of a specified
- * size
- * with optional overlap between chunks.
+ * Fixed-size chunking strategy that splits documents into chunks of a specified size with optional
+ * overlap between chunks.
  */
 public class FixedSizeChunkingStrategy implements ChunkingStrategy {
 
@@ -17,7 +16,7 @@ public class FixedSizeChunkingStrategy implements ChunkingStrategy {
      * Creates a fixed-size chunking strategy.
      *
      * @param chunkSize the size of each chunk in characters
-     * @param overlap   the number of overlapping characters between chunks
+     * @param overlap the number of overlapping characters between chunks
      */
     public FixedSizeChunkingStrategy(int chunkSize, int overlap) {
         if (chunkSize <= 0) {
@@ -52,14 +51,15 @@ public class FixedSizeChunkingStrategy implements ChunkingStrategy {
             int endIndex = Math.min(i + chunkSize, content.length());
             String chunkContent = content.substring(i, endIndex);
 
-            DocumentChunk chunk = DocumentChunk.builder()
-                    .id(document.getId() + "_chunk_" + chunks.size())
-                    .documentId(document.getId())
-                    .content(chunkContent)
-                    .startIndex(i)
-                    .endIndex(endIndex)
-                    .metadata(document.getMetadata())
-                    .build();
+            DocumentChunk chunk =
+                    DocumentChunk.builder()
+                            .id(document.getId() + "_chunk_" + chunks.size())
+                            .documentId(document.getId())
+                            .content(chunkContent)
+                            .startIndex(i)
+                            .endIndex(endIndex)
+                            .metadata(document.getMetadata())
+                            .build();
 
             chunks.add(chunk);
 

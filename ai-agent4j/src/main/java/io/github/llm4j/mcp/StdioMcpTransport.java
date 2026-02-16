@@ -1,10 +1,6 @@
 package io.github.llm4j.mcp;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -13,9 +9,9 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class StdioMcpTransport implements McpTransport {
     private static final Logger logger = LoggerFactory.getLogger(StdioMcpTransport.class);
@@ -48,8 +44,12 @@ public class StdioMcpTransport implements McpTransport {
         pb.redirectError(ProcessBuilder.Redirect.INHERIT);
 
         this.process = pb.start();
-        this.writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
-        this.reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
+        this.writer =
+                new BufferedWriter(
+                        new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
+        this.reader =
+                new BufferedReader(
+                        new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8));
         this.isRunning = true;
 
         this.readerThread = new Thread(this::readLoop, "mcp-stdio-reader");
@@ -61,8 +61,7 @@ public class StdioMcpTransport implements McpTransport {
         try {
             String line;
             while (isRunning && (line = reader.readLine()) != null) {
-                if (line.trim().isEmpty())
-                    continue;
+                if (line.trim().isEmpty()) continue;
                 logger.debug("Received MCP message: {}", line);
                 try {
                     // We need to parse polymorphically

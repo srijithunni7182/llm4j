@@ -1,15 +1,12 @@
 package io.github.llm4j.agent;
 
 import io.github.llm4j.model.ConfidenceScore;
-
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Represents the result of a ReAct agent execution.
- */
+/** Represents the result of a ReAct agent execution. */
 public final class AgentResult {
 
     private final String finalAnswer;
@@ -72,17 +69,20 @@ public final class AgentResult {
 
     @Override
     public String toString() {
-        return "AgentResult{" +
-                "finalAnswer='" + finalAnswer + '\'' +
-                ", iterations=" + iterations +
-                ", completed=" + completed +
-                ", steps=" + steps.size() +
-                '}';
+        return "AgentResult{"
+                + "finalAnswer='"
+                + finalAnswer
+                + '\''
+                + ", iterations="
+                + iterations
+                + ", completed="
+                + completed
+                + ", steps="
+                + steps.size()
+                + '}';
     }
 
-    /**
-     * Represents a single step in the agent's reasoning process.
-     */
+    /** Represents a single step in the agent's reasoning process. */
     public static final class AgentStep {
         private final String thought;
         private final String action;
@@ -95,8 +95,13 @@ public final class AgentResult {
             this(thought, action, actionInput, observation, null, Instant.now());
         }
 
-        public AgentStep(String thought, String action, String actionInput, String observation,
-                ConfidenceScore stepConfidence, Instant timestamp) {
+        public AgentStep(
+                String thought,
+                String action,
+                String actionInput,
+                String observation,
+                ConfidenceScore stepConfidence,
+                Instant timestamp) {
             this.thought = thought;
             this.action = action;
             this.actionInput = actionInput;
@@ -131,12 +136,20 @@ public final class AgentResult {
 
         @Override
         public String toString() {
-            return "AgentStep{" +
-                    "thought='" + thought + '\'' +
-                    ", action='" + action + '\'' +
-                    ", actionInput='" + actionInput + '\'' +
-                    ", observation='" + observation + '\'' +
-                    '}';
+            return "AgentStep{"
+                    + "thought='"
+                    + thought
+                    + '\''
+                    + ", action='"
+                    + action
+                    + '\''
+                    + ", actionInput='"
+                    + actionInput
+                    + '\''
+                    + ", observation='"
+                    + observation
+                    + '\''
+                    + '}';
         }
     }
 
@@ -149,8 +162,7 @@ public final class AgentResult {
         private boolean uncertaintyDetected;
         private String uncertaintyReason;
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder finalAnswer(String finalAnswer) {
             this.finalAnswer = finalAnswer;

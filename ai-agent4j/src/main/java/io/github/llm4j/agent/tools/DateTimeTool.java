@@ -6,9 +6,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 /**
- * A tool that returns the current date and time.
- * This is useful for agents that need to be aware of the current time
- * to avoid making factually incorrect statements about temporal events.
+ * A tool that returns the current date and time. This is useful for agents that need to be aware of
+ * the current time to avoid making factually incorrect statements about temporal events.
  */
 public class DateTimeTool implements Tool {
 

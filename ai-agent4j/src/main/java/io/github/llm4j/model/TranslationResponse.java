@@ -2,16 +2,15 @@ package io.github.llm4j.model;
 
 import java.util.Objects;
 
-/**
- * Standardized response for Translation.
- */
+/** Standardized response for Translation. */
 public class TranslationResponse {
 
     private final String translatedText;
     private final String sourceLanguageCode; // Detected or used
 
     public TranslationResponse(String translatedText, String sourceLanguageCode) {
-        this.translatedText = Objects.requireNonNull(translatedText, "Translated text cannot be null");
+        this.translatedText =
+                Objects.requireNonNull(translatedText, "Translated text cannot be null");
         this.sourceLanguageCode = sourceLanguageCode;
     }
 
@@ -25,9 +24,13 @@ public class TranslationResponse {
 
     @Override
     public String toString() {
-        return "TranslationResponse{" +
-                "translatedText='" + translatedText + '\'' +
-                ", sourceLanguageCode='" + sourceLanguageCode + '\'' +
-                '}';
+        return "TranslationResponse{"
+                + "translatedText='"
+                + translatedText
+                + '\''
+                + ", sourceLanguageCode='"
+                + sourceLanguageCode
+                + '\''
+                + '}';
     }
 }

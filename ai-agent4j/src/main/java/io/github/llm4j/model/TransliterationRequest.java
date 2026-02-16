@@ -3,9 +3,7 @@ package io.github.llm4j.model;
 import java.util.Objects;
 import java.util.Optional;
 
-/**
- * Standardized request for Transliteration.
- */
+/** Standardized request for Transliteration. */
 public class TransliterationRequest {
 
     private final String text;
@@ -19,8 +17,9 @@ public class TransliterationRequest {
     private TransliterationRequest(Builder builder) {
         this.text = Objects.requireNonNull(builder.text, "Text cannot be null");
         this.sourceLanguageCode = builder.sourceLanguageCode;
-        this.targetLanguageCode = Objects.requireNonNull(builder.targetLanguageCode,
-                "Target language code cannot be null");
+        this.targetLanguageCode =
+                Objects.requireNonNull(
+                        builder.targetLanguageCode, "Target language code cannot be null");
         this.outputScript = builder.outputScript;
         this.numeralsFormat = builder.numeralsFormat;
     }
@@ -56,8 +55,7 @@ public class TransliterationRequest {
         private String outputScript;
         private String numeralsFormat;
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder text(String text) {
             this.text = text;

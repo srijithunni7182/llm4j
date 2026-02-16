@@ -1,17 +1,15 @@
 package io.github.llm4j.agent.prompt;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 class FileSystemPromptRegistryTest {
 
@@ -25,11 +23,12 @@ class FileSystemPromptRegistryTest {
         promptsFile = tempDir.resolve("prompts.yaml");
 
         // Create initial content
-        String content = "prompts:\n" +
-                "  test-prompt:\n" +
-                "    v1: \"Version 1\"\n" +
-                "    v2: \"Version 2\"\n" +
-                "    latest: \"v2\"";
+        String content =
+                "prompts:\n"
+                        + "  test-prompt:\n"
+                        + "    v1: \"Version 1\"\n"
+                        + "    v2: \"Version 2\"\n"
+                        + "    latest: \"v2\"";
         Files.writeString(promptsFile, content);
 
         registry = new FileSystemPromptRegistry(promptsFile);
@@ -57,12 +56,13 @@ class FileSystemPromptRegistryTest {
     @Test
     void testHotReload() throws IOException, InterruptedException {
         // Update file
-        String newContent = "prompts:\n" +
-                "  test-prompt:\n" +
-                "    v1: \"Version 1\"\n" +
-                "    v2: \"Version 2\"\n" +
-                "    v3: \"Version 3\"\n" +
-                "    latest: \"v3\"";
+        String newContent =
+                "prompts:\n"
+                        + "  test-prompt:\n"
+                        + "    v1: \"Version 1\"\n"
+                        + "    v2: \"Version 2\"\n"
+                        + "    v3: \"Version 3\"\n"
+                        + "    latest: \"v3\"";
 
         Files.writeString(promptsFile, newContent);
 

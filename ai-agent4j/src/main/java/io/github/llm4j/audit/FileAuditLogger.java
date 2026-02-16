@@ -2,9 +2,6 @@ package io.github.llm4j.audit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,12 +9,14 @@ import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * File-based audit logger that writes events as JSON lines to a file.
- * Supports automatic file rotation when the file reaches a specified size.
- * 
- * Thread-safe implementation using synchronized methods.
+ * File-based audit logger that writes events as JSON lines to a file. Supports automatic file
+ * rotation when the file reaches a specified size.
+ *
+ * <p>Thread-safe implementation using synchronized methods.
  */
 public class FileAuditLogger implements AuditLogger {
 
@@ -43,16 +42,17 @@ public class FileAuditLogger implements AuditLogger {
      * Creates a FileAuditLogger with custom rotation settings.
      *
      * @param auditFilePath the path to the audit log file
-     * @param maxFileSize   maximum file size in bytes before rotation
-     * @param maxFiles      maximum number of rotated files to keep
+     * @param maxFileSize maximum file size in bytes before rotation
+     * @param maxFiles maximum number of rotated files to keep
      */
     public FileAuditLogger(Path auditFilePath, long maxFileSize, int maxFiles) {
         this.auditFilePath = auditFilePath;
         this.maxFileSize = maxFileSize;
         this.maxFiles = maxFiles;
-        this.objectMapper = new ObjectMapper()
-                .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        this.objectMapper =
+                new ObjectMapper()
+                        .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+                        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
         // Ensure parent directory exists
         try {
@@ -84,8 +84,8 @@ public class FileAuditLogger implements AuditLogger {
     }
 
     @Override
-    public synchronized void logToolExecution(String sessionId, String toolName, String input, String output,
-            Instant timestamp) {
+    public synchronized void logToolExecution(
+            String sessionId, String toolName, String input, String output, Instant timestamp) {
         Map<String, Object> logEntry = new HashMap<>();
         logEntry.put("type", "TOOL_EXECUTION");
         logEntry.put("sessionId", sessionId);
@@ -98,7 +98,8 @@ public class FileAuditLogger implements AuditLogger {
     }
 
     @Override
-    public synchronized void logPromptUsage(String sessionId, String promptId, String version, Instant timestamp) {
+    public synchronized void logPromptUsage(
+            String sessionId, String promptId, String version, Instant timestamp) {
         Map<String, Object> logEntry = new HashMap<>();
         logEntry.put("type", "PROMPT_USAGE");
         logEntry.put("sessionId", sessionId);
@@ -110,8 +111,8 @@ public class FileAuditLogger implements AuditLogger {
     }
 
     @Override
-    public synchronized void logConversationEvent(String sessionId, String userId, String eventType,
-            Map<String, Object> metadata) {
+    public synchronized void logConversationEvent(
+            String sessionId, String userId, String eventType, Map<String, Object> metadata) {
         Map<String, Object> logEntry = new HashMap<>();
         logEntry.put("type", "CONVERSATION_EVENT");
         logEntry.put("sessionId", sessionId);
@@ -132,9 +133,8 @@ public class FileAuditLogger implements AuditLogger {
 
             // Write as JSON line
             String jsonLine = objectMapper.writeValueAsString(logEntry) + "\n";
-            Files.writeString(auditFilePath, jsonLine,
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.APPEND);
+            Files.writeString(
+                    auditFilePath, jsonLine, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
 
         } catch (IOException e) {
             logger.error("Failed to write audit log entry", e);
@@ -154,7 +154,10 @@ public class FileAuditLogger implements AuditLogger {
 
         // Rename current file to .1
         if (Files.exists(auditFilePath)) {
-            Files.move(auditFilePath, getRotatedFilePath(0), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            Files.move(
+                    auditFilePath,
+                    getRotatedFilePath(0),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
         }
     }
 

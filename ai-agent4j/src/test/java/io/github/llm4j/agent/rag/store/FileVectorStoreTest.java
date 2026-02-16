@@ -1,20 +1,17 @@
 package io.github.llm4j.agent.rag.store;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class FileVectorStoreTest {
 
-    @TempDir
-    Path tempDir;
+    @TempDir Path tempDir;
 
     @Test
     void testPersistence() {
@@ -22,7 +19,7 @@ class FileVectorStoreTest {
 
         // 1. Create Store and Add Data
         FileVectorStore store1 = new FileVectorStore(vectorFile);
-        float[] embedding = { 0.1f, 0.2f, 0.3f };
+        float[] embedding = {0.1f, 0.2f, 0.3f};
         store1.add("doc1", embedding, Map.of("author", "srijith"));
 
         // Data should be in memory
@@ -47,7 +44,7 @@ class FileVectorStoreTest {
         File nonExistentFile = tempDir.resolve("nested/dir/store.json").toFile();
         FileVectorStore store = new FileVectorStore(nonExistentFile);
 
-        store.add("doc1", new float[] { 1.0f }, Map.of());
+        store.add("doc1", new float[] {1.0f}, Map.of());
 
         assertThat(nonExistentFile).exists();
     }

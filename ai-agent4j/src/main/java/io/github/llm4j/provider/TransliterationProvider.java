@@ -3,10 +3,7 @@ package io.github.llm4j.provider;
 import io.github.llm4j.model.TransliterationRequest;
 import io.github.llm4j.model.TransliterationResponse;
 
-/**
- * Service Provider Interface (SPI) for implementing Transliteration provider
- * integrations.
- */
+/** Service Provider Interface (SPI) for implementing Transliteration provider integrations. */
 public interface TransliterationProvider {
 
     /**
@@ -27,8 +24,7 @@ public interface TransliterationProvider {
     /**
      * Validates that the provider is properly configured.
      *
-     * @throws io.github.llm4j.exception.LLMException if the provider is not
-     *                                                properly configured
+     * @throws io.github.llm4j.exception.LLMException if the provider is not properly configured
      */
     void validate();
 }

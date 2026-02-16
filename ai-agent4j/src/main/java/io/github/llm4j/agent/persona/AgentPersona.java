@@ -3,11 +3,11 @@ package io.github.llm4j.agent.persona;
 import java.util.*;
 
 /**
- * Represents an agent persona that defines behavioral characteristics,
- * expertise, and constraints for a ReAct agent.
- * <p>
- * A persona makes agent behavior more deterministic and role-specific by
- * influencing the system prompt and decision-making process.
+ * Represents an agent persona that defines behavioral characteristics, expertise, and constraints
+ * for a ReAct agent.
+ *
+ * <p>A persona makes agent behavior more deterministic and role-specific by influencing the system
+ * prompt and decision-making process.
  */
 public class AgentPersona {
 
@@ -26,12 +26,13 @@ public class AgentPersona {
         this.tone = builder.tone;
         this.description = builder.description;
         this.constraints = Collections.unmodifiableList(new ArrayList<>(builder.constraints));
-        this.customAttributes = Collections.unmodifiableMap(new HashMap<>(builder.customAttributes));
+        this.customAttributes =
+                Collections.unmodifiableMap(new HashMap<>(builder.customAttributes));
     }
 
     /**
-     * Converts this persona into a system prompt addition that can be prepended
-     * to the agent's system prompt.
+     * Converts this persona into a system prompt addition that can be prepended to the agent's
+     * system prompt.
      *
      * @return formatted persona description for system prompt
      */
@@ -68,8 +69,10 @@ public class AgentPersona {
         // Enforce natural speech constraints for all personas
         prompt.append("\n\nCOMMUNICATION STYLE GUIDELINES:")
                 .append("\n- Speak in short, concise sentences. Avoid wall-of-text responses.")
-                .append("\n- Do not dump large amounts of data at once; weave facts naturally into the conversation.")
-                .append("\n- It is okay to have broken thoughts or informal phrasing to mimick real human debate.")
+                .append(
+                        "\n- Do not dump large amounts of data at once; weave facts naturally into the conversation.")
+                .append(
+                        "\n- It is okay to have broken thoughts or informal phrasing to mimick real human debate.")
                 .append("\n- If you have a lot to say, break it down into smaller points.");
 
         if (!customAttributes.isEmpty()) {
@@ -123,8 +126,7 @@ public class AgentPersona {
         private List<String> constraints = new ArrayList<>();
         private Map<String, String> customAttributes = new HashMap<>();
 
-        private Builder() {
-        }
+        private Builder() {}
 
         public Builder name(String name) {
             this.name = name;
@@ -178,10 +180,16 @@ public class AgentPersona {
 
     @Override
     public String toString() {
-        return "AgentPersona{" +
-                "name='" + name + '\'' +
-                ", role='" + role + '\'' +
-                ", tone='" + tone + '\'' +
-                '}';
+        return "AgentPersona{"
+                + "name='"
+                + name
+                + '\''
+                + ", role='"
+                + role
+                + '\''
+                + ", tone='"
+                + tone
+                + '\''
+                + '}';
     }
 }

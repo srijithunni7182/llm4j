@@ -4,21 +4,15 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import io.github.llm4j.model.Message;
-
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/**
- * File-based implementation of ConversationStore.
- * Persists each session as a JSON file.
- */
+/** File-based implementation of ConversationStore. Persists each session as a JSON file. */
 public class FileConversationStore implements ConversationStore {
 
     private final Path storageDirectory;
@@ -26,9 +20,10 @@ public class FileConversationStore implements ConversationStore {
 
     public FileConversationStore(Path storageDirectory) {
         this.storageDirectory = storageDirectory;
-        this.objectMapper = new ObjectMapper()
-                .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
-                .enable(SerializationFeature.INDENT_OUTPUT);
+        this.objectMapper =
+                new ObjectMapper()
+                        .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+                        .enable(SerializationFeature.INDENT_OUTPUT);
 
         // Ensure directory exists
         if (!Files.exists(storageDirectory)) {
@@ -46,14 +41,17 @@ public class FileConversationStore implements ConversationStore {
             StoredSession session = loadSession(sessionId);
             if (session == null) {
                 // New session
-                session = new StoredSession(
-                        new ConversationMetadata(sessionId, "New Conversation", java.time.Instant.now()),
-                        new ArrayList<>());
+                session =
+                        new StoredSession(
+                                new ConversationMetadata(
+                                        sessionId, "New Conversation", java.time.Instant.now()),
+                                new ArrayList<>());
             }
             session.messages.add(message);
             // Update timestamp
-            session.metadata = new ConversationMetadata(sessionId, session.metadata.getSummary(),
-                    java.time.Instant.now());
+            session.metadata =
+                    new ConversationMetadata(
+                            sessionId, session.metadata.getSummary(), java.time.Instant.now());
 
             saveSession(sessionId, session);
         } catch (IOException e) {
@@ -84,7 +82,8 @@ public class FileConversationStore implements ConversationStore {
         try {
             StoredSession session = loadSession(sessionId);
             if (session != null) {
-                session.metadata = new ConversationMetadata(sessionId, summary, java.time.Instant.now());
+                session.metadata =
+                        new ConversationMetadata(sessionId, summary, java.time.Instant.now());
                 saveSession(sessionId, session);
             }
         } catch (IOException e) {
@@ -120,18 +119,20 @@ public class FileConversationStore implements ConversationStore {
     @Override
     public List<ConversationMetadata> listSessions() {
         try (Stream<Path> files = Files.list(storageDirectory)) {
-            return files
-                    .filter(path -> path.toString().endsWith(".json"))
-                    .map(path -> {
-                        try {
-                            // We only need metadata, but for now load full file
-                            // Optimization: Could store metadata in separate file or header
-                            StoredSession session = objectMapper.readValue(path.toFile(), StoredSession.class);
-                            return session.metadata;
-                        } catch (IOException e) {
-                            return null;
-                        }
-                    })
+            return files.filter(path -> path.toString().endsWith(".json"))
+                    .map(
+                            path -> {
+                                try {
+                                    // We only need metadata, but for now load full file
+                                    // Optimization: Could store metadata in separate file or header
+                                    StoredSession session =
+                                            objectMapper.readValue(
+                                                    path.toFile(), StoredSession.class);
+                                    return session.metadata;
+                                } catch (IOException e) {
+                                    return null;
+                                }
+                            })
                     .filter(meta -> meta != null)
                     .collect(Collectors.toList());
         } catch (IOException e) {
@@ -149,10 +150,12 @@ public class FileConversationStore implements ConversationStore {
         } catch (Exception e) {
             // Fallback for migration: try reading as List<Message>
             try {
-                List<Message> oldFormat = objectMapper.readValue(file.toFile(), new TypeReference<List<Message>>() {
-                });
-                ConversationMetadata meta = new ConversationMetadata(sessionId, "Migrated Conversation",
-                        java.time.Instant.now());
+                List<Message> oldFormat =
+                        objectMapper.readValue(
+                                file.toFile(), new TypeReference<List<Message>>() {});
+                ConversationMetadata meta =
+                        new ConversationMetadata(
+                                sessionId, "Migrated Conversation", java.time.Instant.now());
                 return new StoredSession(meta, oldFormat);
             } catch (Exception ignored) {
                 throw e; // Rethrow original error if not old format
@@ -177,8 +180,7 @@ public class FileConversationStore implements ConversationStore {
         public List<Message> messages;
 
         // Jackson needs default constructor
-        public StoredSession() {
-        }
+        public StoredSession() {}
 
         public StoredSession(ConversationMetadata metadata, List<Message> messages) {
             this.metadata = metadata;
