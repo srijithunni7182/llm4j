@@ -70,8 +70,8 @@ pipeline {
                         dir('ai-agent4j') {
                             // Spotless check
                             sh 'mvn spotless:check'
-                            // Dependency check (can be slow, maybe separating?)
-                            // sh 'mvn org.owasp:dependency-check-maven:check'
+                            // Dependency check - run explicitly with API key
+                            sh "mvn org.owasp:dependency-check-maven:check -DnvdApiKey=${NVD_API_KEY}"
                         }
                     },
                     "Addons Quality": {
