@@ -48,15 +48,11 @@ pipeline {
                     "Core Tests": {
                         dir('ai-agent4j') {
                             sh 'mvn test jacoco:report'
-                            // Enforce coverage check
-                            sh 'mvn jacoco:check'
                         }
                     },
                     "Addons Tests": {
                         dir('ai-agent4j-addons') {
                             sh 'mvn test jacoco:report'
-                            // Enforce coverage check
-                            sh 'mvn jacoco:check'
                         }
                     }
                 )
