@@ -25,12 +25,7 @@ pipeline {
         stage('Build Core') {
             steps {
                 dir('ai-agent4j') {
-                    sh '''
-                        echo "DEBUG: JAVA_HOME=${JAVA_HOME}"
-                        ls -ld "${JAVA_HOME}" || true
-                        ls -l "${JAVA_HOME}/bin/java" || true
-                        env | grep JAVA || true
-                    '''
+
                     sh 'mvn clean install -DskipTests'
                 }
             }
