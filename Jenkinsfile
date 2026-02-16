@@ -86,6 +86,7 @@ pipeline {
                 branch 'main'
             }
             steps {
+                echo "Deploying from branch: ${env.BRANCH_NAME}"
                 script {
                     withCredentials([
                         string(credentialsId: 'maven-central-username', variable: 'CENTRAL_USERNAME'),
