@@ -28,6 +28,7 @@ pipeline {
             steps {
                 dir('ai-agent4j') {
                     sh 'mvn -version'
+                    sh 'echo "NVD_API_KEY is set: $([ -n \\"$NVD_API_KEY\\" ] && echo YES || echo NO)"'
                     sh "mvn clean install -DskipTests -DnvdApiKey=${NVD_API_KEY}"
                 }
             }

@@ -303,7 +303,8 @@
                 <version>9.0.9</version>
                 <configuration>
                     <nvdApiKey>${nvdApiKey}</nvdApiKey>
-                    <nvdApiDelay>6000</nvdApiDelay>
+                    <nvdApiDelay>8000</nvdApiDelay>
+                    <autoUpdate>false</autoUpdate>
                 </configuration>
                 <executions>
                     <execution>
