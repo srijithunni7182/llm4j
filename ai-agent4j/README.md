@@ -38,19 +38,19 @@
 
 If you are looking for an **LLM for Java**, you might have seen other libraries like LangChain4j or Google's ADK. Here is why you should choose this one:
 
-| Feature | AI Agent4J | Google ADK | Others / LangChain4j |
-| :--- | :--- | :--- | :--- |
-| **Philosophy** | **Lightweight & Verified**. Only what you need. | Enterprise-focused. Google Cloud integration. | Kitchen sink. Heavy dependencies. |
-| **Size** | **Core < 200KB**. Minimal footprint. | Larger (includes dev UI, runtime). | Often bloated with unused features. |
-| **LLM Support** | **Multi-Provider**. Gemini, Sarvam, OpenAI (via interface). | Google Cloud only. | Generic support for everything. |
-| **Voice / Multimodal** | **Native**. First-class STT/TTS pipelines. | Cloud storage/processing. | Often requires separate audio libs. |
-| **Agents** | **Native ReAct**. Built for reasoning loops. | Code-first agent orchestration. | Often complex abstractions. |
-| **RAG** | **Modular**. Core is tiny. Addons optional. | Integrated with Google ecosystem. | Often bundles heavy ML libs by default. |
-| **Deployment** | **Run anywhere**. No cloud lock-in. | Optimized for Google Cloud. | Varying portability. |
-| **Persistence** | **Built-in**. File, async, or custom stores. | Session management included. | Often requires external libs. |
-| **xAI Compliance** | **~95%**. Full reasoning transparency + prompt versioning + audit logging + confidence scoring + PII detection + bias monitoring hooks. | Not documented. | Varies by implementation. |
-| **Reliability** | **100% Integration Tested**. Real API verification. | Official Google support. | Varying quality. |
-| **Learning Curve** | **Simple**. Pure Java, minimal concepts. | Steeper (enterprise patterns). | Complex APIs, many abstractions. |
+| Feature | AI Agent4J | Spring AI | Google ADK | Others / LangChain4j |
+| :--- | :--- | :--- | :--- | :--- |
+| **Philosophy** | **Lightweight & Verified**. Only what you need. | Framework-native. Heavy Spring integration. | Enterprise-focused. Google Cloud integration. | Kitchen sink. Heavy dependencies. |
+| **Size** | **Core < 200KB**. Minimal footprint. | Heavy. Pulls in Spring Boot ecosystem. | Larger (includes dev UI, runtime). | Often bloated with unused features. |
+| **LLM Support** | **Multi-Provider**. Gemini, Sarvam, OpenAI (via interface). | Generic abstraction. Swappable backends. | Google Cloud only. | Generic support for everything. |
+| **Voice / Multimodal** | **Native**. First-class STT/TTS pipelines. | Basic (Audio/Image APIs). Not voice-first. | Cloud storage/processing. | Often requires separate audio libs. |
+| **Agents** | **Native ReAct**. Built for reasoning loops. | Emerging. Function calling focus. | Code-first agent orchestration. | Often complex abstractions. |
+| **RAG** | **Modular**. Core is tiny. Addons optional. | Comprehensive ETL. Complex configuration. | Integrated with Google ecosystem. | Often bundles heavy ML libs by default. |
+| **Deployment** | **Run anywhere**. No cloud lock-in. | Tied to Spring Boot runtime. | Optimized for Google Cloud. | Varying portability. |
+| **Persistence** | **Built-in**. File, async, or custom stores. | External (Redis, JDBC). Config heavy. | Session management included. | Often requires external libs. |
+| **xAI Compliance** | **~95%**. Full reasoning transparency + prompt versioning + audit logging + confidence scoring + PII detection. | Standard Observability (Micrometer). | Not documented. | Varies by implementation. |
+| **Reliability** | **100% Integration Tested**. Real API verification. | High. Enterprise grade. | Official Google support. | Varying quality. |
+| **Learning Curve** | **Simple**. Pure Java, minimal concepts. | Steep. Requires Spring mastery. | Steeper (enterprise patterns). | Complex APIs, many abstractions. |
 
 **Choose AI Agent4J if you want:**
 
