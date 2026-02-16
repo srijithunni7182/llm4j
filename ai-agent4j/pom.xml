@@ -302,7 +302,8 @@
                 <artifactId>dependency-check-maven</artifactId>
                 <version>9.0.9</version>
                 <configuration>
-                    <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+                    <nvdApiKey>${nvdApiKey}</nvdApiKey>
+                    <nvdApiDelay>6000</nvdApiDelay>
                 </configuration>
                 <executions>
                     <execution>

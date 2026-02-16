@@ -28,7 +28,7 @@ pipeline {
             steps {
                 dir('ai-agent4j') {
                     sh 'mvn -version'
-                    sh 'mvn clean install -DskipTests'
+                    sh 'mvn clean install -DskipTests -DnvdApiKey=${NVD_API_KEY}'
                 }
             }
         }
@@ -36,7 +36,7 @@ pipeline {
         stage('Build Addons') {
             steps {
                 dir('ai-agent4j-addons') {
-                    sh 'mvn clean install -DskipTests'
+                    sh 'mvn clean install -DskipTests -DnvdApiKey=${NVD_API_KEY}'
                 }
             }
         }
