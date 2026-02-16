@@ -3,7 +3,7 @@ pipeline {
 
     tools {
         maven 'maven'       // Adjust version as needed for your Jenkins environment
-        jdk 'JDK 21'        // Adjust version as needed
+        jdk 'JDK 17'        // Adjust version as needed
     }
 
     environment {
@@ -25,7 +25,7 @@ pipeline {
         stage('Build Core') {
             steps {
                 dir('ai-agent4j') {
-
+                    sh 'mvn -version'
                     sh 'mvn clean install -DskipTests'
                 }
             }
