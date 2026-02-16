@@ -82,11 +82,11 @@ pipeline {
         }
 
         stage('Deploy to Central') {
-            when {
-                branch 'main'
-            }
             steps {
-                echo "Deploying from branch: ${env.BRANCH_NAME}"
+                // Manual approval before deployment
+                input message: 'Deploy to Maven Central?', ok: 'Deploy'
+                
+                echo "Deploying to Maven Central..."
                 script {
                     withCredentials([
                         string(credentialsId: 'maven-central-username', variable: 'CENTRAL_USERNAME'),
