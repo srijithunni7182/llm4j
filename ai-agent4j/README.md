@@ -25,6 +25,7 @@
 - **🧠 Contextual Memory**: Built-in conversation history management for multi-turn chats.
 - **📡 Real-Time Streaming**: Event-driven architecture to stream agent thoughts, actions, and observations to UIs via SSE/WebSockets.
 - **🎭 Agent Personas**: Configurable behavioral characteristics (tone, expertise, natural speech patterns) for deterministic agent responses.
+- **📖 Agent Skills**: Inject domain knowledge from markdown files into the agent's system prompt, enriching context without modifying core agent logic.
 - **📚 RAG Support**: Retrieval-Augmented Generation. Core supports **Gemini Cloud** embeddings. **Local (ONNX/DJL)** inference is supported via the [RAG Addons](../ai-agent4j-addons) module.
 - **🔒 Private & Local**: Run entirely offline using local embedding models (requires `rag-addons`) for zero-cost, private retrieval.
 - **🕸️ Knowledge Graphs**: Structured knowledge representation with entity-relationship querying.
@@ -522,6 +523,82 @@ ReActAgent agent = ReActAgent.builder()
 
 See the [Agent Personas Wiki](wiki/Agent-Personas.md) for more details.
 
+## Agent Skills
+
+Give your agents structured domain knowledge by injecting markdown files as **skills** into the system prompt. Skills appear after the persona and before tool descriptions, keeping context organized and composable.
+
+### Inline Skill
+
+```java
+import io.github.llm4j.agent.skill.AgentSkill;
+
+AgentSkill codingTips = AgentSkill.of(
+    "Coding Standards",
+    "Always write unit tests. Prefer composition over inheritance."
+);
+
+ReActAgent agent = ReActAgent.builder()
+    .llmClient(client)
+    .addSkill(codingTips)
+    .build();
+```
+
+### Loading from a File or Classpath
+
+<details>
+<summary>👀 Show: File & Classpath Skill Loading Examples</summary>
+
+```java
+import io.github.llm4j.agent.skill.*;
+import java.nio.file.Path;
+
+// Load from filesystem — name inferred from filename
+// e.g. "security-guidelines.md" → "Security Guidelines"
+AgentSkill fromFile = AgentSkill.fromFile(Path.of("skills/security-guidelines.md"));
+
+// Load from classpath resource
+AgentSkill fromClasspath = AgentSkill.fromClasspath("skills/coding-standards.md");
+
+// Use a loader for repeated loading from a base directory
+FileSystemSkillLoader loader = new FileSystemSkillLoader(Path.of("skills/"));
+AgentSkill skill = loader.load("api-design.md");
+
+// Or from the classpath
+ClasspathSkillLoader cpLoader = new ClasspathSkillLoader();
+AgentSkill cpSkill = cpLoader.load("skills/api-design.md");
+```
+
+</details>
+
+### Composing Multiple Skills
+
+```java
+ReActAgent agent = ReActAgent.builder()
+    .llmClient(client)
+    .addTool(new CalculatorTool())
+    .addSkill(AgentSkill.fromFile(Path.of("skills/coding-standards.md")))
+    .addSkill(AgentSkill.fromClasspath("skills/security-guidelines.md"))
+    .build();
+```
+
+The resulting system prompt injects a `## Skills` section with each skill rendered as:
+
+```
+### Coding Standards
+Always write unit tests. Prefer composition over inheritance.
+
+### Security Guidelines
+Never expose raw stack traces to end users...
+```
+
+**Builder methods:**
+
+| Method | Description |
+|--------|-------------|
+| `addSkill(AgentSkill)` | Append a single skill |
+| `skills(List<AgentSkill>)` | Append a batch of skills |
+| `clearSkills()` | Remove all previously added skills |
+
 ## Prompt Registry (xAI Standard)
 
 Externalize your prompts to adhere to Explainable AI (xAI) standards. The library supports a file-based registry with **versioning**, **templating**, and **hot-reloading**.
@@ -954,6 +1031,7 @@ For issues and questions, please use the [GitHub Issues](https://github.com/srij
 
 ## Roadmap
 
+- [x] Agent Skills (markdown-based domain knowledge injection)
 - [x] Streaming support (Server-Sent Events)
 - [x] Function calling / tool use support
 - [x] Search fallback and caching mechanisms
