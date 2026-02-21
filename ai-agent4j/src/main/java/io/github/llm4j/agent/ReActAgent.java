@@ -8,6 +8,7 @@ import io.github.llm4j.agent.memory.ConversationHistory;
 import io.github.llm4j.agent.persona.AgentPersona;
 import io.github.llm4j.agent.prompt.PromptRegistry;
 import io.github.llm4j.agent.prompt.PromptTemplate;
+import io.github.llm4j.agent.skill.AgentSkill;
 import io.github.llm4j.audit.AuditEvent;
 import io.github.llm4j.audit.AuditLogger;
 import io.github.llm4j.audit.NoOpAuditLogger;
@@ -82,6 +83,7 @@ public class ReActAgent {
     private final int maxIterations;
     private final double temperature;
     private final AgentPersona persona;
+    private final List<AgentSkill> skills;
     private final PromptRegistry promptRegistry;
     private final String systemPromptId;
     private final ConversationHistory conversationHistory;
@@ -102,6 +104,7 @@ public class ReActAgent {
         this.llmClient = Objects.requireNonNull(builder.llmClient, "llmClient cannot be null");
         this.tools = new HashMap<>(builder.tools);
         this.persona = builder.persona;
+        this.skills = Collections.unmodifiableList(new ArrayList<>(builder.skills));
         this.promptRegistry = builder.promptRegistry;
         this.systemPromptId = builder.systemPromptId;
         this.systemPrompt = resolveSystemPrompt(builder);
@@ -453,6 +456,12 @@ public class ReActAgent {
         if (persona != null) {
             prompt.append(persona.toSystemPromptAddition()).append("\n\n");
         }
+        if (!skills.isEmpty()) {
+            prompt.append("## Skills\n\n");
+            for (AgentSkill skill : skills) {
+                prompt.append(skill.toSystemPromptSection()).append("\n\n");
+            }
+        }
         StringBuilder toolDescriptions = new StringBuilder();
         List<String> toolNames = new ArrayList<>();
         for (Tool tool : tools.values()) {
@@ -554,6 +563,7 @@ public class ReActAgent {
         private int maxIterations = 10;
         private double temperature = 0.7;
         private AgentPersona persona;
+        private List<AgentSkill> skills = new ArrayList<>();
         private PromptRegistry promptRegistry;
         private String systemPromptId;
         private ConversationHistory conversationHistory;
@@ -577,6 +587,7 @@ public class ReActAgent {
             this.maxIterations = agent.maxIterations;
             this.temperature = agent.temperature;
             this.persona = agent.persona;
+            this.skills = new ArrayList<>(agent.skills);
             this.promptRegistry = agent.promptRegistry;
             this.systemPromptId = agent.systemPromptId;
             this.conversationHistory = agent.conversationHistory;
@@ -630,6 +641,21 @@ public class ReActAgent {
 
         public Builder persona(AgentPersona persona) {
             this.persona = persona;
+            return this;
+        }
+
+        public Builder addSkill(AgentSkill skill) {
+            this.skills.add(Objects.requireNonNull(skill, "skill cannot be null"));
+            return this;
+        }
+
+        public Builder skills(List<AgentSkill> skills) {
+            this.skills.addAll(Objects.requireNonNull(skills, "skills cannot be null"));
+            return this;
+        }
+
+        public Builder clearSkills() {
+            this.skills.clear();
             return this;
         }
 
