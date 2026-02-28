@@ -2,6 +2,7 @@ package io.github.llm4j.agent.rag.embedding;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.llm4j.agent.memory.EmbeddingProvider;
 import io.github.llm4j.config.LLMConfig;
 import java.io.IOException;
 import java.util.ArrayList;

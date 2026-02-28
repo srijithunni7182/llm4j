@@ -1,7 +1,7 @@
 # AI Agent4J (formerly Gemini ReAct Java)
 
 > The lightweight, verified ReAct Agent library for Google Gemini in Java.
-> Now with **Model Context Protocol (MCP)**, **Conversation Memory**, **Real-time Thought Streaming**, **Intelligent Provider Routing**, **Agent-to-Agent Delegation**, **Background Task Scheduling**, and **Semantic Long-Term Memory**!
+> Now with **Model Context Protocol (MCP)**, **Conversation Memory**, **Real-time Thought Streaming**, **Intelligent Provider Routing**, **Agent-to-Agent Delegation**, **Background Task Scheduling**, and **Semantic Long-Term Memory** (with one-liner `SemanticMemoryConfig` and `InMemoryVectorStore` for zero-config development)!
 
 ## Documentation
 

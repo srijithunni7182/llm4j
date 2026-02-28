@@ -16,8 +16,10 @@ The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java 
 * **Voice-Native**: First-class support for Speech-to-Text (STT) and Text-to-Speech (TTS) pipelines.
 * **Zero Magic**: No confusing "magic" abstractions. Just clean, typed Java code.
 * **ReAct Agents**: Implements the **Re**asoning + **Act**ing paradigm, allowing agents to solve complex problems by thinking and using tools.
+* **Autonomous Foundations**: Built-in support for **Agent Delegation** (Manager/Worker patterns), **Background Task Scheduling**, and **Semantic Long-Term Memory**.
+* **Model Routing**: Cost-aware and fallback routing strategies to automatically switch between LLM providers (e.g., Gemini Flash vs Pro) based on task complexity.
 * **Tooling**: Includes ready-to-use tools (Calculator, Web Search) and an **OpenAPI Tool** that can turn any REST API into an AI function instantly.
-* **MCP Support**: Full support for the **Model Context Protocol (MCP)**, enabling connection to any external MCP server (Python, Node, etc.) to instantaneously ingest tools and resources.
+* **MCP Support**: Full support for the **Model Context Protocol (MCP)**, enabling connection to any external MCP server (Python, Node, etc.).
 * **Structured Output**: Native support for JSON modes and structured object mapping.
 
 ### 🧩 The Extensions: [RAG Addons](ai-agent4j-addons/)

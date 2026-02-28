@@ -5,6 +5,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.agent.memory.ConversationHistory;
+import io.github.llm4j.agent.memory.SemanticMemoryConfig;
+import io.github.llm4j.agent.memory.SemanticMemoryFactory;
 import io.github.llm4j.agent.memory.SemanticMemoryService;
 import io.github.llm4j.agent.persona.AgentPersona;
 import io.github.llm4j.agent.prompt.PromptRegistry;
@@ -693,6 +695,19 @@ public class ReActAgent {
 
         public Builder semanticMemory(SemanticMemoryService semanticMemoryService) {
             this.semanticMemoryService = semanticMemoryService;
+            return this;
+        }
+
+        /**
+         * One-liner convenience method that creates and wires up the full Semantic Memory
+         * stack from a config object, and automatically registers the
+         * {@link io.github.llm4j.agent.tool.MemoryManagementTool} so the agent can save facts.
+         */
+        public Builder semanticMemoryConfig(SemanticMemoryConfig config) {
+            SemanticMemoryService service = SemanticMemoryFactory.create(config);
+            this.semanticMemoryService = service;
+            // Auto-register the MemoryManagementTool
+            addTool(SemanticMemoryFactory.createTool(service));
             return this;
         }
 

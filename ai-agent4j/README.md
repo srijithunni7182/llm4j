@@ -23,7 +23,7 @@
 - **🛠️ ReAct Agent Framework**: Build AI agents that can reason and use tools through a thought-action-observation loop.
 - **🔌 Model Context Protocol (MCP)**: Connect to any external tool server (Filesystem, GitHub, SQLite) using the standard protocol.
 - **🧠 Contextual Memory**: Built-in conversation history management for multi-turn chats.
-- **🧬 Semantic Long-Term Memory**: Persistent, vector-store-backed memory layer so agents recall user preferences and facts across conversations, powered by `SemanticMemoryService` + `MemoryManagementTool`.
+- **🧬 Semantic Long-Term Memory**: Persistent, vector-store-backed memory layer so agents recall user preferences and facts across conversations. Powered by `SemanticMemoryConfig` (one-liner setup), `SemanticMemoryService`, `MemoryManagementTool`, and `InMemoryVectorStore`. Supports Gemini Cloud, ONNX local, and pgvector backends.
 - **🤝 Agent-to-Agent Delegation**: A Manager Agent can dynamically spawn isolated Sub-Agents via `DelegateTaskTool` and `ToolRegistry`, enabling clean multi-agent orchestration with cost optimization.
 - **⏰ Background Task Scheduling**: Agents can schedule future or recurring autonomous tasks via `AgentScheduler` and `ScheduledActionTool`, enabling proactive behaviour without user prompting.
 - **🚦 Intelligent Provider Routing**: `RoutingLLMClient` with cost-aware & fallback strategies automatically routes requests to the cheapest capable provider and handles rate-limit failover transparently.
