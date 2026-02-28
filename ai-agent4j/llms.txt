@@ -1,10 +1,57 @@
-# AI Agent4J (formerly Gemini ReAct Java)
+# AI Agent4J (Autonomous Foundations for Java)
 
-> The lightweight, verified ReAct Agent library for Google Gemini in Java.
-> Now with **Model Context Protocol (MCP)**, **Conversation Memory**, **Real-time Thought Streaming**, **Intelligent Provider Routing**, **Agent-to-Agent Delegation**, **Background Task Scheduling**, and **Semantic Long-Term Memory** (with one-liner `SemanticMemoryConfig` and `InMemoryVectorStore` for zero-config development)!
+> **The ultra-lightweight, zero-magic ReAct Agent library for Google Gemini and Beyond.**
 
-## Documentation
+AI Agent4J is a high-performance, developer-first framework for building autonomous Java agents. It is designed to be the "Standard Library" for LLM reasoning in the Java ecosystem.
 
-- [README](README.md): Main overview, features, installation, and quick start guide.
-- [AI Context](wiki/LLM_CONTEXT.md): Optimized instructions for LLMs coding with this library.
-- [Wiki](wiki/): Detailed documentation including RAG, Tools, and Personas.
+## 📋 Table of Contents
+- [Philosophy](#philosophy)
+- [Architecture](#architecture)
+- [Key Components](#key-components)
+- [Multi-Agent Orchestration](#multi-agent-orchestration)
+- [Memory & RAG](#memory-and-rag)
+- [Background Tasks](#background-tasks)
+- [Comparison vs LangChain4j/SpringAI](#comparison)
+
+## 🏛️ Philosophy
+- **Zero Magic**: Pure Java, no heavy abstractions, under 200KB core size.
+- **Transparency**: Full visibility into the "Thought-Action-Observation" reasoning loop.
+- **Provider Agnostic**: Native support for Gemini, Sarvam, and easy integration for others.
+
+## 🔧 Architecture
+The core reasoning engine is the `ReActAgent`. It operates in an iterative loop:
+1. **Thought**: LLM analyzes the current state and decides on a strategy.
+2. **Action**: Agent invokes a `Tool` (calc, search, SQL, custom).
+3. **Observation**: Agent receives the tool's output and updates its reasoning.
+
+## 🔑 Key Components
+- `ReActAgent`: The core brain.
+- `Tool`: The interface for agent capabilities.
+- `ToolRegistry`: Manages sets of tools for delegation.
+- `RoutingLLMClient`: Intelligent, cost-aware routing (e.g., Gemini Flash for easy tasks, Pro for hard).
+- `AgentPersona`: Defines system prompts and behavior styles.
+
+## 🤝 Multi-Agent Orchestration
+Uses the `DelegateTaskTool` to implement the **Manager-Worker** pattern.
+- Managers can spawn specialized sub-agents with limited toolscopes.
+- Reduces context pollution and model costs.
+
+## 🧬 Memory & RAG
+- `ConversationHistory`: Manages short-term session context.
+- `SemanticMemoryService`: Provides long-term fact recall.
+- `InMemoryVectorStore`: Zero-config local development memory.
+- `PGVectorStore`: Production-grade persistent memory (in Addons).
+- `SemanticMemoryConfig`: One-liner setup for the entire memory stack.
+
+## ⏰ Background Tasks
+- `AgentScheduler`: Allows agents to schedule themselves for future execution.
+- `ScheduledActionTool`: Natural language scheduling interface.
+
+## 🆚 Comparison
+AI Agent4J is for developers who find LangChain4j too bloated or Spring AI too opinionated. We offer 100% control, faster startup times, and focus on the **Autonomous Agentic loop** rather than just "Chat with PDF" templates.
+
+## 🔗 Documentation Links
+- [README](README.md)
+- [Wiki: Why AI Agent4J?](wiki/WHY_AI_AGENT4J.md)
+- [Wiki: Semantic Memory](wiki/SEMANTIC_MEMORY.md)
+- [Wiki: Agent Delegation](wiki/DELEGATION.md)

@@ -41,23 +41,35 @@
 
 ## 🚀 Why AI Agent4J?
 
-If you are looking for an **LLM for Java**, you might have seen other libraries like LangChain4j or Google's ADK. Here is why you should choose this one:
+Most Java AI frameworks are heavy and opinionated. **AI Agent4J** is built for developers who need speed, control, and a tiny footprint.
 
-| Feature | AI Agent4J | Spring AI | Google ADK | Others / LangChain4j |
+> [!TIP]
+> **[Read our full Manifesto: Why AI Agent4J? (comparison vs LangChain4j and Spring AI)](wiki/WHY_AI_AGENT4J.md)**
+
+### 🆚 Framework Comparison
+
+| Feature | **AI Agent4J** | Spring AI | Google ADK | LangChain4j |
 | :--- | :--- | :--- | :--- | :--- |
-| **Philosophy** | **Lightweight & Verified**. Only what you need. | Framework-native. Heavy Spring integration. | Enterprise-focused. Google Cloud integration. | Kitchen sink. Heavy dependencies. |
-| **Size** | **Core <200KB**. Minimal footprint. | Heavy. Pulls in Spring Boot ecosystem. | Larger (includes dev UI, runtime). | Often bloated with unused features. |
-| **LLM Support** | **Multi-Provider**. Gemini, Sarvam, OpenAI (via interface). | Generic abstraction. Swappable backends. | Google Cloud only. | Generic support for everything. |
-| **Provider Routing** | **Built-in**. Cost-aware routing & fallback via `RoutingLLMClient`. | External (Spring Cloud Gateway). Config heavy. | Not documented. | Varies. |
-| **Voice / Multimodal** | **Native**. First-class STT/TTS pipelines. | Basic (Audio/Image APIs). Not voice-first. | Cloud storage/processing. | Often requires separate audio libs. |
-| **Agents** | **Native ReAct**. Built for reasoning loops. | Emerging. Function calling focus. | Code-first agent orchestration. | Often complex abstractions. |
-| **Multi-Agent** | **Built-in**. `DelegateTaskTool` + `ToolRegistry` for clean Manager/Worker patterns. | None native. | Runtime agent framework. | Requires custom implementation. |
-| **Background Tasks** | **Built-in**. `AgentScheduler` + `ScheduledActionTool` for autonomous scheduling. | Spring Scheduling / @Scheduled. | None documented. | Requires external scheduler. |
-| **Long-Term Memory** | **Built-in**. `SemanticMemoryService` + pgvector for cross-session fact recall. | External (Redis/JDBC vector stores). Config heavy. | Not documented. | Requires custom implementation. |
-| **RAG** | **Modular**. Core is tiny. Addons optional. | Comprehensive ETL. Complex configuration. | Integrated with Google ecosystem. | Often bundles heavy ML libs by default. |
-| **Deployment** | **Run anywhere**. No cloud lock-in. | Tied to Spring Boot runtime. | Optimized for Google Cloud. | Varying portability. |
-| **Persistence** | **Built-in**. File, async, or custom stores. | External (Redis, JDBC). Config heavy. | Session management included. | Often requires external libs. |
-| **xAI Compliance** | **~95%**. Full reasoning transparency + prompt versioning + audit logging + confidence scoring + PII detection. | Standard Observability (Micrometer). | Not documented. | Varies by implementation. |
+| **Philosophy** | **Lightweight & Verified** | Framework-native | Enterprise-focused | Kitchen sink |
+| **Footprint** | **Core <200KB** | Large (Spring Boot) | Large | Large |
+| **Philosophy** | **"Zero Magic"** | Heavy Annotations | Corporate Cloud | Heavy Abstractions |
+| **Multi-Agent** | **Native Delegation** | External | Runtime agent | Requires custom |
+| **Scheduling** | **Native Scheduler** | Spring Scheduling | None documented | None |
+| **Memory** | **Semantic Memory** | Vector Store | Not documented | Custom |
+
+## 🏗️ Core Capabilities
+
+### ⚡ ReAct Agent Reasoning
+Build agents that think before they act. The ReAct loop (`Thought -> Action -> Observation`) ensures the agent can recover from errors and solve multi-step problems autonomously.
+
+### 🔌 Model Context Protocol (MCP)
+Instantly connect to any MCP server. AI Agent4J turns standard MCP tools into native Java `Tool` instances automatically.
+
+### 🤝 Autonomous Orchestration
+Go beyond single-agent scripts. Use `ToolRegistry` and `DelegateTaskTool` to build complex Manager/Worker hierarchies.
+
+### 🧬 Semantic Long-Term Memory
+Give your agents a memory that lasts. With `SemanticMemoryConfig`, you can wire up a production-ready vector store (pgvector) in one line of code.
 | **Reliability** | **100% Integration Tested**. Real API verification. | High. Enterprise grade. | Official Google support. | Varying quality. |
 | **Learning Curve** | **Simple**. Pure Java, minimal concepts. | Steep. Requires Spring mastery. | Steeper (enterprise patterns). | Complex APIs, many abstractions. |
 
