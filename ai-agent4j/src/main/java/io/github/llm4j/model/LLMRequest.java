@@ -16,6 +16,7 @@ public final class LLMRequest {
     private final Integer maxTokens;
     private final Double topP;
     private final List<String> stopSequences;
+    private final ComplexityHint complexityHint;
     private final Map<String, Object> additionalParameters;
 
     private LLMRequest(Builder builder) {
@@ -28,6 +29,7 @@ public final class LLMRequest {
                 builder.stopSequences != null
                         ? Collections.unmodifiableList(new ArrayList<>(builder.stopSequences))
                         : null;
+        this.complexityHint = builder.complexityHint;
         this.additionalParameters =
                 builder.additionalParameters != null
                         ? Collections.unmodifiableMap(new HashMap<>(builder.additionalParameters))
@@ -75,6 +77,10 @@ public final class LLMRequest {
         return stopSequences;
     }
 
+    public ComplexityHint getComplexityHint() {
+        return complexityHint;
+    }
+
     public Map<String, Object> getAdditionalParameters() {
         return additionalParameters;
     }
@@ -94,13 +100,14 @@ public final class LLMRequest {
                 && Objects.equals(maxTokens, that.maxTokens)
                 && Objects.equals(topP, that.topP)
                 && Objects.equals(stopSequences, that.stopSequences)
+                && Objects.equals(complexityHint, that.complexityHint)
                 && Objects.equals(additionalParameters, that.additionalParameters);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                messages, model, temperature, maxTokens, topP, stopSequences, additionalParameters);
+                messages, model, temperature, maxTokens, topP, stopSequences, complexityHint, additionalParameters);
     }
 
     @Override
@@ -119,6 +126,8 @@ public final class LLMRequest {
                 + topP
                 + ", stopSequences="
                 + stopSequences
+                + ", complexityHint="
+                + complexityHint
                 + ", additionalParameters="
                 + additionalParameters
                 + '}';
@@ -131,6 +140,7 @@ public final class LLMRequest {
         private Integer maxTokens;
         private Double topP;
         private List<String> stopSequences;
+        private ComplexityHint complexityHint;
         private Map<String, Object> additionalParameters;
 
         private Builder() {}
@@ -179,6 +189,11 @@ public final class LLMRequest {
 
         public Builder stopSequences(List<String> stopSequences) {
             this.stopSequences = stopSequences;
+            return this;
+        }
+
+        public Builder complexityHint(ComplexityHint complexityHint) {
+            this.complexityHint = complexityHint;
             return this;
         }
 

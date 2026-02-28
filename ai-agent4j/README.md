@@ -23,6 +23,10 @@
 - **🛠️ ReAct Agent Framework**: Build AI agents that can reason and use tools through a thought-action-observation loop.
 - **🔌 Model Context Protocol (MCP)**: Connect to any external tool server (Filesystem, GitHub, SQLite) using the standard protocol.
 - **🧠 Contextual Memory**: Built-in conversation history management for multi-turn chats.
+- **🧬 Semantic Long-Term Memory**: Persistent, vector-store-backed memory layer so agents recall user preferences and facts across conversations, powered by `SemanticMemoryService` + `MemoryManagementTool`.
+- **🤝 Agent-to-Agent Delegation**: A Manager Agent can dynamically spawn isolated Sub-Agents via `DelegateTaskTool` and `ToolRegistry`, enabling clean multi-agent orchestration with cost optimization.
+- **⏰ Background Task Scheduling**: Agents can schedule future or recurring autonomous tasks via `AgentScheduler` and `ScheduledActionTool`, enabling proactive behaviour without user prompting.
+- **🚦 Intelligent Provider Routing**: `RoutingLLMClient` with cost-aware & fallback strategies automatically routes requests to the cheapest capable provider and handles rate-limit failover transparently.
 - **📡 Real-Time Streaming**: Event-driven architecture to stream agent thoughts, actions, and observations to UIs via SSE/WebSockets.
 - **🎭 Agent Personas**: Configurable behavioral characteristics (tone, expertise, natural speech patterns) for deterministic agent responses.
 - **📖 Agent Skills**: Inject domain knowledge from markdown files into the agent's system prompt, enriching context without modifying core agent logic.
@@ -42,10 +46,14 @@ If you are looking for an **LLM for Java**, you might have seen other libraries 
 | Feature | AI Agent4J | Spring AI | Google ADK | Others / LangChain4j |
 | :--- | :--- | :--- | :--- | :--- |
 | **Philosophy** | **Lightweight & Verified**. Only what you need. | Framework-native. Heavy Spring integration. | Enterprise-focused. Google Cloud integration. | Kitchen sink. Heavy dependencies. |
-| **Size** | **Core < 200KB**. Minimal footprint. | Heavy. Pulls in Spring Boot ecosystem. | Larger (includes dev UI, runtime). | Often bloated with unused features. |
+| **Size** | **Core <200KB**. Minimal footprint. | Heavy. Pulls in Spring Boot ecosystem. | Larger (includes dev UI, runtime). | Often bloated with unused features. |
 | **LLM Support** | **Multi-Provider**. Gemini, Sarvam, OpenAI (via interface). | Generic abstraction. Swappable backends. | Google Cloud only. | Generic support for everything. |
+| **Provider Routing** | **Built-in**. Cost-aware routing & fallback via `RoutingLLMClient`. | External (Spring Cloud Gateway). Config heavy. | Not documented. | Varies. |
 | **Voice / Multimodal** | **Native**. First-class STT/TTS pipelines. | Basic (Audio/Image APIs). Not voice-first. | Cloud storage/processing. | Often requires separate audio libs. |
 | **Agents** | **Native ReAct**. Built for reasoning loops. | Emerging. Function calling focus. | Code-first agent orchestration. | Often complex abstractions. |
+| **Multi-Agent** | **Built-in**. `DelegateTaskTool` + `ToolRegistry` for clean Manager/Worker patterns. | None native. | Runtime agent framework. | Requires custom implementation. |
+| **Background Tasks** | **Built-in**. `AgentScheduler` + `ScheduledActionTool` for autonomous scheduling. | Spring Scheduling / @Scheduled. | None documented. | Requires external scheduler. |
+| **Long-Term Memory** | **Built-in**. `SemanticMemoryService` + pgvector for cross-session fact recall. | External (Redis/JDBC vector stores). Config heavy. | Not documented. | Requires custom implementation. |
 | **RAG** | **Modular**. Core is tiny. Addons optional. | Comprehensive ETL. Complex configuration. | Integrated with Google ecosystem. | Often bundles heavy ML libs by default. |
 | **Deployment** | **Run anywhere**. No cloud lock-in. | Tied to Spring Boot runtime. | Optimized for Google Cloud. | Varying portability. |
 | **Persistence** | **Built-in**. File, async, or custom stores. | External (Redis, JDBC). Config heavy. | Session management included. | Often requires external libs. |

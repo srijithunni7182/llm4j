@@ -8,6 +8,9 @@ import java.io.UncheckedIOException;
 import java.sql.*;
 import java.util.*;
 
+import io.github.llm4j.agent.memory.SearchResult;
+import io.github.llm4j.agent.memory.VectorStore;
+
 /**
  * Persistent vector store using PostgreSQL and the 'pgvector' extension. Requires a running
  * PostgreSQL instance with 'vector' extension installed. Add 'postgresql' and 'pgvector'

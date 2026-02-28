@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.agent.memory.ConversationHistory;
+import io.github.llm4j.agent.memory.SemanticMemoryService;
 import io.github.llm4j.agent.persona.AgentPersona;
 import io.github.llm4j.agent.prompt.PromptRegistry;
 import io.github.llm4j.agent.prompt.PromptTemplate;
@@ -87,6 +88,7 @@ public class ReActAgent {
     private final PromptRegistry promptRegistry;
     private final String systemPromptId;
     private final ConversationHistory conversationHistory;
+    private final SemanticMemoryService semanticMemoryService;
     private final List<AgentEventListener> listeners;
     private final AuditLogger auditLogger;
     private final String sessionId;
@@ -111,6 +113,7 @@ public class ReActAgent {
         this.maxIterations = builder.maxIterations;
         this.temperature = builder.temperature;
         this.conversationHistory = builder.conversationHistory;
+        this.semanticMemoryService = builder.semanticMemoryService;
         this.listeners = new ArrayList<>(builder.listeners);
         this.auditLogger =
                 builder.auditLogger != null ? builder.auditLogger : new NoOpAuditLogger();
@@ -147,10 +150,22 @@ public class ReActAgent {
             // ... (request building is the same)
             String context = "";
             if (conversationHistory != null) {
-                context =
-                        "Previous conversation history:\n"
-                                + conversationHistory.getFormattedHistory()
-                                + "\n";
+                context += "Previous conversation history:\n"
+                        + conversationHistory.getFormattedHistory()
+                        + "\n\n";
+            }
+            if (semanticMemoryService != null && i == 0) {
+                // Only recall on the very first iteration to save embedding tokens/time
+                // Use a truncated version of the question to avoid massive embedding queries
+                String memoryQuery = question.length() > 500 ? question.substring(0, 500) : question;
+                List<String> facts = semanticMemoryService.recallRelevantFacts(memoryQuery, 5, 0.7f);
+                if (!facts.isEmpty()) {
+                    context += "Relevant context from user's long-term memory:\n";
+                    for (String fact : facts) {
+                        context += "- " + fact + "\n";
+                    }
+                    context += "\n";
+                }
             }
             LLMRequest request =
                     LLMRequest.builder()
@@ -567,6 +582,7 @@ public class ReActAgent {
         private PromptRegistry promptRegistry;
         private String systemPromptId;
         private ConversationHistory conversationHistory;
+        private SemanticMemoryService semanticMemoryService;
         private List<AgentEventListener> listeners = new ArrayList<>();
         private AuditLogger auditLogger;
         private String sessionId;
@@ -591,6 +607,7 @@ public class ReActAgent {
             this.promptRegistry = agent.promptRegistry;
             this.systemPromptId = agent.systemPromptId;
             this.conversationHistory = agent.conversationHistory;
+            this.semanticMemoryService = agent.semanticMemoryService;
             this.listeners = new ArrayList<>(agent.listeners);
             this.auditLogger = agent.auditLogger;
             this.sessionId = agent.sessionId;
@@ -671,6 +688,11 @@ public class ReActAgent {
 
         public Builder conversationHistory(ConversationHistory history) {
             this.conversationHistory = history;
+            return this;
+        }
+
+        public Builder semanticMemory(SemanticMemoryService semanticMemoryService) {
+            this.semanticMemoryService = semanticMemoryService;
             return this;
         }
 
