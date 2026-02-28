@@ -599,6 +599,35 @@ Never expose raw stack traces to end users...
 | `skills(List<AgentSkill>)` | Append a batch of skills |
 | `clearSkills()` | Remove all previously added skills |
 
+### Dynamic Skill Discovery
+
+Give your agents the ability to discover and learn skills dynamically at runtime from an external registry (like [SkillsMP](https://skillsmp.com) or any custom REST API). 
+
+<details>
+<summary>👀 Show: Dynamic Skill Discovery Example</summary>
+
+```java
+import io.github.llm4j.agent.skill.*;
+import io.github.llm4j.agent.tool.SkillDiscoveryTool;
+
+// 1. Configure the Registry
+RestSkillRegistry registry = RestSkillRegistry.builder()
+    .baseUrl("https://skillsmp.com/api/v1/skills")
+    .apiKey(System.getenv("SKILLSMP_API_KEY"))
+    .build();
+
+// 2. Add the Discovery Tool to the Agent
+ReActAgent agent = ReActAgent.builder()
+    .llmClient(client)
+    .addTool(new SkillDiscoveryTool(registry))
+    .build();
+
+// The agent can now automatically `search` and `read` new skills mid-conversation
+// if it encounters a task it doesn't know how to solve!
+```
+
+</details>
+
 ## Prompt Registry (xAI Standard)
 
 Externalize your prompts to adhere to Explainable AI (xAI) standards. The library supports a file-based registry with **versioning**, **templating**, and **hot-reloading**.
