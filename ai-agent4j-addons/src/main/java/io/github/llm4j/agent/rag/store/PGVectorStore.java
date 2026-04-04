@@ -8,8 +8,8 @@ import java.io.UncheckedIOException;
 import java.sql.*;
 import java.util.*;
 
-import io.github.llm4j.agent.rag.store.SearchResult;
 import io.github.llm4j.agent.rag.store.VectorStore;
+import io.github.llm4j.agent.rag.store.VectorStore.SearchResult;
 import io.github.llm4j.agent.rag.store.VectorStore.VectorEntry;
 
 /**
