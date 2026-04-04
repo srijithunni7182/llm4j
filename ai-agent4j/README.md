@@ -2,105 +2,150 @@
 
 > [!NOTE]
 > This project was formerly known as `gemini-react-java`.
-: The Lightweight LLM for Java
+> **The Lightweight LLM Library for Java developers.**
 
-<img src="docs/images/hero.png" width="50%" alt="Gemini ReAct Java Hero">
+<img src="docs/images/hero.png" width="50%" alt="AI Agent4J Hero">
 
-**Build Agents, RAG, and Tools with Google Gemini. The simple, verified, and production-ready LLM library for Java developers.**
+**Build autonomous agents, RAG pipelines, and specialized tools with Google Gemini, Sarvam AI, and local LLMs.**
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.srijithunni7182/ai-agent4j.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.srijithunni7182/ai-agent4j)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-orange)](https://www.oracle.com/java/technologies/downloads/#java17)
 
-`ai-agent4j` (formerly `gemini-react-java`) is the **LLM for Java** that focuses on simplicity and correctness. Unlike other heavy frameworks, it provides a clean, unified API for **Google Gemini, Sarvam AI, and Local Models via Ollama**, with a robust **ReAct Agent** framework.
+`ai-agent4j` is a high-performance, modular LLM library for Java that prioritizes simplicity and correctness. It provides a unified API for cloud providers (Gemini), regional specialists (Sarvam AI), and local models (Ollama).
 
-> **Note**: While this library is optimized and thoroughly tested for **Google Gemini** (as the author currently utilizes Google API keys), its architecture is entirely **modular and LLM-agnostic**. Any consumer can easily plug in their own implementation of the `LLMClient` interface to support OpenAI, Anthropic, or local models while retaining the full suite of xAI and ReAct agent capabilities.
+---
 
-## Features
+## 📚 Documentation Hub
 
-- **🤖 Google Gemini First**: Full integration with Gemini 1.5 Flash, Pro, and 2.x models.
-- **🇮🇳 Sarvam AI Support**: Complete Indian language stack (Chat, TTS, STT, Translation) with **Multi-Language Voice Agents** that can listen and speak in 10+ languages.
-- **🏠 Local Models (Ollama)**: Native support for running Gemma, Llama, and other open-weight models locally via Ollama.
-- **🛠️ ReAct Agent Framework**: Build AI agents that can reason and use tools through a thought-action-observation loop.
-- **🔌 Model Context Protocol (MCP)**: Connect to any external tool server (Filesystem, GitHub, SQLite) using the standard protocol.
-- **🧠 Contextual Memory**: Built-in conversation history management for multi-turn chats.
-- **🧬 Semantic Long-Term Memory**: Persistent, vector-store-backed memory layer so agents recall user preferences and facts across conversations. Powered by `SemanticMemoryConfig` (one-liner setup), `SemanticMemoryService`, `MemoryManagementTool`, and `InMemoryVectorStore`. Supports Gemini Cloud, ONNX local, and pgvector backends.
-- **🤝 Agent-to-Agent Delegation**: A Manager Agent can dynamically spawn isolated Sub-Agents via `DelegateTaskTool` and `ToolRegistry`, enabling clean multi-agent orchestration with cost optimization.
-- **⏰ Background Task Scheduling**: Agents can schedule future or recurring autonomous tasks via `AgentScheduler` and `ScheduledActionTool`, enabling proactive behaviour without user prompting.
-- **🚦 Intelligent Provider Routing**: `RoutingLLMClient` with cost-aware & fallback strategies automatically routes requests to the cheapest capable provider and handles rate-limit failover transparently.
-- **📡 Real-Time Streaming**: Event-driven architecture to stream agent thoughts, actions, and observations to UIs via SSE/WebSockets.
-- **🎭 Agent Personas**: Configurable behavioral characteristics (tone, expertise, natural speech patterns) for deterministic agent responses.
-- **📖 Agent Skills**: Inject domain knowledge from markdown files into the agent's system prompt, enriching context without modifying core agent logic.
-- **📚 RAG Support**: Retrieval-Augmented Generation. Core supports **Gemini Cloud** embeddings. **Local (ONNX/DJL)** inference is supported via the [RAG Addons](../ai-agent4j-addons) module.
-- **🔒 Private & Local**: Run entirely offline using local embedding models (requires `rag-addons`) for zero-cost, private retrieval.
-- **🕸️ Knowledge Graphs**: Structured knowledge representation with entity-relationship querying.
-- **⚡ Robust Tooling**: Typed tool interface with JSON input parsing and error feedback loops.
-- **🔍 xAI Standards (~95% Compliant)**: Explainable AI compliance with complete reasoning transparency, versioned prompt management, conversation tracking, audit logging, confidence scoring, PII detection, and **bias monitoring hooks**. [Read our Seminal Guide to xAI Compliance](wiki/xAI_BEYOND_BLACK_BOXES.md).
-- **💾 Conversation Persistence**: Built-in storage backends (file, in-memory, async) with metadata and auto-generated summaries.
-- **🔄 Production Ready**: Automatic retries, error handling, and thread-safe design.
-- **🧪 100% Tested**: Comprehensive integration test suite verifying real-world usage.
+Explore the full capabilities of the framework through our detailed guides:
 
-## 🚀 Why AI Agent4J?
+### Core Framework
 
-Most Java AI frameworks are heavy and opinionated. **AI Agent4J** is built for developers who need speed, control, and a tiny footprint.
+- [**Quick Start Guide**](wiki/Getting-Started.md) — Get up and running in 5 minutes.
+- [**ReAct Agent Guide**](wiki/ReAct-Agent-Guide.md) — Reasoning, tool-use, and the Thought-Action-Observation loop.
+- [**Memory & Persistence**](wiki/Memory-and-Persistence.md) — Managing conversation history and long-term storage.
+- [**Real-time Streaming**](wiki/Thought-Streaming.md) — Capturing agent "thoughts" for responsive UIs via SSE/WebSockets.
+- [**Advanced Configuration**](wiki/Advanced-Configuration.md) — Retry policies, custom tools, and error handling.
 
-> [!TIP]
-> **[Read our full Manifesto: Why AI Agent4J? (comparison vs LangChain4j and Spring AI)](wiki/WHY_AI_AGENT4J.md)**
+### Advanced Features
 
-### 🆚 Framework Comparison
+- [**Agent Personas**](wiki/Agent-Personas.md) — Configuring behavioral traits and expertise.
+- [**Agent Skills**](wiki/Agent-Skills-Guide.md) — Injecting domain knowledge via Markdown files.
+- [**Semantic Long-Term Memory**](wiki/SEMANTIC_MEMORY.md) — Vector-backed recall of user facts.
+- [**Prompt Registry (xAI Standard)**](wiki/Prompt-Registry-Guide.md) — Versioned, externalized prompt management.
+- [**RAG & Embeddings**](wiki/RAG-Support.md) — Retrieval-Augmented Generation and Vector Stores.
+- [**Knowledge Graphs**](wiki/Knowledge-Graphs.md) — Reasoning over structured entity-relationship data.
 
-| Feature | **AI Agent4J** | Spring AI | Google ADK | LangChain4j |
-| :--- | :--- | :--- | :--- | :--- |
-| **Philosophy** | **Lightweight & Verified** | Framework-native | Enterprise-focused | Kitchen sink |
-| **Footprint** | **Core <200KB** | Large (Spring Boot) | Large | Large |
-| **Philosophy** | **"Zero Magic"** | Heavy Annotations | Corporate Cloud | Heavy Abstractions |
-| **Multi-Agent** | **Native Delegation** | External | Runtime agent | Requires custom |
-| **Scheduling** | **Native Scheduler** | Spring Scheduling | None documented | None |
-| **Memory** | **Semantic Memory** | Vector Store | Not documented | Custom |
+### Integrations
 
-## 🏗️ Core Capabilities
+- [**🇮🇳 Sarvam AI Guide**](docs/SARVAM.md) — Indian language voice agents (TTS, STT, Translation).
+- [**🏠 Ollama Integration**](docs/OLLAMA.md) — Running local models like Gemma and Llama with zero cost/internet.
+- [**🔌 MCP Integration**](wiki/MCP-Integration.md) — Connecting to Model Context Protocol servers.
 
-### ⚡ ReAct Agent Reasoning
-Build agents that think before they act. The ReAct loop (`Thought -> Action -> Observation`) ensures the agent can recover from errors and solve multi-step problems autonomously.
+---
 
-### 🔌 Model Context Protocol (MCP)
-Instantly connect to any MCP server. AI Agent4J turns standard MCP tools into native Java `Tool` instances automatically.
+## 🚀 Key Features
 
-### 🤝 Autonomous Orchestration
-Go beyond single-agent scripts. Use `ToolRegistry` and `DelegateTaskTool` to build complex Manager/Worker hierarchies.
+- **🤖 Google Gemini Native**: Optimized support for Gemini 1.5 Flash, Pro, and 2.x.
+- **🛠️ ReAct Agent Framework**: Built-in reasoning loops with self-correction.
 
-### 🧬 Semantic Long-Term Memory
-Give your agents a memory that lasts. With `SemanticMemoryConfig`, you can wire up a production-ready vector store (pgvector) in one line of code.
-| **Reliability** | **100% Integration Tested**. Real API verification. | High. Enterprise grade. | Official Google support. | Varying quality. |
-| **Learning Curve** | **Simple**. Pure Java, minimal concepts. | Steep. Requires Spring mastery. | Steeper (enterprise patterns). | Complex APIs, many abstractions. |
+### Steps to Create a Tool
 
-**Choose AI Agent4J if you want:**
+1. **Implement the `Tool` interface**: Define the tool's name, description, and execution logic.
+2. **Add to the Agent Builder**: Register your tool so the agent can discover it.
 
-- A lightweight library with zero cloud lock-in
-- Simple, testable code that runs anywhere (local, cloud, edge)
-- Full control over your agent logic without opinionated frameworks
-- **Modular Architecture**: Easily swap Google Gemini for any other LLM by implementing a single interface
-- **Best in class in industry for xAI standards compliance**: [Read the Seminal Guide to xAI Compliance](wiki/xAI_BEYOND_BLACK_BOXES.md)
+- **🧬 Autonomous Orchestration**: Manager-Worker patterns with agent delegation.
+- **⏰ Scheduled Tasks**: Native support for recurring autonomous background actions.
+- **🚦 Intelligent Provider Routing**: Cost-aware routing and automatic rate-limit failover.
+- **🔍 xAI Standards Compliance**: Transparent reasoning and audit trails for explainable AI.
+- **🔒 Private & Local**: Zero-cost, 100% private retrieval via `rag-addons`.
 
-## 📚 Advanced RAG (Add-ons)
+---
 
-To keep the core library lightweight, advanced RAG integrations (ONNX, DJL, Postgres, Pinecone) are available in a separate module: **`ai-agent4j-addons`**.
+## 🏗️ Architecture
 
-Add this dependency to unlock those features:
+```mermaid
+flowchart TB
+    UserCode["User Application"]:::user
 
-```xml
-<dependency>
-    <groupId>io.github.srijithunni7182</groupId>
-    <artifactId>ai-agent4j-addons</artifactId>
-    <version>0.1.0</version>
-</dependency>
+    subgraph Orchestration ["Orchestration & Planning"]
+        Manager["Manager Agent"]:::agent
+        SubAgent["Sub-Agents"]:::agent
+        Planner["ReAct Loop<br/>(Thought-Action)"]:::agent
+        Scheduler["Agent Scheduler"]:::agent
+    end
+
+    subgraph Memory ["Memory & Context"]
+        History["Conversation History<br/>(Short-term)"]:::memory
+        Semantic["Semantic Memory<br/>(Long-term Vector)"]:::memory
+        Registry["Prompt Registry<br/>(xAI Standard)"]:::memory
+    end
+
+    subgraph Tooling ["Tooling Layer"]
+        RegistryT["Tool Registry"]:::tool
+        Builtin["Built-in Tools<br/>(Calc, Search, Time)"]:::tool
+        MCP["MCP Connectors"]:::tool
+        OpenAPI["OpenAPI Discovery"]:::tool
+        Delegate["Delegation Tool"]:::tool
+    end
+
+    subgraph Core ["LLM Intelligence"]
+        Router["Routing LLM Client<br/>(Cost/Fallback)"]:::core
+        GoogleP["Google Provider"]:::core
+        SarvamP["Sarvam Provider"]:::core
+        OllamaP["Ollama Provider"]:::core
+    end
+
+    subgraph External ["External Services"]
+        Gemini[("Google Gemini")]:::external
+        Sarvam[("Sarvam AI")]:::external
+        Ollama[("Local Ollama")]:::external
+        Web["Web / APIs / MCP"]:::external
+    end
+
+    %% Connections
+    UserCode --> Manager
+    Manager --> Planner
+    Planner --> SubAgent
+    Planner --> Registry
+    Planner --> History
+    Planner --> RegistryT
+    Planner --> Router
+
+    Manager --> Scheduler
+    Manager --> Semantic
+    
+    RegistryT --> Builtin
+    RegistryT --> MCP
+    RegistryT --> OpenAPI
+    RegistryT --> Delegate
+    Delegate --> SubAgent
+
+    Router --> GoogleP
+    Router --> SarvamP
+    Router --> OllamaP
+
+    GoogleP --> Gemini
+    SarvamP --> Sarvam
+    OllamaP --> Ollama
+    Builtin --> Web
+    MCP --> Web
+    OpenAPI --> Web
+
+    classDef user fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000;
+    classDef core fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000;
+    classDef agent fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px,color:#000;
+    classDef tool fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000;
+    classDef memory fill:#e0f2f1,stroke:#00695c,stroke-width:2px,color:#000;
+    classDef external fill:#fee,stroke:#b71c1c,stroke-width:2px,color:#000;
 ```
+
+---
 
 ## Installation
 
 ### Maven
-
-Simply add the dependency to your `pom.xml`:
 
 ```xml
 <dependency>
@@ -116,1026 +161,41 @@ Simply add the dependency to your `pom.xml`:
 implementation("io.github.srijithunni7182:ai-agent4j:0.1.0")
 ```
 
-### Local Install (for development)
+---
 
-If you want to modify the library yourself:
-
-```bash
-git clone https://github.com/srijithunni7182/llm4j.git
-cd llm4j
-mvn clean install
-```
-
-### JitPack
-
-Alternatively, you can use JitPack:
-
-```xml
-<repositories>
-    <repository>
-        <id>jitpack.io</id>
-        <url>https://jitpack.io</url>
-    </repository>
-</repositories>
-
-<dependency>
-    <groupId>com.github.srijithunni7182</groupId>
-    <artifactId>llm4j</artifactId>
-    <version>main-SNAPSHOT</version>
-</dependency>
-```
-
-## Quick Start
-
-### Google Gemini
+## Quick Start (Google Gemini)
 
 ```java
 import io.github.llm4j.DefaultLLMClient;
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.model.LLMRequest;
-import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.provider.google.GoogleProvider;
 
 public class GeminiExample {
     public static void main(String[] args) {
-        // Configure the client
         LLMConfig config = LLMConfig.builder()
                 .apiKey(System.getenv("GOOGLE_API_KEY"))
-                .defaultModel("gemini-1.5-flash")  // or "gemini-1.5-pro"
+                .defaultModel("gemini-1.5-flash")
                 .build();
         
-        // Create client with Google provider
         LLMClient client = new DefaultLLMClient(new GoogleProvider(config));
         
-        // Build and send request
-        LLMRequest request = LLMRequest.builder()
-                .addUserMessage("What is the capital of France?")
-                .temperature(0.7)
-                .maxTokens(500)
-                .build();
-        
-        LLMResponse response = client.chat(request);
+        LLMResponse response = client.chat(LLMRequest.builder()
+                .addUserMessage("What is ai-agent4j?")
+                .build());
+                
         System.out.println(response.getContent());
-        System.out.println("Tokens used: " + response.getTokenUsage().getTotalTokens());
     }
 }
 ```
 
-### 🇮🇳 Sarvam AI Integration
-
-**Unlock the power of conversational AI for India with `ai-agent4j`.**
-
-We provide first-class, production-ready support for [Sarvam AI](https://sarvam.ai/), enabling you to build agents that speak, listen, and understand 10+ Indian languages with native fluency.
-
-**Why Sarvam?**
-
-- **🗣️ Hyper-Realistic TTS**: Generate natural-sounding speech in Hindi, Tamil, Malayalam, Bengali, and more.
-- **👂 High-Accuracy ASR**: Transcribe audio with best-in-class accuracy for Indian accents and dialects.
-- **🚀 Ultra-Low Latency**: Optimized for real-time voice agents.
-- **🧠 Native Understanding**: Models trained specifically on Indian cultural and linguistic contexts.
-
-**Example: Building a Multi-Listening Voice Agent**
-
-```java
-// 1. Configure Sarvam AI
-LLMConfig config = LLMConfig.builder()
-    .apiKey(System.getenv("SARVAM_API_KEY"))
-    .build();
-
-// 2. Create a Voice-Enabled Agent
-ReActAgent agent = ReActAgent.builder()
-    .llmClient(new DefaultLLMClient(new SarvamChatProvider(config))) // Use Sarvam-2B
-    .sttProvider(new SarvamAudioProvider(config))       // native-STT
-    .ttsProvider(new SarvamTextToSpeechProvider(config)) // native-TTS
-    .audioPlayer(new JavaAudioPlayer())                 // Playback
-    .ttsLanguage("Hindi")                               // Speak in Hindi
-    .autoPlayAudio(true)                                // Auto-speak responses
-    .build();
-
-// 3. Run the Agent (Listen -> Think -> Speak)
-agent.listen(new File("user_query_hindi.wav"));
-// Agent listens, thinks, and responds typically in < 2 seconds!
-```
-
-> **[Read the Full Sarvam AI Guide](docs/SARVAM.md)** for advanced configuration, including specific models (`sarvam-2b`, `bulbul:v1`) and language codes.
-
-### 🏠 Ollama (Local Models) Integration
-
-**Run powerful open-weight models like Gemma and Llama locally with zero API costs.**
-
-`ai-agent4j` provides native support for [Ollama](https://ollama.com/), allowing you to offload reasoning tasks to your own hardware while maintaining the same high-level ReAct and tool-use capabilities.
-
-**Why Ollama?**
-
-- **🔒 100% Private**: Your data never leaves your machine.
-- **💰 Zero Cost**: No per-token billing.
-- **🚀 Gemma Optimized**: Specifically tuned to handle the reasoning capabilities of Google's Gemma models locally.
-- **🛠️ Offline Tools**: Build agents that work without an internet connection.
-
-**Example: Running Gemma 3 Locally**
-
-```java
-import io.github.llm4j.provider.ollama.OllamaProvider;
-
-// 1. Configure the Ollama client
-LLMConfig config = LLMConfig.builder()
-        .baseUrl("http://localhost:11434") // Default Ollama port
-        .defaultModel("gemma3")             // Ensure you've run 'ollama run gemma3'
-        .build();
-
-// 2. Initialize the client
-LLMClient client = new DefaultLLMClient(new OllamaProvider(config));
-
-// 3. (Optional) Use in a ReAct Agent
-ReActAgent agent = ReActAgent.builder()
-        .llmClient(client)
-        .addTool(new CalculatorTool())
-        .build();
-
-AgentResult result = agent.run("What is 144 / 12?");
-System.out.println(result.getFinalAnswer()); // Output: 12
-```
-
-> **[Read the Full Ollama Integration Guide](docs/OLLAMA.md)** for detailed setup and performance tuning tips.
-
-### Auto-Discover Models
-
-<details>
-<summary>👀 Show: Auto-Discover Models Example</summary>
-
-```java
-// The library can automatically discover available Gemini models
-LLMConfig tempConfig = LLMConfig.builder()
-        .apiKey(System.getenv("GOOGLE_API_KEY"))
-        .build();
-
-GoogleProvider provider = new GoogleProvider(tempConfig);
-String latestModel = provider.getFirstAvailableModel();  // e.g. "gemini-2.5-flash"
-
-// Use the discovered model
-LLMConfig config = LLMConfig.builder()
-        .apiKey(System.getenv("GOOGLE_API_KEY"))
-        .defaultModel(latestModel)
-        .build();
-}
-```
-
-</details>
-
-## ReAct Agent
-
-The library includes a powerful ReAct (Reasoning and Acting) agent framework that enables LLMs to use tools through a loop of thought, action, and observation.
-
-### Basic Agent Usage
-
-```java
-import io.github.llm4j.agent.ReActAgent;
-import io.github.llm4j.agent.AgentResult;
-import io.github.llm4j.agent.tools.CalculatorTool;
-import io.github.llm4j.agent.tools.CurrentTimeTool;
-
-// Create agent with tools
-ReActAgent agent = ReActAgent.builder()
-        .llmClient(client)
-        .addTool(new CalculatorTool())
-        .addTool(new CurrentTimeTool())
-        .maxIterations(10)
-        .temperature(0.7)
-        .build();
-
-// Run agent
-AgentResult result = agent.run("What is (15 * 23) + 47?");
-System.out.println(result.getFinalAnswer());
-
-// Inspect reasoning steps
-for (AgentResult.AgentStep step : result.getSteps()) {
-    System.out.println("Thought: " + step.getThought());
-    System.out.println("Action: " + step.getAction());
-    System.out.println("Observation: " + step.getObservation());
-}
-```
-
-### Built-in Tools
-
-- **CalculatorTool**: Evaluate mathematical expressions
-- **DateTimeTool**: Get current date and time (RFC 1123 format)
-- **SerpApiSearchTool**: High-quality web search using SerpAPI
-- **DuckDuckGoSearchTool**: Free web search fallback using DuckDuckGo
-- **FallbackSearchTool**: Chained search implementation for high reliability
-- **CachedSearchTool**: Static caching wrapper to reduce API usage across agents
-- **GraphQueryTool**: Query Knowledge Graphs for entities and relationships
-- **GraphExtractionTool**: Extract structured knowledge triples from text using LLM
-- **EchoTool**: Simple echo tool (useful for testing)
-
-### 🧠 Conversation Memory
-
-Enable your agents to remember previous interactions in a chat session.
-
-<details>
-<summary>👀 Show: Memory Usage Example</summary>
-
-```java
-import io.github.llm4j.agent.memory.ConversationHistory;
-
-// 1. Initialize ReAct Agent with memory
-ConversationHistory history = new ConversationHistory(10); // Keep last 10 messages
-
-ReActAgent agent = ReActAgent.builder()
-        .llmClient(client)
-        .addTool(new CalculatorTool())
-        .conversationHistory(history) // Add memory
-        .build();
-
-// 2. Run sequential queries
-agent.run("My name is Srijith.");
-AgentResult result = agent.run("What is my name?"); 
-// Result: "Your name is Srijith."
-```
-
-</details>
-
-### 💾 Persistent Conversation Storage
-
-Store conversations across sessions with pluggable storage backends.
-
-<details>
-<summary>👀 Show: Conversation Persistence Example</summary>
-
-```java
-import io.github.llm4j.agent.memory.*;
-import java.nio.file.Paths;
-
-// 1. Create a file-based store (conversations saved as JSON)
-ConversationStore fileStore = new FileConversationStore(Paths.get("conversations"));
-
-// 2. Optional: Wrap with async store for non-blocking I/O
-ConversationStore asyncStore = new AsyncConversationStore(fileStore);
-
-// 3. Create history with persistent store
-ConversationHistory history = new ConversationHistory(
-    "user-session-123",  // unique session ID
-    asyncStore,          // persistent store
-    20                   // max messages in memory
-);
-
-// 4. Use with agent - conversations survive app restarts!
-ReActAgent agent = ReActAgent.builder()
-    .llmClient(client)
-    .conversationHistory(history)
-    .build();
-```
-
-**Generating Summaries:**
-
-```java
-import io.github.llm4j.util.ConversationSummarizer;
-
-// Auto-generate one-line summaries
-ConversationSummarizer summarizer = new ConversationSummarizer(llmClient);
-String summary = summarizer.summarize(history.getMessages());
-
-// Update metadata
-asyncStore.updateSummary("user-session-123", summary);
-```
-
-**Listing Conversations:**
-
-```java
-// Get all conversations with metadata
-List<ConversationMetadata> sessions = asyncStore.listSessions();
-
-for (ConversationMetadata meta : sessions) {
-    System.out.println(meta.getSessionId() + ": " + meta.getSummary());
-    System.out.println("  Last updated: " + meta.getLastUpdated());
-}
-```
-
-</details>
-
-**Available Stores:**
-
-- `InMemoryConversationStore` - Default, ephemeral storage
-- `FileConversationStore` - JSON file-based persistence
-- `AsyncConversationStore` - Non-blocking wrapper for any store
-
-</details>
-
-### 📡 Real-time Thought Streaming
-
-Capture the agent's reasoning process as it happens using the `AgentEventListener`. This is critical for building responsive UIs.
-
-<details>
-<summary>👀 Show: Streaming Usage Example</summary>
-
-```java
-import io.github.llm4j.agent.AgentEventListener;
-
-// 1. Define a listener
-AgentEventListener listener = new AgentEventListener() {
-    @Override
-    public void onThought(String thought) {
-        System.out.println("Thinking: " + thought);
-        // e.g., send via SSE or WebSocket
-    }
-
-    @Override
-    public void onAction(String toolName, String toolInput) {
-        System.out.println("Executing: " + toolName + " with " + toolInput);
-    }
-
-    @Override
-    public void onObservation(String toolOutput) {
-        System.out.println("Result: " + toolOutput);
-    }
-};
-
-// 2. Attach usage
-ReActAgent agent = ReActAgent.builder()
-        .llmClient(client)
-        .addListener(listener) // Register listener
-        .build();
-
-agent.run("Check weather in Tokyo");
-```
-
-</details>
-
-### 🌐 OpenAPI Support (New!)
-
-The library now supports **dynamic tool generation** from OpenAPI/Swagger specifications. This allows your agents to automatically discover and use any REST API without writing manual tool code.
-
-<details>
-<summary>👀 Show: OpenAPI Tool Example</summary>
-
-```java
-// Create tool from OpenAPI spec (URL or file)
-OpenAPITool aviationTool = OpenAPITool.builder()
-    .name("AviationStack")
-    .specLocation("https://api.aviationstack.com/openapi.json")
-    .apiKeyAuth("access_key", System.getenv("AVIATION_STACK_API_KEY"))
-    .build();
-
-// Add to agent
-ReActAgent agent = ReActAgent.builder()
-    .llmClient(client)
-    .addTool(aviationTool)
-    .build();
-```
-
-</details>
-
-See the [OpenAPI Tool Wiki](wiki/OpenAPI-Tool.md) for full documentation.
-
-### 🔌 Model Context Protocol (MCP) Support
-
-Connect your agents to the external world using the **Model Context Protocol (MCP)**. This allows `ai-agent4j` to consume tools from any standard MCP server (Python, Node, Go, etc.).
-
-<details>
-<summary>👀 Show: MCP Client Example</summary>
-
-```java
-// 1. Define Transport (e.g. connecting to a local filesystem server)
-StdioMcpTransport transport = new StdioMcpTransport(
-    List.of("npx", "-y", "@modelcontextprotocol/server-filesystem", "."), 
-    null
-);
-
-// 2. Initialize Client
-McpClient mcpClient = new McpClient(transport);
-mcpClient.initialize();
-
-// 3. Adapt Tools for Agent
-for (var toolDef : mcpClient.listTools()) {
-    agentBuilder.addTool(new McpToolAdapter(mcpClient, toolDef));
-}
-```
-
-</details>
-
-See the [MCP Integration Wiki](../wiki/MCP-Integration.md) for full documentation.
-
-## Agent Personas
-
-Make your agents more deterministic and role-specific with configurable personas.
-
-### Using Pre-built Personas
-
-<details>
-<summary>👀 Show: Pre-built Personas Example</summary>
-
-```java
-import io.github.llm4j.agent.persona.PersonaLibrary;
-
-// Technical analyst - data-driven and precise
-ReActAgent analyst = ReActAgent.builder()
-    .llmClient(client)
-    .addTool(new CalculatorTool())
-    .persona(PersonaLibrary.technicalAnalyst())
-    .build();
-
-// Customer support - empathetic and helpful
-ReActAgent support = ReActAgent.builder()
-    .llmClient(client)
-    .addTool(new CalculatorTool())
-    .persona(PersonaLibrary.customerSupport())
-    .build();
-```
-
-</details>
-
-**Available Pre-built Personas:**
-
-- `technicalAnalyst()` - Data-driven, precise, analytical
-- `creativeWriter()` - Expressive, imaginative, engaging
-- `customerSupport()` - Empathetic, helpful, solution-focused
-- `softwareDeveloper()` - Technical, systematic, best-practices oriented
-- `researchScientist()` - Methodical, evidence-based, thorough
-- `businessConsultant()` - Strategic, pragmatic, ROI-focused
-- `educator()` - Clear, patient, encouraging
-- `medicalAdvisor()` - Careful, evidence-based, patient-centered
-
-### Creating Custom Personas
-
-<details>
-<summary>👀 Show: Custom Persona Example</summary>
-
-```java
-import io.github.llm4j.agent.persona.AgentPersona;
-
-AgentPersona customPersona = AgentPersona.builder()
-    .name("Math Tutor")
-    .role("friendly mathematics teacher")
-    .expertise("Step-by-step problem solving and mathematics education")
-    .tone("Encouraging, patient, and educational")
-    .addConstraint("Break down problems into simple steps")
-    .addConstraint("Explain the reasoning behind each step")
-    .build();
-
-ReActAgent agent = ReActAgent.builder()
-    .llmClient(client)
-    .addTool(new CalculatorTool())
-    .persona(customPersona)
-    .build();
-```
-
-</details>
-
-See the [Agent Personas Wiki](wiki/Agent-Personas.md) for more details.
-
-## Agent Skills
-
-Give your agents structured domain knowledge by injecting markdown files as **skills** into the system prompt. Skills appear after the persona and before tool descriptions, keeping context organized and composable.
-
-### Inline Skill
-
-```java
-import io.github.llm4j.agent.skill.AgentSkill;
-
-AgentSkill codingTips = AgentSkill.of(
-    "Coding Standards",
-    "Always write unit tests. Prefer composition over inheritance."
-);
-
-ReActAgent agent = ReActAgent.builder()
-    .llmClient(client)
-    .addSkill(codingTips)
-    .build();
-```
-
-### Loading from a File or Classpath
-
-<details>
-<summary>👀 Show: File & Classpath Skill Loading Examples</summary>
-
-```java
-import io.github.llm4j.agent.skill.*;
-import java.nio.file.Path;
-
-// Load from filesystem — name inferred from filename
-// e.g. "security-guidelines.md" → "Security Guidelines"
-AgentSkill fromFile = AgentSkill.fromFile(Path.of("skills/security-guidelines.md"));
-
-// Load from classpath resource
-AgentSkill fromClasspath = AgentSkill.fromClasspath("skills/coding-standards.md");
-
-// Use a loader for repeated loading from a base directory
-FileSystemSkillLoader loader = new FileSystemSkillLoader(Path.of("skills/"));
-AgentSkill skill = loader.load("api-design.md");
-
-// Or from the classpath
-ClasspathSkillLoader cpLoader = new ClasspathSkillLoader();
-AgentSkill cpSkill = cpLoader.load("skills/api-design.md");
-```
-
-</details>
-
-### Composing Multiple Skills
-
-```java
-ReActAgent agent = ReActAgent.builder()
-    .llmClient(client)
-    .addTool(new CalculatorTool())
-    .addSkill(AgentSkill.fromFile(Path.of("skills/coding-standards.md")))
-    .addSkill(AgentSkill.fromClasspath("skills/security-guidelines.md"))
-    .build();
-```
-
-The resulting system prompt injects a `## Skills` section with each skill rendered as:
-
-```
-### Coding Standards
-Always write unit tests. Prefer composition over inheritance.
-
-### Security Guidelines
-Never expose raw stack traces to end users...
-```
-
-**Builder methods:**
-
-| Method | Description |
-|--------|-------------|
-| `addSkill(AgentSkill)` | Append a single skill |
-| `skills(List<AgentSkill>)` | Append a batch of skills |
-| `clearSkills()` | Remove all previously added skills |
-
-### Dynamic Skill Discovery
-
-Give your agents the ability to discover and learn skills dynamically at runtime from an external registry (like [SkillsMP](https://skillsmp.com) or any custom REST API). 
-
-<details>
-<summary>👀 Show: Dynamic Skill Discovery Example</summary>
-
-```java
-import io.github.llm4j.agent.skill.*;
-import io.github.llm4j.agent.tool.SkillDiscoveryTool;
-
-// 1. Configure the Registry
-RestSkillRegistry registry = RestSkillRegistry.builder()
-    .baseUrl("https://skillsmp.com/api/v1/skills")
-    .apiKey(System.getenv("SKILLSMP_API_KEY"))
-    .build();
-
-// 2. Add the Discovery Tool to the Agent
-ReActAgent agent = ReActAgent.builder()
-    .llmClient(client)
-    .addTool(new SkillDiscoveryTool(registry))
-    .build();
-
-// The agent can now automatically `search` and `read` new skills mid-conversation
-// if it encounters a task it doesn't know how to solve!
-```
-
-</details>
-
-## Prompt Registry (xAI Standard)
-
-Externalize your prompts to adhere to Explainable AI (xAI) standards. The library supports a file-based registry with **versioning**, **templating**, and **hot-reloading**.
-
-### Creating a Registry File (prompts.yaml)
-
-```yaml
-prompts:
-  agent_system_prompt:
-    v1: "You are a helpful assistant."
-    v2: "You are a specialized {{role}}."
-    latest: "v2"
-```
-
-### Using the Registry
-
-```java
-import io.github.llm4j.agent.prompt.FileSystemPromptRegistry;
-import java.nio.file.Paths;
-
-// 1. Initialize registry (supports hot-reloading)
-FileSystemPromptRegistry registry = new FileSystemPromptRegistry(Paths.get("prompts.yaml"));
-
-// 2. Fetch templates
-PromptTemplate template = registry.get("agent_system_prompt").get();
-String rendered = template.render(Map.of("role", "Java Expert"));
-
-// 3. Use with ReAct Agent
-ReActAgent agent = ReActAgent.builder()
-    .llmClient(client)
-    .promptRegistry(registry)
-    .systemPromptId("agent_system_prompt") // Automatically fetches 'latest'
-    .build();
-```
-
-## RAG (Retrieval-Augmented Generation)
-
-Enhance your agents with document-based context retrieval using vector similarity search.
-
-### Basic RAG Setup
-
-<details>
-<summary>👀 Show: RAG Setup Example</summary>
-
-```java
-import io.github.llm4j.agent.rag.*;
-import io.github.llm4j.agent.rag.document.*;
-import io.github.llm4j.agent.rag.embedding.*;
-import io.github.llm4j.agent.rag.store.*;
-
-// 1. Create embedding provider (uses Gemini text-embedding-004)
-EmbeddingProvider embeddingProvider = new GeminiEmbeddingProvider(config);
-
-// OR use a local provider (ONNX / DJL)
-// EmbeddingProvider localProvider = new OnnxEmbeddingProvider("model.onnx", "tokenizer.json");
-
-// 2. Create vector store
-VectorStore vectorStore = new InMemoryVectorStore();
-
-// 3. Create base agent
-ReActAgent baseAgent = ReActAgent.builder()
-    .llmClient(client)
-    .addTool(new CalculatorTool())
-    .build();
-
-// 4. Create RAG agent
-RAGAgent ragAgent = RAGAgent.builder()
-    .agent(baseAgent)
-    .vectorStore(vectorStore)
-    .embeddingProvider(embeddingProvider)
-    .topK(3)  // Retrieve top 3 most relevant chunks
-    .build();
-
-// 5. Add documents
-Document doc = Document.builder()
-    .id("doc1")
-    .content("Your document content here...")
-    .addMetadata("source", "manual")
-    .build();
-
-// Chunk the document
-FixedSizeChunkingStrategy chunker = new FixedSizeChunkingStrategy(500, 50);
-List<DocumentChunk> chunks = chunker.chunk(doc);
-doc = Document.builder()
-    .id(doc.getId())
-    .content(doc.getContent())
-    .chunks(chunks)
-    .build();
-
-ragAgent.addDocument(doc);
-
-// 6. Query with context
-AgentResult result = ragAgent.run("What does the document say about X?");
-```
-
-### Document Chunking Strategies
-
-```java
-// Fixed-size chunking with overlap
-FixedSizeChunkingStrategy chunker = new FixedSizeChunkingStrategy(
-    500,  // chunk size in characters
-    50    // overlap between chunks
-);
-```
-
-</details>
-
-See the [RAG Support Wiki](wiki/RAG-Support.md) for advanced usage.
-
-## Knowledge Graphs
-
-Enable your agents to reason over structured knowledge using entity-relationship graphs.
-
-### Building a Knowledge Graph
-
-<details>
-<summary>👀 Show: Knowledge Graph Example</summary>
-
-```java
-import io.github.llm4j.agent.knowledge.*;
-import io.github.llm4j.agent.knowledge.model.*;
-import io.github.llm4j.agent.knowledge.store.*;
-import io.github.llm4j.agent.knowledge.tools.*;
-
-// 1. Create knowledge graph
-KnowledgeGraph graph = new InMemoryGraphStore();
-
-// 2. Add entities
-Entity alice = Entity.builder()
-    .id("alice")
-    .type("Person")
-    .addProperty("name", "Alice Johnson")
-    .addProperty("title", "CEO")
-    .build();
-
-Entity bob = Entity.builder()
-    .id("bob")
-    .type("Person")
-    .addProperty("name", "Bob Smith")
-    .addProperty("title", "CTO")
-    .build();
-
-// 3. Add relationships
-graph.addTriple(new Triple(
-    bob,
-    Relation.builder().type("REPORTS_TO").build(),
-    alice
-));
-
-// 4. Create agent with graph query tool
-ReActAgent agent = ReActAgent.builder()
-    .llmClient(client)
-    .addTool(new GraphQueryTool(graph))
-    .build();
-
-// 5. Query the graph
-AgentResult result = agent.run("Who does Bob report to?");
-```
-
-</details>
-
-### Querying the Graph
-
-The `GraphQueryTool` allows agents to:
-
-- Find entities by ID or type
-- Query relationships between entities
-- Filter entities by properties
-
-See the [Knowledge Graphs Wiki](wiki/Knowledge-Graphs.md) for more details.
-
-## Advanced Configuration
-
-### Creating Custom Tools
-
-<details>
-<summary>👀 Show: Custom Tool & Config Examples</summary>
-
-### Creating Custom Tools
-
-```java
-import io.github.llm4j.agent.Tool;
-
-public class WebSearchTool implements Tool {
-    @Override
-    public String getName() {
-        return "WebSearch";
-    }
-    
-    @Override
-    public String getDescription() {
-        return "Search the web for information. Input should be a search query.";
-    }
-    
-    @Override
-    public String execute(String input) throws Exception {
-        // Implement web search logic
-        return searchWeb(input);
-    }
-}
-
-// Use custom tool
-agent = ReActAgent.builder()
-        .llmClient(client)
-        .addTool(new WebSearchTool())
-        .build();
-```
-
-### Agent Configuration
-
-```java
-ReActAgent agent = ReActAgent.builder()
-        .llmClient(client)
-        .addTool(new CalculatorTool())
-        .maxIterations(15)              // Max reasoning steps
-        .temperature(0.7)                // LLM temperature
-        .systemPrompt(customPrompt)      // Custom prompt template
-        .build();
-```
-
-</details>
-
-### Custom Retry Policy
-
-```java
-import io.github.llm4j.config.RetryPolicy;
-import java.time.Duration;
-
-RetryPolicy customRetry = RetryPolicy.builder()
-        .maxRetries(5)
-        .backoffStrategy(RetryPolicy.BackoffStrategy.EXPONENTIAL)
-        .initialBackoff(Duration.ofMillis(1000))
-        .maxBackoff(Duration.ofSeconds(30))
-        .addRetryableStatusCode(429) // Rate limit
-        .addRetryableStatusCode(503) // Service unavailable
-        .build();
-
-LLMConfig config = LLMConfig.builder()
-        .apiKey(apiKey)
-        .retryPolicy(customRetry)
-        .timeout(Duration.ofSeconds(90))
-        .enableLogging(true)
-        .build();
-```
-
-### Multi-Turn Conversations
-
-```java
-LLMRequest request = LLMRequest.builder()
-        .addSystemMessage("You are a friendly chatbot.")
-        .addUserMessage("Hello! What's your name?")
-        .addAssistantMessage("Hi! I'm Claude, an AI assistant. How can I help you today?")
-        .addUserMessage("Can you help me write a poem about the ocean?")
-        .build();
-
-LLMResponse response = client.chat(request);
-```
-
-### Custom Base URL
-
-```java
-LLMConfig config = LLMConfig.builder()
-        .apiKey("your-api-key")
-        .baseUrl("https://generativelanguage.googleapis.com/v1")
-        .defaultModel("gemini-1.5-flash")
-        .build();
-```
-
-## Error Handling
-
-The library provides specific exception types for different error scenarios:
-
-```java
-import io.github.llm4j.exception.*;
-
-try {
-    LLMResponse response = client.chat(request);
-} catch (AuthenticationException e) {
-    // Invalid API key
-    System.err.println("Authentication failed: " + e.getMessage());
-} catch (RateLimitException e) {
-    // Rate limit exceeded
-    System.err.println("Rate limited. Retry after: " + e.getRetryAfterSeconds());
-} catch (InvalidRequestException e) {
-    // Bad request (invalid parameters)
-    System.err.println("Invalid request: " + e.getMessage());
-} catch (ProviderException e) {
-    // Provider-specific error
-    System.err.println("Provider error: " + e.getMessage());
-} catch (LLMException e) {
-    // Generic LLM error
-    System.err.println("LLM error: " + e.getMessage());
-}
-```
-
-## Configuration Options
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `apiKey` | String | - | API key for authentication (required) |
-| `baseUrl` | String | Provider default | Custom base URL for API |
-| `defaultModel` | String | null | Default model to use if not specified in request |
-| `timeout` | Duration | 60s | Request timeout |
-| `connectTimeout` | Duration | 10s | Connection timeout |
-| `retryPolicy` | RetryPolicy | Default | Retry configuration |
-| `enableLogging` | boolean | false | Enable HTTP request/response logging |
-
-## Building from Source
-
-### Requirements
-
-- Java 17 or higher
-- Maven 3.6+
-
-### Build
-
-```bash
-mvn clean install
-```
-
-### Run Tests
-
-```bash
-mvn test
-```
-
-### Generate Coverage Report
-
-```bash
-mvn jacoco:report
-```
-
-Coverage report will be available at `target/site/jacoco/index.html`.
-
-## Architecture
-
-```mermaid
-flowchart TD
-    %% Styling
-    classDef user fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
-    classDef core fill:#f3e5f5,stroke:#4a148c,stroke-width:2px;
-    classDef agent fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px;
-    classDef tool fill:#fff3e0,stroke:#e65100,stroke-width:2px;
-    classDef external fill:#fee,stroke:#b71c1c,stroke-width:2px;
-
-    %% User Layer
-    UserCode["User Application"]:::user
-
-    %% Agent Layer
-    subgraph "Agent Framework"
-        ReAct["ReAct Agent"]:::agent
-        RAG["RAG Agent"]:::agent
-        Persona["Persona Engine"]:::agent
-        Prompt["Prompt Registry"]:::agent
-        
-        ReAct --> Persona
-        ReAct --> Prompt
-    end
-
-    %% Tooling Layer
-    subgraph "Tooling Layer"
-        ToolRegistry["Tool Registry"]:::tool
-        StdTools["Standard Tools<br/>(Calc, Search, Time)"]:::tool
-        GraphTool["Graph Tools<br/>(Query, Extraction)"]:::tool
-        OpenAPI["OpenAPI Tools"]:::tool
-        
-        ToolRegistry --> StdTools
-        ToolRegistry --> GraphTool
-        ToolRegistry --> OpenAPI
-    end
-
-    %% Core Layer
-    subgraph "Core Library"
-        Client["LLM Client"]:::core
-        Provider["Google Provider"]:::core
-        EmbeddingProvider["Embedding Provider<br/>(Gemini/ONNX/DJL)"]:::core
-        Config["Configuration"]:::core
-        
-        Client --> Provider
-        Provider --> Config
-        EmbeddingProvider --> Config
-    end
-
-    %% External
-    subgraph "External Resources"
-        Gemini["Google Gemini API"]:::external
-        LocalModels["Local Models<br/>(ONNX/DJL)"]:::external
-        VectorDB[("Vector Store")]:::external
-        GraphDB[("Knowledge Graph")]:::external
-        Web["Web / APIs"]:::external
-    end
-
-    %% Connections
-    UserCode --> ReAct
-    UserCode --> RAG
-    UserCode --> Client
-
-    RAG --> VectorDB
-    RAG --> EmbeddingProvider
-    ReAct --> ToolRegistry
-    ReAct --> Client
-
-    StdTools --> Web
-    GraphTool --> GraphDB
-    OpenAPI --> Web
-
-    Provider --> Gemini
-    EmbeddingProvider --> Gemini
-    EmbeddingProvider --> LocalModels
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-### Adding a New Provider
-
-1. Implement the `LLMProvider` interface
-2. Create provider-specific request/response transformations
-3. Add comprehensive tests
-4. Update documentation
+---
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
-For issues and questions, please use the [GitHub Issues](https://github.com/srijithunni7182/llm4j/issues) page.
-
-## Roadmap
-
-- [x] Agent Skills (markdown-based domain knowledge injection)
-- [x] Streaming support (Server-Sent Events)
-- [x] Function calling / tool use support
-- [x] Search fallback and caching mechanisms
-- [x] Temporal awareness for agents
-- [ ] Additional providers (Cohere, Together AI, etc.)
-- [x] Embeddings API support
-- [x] Token counting utilities
-- [ ] Async API support
-- [x] Spring Boot starter (Hexamind Hub)
-
-## Acknowledgments
-
-Built with:
-
-- [OkHttp](https://square.github.io/okhttp/) - HTTP client
-- [Jackson](https://github.com/FasterXML/jackson) - JSON processing
-- [SLF4J](http://www.slf4j.org/) - Logging facade
-- [JUnit 5](https://junit.org/junit5/) - Testing framework
+For issues, questions, or contributions, please use the [GitHub Issues](https://github.com/srijithunni7182/llm4j/issues) page.
