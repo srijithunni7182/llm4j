@@ -7,12 +7,12 @@ import java.util.Objects;
  * Pass to the agent builder via {@code .semanticMemoryConfig(config)} to get automatic
  * long-term memory with no additional boilerplate.
  *
- * <h3>In-Memory (Development)</h3>
+ * <b>In-Memory (Development)</b>
  * <pre>
  * SemanticMemoryConfig config = SemanticMemoryConfig.inMemory("user-123");
  * </pre>
  *
- * <h3>Production (pgvector + ONNX)</h3>
+ * <b>Production (pgvector + ONNX)</b>
  * <pre>
  * SemanticMemoryConfig config = SemanticMemoryConfig.builder()
  *     .userId("user-123")
@@ -25,7 +25,7 @@ import java.util.Objects;
  *     .build();
  * </pre>
  *
- * <h3>Production (Gemini Cloud Embeddings)</h3>
+ * <b>Production (Gemini Cloud Embeddings)</b>
  * <pre>
  * SemanticMemoryConfig config = SemanticMemoryConfig.builder()
  *     .userId("user-123")
