@@ -6,7 +6,7 @@
 
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j-addons</artifactId>
-    <version>0.1.0</version>
+    <version>5.0</version>
     <packaging>jar</packaging>
 
     <name>AI Agent4J - RAG Addons</name>
