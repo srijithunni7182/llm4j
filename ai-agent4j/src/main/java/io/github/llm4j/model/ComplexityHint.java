@@ -6,7 +6,7 @@ package io.github.llm4j.model;
  * and complex tasks to premium/reasoning models.
  */
 public enum ComplexityHint {
-    /** Simple tasks like summarization, translation, or basic Q&A. */
+    /** Simple tasks like summarization, translation, or basic Q&amp;A. */
     LOW,
     
     /** Standard tasks requiring average reasoning. */

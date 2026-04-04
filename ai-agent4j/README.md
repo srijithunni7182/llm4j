@@ -12,7 +12,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-orange)](https://www.oracle.com/java/technologies/downloads/#java17)
 
-`ai-agent4j` (formerly `gemini-react-java`) is the **LLM for Java** that focuses on simplicity and correctness. Unlike other heavy frameworks, it provides a clean, unified API for **Google Gemini, Sarvam AI**, and more, with a robust **ReAct Agent** framework.
+`ai-agent4j` (formerly `gemini-react-java`) is the **LLM for Java** that focuses on simplicity and correctness. Unlike other heavy frameworks, it provides a clean, unified API for **Google Gemini, Sarvam AI, and Local Models via Ollama**, with a robust **ReAct Agent** framework.
 
 > **Note**: While this library is optimized and thoroughly tested for **Google Gemini** (as the author currently utilizes Google API keys), its architecture is entirely **modular and LLM-agnostic**. Any consumer can easily plug in their own implementation of the `LLMClient` interface to support OpenAI, Anthropic, or local models while retaining the full suite of xAI and ReAct agent capabilities.
 
@@ -20,6 +20,7 @@
 
 - **🤖 Google Gemini First**: Full integration with Gemini 1.5 Flash, Pro, and 2.x models.
 - **🇮🇳 Sarvam AI Support**: Complete Indian language stack (Chat, TTS, STT, Translation) with **Multi-Language Voice Agents** that can listen and speak in 10+ languages.
+- **🏠 Local Models (Ollama)**: Native support for running Gemma, Llama, and other open-weight models locally via Ollama.
 - **🛠️ ReAct Agent Framework**: Build AI agents that can reason and use tools through a thought-action-observation loop.
 - **🔌 Model Context Protocol (MCP)**: Connect to any external tool server (Filesystem, GitHub, SQLite) using the standard protocol.
 - **🧠 Contextual Memory**: Built-in conversation history management for multi-turn chats.
@@ -218,6 +219,45 @@ agent.listen(new File("user_query_hindi.wav"));
 ```
 
 > **[Read the Full Sarvam AI Guide](docs/SARVAM.md)** for advanced configuration, including specific models (`sarvam-2b`, `bulbul:v1`) and language codes.
+
+### 🏠 Ollama (Local Models) Integration
+
+**Run powerful open-weight models like Gemma and Llama locally with zero API costs.**
+
+`ai-agent4j` provides native support for [Ollama](https://ollama.com/), allowing you to offload reasoning tasks to your own hardware while maintaining the same high-level ReAct and tool-use capabilities.
+
+**Why Ollama?**
+
+- **🔒 100% Private**: Your data never leaves your machine.
+- **💰 Zero Cost**: No per-token billing.
+- **🚀 Gemma Optimized**: Specifically tuned to handle the reasoning capabilities of Google's Gemma models locally.
+- **🛠️ Offline Tools**: Build agents that work without an internet connection.
+
+**Example: Running Gemma 3 Locally**
+
+```java
+import io.github.llm4j.provider.ollama.OllamaProvider;
+
+// 1. Configure the Ollama client
+LLMConfig config = LLMConfig.builder()
+        .baseUrl("http://localhost:11434") // Default Ollama port
+        .defaultModel("gemma3")             // Ensure you've run 'ollama run gemma3'
+        .build();
+
+// 2. Initialize the client
+LLMClient client = new DefaultLLMClient(new OllamaProvider(config));
+
+// 3. (Optional) Use in a ReAct Agent
+ReActAgent agent = ReActAgent.builder()
+        .llmClient(client)
+        .addTool(new CalculatorTool())
+        .build();
+
+AgentResult result = agent.run("What is 144 / 12?");
+System.out.println(result.getFinalAnswer()); // Output: 12
+```
+
+> **[Read the Full Ollama Integration Guide](docs/OLLAMA.md)** for detailed setup and performance tuning tips.
 
 ### Auto-Discover Models
 

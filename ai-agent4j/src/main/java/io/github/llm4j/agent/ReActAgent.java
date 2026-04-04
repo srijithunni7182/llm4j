@@ -64,7 +64,8 @@ public class ReActAgent {
               "final_answer": "the final answer to the original input question"
             }
 
-            IMPORTANT: You must ONLY provide a single valid JSON object inside a ```json code block. Do NOT generate the Observation yourself.
+            IMPORTANT: If you do not need to use any tool to answer the question, or if you are simply acknowledging a statement, you must provide your response directly in the "final_answer" field.
+            You must ONLY provide a single valid JSON object inside a ```json code block. Do NOT generate the Observation yourself.
             """;
 
     // Legacy patterns for backward compatibility
