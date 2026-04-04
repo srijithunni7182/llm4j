@@ -191,7 +191,7 @@ class FileAuditLoggerTest {
     @Test
     void testIOException_logsErrorButContinues() {
         // Create logger pointing to invalid location (read-only or non-existent)
-        Path invalidPath = Path.of("/invalid/path/audit.log");
+        Path invalidPath = Path.of("target/non-existent-directory/audit.log");
         FileAuditLogger invalidLogger = new FileAuditLogger(invalidPath);
 
         AuditEvent event = AuditEvent.builder().sessionId("test").build();
