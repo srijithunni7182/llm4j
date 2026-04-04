@@ -60,7 +60,7 @@ public interface VectorStore {
     void clear();
 
     /** Represents a vector entry with ID, embedding, and metadata. */
-    class VectorEntry {
+    public class VectorEntry {
         private final String id;
         private final float[] embedding;
         private final Map<String, Object> metadata;
@@ -85,7 +85,7 @@ public interface VectorStore {
     }
 
     /** Represents a search result with ID, similarity score, and metadata. */
-    class SearchResult {
+    public class SearchResult {
         private final String id;
         private final float similarity;
         private final Map<String, Object> metadata;
