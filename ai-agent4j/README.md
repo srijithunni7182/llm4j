@@ -16,6 +16,14 @@
 
 ---
 
+## 📊 Project Stats
+
+| 📏 **Lines of Code** | 🧪 **Test Cases** | ⏱️ **Development Time** | 📦 **Commits** | 🧠 **Supported LLMs** | 🪶 **Library Size** |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| **13,700+** | **438+** | **1.5+ Months** | **36+** | **Gemini, Sarvam, Ollama** | **~308 KB** |
+
+---
+
 ## 📚 Documentation Hub
 
 Explore the full capabilities of the framework through our detailed guides:
