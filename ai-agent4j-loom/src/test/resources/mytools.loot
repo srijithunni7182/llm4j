@@ -1,0 +1,1 @@
+EmptyTool = io.github.llm4j.loom.execution.MockTool

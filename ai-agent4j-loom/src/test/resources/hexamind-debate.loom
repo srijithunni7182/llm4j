@@ -1,0 +1,45 @@
+agent Analyst {
+    model: "test-model"
+    system: "You analyze problems and state arguments clearly."
+    tools: []
+}
+
+agent Critic {
+    model: "test-model"
+    system: "You critique arguments intensely."
+    tools: []
+}
+
+agent Synthesizer {
+    model: "test-model"
+    system: "You synthesize recommendations and build consensus."
+    tools: []
+}
+
+workflow Collaborate(problem) {
+    note "ROUND 1: Initial Analysis"
+    delegate "Analyze and fact-check: problem" to Analyst -> analyst_analysis
+    delegate "Analyze and fact-check: problem" to Critic -> critic_analysis
+    
+    note "ROUND 2: Arguments"
+    delegate "Formulate argument for: problem Context: analyst_analysis" to Analyst -> analyst_arg
+    delegate "Formulate argument for: problem Context: critic_analysis" to Critic -> critic_arg
+    
+    note "ROUND 3: Critique"
+    delegate "Critique this argument: critic_arg" to Analyst -> analyst_critique
+    delegate "Critique this argument: analyst_arg" to Critic -> critic_critique
+    
+    note "ROUND 4: Rebuttal"
+    delegate "Rebut this critique: analyst_critique" to Critic -> critic_rebuttal
+    delegate "Rebut this critique: critic_critique" to Analyst -> analyst_rebuttal
+    
+    note "ROUND 5: Final Refinement"
+    delegate "Final response to: critic_rebuttal" to Analyst -> analyst_final
+    delegate "Final response to: analyst_rebuttal" to Critic -> critic_final
+    
+    note "BUILDING CONSENSUS"
+    delegate "Synthesize the following: Analyst: analyst_final | Critic: critic_final" to Synthesizer -> consensus
+    
+    note "Done. Final handoff to user."
+    handoff consensus to Synthesizer
+}

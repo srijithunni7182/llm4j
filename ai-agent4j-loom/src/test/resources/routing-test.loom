@@ -1,0 +1,27 @@
+agent WorkerA {
+    model: "mock"
+    system: "Do work A"
+    tools: []
+}
+agent WorkerB {
+    model: "mock"
+    system: "Do work B"
+    tools: []
+}
+
+workflow RoutingTest() {
+    note "Testing broadcast"
+    broadcast "Analyze this: data" to [WorkerA, WorkerB] -> analysis_results
+
+    note "Testing alt"
+    alt (ready == "true") {
+        delegate "Action 1" to WorkerA -> a1
+    } else {
+        delegate "Action 2" to WorkerB -> a2
+    }
+
+    note "Testing loop"
+    loop until (done == "true") {
+        human_prompt "Please type done to exit" -> done
+    }
+}
