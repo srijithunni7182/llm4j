@@ -1,3 +1,5 @@
+<img src="loom_logo.png" align="right" width="200" alt="Loom Logo">
+
 # AI Agent4J Loom
 
 Loom is a **Neuro-Symbolic Domain Specific Language (DSL)** designed specifically for orchestrating stateful, multi-agent AI workflows.
