@@ -1,0 +1,19 @@
+// main.loom
+import "primitives.loom"
+
+workflow GenerateContent(topic) {
+    delegate "Research the latest trends for: {topic}" to Researcher -> research_data
+    
+    parallel {
+        delegate "Write a 500-word blog post for: LinkedIn" to Copywriter -> linkedin_post
+        delegate "Draft a thread of 5 tweets for: Twitter" to Copywriter -> twitter_thread
+    }
+
+    human_prompt "Review the content:\n\nLINKEDIN:\n{linkedin_post}\n\nTWITTER:\n{twitter_thread}\n\nApprove? (yes/no)" -> approval
+    
+    alt (approval == "yes") {
+        note "Content approved. Ready for publishing."
+    } else {
+        note "Content rejected. Revision needed."
+    }
+}

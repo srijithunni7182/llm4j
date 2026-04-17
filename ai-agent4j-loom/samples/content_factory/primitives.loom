@@ -1,0 +1,11 @@
+// primitives.loom
+
+agent Researcher {
+    model: "gemini-1.5-flash"
+    system: "Search and synthesize detailed facts about the provided topic: {topic}"
+}
+
+agent Copywriter {
+    model: "llama3"
+    system: "You are a world-class copywriter. Transform the following research into high-impact content for the specified platform: {research_data}"
+}

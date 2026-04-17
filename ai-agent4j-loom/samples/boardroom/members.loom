@@ -1,0 +1,19 @@
+// members.loom
+
+agent CFO {
+    model: "gemini-1.5-flash"
+    persona: "FinancialAnalyst"
+    system: "Evaluate the financial viability and risks of the following proposal: {proposal}"
+}
+
+agent CTO {
+    model: "llama3"
+    persona: "TechnicalArchitect"
+    system: "Evaluate the technical feasibility and infrastructure requirements for: {proposal}"
+}
+
+agent CEO {
+    model: "gemini-1.5-pro"
+    persona: "ExecutiveLeader"
+    system: "Synthesize the financial and technical reports to make a final 'Go' or 'No-Go' decision on the proposal: {proposal}"
+}

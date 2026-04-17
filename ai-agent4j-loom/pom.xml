@@ -27,6 +27,12 @@
             <version>5.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j-addons</artifactId>
+            <version>5.0</version>
+        </dependency>
+
         <!-- JSON Processing (Jackson) from Core -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -67,6 +73,26 @@
                     <source>17</source>
                     <target>17</target>
                 </configuration>
+            </plugin>
+            
+            <!-- Copy Dependencies -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.6.1</version>
+                <executions>
+                    <execution>
+                        <id>copy-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                            <includeScope>runtime</includeScope>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

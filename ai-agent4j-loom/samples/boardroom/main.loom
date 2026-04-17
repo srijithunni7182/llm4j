@@ -1,0 +1,22 @@
+// main.loom
+import "members.loom"
+
+audit {
+    logger: "file"
+    path: "boardroom-audit.json"
+}
+
+workflow EvaluateProposal(proposal) {
+    observe "Proposal Ingested" {proposal}
+
+    parallel {
+        delegate "Analyze financial risk" to CFO -> finance_report
+        delegate "Analyze technical feasibility" to CTO -> tech_report
+    }
+
+    observe "Analyses Complete" {finance_report}
+
+    delegate "Make final decision based on reports: {finance_report} and {tech_report}" to CEO -> final_verdict
+    
+    handoff "Decision Reached: {final_verdict}" to CEO
+}
