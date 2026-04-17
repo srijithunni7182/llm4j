@@ -4,7 +4,7 @@
 
 **Nirmaan Yantra** is an autonomous software development environment where a team of specialized AI agents collaborates to build, test, and deploy software based on your natural language specifications.
 
-It is built on top of [llm4j](../README.md), demonstrating the power of the **Gemini ReAct Java** framework.
+It is built on top of [llm4j](../README.md), demonstrating the power of the **ai-agent4j** framework.
 
 ---
 
@@ -166,4 +166,4 @@ graph TD
 
 ---
 
-Built with ❤️ using **Gemini ReAct Java**.
+Built with ❤️ using **ai-agent4j**.

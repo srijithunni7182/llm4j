@@ -15,9 +15,9 @@ Add the following dependency to your `pom.xml`:
 
 ```xml
 <dependency>
-    <groupId>io.github.llm4j</groupId>
+    <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>5.0</version>
 </dependency>
 ```
 
@@ -26,7 +26,7 @@ Add the following dependency to your `pom.xml`:
 Add this to your `build.gradle`:
 
 ```gradle
-implementation 'io.github.llm4j:ai-agent4j:0.1.0-SNAPSHOT'
+implementation 'io.github.srijithunni7182:ai-agent4j:5.0'
 ```
 
 ## Your First LLM Call

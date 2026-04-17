@@ -29,9 +29,9 @@ For **Local Embeddings** (ONNX/DJL) or **Persistent Stores** (Postgres/Pinecone)
 
 ```xml
 <dependency>
-    <groupId>io.github.llm4j</groupId>
+    <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j-addons</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>5.0</version>
 </dependency>
 ```
 

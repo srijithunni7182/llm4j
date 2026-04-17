@@ -1,4 +1,4 @@
-# 🚀 Gemini ReAct Java
+# 🚀 AI Agent4J
 
 **The Production-Ready Java Client for Google Gemini**
 
@@ -8,7 +8,7 @@
 
 ---
 
-## 🌟 Why Gemini ReAct Java?
+## 🌟 Why AI Agent4J?
 
 `ai-agent4j` is not just another API wrapper. It's a **comprehensive framework** designed to help you build intelligent, reasoning AI agents in Java.
 
@@ -93,16 +93,16 @@ graph TD
 
 ```xml
 <dependency>
-    <groupId>io.github.llm4j</groupId>
+    <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>5.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```gradle
-implementation 'io.github.llm4j:ai-agent4j:0.1.0-SNAPSHOT'
+implementation 'io.github.srijithunni7182:ai-agent4j:5.0'
 ```
 
 ---

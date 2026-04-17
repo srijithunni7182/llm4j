@@ -1,6 +1,6 @@
 # Model Context Protocol (MCP) Integration
 
-**gemini-react-java** includes full support for the **Model Context Protocol (MCP)**. This is a game-changer for AI agents, as it allows your Java-based ReAct agents to connect to any external MCP server—whether it's written in Python, Node.js, or Go—and automatically discover and use its tools.
+**ai-agent4j** includes full support for the **Model Context Protocol (MCP)**. This is a game-changer for AI agents, as it allows your Java-based ReAct agents to connect to any external MCP server—whether it's written in Python, Node.js, or Go—and automatically discover and use its tools.
 
 ## What is MCP?
 

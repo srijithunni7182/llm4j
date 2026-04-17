@@ -159,14 +159,14 @@ flowchart TB
 <dependency>
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j</artifactId>
-    <version>0.1.0</version>
+    <version>5.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```kotlin
-implementation("io.github.srijithunni7182:ai-agent4j:0.1.0")
+implementation("io.github.srijithunni7182:ai-agent4j:5.0")
 ```
 
 ---

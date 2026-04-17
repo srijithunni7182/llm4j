@@ -97,6 +97,8 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 
 > [!TIP]
 > **[Why AI Agent4J? Read our comparison against LangChain4j and Spring AI](ai-agent4j/wiki/WHY_AI_AGENT4J.md)**
+>
+> **[Version Matrix](VERSION_MATRIX.md)** for canonical coordinates and compatibility.
 
 ## 💡 Our Philosophy
 

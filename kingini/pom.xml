@@ -8,7 +8,7 @@
         <version>3.2.1</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>io.github.llm4j</groupId>
+    <groupId>io.github.srijithunni7182</groupId>
     <artifactId>kingini</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>kingini</name>
@@ -41,9 +41,9 @@
         </dependency>
         <!-- llm4j dependencies -->
          <dependency>
-            <groupId>io.github.llm4j</groupId>
+            <groupId>io.github.srijithunni7182</groupId>
             <artifactId>ai-agent4j</artifactId>
-            <version>0.1.0-SNAPSHOT</version>
+            <version>5.0</version>
         </dependency>
     </dependencies>
 

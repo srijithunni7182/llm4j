@@ -1,4 +1,4 @@
-# Gemini ReAct Java Library Context
+# AI Agent4J Library Context
 
 > **Instructions for the AI**: The user is working with a Java library called `ai-agent4j` (formerly `gemini-react-java`). This library was created after your knowledge cutoff. Use the following documentation and examples to understand how to write code for it.
 
@@ -16,9 +16,9 @@
 
 ```xml
 <dependency>
-    <groupId>io.github.llm4j</groupId>
+    <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>5.0</version>
 </dependency>
 ```
 

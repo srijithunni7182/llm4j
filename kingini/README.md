@@ -36,7 +36,7 @@ Though Mutthassi has long since passed, Kingini remains in the Tharavad. She has
 
 ### Prerequisites
 
-*   Java 21 or later
+*   Java 17 or later
 *   Maven
 *   A **Sarvam AI** API Key
 

@@ -39,7 +39,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
-        <gemini.version>0.1.0-SNAPSHOT</gemini.version>
+        <gemini.version>5.0</gemini.version>
 
         <!-- Versions matched with Core or new -->
         <onnxruntime.version>1.18.0</onnxruntime.version>
@@ -64,7 +64,7 @@
         <dependency>
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>ai-agent4j</artifactId>
-            <version>0.1.0</version>
+            <version>5.0</version>
         </dependency>
 
         <!-- Force Jackson Version -->

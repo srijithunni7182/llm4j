@@ -12,7 +12,7 @@
 
 In traditional LLM interactions, you get a single perspective. Hexamind Hub breaks this paradigm by assembling a **digital boardroom** of expert personas. Just as a CEO wouldn't make a major decision without consulting their technical, financial, and creative leads, Hexamind Hub simulates this collaborative intelligence.
 
-Each agent is powered by the `gemini-react-java` library and configured with a distinct personality, expertise, and set of constraints. They don't just answer; they **debate**.
+Each agent is powered by the `ai-agent4j` library and configured with a distinct personality, expertise, and set of constraints. They don't just answer; they **debate**.
 
 ## 👥 The Agents
 
@@ -145,10 +145,12 @@ Optimized for large-scale analysis:
 
 ### Step 1: Clone & Build
 
-First, build the core `gemini-react-java` library:
+First, build the core `ai-agent4j` and `ai-agent4j-addons` libraries:
 
 ```bash
-cd gemini-react-java
+cd ai-agent4j
+mvn clean install -DskipTests
+cd ../ai-agent4j-addons
 mvn clean install -DskipTests
 cd ..
 ```
@@ -293,7 +295,7 @@ graph TD
     * **Knowledge Graph**: Automatically extracts Subject-Predicate-Object triples from agent outputs to build a structured map of the conversation.
 
 3. **Agent Swarm**:
-    * Powered by `gemini-react-java`.
+    * Powered by `ai-agent4j`.
     * Each agent is a `ReActAgent` capability of Reasoning, Acting (using tools), and Observing.
     * **Rahul** is a statically defined persona; others are dynamically generated based on the topic.
 
