@@ -1,3 +1,5 @@
+<img src="loom_logo.png" align="right" width="200" alt="Loom Logo">
+
 # 🧵 Loom: The Neuro-Symbolic Orchestration Standard
 
 Loom is a **Neuro-Symbolic Domain Specific Language (DSL)** designed to bridge the gap between the probabilistic world of LLMs (**Neural**) and the deterministic world of business logic (**Symbolic**). 

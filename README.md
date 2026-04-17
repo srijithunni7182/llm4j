@@ -1,3 +1,5 @@
+<img src="ai-agent4j-loom/loom_logo.png" align="right" width="200" alt="Loom Logo">
+
 # llm4j: The Pure Java AI Stack
 
 > **Build intelligent, reasoning applications from the ground up.**
