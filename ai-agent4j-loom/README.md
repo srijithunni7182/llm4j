@@ -25,6 +25,14 @@ Customizing agent behavior in code often leads to massive boilerplate. Loom-like
 Loom includes `weave`, a powerful CLI to manage your workflows:
 - **`weave run`**: Immediate execution of `.loom` scripts.
 - **`weave package`**: Encapsulates scripts and dependencies into executable JARs (Thin or Fat).
+- **Interactive Playground**: Rapidly prototype workflows using real-time feedback.
+
+## 📊 Loom vs. The World
+Loom was designed to address the specific gaps in existing AI orchestration frameworks. Below is a multi-dimensional comparison based on core agentic requirements:
+
+![Loom Capability Radar](capability_radar.png)
+
+Loom excels in **DSL-Driven Knowledge** and **Developer Efficiency** by providing a symbolic layer that is decoupled from the underlying Java implementation, allowing for rapid iteration and robust "Neuro-Symbolic" control.
 
 ## Core Features
 *   **External DSL Runtime:** Loom ships with a handcrafted Lexer, Recursive Descent Parser, and AST Execution Engine that dynamically boots agents without recompiling Java.
