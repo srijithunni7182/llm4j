@@ -1,0 +1,21 @@
+agent FastWorker {
+    model: "gpt-3.5-turbo"
+}
+
+schedule Heartbeat {
+    initial_delay: "10s"
+    pattern: "5s"
+    agent: FastWorker
+    task: "Ping"
+}
+
+workflow ConcurrencyTest(data1, data2) {
+    observe "Inputs" {data1 + " and " + data2}
+    
+    parallel {
+        delegate "Process {data1}" to FastWorker -> res1
+        delegate "Process {data2}" to FastWorker -> res2
+    }
+    
+    observe "Finished" {"Done"}
+}

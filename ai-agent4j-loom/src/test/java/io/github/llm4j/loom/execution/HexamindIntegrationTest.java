@@ -6,6 +6,7 @@ import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.loom.ast.LoomScript;
 import io.github.llm4j.loom.lexer.Lexer;
 import io.github.llm4j.loom.parser.LoomParser;
+import io.github.llm4j.loom.runtime.*;
 
 import org.junit.jupiter.api.Test;
 import java.nio.file.Files;
@@ -60,7 +61,7 @@ public class HexamindIntegrationTest {
         executor.executeWorkflow("Collaborate", inputs);
 
         // Verify state changes inside context
-        HarnessContext context = executor.getContext();
+        VariableContext context = executor.getContext();
         
         String analystAnalysis = context.getVariable("analyst_analysis");
         assertNotNull(analystAnalysis);

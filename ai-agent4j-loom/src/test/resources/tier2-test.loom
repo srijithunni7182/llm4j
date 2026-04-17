@@ -1,0 +1,39 @@
+audit {
+    logger: "file"
+    path: "./target/tier2-audit.jsonl"
+}
+
+routing FastFallback {
+    strategy: "cost_aware"
+    primary: "gpt-4o"
+    fallback: ["gpt-3.5-turbo"]
+}
+
+knowledge WikiBase {
+    type: "local_dir"
+    path: "./src/test/resources/knowledge"
+    chunk_size: 500
+}
+
+agent SmartAgent {
+    model: "gpt-4o"
+    routing: FastFallback
+    skills: ["classpath://skills/coding.md"]
+    knowledge: [WikiBase]
+    memory: {
+        type: "file"
+        path: "./target/agent-memory.json"
+        limit: 20
+    }
+}
+
+workflow Tier2Test(inputData) {
+    note "Testing Tier 2 features"
+    
+    guardrail (PII) {
+        delegate "Process this data: {inputData}" to SmartAgent -> result
+        note "Process result: {result}"
+    } on_violation {
+        note "PII detected! Blocking request."
+    }
+}

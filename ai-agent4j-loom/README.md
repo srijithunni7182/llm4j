@@ -4,7 +4,27 @@
 
 Loom is a **Neuro-Symbolic Domain Specific Language (DSL)** designed specifically for orchestrating stateful, multi-agent AI workflows.
 
-Built as an extension to the `ai-agent4j` engine, Loom replaces complex framework boilerplate with a highly expressive, deterministic orchestration language (`.loom`). By enforcing a strict boundary between the non-deterministic "*Neural*" layer (agents generation) and the rigid, deterministic "*Symbolic*" layer (routing and execution flow), Loom maximizes reliability, interpretability, and scale.
+👉 **[Read the Loom Learning Guide](LOOM_GUIDE.md)**
+
+## 🧠 Neuro-Symbolic Orchestration
+Loom bridges the gap between the probabilistic nature of Large Language Models (**Neural**) and the deterministic reliability of programmatic logic (**Symbolic**). 
+
+### The Harness as Symbolic AI
+The Loom `Harness` acts as the skeletal system of your AI application. While agents generate content using neural networks, the Harness ensures that:
+- **Routing is rigid**: A `handoff` never ends up at the wrong agent.
+- **State is immutable**: Variables are managed in a thread-safe symbolic context.
+- **Safety is hard-coded**: Guardrails like PII detection intercept neural outputs before they reach the user.
+
+### Why a DSL?
+Customizing agent behavior in code often leads to massive boilerplate. Loom-like DSLs provide:
+- **Hot-Swappable Logic**: Change your entire multi-agent workflow without recompiling Java.
+- **Domain-Specific Constraints**: Embed business rules directly into the orchestration script.
+- **Separation of Concerns**: Data scientists tune the neural layer (Agents), while engineers manage the symbolic layer (Loom).
+
+## ⚒️ The 'weave' CLI
+Loom includes `weave`, a powerful CLI to manage your workflows:
+- **`weave run`**: Immediate execution of `.loom` scripts.
+- **`weave package`**: Encapsulates scripts and dependencies into executable JARs (Thin or Fat).
 
 ## Core Features
 *   **External DSL Runtime:** Loom ships with a handcrafted Lexer, Recursive Descent Parser, and AST Execution Engine that dynamically boots agents without recompiling Java.

@@ -22,8 +22,18 @@ public class LoomParser {
                 script.addAgent(parseAgent());
             } else if (match(TokenType.WORKFLOW)) {
                 script.addWorkflow(parseWorkflow());
+            } else if (match(TokenType.MCP)) {
+                script.addMcpServer(parseMcpServer());
+            } else if (match(TokenType.AUDIT)) {
+                script.setAuditConfig(parseAuditConfig());
+            } else if (match(TokenType.KNOWLEDGE)) {
+                script.addKnowledgeBase(parseKnowledgeBase());
+            } else if (match(TokenType.ROUTING)) {
+                script.addRoutingPolicy(parseRoutingPolicy());
+            } else if (match(TokenType.SCHEDULE)) {
+                script.addSchedule(parseSchedule());
             } else {
-                throw error(peek(), "Expected 'agent' or 'workflow' declaration, but got: " + peek().getType());
+                throw error(peek(), "Expected 'agent', 'workflow', 'mcp', 'audit', 'knowledge', 'routing', or 'schedule' declaration, but got: " + peek().getType());
             }
         }
 
@@ -45,6 +55,14 @@ public class LoomParser {
                 consume(TokenType.COLON, "Expect ':' after system.");
                 Token sysToken = consume(TokenType.STRING_LITERAL, "Expect string literal for system prompt.");
                 agent.setSystemPrompt(sysToken.getValue());
+            } else if (match(TokenType.SYSTEM_TEMPLATE)) {
+                consume(TokenType.COLON, "Expect ':' after system_template.");
+                Token tmpl = consume(TokenType.STRING_LITERAL, "Expect string literal for system_template id.");
+                agent.setSystemTemplate(tmpl.getValue());
+            } else if (match(TokenType.PERSONA)) {
+                consume(TokenType.COLON, "Expect ':' after persona.");
+                Token personaToken = consume(TokenType.STRING_LITERAL, "Expect string literal for persona name.");
+                agent.setPersona(personaToken.getValue());
             } else if (match(TokenType.TOOLS)) {
                 consume(TokenType.COLON, "Expect ':' after tools.");
                 consume(TokenType.LBRACKET, "Expect '[' before tools list.");
@@ -55,6 +73,43 @@ public class LoomParser {
                     } while (match(TokenType.COMMA));
                 }
                 consume(TokenType.RBRACKET, "Expect ']' after tools list.");
+            } else if (match(TokenType.MCP_SERVERS)) {
+                consume(TokenType.COLON, "Expect ':' after mcp_servers.");
+                consume(TokenType.LBRACKET, "Expect '[' before mcp_servers list.");
+                if (!check(TokenType.RBRACKET)) {
+                    do {
+                        Token srv = consume(TokenType.IDENTIFIER, "Expect MCP server name.");
+                        agent.addMcpServer(srv.getValue());
+                    } while (match(TokenType.COMMA));
+                }
+                consume(TokenType.RBRACKET, "Expect ']' after mcp_servers list.");
+            } else if (match(TokenType.SKILLS)) {
+                consume(TokenType.COLON, "Expect ':' after skills.");
+                consume(TokenType.LBRACKET, "Expect '[' before skills list.");
+                if (!check(TokenType.RBRACKET)) {
+                    do {
+                        Token skillToken = consume(TokenType.STRING_LITERAL, "Expect skill URI (string).");
+                        agent.addSkill(skillToken.getValue());
+                    } while (match(TokenType.COMMA));
+                }
+                consume(TokenType.RBRACKET, "Expect ']' after skills list.");
+            } else if (match(TokenType.MEMORY)) {
+                consume(TokenType.COLON, "Expect ':' after memory.");
+                agent.setMemory(parseMemoryConfig());
+            } else if (match(TokenType.ROUTING)) {
+                consume(TokenType.COLON, "Expect ':' after routing.");
+                Token policyToken = consume(TokenType.IDENTIFIER, "Expect routing policy name.");
+                agent.setRoutingPolicy(policyToken.getValue());
+            } else if (match(TokenType.KNOWLEDGE)) {
+                consume(TokenType.COLON, "Expect ':' after knowledge.");
+                consume(TokenType.LBRACKET, "Expect '[' before knowledge list.");
+                if (!check(TokenType.RBRACKET)) {
+                    do {
+                        Token kbToken = consume(TokenType.IDENTIFIER, "Expect knowledge base name.");
+                        agent.addKnowledgeBase(kbToken.getValue());
+                    } while (match(TokenType.COMMA));
+                }
+                consume(TokenType.RBRACKET, "Expect ']' after knowledge list.");
             } else {
                 throw error(peek(), "Unexpected token in agent body: " + peek().getType());
             }
@@ -103,6 +158,12 @@ public class LoomParser {
             return parseLoopStmt();
         } else if (match(TokenType.HUMAN_PROMPT)) {
             return parseHumanPromptStmt();
+        } else if (match(TokenType.GUARDRAIL)) {
+            return parseGuardrailStatement();
+        } else if (match(TokenType.PARALLEL)) {
+            return parseParallelStatement();
+        } else if (match(TokenType.OBSERVE)) {
+            return parseObserveStatement();
         }
         
         throw error(peek(), "Expected statement, got " + peek().getType());
@@ -231,6 +292,233 @@ public class LoomParser {
         consume(TokenType.ARROW, "Expect '->' to assign human prompt result.");
         Token varName = consume(TokenType.IDENTIFIER, "Expect variable name for result.");
         return new HumanPromptStmt(msg.getValue(), varName.getValue());
+    }
+
+    // -----------------------------------------------------------------------
+    // Tier-1 extension parsers
+    // -----------------------------------------------------------------------
+
+    /**
+     * Parses a top-level MCP server declaration.
+     * <pre>
+     * mcp PostgresDB {
+     *     transport: "stdio"
+     *     cmd: "npx @modelcontextprotocol/server-postgres"
+     * }
+     * </pre>
+     */
+    private McpServerDef parseMcpServer() {
+        Token nameToken = consume(TokenType.IDENTIFIER, "Expect MCP server name.");
+        McpServerDef mcp = new McpServerDef(nameToken.getValue());
+
+        consume(TokenType.LBRACE, "Expect '{' before mcp server body.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            if (match(TokenType.TRANSPORT)) {
+                consume(TokenType.COLON, "Expect ':' after transport.");
+                Token val = consume(TokenType.STRING_LITERAL, "Expect string literal for transport.");
+                mcp.setTransport(val.getValue());
+            } else if (match(TokenType.CMD)) {
+                consume(TokenType.COLON, "Expect ':' after cmd.");
+                Token val = consume(TokenType.STRING_LITERAL, "Expect string literal for cmd.");
+                mcp.setCmd(val.getValue());
+            } else {
+                throw error(peek(), "Unexpected token in mcp body: " + peek().getType());
+            }
+        }
+        consume(TokenType.RBRACE, "Expect '}' after mcp server body.");
+        return mcp;
+    }
+
+    /**
+     * Parses a top-level audit configuration block.
+     * <pre>
+     * audit {
+     *     logger: "file"
+     *     path: "./logs/loom-audit.jsonl"
+     * }
+     * </pre>
+     */
+    private AuditConfig parseAuditConfig() {
+        AuditConfig cfg = new AuditConfig();
+        consume(TokenType.LBRACE, "Expect '{' before audit body.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            if (match(TokenType.LOGGER)) {
+                consume(TokenType.COLON, "Expect ':' after logger.");
+                Token val = consume(TokenType.STRING_LITERAL, "Expect string literal for logger type.");
+                cfg.setLogger(val.getValue());
+            } else if (match(TokenType.PATH)) {
+                consume(TokenType.COLON, "Expect ':' after path.");
+                Token val = consume(TokenType.STRING_LITERAL, "Expect string literal for audit path.");
+                cfg.setPath(val.getValue());
+            } else {
+                throw error(peek(), "Unexpected token in audit body: " + peek().getType());
+            }
+        }
+        consume(TokenType.RBRACE, "Expect '}' after audit body.");
+        return cfg;
+    }
+
+    private KnowledgeDef parseKnowledgeBase() {
+        Token nameToken = consume(TokenType.IDENTIFIER, "Expect knowledge base name.");
+        KnowledgeDef kb = new KnowledgeDef(nameToken.getValue());
+
+        consume(TokenType.LBRACE, "Expect '{' before knowledge body.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            if (match(TokenType.TYPE)) {
+                consume(TokenType.COLON, "Expect ':' after type.");
+                kb.setType(consume(TokenType.STRING_LITERAL, "Expect type string.").getValue());
+            } else if (match(TokenType.PATH)) {
+                consume(TokenType.COLON, "Expect ':' after path.");
+                kb.setPath(consume(TokenType.STRING_LITERAL, "Expect path string.").getValue());
+            } else if (match(TokenType.CHUNK_SIZE)) {
+                consume(TokenType.COLON, "Expect ':' after chunk_size.");
+                kb.setChunkSize(Integer.parseInt(consume(TokenType.NUMBER_LITERAL, "Expect chunk size number.").getValue()));
+            } else if (match(TokenType.EMBEDDING)) {
+                consume(TokenType.COLON, "Expect ':' after embedding.");
+                kb.setEmbeddingProvider(consume(TokenType.STRING_LITERAL, "Expect embedding provider string.").getValue());
+            } else {
+                throw error(peek(), "Unexpected token in knowledge body: " + peek().getType());
+            }
+        }
+        consume(TokenType.RBRACE, "Expect '}' after knowledge body.");
+        return kb;
+    }
+
+    private RoutingPolicyDef parseRoutingPolicy() {
+        Token nameToken = consume(TokenType.IDENTIFIER, "Expect routing policy name.");
+        RoutingPolicyDef rp = new RoutingPolicyDef(nameToken.getValue());
+
+        consume(TokenType.LBRACE, "Expect '{' before routing body.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            if (match(TokenType.STRATEGY)) {
+                consume(TokenType.COLON, "Expect ':' after strategy.");
+                rp.setStrategy(consume(TokenType.STRING_LITERAL, "Expect strategy string.").getValue());
+            } else if (match(TokenType.PRIMARY)) {
+                consume(TokenType.COLON, "Expect ':' after primary.");
+                rp.setPrimaryModel(consume(TokenType.STRING_LITERAL, "Expect primary model string.").getValue());
+            } else if (match(TokenType.FALLBACK)) {
+                consume(TokenType.COLON, "Expect ':' after fallback.");
+                consume(TokenType.LBRACKET, "Expect '['.");
+                if (!check(TokenType.RBRACKET)) {
+                    do {
+                        rp.addFallbackModel(consume(TokenType.STRING_LITERAL, "Expect model string.").getValue());
+                    } while (match(TokenType.COMMA));
+                }
+                consume(TokenType.RBRACKET, "Expect ']'.");
+            } else {
+                throw error(peek(), "Unexpected token in routing body: " + peek().getType());
+            }
+        }
+        consume(TokenType.RBRACE, "Expect '}' after routing body.");
+        return rp;
+    }
+
+    private AgentDef.MemoryConfig parseMemoryConfig() {
+        AgentDef.MemoryConfig cfg = new AgentDef.MemoryConfig();
+        consume(TokenType.LBRACE, "Expect '{' before memory config.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            if (match(TokenType.TYPE)) {
+                consume(TokenType.COLON, "Expect ':' after type.");
+                cfg.setType(consume(TokenType.STRING_LITERAL, "Expect memory type string.").getValue());
+            } else if (match(TokenType.PATH)) {
+                consume(TokenType.COLON, "Expect ':' after path.");
+                cfg.setPath(consume(TokenType.STRING_LITERAL, "Expect path string.").getValue());
+            } else if (match(TokenType.NUMBER_LITERAL)) { // Assume this was mean to be a limit? Wait, I need a keyword
+                 // Actually I'll use match(TokenType.IDENTIFIER) and check if it's "limit"
+            } else if (peek().getType() == TokenType.IDENTIFIER && peek().getValue().equals("limit")) {
+                advance();
+                consume(TokenType.COLON, "Expect ':'.");
+                cfg.setLimit(Integer.parseInt(consume(TokenType.NUMBER_LITERAL, "Expect number.").getValue()));
+            } else {
+                throw error(peek(), "Unexpected token in memory body: " + peek().getType());
+            }
+        }
+        consume(TokenType.RBRACE, "Expect '}' after memory config.");
+        return cfg;
+    }
+
+    private GuardrailStmt parseGuardrailStatement() {
+        consume(TokenType.LPAREN, "Expect '(' after guardrail.");
+        Token typeToken = consume(TokenType.IDENTIFIER, "Expect guardrail type (e.g. PII).");
+        consume(TokenType.RPAREN, "Expect ')'.");
+
+        GuardrailStmt stmt = new GuardrailStmt(typeToken.getValue());
+
+        consume(TokenType.LBRACE, "Expect '{' before guardrail body.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            stmt.addBodyStatement(parseStatement());
+        }
+        consume(TokenType.RBRACE, "Expect '}' after guardrail body.");
+
+        if (match(TokenType.ON_VIOLATION)) {
+            consume(TokenType.LBRACE, "Expect '{' before on_violation body.");
+            while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                stmt.addViolationStatement(parseStatement());
+            }
+            consume(TokenType.RBRACE, "Expect '}' after on_violation body.");
+        }
+
+        return stmt;
+    }
+
+    private ScheduleDef parseSchedule() {
+        Token nameToken = consume(TokenType.IDENTIFIER, "Expect schedule name.");
+        ScheduleDef sd = new ScheduleDef(nameToken.getValue());
+
+        consume(TokenType.LBRACE, "Expect '{' before schedule body.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            if (match(TokenType.PATTERN)) {
+                consume(TokenType.COLON, "Expect ':' after pattern.");
+                sd.setPattern(consume(TokenType.STRING_LITERAL, "Expect pattern string.").getValue());
+            } else if (match(TokenType.AGENT)) {
+                consume(TokenType.COLON, "Expect ':' after agent.");
+                sd.setAgentName(consume(TokenType.IDENTIFIER, "Expect agent name.").getValue());
+            } else if (payloadMatch()) { // Generic lookup for task
+                advance(); // consume 'task'
+                consume(TokenType.COLON, "Expect ':' after key.");
+                sd.setTask(consume(TokenType.STRING_LITERAL, "Expect task string.").getValue());
+            } else if (match(TokenType.PATH)) { // Reuse path for delay? or just identifier
+                 consume(TokenType.COLON, "Expect ':'.");
+                 sd.setInitialDelay(consume(TokenType.STRING_LITERAL, "Expect delay string.").getValue());
+            } else if (peek().getType() == TokenType.IDENTIFIER) {
+                String key = advance().getValue();
+                consume(TokenType.COLON, "Expect ':' after key.");
+                String value = consume(TokenType.STRING_LITERAL, "Expect string value.").getValue();
+                if ("task".equals(key)) sd.setTask(value);
+                else if ("initial_delay".equals(key)) sd.setInitialDelay(value);
+            } else {
+                throw error(peek(), "Unexpected token in schedule body: " + peek().getType());
+            }
+        }
+        consume(TokenType.RBRACE, "Expect '}' after schedule body.");
+        return sd;
+    }
+
+    private ParallelStmt parseParallelStatement() {
+        ParallelStmt stmt = new ParallelStmt();
+        consume(TokenType.LBRACE, "Expect '{' after parallel.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            stmt.addStatement(parseStatement());
+        }
+        consume(TokenType.RBRACE, "Expect '}' after parallel body.");
+        return stmt;
+    }
+
+    private ObserveStmt parseObserveStatement() {
+        Token labelToken = consume(TokenType.STRING_LITERAL, "Expect observation label.");
+        consume(TokenType.LBRACE, "Expect '{' before expression.");
+        // We'll read everything until next '}' as the expression
+        StringBuilder expression = new StringBuilder();
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            expression.append(advance().getValue());
+            if (!check(TokenType.RBRACE)) expression.append(" ");
+        }
+        consume(TokenType.RBRACE, "Expect '}' after expression.");
+        return new ObserveStmt(labelToken.getValue(), expression.toString().trim());
+    }
+
+    private boolean payloadMatch() {
+        return peek().getType() == TokenType.IDENTIFIER && peek().getValue().equals("task");
     }
 
     private boolean match(TokenType... types) {

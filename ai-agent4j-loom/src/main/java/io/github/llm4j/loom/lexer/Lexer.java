@@ -9,24 +9,53 @@ public class Lexer {
     private static final Map<String, TokenType> KEYWORDS = new HashMap<>();
 
     static {
-        KEYWORDS.put("agent", TokenType.AGENT);
-        KEYWORDS.put("tool", TokenType.TOOL);
-        KEYWORDS.put("workflow", TokenType.WORKFLOW);
-        KEYWORDS.put("model", TokenType.MODEL);
-        KEYWORDS.put("system", TokenType.SYSTEM);
-        KEYWORDS.put("role", TokenType.ROLE);
-        KEYWORDS.put("tools", TokenType.TOOLS);
-        KEYWORDS.put("note", TokenType.NOTE);
-        KEYWORDS.put("handoff", TokenType.HANDOFF);
-        KEYWORDS.put("delegate", TokenType.DELEGATE);
-        KEYWORDS.put("to", TokenType.TO);
-        KEYWORDS.put("alt", TokenType.ALT);
-        KEYWORDS.put("else", TokenType.ELSE);
-        KEYWORDS.put("loop", TokenType.LOOP);
-        KEYWORDS.put("until", TokenType.UNTIL);
-        KEYWORDS.put("human_prompt", TokenType.HUMAN_PROMPT);
-        KEYWORDS.put("retry", TokenType.RETRY);
-        KEYWORDS.put("broadcast", TokenType.BROADCAST);
+        KEYWORDS.put("agent",           TokenType.AGENT);
+        KEYWORDS.put("tool",            TokenType.TOOL);
+        KEYWORDS.put("workflow",        TokenType.WORKFLOW);
+        KEYWORDS.put("model",           TokenType.MODEL);
+        KEYWORDS.put("system",          TokenType.SYSTEM);
+        KEYWORDS.put("role",            TokenType.ROLE);
+        KEYWORDS.put("tools",           TokenType.TOOLS);
+        KEYWORDS.put("note",            TokenType.NOTE);
+        KEYWORDS.put("handoff",         TokenType.HANDOFF);
+        KEYWORDS.put("delegate",        TokenType.DELEGATE);
+        KEYWORDS.put("to",              TokenType.TO);
+        KEYWORDS.put("alt",             TokenType.ALT);
+        KEYWORDS.put("else",            TokenType.ELSE);
+        KEYWORDS.put("loop",            TokenType.LOOP);
+        KEYWORDS.put("until",           TokenType.UNTIL);
+        KEYWORDS.put("human_prompt",    TokenType.HUMAN_PROMPT);
+        KEYWORDS.put("retry",           TokenType.RETRY);
+        KEYWORDS.put("broadcast",       TokenType.BROADCAST);
+        // Tier 1 extensions
+        KEYWORDS.put("mcp",             TokenType.MCP);
+        KEYWORDS.put("mcp_servers",     TokenType.MCP_SERVERS);
+        KEYWORDS.put("transport",       TokenType.TRANSPORT);
+        KEYWORDS.put("cmd",             TokenType.CMD);
+        KEYWORDS.put("persona",         TokenType.PERSONA);
+        KEYWORDS.put("system_template", TokenType.SYSTEM_TEMPLATE);
+        KEYWORDS.put("audit",           TokenType.AUDIT);
+        KEYWORDS.put("path",            TokenType.PATH);
+        KEYWORDS.put("logger",          TokenType.LOGGER);
+        // Tier 2 extensions
+        KEYWORDS.put("knowledge",       TokenType.KNOWLEDGE);
+        KEYWORDS.put("skills",          TokenType.SKILLS);
+        KEYWORDS.put("memory",          TokenType.MEMORY);
+        KEYWORDS.put("routing",         TokenType.ROUTING);
+        KEYWORDS.put("strategy",        TokenType.STRATEGY);
+        KEYWORDS.put("threshold",       TokenType.THRESHOLD);
+        KEYWORDS.put("guardrail",       TokenType.GUARDRAIL);
+        KEYWORDS.put("on_violation",    TokenType.ON_VIOLATION);
+        KEYWORDS.put("embedding",       TokenType.EMBEDDING);
+        KEYWORDS.put("chunk_size",      TokenType.CHUNK_SIZE);
+        KEYWORDS.put("primary",         TokenType.PRIMARY);
+        KEYWORDS.put("fallback",        TokenType.FALLBACK);
+        KEYWORDS.put("type",            TokenType.TYPE);
+        // Tier 3 extensions
+        KEYWORDS.put("parallel",        TokenType.PARALLEL);
+        KEYWORDS.put("schedule",        TokenType.SCHEDULE);
+        KEYWORDS.put("pattern",         TokenType.PATTERN);
+        KEYWORDS.put("observe",         TokenType.OBSERVE);
     }
 
     private final String source;

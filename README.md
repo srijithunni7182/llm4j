@@ -24,6 +24,17 @@ The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java 
 * **Skill Injection & Discovery**: Inject domain knowledge dynamically using **AgentSkill** (Markdown-based instructions) and automatically discover available skills.
 * **AI-Optimized**: Includes comprehensive `llms.txt` and specialized documentation optimized for AI scrapers and crawlers.
 
+## 🧵 The Orchestrator: [Loom](ai-agent4j-loom/)
+
+**Loom** is the **Neuro-Symbolic** orchestration layer of the llm4j stack. It provides a specialized DSL (`.loom`) to manage complex, multi-agent workflows with deterministic precision.
+
+* **Neuro-Symbolic**: Combines the reasoning power of LLMs with the rigid reliability of symbolic logic.
+* **DSL-Driven**: Define agents and workflows in a human-readable script; boot systems without Java recompilation.
+* **Deterministic Routing**: Native support for `handoff`, `delegate`, `parallel` execution, and `loop until` patterns.
+* **Enterprise Governance**: Integrated PII guardrails, cost-aware routing policies, and background task scheduling.
+
+👉 **[Master Loom Orchestration](ai-agent4j-loom/LOOM_GUIDE.md)**
+
 ### 🧩 The Extensions: [RAG Addons](ai-agent4j-addons/)
 
 For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilities while keeping the core light:

@@ -7,6 +7,7 @@ import io.github.llm4j.loom.ast.LoomScript;
 import io.github.llm4j.loom.lexer.Lexer;
 import io.github.llm4j.loom.parser.LoomParser;
 
+import io.github.llm4j.loom.runtime.*;
 import org.junit.jupiter.api.Test;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -52,7 +53,7 @@ public class RoutingIntegrationTest {
 
         executor.initialize();
 
-        HarnessContext ctx = executor.getContext();
+        VariableContext ctx = executor.getContext();
         ctx.setVariable("data", "hello");
         ctx.setVariable("ready", "true");
         ctx.setVariable("done", "false");
