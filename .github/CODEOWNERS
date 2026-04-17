@@ -1,0 +1,19 @@
+# Global default owner
+* @srijithunni7182
+
+# Core libraries
+/ai-agent4j/ @srijithunni7182
+/ai-agent4j-addons/ @srijithunni7182
+/ai-agent4j-loom/ @srijithunni7182
+
+# Applications
+/hexamind-hub/ @srijithunni7182
+/nirmaan-yantra/ @srijithunni7182
+/kingini/ @srijithunni7182
+/gmail-mcp-app/ @srijithunni7182
+
+# CI and release governance
+/.github/ @srijithunni7182
+/VERSION_MATRIX.md @srijithunni7182
+/API_COMPATIBILITY.md @srijithunni7182
+/MIGRATION_GUIDE_5_0.md @srijithunni7182

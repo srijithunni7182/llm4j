@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Build, Validate, and Deploy
 
 on:
   push:
@@ -11,8 +11,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-test:
-    name: Build & Test
+  core-unit-tests:
+    name: Core Unit Tests
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -29,14 +29,14 @@ jobs:
         gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
         gpg-passphrase: GPG_PASSPHRASE
 
-    - name: Build and Install Core (ai-agent4j)
+    - name: Build and Test Core (ai-agent4j)
       run: |
         mvn -B clean install -DskipTests=false
       working-directory: ai-agent4j
       env:
         NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
-    - name: Build and Install Addons (ai-agent4j-addons)
+    - name: Build and Test Addons (ai-agent4j-addons)
       run: |
         mvn -B clean install -DskipTests=false
       working-directory: ai-agent4j-addons
@@ -51,6 +51,66 @@ jobs:
         path: |
           ai-agent4j/target/surefire-reports/
           ai-agent4j-addons/target/surefire-reports/
+
+  app-smoke-builds:
+    name: App Smoke Builds
+    runs-on: ubuntu-latest
+    needs: core-unit-tests
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Install Core
+      run: mvn -B clean install -DskipTests
+      working-directory: ai-agent4j
+
+    - name: Install Addons
+      run: mvn -B clean install -DskipTests
+      working-directory: ai-agent4j-addons
+
+    - name: Compile Hexamind Hub
+      run: mvn -B -DskipTests compile
+      working-directory: hexamind-hub
+
+    - name: Compile Nirmaan Yantra Server
+      run: mvn -B -DskipTests compile
+      working-directory: nirmaan-yantra/nirmaan-yantra-server
+
+    - name: Compile Kingini
+      run: mvn -B -DskipTests compile
+      working-directory: kingini
+
+    - name: Compile Gmail MCP App
+      run: mvn -B -DskipTests compile
+      working-directory: gmail-mcp-app
+
+  deep-integration-tests:
+    name: Deep Integration Tests
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Run Core Integration Profile
+      run: mvn -B -Pintegration-tests verify
+      working-directory: ai-agent4j
+
+    - name: Run Addons Integration Profile
+      run: mvn -B -Pintegration-tests verify
+      working-directory: ai-agent4j-addons
 
   security-scan:
     name: OWASP Dependency Check
@@ -72,7 +132,7 @@ jobs:
 
   deploy:
     name: Deploy to Maven Central
-    needs: build-and-test
+    needs: [core-unit-tests, app-smoke-builds]
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     

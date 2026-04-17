@@ -99,6 +99,14 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 > **[Why AI Agent4J? Read our comparison against LangChain4j and Spring AI](ai-agent4j/wiki/WHY_AI_AGENT4J.md)**
 >
 > **[Version Matrix](VERSION_MATRIX.md)** for canonical coordinates and compatibility.
+>
+> **[Migration Guide 5.0](MIGRATION_GUIDE_5_0.md)** for legacy coordinate upgrades.
+
+## 📐 Project Standards
+
+- [Testing Strategy](TESTING_STRATEGY.md)
+- [API Compatibility Policy](API_COMPATIBILITY.md)
+- [Contributing Guide](CONTRIBUTING.md)
 
 ## 💡 Our Philosophy
 
