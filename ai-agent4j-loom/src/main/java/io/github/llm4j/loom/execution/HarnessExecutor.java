@@ -247,22 +247,9 @@ public class HarnessExecutor implements LoomEngine {
         if (stmt instanceof NoteStmt note) {
             log.info("NOTE: " + note.getMessage());
         } else if (stmt instanceof DelegateStmt del) {
-            ReActAgent agent = activeAgents.get(del.getTargetAgent());
-            if (agent == null) throw new IllegalStateException("Agent not found: " + del.getTargetAgent());
-
-            String resolvedPayload = resolvePayload(del.getPayload());
-            log.info("Delegating to " + del.getTargetAgent() + ": " + resolvedPayload);
-
-            io.github.llm4j.agent.AgentResult result = agent.run(resolvedPayload);
-            context.setVariable(del.getVariableName(), result.getFinalAnswer());
-
-            auditLogger.logAgentDecision(AuditEvent.builder()
-                .sessionId(sessionId)
-                .agentResult(result)
-                .addMetadata("agent", del.getTargetAgent())
-                .addMetadata("statement", "delegate")
-                .timestamp(Instant.now())
-                .build());
+            executeDelegate(del);
+        } else if (stmt instanceof CallStmt call) {
+            executeCall(call);
         } else if (stmt instanceof HandoffStmt handoff) {
             ReActAgent agent = activeAgents.get(handoff.getTargetAgent());
             String resolvedPayload = resolvePayload(handoff.getPayload());
@@ -330,7 +317,8 @@ public class HarnessExecutor implements LoomEngine {
             if ("PII".equalsIgnoreCase(guard.getType())) {
                 // Pre-execution scan (e.g. check variables in context)
                 boolean violation = false;
-                for (String val : context.getAll().values()) {
+                for (Object valObj : context.getAll().values()) {
+                    String val = String.valueOf(valObj);
                     if (piiDetector.detect(val).containsPII()) {
                         violation = true;
                         break;
@@ -466,21 +454,140 @@ public class HarnessExecutor implements LoomEngine {
      * @param rawPayload the raw payload string from the AST node
      * @return the payload with all resolvable variable references replaced
      */
+    private void executeDelegate(DelegateStmt del) {
+        AgentDef agentDef = script.getAgents().stream()
+                .filter(a -> a.getName().equals(del.getTargetAgent()))
+                .findFirst().orElseThrow();
+        ReActAgent agent = activeAgents.get(del.getTargetAgent());
+        if (agent == null) throw new IllegalStateException("Agent not found: " + del.getTargetAgent());
+
+        String resolvedPayload = resolvePayload(del.getPayload());
+        if (agentDef.getOutputSchema() != null) {
+            resolvedPayload += "\n\nCRITICAL: You MUST respond in valid JSON format only, following this schema: " 
+                            + stringifySchema(agentDef.getOutputSchema());
+        }
+
+        int attempts = 0;
+        int maxAttempts = del.getRetryCount() + 1;
+        Exception lastError = null;
+
+        while (attempts < maxAttempts) {
+            try {
+                log.info("Delegating to " + del.getTargetAgent() + " (Attempt " + (attempts + 1) + "): " + resolvedPayload);
+                io.github.llm4j.agent.AgentResult result = agent.run(resolvedPayload);
+                
+                Object finalValue = result.getFinalAnswer();
+                if (agentDef.getOutputSchema() != null) {
+                    finalValue = parseJsonResult(result.getFinalAnswer());
+                }
+
+                context.setVariable(del.getVariableName(), finalValue);
+
+                auditLogger.logAgentDecision(AuditEvent.builder()
+                        .sessionId(sessionId)
+                        .agentResult(result)
+                        .addMetadata("agent", del.getTargetAgent())
+                        .addMetadata("statement", "delegate")
+                        .timestamp(Instant.now())
+                        .build());
+                return; // Success
+            } catch (Exception e) {
+                log.warning("Delegation failed: " + e.getMessage());
+                lastError = e;
+                attempts++;
+            }
+        }
+
+        // Exhausted retries
+        log.severe("Exhausted retries for delegate to " + del.getTargetAgent());
+        if (!del.getOnFailure().isEmpty()) {
+            VariableContext original = this.context;
+            try {
+                VariableContext failureContext = original.pushFrame();
+                failureContext.setVariable("_error", lastError != null ? lastError.getMessage() : "Unknown error");
+                this.setInternalContext(failureContext);
+                for (Statement failStmt : del.getOnFailure()) {
+                    executeStatement(failStmt);
+                }
+            } finally {
+                this.setInternalContext(original);
+            }
+        } else {
+            throw new RuntimeException("Delegate to " + del.getTargetAgent() + " failed after " + del.getRetryCount() + " retries", lastError);
+        }
+    }
+
+    private void executeCall(CallStmt call) {
+        log.info("Calling sub-workflow: " + call.getWorkflowName());
+        
+        VariableContext original = this.context;
+        try {
+            VariableContext subContext = original.pushFrame();
+            for (Map.Entry<String, String> arg : call.getArguments().entrySet()) {
+                subContext.setVariable(arg.getKey(), resolvePayload(arg.getValue()));
+            }
+            
+            this.setInternalContext(subContext);
+            executeWorkflow(call.getWorkflowName(), null);
+            
+            Object resultValue = subContext.getVariable("result");
+            original.setVariable(call.getResultVariable(), resultValue);
+        } finally {
+            this.setInternalContext(original);
+        }
+    }
+
+    private void setInternalContext(VariableContext context) {
+        try {
+            java.lang.reflect.Field field = HarnessExecutor.class.getDeclaredField("context");
+            field.setAccessible(true);
+            field.set(this, context);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private String stringifySchema(SchemaDef schema) {
+        if (schema == null) return "any";
+        return switch (schema.getType()) {
+            case OBJECT -> "{" + schema.getFields().entrySet().stream()
+                    .map(e -> e.getKey() + ": " + stringifySchema(e.getValue()))
+                    .collect(java.util.stream.Collectors.joining(", ")) + "}";
+            case LIST -> "list<" + stringifySchema(schema.getElementType()) + ">";
+            case ENUM -> "enum" + schema.getEnumValues().toString();
+            default -> schema.getType().name().toLowerCase();
+        };
+    }
+
+    private Object parseJsonResult(String raw) {
+        try {
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            String jsonPart = raw;
+            if (raw.contains("```json")) {
+                jsonPart = raw.substring(raw.indexOf("```json") + 7, raw.lastIndexOf("```"));
+            } else if (raw.contains("```")) {
+                jsonPart = raw.substring(raw.indexOf("```") + 3, raw.lastIndexOf("```"));
+            }
+            return mapper.readValue(jsonPart.trim(), Object.class);
+        } catch (Exception e) {
+            log.warning("Failed to parse JSON result: " + e.getMessage() + ". Returning raw string.");
+            return raw;
+        }
+    }
+
     private String resolvePayload(String rawPayload) {
         String resolved = rawPayload;
 
         // Phase 1: delimited {varName} substitution — collision-safe, preferred syntax.
-        for (Map.Entry<String, String> entry : context.getAll().entrySet()) {
-            resolved = resolved.replace("{" + entry.getKey() + "}", entry.getValue());
+        for (Map.Entry<String, Object> entry : context.getAll().entrySet()) {
+            resolved = resolved.replace("{" + entry.getKey() + "}", String.valueOf(entry.getValue()));
         }
 
         // Phase 2: bare-name substitution for backward compatibility with existing .loom scripts.
-        // Sorted longest-key-first so that longer names (e.g. "child_id") are substituted
-        // before their prefixes (e.g. "id"), minimising collision risk.
-        java.util.List<Map.Entry<String, String>> entries = new java.util.ArrayList<>(context.getAll().entrySet());
+        java.util.List<Map.Entry<String, Object>> entries = new java.util.ArrayList<>(context.getAll().entrySet());
         entries.sort((a, b) -> Integer.compare(b.getKey().length(), a.getKey().length()));
-        for (Map.Entry<String, String> entry : entries) {
-            resolved = resolved.replace(entry.getKey(), entry.getValue());
+        for (Map.Entry<String, Object> entry : entries) {
+            resolved = resolved.replace(entry.getKey(), String.valueOf(entry.getValue()));
         }
 
         return resolved;

@@ -61,7 +61,7 @@ public class RoutingIntegrationTest {
         executor.executeWorkflow("RoutingTest", new HashMap<>());
 
         // Verify broadcast combined results
-        String analysisResults = ctx.getVariable("analysis_results");
+        String analysisResults = (String) ctx.getVariable("analysis_results");
         assertNotNull(analysisResults);
         assertTrue(analysisResults.contains("Analyze this: hello"), "Should contain mocked broadcast result: " + analysisResults);
         

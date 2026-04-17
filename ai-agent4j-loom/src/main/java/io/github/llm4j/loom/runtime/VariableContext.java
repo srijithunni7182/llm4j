@@ -7,7 +7,12 @@ import java.util.Map;
  * This allows different engines to implement their own state management.
  */
 public interface VariableContext {
-    void setVariable(String name, String value);
-    String getVariable(String name);
-    Map<String, String> getAll();
+    void setVariable(String name, Object value);
+    Object getVariable(String name);
+    Map<String, Object> getAll();
+
+    /** Creates a new child context that has this as its parent. */
+    VariableContext pushFrame();
+    /** Returns the parent context, or null if this is the root. */
+    VariableContext popFrame();
 }

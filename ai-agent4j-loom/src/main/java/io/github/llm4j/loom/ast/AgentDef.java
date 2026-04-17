@@ -20,6 +20,7 @@ public class AgentDef implements Node {
     private MemoryConfig memory;
     private String routingPolicy;
     private final List<String> knowledgeBases = new ArrayList<>();
+    private SchemaDef outputSchema;
 
     public AgentDef(String name) {
         this.name = name;
@@ -68,6 +69,9 @@ public class AgentDef implements Node {
 
     public List<String> getKnowledgeBases() { return knowledgeBases; }
     public void addKnowledgeBase(String kbName) { this.knowledgeBases.add(kbName); }
+
+    public SchemaDef getOutputSchema() { return outputSchema; }
+    public void setOutputSchema(SchemaDef outputSchema) { this.outputSchema = outputSchema; }
 
     /** Inner class for agent memory configuration. */
     public static class MemoryConfig {

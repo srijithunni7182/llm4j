@@ -63,11 +63,11 @@ public class HexamindIntegrationTest {
         // Verify state changes inside context
         VariableContext context = executor.getContext();
         
-        String analystAnalysis = context.getVariable("analyst_analysis");
+        String analystAnalysis = (String) context.getVariable("analyst_analysis");
         assertNotNull(analystAnalysis);
         assertTrue(analystAnalysis.contains("Should AI be open source?")); // Because 'problem' interpolation
         
-        String consensus = context.getVariable("consensus");
+        String consensus = (String) context.getVariable("consensus");
         assertNotNull(consensus);
         assertTrue(consensus.contains("Synthesize the following"));
     }

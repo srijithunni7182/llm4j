@@ -167,6 +167,79 @@ workflow ProcessFeedback(rawText) {
 }
 ```
 
+## 🚀 5. The Frontier: Advanced Orchestration
+
+Loom now supports advanced features that bridge the gap between stochastic neural generation and deterministic symbolic logic.
+
+### Output Schema Enforcement
+Agents can now define a strict contract for their responses. Loom automatically instructs the LLM to respond in JSON and parses it into a structured object, enabling path-based symbolic checks.
+
+```loom
+agent Auditor {
+    model: "gemini-1.5-pro"
+    output_schema: {
+        status: enum["SECURE", "VULNERABLE"],
+        issues: list<string>
+    }
+}
+
+workflow Audit() {
+    delegate "Check this" to Auditor -> report
+    
+    // Typed symbolic check (Status is an enum, not just a string)
+    alt (report.status == "SECURE") {
+        note "System is secured."
+    }
+}
+```
+
+### Workflow-Level Retry & Error Contracts
+Define resilience logic directly in the DSL. If an agent fails (API error, timeout, or malformed JSON), Loom handles retries and triggers the `on_failure` recovery block.
+
+```loom
+workflow RobustTask() {
+    delegate "Process important data" to Worker -> res
+        retry 3
+        on_failure {
+            note "Worker failed after 3 tries: {_error}"
+            handoff "Manual recovery needed" to Supervisor
+        }
+}
+```
+
+### Workflow Composition & Modularity
+Loom supports building complex multi-agent systems by composing workflows from multiple files. This is achieved using the `import` statement and the `call` statement.
+
+#### 1. Importing External Files
+Use `import` at the top of your script to bring in agents, workflows, and other definitions from another `.loom` file.
+
+```loom
+import "agents_library.loom"
+import "sub_workflows/research.loom"
+
+workflow Main() {
+    call Analyze(topic="Neuro-Symbolic AI") -> researchData
+}
+```
+
+> [!NOTE]
+> **Flat Namespace**: Loom uses a flat namespace for all merged files. If multiple files define an agent or workflow with the same name, the system will use the one parsed last.
+> **Relative Paths**: Import paths are resolved relative to the directory of the file containing the `import` statement.
+> **Circular Safety**: Loom automatically detects and prevents circular imports (e.g., File A importing File B which imports File A), throwing a parser error if a cycle is found.
+
+#### 2. Reusable Primitives (`call`)
+Treat workflows as reusable components. Sub-workflows run in isolated variable scopes.
+
+```loom
+workflow Analyze(topic) {
+    delegate "Research {topic}" to Researcher -> result
+}
+
+workflow Main() {
+    call Analyze(topic="Neuro-Symbolic AI") -> researchData
+}
+```
+
 ### Scheduled Background Tasks
 Define recurring tasks that run independently of workflows.
 

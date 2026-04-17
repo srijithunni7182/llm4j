@@ -1,0 +1,2 @@
+import "circular_b.loom"
+workflow A() { note "A" }

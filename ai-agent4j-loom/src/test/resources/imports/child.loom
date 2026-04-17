@@ -1,0 +1,8 @@
+agent ChildAgent {
+    model: "gpt-4"
+    system: "I am a child agent"
+}
+
+workflow ChildWorkflow() {
+    note "Hello from child"
+}

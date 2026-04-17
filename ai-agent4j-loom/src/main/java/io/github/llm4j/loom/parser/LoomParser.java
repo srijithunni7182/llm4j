@@ -20,6 +20,8 @@ public class LoomParser {
         while (!isAtEnd()) {
             if (match(TokenType.AGENT)) {
                 script.addAgent(parseAgent());
+            } else if (match(TokenType.IMPORT)) {
+                script.addImport(parseImport());
             } else if (match(TokenType.WORKFLOW)) {
                 script.addWorkflow(parseWorkflow());
             } else if (match(TokenType.MCP)) {
@@ -38,6 +40,11 @@ public class LoomParser {
         }
 
         return script;
+    }
+
+    private String parseImport() {
+        Token pathToken = consume(TokenType.STRING_LITERAL, "Expect string literal for import path.");
+        return pathToken.getValue();
     }
 
     private AgentDef parseAgent() {
@@ -110,6 +117,9 @@ public class LoomParser {
                     } while (match(TokenType.COMMA));
                 }
                 consume(TokenType.RBRACKET, "Expect ']' after knowledge list.");
+            } else if (match(TokenType.OUTPUT_SCHEMA)) {
+                consume(TokenType.COLON, "Expect ':' after output_schema.");
+                agent.setOutputSchema(parseSchema());
             } else {
                 throw error(peek(), "Unexpected token in agent body: " + peek().getType());
             }
@@ -164,6 +174,8 @@ public class LoomParser {
             return parseParallelStatement();
         } else if (match(TokenType.OBSERVE)) {
             return parseObserveStatement();
+        } else if (match(TokenType.CALL)) {
+            return parseCallStmt();
         }
         
         throw error(peek(), "Expected statement, got " + peek().getType());
@@ -209,7 +221,93 @@ public class LoomParser {
         consume(TokenType.ARROW, "Expect '->' to assign delegate result.");
         Token varName = consume(TokenType.IDENTIFIER, "Expect variable name for result.");
 
-        return new DelegateStmt(payload, target.getValue(), varName.getValue());
+        DelegateStmt stmt = new DelegateStmt(payload, target.getValue(), varName.getValue());
+
+        if (match(TokenType.RETRY)) {
+            Token count = consume(TokenType.NUMBER_LITERAL, "Expect number of retries.");
+            stmt.setRetryCount((int) Double.parseDouble(count.getValue()));
+        }
+
+        if (match(TokenType.ON_FAILURE)) {
+            consume(TokenType.LBRACE, "Expect '{' before on_failure body.");
+            while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                stmt.getOnFailure().add(parseStatement());
+            }
+            consume(TokenType.RBRACE, "Expect '}' after on_failure body.");
+        }
+
+        return stmt;
+    }
+
+    private CallStmt parseCallStmt() {
+        Token nameToken = consume(TokenType.IDENTIFIER, "Expect workflow name to call.");
+        java.util.Map<String, String> args = new java.util.HashMap<>();
+
+        consume(TokenType.LPAREN, "Expect '(' before call arguments.");
+        if (!check(TokenType.RPAREN)) {
+            do {
+                Token key = consume(TokenType.IDENTIFIER, "Expect argument name.");
+                consume(TokenType.ASSIGN, "Expect '=' after argument name.");
+                String value;
+                if (match(TokenType.STRING_LITERAL)) {
+                    value = previous().getValue();
+                } else if (match(TokenType.IDENTIFIER)) {
+                    value = previous().getValue();
+                } else {
+                    throw error(peek(), "Expect string or variable for argument value.");
+                }
+                args.put(key.getValue(), value);
+            } while (match(TokenType.COMMA));
+        }
+        consume(TokenType.RPAREN, "Expect ')' after call arguments.");
+
+        consume(TokenType.ARROW, "Expect '->' to assign call result.");
+        Token resultVar = consume(TokenType.IDENTIFIER, "Expect variable name for result.");
+
+        return new CallStmt(nameToken.getValue(), args, resultVar.getValue());
+    }
+
+    private SchemaDef parseSchema() {
+        if (match(TokenType.LBRACE)) {
+            SchemaDef schema = new SchemaDef(SchemaDef.Type.OBJECT);
+            java.util.Map<String, SchemaDef> fields = new java.util.HashMap<>();
+            if (!check(TokenType.RBRACE)) {
+                do {
+                    Token fieldName = consume(TokenType.IDENTIFIER, "Expect field name.");
+                    consume(TokenType.COLON, "Expect ':' after field name.");
+                    fields.put(fieldName.getValue(), parseSchema());
+                } while (match(TokenType.COMMA));
+            }
+            consume(TokenType.RBRACE, "Expect '}' after object schema.");
+            schema.setFields(fields);
+            return schema;
+        } else if (match(TokenType.LIST)) {
+            consume(TokenType.LT, "Expect '<' after list.");
+            SchemaDef schema = new SchemaDef(SchemaDef.Type.LIST);
+            schema.setElementType(parseSchema());
+            consume(TokenType.GT, "Expect '>' after list type.");
+            return schema;
+        } else if (match(TokenType.ENUM)) {
+            consume(TokenType.LBRACKET, "Expect '[' after enum.");
+            SchemaDef schema = new SchemaDef(SchemaDef.Type.ENUM);
+            java.util.List<String> values = new java.util.ArrayList<>();
+            do {
+                values.add(consume(TokenType.STRING_LITERAL, "Expect string literal in enum.").getValue());
+            } while (match(TokenType.COMMA));
+            consume(TokenType.RBRACKET, "Expect ']' after enum values.");
+            schema.setEnumValues(values);
+            return schema;
+        } else if (match(TokenType.IDENTIFIER)) {
+            String type = previous().getValue().toLowerCase();
+            return switch (type) {
+                case "string" -> new SchemaDef(SchemaDef.Type.STRING);
+                case "number" -> new SchemaDef(SchemaDef.Type.NUMBER);
+                case "boolean" -> new SchemaDef(SchemaDef.Type.BOOLEAN);
+                default -> throw error(previous(), "Unknown schema type: " + type);
+            };
+        }
+
+        throw error(peek(), "Expect schema definition.");
     }
 
     private AltStmt parseAltStmt() {

@@ -10,6 +10,7 @@ public class Lexer {
 
     static {
         KEYWORDS.put("agent",           TokenType.AGENT);
+        KEYWORDS.put("import",          TokenType.IMPORT);
         KEYWORDS.put("tool",            TokenType.TOOL);
         KEYWORDS.put("workflow",        TokenType.WORKFLOW);
         KEYWORDS.put("model",           TokenType.MODEL);
@@ -56,6 +57,12 @@ public class Lexer {
         KEYWORDS.put("schedule",        TokenType.SCHEDULE);
         KEYWORDS.put("pattern",         TokenType.PATTERN);
         KEYWORDS.put("observe",         TokenType.OBSERVE);
+        // Frontier features
+        KEYWORDS.put("call",            TokenType.CALL);
+        KEYWORDS.put("enum",            TokenType.ENUM);
+        KEYWORDS.put("list",            TokenType.LIST);
+        KEYWORDS.put("output_schema",   TokenType.OUTPUT_SCHEMA);
+        KEYWORDS.put("on_failure",      TokenType.ON_FAILURE);
     }
 
     private final String source;

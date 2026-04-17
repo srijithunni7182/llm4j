@@ -8,21 +8,46 @@ import java.util.concurrent.ConcurrentHashMap;
  * Default thread-safe implementation of VariableContext.
  */
 public class DefaultVariableContext implements VariableContext {
-    private final Map<String, String> variables = new ConcurrentHashMap<>();
+    private final Map<String, Object> variables = new ConcurrentHashMap<>();
+    private final VariableContext parent;
+
+    public DefaultVariableContext() {
+        this.parent = null;
+    }
+
+    private DefaultVariableContext(VariableContext parent) {
+        this.parent = parent;
+    }
 
     @Override
-    public void setVariable(String name, String value) {
+    public void setVariable(String name, Object value) {
         if (value == null) value = "";
         variables.put(name, value);
     }
 
     @Override
-    public String getVariable(String name) {
-        return variables.getOrDefault(name, "");
+    public Object getVariable(String name) {
+        Object val = variables.get(name);
+        if (val == null && parent != null) {
+            return parent.getVariable(name);
+        }
+        return val != null ? val : "";
     }
 
     @Override
-    public Map<String, String> getAll() {
-        return new HashMap<>(variables);
+    public Map<String, Object> getAll() {
+        Map<String, Object> all = parent != null ? parent.getAll() : new HashMap<>();
+        all.putAll(variables);
+        return all;
+    }
+
+    @Override
+    public VariableContext pushFrame() {
+        return new DefaultVariableContext(this);
+    }
+
+    @Override
+    public VariableContext popFrame() {
+        return this.parent;
     }
 }

@@ -28,9 +28,17 @@ Loom includes `weave`, a powerful CLI to manage your workflows:
 
 ## Core Features
 *   **External DSL Runtime:** Loom ships with a handcrafted Lexer, Recursive Descent Parser, and AST Execution Engine that dynamically boots agents without recompiling Java.
+*   **Modular Architecture**: Split large workflows into multiple files using the `import` statement. All agents, workflows, and configurations are merged into a flat namespace.
 *   **Expressive Routing:** Support for structural semantics like `handoff`, `delegate`, `broadcast` (parallel stream execution), `alt` (conditionals), and `loop until`.
 *   **Human-In-The-Loop:** Built-in semantic support for `human_prompt` to easily pause execution and await external human verification or input without thread blocking trickery.
 *   **Inversion of Control via `.loot`:** Rigid adherence to the principle of least privilege. Workflows define tools by name inside `.loom`, but the actual fully qualified Java classpath mapping must be explicitly provided in a separate `.loot` file, dynamically instantiated using Reflection.
+
+## ✨ Key Features (The Frontier)
+
+*   🚀 **Structured Neuro-Symbolic Output**: Enforce strict JSON schemas (Enums, Lists, Objects) on neural generations using the `output_schema` block.
+*   🛡️ **Resilience Contracts**: Direct DSL support for `retry <n>` and `on_failure { ... }` blocks to handle model instability or API failures.
+*   🧩 **Sub-workflow Composition**: Build reusable agentic primitives using the `call` statement with isolated variable scopes.
+*   🎯 **Typed Symbolic Checks**: Perform logic checks on nested JSON paths (e.g. `alt (report.status == "OK")`) directly in your workflows.
 
 ---
 

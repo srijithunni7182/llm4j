@@ -10,6 +10,7 @@ public class LoomScript implements Node {
     private final List<KnowledgeDef> knowledgeBases = new ArrayList<>();
     private final List<RoutingPolicyDef> routingPolicies = new ArrayList<>();
     private final List<ScheduleDef> schedules = new ArrayList<>();
+    private final List<String> imports = new ArrayList<>();
     private AuditConfig auditConfig;
 
     public void addAgent(AgentDef agent) {
@@ -38,6 +39,21 @@ public class LoomScript implements Node {
     public void addSchedule(ScheduleDef schedule) { this.schedules.add(schedule); }
     public List<ScheduleDef> getSchedules() { return schedules; }
 
+    public void addImport(String path) { this.imports.add(path); }
+    public List<String> getImports() { return imports; }
+
     public void setAuditConfig(AuditConfig auditConfig) { this.auditConfig = auditConfig; }
     public AuditConfig getAuditConfig() { return auditConfig; }
+
+    public void merge(LoomScript other) {
+        this.agents.addAll(other.agents);
+        this.workflows.addAll(other.workflows);
+        this.mcpServers.addAll(other.mcpServers);
+        this.knowledgeBases.addAll(other.knowledgeBases);
+        this.routingPolicies.addAll(other.routingPolicies);
+        this.schedules.addAll(other.schedules);
+        if (this.auditConfig == null) {
+            this.auditConfig = other.auditConfig;
+        }
+    }
 }

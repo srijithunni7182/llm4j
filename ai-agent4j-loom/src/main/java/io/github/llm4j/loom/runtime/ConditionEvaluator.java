@@ -46,7 +46,8 @@ public class ConditionEvaluator {
             return evaluateBinary(cond, "<", context);
         } else {
             // Bare boolean flag variable: loop until (isDone)
-            return "true".equalsIgnoreCase(context.getVariable(cond));
+            Object val = context.getVariable(cond);
+            return "true".equalsIgnoreCase(val != null ? val.toString() : "");
         }
     }
 
@@ -54,10 +55,11 @@ public class ConditionEvaluator {
         String[] parts = cond.split(java.util.regex.Pattern.quote(operator), 2);
         if (parts.length != 2) return false;
 
-        String varName       = parts[0].trim();
+        String path          = parts[0].trim();
         String expectedRaw   = parts[1].trim().replace("\"", ""); // strip surrounding quotes
 
-        String actualValue   = context.getVariable(varName);
+        Object actualValueObj = resolvePath(path, context);
+        String actualValue = actualValueObj != null ? actualValueObj.toString() : "";
 
         // Attempt numeric comparison when both sides look like numbers.
         if (isNumeric(actualValue) && isNumeric(expectedRaw)) {
@@ -68,6 +70,28 @@ public class ConditionEvaluator {
 
         // Fall back to string comparison for == and !=.
         return compareString(actualValue, expectedRaw, operator);
+    }
+
+    private static Object resolvePath(String path, VariableContext context) {
+        if (!path.contains(".")) {
+            return context.getVariable(path);
+        }
+
+        String[] parts = path.split("\\.");
+        Object current = context.getVariable(parts[0]);
+
+        for (int i = 1; i < parts.length; i++) {
+            if (current == null) return null;
+            current = getProperty(current, parts[i]);
+        }
+        return current;
+    }
+
+    private static Object getProperty(Object obj, String field) {
+        if (obj instanceof java.util.Map<?, ?> map) {
+            return map.get(field);
+        }
+        return null;
     }
 
     private static boolean compareNumeric(double actual, double expected, String operator) {

@@ -3,6 +3,7 @@ package io.github.llm4j.loom.lexer;
 public enum TokenType {
     // Keywords — core
     AGENT,
+    IMPORT,
     TOOL,
     WORKFLOW,
     MODEL,
@@ -61,6 +62,13 @@ public enum TokenType {
     SCHEDULE,
     PATTERN,
     OBSERVE,
+
+    // Frontier features
+    CALL,
+    ENUM,
+    LIST,
+    OUTPUT_SCHEMA,
+    ON_FAILURE,
 
     // Identifiers and Literals
     IDENTIFIER,

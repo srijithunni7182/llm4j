@@ -52,10 +52,8 @@ public class WeaveCLI implements Callable<Integer> {
             System.out.println("🧵 Weaving workflow: " + scriptFile.getName());
 
             // 1. Parsing
-            String content = Files.readString(scriptFile.toPath());
-            Lexer lexer = new Lexer(content);
-            LoomParser parser = new LoomParser(lexer.tokenize());
-            LoomScript script = parser.parseScript();
+            LoomLoader loader = new LoomLoader();
+            LoomScript script = loader.load(scriptFile.getAbsolutePath());
 
             // 2. Setup
             ToolRegistry registry = new ToolRegistry();

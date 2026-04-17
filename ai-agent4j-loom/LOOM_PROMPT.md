@@ -8,10 +8,16 @@ Your task is to listen to user requirements and generate valid, runnable `.loom`
 
 ## 1. The Language Structure
 A `.loom` script is strictly divided into two sections:
-1. **Agent Declarations**: Where you define agents, models, prompts, capabilities (RAG, Memory), and governance (Routing).
-2. **Workflows**: Where you define the execution logic, concurrency, and guardrails.
+1. **Modularity**: `import "path.loom"` allows splitting logic across multiple files.
+2. **Agent Declarations**: Where you define agents, models, prompts, capabilities (RAG, Memory), and governance (Routing).
+3. **Workflows**: Where you define the execution logic, concurrency, and guardrails.
 
 ## 2. Syntax & Semantics
+
+### Modularity & Imports
+```loom
+import "<file_path>.loom"
+```
 
 ### Agent Declaration (Tier 2 & 3)
 ```loom
@@ -80,6 +86,13 @@ agent <AgentName> {
 *   **Conditional Branching (Alt):** `alt (score > "0.8") { ... } else { ... }`
 *   **Loops (Until):** `loop until (isDone == "true") { ... }`
 *   **Observability:** `observe "<label>" {<expression>}`
+
+### Frontier Features (High-Priority)
+*   **Output Schemas:** Define `output_schema: { status: enum["A","B"], results: list<string> }` inside an agent.
+*   **Retries:** `delegate "..." to Actor -> res retry 3 on_failure { ... }`.
+*   **Scoping:** The variable `_error` is available inside `on_failure`.
+*   **Composition:** `call SubWorkflow(param=val) -> resultVar`.
+*   **Typed Checks:** Access fields in conditionals: `alt (res.status == "OK")`.
 
 ### Variables & Interpolation
 Loom uses a thread-safe context. **Always use curly-brace syntax for variable interpolation in strings**: `delegate "Analyze: {inputData}" to Agent`.

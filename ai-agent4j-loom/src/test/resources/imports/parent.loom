@@ -1,0 +1,10 @@
+import "child.loom"
+
+agent ParentAgent {
+    model: "gpt-4"
+    system: "I am a parent agent"
+}
+
+workflow ParentWorkflow() {
+    call ChildWorkflow() -> res
+}
