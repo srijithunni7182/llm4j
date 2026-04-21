@@ -15,10 +15,10 @@
     <modules>
         <module>ai-agent4j</module>
         <module>ai-agent4j-addons</module>
-        <module>ai-agent4j-loom</module>
-        <module>hexamind-hub</module>
-        <module>nirmaan-yantra/nirmaan-yantra-server</module>
-        <module>kingini</module>
-        <module>gmail-mcp-app</module>
+        <module>loom/ai-agent4j-loom</module>
+        <module>examples/hexamind-hub</module>
+        <module>examples/nirmaan-yantra/nirmaan-yantra-server</module>
+        <module>examples/kingini</module>
+        <module>examples/gmail-mcp-app</module>
     </modules>
 </project>
