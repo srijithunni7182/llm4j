@@ -1,0 +1,83 @@
+{
+  "name": "vscode-loom",
+  "displayName": "Loom",
+  "description": "VS Code extension for Loom DSL (.loom and .loot files). Provides syntax highlighting, LSP diagnostics, workflow outline, and run command.",
+  "version": "1.0.0",
+  "publisher": "srijithunni7182",
+  "repository": {"url": "https://github.com/srijithunni7182/llm4j"},
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "activationEvents": [
+    "onLanguage:loom",
+    "onLanguage:loot"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "loom",
+        "extensions": [".loom"],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "loot",
+        "extensions": [".loot"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "loom",
+        "scopeName": "source.loom",
+        "path": "./syntaxes/loom.tmLanguage.json"
+      },
+      {
+        "language": "loot",
+        "scopeName": "source.loot",
+        "path": "./syntaxes/loot.tmLanguage.json"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "loomExplorer",
+          "title": "Loom",
+          "icon": "$(list-tree)"
+        }
+      ]
+    },
+    "views": {
+      "loomExplorer": [
+        {
+          "id": "loom.workflowOutline",
+          "name": "Workflow Outline"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "loom.runWorkflow",
+        "title": "Loom: Run Workflow"
+      }
+    ]
+  },
+  "files": [
+    "out/**/*",
+    "bin/**/*",
+    "syntaxes/**/*",
+    "language-configuration.json"
+  ],
+  "dependencies": {
+    "vscode-languageclient": "9.0.1",
+    "vscode-languageserver": "9.0.1",
+    "vscode-languageserver-textdocument": "1.0.11"
+  },
+  "devDependencies": {
+    "@types/vscode": "1.85.0",
+    "@types/node": "20.11.0",
+    "typescript": "5.3.3",
+    "@vscode/test-electron": "2.3.8"
+  }
+}

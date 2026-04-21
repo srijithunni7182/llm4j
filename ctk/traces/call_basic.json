@@ -1,0 +1,19 @@
+{
+  "scriptName": "call_basic.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "call",
+      "payload": "SubWorkflow",
+      "outputVariable": "result",
+      "subSteps": [
+        {
+          "kind": "delegate",
+          "agentName": "TestAgent",
+          "payload": "Process test data",
+          "outputVariable": "output"
+        }
+      ]
+    }
+  ]
+}

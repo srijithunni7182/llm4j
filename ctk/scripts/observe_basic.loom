@@ -1,0 +1,12 @@
+// Canonical CTK test: observe_basic
+// Tests a workflow with an observe statement
+
+agent TestAgent {
+    model: "gpt-4"
+}
+
+workflow main() {
+    observe "Starting workflow" {"Workflow initiated"}
+    delegate "Process data" -> TestAgent -> result
+    observe "Workflow complete" {result}
+}

@@ -1,0 +1,12 @@
+// Canonical CTK test: guardrail_basic
+// Tests a workflow with a guardrail statement
+
+agent TestAgent {
+    model: "gpt-4"
+}
+
+workflow main() {
+    guardrail (PII) {
+        delegate "Process sensitive data" -> TestAgent -> result
+    }
+}

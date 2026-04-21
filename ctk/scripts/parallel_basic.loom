@@ -1,0 +1,17 @@
+// Canonical CTK test: parallel_basic
+// Tests a workflow with a parallel block
+
+agent Worker1 {
+    model: "gpt-4"
+}
+
+agent Worker2 {
+    model: "gpt-4"
+}
+
+workflow main() {
+    parallel {
+        delegate "Task A" -> Worker1 -> resultA
+        delegate "Task B" -> Worker2 -> resultB
+    }
+}

@@ -1,0 +1,3 @@
+workflow SimpleTest() {
+    note "This is a simple test workflow"
+}

@@ -1,0 +1,14 @@
+// Canonical CTK test: broadcast_basic
+// Tests a workflow with a broadcast statement
+
+agent Agent1 {
+    model: "gpt-4"
+}
+
+agent Agent2 {
+    model: "gpt-4"
+}
+
+workflow main() {
+    broadcast "Analyze this data" -> [Agent1, Agent2] -> results
+}

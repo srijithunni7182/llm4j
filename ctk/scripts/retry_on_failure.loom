@@ -1,0 +1,18 @@
+// Canonical CTK test: retry_on_failure
+// Tests a workflow with a delegate statement using retry 2 and an on_failure block
+
+agent UnreliableAgent {
+    model: "gpt-4"
+    system: "You are an unreliable agent that may fail."
+}
+
+agent FallbackAgent {
+    model: "gpt-4"
+    system: "You are a fallback agent."
+}
+
+workflow main() {
+    delegate "Attempt risky operation" -> UnreliableAgent -> result retry 2 on_failure {
+        delegate "Handle failure with fallback" -> FallbackAgent -> result
+    }
+}

@@ -1,0 +1,15 @@
+// Canonical CTK test: alt_basic
+// Tests a workflow with an alt statement
+
+agent TestAgent {
+    model: "gpt-4"
+}
+
+workflow main() {
+    delegate "Check condition" -> TestAgent -> status
+    alt (status == "ready") {
+        delegate "Execute ready path" -> TestAgent -> result
+    } else {
+        delegate "Execute fallback path" -> TestAgent -> result
+    }
+}

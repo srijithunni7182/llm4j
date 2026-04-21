@@ -1,0 +1,13 @@
+{
+  "scriptName": "failing_test.loom",
+  "workflowName": "FailingTest",
+  "steps": [
+    {
+      "kind": "delegate",
+      "agentName": "TestAgent",
+      "payload": "test payload",
+      "outputVariable": "result",
+      "outputValue": "test response"
+    }
+  ]
+}

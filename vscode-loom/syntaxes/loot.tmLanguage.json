@@ -1,0 +1,48 @@
+{
+  "name": "Loot",
+  "scopeName": "source.loot",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#punctuation" },
+    { "include": "#identifiers" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.double-slash.loot",
+      "match": "//.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.loot",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.loot",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.loot",
+      "match": "\\b(tool|class|method|param)\\b"
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.definition.block.loot",
+          "match": "[{}]"
+        },
+        {
+          "name": "punctuation.separator.loot",
+          "match": "[,:]"
+        }
+      ]
+    },
+    "identifiers": {
+      "name": "variable.other.loot",
+      "match": "\\b[\\w]+\\b"
+    }
+  }
+}

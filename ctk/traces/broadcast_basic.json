@@ -1,0 +1,18 @@
+{
+  "scriptName": "broadcast_basic.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "broadcast",
+      "agentName": "Agent1",
+      "payload": "Analyze this data",
+      "outputVariable": "results"
+    },
+    {
+      "kind": "broadcast",
+      "agentName": "Agent2",
+      "payload": "Analyze this data",
+      "outputVariable": "results"
+    }
+  ]
+}

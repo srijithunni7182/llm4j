@@ -1,0 +1,7 @@
+{
+  "TestAgent": {
+    "Process test data": "Processed data",
+    "Transform Processed data": "Transformed data",
+    "Finalize Transformed data": "Final output"
+  }
+}

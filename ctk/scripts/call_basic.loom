@@ -1,0 +1,14 @@
+// Canonical CTK test: call_basic
+// Tests a workflow with a call statement
+
+agent TestAgent {
+    model: "gpt-4"
+}
+
+workflow SubWorkflow(input) {
+    delegate "Process {input}" -> TestAgent -> output
+}
+
+workflow main() {
+    call SubWorkflow(input="test data") -> result
+}

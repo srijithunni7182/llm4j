@@ -1,0 +1,7 @@
+{
+  "TestAgent": {
+    "Check condition": "ready",
+    "Execute ready path": "Ready path executed",
+    "Execute fallback path": "Fallback path executed"
+  }
+}

@@ -1,0 +1,20 @@
+// Canonical CTK test: call_scope_isolation
+// Tests that call statements isolate sub-workflow variable scope
+// Only the declared output variable should be written back to parent context
+
+agent TestAgent {
+    model: "gpt-4"
+}
+
+workflow SubWorkflow(input) {
+    // Create internal variables that should NOT leak to parent
+    delegate "Process {input}" -> TestAgent -> internal_var1
+    delegate "Transform {internal_var1}" -> TestAgent -> internal_var2
+    delegate "Finalize {internal_var2}" -> TestAgent -> output
+}
+
+workflow main() {
+    call SubWorkflow(input="test data") -> result
+    // At this point, only 'result' should exist in parent context
+    // internal_var1 and internal_var2 should NOT be accessible
+}

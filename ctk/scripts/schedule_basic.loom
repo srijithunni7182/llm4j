@@ -1,0 +1,16 @@
+// Canonical CTK test: schedule_basic
+// Tests a workflow with a schedule definition
+
+agent TestAgent {
+    model: "gpt-4"
+}
+
+schedule PeriodicTask {
+    workflow: "main"
+    initial_delay: "5s"
+    pattern: "10s"
+}
+
+workflow main() {
+    delegate "Execute scheduled task" -> TestAgent -> result
+}

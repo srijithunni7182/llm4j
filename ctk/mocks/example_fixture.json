@@ -1,0 +1,11 @@
+{
+  "ExampleAgent": {
+    "Hello, world!": "Hello! How can I assist you today?",
+    "What is 2+2?": "The answer is 4.",
+    "Tell me a joke": "Why did the programmer quit his job? Because he didn't get arrays!"
+  },
+  "MathAgent": {
+    "Calculate 10 * 5": "The result is 50.",
+    "What is the square root of 16?": "The square root of 16 is 4."
+  }
+}

@@ -1,0 +1,11 @@
+// Canonical CTK test: delegate_basic
+// Tests a minimal workflow with a single delegate statement
+
+agent TestAgent {
+    model: "gpt-4"
+    system: "You are a test agent."
+}
+
+workflow main() {
+    delegate "Hello, world!" -> TestAgent -> response
+}

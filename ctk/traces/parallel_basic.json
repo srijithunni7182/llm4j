@@ -1,0 +1,23 @@
+{
+  "scriptName": "parallel_basic.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "parallel",
+      "subSteps": [
+        {
+          "kind": "delegate",
+          "agentName": "Worker1",
+          "payload": "Task A",
+          "outputVariable": "resultA"
+        },
+        {
+          "kind": "delegate",
+          "agentName": "Worker2",
+          "payload": "Task B",
+          "outputVariable": "resultB"
+        }
+      ]
+    }
+  ]
+}

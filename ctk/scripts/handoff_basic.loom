@@ -1,0 +1,15 @@
+// Canonical CTK test: handoff_basic
+// Tests a workflow with a handoff statement
+
+agent Agent1 {
+    model: "gpt-4"
+}
+
+agent Agent2 {
+    model: "gpt-4"
+}
+
+workflow main() {
+    delegate "Start task" -> Agent1 -> result1
+    handoff "Transfer to Agent2" -> Agent2
+}

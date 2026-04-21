@@ -1,0 +1,12 @@
+{
+  "scriptName": "retry_on_failure.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "delegate",
+      "agentName": "FallbackAgent",
+      "payload": "Handle failure with fallback",
+      "outputVariable": "result"
+    }
+  ]
+}

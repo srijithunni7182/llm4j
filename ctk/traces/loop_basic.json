@@ -1,0 +1,18 @@
+{
+  "scriptName": "loop_basic.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "delegate",
+      "agentName": "TestAgent",
+      "payload": "Initialize counter",
+      "outputVariable": "counter"
+    },
+    {
+      "kind": "delegate",
+      "agentName": "TestAgent",
+      "payload": "Process iteration",
+      "outputVariable": "counter"
+    }
+  ]
+}

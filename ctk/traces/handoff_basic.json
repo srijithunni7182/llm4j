@@ -1,0 +1,17 @@
+{
+  "scriptName": "handoff_basic.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "delegate",
+      "agentName": "Agent1",
+      "payload": "Start task",
+      "outputVariable": "result1"
+    },
+    {
+      "kind": "handoff",
+      "agentName": "Agent2",
+      "payload": "Transfer to Agent2"
+    }
+  ]
+}

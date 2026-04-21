@@ -1,0 +1,12 @@
+{
+  "scriptName": "delegate_basic.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "delegate",
+      "agentName": "TestAgent",
+      "payload": "Hello, world!",
+      "outputVariable": "response"
+    }
+  ]
+}

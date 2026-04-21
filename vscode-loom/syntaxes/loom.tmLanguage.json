@@ -1,0 +1,66 @@
+{
+  "name": "Loom",
+  "scopeName": "source.loom",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#keywords" },
+    { "include": "#numbers" },
+    { "include": "#operators" },
+    { "include": "#punctuation" },
+    { "include": "#identifiers" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.double-slash.loom",
+      "match": "//.*$"
+    },
+    "strings": {
+      "name": "string.quoted.double.loom",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.loom",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "keywords": {
+      "name": "keyword.control.loom",
+      "match": "\\b(agent|workflow|delegate|handoff|broadcast|parallel|loop|alt|call|guardrail|observe|schedule|routing|import|mcp|audit|note|retry|on_failure)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.loom",
+      "match": "\\b[0-9]+\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.loom",
+      "match": "(->|==|!=|<=|>=|=)"
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.definition.block.loom",
+          "match": "[{}]"
+        },
+        {
+          "name": "punctuation.definition.group.loom",
+          "match": "[()]"
+        },
+        {
+          "name": "punctuation.definition.array.loom",
+          "match": "[\\[\\]]"
+        },
+        {
+          "name": "punctuation.separator.loom",
+          "match": "[,:]"
+        }
+      ]
+    },
+    "identifiers": {
+      "name": "variable.other.loom",
+      "match": "\\b[\\w]+\\b"
+    }
+  }
+}

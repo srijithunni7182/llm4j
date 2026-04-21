@@ -1,0 +1,3 @@
+workflow FailingTest() {
+    delegate "test payload" to TestAgent -> result
+}

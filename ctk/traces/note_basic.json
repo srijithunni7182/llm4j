@@ -1,0 +1,20 @@
+{
+  "scriptName": "note_basic.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "note",
+      "payload": "Starting workflow"
+    },
+    {
+      "kind": "delegate",
+      "agentName": "TestAgent",
+      "payload": "Process data",
+      "outputVariable": "result"
+    },
+    {
+      "kind": "note",
+      "payload": "Workflow complete"
+    }
+  ]
+}

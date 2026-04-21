@@ -1,0 +1,8 @@
+{
+  "Agent1": {
+    "Start task": "Task started"
+  },
+  "Agent2": {
+    "Transfer to Agent2": "Handoff received"
+  }
+}

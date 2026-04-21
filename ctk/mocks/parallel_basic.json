@@ -1,0 +1,8 @@
+{
+  "Worker1": {
+    "Task A": "Task A completed"
+  },
+  "Worker2": {
+    "Task B": "Task B completed"
+  }
+}

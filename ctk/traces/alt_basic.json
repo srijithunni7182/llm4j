@@ -1,0 +1,18 @@
+{
+  "scriptName": "alt_basic.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "delegate",
+      "agentName": "TestAgent",
+      "payload": "Check condition",
+      "outputVariable": "status"
+    },
+    {
+      "kind": "delegate",
+      "agentName": "TestAgent",
+      "payload": "Execute ready path",
+      "outputVariable": "result"
+    }
+  ]
+}

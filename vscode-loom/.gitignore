@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+out/
+bin/
+*.vsix
+
+# IDE
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+
+# Lock files (keep package-lock.json for reproducible builds)
+# package-lock.json is intentionally NOT ignored

@@ -1,0 +1,31 @@
+{
+  "scriptName": "call_scope_isolation.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "call",
+      "payload": "SubWorkflow",
+      "outputVariable": "result",
+      "subSteps": [
+        {
+          "kind": "delegate",
+          "agentName": "TestAgent",
+          "payload": "Process test data",
+          "outputVariable": "internal_var1"
+        },
+        {
+          "kind": "delegate",
+          "agentName": "TestAgent",
+          "payload": "Transform Processed data",
+          "outputVariable": "internal_var2"
+        },
+        {
+          "kind": "delegate",
+          "agentName": "TestAgent",
+          "payload": "Finalize Transformed data",
+          "outputVariable": "output"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+// Canonical CTK test: note_basic
+// Tests a workflow with note statements
+
+agent TestAgent {
+    model: "gpt-4"
+}
+
+workflow main() {
+    note "Starting workflow"
+    delegate "Process data" -> TestAgent -> result
+    note "Workflow complete"
+}

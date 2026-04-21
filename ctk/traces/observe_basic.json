@@ -1,0 +1,20 @@
+{
+  "scriptName": "observe_basic.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "observe",
+      "payload": "Starting workflow"
+    },
+    {
+      "kind": "delegate",
+      "agentName": "TestAgent",
+      "payload": "Process data",
+      "outputVariable": "result"
+    },
+    {
+      "kind": "observe",
+      "payload": "Workflow complete"
+    }
+  ]
+}

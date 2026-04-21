@@ -1,0 +1,12 @@
+{
+  "scriptName": "schedule_basic.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "delegate",
+      "agentName": "TestAgent",
+      "payload": "Execute scheduled task",
+      "outputVariable": "result"
+    }
+  ]
+}

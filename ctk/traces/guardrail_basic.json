@@ -1,0 +1,12 @@
+{
+  "scriptName": "guardrail_basic.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "delegate",
+      "agentName": "TestAgent",
+      "payload": "Process sensitive data",
+      "outputVariable": "result"
+    }
+  ]
+}

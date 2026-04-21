@@ -1,0 +1,13 @@
+// Canonical CTK test: loop_basic
+// Tests a workflow with a loop statement
+
+agent TestAgent {
+    model: "gpt-4"
+}
+
+workflow main() {
+    delegate "Initialize counter" -> TestAgent -> counter
+    loop until (counter == "done") {
+        delegate "Process iteration" -> TestAgent -> counter
+    }
+}
