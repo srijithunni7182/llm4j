@@ -1,129 +1,217 @@
 <img src="loom_logo.png" align="right" width="200" alt="Loom Logo">
 
-# AI Agent4J Loom
+# Loom
 
-Loom is a **Neuro-Symbolic Domain Specific Language (DSL)** designed specifically for orchestrating stateful, multi-agent AI workflows.
+**A neuro-symbolic orchestration DSL for multi-agent AI workflows on the JVM.**
 
-👉 **[Read the Loom Learning Guide](LOOM_GUIDE.md)**
+Most multi-agent frameworks ask you to express coordination logic in Python code,
+YAML config, or worse — in natural language inside a prompt. None of these belong
+in the trust-critical layer of your system.
 
-## 🧠 Neuro-Symbolic Orchestration
-Loom bridges the gap between the probabilistic nature of Large Language Models (**Neural**) and the deterministic reliability of programmatic logic (**Symbolic**). 
+Loom gives you a purpose-built external DSL where routing, sequencing, branching,
+and safety rules are interpreted by a symbolic runtime — not inferred by a model.
+The model reasons. The harness governs.
 
-### The Harness as Symbolic AI
-The Loom `Harness` acts as the skeletal system of your AI application. While agents generate content using neural networks, the Harness ensures that:
-- **Routing is rigid**: A `handoff` never ends up at the wrong agent.
-- **State is immutable**: Variables are managed in a thread-safe symbolic context.
-- **Safety is hard-coded**: Guardrails like PII detection intercept neural outputs before they reach the user.
+```text
+workflow ResearchAndPublish(topic) {
 
-### Why a DSL?
-Customizing agent behavior in code often leads to massive boilerplate. Loom-like DSLs provide:
-- **Hot-Swappable Logic**: Change your entire multi-agent workflow without recompiling Java.
-- **Domain-Specific Constraints**: Embed business rules directly into the orchestration script.
-- **Separation of Concerns**: Data scientists tune the neural layer (Agents), while engineers manage the symbolic layer (Loom).
+    delegate "Research: {topic}" to Researcher -> findings
 
-## ⚒️ The 'weave' CLI
-Loom includes `weave`, a powerful CLI to manage your workflows:
-- **`weave run`**: Immediate execution of `.loom` scripts.
-- **`weave package`**: Encapsulates scripts and dependencies into executable JARs (Thin or Fat).
-- **Interactive Playground**: Rapidly prototype workflows using real-time feedback.
+    alt (findings.status == "SUFFICIENT") {
+        delegate "Write report: {findings}" to Writer -> draft
+        handoff "Publish: {draft}" to Publisher
+    } else {
+        loop until (approved == "true") {
+            delegate "Expand research: {findings}" to Researcher -> findings
+            human_prompt "Approve findings? (true/false)" -> approved
+        }
+    }
+}
+```
+
+The `alt`, `loop until`, and `handoff` above are not instructions to a model.
+They are symbolic control flow — evaluated by the Loom runtime in Java,
+enforced regardless of what any agent produces.
+
+---
+
+## Why this exists
+
+Every serious multi-agent system eventually builds a harness — the code that
+decides who gets called, in what order, under what conditions, and when to stop.
+
+Most teams write this in imperative Python, scattering coordination logic across
+files and framework callbacks. Others embed it in prompts and hope the model
+self-regulates. Neither approach gives you the thing you actually need: a symbolic
+layer with a hard trust boundary, where the routing rules are code and the model
+only does what models are good at — reasoning about content.
+
+Loom is that layer, designed as a first-class language.
+
+---
+
+## How it works
+
+Loom ships with a handcrafted **Lexer → Parser → AST → HarnessExecutor** pipeline.
+Your `.loom` script is parsed into an AST and executed by the `HarnessExecutor`,
+which drives real LLM calls via the ai-agent4j library. The model never sees the
+routing logic. It receives a task string and returns output. The harness handles
+everything else.
+
+Tools are wired via a companion `.loot` file — a key-value mapping of logical
+tool names to Java classpaths, resolved via reflection at runtime. Your `.loom`
+scripts stay clean of implementation details.
+
+```properties
+# tools.loot
+WebSearch   = io.github.llm4j.tools.BraveSearchTool
+SqlQuery    = com.mycompany.tools.DatabaseTool
+```
+
+---
+
+## The primitive set
+
+| Primitive | What it does |
+|---|---|
+| `delegate` | Call one agent, await result, bind to variable |
+| `broadcast` | Fan out to multiple agents in parallel (Java streams), collect combined result |
+| `handoff` | Terminal node — pass control to an agent and end the current branch |
+| `alt` / `else` | Symbolic conditional branching on typed context variable values |
+| `loop until` | Retry block — executes until a symbolic condition is met |
+| `human_prompt` | Blocking suspension — parks the thread until human input arrives |
+| `guardrail` | Wraps a block — intercepts output before it escapes (e.g. PII detection) |
+| `call` | Invoke a sub-workflow with isolated variable scope |
+| `parallel { }` | Concurrent execution block — every statement runs in its own thread |
+| `import` | Split large workflows across files — merged into a flat namespace at load time |
+
+---
+
+## The Frontier — what makes the symbolic guarantee real
+
+The hard problem in neuro-symbolic design is the boundary: model output is free
+text, but symbolic conditions need typed values. Loom addresses this directly.
+
+**Typed output schemas** — enforce structured output per agent at the harness level:
+
+```text
+agent Auditor {
+    model: "gpt-4o"
+    system: "Audit the code for security vulnerabilities."
+    output_schema {
+        status: enum["SECURE", "VULNERABLE"]
+        issues: list
+    }
+}
+```
+
+Now `alt (audit.status == "SECURE")` is a typed symbolic check, not a string
+match against free model output. The harness coerces the model's response before
+any condition is evaluated.
+
+**Resilience contracts** — expressed in the DSL, not in Java code:
+
+```text
+delegate "Analyze data" to AnalystAgent -> result
+    retry 3
+    on_failure { handoff "Escalate" to AdminAgent }
+```
+
+**Sub-workflow composition** — build reusable primitives:
+
+```text
+call ValidateAndApprove(draft) -> approved_draft
+```
+
+---
+
+## Getting started
+
+**Run a workflow directly:**
+
+```bash
+# Build and alias the CLI
+cd ai-agent4j-loom && mvn clean install
+alias weave='java -cp "target/classes:target/lib/*" io.github.llm4j.loom.cli.WeaveCLI'
+
+# Run
+weave run research.loom --loot tools.loot --input topic="Neuro-Symbolic AI"
+```
+
+**Embed in a Java application:**
+
+```java
+String script  = Files.readString(Path.of("workflow.loom"));
+
+Lexer      lexer    = new Lexer(script);
+LoomParser parser   = new LoomParser(lexer.tokenize());
+LoomScript loomScript = parser.parseScript();
+
+ToolRegistry registry = new ToolRegistry();
+new LootLoader().loadIntoRegistry("tools.loot", registry);
+
+HarnessExecutor executor = new HarnessExecutor(loomScript, registry, clientFactory);
+executor.initialize();
+executor.executeWorkflow("ResearchAndPublish", Map.of("topic", "AI Agents"));
+```
+
+**Package for deployment:**
+
+```bash
+weave package research.loom --loot tools.loot --fat --out my-app.jar
+java -jar my-app.jar topic="Advanced Agentic Coding"
+```
+
+---
+
+## The Loom Ecosystem
+
+### IDE Support
+
+**VS Code Extension** — Syntax highlighting, LSP diagnostics, workflow outline, and run commands for `.loom` and `.loot` files.
+
+```bash
+# Install from VS Code Marketplace
+# Search for: "Loom DSL"
+```
+
+### Testing & Conformance
+
+**Conformance Test Kit (CTK)** — A canonical suite of test scripts and execution traces that define the behavioral contract for all Loom implementations. The CTK validates runtime parity across Java and Python.
+
+```bash
+# Run conformance tests against the Java runtime
+mvn -C ctk clean package
+mvn -C ctk exec:java -Dexec.mainClass=io.github.loom.ctk.CtkMain
+```
+
+### Multi-Language Support
+
+**loom4py** (In Development) — A Python implementation of the Loom runtime, enabling `.loom` workflows to run natively in Python environments while maintaining behavioral parity with the Java implementation via the CTK.
+
+---
 
 ## 📊 Loom vs. The World
+
 Loom was designed to address the specific gaps in existing AI orchestration frameworks. Below is a multi-dimensional comparison based on core agentic requirements:
 
 ![Loom Capability Radar](capability_radar.png)
 
 Loom excels in **DSL-Driven Knowledge** and **Developer Efficiency** by providing a symbolic layer that is decoupled from the underlying Java implementation, allowing for rapid iteration and robust "Neuro-Symbolic" control.
 
-## Core Features
+---
+
+## Core capabilities
+
 *   **External DSL Runtime:** Loom ships with a handcrafted Lexer, Recursive Descent Parser, and AST Execution Engine that dynamically boots agents without recompiling Java.
 *   **Modular Architecture**: Split large workflows into multiple files using the `import` statement. All agents, workflows, and configurations are merged into a flat namespace.
-*   **Expressive Routing:** Support for structural semantics like `handoff`, `delegate`, `broadcast` (parallel stream execution), `alt` (conditionals), and `loop until`.
 *   **Human-In-The-Loop:** Built-in semantic support for `human_prompt` to easily pause execution and await external human verification or input without thread blocking trickery.
 *   **Inversion of Control via `.loot`:** Rigid adherence to the principle of least privilege. Workflows define tools by name inside `.loom`, but the actual fully qualified Java classpath mapping must be explicitly provided in a separate `.loot` file, dynamically instantiated using Reflection.
 
-## ✨ Key Features (The Frontier)
-
-*   🚀 **Structured Neuro-Symbolic Output**: Enforce strict JSON schemas (Enums, Lists, Objects) on neural generations using the `output_schema` block.
-*   🛡️ **Resilience Contracts**: Direct DSL support for `retry <n>` and `on_failure { ... }` blocks to handle model instability or API failures.
-*   🧩 **Sub-workflow Composition**: Build reusable agentic primitives using the `call` statement with isolated variable scopes.
-*   🎯 **Typed Symbolic Checks**: Perform logic checks on nested JSON paths (e.g. `alt (report.status == "OK")`) directly in your workflows.
-
 ---
 
-## 1. Defining Agents
-Agents are bounded blocks where you assign models, prompt architectures, and tool capabilities.
-
-```text
-agent WorkerA {
-    model: "claude-3-haiku"
-    system: "You are a data evaluation specialist."
-    tools: [DatabaseSearch] 
-}
-
-agent Critic {
-    model: "gpt-4o"
-    system: "You evaluate logical flow."
-    tools: []
-}
-```
-
-## 2. Orchestrating Workflows
-Workflows map execution sequences. Variables are routed downstream using the `->` operator.
-
-```text
-workflow ExecuteTask() {
-    note "Initializing parallel fetch"
-    
-    // Broadcast concurrently runs all agents using parallel Java streams.
-    broadcast "Analyze standard metrics" to [WorkerA, WorkerB] -> analysis
-
-    // Conditional evaluation dynamically queries the context state
-    alt (quality_score > 0.8) {
-        delegate "Proceed with submission." to WorkerA -> submission
-    } else {
-        // Pausing for manual intervention
-        loop until (is_approved == "true") {
-             delegate "Fix formatting: analysis" to WorkerA -> analysis
-             human_prompt "Review formatted output. Type true to approve." -> is_approved
-        }
-    }
-    
-    note "Execution concluded."
-    handoff "Final Submission: analysis" to TerminalAgent
-}
-```
-
-## 3. Dynamic Tooling (`.loot` Files)
-"Loot" is "Tool" backwards! To ensure a neuro-symbolic separation, your `.loom` scripts never touch source code. Instead, you declare a `.loot` companion file containing key-value reflection targets that `LootLoader` will inject tightly upon initialization.
-
-```properties
-# tools.loot
-DatabaseSearch = io.github.llm4j.tools.SqlTool
-WebCalculator = com.mycompany.tools.MathEngine
-```
-
-## Usage in Java
-The `HarnessExecutor` bridge evaluates the AST directly into active JVM `ReActAgent` calls.
-
-```java
-// 1. Read files
-String scriptContent = Files.readString(Path.of("orchestration.loom"));
-String lootPath = "tools.loot";
-
-// 2. Parse Code
-Lexer lexer = new Lexer(scriptContent);
-LoomParser parser = new LoomParser(lexer.tokenize());
-LoomScript script = parser.parseScript();
-
-// 3. Register Tools
-ToolRegistry registry = new ToolRegistry();
-new LootLoader().loadIntoRegistry(lootPath, registry);
-
-// 4. Execute Workflow
-HarnessExecutor executor = new HarnessExecutor(script, registry, myClientFactory);
-executor.initialize();
-executor.executeWorkflow("ExecuteTask", new HashMap<>());
-```
-
 ## Status
+
 Loom is fully tested and capable of orchestrating highly sophisticated graphs including N-round debates, parallel MapReduce sweeps, and Human-in-the-Middle approvals directly out of the box.
+
+👉 **[Read the Loom Learning Guide](LOOM_GUIDE.md)** for deeper technical reference and advanced patterns.
