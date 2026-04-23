@@ -1,3 +1,5 @@
+<img src="ai-agent4j-loom/loom_logo.png" align="right" width="200" alt="Loom Logo">
+
 # Loom DSL
 
 Loom is a Domain-Specific Language (DSL) for orchestrating multi-agent AI workflows. This directory contains all Loom-related components.
