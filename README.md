@@ -37,6 +37,16 @@ The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java 
 
 👉 **[Master Loom Orchestration](ai-agent4j-loom/LOOM_GUIDE.md)**
 
+## 🧠 The Memory: [Engram](engram/)
+
+**Engram** is a **Neuro-Symbolic Memory Engine** that solves the "Context Bloat" problem. It replaces naive transcript accumulation with a smart, synthesized retrieval-synthesis loop.
+
+*   **Context Intelligence**: Automatically extracts key facts and synthesizes task-specific briefings.
+*   **Constant Context**: Maintains high-signal prompts regardless of conversation length.
+*   **Self-Correction**: Features an Introspection Loop that retroactively updates and shadows memories.
+
+👉 **[Building Agentic Workflows with Loom & Engram](docs/AGENTIC_WORKFLOWS_GUIDE.md)**
+
 ### 🧩 The Extensions: [RAG Addons](ai-agent4j-addons/)
 
 For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilities while keeping the core light:

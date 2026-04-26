@@ -16,6 +16,7 @@
         <module>ai-agent4j</module>
         <module>ai-agent4j-addons</module>
         <module>loom/ai-agent4j-loom</module>
+        <module>engram</module>
         <module>examples/hexamind-hub</module>
         <module>examples/nirmaan-yantra/nirmaan-yantra-server</module>
         <module>examples/kingini</module>

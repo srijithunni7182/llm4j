@@ -189,6 +189,12 @@ mvn -C ctk exec:java -Dexec.mainClass=io.github.loom.ctk.CtkMain
 
 **loom4py** (In Development) — A Python implementation of the Loom runtime, enabling `.loom` workflows to run natively in Python environments while maintaining behavioral parity with the Java implementation via the CTK.
 
+### 🧠 Advanced Memory (Engram)
+
+Loom integrates seamlessly with **Engram**, a neuro-symbolic memory engine that prevents "Context Bloat" in long-running workflows by using a smart, synthesized retrieval-synthesis loop.
+
+👉 **[Building Agentic Workflows with Loom & Engram](../../docs/AGENTIC_WORKFLOWS_GUIDE.md)**
+
 ---
 
 ## 📊 Loom vs. The World

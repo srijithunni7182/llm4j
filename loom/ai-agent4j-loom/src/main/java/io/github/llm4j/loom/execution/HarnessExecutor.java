@@ -17,6 +17,8 @@ import io.github.llm4j.agent.skill.FileSystemSkillLoader;
 import io.github.llm4j.agent.skill.SkillLoader;
 import io.github.llm4j.loom.ast.*;
 import io.github.llm4j.loom.runtime.*;
+import io.github.llm4j.loom.memory.MemoryEngine;
+import io.github.llm4j.loom.memory.TranscriptAccumulationEngine;
 import io.github.llm4j.mcp.McpClient;
 import io.github.llm4j.mcp.McpToolAdapter;
 import io.github.llm4j.mcp.StdioMcpTransport;
@@ -55,6 +57,7 @@ public class HarnessExecutor implements LoomEngine {
     private AuditLogger auditLogger = new NoOpAuditLogger();
     private PromptRegistry promptRegistry;
     private final String sessionId = UUID.randomUUID().toString();
+    private MemoryEngine memoryEngine = new TranscriptAccumulationEngine();
 
     public HarnessExecutor(LoomScript script, ToolRegistry toolRegistry, LLMClientFactory llmClientFactory) {
         this.script = script;
@@ -67,6 +70,9 @@ public class HarnessExecutor implements LoomEngine {
     public void setPromptRegistry(PromptRegistry promptRegistry) { this.promptRegistry = promptRegistry; }
     public void setAuditLogger(AuditLogger auditLogger) {
         this.auditLogger = auditLogger != null ? auditLogger : new NoOpAuditLogger();
+    }
+    public void setMemoryEngine(MemoryEngine memoryEngine) {
+        this.memoryEngine = memoryEngine != null ? memoryEngine : new TranscriptAccumulationEngine();
     }
 
     @Override
@@ -252,11 +258,19 @@ public class HarnessExecutor implements LoomEngine {
             executeCall(call);
         } else if (stmt instanceof HandoffStmt handoff) {
             ReActAgent agent = activeAgents.get(handoff.getTargetAgent());
+            AgentDef agentDef = script.getAgents().stream()
+                .filter(a -> a.getName().equals(handoff.getTargetAgent()))
+                .findFirst().orElse(null);
+                
             String resolvedPayload = resolvePayload(handoff.getPayload());
             log.info("Handoff to " + handoff.getTargetAgent() + " (Terminal node reached). Payload: " + resolvedPayload);
 
-            if (agent != null) {
-                io.github.llm4j.agent.AgentResult result = agent.run(resolvedPayload);
+            if (agent != null && agentDef != null) {
+                String contextBriefing = memoryEngine.assembleContext(agentDef, resolvedPayload, context);
+                io.github.llm4j.agent.AgentResult result = agent.run(contextBriefing);
+                
+                memoryEngine.storeOutcome(agentDef, resolvedPayload, result, context);
+                
                 auditLogger.logAgentDecision(AuditEvent.builder()
                     .sessionId(sessionId)
                     .agentResult(result)
@@ -462,8 +476,11 @@ public class HarnessExecutor implements LoomEngine {
         if (agent == null) throw new IllegalStateException("Agent not found: " + del.getTargetAgent());
 
         String resolvedPayload = resolvePayload(del.getPayload());
+        
+        String contextBriefing = memoryEngine.assembleContext(agentDef, resolvedPayload, context);
+        
         if (agentDef.getOutputSchema() != null) {
-            resolvedPayload += "\n\nCRITICAL: You MUST respond in valid JSON format only, following this schema: " 
+            contextBriefing += "\n\nCRITICAL: You MUST respond in valid JSON format only, following this schema: " 
                             + stringifySchema(agentDef.getOutputSchema());
         }
 
@@ -473,8 +490,8 @@ public class HarnessExecutor implements LoomEngine {
 
         while (attempts < maxAttempts) {
             try {
-                log.info("Delegating to " + del.getTargetAgent() + " (Attempt " + (attempts + 1) + "): " + resolvedPayload);
-                io.github.llm4j.agent.AgentResult result = agent.run(resolvedPayload);
+                log.info("Delegating to " + del.getTargetAgent() + " (Attempt " + (attempts + 1) + ")");
+                io.github.llm4j.agent.AgentResult result = agent.run(contextBriefing);
                 
                 Object finalValue = result.getFinalAnswer();
                 if (agentDef.getOutputSchema() != null) {
@@ -482,6 +499,8 @@ public class HarnessExecutor implements LoomEngine {
                 }
 
                 context.setVariable(del.getVariableName(), finalValue);
+                
+                memoryEngine.storeOutcome(agentDef, resolvedPayload, result, context);
 
                 auditLogger.logAgentDecision(AuditEvent.builder()
                         .sessionId(sessionId)
