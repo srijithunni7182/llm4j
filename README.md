@@ -1,4 +1,4 @@
-<img src="loom/ai-agent4j-loom/loom_logo.png" align="right" width="200" alt="Loom Logo">
+![LLM4J Ecosystem Hero](docs/images/hero_ecosystem.png)
 
 # llm4j: The Pure Java AI Stack
 
