@@ -574,6 +574,6 @@ public class WeatherTool implements Tool {
 
 ## Next Steps
 
-- **[ReAct Agent](ReAct-Agent)** - Learn more about the agent framework
-- **[Examples](Examples)** - See complete examples
-- **[API Reference](API-Reference)** - Complete API documentation
+- **[ReAct Agent](ReAct-Agent.md)** - Learn more about the agent framework
+- **[Examples](../../examples/README.md)** - See complete examples
+- **[API Reference](Home.md)** - Back to Home

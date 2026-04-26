@@ -219,9 +219,9 @@ LLMRequest request = LLMRequest.builder()
 
 ## What's Next?
 
-- **[ReAct Agent](ReAct-Agent)** - Build powerful AI agents
-- **[OpenAPI Tool](OpenAPI-Tool)** - Auto-discover APIs from specs
-- **[Creating Custom Tools](Creating-Custom-Tools)** - Extend agent capabilities
+- **[ReAct Agent](ReAct-Agent.md)** - Build powerful AI agents
+- **[OpenAPI Tool](OpenAPI-Tool.md)** - Auto-discover APIs from specs
+- **[Creating Custom Tools](Creating-Custom-Tools.md)** - Extend agent capabilities
 
 ## Troubleshooting
 

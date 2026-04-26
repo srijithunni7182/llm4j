@@ -136,7 +136,7 @@ OpenAPITool tool = OpenAPITool.builder()
     .build();
 ```
 
-See [OpenAPI Tool](OpenAPI-Tool) for details.
+See [OpenAPI Tool](OpenAPI-Tool.md) for details.
 
 ## Configuration Options
 
@@ -312,9 +312,9 @@ for (AgentResult.AgentStep step : result.getSteps()) {
 
 ## Next Steps
 
-- **[Creating Custom Tools](Creating-Custom-Tools)** - Build your own tools
-- **[Examples](Examples)** - More agent examples
-- **[API Reference](API-Reference)** - Complete API documentation
+- **[Creating Custom Tools](Creating-Custom-Tools.md)** - Build your own tools
+- **[Examples](../../examples/README.md)** - More agent examples
+- **[API Reference](Home.md)** - Back to Home
 
 ## Troubleshooting
 

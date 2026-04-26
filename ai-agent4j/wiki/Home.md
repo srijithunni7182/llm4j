@@ -111,7 +111,7 @@ implementation 'io.github.srijithunni7182:ai-agent4j:5.0'
 
 - **Found a bug?** [Open an Issue](https://github.com/srijithunni7182/llm4j/issues)
 - **Have a question?** [Start a Discussion](https://github.com/srijithunni7182/llm4j/discussions)
-- **Want to contribute?** Check out our [Contributing Guidelines](Contributing.md)
+- **Want to contribute?** Check out our [Contributing Guidelines](../CONTRIBUTING.md)
 
 ---
 

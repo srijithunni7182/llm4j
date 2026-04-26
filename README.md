@@ -1,4 +1,4 @@
-<img src="ai-agent4j-loom/loom_logo.png" align="right" width="200" alt="Loom Logo">
+<img src="loom/ai-agent4j-loom/loom_logo.png" align="right" width="200" alt="Loom Logo">
 
 # llm4j: The Pure Java AI Stack
 
@@ -26,7 +26,7 @@ The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java 
 * **Skill Injection & Discovery**: Inject domain knowledge dynamically using **AgentSkill** (Markdown-based instructions) and automatically discover available skills.
 * **AI-Optimized**: Includes comprehensive `llms.txt` and specialized documentation optimized for AI scrapers and crawlers.
 
-## 🧵 The Orchestrator: [Loom](ai-agent4j-loom/)
+## 🧵 The Orchestrator: [Loom](loom/ai-agent4j-loom/)
 
 **Loom** is the **Neuro-Symbolic** orchestration layer of the llm4j stack. It provides a specialized DSL (`.loom`) to manage complex, multi-agent workflows with deterministic precision.
 
@@ -35,9 +35,9 @@ The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java 
 * **Deterministic Routing**: Native support for `handoff`, `delegate`, `parallel` execution, and `loop until` patterns.
 * **Enterprise Governance**: Integrated PII guardrails, cost-aware routing policies, and background task scheduling.
 
-👉 **[Master Loom Orchestration](ai-agent4j-loom/LOOM_GUIDE.md)**
+👉 **[Master Loom Orchestration](loom/ai-agent4j-loom/LOOM_GUIDE.md)**
 
-## 🧠 The Memory: [Engram](engram/)
+## 🧠 The Memory: [Engram](engram/engram-core/)
 
 **Engram** is a **Neuro-Symbolic Memory Engine** that solves the "Context Bloat" problem. It replaces naive transcript accumulation with a smart, synthesized retrieval-synthesis loop.
 
@@ -58,7 +58,7 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 
 ---
 
-## 🚀 The Showcase: [Hexamind Hub](hexamind-hub/)
+## 🚀 The Showcase: [Hexamind Hub](examples/hexamind-hub/)
 
 **Hexamind Hub** demonstrates what `ai-agent4j` can do. It is a "Digital Boardroom" where 6 specialized AI agents (including a Cynical Skeptic and a Creative Thinker) collaborate to solve your problems.
 
@@ -66,11 +66,11 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 * **Real-Time**: Built with Spring Boot and WebSockets for a live, streaming experience.
 * **Visual**: A stunning, modern UI to watch the AI thought process unfold.
 
-👉 **[Launch Hexamind Hub](hexamind-hub/README.md)**
+👉 **[Launch Hexamind Hub](examples/hexamind-hub/README.md)**
 
 ---
 
-## 🏭 The Factory: [Nirmaan Yantra](nirmaan-yantra/)
+## 🏭 The Factory: [Nirmaan Yantra](examples/nirmaan-yantra/)
 
 **Nirmaan Yantra** is an autonomous software factory where a team of AI agents builds entire applications from a single-line prompt.
 
@@ -79,11 +79,11 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 * **Loop Prevention**: Detects dead-ends and "reboots" the implementation process.
 * **Real-Time Dashboard**: Watch Vihaan (Dev), Dhruv (QA), and others collaborate live.
 
-👉 **[Enter the Factory](nirmaan-yantra/README.md)**
+👉 **[Enter the Factory](examples/nirmaan-yantra/README.md)**
 
 ---
 
-## 🐈 The Companion: [Kingini](kingini/)
+## 🐈 The Companion: [Kingini](examples/kingini/)
 
 **Kingini** is a voice-first AI agent designed for children, featuring a wise and whimsical Kerala cat persona.
 
@@ -91,11 +91,11 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 *   **Persona**: A character-driven AI with a unique backstory and voice ("Ritu").
 *   **Tech**: Spring Boot + Sarvam AI (STT/LLM/TTS) + Web Audio API.
 
-👉 **[Meet Kingini](kingini/README.md)**
+👉 **[Meet Kingini](examples/kingini/README.md)**
 
 ---
 
-## 📧 The Connector: [Gmail MCP App](gmail-mcp-app/)
+## 📧 The Connector: [Gmail MCP App](examples/gmail-mcp-app/)
 
 **Gmail MCP App** demonstrates the power of the **Model Context Protocol**. It connects your LLM directly to your Gmail inbox, allowing agents to read, draft, and send emails securely.
 

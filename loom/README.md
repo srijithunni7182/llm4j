@@ -152,7 +152,7 @@ or future — must pass the CTK to be considered conformant:
 - Mock agent server for deterministic, isolated testing
 - Trace comparison algorithm that ignores non-deterministic output values
 
-### [loom4py](./loom4py/) _(Coming Soon)_ — Python Runtime
+### loom4py _(Coming Soon)_ — Python Runtime
 A native Python port of the Loom runtime for the AI/ML community:
 - Character-by-character Lexer (no regex, structural parity with Java)
 - Recursive descent Parser
