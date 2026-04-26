@@ -1,5 +1,6 @@
 package io.github.llm4j.agent.memory;
 
+import io.github.llm4j.agent.rag.embedding.EmbeddingProvider;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;

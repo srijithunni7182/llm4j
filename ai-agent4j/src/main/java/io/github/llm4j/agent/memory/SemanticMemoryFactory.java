@@ -2,6 +2,7 @@ package io.github.llm4j.agent.memory;
 
 import io.github.llm4j.agent.tool.MemoryManagementTool;
 import io.github.llm4j.config.LLMConfig;
+import io.github.llm4j.agent.rag.embedding.EmbeddingProvider;
 import io.github.llm4j.agent.rag.embedding.GeminiEmbeddingProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

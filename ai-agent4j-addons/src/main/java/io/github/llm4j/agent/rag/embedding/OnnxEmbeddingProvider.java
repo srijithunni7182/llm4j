@@ -10,7 +10,6 @@ import ai.onnxruntime.TensorInfo;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import io.github.llm4j.agent.memory.EmbeddingProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

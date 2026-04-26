@@ -1,5 +1,6 @@
 package io.github.llm4j.agent.memory;
 
+import io.github.llm4j.agent.rag.embedding.EmbeddingProvider;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;

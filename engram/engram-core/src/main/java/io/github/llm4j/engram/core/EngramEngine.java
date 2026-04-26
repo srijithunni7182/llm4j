@@ -9,6 +9,7 @@ import io.github.llm4j.engram.core.models.ScoredMemory;
 import io.github.llm4j.loom.ast.AgentDef;
 import io.github.llm4j.loom.memory.MemoryEngine;
 import io.github.llm4j.engram.core.models.IntrospectionResult;
+import io.github.llm4j.loom.runtime.VariableContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
