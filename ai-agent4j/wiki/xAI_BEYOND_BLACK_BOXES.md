@@ -2,7 +2,7 @@
 
 As Artificial Intelligence transitions from experimental "Black Box" models to autonomous agents in high-stakes industries, the demand for **Explainable AI (xAI)** has evolved from a theoretical desire to a legal and ethical mandate.
 
-This document serves as the definitive standard for xAI compliance in modern enterprise environments, detailing the regulatory requirements, technical implementations, and why **Gemini ReAct Java** stands as the industry benchmark for these standards.
+This document serves as the definitive standard for xAI compliance in modern enterprise environments, detailing the regulatory requirements, technical implementations, and why **ai-agent4j** stands as the industry benchmark for these standards.
 
 ---
 
@@ -27,7 +27,7 @@ True xAI compliance is built on four non-negotiable pillars. Each pillar address
     2. **Action**: Called `CreditCheckTool`.
     3. **Observation**: Credit score is 580.
     4. **Final Answer**: Loan Denied."
-- **Gemini ReAct Java Implementation**: Native **ReAct Loop** logging captures every Thought, Action, and Observation as a discrete, immutable `AuditEvent` in a structured JSONL format.
+- **ai-agent4j Implementation**: Native **ReAct Loop** logging captures every Thought, Action, and Observation as a discrete, immutable `AuditEvent` in a structured JSONL format.
 
 ### 2. ⚖️ Uncertainty Quantification & Escalation
 
@@ -40,7 +40,7 @@ True xAI compliance is built on four non-negotiable pillars. Each pillar address
 
 **In Practice**:
 - **Example**: A medical diagnostic agent identifies a rare condition. If its confidence is below 80%, it must not issue a treatment plan but instead flag it for "MD Review."
-- **Gemini ReAct Java Implementation**: A mathematical **Confidence Scoring Engine** that penalizes high iteration counts (circular reasoning) and tool failures. It provides a 0.0-1.0 score and a `shouldEscalateToHuman()` method to automate safety protocols.
+- **ai-agent4j Implementation**: A mathematical **Confidence Scoring Engine** that penalizes high iteration counts (circular reasoning) and tool failures. It provides a 0.0-1.0 score and a `shouldEscalateToHuman()` method to automate safety protocols.
 
 ### 3. 🛡️ Data Governance & Privacy (PII)
 
@@ -53,7 +53,7 @@ True xAI compliance is built on four non-negotiable pillars. Each pillar address
 
 **In Practice**:
 - **Example**: A customer service agent handles a refund. The logs must show `Masked_Credit_Card: ****-****-****-4422` instead of the full number.
-- **Gemini ReAct Java Implementation**: Integrated **RegexPIIDetector** that scans every agent output for Emails, SSNs, IP Addresses, and Credit Cards, applying `FULL`, `PARTIAL`, or `PLACEHOLDER` masking strategies dynamically.
+- **ai-agent4j Implementation**: Integrated **RegexPIIDetector** that scans every agent output for Emails, SSNs, IP Addresses, and Credit Cards, applying `FULL`, `PARTIAL`, or `PLACEHOLDER` masking strategies dynamically.
 
 ### 4. 🏳️ Fairness & Bias Monitoring
 
@@ -66,13 +66,13 @@ True xAI compliance is built on four non-negotiable pillars. Each pillar address
 
 **In Practice**:
 - **Example**: A hiring agent consistently ranks candidates from a specific geographic region lower. The system must have hooks to intercept and flag this linguistic or nationality bias.
-- **Gemini ReAct Java Implementation**: Pluggable **Bias Monitor Hooks** that allow developers to define custom fairness policies. The `BiasMonitor` can intercept and flag an agent's response before it ever reaches the end-user.
+- **ai-agent4j Implementation**: Pluggable **Bias Monitor Hooks** that allow developers to define custom fairness policies. The `BiasMonitor` can intercept and flag an agent's response before it ever reaches the end-user.
 
 ---
 
-## 🏆 Why Gemini ReAct Java is Best-in-Class
+## 🏆 Why ai-agent4j is Best-in-Class
 
-While general libraries like LangChain or Spring AI focus on **"Broad Features,"** Gemini ReAct Java focuses on **"Deep Trust."**
+While general libraries like LangChain or Spring AI focus on **"Broad Features,"** ai-agent4j focuses on **"Deep Trust."**
 
 | Feature | `ai-agent4j` | Generic Frameworks |
 | :--- | :--- | :--- |
@@ -88,10 +88,10 @@ While general libraries like LangChain or Spring AI focus on **"Broad Features,"
 
 The era of "AI for the sake of AI" is over. We are entering the era of **Accountable AI**.
 
-A library shouldn't just be judged by its speed or its number of integrations; it must be judged by its **Verifiability**. By choosing **Gemini ReAct Java**, you aren't just choosing a client for Google Gemini—you are choosing a framework that respects the rights of the data subject, the requirements of the auditor, and the safety of the enterprise.
+A library shouldn't just be judged by its speed or its number of integrations; it must be judged by its **Verifiability**. By choosing **ai-agent4j**, you aren't just choosing a client for Google Gemini—you are choosing a framework that respects the rights of the data subject, the requirements of the auditor, and the safety of the enterprise.
 
 > [!IMPORTANT]
-> **Gemini ReAct Java** currently achieves **~95% xAI Compliance**, providing a turnkey solution for developers in Finance, Healthcare, and Legal sectors.
+> **ai-agent4j** currently achieves **~95% xAI Compliance**, providing a turnkey solution for developers in Finance, Healthcare, and Legal sectors.
 
 ---
 

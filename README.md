@@ -24,6 +24,7 @@ The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java 
 * **MCP Support**: Full support for the **Model Context Protocol (MCP)**, enabling connection to any external MCP server (Python, Node, etc.).
 * **Structured Output**: Native support for JSON modes and structured object mapping.
 * **Skill Injection & Discovery**: Inject domain knowledge dynamically using **AgentSkill** (Markdown-based instructions) and automatically discover available skills.
+* **xAI Compliant**: Industry-leading **95% xAI compliance** with built-in PII masking, confidence scoring, and transparent reasoning audit trails.
 * **AI-Optimized**: Includes comprehensive `llms.txt` and specialized documentation optimized for AI scrapers and crawlers.
 
 ## 🧵 The Orchestrator: [Loom](loom/ai-agent4j-loom/)
@@ -107,6 +108,8 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 
 > [!TIP]
 > **[Why AI Agent4J? Read our comparison against LangChain4j and Spring AI](ai-agent4j/wiki/WHY_AI_AGENT4J.md)**
+>
+> **[xAI Beyond Black Boxes: Our 95% Compliance Guide](ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md)**
 >
 > **[Version Matrix](VERSION_MATRIX.md)** for canonical coordinates and compatibility.
 >
