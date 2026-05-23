@@ -133,28 +133,17 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 
 MIT License
 
-## Uncommitted Changes (automated)
+## Recent Functional Changes (summary)
 
-The repository had uncommitted modifications when this automation ran on 2026-05-23. The following files were modified in the working tree at that time:
+The repository received a large commit updating several modules and examples. Below are concise, high-level notes about the functional changes introduced:
 
-- README.md
-- ai-agent4j-addons/pom.xml
-- ai-agent4j/pom.xml
-- ai-agent4j/src/main/java/io/github/llm4j/agent/AgentEventListener.java
-- ai-agent4j/src/main/java/io/github/llm4j/agent/ReActAgent.java
-- ai-agent4j/src/main/java/io/github/llm4j/agent/Tool.java
-- ai-agent4j/src/main/java/io/github/llm4j/provider/sarvam/SarvamChatProvider.java
-- engram/engram-core/benchmark-results.md
-- engram/engram-core/src/test/java/io/github/llm4j/engram/core/CIAIntegrationTest.java
-- engram/engram-core/src/test/java/io/github/llm4j/engram/core/PGVectorStoreIntegrationTest.java
-- examples/gmail-mcp-app/src/main/java/io/github/llm4j/gmail/GmailAgentService.java
-- examples/hexamind-hub/src/main/java/io/github/llm4j/multiagent/config/AgentConfiguration.java
-- examples/nirmaan-yantra/nirmaan-yantra-server/pom.xml
-- examples/nirmaan-yantra/nirmaan-yantra-server/src/main/java/io/github/llm4j/nirmaan/agent/BaseNirmaanAgent.java
-- loom/ai-agent4j-loom/samples/boardroom/members.loom
-- loom/ai-agent4j-loom/samples/content_factory/primitives.loom
-- loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/execution/DefaultLLMClientFactory.java
-- loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/execution/HarnessExecutor.java
-- pom.xml
+- **ReAct agent & event handling**: `AgentEventListener`, `ReActAgent`, and `Tool` were updated to improve agent event flow and tool invocation semantics; this includes better hooks for human-in-the-loop approvals.
+- **Human-in-the-Loop (HITL)**: A new `ApprovalCallback` and a test `HumanInTheLoopTest` were added to formalize approval gating for sensitive tool actions.
+- **Sarvam provider updates**: `SarvamChatProvider` was updated to support recent provider API changes and improved request/response handling.
+- **Loom execution improvements**: `DefaultLLMClientFactory` and `HarnessExecutor` received enhancements to the Loom orchestration runtime and client harnessing behavior.
+- **Engram benchmarks & tests**: `engram-core` benchmark results and integration tests were updated to reflect recent performance and storage changes.
+- **New Tantrik console example**: A full `examples/tantrik-console` web UI and server were added (frontend assets, server controllers, and loom scripts) to demo console workflows.
+- **Examples & demos**: Multiple example apps (Hexamind Hub, Nirmaan Yantra, Gmail MCP App) received functional or packaging updates (code, tests, and POM changes).
+- **Build & packaging**: Top-level `pom.xml` and several module `pom.xml` files were updated (dependency or build configuration changes).
 
-If you want these changes committed in smaller, focused commits, please let me know and I will split them accordingly before pushing.
+If you'd like a per-file, line-level summary for any of the changed files above (for example `ReActAgent.java` or `SarvamChatProvider.java`), tell me which files to inspect and I'll extract exact intent and code snippets.
