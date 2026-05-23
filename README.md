@@ -132,18 +132,3 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 ---
 
 MIT License
-
-## Recent Functional Changes (summary)
-
-The repository received a large commit updating several modules and examples. Below are concise, high-level notes about the functional changes introduced:
-
-- **ReAct agent & event handling**: `AgentEventListener`, `ReActAgent`, and `Tool` were updated to improve agent event flow and tool invocation semantics; this includes better hooks for human-in-the-loop approvals.
-- **Human-in-the-Loop (HITL)**: A new `ApprovalCallback` and a test `HumanInTheLoopTest` were added to formalize approval gating for sensitive tool actions.
-- **Sarvam provider updates**: `SarvamChatProvider` was updated to support recent provider API changes and improved request/response handling.
-- **Loom execution improvements**: `DefaultLLMClientFactory` and `HarnessExecutor` received enhancements to the Loom orchestration runtime and client harnessing behavior.
-- **Engram benchmarks & tests**: `engram-core` benchmark results and integration tests were updated to reflect recent performance and storage changes.
-- **New Tantrik console example**: A full `examples/tantrik-console` web UI and server were added (frontend assets, server controllers, and loom scripts) to demo console workflows.
-- **Examples & demos**: Multiple example apps (Hexamind Hub, Nirmaan Yantra, Gmail MCP App) received functional or packaging updates (code, tests, and POM changes).
-- **Build & packaging**: Top-level `pom.xml` and several module `pom.xml` files were updated (dependency or build configuration changes).
-
-If you'd like a per-file, line-level summary for any of the changed files above (for example `ReActAgent.java` or `SarvamChatProvider.java`), tell me which files to inspect and I'll extract exact intent and code snippets.

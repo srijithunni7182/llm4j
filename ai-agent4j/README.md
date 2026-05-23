@@ -71,6 +71,18 @@ Explore the full capabilities of the framework through our detailed guides:
 
 ---
 
+## Recent Module Updates
+
+Additive notes describing recent functional work in the `ai-agent4j` module:
+
+- **ReAct agent & event handling**: Improved event hooks and tool invocation paths in `ReActAgent` and `AgentEventListener` to make tool execution more observable and reliable.
+- **Human-in-the-Loop (HITL)**: An `ApprovalCallback` pattern was formalized to make approvals explicit for sensitive operations. See the `HumanInTheLoopTest` for usage examples.
+- **Sarvam provider**: `SarvamChatProvider` now handles recent Sarvam API changes and improves response parsing and error handling.
+- **Loom runtime integration**: Small compatibility and harnessing improvements to better integrate `ai-agent4j` agents with the Loom orchestration runtime.
+- **Tests & Benchmarks**: Updated integration tests and benchmark artifacts to reflect storage and performance adjustments.
+
+These notes are intentionally additive — they summarize intent and guidance for maintainers. If you want me to expand any bullet into an exact code-level changelog (file + relevant method summaries), tell me which items to expand.
+
 ## 🏗️ Architecture
 
 ```mermaid
