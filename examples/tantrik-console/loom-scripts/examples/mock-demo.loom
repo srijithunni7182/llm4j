@@ -1,0 +1,27 @@
+// ============================================================
+// Mock Demo — No API Keys Required
+// ============================================================
+// A simple two-agent workflow designed to run with
+// mockMode=true. Perfect for testing the IDE console
+// without any LLM API keys configured.
+//
+// Click "Start Run" with Mock Mode enabled to see the
+// execution trace, token dashboard, and Engram graph
+// populate in real time.
+// ============================================================
+
+agent Planner {
+    model: "gemini-3.5-flash"
+    system: "You are a project planner. Break down a given goal into 5 concrete, actionable tasks. Number each task and include a brief description of the expected output."
+}
+
+agent Executor {
+    model: "gemini-3.5-flash"
+    system: "You are a diligent executor. Given a task plan, work through each task step by step and produce a detailed output for each one. Be thorough and specific."
+}
+
+workflow MockDemo {
+    delegate "Plan the implementation of a REST API for a simple todo application" to Planner -> plan
+    delegate "Execute the following plan step by step: {plan}" to Executor -> result
+    note "Workflow complete. Result: {result}"
+}

@@ -58,6 +58,11 @@ public class HarnessExecutor implements LoomEngine {
     private PromptRegistry promptRegistry;
     private final String sessionId = UUID.randomUUID().toString();
     private MemoryEngine memoryEngine = new TranscriptAccumulationEngine();
+    
+    @FunctionalInterface
+    public interface DelegateSuccessHandler {
+        void onSuccess(io.github.llm4j.agent.AgentResult result, Object finalValue);
+    }
 
     public HarnessExecutor(LoomScript script, ToolRegistry toolRegistry, LLMClientFactory llmClientFactory) {
         this.script = script;
@@ -73,6 +78,9 @@ public class HarnessExecutor implements LoomEngine {
     }
     public void setMemoryEngine(MemoryEngine memoryEngine) {
         this.memoryEngine = memoryEngine != null ? memoryEngine : new TranscriptAccumulationEngine();
+    }
+    protected MemoryEngine getMemoryEngine() {
+        return memoryEngine;
     }
 
     @Override
@@ -478,6 +486,7 @@ public class HarnessExecutor implements LoomEngine {
         String resolvedPayload = resolvePayload(del.getPayload());
         
         String contextBriefing = memoryEngine.assembleContext(agentDef, resolvedPayload, context);
+        contextBriefing = beforeDelegateExecution(del, agentDef, resolvedPayload, contextBriefing);
         
         if (agentDef.getOutputSchema() != null) {
             contextBriefing += "\n\nCRITICAL: You MUST respond in valid JSON format only, following this schema: " 
@@ -497,21 +506,22 @@ public class HarnessExecutor implements LoomEngine {
                 if (agentDef.getOutputSchema() != null) {
                     finalValue = parseJsonResult(result.getFinalAnswer());
                 }
-
-                context.setVariable(del.getVariableName(), finalValue);
-                
-                memoryEngine.storeOutcome(agentDef, resolvedPayload, result, context);
-
-                auditLogger.logAgentDecision(AuditEvent.builder()
-                        .sessionId(sessionId)
-                        .agentResult(result)
-                        .addMetadata("agent", del.getTargetAgent())
-                        .addMetadata("statement", "delegate")
-                        .timestamp(Instant.now())
-                        .build());
+                DelegateSuccessHandler successHandler = (agentResult, value) -> {
+                    context.setVariable(del.getVariableName(), value);
+                    memoryEngine.storeOutcome(agentDef, resolvedPayload, agentResult, context);
+                    auditLogger.logAgentDecision(AuditEvent.builder()
+                            .sessionId(sessionId)
+                            .agentResult(agentResult)
+                            .addMetadata("agent", del.getTargetAgent())
+                            .addMetadata("statement", "delegate")
+                            .timestamp(Instant.now())
+                            .build());
+                };
+                afterDelegateExecution(del, agentDef, resolvedPayload, contextBriefing, result, finalValue, successHandler);
                 return; // Success
             } catch (Exception e) {
                 log.warning("Delegation failed: " + e.getMessage());
+                onDelegateError(del, agentDef, resolvedPayload, contextBriefing, e, attempts + 1, maxAttempts);
                 lastError = e;
                 attempts++;
             }
@@ -610,5 +620,44 @@ public class HarnessExecutor implements LoomEngine {
         }
 
         return resolved;
+    }
+
+    /**
+     * Hook called after context assembly and before delegate execution.
+     * Implementors can inject additional context or enforce budgeting.
+     */
+    protected String beforeDelegateExecution(DelegateStmt stmt, AgentDef agentDef, String resolvedPayload, String assembledContext) {
+        return assembledContext;
+    }
+
+    /**
+     * Hook called on successful delegate execution.
+     * Implementors must call {@code successHandler.onSuccess(...)} to persist result and audit data.
+     */
+    protected void afterDelegateExecution(
+            DelegateStmt stmt,
+            AgentDef agentDef,
+            String resolvedPayload,
+            String effectiveContext,
+            io.github.llm4j.agent.AgentResult result,
+            Object finalValue,
+            DelegateSuccessHandler successHandler
+    ) {
+        successHandler.onSuccess(result, finalValue);
+    }
+
+    /**
+     * Hook called for each failed attempt before retry or failure handling.
+     */
+    protected void onDelegateError(
+            DelegateStmt stmt,
+            AgentDef agentDef,
+            String resolvedPayload,
+            String effectiveContext,
+            Exception error,
+            int attemptNumber,
+            int maxAttempts
+    ) {
+        // No-op by default.
     }
 }

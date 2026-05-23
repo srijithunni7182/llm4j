@@ -1,0 +1,35 @@
+// ============================================================
+// Content Creation Pipeline
+// ============================================================
+// Ideate → Write → Edit + SEO optimise in parallel.
+// ============================================================
+
+agent Ideator {
+    model: "gemini-3.5-flash"
+    system: "You are a creative content strategist. Generate 3 compelling blog post ideas on a given topic. For each idea provide: a catchy title, a one-sentence hook, and 3 key points to cover. Format as a numbered list."
+}
+
+agent Writer {
+    model: "gemini-3.5-flash"
+    system: "You are an experienced technical writer. Given a blog post idea with key points, write a full 600-word blog post. Include an engaging introduction, well-structured body paragraphs with subheadings, concrete examples, and a clear conclusion with a call to action."
+}
+
+agent Editor {
+    model: "gemini-3.5-flash"
+    system: "You are a professional editor. Review and improve the given blog post draft. Fix grammar, improve clarity, strengthen the opening hook, ensure consistent tone, and add any missing transitions. Return the polished final version ready for publication."
+}
+
+agent SEOOptimizer {
+    model: "gemini-3.5-flash"
+    system: "You are an SEO specialist. Given a blog post, suggest: 5 target keywords to naturally incorporate, a meta description (155 chars max), an SEO-optimised title tag, and 3 internal linking opportunities. Format as a structured SEO brief."
+}
+
+workflow ContentPipeline {
+    delegate "Generate blog post ideas about: Building AI-powered developer tools with Java" to Ideator -> ideas
+    delegate "Write a blog post based on the first idea from this list: {ideas}" to Writer -> draft
+    parallel {
+        delegate "Edit and polish this blog post draft: {draft}" to Editor -> polishedPost
+        delegate "Create an SEO brief for this blog post: {draft}" to SEOOptimizer -> seoBrief
+    }
+    note "Content pipeline complete. Post: {polishedPost} SEO: {seoBrief}"
+}

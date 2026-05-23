@@ -17,7 +17,9 @@
         <module>ai-agent4j-addons</module>
         <module>loom/ai-agent4j-loom</module>
         <module>engram</module>
+        <module>tantrik</module>
         <module>examples/hexamind-hub</module>
+        <module>examples/tantrik-console/tantrik-console-server</module>
         <module>examples/nirmaan-yantra/nirmaan-yantra-server</module>
         <module>examples/kingini</module>
         <module>examples/gmail-mcp-app</module>

@@ -83,7 +83,7 @@ public class SarvamChatProvider implements LLMProvider {
         // Model (default to sarvam-2b-v0.5 or what user specifies, user doc mentioned
         // sarvam-m?)
         // Docs example said "sarvam-m".
-        String model = request.getModel() != null ? request.getModel() : "sarvam-m";
+        String model = request.getModel() != null ? request.getModel() : "sarvam-30b";
         root.put("model", model);
 
         ArrayNode messagesArray = root.putArray("messages");

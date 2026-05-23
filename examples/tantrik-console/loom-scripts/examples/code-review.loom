@@ -1,0 +1,36 @@
+// ============================================================
+// Code Review Pipeline
+// ============================================================
+// Three reviewers run in parallel (correctness, security,
+// performance), then a Consolidator merges their findings.
+// ============================================================
+
+agent CorrectnessReviewer {
+    model: "gemini-3.5-flash"
+    system: "You are a senior software engineer specialising in code correctness. Review code for logic errors, edge cases, null pointer risks, incorrect assumptions, and missing error handling. Be specific and provide concrete fix suggestions."
+}
+
+agent SecurityReviewer {
+    model: "gemini-3.5-flash"
+    system: "You are a security engineer specialising in application security. Review code for OWASP Top 10 vulnerabilities, injection risks, authentication flaws, and insecure data handling. Rate each finding as Critical, High, Medium, or Low."
+}
+
+agent PerformanceReviewer {
+    model: "gemini-3.5-flash"
+    system: "You are a performance engineer. Review code for algorithmic complexity issues, unnecessary allocations, blocking I/O, N+1 query patterns, and missed caching opportunities. Suggest concrete optimisations with expected impact."
+}
+
+agent ReviewConsolidator {
+    model: "gemini-3.5-flash"
+    system: "You are a tech lead who consolidates multiple code review perspectives into a single prioritised action list. Merge findings, remove duplicates, prioritise by severity, and produce a clean numbered list of required changes."
+}
+
+workflow CodeReview {
+    parallel {
+        delegate "Review this Java method for correctness:\n\npublic List<User> getActiveUsers(String role) {\n    return userRepo.findAll().stream()\n        .filter(u -> u.getRole().equals(role))\n        .filter(u -> u.isActive())\n        .collect(Collectors.toList());\n}" to CorrectnessReviewer -> correctnessReport
+        delegate "Review this Java method for security issues:\n\npublic List<User> getActiveUsers(String role) {\n    return userRepo.findAll().stream()\n        .filter(u -> u.getRole().equals(role))\n        .filter(u -> u.isActive())\n        .collect(Collectors.toList());\n}" to SecurityReviewer -> securityReport
+        delegate "Review this Java method for performance:\n\npublic List<User> getActiveUsers(String role) {\n    return userRepo.findAll().stream()\n        .filter(u -> u.getRole().equals(role))\n        .filter(u -> u.isActive())\n        .collect(Collectors.toList());\n}" to PerformanceReviewer -> performanceReport
+    }
+    delegate "Consolidate these three reviews into a prioritised action list. CORRECTNESS: {correctnessReport} SECURITY: {securityReport} PERFORMANCE: {performanceReport}" to ReviewConsolidator -> consolidatedReview
+    note "Review complete: {consolidatedReview}"
+}

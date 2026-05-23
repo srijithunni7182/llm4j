@@ -1,0 +1,22 @@
+// ============================================================
+// Research & Summarizer Pipeline
+// ============================================================
+// A two-agent workflow where a Researcher gathers information
+// on a topic and a Summarizer condenses it into key points.
+// ============================================================
+
+agent Researcher {
+    model: "gemini-3.5-flash"
+    system: "You are a thorough research assistant. When given a topic, gather comprehensive information covering background, key concepts, recent developments, and practical applications. Present findings in a structured format with clear sections."
+}
+
+agent Summarizer {
+    model: "gemini-3.5-flash"
+    system: "You are an expert at distilling complex information into clear, concise summaries. Given research findings, produce a bullet-point summary of the 5 most important takeaways, followed by a one-paragraph executive summary."
+}
+
+workflow ResearchAndSummarize {
+    delegate "Research the topic: Large Language Models and their impact on software development" to Researcher -> research
+    delegate "Summarize the following research findings: {research}" to Summarizer -> summary
+    note "Summary complete: {summary}"
+}

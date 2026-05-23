@@ -1,0 +1,94 @@
+// ============================================================
+// Autonomous Development Cycle — main.loom
+// ============================================================
+// A comprehensive, iterative SDLC workflow using parallel
+// execution, loops, and conditional gates.
+//
+// All agents use Gemini 2.5 Flash.
+//
+// To run: select this file in the IDE, set the workflow
+// name to "AutonomousDevelopmentCycle", and click Start Run.
+// ============================================================
+
+// --- AGENT FLEET ---
+
+agent BusinessAnalyst {
+    model: "gemini-3.5-flash"
+    system: "You are an expert Business Analyst. Turn vague requirements into a rigorous Product Requirements Document (PRD). Structure your output with: Executive Summary, Problem Statement, Goals and Non-Goals, User Stories, Functional Requirements, Non-Functional Requirements, and Acceptance Criteria. Be precise and unambiguous."
+}
+
+agent Architect {
+    model: "gemini-3.5-flash"
+    system: "You are a Lead Software Architect. Given a PRD, produce both a High-Level Design (HLD) and Low-Level Design (LLD). HLD covers system components, data flow, and integration points. LLD covers class structures, API contracts, database schemas, and sequence diagrams. Justify every technology choice."
+    memory: {
+        type: "SEMANTIC"
+    }
+}
+
+agent TestArchitect {
+    model: "gemini-3.5-flash"
+    system: "You are a Test Architect. Define a comprehensive Test Strategy covering: unit test boundaries, integration test paths, end-to-end scenarios, performance benchmarks, and security test cases. Specify coverage targets and tooling recommendations."
+}
+
+agent TechLead {
+    model: "gemini-3.5-flash"
+    system: "You are a Tech Lead. Synthesize requirements and architecture into a phased, sprint-ready Implementation Plan. Break work into modules with clear dependencies, effort estimates, and acceptance criteria per phase. Identify risks and mitigation strategies."
+}
+
+agent SoftwareEngineer {
+    model: "gemini-3.5-flash"
+    system: "You are a Senior Software Engineer. Implement clean, well-tested, production-quality code based on technical specifications. Follow SOLID principles, handle edge cases and errors gracefully, and include unit tests for all public methods. Output complete, runnable code."
+}
+
+agent BuildEngineer {
+    model: "gemini-3.5-flash"
+    system: "You are a Build Engineer. Given code and a test plan, verify compilation correctness, run the test suite, and produce a structured build report. Your report MUST end with exactly one of these lines: BUILD_STATUS: SUCCESS or BUILD_STATUS: FAILURE. Include test pass/fail counts and any error logs."
+}
+
+agent Reviewer {
+    model: "gemini-3.5-flash"
+    system: "You are a Senior Code Reviewer. Perform a thorough review focusing on: correctness, security vulnerabilities, performance, maintainability, and test coverage. Provide specific actionable feedback. End your review with either REVIEW_STATUS: APPROVED or REVIEW_STATUS: CHANGES_REQUESTED."
+}
+
+agent QA {
+    model: "gemini-3.5-flash"
+    system: "You are a QA Engineer. Verify the implementation against the PRD and Test Strategy. Check all acceptance criteria. End your report with either QA_STATUS: PASS or QA_STATUS: FAIL and list any outstanding issues."
+}
+
+// --- WORKFLOW ---
+
+workflow AutonomousDevelopmentCycle(userRequirement) {
+
+    note "=== Phase 1: Requirements Discovery ==="
+    delegate "Flesh out the following requirement and produce a complete PRD: {userRequirement}" to BusinessAnalyst -> prd
+
+    note "=== Phase 2: Architecture & Design ==="
+    delegate "Research the optimal tech stack and produce HLD and LLD based on this PRD: {prd}" to Architect -> designDoc
+
+    note "=== Phase 3: Strategy & Planning (parallel) ==="
+    parallel {
+        delegate "Create a comprehensive Test Strategy for this PRD and design: PRD={prd} Design={designDoc}" to TestArchitect -> testPlan
+        delegate "Create a phased Implementation Plan for this design: {designDoc}" to TechLead -> executionPlan
+    }
+
+    note "=== Phase 4: Implementation ==="
+    parallel {
+        delegate "Implement Module A (core domain logic) based on this plan: {executionPlan}" to SoftwareEngineer -> codeA
+        delegate "Implement Module B (API and integration layer) based on this plan: {executionPlan}" to SoftwareEngineer -> codeB
+    }
+
+    note "=== Phase 5: Build & Test Gate ==="
+    delegate "Compile and run tests for the following code using the test plan. Module A: {codeA} Module B: {codeB} Test Plan: {testPlan}" to BuildEngineer -> buildResult
+
+    note "=== Phase 6: Quality & Review (parallel) ==="
+    parallel {
+        delegate "Review this code for correctness, security, and performance. Module A: {codeA} Module B: {codeB}" to Reviewer -> reviewComments
+        delegate "Verify this implementation against the PRD. Code: {codeA} and {codeB} PRD: {prd}" to QA -> qaReport
+    }
+
+    note "=== Phase 7: Final Reconciliation ==="
+    delegate "Produce the final deliverable package. Incorporate all feedback. Code: {codeA} {codeB} Review: {reviewComments} QA: {qaReport} Build: {buildResult}" to SoftwareEngineer -> finalCode
+
+    note "=== Delivery ==="
+    handoff "Project complete. Final code: {finalCode}" to Terminal
+}

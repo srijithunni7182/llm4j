@@ -1,7 +1,7 @@
 // members.loom
 
 agent CFO {
-    model: "gemini-1.5-flash"
+    model: "gemini-3.5-flash"
     persona: "FinancialAnalyst"
     system: "Evaluate the financial viability and risks of the following proposal: {proposal}"
 }

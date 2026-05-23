@@ -1,0 +1,27 @@
+// ============================================================
+// Data Analysis Pipeline
+// ============================================================
+// Analyse data → find patterns → write executive report.
+// ============================================================
+
+agent DataAnalyst {
+    model: "gemini-3.5-flash"
+    system: "You are a data analyst. Given a dataset description, identify the key variables, data types, potential quality issues, and initial observations. Describe what the data represents and what questions it could answer."
+}
+
+agent StatisticsExpert {
+    model: "gemini-3.5-flash"
+    system: "You are a statistician. Given data observations, identify statistical patterns, correlations, anomalies, and trends. Suggest appropriate statistical tests or visualisations. Highlight the most significant findings with supporting reasoning."
+}
+
+agent ReportWriter {
+    model: "gemini-3.5-flash"
+    system: "You are a business intelligence writer. Given data analysis and statistical findings, write a clear executive summary report structured as: Executive Summary (3 sentences), Key Findings (5 bullet points), Recommendations (3 action items), and Next Steps."
+}
+
+workflow DataAnalysis {
+    delegate "Analyse this dataset: Monthly sales data for an e-commerce platform showing 15% growth in Q1, 8% decline in Q2, 22% growth in Q3, and 5% growth in Q4. Top categories: Electronics 40%, Clothing 30%, Home and Garden 20%, Other 10%. Customer acquisition cost increased 12% YoY while lifetime value increased 18% YoY." to DataAnalyst -> dataObservations
+    delegate "Identify statistical patterns and trends in these observations: {dataObservations}" to StatisticsExpert -> statisticalFindings
+    delegate "Write an executive report based on these findings. DATA ANALYSIS: {dataObservations} STATISTICAL FINDINGS: {statisticalFindings}" to ReportWriter -> executiveReport
+    note "Analysis complete: {executiveReport}"
+}

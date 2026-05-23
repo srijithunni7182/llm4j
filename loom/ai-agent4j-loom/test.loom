@@ -1,0 +1,9 @@
+agent EchoBot {
+    model: "gemini-3.5-flash"
+    system: "Reply exactly with Hello World"
+}
+
+workflow Main() {
+    delegate "" to EchoBot -> res
+    note "{res}"
+}

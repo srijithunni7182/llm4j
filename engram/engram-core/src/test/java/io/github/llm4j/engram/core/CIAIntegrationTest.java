@@ -20,12 +20,15 @@ class CIAIntegrationTest {
 
     @Test
     void testCIAExtractionAndSynthesis() throws Exception {
-        // The user provided API Key
-        String apiKey = "AIzaSyCgP2Plnszh--vLe-KRDd0tZUOJ0N1ft_k";
-        
+        String apiKey = System.getenv("GOOGLE_API_KEY");
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+            apiKey != null && !apiKey.isBlank(),
+            "GOOGLE_API_KEY not set; skipping live CIA integration test"
+        );
+
         LLMConfig config = LLMConfig.builder()
             .apiKey(apiKey)
-            .defaultModel("gemini-2.5-flash") // Standard model for JSON tasks
+            .defaultModel("gemini-3.5-flash") // Standard model for JSON tasks
             .build();
             
         GoogleProvider provider = new GoogleProvider(config);

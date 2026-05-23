@@ -37,11 +37,11 @@ public abstract class BaseNirmaanAgent implements NirmaanAgent {
                 model = discoveredModel;
                 System.out.println(String.format("%s (%s) found model: %s", getName(), getRole(), model));
             } else {
-                model = "gemini-1.5-flash";
+                model = "gemini-3.5-flash";
                 System.out.println(String.format("%s could not discover models, using fallback: %s", getName(), model));
             }
         } catch (Exception e) {
-            model = "gemini-1.5-flash";
+            model = "gemini-3.5-flash";
             System.out.println(String.format("%s model discovery failed: %s. Using fallback: %s", getName(),
                     e.getMessage(), model));
         }

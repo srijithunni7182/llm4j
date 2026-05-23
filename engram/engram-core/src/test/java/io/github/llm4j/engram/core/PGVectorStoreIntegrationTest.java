@@ -18,24 +18,42 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * Requires Docker. Run with: mvn test -Dtest=PGVectorStoreIntegrationTest
  */
-@Testcontainers
 class PGVectorStoreIntegrationTest {
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("pgvector/pgvector:pg16")
-            .withDatabaseName("engram_test")
-            .withUsername("engram")
-            .withPassword("engram_secret");
-
+    static PostgreSQLContainer<?> postgres;
     private static PGVectorStore store;
 
     @BeforeAll
     static void setUp() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                isDockerAvailable(),
+                "Docker is not available; skipping PGVectorStoreIntegrationTest"
+        );
+        postgres = new PostgreSQLContainer<>("pgvector/pgvector:pg16")
+                .withDatabaseName("engram_test")
+                .withUsername("engram")
+                .withPassword("engram_secret");
+        postgres.start();
         store = new PGVectorStore(
                 postgres.getJdbcUrl(),
                 postgres.getUsername(),
                 postgres.getPassword()
         );
+    }
+
+    private static boolean isDockerAvailable() {
+        try {
+            return org.testcontainers.DockerClientFactory.instance().isDockerAvailable();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @org.junit.jupiter.api.AfterAll
+    static void tearDown() {
+        if (postgres != null) {
+            postgres.stop();
+        }
     }
 
     @Test

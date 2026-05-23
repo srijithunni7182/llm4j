@@ -66,7 +66,7 @@ public class AgentConfiguration {
         public LLMClient llmClient() {
                 LLMConfig config = LLMConfig.builder()
                                 .apiKey(apiKey)
-                                .defaultModel("gemini-2.0-flash")
+                                .defaultModel("gemini-3.5-flash")
                                 .build();
 
                 return new DefaultLLMClient(new GoogleProvider(config));

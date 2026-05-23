@@ -1,0 +1,258 @@
+/* ============================================================
+   Tantrik IDE — Global Dark Theme
+   ============================================================ */
+
+:root {
+  /* Core palette */
+  --bg: #1e1e1e;
+  --fg: #cccccc;
+  --fg-muted: #888888;
+  --fg-dim: #555555;
+
+  /* Surface layers */
+  --topbar-bg: #252526;
+  --sidebar-bg: #252526;
+  --editor-bg: #1e1e1e;
+  --panel-bg: #1e1e1e;
+
+  /* Borders */
+  --border: #3c3c3c;
+  --border-light: #2a2a2a;
+
+  /* Accent */
+  --accent: #3366ff;
+  --accent-hover: #4477ff;
+
+  /* Status colors */
+  --success: #16a34a;
+  --error: #dc2626;
+  --warning: #b45309;
+  --info: #2563eb;
+
+  /* Scrollbar */
+  --scrollbar-thumb: #3c3c3c;
+  --scrollbar-track: #1e1e1e;
+}
+
+/* ============================================================
+   Reset & Base
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ============================================================
+   Scrollbars
+   ============================================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* ============================================================
+   Typography
+   ============================================================ */
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--fg);
+  margin: 0;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ============================================================
+   Form elements
+   ============================================================ */
+
+input,
+textarea,
+select {
+  background: #2a2a2a;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--fg-muted);
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+
+button {
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  border-radius: 5px;
+  padding: 6px 14px;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   IDE Layout
+   ============================================================ */
+
+.ide-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.ide-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ============================================================
+   File Tree collapse toggle (responsive)
+   ============================================================ */
+
+.file-tree-toggle {
+  display: none;
+  background: var(--sidebar-bg);
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--fg-muted);
+  padding: 8px 6px;
+  cursor: pointer;
+  font-size: 16px;
+  align-items: center;
+  justify-content: center;
+  writing-mode: vertical-rl;
+  flex-shrink: 0;
+}
+
+@media (max-width: 899px) {
+  .file-tree-toggle {
+    display: flex;
+  }
+}
+
+/* ============================================================
+   Badges
+   ============================================================ */
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  max-width: fit-content;
+}
+
+.badge.cloud {
+  background: #1e3a5f;
+  color: #93c5fd;
+}
+
+.badge.local {
+  background: #14532d;
+  color: #86efac;
+}
+
+.badge.system {
+  background: #374151;
+  color: #9ca3af;
+}
+
+.badge.success {
+  background: #14532d;
+  color: #86efac;
+}
+
+.badge.error {
+  background: #7f1d1d;
+  color: #fca5a5;
+}
+
+/* ============================================================
+   Utility
+   ============================================================ */
+
+.error {
+  color: var(--error);
+}
+
+.muted {
+  color: var(--fg-muted);
+}
+
+/* ============================================================
+   Radix UI overrides — ensure dark backgrounds on portals
+   ============================================================ */
+
+[data-radix-popper-content-wrapper] {
+  z-index: 9000 !important;
+}

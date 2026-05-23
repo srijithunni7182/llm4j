@@ -18,6 +18,7 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
     @Override
     public LLMClient createClient(String modelName) {
         String modelLower = modelName.toLowerCase();
+        String normalizedModel = modelLower.startsWith("ollama/") ? modelName.substring("ollama/".length()) : modelName;
 
         if (modelLower.contains("gemini")) {
             String apiKey = System.getenv("GEMINI_API_KEY");
@@ -31,14 +32,14 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
 
             LLMConfig config = LLMConfig.builder()
                     .apiKey(apiKey)
-                    .defaultModel(modelName)
+                    .defaultModel(normalizedModel)
                     .build();
             
             GoogleProvider provider = new GoogleProvider(config);
             return wrapProvider(provider);
         } 
         
-        if (modelLower.contains("llama") || modelLower.contains("gemma") || modelLower.contains("mistral")) {
+        if (modelLower.startsWith("ollama/") || modelLower.contains("llama") || modelLower.contains("gemma") || modelLower.contains("mistral")) {
             String baseUrl = System.getenv("OLLAMA_BASE_URL");
             if (baseUrl == null || baseUrl.isEmpty()) {
                 baseUrl = "http://localhost:11434"; // Default Ollama port
@@ -46,15 +47,15 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
 
             LLMConfig config = LLMConfig.builder()
                     .baseUrl(baseUrl)
-                    .defaultModel(modelName)
+                    .defaultModel(normalizedModel)
                     .build();
 
             OllamaProvider provider = new OllamaProvider(config);
             return wrapProvider(provider);
         }
 
-        throw new IllegalArgumentException("Unsupported model or provider not configured for: " + modelName + 
-                ". Supported prefixes: 'gemini-', 'llama', 'gemma', 'mistral'.");
+        throw new IllegalArgumentException("Unsupported model or provider not configured for: " + modelName +
+                ". Supported patterns: 'gemini-*' for cloud and 'ollama/<model>' (or llama/gemma/mistral) for local.");
     }
 
     private LLMClient wrapProvider(final io.github.llm4j.provider.LLMProvider provider) {

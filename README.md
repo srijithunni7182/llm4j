@@ -6,7 +6,7 @@
 
 **llm4j** is a monorepo dedicated to exploring the future of AI engineering in Java. Unlike Python-heavy ecosystems or heavy abstractions, this project proves that you can build sophisticated, production-ready AI solutions using pure, idiomatic Java.
 
-It provides a complete stack: from a low-level Gemini client to a high-level ReAct agent framework, and fully fledged multi-agent applications.
+It provides a complete stack: from a low-level **Gemini 3.5 Flash** client to a high-level ReAct agent framework with **Human-in-the-Loop** approval gates, and fully fledged multi-agent applications.
 
 ---
 
@@ -14,12 +14,13 @@ It provides a complete stack: from a low-level Gemini client to a high-level ReA
 
 The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java library for building LLM-powered applications.
 
-* **Multi-Provider**: Native support for **Google Gemini**, **Sarvam AI**, and **Local models via Ollama (Gemma, Llama)**, with an extensible architecture for others.
-* **Voice-Native**: First-class support for Speech-to-Text (STT) and Text-to-Speech (TTS) pipelines.
+* **Multi-Provider**: Native support for **Google Gemini 3.5 Flash**, **Sarvam AI (Sarvam-30B / Sarvam-105B)**, and **Local models via Ollama (Gemma, Llama, Phi)**, with an extensible architecture for others.
+* **Voice-Native**: First-class support for Speech-to-Text (STT via Saaras v3) and Text-to-Speech (TTS via Bulbul v3) pipelines.
 * **Zero Magic**: No confusing "magic" abstractions. Just clean, typed Java code.
 * **ReAct Agents**: Implements the **Re**asoning + **Act**ing paradigm, allowing agents to solve complex problems by thinking and using tools.
+* **Human-in-the-Loop (HITL)**: Built-in approval gates — any tool can declare `requiresApproval()` and the agent will block for an `ApprovalCallback` before executing sensitive actions (e.g. sending emails, running queries, making payments).
 * **Autonomous Foundations**: Built-in support for **Agent Delegation** (Manager/Worker patterns), **Background Task Scheduling**, and **Semantic Long-Term Memory**.
-* **Model Routing**: Cost-aware and fallback routing strategies to automatically switch between LLM providers (e.g., Gemini Flash vs Pro) based on task complexity.
+* **Model Routing**: Cost-aware and fallback routing strategies with a tri-lane `HybridModelRegistry` that routes `gemini-*` → Gemini Cloud, `sarvam-*` → Sarvam Cloud, and `ollama/*` → Local Ollama.
 * **Tooling**: Includes ready-to-use tools (Calculator, Web Search) and an **OpenAPI Tool** that can turn any REST API into an AI function instantly.
 * **MCP Support**: Full support for the **Model Context Protocol (MCP)**, enabling connection to any external MCP server (Python, Node, etc.).
 * **Structured Output**: Native support for JSON modes and structured object mapping.
@@ -34,7 +35,7 @@ The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java 
 * **Neuro-Symbolic**: Combines the reasoning power of LLMs with the rigid reliability of symbolic logic.
 * **DSL-Driven**: Define agents and workflows in a human-readable script; boot systems without Java recompilation.
 * **Deterministic Routing**: Native support for `handoff`, `delegate`, `parallel` execution, and `loop until` patterns.
-* **Enterprise Governance**: Integrated PII guardrails, cost-aware routing policies, and background task scheduling.
+* **Enterprise Governance**: Integrated PII guardrails, cost-aware routing policies, background task scheduling, and **human approval gates** (`approve` step in workflows).
 
 👉 **[Master Loom Orchestration](loom/ai-agent4j-loom/LOOM_GUIDE.md)**
 
@@ -102,6 +103,7 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 
 *   **MCP Server**: Implements the Model Context Protocol for email.
 *   **Secure**: Uses OAuth2 for authentication.
+*   **HITL-Ready**: The Gmail send action is a perfect candidate for `requiresApproval()` — the agent will ask for human confirmation before sending any email.
 *   **Agent-Ready**: Plug-and-play with any MCP-compliant client (like Claude or `ai-agent4j` agents).
 
 ---
@@ -130,3 +132,29 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 ---
 
 MIT License
+
+## Uncommitted Changes (automated)
+
+The repository had uncommitted modifications when this automation ran on 2026-05-23. The following files were modified in the working tree at that time:
+
+- README.md
+- ai-agent4j-addons/pom.xml
+- ai-agent4j/pom.xml
+- ai-agent4j/src/main/java/io/github/llm4j/agent/AgentEventListener.java
+- ai-agent4j/src/main/java/io/github/llm4j/agent/ReActAgent.java
+- ai-agent4j/src/main/java/io/github/llm4j/agent/Tool.java
+- ai-agent4j/src/main/java/io/github/llm4j/provider/sarvam/SarvamChatProvider.java
+- engram/engram-core/benchmark-results.md
+- engram/engram-core/src/test/java/io/github/llm4j/engram/core/CIAIntegrationTest.java
+- engram/engram-core/src/test/java/io/github/llm4j/engram/core/PGVectorStoreIntegrationTest.java
+- examples/gmail-mcp-app/src/main/java/io/github/llm4j/gmail/GmailAgentService.java
+- examples/hexamind-hub/src/main/java/io/github/llm4j/multiagent/config/AgentConfiguration.java
+- examples/nirmaan-yantra/nirmaan-yantra-server/pom.xml
+- examples/nirmaan-yantra/nirmaan-yantra-server/src/main/java/io/github/llm4j/nirmaan/agent/BaseNirmaanAgent.java
+- loom/ai-agent4j-loom/samples/boardroom/members.loom
+- loom/ai-agent4j-loom/samples/content_factory/primitives.loom
+- loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/execution/DefaultLLMClientFactory.java
+- loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/execution/HarnessExecutor.java
+- pom.xml
+
+If you want these changes committed in smaller, focused commits, please let me know and I will split them accordingly before pushing.

@@ -97,6 +97,7 @@ public class ReActAgent {
     private final String sessionId;
     private final BiasMonitor biasMonitor;
     private final TextToSpeechProvider ttsProvider;
+    private final ApprovalCallback approvalCallback;
 
     private final SpeechToTextProvider sttProvider;
     private final AudioPlayer audioPlayer;
@@ -125,6 +126,7 @@ public class ReActAgent {
         this.biasMonitor =
                 builder.biasMonitor != null ? builder.biasMonitor : new NoOpBiasMonitor();
         this.ttsProvider = builder.ttsProvider;
+        this.approvalCallback = builder.approvalCallback;
 
         this.sttProvider = builder.sttProvider;
         this.audioPlayer =
@@ -223,7 +225,7 @@ public class ReActAgent {
                     continue;
                 }
 
-                String observation = executeAction(action, actionInput, actionHistory);
+                String observation = executeAction(action, actionInput, actionHistory, thought);
 
                 AgentResult.AgentStep step =
                         new AgentResult.AgentStep(thought, action, actionInput, observation);
@@ -276,7 +278,8 @@ public class ReActAgent {
         throw new Exception("No valid JSON block or legacy format found in LLM output.");
     }
 
-    private String executeAction(String action, String actionInput, Set<String> actionHistory) {
+    private String executeAction(
+            String action, String actionInput, Set<String> actionHistory, String thought) {
         String actionKey = action + ":" + (actionInput != null ? actionInput : "");
         if (actionHistory.contains(actionKey)) {
             logger.warn("Loop detected: {}", actionKey);
@@ -305,6 +308,25 @@ public class ReActAgent {
             } else {
                 args = new HashMap<>();
             }
+
+            // ── Human-in-the-Loop approval gate ──────────────────────────────
+            if (tool.requiresApproval(args)) {
+                notifyApprovalRequired(action, args, thought);
+                if (approvalCallback == null) {
+                    logger.warn("Tool '{}' requires approval but no ApprovalCallback is set. Blocking.", action);
+                    return "Error: Action '" + action
+                            + "' requires human approval, but no ApprovalCallback is configured."
+                            + " Add one via ReActAgent.Builder#approvalCallback().";
+                }
+                boolean approved = approvalCallback.approve(action, args, thought != null ? thought : "");
+                if (!approved) {
+                    logger.info("Human rejected action '{}'. Feeding back to agent.", action);
+                    return "Observation: A human supervisor rejected this action. "
+                            + "Do not attempt it again. Choose a different approach to accomplish the goal.";
+                }
+                logger.info("Human approved action '{}'.", action);
+            }
+            // ─────────────────────────────────────────────────────────────────
 
             String observation = tool.execute(args);
             logger.info("Tool '{}' returned observation: {}", action, observation);
@@ -518,6 +540,16 @@ public class ReActAgent {
         }
     }
 
+    private void notifyApprovalRequired(String toolName, Map<String, Object> args, String thought) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onApprovalRequired(toolName, args, thought);
+            } catch (Exception e) {
+                logger.error("Error in listener onApprovalRequired", e);
+            }
+        }
+    }
+
     private void notifyObservation(String observation) {
         for (AgentEventListener listener : listeners) {
             try {
@@ -591,6 +623,7 @@ public class ReActAgent {
         private String sessionId;
         private BiasMonitor biasMonitor;
         private TextToSpeechProvider ttsProvider;
+        private ApprovalCallback approvalCallback;
         private SpeechToTextProvider sttProvider;
         private AudioPlayer audioPlayer;
         private boolean autoPlayAudio = true;
@@ -616,6 +649,7 @@ public class ReActAgent {
             this.sessionId = agent.sessionId;
             this.biasMonitor = agent.biasMonitor;
             this.ttsProvider = agent.ttsProvider;
+            this.approvalCallback = agent.approvalCallback;
 
             this.sttProvider = agent.sttProvider;
             this.audioPlayer = agent.audioPlayer;
@@ -734,6 +768,20 @@ public class ReActAgent {
 
         public Builder ttsProvider(TextToSpeechProvider ttsProvider) {
             this.ttsProvider = ttsProvider;
+            return this;
+        }
+
+        /**
+         * Sets the Human-in-the-Loop approval callback. When set, any tool that returns
+         * {@code true} from {@link Tool#requiresApproval(java.util.Map)} will be gated on this
+         * callback before execution. If no callback is set and a tool requires approval, the agent
+         * will refuse to execute it and inform the LLM to try an alternative.
+         *
+         * @param approvalCallback the callback to invoke for sensitive tool calls
+         * @return this builder
+         */
+        public Builder approvalCallback(ApprovalCallback approvalCallback) {
+            this.approvalCallback = approvalCallback;
             return this;
         }
 

@@ -30,4 +30,17 @@ public interface Tool {
      * @throws Exception if the tool execution fails
      */
     String execute(java.util.Map<String, Object> args) throws Exception;
+
+    /**
+     * Whether this tool requires explicit human approval before execution. Override and return
+     * {@code true} for sensitive, destructive, or high-stakes operations (e.g. sending emails,
+     * modifying files, making payments). Defaults to {@code false} so all existing tools remain
+     * unaffected.
+     *
+     * @param args the arguments the agent intends to pass to the tool
+     * @return {@code true} if a human must approve this call before execution
+     */
+    default boolean requiresApproval(java.util.Map<String, Object> args) {
+        return false;
+    }
 }

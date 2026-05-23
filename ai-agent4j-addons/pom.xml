@@ -43,13 +43,13 @@
 
         <!-- Versions matched with Core or new -->
         <onnxruntime.version>1.18.0</onnxruntime.version>
-        <djl.version>0.28.0</djl.version>
+        <djl.version>0.31.1</djl.version>
         <postgresql.version>42.7.2</postgresql.version>
         <pgvector.version>0.1.6</pgvector.version>
         <pinecone.version>3.0.0</pinecone.version>
         <testcontainers.version>1.19.7</testcontainers.version>
         <junit.version>5.10.2</junit.version>
-        <assertj.version>3.25.3</assertj.version>
+        <assertj.version>3.27.7</assertj.version>
     </properties>
 
     <distributionManagement>

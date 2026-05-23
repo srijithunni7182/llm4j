@@ -86,7 +86,7 @@ public class GmailAgentService {
                 .build();
 
         GoogleProvider tempProvider = new GoogleProvider(tempConfig);
-        String latestModel = "gemini-1.5-flash"; // Fallback
+        String latestModel = "gemini-3.5-flash"; // Fallback
         try {
             String discovered = tempProvider.getFirstAvailableModel();
             if (discovered != null && !discovered.isEmpty()) {
