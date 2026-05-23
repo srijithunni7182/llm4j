@@ -24,10 +24,10 @@ jobs:
         distribution: 'temurin'
         cache: 'maven'
         server-id: central
-        server-username: MAVEN_USERNAME
-        server-password: MAVEN_PASSWORD
+        server-username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+        server-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
         gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
-        gpg-passphrase: GPG_PASSPHRASE
+        gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
     - name: Build and Test Core (ai-agent4j)
       run: |
@@ -76,19 +76,19 @@ jobs:
 
     - name: Compile Hexamind Hub
       run: mvn -B -DskipTests compile
-      working-directory: hexamind-hub
+      working-directory: examples/hexamind-hub
 
     - name: Compile Nirmaan Yantra Server
       run: mvn -B -DskipTests compile
-      working-directory: nirmaan-yantra/nirmaan-yantra-server
+      working-directory: examples/nirmaan-yantra/nirmaan-yantra-server
 
     - name: Compile Kingini
       run: mvn -B -DskipTests compile
-      working-directory: kingini
+      working-directory: examples/kingini
 
     - name: Compile Gmail MCP App
       run: mvn -B -DskipTests compile
-      working-directory: gmail-mcp-app
+      working-directory: examples/gmail-mcp-app
 
   deep-integration-tests:
     name: Deep Integration Tests
@@ -145,10 +145,10 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         server-id: central
-        server-username: MAVEN_USERNAME
-        server-password: MAVEN_PASSWORD
+        server-username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+        server-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
         gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
-        gpg-passphrase: GPG_PASSPHRASE
+        gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
     - name: Deploy Core
       run: mvn deploy -P release -DskipTests
