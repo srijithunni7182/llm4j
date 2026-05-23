@@ -147,11 +147,20 @@ jobs:
         server-id: central
         server-username: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
         server-password: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-        gpg-private-key: ${{ secrets.GPG_SECRET_KEY }}
-        gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+    - name: Import GPG signing key
+      env:
+        GPG_SECRET_KEY: ${{ secrets.GPG_SECRET_KEY }}
+        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+      run: |
+        echo "$GPG_SECRET_KEY" > private.key
+        mkdir -p ~/.gnupg
+        chmod 700 ~/.gnupg
+        gpg --batch --import private.key
+        rm private.key
 
     - name: Deploy Core
-      run: mvn deploy -P release -DskipTests
+      run: mvn -B -Dgpg.executable=gpg -Dgpg.passphrase="${{ secrets.GPG_PASSPHRASE }}" -Dgpg.pinentry-mode=loopback deploy -P release -DskipTests
       working-directory: ai-agent4j
       env:
         MAVEN_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
@@ -159,7 +168,7 @@ jobs:
         GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
     - name: Deploy Addons
-      run: mvn deploy -P release -DskipTests
+      run: mvn -B -Dgpg.executable=gpg -Dgpg.passphrase="${{ secrets.GPG_PASSPHRASE }}" -Dgpg.pinentry-mode=loopback deploy -P release -DskipTests
       working-directory: ai-agent4j-addons
       env:
         MAVEN_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
