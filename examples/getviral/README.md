@@ -19,7 +19,25 @@ It is the showcase for the whole llm4j stack: every module does real work in it.
 
 ---
 
-## Run it in 30 seconds (no API key)
+## Launch it (Ubuntu / Linux / macOS)
+
+```bash
+cd examples/getviral
+./launch.sh                    # asks: Gemini (hidden key prompt), Ollama (local) or Demo (no key)
+./launch.sh --install-desktop  # optional: adds "GetViral Studio" to the Ubuntu app grid
+```
+
+The launcher:
+- checks Java 17+ and Maven (and tells you the `apt install` line if either is missing);
+- asks which model to use, verifies a Gemini key live with Google, and can save it to
+  `~/.getviral/credentials` (mode `600`, remove with `--forget-keys`);
+- lists your pulled Ollama models, and offers optional Instagram publishing and Veo video;
+- builds the stack from source and opens the studio in your browser.
+
+Keys only ever reach Java through the environment, never the command line. Other flags: `--demo`,
+`--gemini`, `--ollama`, `--cli "idea"`, `--port N`, `--skip-build`.
+
+## Or run it by hand (no API key)
 
 ```bash
 # from the repo root — builds ai-agent4j, addons, Loom, Engram, eval4j and GetViral from source
