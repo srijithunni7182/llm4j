@@ -189,6 +189,13 @@ public class Lexer {
     private void identifier() {
         while (isAlphaNumeric(peek())) advance();
 
+        // Dotted property paths (e.g. report.status) lex as a single identifier so that
+        // alt/loop conditions can reference fields of output_schema results.
+        while (peek() == '.' && isAlpha(peekNext())) {
+            advance(); // consume '.'
+            while (isAlphaNumeric(peek())) advance();
+        }
+
         String text = source.substring(start, current);
         TokenType type = KEYWORDS.get(text);
         if (type == null) type = TokenType.IDENTIFIER;

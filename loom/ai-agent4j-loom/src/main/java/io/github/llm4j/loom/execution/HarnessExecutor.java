@@ -140,9 +140,14 @@ public class HarnessExecutor implements LoomEngine {
                 llmClient = llmClientFactory.createClient(agentDef.getModel());
             }
 
-            ReActAgent.Builder agentBuilder = ReActAgent.builder()
-                .llmClient(llmClient)
-                .systemPrompt(systemPrompt);
+            ReActAgent.Builder agentBuilder = ReActAgent.builder().llmClient(llmClient);
+            if (agentDef.getTools().isEmpty() && agentDef.getMcpServers().isEmpty()) {
+                agentBuilder.systemPrompt(systemPrompt);
+            } else {
+                // Tool-using agents keep the ReAct protocol (tool descriptions + JSON format);
+                // a verbatim system prompt would hide their tools from the model.
+                agentBuilder.instructions(systemPrompt);
+            }
 
             // Reflection-based .loot tools
             for (String toolName : agentDef.getTools()) {
@@ -172,6 +177,7 @@ public class HarnessExecutor implements LoomEngine {
                 }
             }
 
+            customizeAgent(agentDef, agentBuilder);
             ReActAgent agent = agentBuilder.build();
             activeAgents.put(agentDef.getName(), agent);
             
@@ -620,6 +626,14 @@ public class HarnessExecutor implements LoomEngine {
         }
 
         return resolved;
+    }
+
+    /**
+     * Hook called for every agent just before it is built, after its model, prompt and tools are
+     * configured. Embedders can attach listeners, approval callbacks, iteration limits, etc.
+     */
+    protected void customizeAgent(AgentDef agentDef, ReActAgent.Builder builder) {
+        // No-op by default.
     }
 
     /**

@@ -242,4 +242,24 @@ class LlmJudgeConditionTest {
         JudgeCache cache = InMemoryJudgeCache.create();
         assertThat(cache.get("unknown-key")).isEmpty();
     }
+
+    @Test
+    void evaluate_returnsVerdictWithoutAsserting() {
+        when(judgeClient.chat(any(LLMRequest.class)))
+                .thenReturn(fencedJsonResponse(2, "Weak hook")); // rating 2 -> score 0.25
+
+        LlmJudgeCondition condition =
+                llmJudged("Hook strength")
+                        .criteria("The first line stops the scroll")
+                        .judge(judgeClient)
+                        .threshold(0.7)
+                        .build();
+
+        JudgeVerdict verdict = condition.evaluate("Here are some tips.");
+
+        assertThat(verdict.score()).isEqualTo(0.25);
+        assertThat(verdict.reason()).contains("Weak hook");
+        assertThat(condition.getName()).isEqualTo("Hook strength");
+        assertThat(condition.getThreshold()).isEqualTo(0.7);
+    }
 }
