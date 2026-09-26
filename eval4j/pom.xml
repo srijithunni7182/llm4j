@@ -77,11 +77,17 @@
             <version>${jackson.version}</version>
         </dependency>
 
-        <!-- JUnit 5 extension API for EvalReportExtension; also used to write eval4j's own tests -->
+        <!-- JUnit 5 extension API for EvalReportExtension; also used to write eval4j's own tests.
+             `provided`, not the default compile scope: eval4j implements a JUnit5 extension point,
+             but consumers bring their own Jupiter version. compile scope would pull Jupiter 6.1.0
+             onto every consumer's classpath transitively, which can conflict with a consumer
+             pinned to JUnit 5.x. `provided` keeps it available to build eval4j itself (main and
+             test) without forcing this version on anyone downstream. -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <version>${junit.version}</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Testing -->

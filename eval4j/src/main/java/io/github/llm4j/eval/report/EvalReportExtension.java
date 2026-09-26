@@ -13,9 +13,9 @@ import org.junit.jupiter.api.extension.TestWatcher;
  * — it transparently observes whichever assertions (eval4j's or plain JUnit/AssertJ ones) each
  * {@code @Test}/{@code @ParameterizedTest} throws, and prints a summary table in {@code afterAll}.
  *
- * <p>This deliberately depends only on the JUnit 5 extension API, not on any eval4j assertion
- * type: it works the same whether a test failed via an {@link io.github.llm4j.eval.judge.LlmJudgeCondition}, a plain
- * {@code assertEquals}, or anything else.
+ * <p>This deliberately depends only on the JUnit 5 extension API, not on any eval4j assertion type:
+ * it works the same whether a test failed via an {@link
+ * io.github.llm4j.eval.judge.LlmJudgeCondition}, a plain {@code assertEquals}, or anything else.
  */
 public class EvalReportExtension implements TestWatcher, AfterAllCallback {
 

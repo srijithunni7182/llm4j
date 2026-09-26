@@ -68,11 +68,10 @@ class Eval4jIntegrationTest {
     }
 
     /**
-     * Modeled on the Kingini example app's persona (see
-     * examples/kingini's VoiceController): a Malayalam-speaking cat character who works a "meow"
-     * into every answer. Reused here as the system prompt directly, rather than depending on the
-     * kingini module, to demonstrate eval4j judging a persona-driven agent from one of the
-     * showcase apps, not just a bare tool-using one.
+     * Modeled on the Kingini example app's persona (see examples/kingini's VoiceController): a
+     * Malayalam-speaking cat character who works a "meow" into every answer. Reused here as the
+     * system prompt directly, rather than depending on the kingini module, to demonstrate eval4j
+     * judging a persona-driven agent from one of the showcase apps, not just a bare tool-using one.
      */
     @Test
     void personaAgentStaysInCharacter() {

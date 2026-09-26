@@ -31,14 +31,20 @@ class LlmResponseAssertTest {
     @Test
     void hasFinishReason_passesOnMatchingReason() {
         LLMResponse response =
-                LLMResponse.builder().content("x").finishReason(LLMResponse.FinishReason.STOP).build();
+                LLMResponse.builder()
+                        .content("x")
+                        .finishReason(LLMResponse.FinishReason.STOP)
+                        .build();
         assertThat(response).hasFinishReason(LLMResponse.FinishReason.STOP);
     }
 
     @Test
     void hasFinishReason_failsOnMismatchedReason() {
         LLMResponse response =
-                LLMResponse.builder().content("x").finishReason(LLMResponse.FinishReason.LENGTH).build();
+                LLMResponse.builder()
+                        .content("x")
+                        .finishReason(LLMResponse.FinishReason.LENGTH)
+                        .build();
         assertThatThrownBy(
                         () -> assertThat(response).hasFinishReason(LLMResponse.FinishReason.STOP))
                 .isInstanceOf(AssertionError.class);
@@ -46,15 +52,13 @@ class LlmResponseAssertTest {
 
     @Test
     void usesFewerTokensThan_passesWhenUnderLimit() {
-        LLMResponse response =
-                LLMResponse.builder().content("x").tokenUsage(10, 5, 15).build();
+        LLMResponse response = LLMResponse.builder().content("x").tokenUsage(10, 5, 15).build();
         assertThat(response).usesFewerTokensThan(20);
     }
 
     @Test
     void usesFewerTokensThan_failsWhenAtOrOverLimit() {
-        LLMResponse response =
-                LLMResponse.builder().content("x").tokenUsage(10, 5, 15).build();
+        LLMResponse response = LLMResponse.builder().content("x").tokenUsage(10, 5, 15).build();
         assertThatThrownBy(() -> assertThat(response).usesFewerTokensThan(15))
                 .isInstanceOf(AssertionError.class);
     }

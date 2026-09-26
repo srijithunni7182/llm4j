@@ -30,7 +30,8 @@ public class LlmResponseAssert extends AbstractObjectAssert<LlmResponseAssert, L
         String content = actual.getContent();
         if (content == null || !pattern.matcher(content).find()) {
             failWithMessage(
-                    "Expected response content to match pattern <%s> but was <%s>", pattern, content);
+                    "Expected response content to match pattern <%s> but was <%s>",
+                    pattern, content);
         }
         return this;
     }

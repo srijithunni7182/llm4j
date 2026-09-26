@@ -6,10 +6,10 @@ import org.assertj.core.api.AbstractObjectAssert;
 
 /**
  * AssertJ custom assertion for a multi-turn conversation — a sequence of {@link AgentResult}s from
- * repeated calls to the same agent. Obtain one via {@link
- * ConversationAssertions#assertThat(List)}.
+ * repeated calls to the same agent. Obtain one via {@link ConversationAssertions#assertThat(List)}.
  */
-public class ConversationAssert extends AbstractObjectAssert<ConversationAssert, List<AgentResult>> {
+public class ConversationAssert
+        extends AbstractObjectAssert<ConversationAssert, List<AgentResult>> {
 
     public ConversationAssert(List<AgentResult> actual) {
         super(actual, ConversationAssert.class);
@@ -19,7 +19,8 @@ public class ConversationAssert extends AbstractObjectAssert<ConversationAssert,
         isNotNull();
         if (actual.size() != expected) {
             failWithMessage(
-                    "Expected conversation to have <%s> turns but had <%s>", expected, actual.size());
+                    "Expected conversation to have <%s> turns but had <%s>",
+                    expected, actual.size());
         }
         return this;
     }

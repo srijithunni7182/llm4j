@@ -84,6 +84,7 @@ class HumanInTheLoopTest {
 
         AgentResult result = agent.run("Send an email.");
         assertTrue(executed.get(), "Tool should have been executed after approval");
+        assertEquals(AgentResult.StepOutcome.EXECUTED, result.getSteps().get(0).getOutcome());
     }
 
     @Test
@@ -99,6 +100,7 @@ class HumanInTheLoopTest {
 
         AgentResult result = agent.run("Send an email.");
         assertFalse(executed.get(), "Tool should NOT have been executed after rejection");
+        assertEquals(AgentResult.StepOutcome.REJECTED_BY_HUMAN, result.getSteps().get(0).getOutcome());
     }
 
     @Test
@@ -112,8 +114,10 @@ class HumanInTheLoopTest {
                 .maxIterations(3)
                 .build();
 
-        agent.run("Send an email.");
+        AgentResult result = agent.run("Send an email.");
         assertFalse(executed.get(), "Tool should be blocked when no ApprovalCallback is configured");
+        assertEquals(
+                AgentResult.StepOutcome.APPROVAL_UNAVAILABLE, result.getSteps().get(0).getOutcome());
     }
 
     @Test

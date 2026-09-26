@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.IntStream;
 import org.assertj.core.api.Condition;
+import org.assertj.core.description.Description;
+import org.assertj.core.description.TextDescription;
 
 /**
  * An AssertJ {@link Condition} that asks an LLM to grade something against a natural-language
@@ -19,17 +21,23 @@ import org.assertj.core.api.Condition;
  *
  * <p>This condition is deliberately typed as {@code Condition<Object>} rather than {@code
  * Condition<AgentResult>}: AssertJ's {@code is(Condition<? super ACTUAL>)} accepts it against any
- * actual type as a result, so the same condition works against an {@link AgentResult}, a raw
- * {@link LLMResponse}, or a plain {@link String} without forcing a generic type witness at every
- * call site. {@link #matches(Object)} resolves which of those it received.
+ * actual type as a result, so the same condition works against an {@link AgentResult}, a raw {@link
+ * LLMResponse}, or a plain {@link String} without forcing a generic type witness at every call
+ * site. {@link #matches(Object)} resolves which of those it received.
  *
  * <p>By default this makes one judge call at temperature 0 (deterministic). Setting {@link
  * Builder#samples(int)} above 1 switches to temperature {@value #MULTI_SAMPLE_TEMPERATURE} and
- * averages that many independent judge calls (self-consistency), trading judge-call cost for a
- * less noise-sensitive score. Setting {@link Builder#cache(JudgeCache)} avoids repeating identical
- * judge calls — each of the {@code samples} draws is cached under its own key, so a rerun with an
- * unchanged input replays the same draws instead of re-spending judge calls, while a genuinely
- * new input still gets fresh ones.
+ * averages that many independent judge calls (self-consistency), trading judge-call cost for a less
+ * noise-sensitive score. Setting {@link Builder#cache(JudgeCache)} avoids repeating identical judge
+ * calls — each of the {@code samples} draws is cached under its own key, so a rerun with an
+ * unchanged input replays the same draws instead of re-spending judge calls, while a genuinely new
+ * input still gets fresh ones.
+ *
+ * <p><b>Thread-safety of a shared/reused instance:</b> the failure-message description is stored
+ * per-thread, so the same built condition can safely be reused across parallel-running tests
+ * without one test's failure message showing another's score/reason. It is not, however, safe to
+ * call {@link #matches(Object)} concurrently from the *same* thread expecting independent verdicts
+ * — one thread only ever sees its own most recent call.
  */
 public final class LlmJudgeCondition extends Condition<Object> {
 
@@ -37,9 +45,9 @@ public final class LlmJudgeCondition extends Condition<Object> {
     static final double SINGLE_SAMPLE_TEMPERATURE = 0.0;
 
     /**
-     * Temperature used when {@code samples > 1}: self-consistency only reduces noise if the
-     * sampled judge calls can actually disagree with each other, which a temperature-0 judge call
-     * mostly won't.
+     * Temperature used when {@code samples > 1}: self-consistency only reduces noise if the sampled
+     * judge calls can actually disagree with each other, which a temperature-0 judge call mostly
+     * won't.
      */
     static final double MULTI_SAMPLE_TEMPERATURE = 0.7;
 
@@ -53,6 +61,14 @@ public final class LlmJudgeCondition extends Condition<Object> {
     private final List<String> retrievalContext;
     private final JudgeCache cache;
     private final int samples;
+    private final boolean includeTrajectory;
+    private final String judgeIdentifier;
+
+    /**
+     * Per-thread override of the failure description, so a shared/reused condition instance is safe
+     * under parallel test execution — see the class Javadoc.
+     */
+    private final ThreadLocal<Description> perThreadDescription = new ThreadLocal<>();
 
     private LlmJudgeCondition(Builder builder) {
         super("llm-judged \"" + builder.name + "\" (threshold=" + builder.threshold + ")");
@@ -66,14 +82,23 @@ public final class LlmJudgeCondition extends Condition<Object> {
         this.retrievalContext = builder.retrievalContext;
         this.cache = builder.cache;
         this.samples = builder.samples;
+        this.includeTrajectory = builder.includeTrajectory;
+        this.judgeIdentifier = builder.judgeIdentifier;
+    }
+
+    @Override
+    public Description description() {
+        Description perThread = perThreadDescription.get();
+        return perThread != null ? perThread : super.description();
     }
 
     @Override
     public boolean matches(Object actual) {
         JudgeVerdict combined = evaluate(actual);
-        describedAs(
-                "llm-judged \"%s\" (score=%.2f, threshold=%.2f): %s",
-                name, combined.score(), threshold, combined.reason());
+        perThreadDescription.set(
+                new TextDescription(
+                        "llm-judged \"%s\" (score=%.2f, threshold=%.2f): %s",
+                        name, combined.score(), threshold, combined.reason()));
         return combined.score() >= threshold;
     }
 
@@ -86,19 +111,29 @@ public final class LlmJudgeCondition extends Condition<Object> {
      */
     public JudgeVerdict evaluate(Object actual) {
         String actualOutput = OutputExtractor.extract(actual);
+        String trajectory = includeTrajectory ? OutputExtractor.extractTrajectory(actual) : null;
+        double temperature = samples > 1 ? MULTI_SAMPLE_TEMPERATURE : SINGLE_SAMPLE_TEMPERATURE;
         String baseKey =
                 cache != null
                         ? JudgeCacheKey.compute(
-                                name, criteria, input, expectedOutput, context, retrievalContext, actualOutput)
+                                name,
+                                criteria,
+                                input,
+                                expectedOutput,
+                                context,
+                                retrievalContext,
+                                actualOutput,
+                                trajectory,
+                                temperature,
+                                judgeIdentifier)
                         : null;
-        double temperature = samples > 1 ? MULTI_SAMPLE_TEMPERATURE : SINGLE_SAMPLE_TEMPERATURE;
 
         List<JudgeVerdict> verdicts = new ArrayList<>(samples);
         for (int i = 0; i < samples; i++) {
             String sampleKey = baseKey != null ? baseKey + "#" + i : null;
             JudgeVerdict verdict = sampleKey != null ? cache.get(sampleKey).orElse(null) : null;
             if (verdict == null) {
-                verdict = callJudge(actualOutput, temperature);
+                verdict = callJudge(actualOutput, trajectory, temperature);
                 if (sampleKey != null) {
                     cache.put(sampleKey, verdict);
                 }
@@ -119,10 +154,17 @@ public final class LlmJudgeCondition extends Condition<Object> {
         return threshold;
     }
 
-    private JudgeVerdict callJudge(String actualOutput, double temperature) {
+    private JudgeVerdict callJudge(String actualOutput, String trajectory, double temperature) {
         String userMessage =
                 JudgePrompt.buildUserMessage(
-                        name, criteria, input, expectedOutput, context, retrievalContext, actualOutput);
+                        name,
+                        criteria,
+                        input,
+                        expectedOutput,
+                        context,
+                        retrievalContext,
+                        actualOutput,
+                        trajectory);
         LLMRequest request =
                 LLMRequest.builder()
                         .addSystemMessage(JudgePrompt.SYSTEM_PROMPT)
@@ -135,7 +177,8 @@ public final class LlmJudgeCondition extends Condition<Object> {
         } catch (JudgeEvaluationException e) {
             throw e;
         } catch (Exception e) {
-            throw new JudgeEvaluationException("Judge call failed for criterion \"" + name + "\"", e);
+            throw new JudgeEvaluationException(
+                    "Judge call failed for criterion \"" + name + "\"", e);
         }
     }
 
@@ -143,7 +186,8 @@ public final class LlmJudgeCondition extends Condition<Object> {
         if (verdicts.size() == 1) {
             return verdicts.get(0);
         }
-        double averageScore = verdicts.stream().mapToDouble(JudgeVerdict::score).average().orElseThrow();
+        double averageScore =
+                verdicts.stream().mapToDouble(JudgeVerdict::score).average().orElseThrow();
         String reasons =
                 IntStream.range(0, verdicts.size())
                         .mapToObj(i -> "(" + (i + 1) + ") " + verdicts.get(i).reason())
@@ -168,6 +212,8 @@ public final class LlmJudgeCondition extends Condition<Object> {
         private List<String> retrievalContext;
         private JudgeCache cache;
         private int samples = 1;
+        private boolean includeTrajectory;
+        private String judgeIdentifier;
 
         private Builder(String name) {
             this.name = name;
@@ -199,7 +245,8 @@ public final class LlmJudgeCondition extends Condition<Object> {
         }
 
         public Builder context(List<String> context) {
-            this.context = context == null ? null : Collections.unmodifiableList(new ArrayList<>(context));
+            this.context =
+                    context == null ? null : Collections.unmodifiableList(new ArrayList<>(context));
             return this;
         }
 
@@ -231,6 +278,29 @@ public final class LlmJudgeCondition extends Condition<Object> {
                 throw new IllegalArgumentException("samples must be at least 1, got: " + samples);
             }
             this.samples = samples;
+            return this;
+        }
+
+        /**
+         * When {@code actual} is an {@link AgentResult}, includes the full step trajectory
+         * (thought/action/input/outcome/observation per step) in the judge prompt, not just the
+         * final answer. Off by default. Presets that need to judge the whole run (e.g. task
+         * completion) turn this on; presets grading just the final answer's content (e.g.
+         * correctness) should leave it off to avoid diluting the judge's focus.
+         */
+        public Builder includeTrajectory(boolean includeTrajectory) {
+            this.includeTrajectory = includeTrajectory;
+            return this;
+        }
+
+        /**
+         * Optional free-form identifier for the judge model in use (e.g. {@code "gemini-2.5-pro"}),
+         * folded into the {@link JudgeCache} key. {@code LLMClient} doesn't expose which model or
+         * provider it wraps, so without this, switching judge models while reusing the same cache
+         * would silently replay verdicts graded by the old model. Only matters when a cache is set.
+         */
+        public Builder judgeIdentifier(String judgeIdentifier) {
+            this.judgeIdentifier = judgeIdentifier;
             return this;
         }
 

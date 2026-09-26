@@ -7,8 +7,11 @@ import java.util.List;
 
 /**
  * Content-addresses a judge call — a hash of everything that determines what the judge would be
- * asked — so a {@link JudgeCache} hit only ever occurs when the exact same call would be made
- * again, with no separate cache-invalidation logic needed.
+ * asked, and how — so a {@link JudgeCache} hit only ever occurs when the exact same call would be
+ * made again, with no separate cache-invalidation logic needed. The judge system prompt itself
+ * ({@link JudgePrompt#SYSTEM_PROMPT}) is folded in as an automatic rubric version: editing the
+ * rubric text changes the key for every condition, so a prompt change can't silently keep serving
+ * verdicts graded under the old wording.
  */
 final class JudgeCacheKey {
 
@@ -21,17 +24,24 @@ final class JudgeCacheKey {
             String expectedOutput,
             List<String> context,
             List<String> retrievalContext,
-            String actualOutput) {
+            String actualOutput,
+            String trajectory,
+            double temperature,
+            String judgeIdentifier) {
         String joined =
                 String.join(
                         "\u0001",
+                        JudgePrompt.SYSTEM_PROMPT,
                         nullToEmpty(name),
                         nullToEmpty(criteria),
                         nullToEmpty(input),
                         nullToEmpty(expectedOutput),
                         String.valueOf(context),
                         String.valueOf(retrievalContext),
-                        nullToEmpty(actualOutput));
+                        nullToEmpty(actualOutput),
+                        nullToEmpty(trajectory),
+                        String.valueOf(temperature),
+                        nullToEmpty(judgeIdentifier));
         return sha256Hex(joined);
     }
 
