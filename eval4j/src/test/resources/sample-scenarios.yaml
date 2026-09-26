@@ -1,0 +1,7 @@
+- name: percentage-calculation
+  input: "What is 15% of 240?"
+  expectedOutputContains: "36"
+  expectedTools: [calculator]
+- name: capital-lookup
+  input: "What's the capital of France?"
+  expectedOutputContains: "Paris"

@@ -49,6 +49,25 @@ The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java 
 
 👉 **[Building Agentic Workflows with Loom & Engram](docs/AGENTIC_WORKFLOWS_GUIDE.md)**
 
+## 🧪 The Judge: [eval4j](eval4j/)
+
+**eval4j** is a ground-up evaluation framework for testing agents built with `ai-agent4j` — the
+Java answer to what `deepeval` does for Python, built on AssertJ and JUnit 5 instead of ported
+line-for-line from Python.
+
+* **Fluent Assertions**: AssertJ-style custom assertions on `AgentResult` — `usesTool`,
+  `usesToolsExactly`, `hasFinalAnswerContaining`, `isConfidentAbove`, and more.
+* **LLM-as-Judge**: `LlmJudgeCondition` is a real AssertJ `Condition`, so judging correctness,
+  relevancy, or groundedness composes with `.is(...)` and every other AssertJ combinator.
+* **Standard Presets**: `correctness`, `answerRelevancy`, `faithfulness`/`groundedness`,
+  `hallucinationFree`, the agent-specific `taskCompletion`, `bias`, and `toxicity`.
+* **Golden Datasets**: author eval scenarios in YAML, still run through plain JUnit 5
+  `@ParameterizedTest` — no separate config-driven test runner.
+* **Pass-Rate Aggregation**: assert a dataset clears an overall pass-rate threshold instead of
+  requiring every single noisy judge call to agree.
+
+👉 **[Read the eval4j Documentation](eval4j/README.md)**
+
 ### 🧩 The Extensions: [RAG Addons](ai-agent4j-addons/)
 
 For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilities while keeping the core light:
@@ -112,6 +131,8 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 > **[Why AI Agent4J? Read our comparison against LangChain4j and Spring AI](ai-agent4j/wiki/WHY_AI_AGENT4J.md)**
 >
 > **[xAI Beyond Black Boxes: Our 95% Compliance Guide](ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md)**
+>
+> **[Why eval4j? Our comparison against deepeval](ai-agent4j/wiki/WHY_EVAL4J.md)**
 >
 > **[Version Matrix](VERSION_MATRIX.md)** for canonical coordinates and compatibility.
 >

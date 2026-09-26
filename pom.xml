@@ -15,6 +15,7 @@
     <modules>
         <module>ai-agent4j</module>
         <module>ai-agent4j-addons</module>
+        <module>eval4j</module>
         <module>loom/ai-agent4j-loom</module>
         <module>engram</module>
         <module>tantrik</module>

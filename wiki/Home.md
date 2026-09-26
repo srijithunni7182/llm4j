@@ -8,6 +8,7 @@ This wiki documents the **LLM4J** library and the **Hexamind Hub** multi-agent p
 * **[Neural Metrics](Neural-Metrics.md)**: Understand the real-time visualizations of the hive mind.
 * **[Agent Personas](../ai-agent4j/wiki/Agent-Personas.md)**: Meet the specialized agents like Alex, Jordan, and Rahul.
 * **[OpenAPI Tools](../ai-agent4j/wiki/OpenAPI-Tool.md)**: How to auto-generate tools from Swagger specs.
+* **[Why eval4j?](../ai-agent4j/wiki/WHY_EVAL4J.md)**: Why agentic Java apps need evals, and how eval4j differs from deepeval.
 
 ## 🚀 Projects
 
@@ -20,3 +21,8 @@ A production-ready Java client for Google Gemini with built-in ReAct Agents.
 
 A collaborative platform where 6 AI agents debate and solve problems.
 [Github Repository](../examples/hexamind-hub)
+
+### 3. eval4j
+
+A ground-up evaluation framework for testing ai-agent4j agents, built on AssertJ and JUnit 5.
+[Github Repository](../eval4j)

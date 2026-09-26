@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="neonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="50%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#f472b6"/>
+    </linearGradient>
+    <!-- userSpaceOnUse (not objectBoundingBox) so perfectly axis-aligned strokes (zero-area
+         bounding box) still paint, and every icon stroke shares one consistent sweep -->
+    <linearGradient id="iconGrad" x1="216" y1="196" x2="808" y2="660" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="50%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#f472b6"/>
+    </linearGradient>
+    <radialGradient id="bgGlow" cx="50%" cy="42%" r="55%">
+      <stop offset="0%" stop-color="#3b1266" stop-opacity="0.55"/>
+      <stop offset="45%" stop-color="#0e2a4a" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#05060f" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="1024" height="1024" fill="#05060f"/>
+  <ellipse cx="512" cy="430" rx="520" ry="480" fill="url(#bgGlow)"/>
+
+  <!-- Scales-of-justice emblem, neon wireframe in the same idiom as the ecosystem's other logos -->
+  <g id="scaleIcon" fill="none" stroke="url(#iconGrad)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)">
+    <!-- pivot ring -->
+    <polygon points="512,234 489.5,247 489.5,273 512,286 534.5,273 534.5,247"/>
+    <!-- stem -->
+    <line x1="512" y1="286" x2="512" y2="610"/>
+    <!-- beam -->
+    <line x1="330" y1="340" x2="694" y2="340"/>
+    <!-- strings -->
+    <line x1="340" y1="340" x2="300" y2="434"/>
+    <line x1="684" y1="340" x2="724" y2="434"/>
+    <!-- pans -->
+    <polygon points="300,434 260.2,457 260.2,503 300,526 339.8,503 339.8,457"/>
+    <polygon points="724,434 684.2,457 684.2,503 724,526 763.8,503 763.8,457"/>
+    <!-- base -->
+    <line x1="512" y1="610" x2="430" y2="660"/>
+    <line x1="512" y1="610" x2="594" y2="660"/>
+    <line x1="400" y1="660" x2="624" y2="660"/>
+    <!-- circuit stubs -->
+    <line x1="512" y1="234" x2="512" y2="196"/>
+    <line x1="260.2" y1="480" x2="216" y2="480"/>
+    <line x1="763.8" y1="480" x2="808" y2="480"/>
+  </g>
+
+  <!-- circuit-node accents -->
+  <g fill="#f0abfc" filter="url(#softGlow)">
+    <circle cx="512" cy="196" r="8"/>
+    <circle cx="216" cy="480" r="8"/>
+    <circle cx="808" cy="480" r="8"/>
+    <circle cx="300" cy="480" r="6"/>
+    <circle cx="724" cy="480" r="6"/>
+    <circle cx="512" cy="660" r="6"/>
+  </g>
+
+  <!-- Title -->
+  <text x="512" y="800" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="118" letter-spacing="10" fill="url(#neonGrad)" filter="url(#glow)">EVAL4J</text>
+
+  <!-- Subtitle -->
+  <text x="512" y="848" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="600" font-size="32" letter-spacing="6" fill="#8fd8ff">LLM AGENT EVALUATION FRAMEWORK</text>
+</svg>
