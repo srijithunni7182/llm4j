@@ -44,7 +44,7 @@
   <!-- ═══════════════════════════ COMPOSER ═══════════════════════════ -->
   <main id="composer" class="view view-composer">
     <section class="hero">
-      <p class="eyebrow"><span class="spark">✦</span> 11 AI agents · live trends · images &amp; video</p>
+      <p class="eyebrow"><span class="spark">✦</span> 12 AI agents · web research · images &amp; video</p>
       <h1 class="display">One idea.<br><span class="grad-text">Every feed.</span></h1>
       <p class="lede">Drop an idea. A Showrunner casts a team of AI specialists, writes their prompts on the fly, researches what's trending right now, generates the visuals, cuts the Reel, and ships a ready-to-post pack for <b>X</b>, <b>Instagram Reels</b> and <b>YouTube</b>.</p>
     </section>
@@ -62,7 +62,7 @@
           <span>Niche</span>
           <input id="niche" name="niche" placeholder="productivity" maxlength="40" list="niches">
           <datalist id="niches">
-            <option value="productivity"><option value="fitness"><option value="food"><option value="tech"><option value="travel"><option value="personal finance"><option value="beauty"><option value="gaming"><option value="education">
+            <option value="productivity"><option value="fitness"><option value="food"><option value="tech"><option value="travel"><option value="personal finance"><option value="beauty"><option value="gaming"><option value="education"><option value="culture"><option value="books"><option value="cinema"><option value="comedy"><option value="sports">
           </datalist>
         </label>
         <label class="field field-region">
@@ -133,7 +133,7 @@
 
     <ol class="rail" id="rail">
       <li data-stage="cast"><i></i><span>Cast</span></li>
-      <li data-stage="scout"><i></i><span>Scout</span></li>
+      <li data-stage="scout"><i></i><span>Research</span></li>
       <li data-stage="strategy"><i></i><span>Strategize</span></li>
       <li data-stage="hook"><i></i><span>Your pick</span></li>
       <li data-stage="create"><i></i><span>Create</span></li>
@@ -198,6 +198,13 @@
     <section class="quality glass" id="quality">
       <header class="panel-head"><h3>Quality gate <em>eval4j · LLM-as-judge</em></h3><span class="hint" id="qualityHint">grading…</span></header>
       <div class="badges" id="badges"></div>
+    </section>
+
+    <section class="research glass" id="research" hidden>
+      <header class="panel-head"><h3>Research <em>Researcher · web search + page reads</em></h3><span class="hint" id="researchHint"></span></header>
+      <p class="research-summary" id="researchSummary"></p>
+      <ol class="findings" id="findings"></ol>
+      <div class="research-extra" id="researchExtra"></div>
     </section>
 
     <section class="visuals glass" id="visuals">

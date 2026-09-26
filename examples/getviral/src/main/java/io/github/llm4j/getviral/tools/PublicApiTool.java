@@ -96,7 +96,7 @@ public abstract class PublicApiTool implements Tool {
         return new Fetched(loadFixture(fixture), false, host);
     }
 
-    private void report(String host, String url, boolean live, long startNanos, String status) {
+    protected void report(String host, String url, boolean live, long startNanos, String status) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("tool", getName());
         data.put("host", host);

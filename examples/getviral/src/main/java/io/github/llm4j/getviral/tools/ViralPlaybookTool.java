@@ -50,7 +50,7 @@ public class ViralPlaybookTool implements Tool {
                 "sources", hits.stream().map(KnowledgeBase.Hit::source).toList()));
         if (hits.isEmpty()) {
             return scope.startsWith("voice")
-                    ? "No past posts on file for @" + creator + " yet — infer voice from the brief."
+                    ? "No past posts on file for this creator yet — infer voice from the brief."
                     : "No playbook entries matched.";
         }
         StringBuilder out = new StringBuilder();

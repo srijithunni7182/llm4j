@@ -72,6 +72,7 @@ public class DemoLLMClient implements LLMClient {
         Object answer = switch (agent) {
             case "Showrunner" -> showrunner(turn);
             case "TrendScout" -> trendReport(turn);
+            case "Researcher" -> research(turn);
             case "Strategist" -> strategy(turn);
             case "XWriter" -> xPack(turn);
             case "ReelDirector" -> reelPack(turn);
@@ -104,6 +105,17 @@ public class DemoLLMClient implements LLMClient {
                     new Step("hn_pulse", Map.of("query", t.keyword()), "Looking for live debates to borrow an angle from."),
                     new Step("trending_hashtags", Map.of(), "Pulling hashtags trending today."),
                     new Step("moment_calendar", Map.of("country", t.region()), "Finding upcoming moments to time the post."));
+            case "Researcher" -> {
+                List<Step> steps = new ArrayList<>();
+                steps.add(new Step("web_search", Map.of("query", t.topic()),
+                        "Searching the open web for what's true, new and debated about this idea."));
+                String url = t.observations.isEmpty() ? "" : firstMatch(t.observations.get(0), "\\n\\s+(https?://\\S+)");
+                if (!url.isEmpty()) {
+                    steps.add(new Step("read_page", Map.of("url", url), "Reading the most relevant source in full before citing it."));
+                }
+                steps.add(new Step("fact_check", Map.of("query", t.keyword()), "Cross-checking the core facts on Wikipedia."));
+                yield steps;
+            }
             case "Strategist" -> List.of(
                     new Step("viral_playbook", Map.of("query", "hook formulas for " + t.niche(), "scope", "playbook"),
                             "Retrieving proven hook formulas for this niche."),
@@ -192,9 +204,13 @@ public class DemoLLMClient implements LLMClient {
                     + "strongest live signals connecting it to what people care about this week: Wikipedia attention, "
                     + "Hacker News debates and trending hashtags. Report numbers exactly as the tools return them, "
                     + "flag anything that is a sample rather than live, and suggest one timely moment to post around.");
+            prompts.put("Researcher", "Research \"" + t.idea() + "\" for " + who + " before anyone writes a word. Search "
+                    + "the open web, read the two or three strongest sources in full, and bring back what is true, recent "
+                    + "and genuinely surprising — plus what people disagree about. Every finding carries its URL; anything "
+                    + "you could not verify goes under caveats. The writers may only state facts that are in your dossier.");
             prompts.put("Strategist", "Design the play for " + who + ". Creative direction: " + direction + " Write five "
                     + "hooks, each using a different formula (curiosity gap, contrarian, transformation, number list, "
-                    + "direct callout), each under 12 words. Key facts must come only from the trend report.");
+                    + "direct callout), each under 12 words. Key facts come only from the research dossier and trend report, and keep their source.");
             prompts.put("XWriter", "Write for X as " + who + ". Tweet 1 must stand alone and be quotable; one idea per "
                     + "tweet, short lines, numbered 1/ to 5/, at most two hashtags in the final tweet. Voice: " + tone + ".");
             prompts.put("ReelDirector", "Direct a vertical Reel for " + who + ". Hook on screen AND spoken in the first 2 "
@@ -236,6 +252,43 @@ public class DemoLLMClient implements LLMClient {
         return out.toString();
     }
 
+    private Map<String, Object> research(Turn t) {
+        String search = t.observations.isEmpty() ? "" : t.observations.get(0);
+        List<Map<String, String>> findings = new ArrayList<>();
+        Matcher m = Pattern.compile("\\[\\d+] ([^\\n]+)\\n\\s+(https?://\\S+)(?:\\n\\s{4}([^\\n\\[]+))?").matcher(search);
+        while (m.find() && findings.size() < 4) {
+            String[] head = m.group(1).split(" — ", 2);
+            String snippet = m.group(3) == null ? "" : m.group(3).strip();
+            Map<String, String> f = new LinkedHashMap<>();
+            f.put("point", snippet.isEmpty() ? head[0] : clip(snippet, 220));
+            f.put("source", head.length > 1 ? head[1] : head[0]);
+            f.put("url", m.group(2));
+            findings.add(f);
+        }
+        String check = t.lastObservation();
+        String fact = firstMatch(check, "Wikipedia — [^:]+: ([^.]+\\.)");
+        String factUrl = firstMatch(check, "Source: (\\S+)");
+        if (!fact.isEmpty() && findings.stream().noneMatch(f -> f.get("url").equals(factUrl))) {
+            findings.add(Map.of("point", fact, "source", "Wikipedia", "url", factUrl));
+        }
+        boolean offline = search.contains("[source: offline");
+        Map<String, Object> dossier = new LinkedHashMap<>();
+        dossier.put("summary", findings.isEmpty()
+                ? "The open web had little on " + t.topic() + " — the pack should lean on lived experience, not claims."
+                : "Researched " + t.topic() + " across " + findings.size() + " sources"
+                        + (offline ? " (offline samples — connect to the internet for live research)" : "")
+                        + ". The strongest material is practical and specific; claims below carry their source.");
+        dossier.put("findings", findings);
+        dossier.put("fresh_angles", List.of(
+                "Most coverage explains what " + t.keyword() + " is; almost none shows a 2-minute way to start today.",
+                "Turn the most-cited fact into a myth-vs-reality opener."));
+        dossier.put("debates", List.of("Whether " + t.keyword() + " needs motivation or a system — people argue both ways."));
+        dossier.put("caveats", List.of(offline
+                ? "Live web search was unavailable, so findings are limited to recorded samples."
+                : "Demo research: sources are real search results, but the synthesis is scripted — use Gemini for real analysis."));
+        return dossier;
+    }
+
     private Map<String, Object> strategy(Turn t) {
         String topic = t.topic();
         String kw = t.keyword();
@@ -251,6 +304,10 @@ public class DemoLLMClient implements LLMClient {
                 "3 " + kw + " mistakes I see every single day",
                 "Busy, tired and into " + t.niche() + "? Save this."));
         List<String> facts = new ArrayList<>();
+        Matcher found = Pattern.compile("point=(.*?), source=(.*?), url=(\\S+?)[,}]").matcher(t.question);
+        while (found.find() && facts.size() < 2) {
+            facts.add(clip(found.group(1).strip(), 160) + " (source: " + found.group(3) + ")");
+        }
         for (String line : t.field("TRENDS:").isEmpty() ? List.<String>of() : t.block("TRENDS:")) {
             if (line.contains("views") || line.contains("points")) facts.add("Trend signal: " + line.replaceFirst("^[-•\\s]+", ""));
             if (facts.size() == 3) break;
@@ -336,6 +393,8 @@ public class DemoLLMClient implements LLMClient {
                 "Step 3: never miss twice", "Recap + next video"));
         String description = "The 3-step system that makes " + t.topic() + " stick. "
                 + (fact.isEmpty() ? "" : "Background: " + fact + (source.isEmpty() ? "" : " (Source: " + source + ")"));
+        List<String> sources = t.all("url=(https?://[^,}\\s]+)").stream().distinct().limit(4).toList();
+        if (!sources.isEmpty()) description += "\n\nSources:\n" + sources.stream().map(u -> "- " + u).collect(java.util.stream.Collectors.joining("\n"));
         pack.put("description", description.strip());
         pack.put("chapters", List.of("0:00 The truth nobody tells you", "0:45 Why it fails", "2:10 Step 1 — shrink it",
                 "3:40 Step 2 — anchor it", "5:15 Step 3 — never miss twice", "7:30 Recap"));

@@ -110,21 +110,21 @@
   $("#voiceSkip").addEventListener("click", () => advance("TOUR"));
 
   // ── 4 · the tour ───────────────────────────────────────────────────────
-  const AGENTS = ["🎬 Showrunner", "📡 TrendScout", "🧭 Strategist", "𝕏 XWriter", "🎞️ ReelDirector", "▶ YouTubeProducer",
+  const AGENTS = ["🎬 Showrunner", "🔬 Researcher", "📡 TrendScout", "🧭 Strategist", "𝕏 XWriter", "🎞️ ReelDirector", "▶ YouTubeProducer",
     "🔥 ViralityCritic", "🎨 ArtDirector", "📹 VideoEditor", "🚀 Publisher", "🛡️ SafetyCoach"];
   const SLIDES = [
     { kicker: "The promise", title: "One idea. <span class='grad-text'>Every feed.</span>",
       body: "You bring one idea. GetViral turns it into a complete pack — an X thread, an Instagram Reel (script, cover and a rendered MP4) and a YouTube video package — ready to post.",
       art: `<div class="tv-flow"><span class="tv-idea">💡 your idea</span><i></i><div class="tv-outs"><span class="pf pf-x">𝕏</span><span class="pf pf-ig">Reels</span><span class="pf pf-yt">YouTube</span></div></div>` },
     { kicker: "Meet the room", title: "A team, not a chatbot",
-      body: "Eleven specialists work on every pack — a scout, a strategist, three platform writers, an art director, a video editor, a critic, a publisher and a safety coach — orchestrated step by step.",
+      body: "Twelve specialists work on every pack — a researcher, a trend scout, a strategist, three platform writers, an art director, a video editor, a critic, a publisher and a safety coach — orchestrated step by step.",
       art: `<div class="tv-agents">${AGENTS.map((a, i) => `<span style="animation-delay:${i * 60}ms">${a}</span>`).join("")}</div>` },
     { kicker: "Prompts written live", title: "Your brief, re-cast for every agent",
       body: "Nobody runs on a generic prompt. The Showrunner writes each specialist's brief for your idea, niche and voice — and rewrites the ones that fall short when the critic pushes back.",
       art: `<div class="tv-prompts"><div class="tv-card"><b>XWriter · v1</b><p>Write for @you, a fitness creator whose tone is bold…</p></div><div class="tv-card v2"><b>XWriter · v2</b><p>Critic said: “tweet 1 reads like a title.” Lead with a surprising claim in under 12 words…</p></div></div>` },
-    { kicker: "Grounded in right now", title: "Trends in, made-up facts out",
-      body: "Agents check what the internet is reading and debating today, verify facts before citing them, and follow fixed house rules: no invented stats, no personal data, platform limits respected.",
-      art: `<div class="tv-apis"><span>📈 Wikipedia most-read</span><span>🗣️ Hacker News</span><span>#️⃣ Mastodon trends</span><span>🎵 Music charts</span><span>🔎 Fact check</span><span>📅 Cultural moments</span></div>` },
+    { kicker: "Research first", title: "Researched, then written",
+      body: "Before anyone writes, a Researcher searches the web, reads the best sources in full and hands the team a dossier where every fact carries its source. Trend signals time the post, and house rules forbid invented stats.",
+      art: `<div class="tv-apis"><span>🌍 Web search</span><span>📖 Reads the sources</span><span>📰 News, last 30 days</span><span>📈 Wikipedia most-read</span><span>🗣️ Hacker News</span><span>#️⃣ Mastodon trends</span><span>🎵 Music charts</span><span>🔎 Fact check</span><span>📅 Cultural moments</span></div>` },
     { kicker: "You're the creative director", title: "Your call, every time it matters",
       body: "You pick the hook the whole pack is built on. And nothing is ever published without you approving that exact post — caption, media and account.",
       art: `<div class="tv-approve"><div class="tv-hook">“3 sunset workout mistakes I see every day”<span>your pick ✓</span></div><div class="tv-gate">✋ Approve &amp; publish?</div></div>` },

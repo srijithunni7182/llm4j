@@ -633,3 +633,17 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .handle-input.as-link:hover { border-color: var(--line-2); }
 .signin p { margin: 0; }
 .signin .form-error:empty, .signin .hint:empty { display: none; }
+
+/* ── Research dossier ─────────────────────────────────────────────────────── */
+.research { margin-bottom: 18px; }
+.research-summary { margin: 0 20px 14px; color: var(--muted); line-height: 1.55; }
+.findings { list-style: none; margin: 0; padding: 0 16px 6px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; counter-reset: finding; }
+.findings li { counter-increment: finding; position: relative; padding: 14px 14px 12px 44px; border-radius: var(--radius-sm); background: var(--glass-2); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.findings li::before { content: counter(finding); position: absolute; left: 12px; top: 13px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font: 600 11px var(--mono); color: var(--ink); background: linear-gradient(135deg, #6ee7b7, var(--cyan)); }
+.findings p { margin: 0; line-height: 1.5; font-size: 14px; }
+.findings a, .findings .src { font: 500 12px var(--mono); color: var(--cyan); text-decoration: none; overflow-wrap: anywhere; }
+.findings a:hover { text-decoration: underline; }
+.research-extra { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; padding: 6px 16px 18px; }
+.rx h4 { margin: 0 0 6px; font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.rx ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+.rx.caveats ul { color: var(--warn); }

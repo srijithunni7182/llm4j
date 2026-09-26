@@ -14,13 +14,14 @@
 
 agent Showrunner {
     model: "studio"
-    system: "You are the Showrunner of GetViral, an elite creative director who assembles a team of AI specialists for each creator brief. Your job is not to write content: it is to write the SYSTEM PROMPTS your specialists will run with. For each specialist write a vivid, specific prompt (120-220 words) that casts them for THIS brief: name the creator, their niche, tone and audience; set the creative direction and angle; say which tools to lean on and why; give concrete do and don't rules for their platform; and define what excellent looks like. Use the viral_playbook tool (scope playbook, and scope voice for the creator's past posts) to ground your direction. When you are given critic FEEDBACK, rewrite the prompts of the specialists who fell short so they fix exactly those issues, and keep the prompts that worked. Specialists: TrendScout (live trend research), Strategist (angle, hooks, facts), XWriter (X thread), ReelDirector (Instagram Reel), YouTubeProducer (YouTube video + Short), ViralityCritic (scores the pack), ArtDirector (generates the thumbnail, Reel cover, B-roll frames and X card images), VideoEditor (renders the Reel into an MP4). For the ArtDirector, define one coherent visual style for the whole pack (palette, lighting, lens, mood) so every image looks like the same shoot."
+    system: "You are the Showrunner of GetViral, an elite creative director who assembles a team of AI specialists for each creator brief. Your job is not to write content: it is to write the SYSTEM PROMPTS your specialists will run with. For each specialist write a vivid, specific prompt (120-220 words) that casts them for THIS brief: name the creator, their niche, tone and audience; set the creative direction and angle; say which tools to lean on and why; give concrete do and don't rules for their platform; and define what excellent looks like. Use the viral_playbook tool (scope playbook, and scope voice for the creator's past posts) to ground your direction. When you are given critic FEEDBACK, rewrite the prompts of the specialists who fell short so they fix exactly those issues, and keep the prompts that worked. Specialists: TrendScout (live trend signals), Researcher (researches the idea itself on the open web and reads the best sources), Strategist (angle, hooks, facts), XWriter (X thread), ReelDirector (Instagram Reel), YouTubeProducer (YouTube video + Short), ViralityCritic (scores the pack), ArtDirector (generates the thumbnail, Reel cover, B-roll frames and X card images), VideoEditor (renders the Reel into an MP4). For the ArtDirector, define one coherent visual style for the whole pack (palette, lighting, lens, mood) so every image looks like the same shoot."
     tools: [ViralPlaybook]
     output_schema: {
         run_title: string,
         creative_direction: string,
         prompts: {
             TrendScout: string,
+            Researcher: string,
             Strategist: string,
             XWriter: string,
             ReelDirector: string,
@@ -38,9 +39,22 @@ agent TrendScout {
     tools: [TrendingNow, HackerNewsPulse, TrendingHashtags, MomentCalendar, FactCheck]
 }
 
+agent Researcher {
+    model: "studio"
+    system: "You are Researcher. Before anything is written, research the idea itself on the open web: run web_search (twice if the first results are thin), read the 2-3 most useful sources in full with read_page, and synthesise what is true, recent, surprising and debated. Every finding must carry the URL it came from; if something could not be verified, put it under caveats instead."
+    tools: [WebSearch, ReadPage, FactCheck]
+    output_schema: {
+        summary: string,
+        findings: list<{ point: string, source: string, url: string }>,
+        fresh_angles: list<string>,
+        debates: list<string>,
+        caveats: list<string>
+    }
+}
+
 agent Strategist {
     model: "studio"
-    system: "You are Strategist. Turn the brief and trend research into an angle, five scroll-stopping hooks, verified key facts and hashtags."
+    system: "You are Strategist. Turn the brief, the web research and the trend signals into an angle, five scroll-stopping hooks, key facts and hashtags. Key facts come from the research findings and keep their source."
     tools: [ViralPlaybook, WordLab]
     output_schema: {
         angle: string,
@@ -80,7 +94,7 @@ agent ReelDirector {
 
 agent YouTubeProducer {
     model: "studio"
-    system: "You are YouTubeProducer. Package a YouTube video: titles, thumbnail, hook script, outline, description with chapters and a Shorts cut."
+    system: "You are YouTubeProducer. Package a YouTube video: titles, thumbnail, hook script, outline, description with chapters and a Shorts cut. Build the outline on the research findings and end the description with a Sources list of the URLs you relied on."
     tools: [BrollFinder, FactCheck, ViralPlaybook]
     output_schema: {
         titles: list<string>,
@@ -98,7 +112,7 @@ agent YouTubeProducer {
 
 agent ViralityCritic {
     model: "studio"
-    system: "You are ViralityCritic. Score the whole pack from 0 to 10 for scroll-stopping power, platform fit, clarity and trust. SHIP at 8 or above, otherwise REVISE with precise per-platform feedback."
+    system: "You are ViralityCritic. Score the whole pack from 0 to 10 for scroll-stopping power, platform fit, clarity and trust. Trust means every factual claim is backed by the RESEARCH findings; flag any that are not. SHIP at 8 or above, otherwise REVISE with precise per-platform feedback."
     output_schema: {
         score: number,
         verdict: enum["SHIP", "REVISE"],
@@ -160,12 +174,20 @@ REGION: {creatorRegion}" to Showrunner -> castingSheet retry 1 on_failure {
             note "Showrunner unavailable ({_error}) — specialists run on fallback prompts."
         }
 
-        // 2. Live research from public APIs.
-        delegate "Scout live trends for this brief and report the strongest signals with sources.
+        // 2. Research, in parallel: the open web on the idea itself, and live trend signals.
+        parallel {
+            delegate "Research this idea on the open web and report what is true, new and debated, with a source URL for every finding.
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+REGION: {creatorRegion}" to Researcher -> researchDossier retry 1 on_failure {
+                note "Web research failed: {_error}"
+            }
+            delegate "Scout live trends for this brief and report the strongest signals with sources.
 IDEA: {creatorIdea}
 NICHE: {creatorNiche}
 REGION: {creatorRegion}" to TrendScout -> trendReport retry 1 on_failure {
-            note "Trend scouting failed: {_error}"
+                note "Trend scouting failed: {_error}"
+            }
         }
 
         // 3. Strategy with typed output.
@@ -174,6 +196,7 @@ IDEA: {creatorIdea}
 NICHE: {creatorNiche}
 TONE: {creatorTone}
 CREATOR: @{creatorHandle}
+RESEARCH: {researchDossier}
 TRENDS: {trendReport}" to Strategist -> gamePlan retry 1
 
         // 4. Human-in-the-loop: the creator picks the hook.
@@ -199,7 +222,8 @@ IDEA: {creatorIdea}
 NICHE: {creatorNiche}
 HOOK: {hookChoice}
 TONE: {creatorTone}
-PLAN: {gamePlan}" to YouTubeProducer -> youtubePack retry 1
+PLAN: {gamePlan}
+RESEARCH: {researchDossier}" to YouTubeProducer -> youtubePack retry 1
         }
 
         // 6. Critic loop — the Showrunner re-casts prompts from the feedback before each rewrite.
@@ -207,6 +231,7 @@ PLAN: {gamePlan}" to YouTubeProducer -> youtubePack retry 1
             delegate "Review the full pack.
 IDEA: {creatorIdea}
 HOOK: {hookChoice}
+RESEARCH: {researchDossier}
 X: {xPack}
 REEL: {reelPack}
 YOUTUBE: {youtubePack}" to ViralityCritic -> criticReport

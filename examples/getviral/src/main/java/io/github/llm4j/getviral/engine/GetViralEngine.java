@@ -26,8 +26,10 @@ import io.github.llm4j.getviral.tools.InstagramPublishTool;
 import io.github.llm4j.getviral.tools.InstagramQuotaTool;
 import io.github.llm4j.getviral.tools.MastodonTrendsTool;
 import io.github.llm4j.getviral.tools.OpenverseBrollTool;
+import io.github.llm4j.getviral.tools.ReadPageTool;
 import io.github.llm4j.getviral.tools.TrendingAudioTool;
 import io.github.llm4j.getviral.tools.ViralPlaybookTool;
+import io.github.llm4j.getviral.tools.WebSearchTool;
 import io.github.llm4j.getviral.tools.WikipediaFactCheckTool;
 import io.github.llm4j.getviral.tools.WikipediaTrendingTool;
 import io.github.llm4j.loom.ast.LoomScript;
@@ -148,6 +150,9 @@ public class GetViralEngine {
                 ? (publishing != null && publishing.igUsername() != null ? "connected as @" + publishing.igUsername() : "connected")
                 : "dry-run");
         started.put("publicApis", config.offlineApis() ? "offline samples" : "live (sample fallback)");
+        started.put("webSearch", config.offlineApis() ? "offline"
+                : config.geminiApiKey() != null ? "Google Search via Gemini + GDELT news + Wikipedia"
+                : "GDELT news + Wikipedia + DuckDuckGo (add a Gemini key for Google Search)");
         List<ImageGenerator> imageChain = MediaStudio.imageChain(config);
         started.put("images", MediaStudio.describe(imageChain));
         started.put("video", "Reel renderer " + config.reelWidth() + "x" + config.reelHeight()
@@ -178,6 +183,7 @@ public class GetViralEngine {
             platforms.put("youtube", ctx.get("youtubePack"));
             Map<String, Object> grounding = new LinkedHashMap<>();
             grounding.put("trends", ctx.get("trendReport"));
+            grounding.put("research", ctx.get("researchDossier"));
             grounding.put("plan", ctx.get("gamePlan"));
             return gate.evaluate(platforms, String.valueOf(ctx.get("hookChoice")), grounding(grounding));
         })));
@@ -214,6 +220,8 @@ public class GetViralEngine {
         pack.put("youtube", ctx.get("youtubePack"));
         pack.put("plan", ctx.get("gamePlan"));
         pack.put("trends", ctx.get("trendReport"));
+        Object research = ctx.get("researchDossier");
+        if (research != null && !research.toString().isBlank()) pack.put("research", research);
         pack.put("critic", ctx.get("criticReport"));
         pack.put("casting", ctx.get("castingSheet"));
         Object receipt = ctx.get("publishReceipt");
@@ -251,6 +259,13 @@ public class GetViralEngine {
         return CreatorMemory.list(CreatorMemory.fileFor(config.dataDir(), handle.replaceFirst("^@", "")));
     }
 
+    /** Google Search grounding runs on Gemini: the studio model when it is Gemini, else a Flash model. */
+    private String searchModel() {
+        String override = System.getenv("GETVIRAL_SEARCH_MODEL");
+        if (override != null && !override.isBlank()) return override.strip();
+        return config.mode() == GetViralConfig.Mode.GEMINI ? config.model() : "gemini-2.5-flash";
+    }
+
     private boolean veoEnabled() {
         return config.veoEnabled() && config.geminiApiKey() != null;
     }
@@ -266,6 +281,8 @@ public class GetViralEngine {
         tools.put("TrendingHashtags", new MastodonTrendsTool(offline, run));
         tools.put("MomentCalendar", new HolidayMomentsTool(offline, run));
         tools.put("FactCheck", new WikipediaFactCheckTool(offline, run));
+        tools.put("WebSearch", new WebSearchTool(offline, run, config.geminiApiKey(), searchModel()));
+        tools.put("ReadPage", new ReadPageTool(offline, run));
         tools.put("WordLab", new DatamuseWordLabTool(offline, run));
         tools.put("TrendingAudio", new TrendingAudioTool(offline, run));
         tools.put("BrollFinder", new OpenverseBrollTool(offline, run));
@@ -292,6 +309,7 @@ public class GetViralEngine {
     private static List<String> grounding(Map<String, Object> pack) {
         List<String> context = new ArrayList<>();
         if (pack.get("trends") != null) context.add(pack.get("trends").toString());
+        if (pack.get("research") != null) context.add(pack.get("research").toString());
         if (pack.get("plan") instanceof Map<?, ?> plan && plan.get("key_facts") instanceof List<?> facts) {
             context.add(facts.stream().map(String::valueOf).collect(Collectors.joining("\n")));
         }

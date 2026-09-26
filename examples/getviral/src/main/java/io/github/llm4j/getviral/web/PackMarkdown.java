@@ -22,6 +22,18 @@ public final class PackMarkdown {
         StringBuilder md = new StringBuilder("# GetViral pack — ").append(idea).append("\n\n");
         md.append("**Hook:** ").append(pack.get("hook")).append("\n\n");
 
+        if (pack.get("research") instanceof Map<?, ?> research) {
+            md.append("## Research\n\n").append(research.get("summary")).append("\n\n");
+            if (research.get("findings") instanceof List<?> findings) {
+                for (Object f : findings) {
+                    if (f instanceof Map<?, ?> finding) {
+                        md.append("- ").append(finding.get("point")).append(" — [").append(finding.get("source"))
+                          .append("](").append(finding.get("url")).append(")\n");
+                    }
+                }
+            }
+            md.append('\n');
+        }
         if (pack.get("x") instanceof Map<?, ?> x) {
             md.append("## X thread\n\n");
             if (x.get("thread") instanceof List<?> thread) thread.forEach(t -> md.append("> ").append(t).append("\n>\n"));

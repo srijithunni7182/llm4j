@@ -17,7 +17,7 @@ class BuildingBlocksTest {
     void loomScriptDeclaresTheWholeTeam() {
         LoomScript script = GetViralEngine.loadScript();
         assertThat(script.getAgents()).extracting(AgentDef::getName).containsExactly(
-                "Showrunner", "TrendScout", "Strategist", "XWriter", "ReelDirector", "YouTubeProducer",
+                "Showrunner", "TrendScout", "Researcher", "Strategist", "XWriter", "ReelDirector", "YouTubeProducer",
                 "ViralityCritic", "ArtDirector", "VideoEditor", "Publisher", "SafetyCoach");
         assertThat(script.getWorkflows()).extracting(w -> w.getName()).containsExactly("GetViral");
     }

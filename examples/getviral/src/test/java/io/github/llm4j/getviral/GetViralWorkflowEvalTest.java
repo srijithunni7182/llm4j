@@ -60,6 +60,25 @@ class GetViralWorkflowEvalTest {
     }
 
     @Test
+    void researcherSearchesTheWebAndReadsASourceBeforeAnswering() {
+        assertThat(only("Researcher"))
+                .completedSuccessfully()
+                .usesToolsInOrder("web_search", "read_page")
+                .hasValidJson(Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> dossier = (Map<String, Object>) outcome.pack().get("research");
+        assertThat(dossier).containsKeys("summary", "findings", "caveats");
+        assertThat((List<?>) dossier.get("findings")).isNotEmpty()
+                .allSatisfy(f -> assertThat(String.valueOf(((Map<?, ?>) f).get("url"))).startsWith("https://"));
+    }
+
+    @Test
+    void researchFlowsIntoTheStrategyWithItsSources() {
+        Map<?, ?> plan = (Map<?, ?>) outcome.pack().get("plan");
+        assertThat(String.valueOf(plan.get("key_facts"))).contains("(source: https://");
+    }
+
+    @Test
     void strategistGroundsHooksInThePlaybookViaRag() {
         assertThat(only("Strategist"))
                 .completedSuccessfully()
@@ -78,7 +97,7 @@ class GetViralWorkflowEvalTest {
     @Test
     void showrunnerWritesPromptsAtRuntimeAndRewritesThemAfterFeedback() {
         Map<String, List<PromptBook.Version>> prompts = outcome.prompts().all();
-        assertThat(prompts).containsKeys("TrendScout", "Strategist", "XWriter", "ReelDirector", "YouTubeProducer",
+        assertThat(prompts).containsKeys("TrendScout", "Researcher", "Strategist", "XWriter", "ReelDirector", "YouTubeProducer",
                 "ViralityCritic");
         // The critic asked for a revision, so the platform writers were re-cast with v2 prompts.
         assertThat(prompts.get("XWriter")).hasSizeGreaterThanOrEqualTo(2);

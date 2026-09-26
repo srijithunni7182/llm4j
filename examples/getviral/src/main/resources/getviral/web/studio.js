@@ -5,6 +5,7 @@
   const AGENTS = [
     { id: "Showrunner", icon: "🎬", role: "Casts the team & writes every prompt", c: "linear-gradient(135deg,#8b5cff,#ff2e88)", glow: "#8b5cff" },
     { id: "TrendScout", icon: "📡", role: "Live trends from public APIs", c: "linear-gradient(135deg,#2ad4f2,#1e6bff)", glow: "#2ad4f2" },
+    { id: "Researcher", icon: "🔬", role: "Researches the web, reads sources", c: "linear-gradient(135deg,#6ee7b7,#2ad4f2)", glow: "#6ee7b7" },
     { id: "Strategist", icon: "🧭", role: "Angle, hooks & verified facts", c: "linear-gradient(135deg,#ff9a3d,#ff2e88)", glow: "#ff9a3d" },
     { id: "XWriter", icon: "𝕏", role: "Threads that get quoted", c: "linear-gradient(135deg,#3a3a44,#0b0b0f)", glow: "#9ca3af" },
     { id: "ReelDirector", icon: "🎞️", role: "Beat-by-beat Reels", c: "linear-gradient(45deg,#f58529,#dd2a7b,#8134af)", glow: "#dd2a7b" },
@@ -14,7 +15,7 @@
     { id: "VideoEditor", icon: "📹", role: "Renders the Reel to MP4", c: "linear-gradient(135deg,#2ad4f2,#8b5cff)", glow: "#2ad4f2" },
     { id: "Publisher", icon: "🚀", role: "Posts to Instagram — with your OK", c: "linear-gradient(135deg,#b9f36c,#2bb673)", glow: "#b9f36c" },
   ];
-  const STAGE_OF = { Showrunner: "cast", TrendScout: "scout", Strategist: "strategy", XWriter: "create", ReelDirector: "create", YouTubeProducer: "create", ViralityCritic: "critique", ArtDirector: "visuals", VideoEditor: "visuals", Publisher: "ship" };
+  const STAGE_OF = { Showrunner: "cast", TrendScout: "scout", Researcher: "scout", Strategist: "strategy", XWriter: "create", ReelDirector: "create", YouTubeProducer: "create", ViralityCritic: "critique", ArtDirector: "visuals", VideoEditor: "visuals", Publisher: "ship" };
   const STAGES = ["cast", "scout", "strategy", "hook", "create", "critique", "visuals", "ship"];
   const MEDIA_ORDER = ["reel", "youtube_thumbnail", "reel_cover", "x_card", "broll_1", "broll_2", "ai_clip"];
   const IDEAS = [
@@ -275,9 +276,9 @@
       case "run_started":
         $("#engineList").innerHTML = [
           ["Model", d.model], ["Embeddings", d.embeddings], ["Vectors", d.vectorStore],
-          ["Public APIs", d.publicApis], ["Images", d.images], ["Video", d.video],
+          ["Public APIs", d.publicApis], ["Web search", d.webSearch], ["Images", d.images], ["Video", d.video],
           ["Instagram", String(d.instagram).startsWith("connected") ? d.instagram : "not connected — publishing is a dry run"],
-        ].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
+        ].filter(([, v]) => v).map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
         state.info.instagram = d.instagram;
         feed("✦", "GetViral", "Brief received — assembling the team", `${esc(d.model)}`, "", ev.t);
         break;
@@ -408,6 +409,9 @@
     if (d.agent === "Showrunner" && v && typeof v === "object") {
       if (v.run_title) $("#runTitle").textContent = v.run_title;
       feed("🎬", "Showrunner", "cast the team", esc(trim(v.creative_direction, 200)), "prompt", t);
+    } else if (d.agent === "Researcher" && v && typeof v === "object") {
+      const n = (v.findings || []).length;
+      feed("🔬", "Researcher", `brought back ${n} sourced finding${n === 1 ? "" : "s"}`, esc(trim(v.summary, 200)), "", t);
     } else if (d.agent === "ViralityCritic" && v && typeof v === "object") {
       criticMoment(v);
       $("#statRounds").textContent = v.round || 1;
@@ -578,6 +582,7 @@
     $("#exportBtn").href = `/api/runs/${state.runId}/export.md`;
     $("#exportBtn").setAttribute("download", "getviral-pack.md");
     if (!$("#badges").children.length) $("#badges").innerHTML = Array.from({ length: 5 }, () => `<div class="badge skel"></div>`).join("");
+    renderResearch(v.researchDossier);
     renderX(v.xPack);
     renderReel(v.reelPack);
     renderYt(v.youtubePack);
@@ -635,6 +640,28 @@
     const video = $("#reelVideo");
     video.hidden = mode !== "video";
     if (mode === "video") video.play().catch(() => {}); else video.pause();
+  }
+
+  const safeUrl = (u) => /^https?:\/\//i.test(String(u || "")) ? String(u) : "";
+  const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+
+  function renderResearch(r) {
+    const panel = $("#research");
+    if (!r || typeof r !== "object" || !(r.findings || []).length) { panel.hidden = true; return; }
+    panel.hidden = false;
+    const findings = r.findings || [];
+    const sources = new Set(findings.map((f) => safeUrl(f.url)).filter(Boolean));
+    const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+    $("#researchHint").textContent = `${plural(findings.length, "finding")} · ${plural(sources.size, "source")}`;
+    $("#researchSummary").textContent = r.summary || "";
+    $("#findings").innerHTML = findings.map((f) => {
+      const url = safeUrl(f.url);
+      const label = f.source || hostOf(url) || "source";
+      return `<li><p>${esc(f.point)}</p>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(trim(label, 60))} ↗</a>` : `<span class="src">${esc(label)}</span>`}</li>`;
+    }).join("");
+    const group = (title, items, cls) => (items || []).length
+      ? `<div class="rx ${cls}"><h4>${title}</h4><ul>${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul></div>` : "";
+    $("#researchExtra").innerHTML = group("Fresh angles", r.fresh_angles, "angles") + group("What people debate", r.debates, "debates") + group("Caveats", r.caveats, "caveats");
   }
 
   function renderX(x) {
@@ -742,7 +769,7 @@
   // ── Little helpers ──────────────────────────────────────────────────────
   function icon(agent) { return (AGENTS.find((a) => a.id === agent) || {}).icon || "•"; }
   function toolIcon(tool) {
-    return ({ trending_now: "📈", hn_pulse: "🗣️", trending_hashtags: "#️⃣", moment_calendar: "📅", fact_check: "🔎", word_lab: "🔤", trending_audio: "🎵", broll_finder: "🖼️", viral_playbook: "📚", instagram_quota: "📊", instagram_publish: "📤" })[tool] || "🛠️";
+    return ({ web_search: "🌍", read_page: "📖", trending_now: "📈", hn_pulse: "🗣️", trending_hashtags: "#️⃣", moment_calendar: "📅", fact_check: "🔎", word_lab: "🔤", trending_audio: "🎵", broll_finder: "🖼️", viral_playbook: "📚", instagram_quota: "📊", instagram_publish: "📤" })[tool] || "🛠️";
   }
   function trim(s, n) { s = String(s ?? "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
   async function copy(text) { try { await navigator.clipboard.writeText(text); toast("Copied ✓"); } catch { toast("Copy failed — select the text manually"); } }
