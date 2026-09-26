@@ -10,7 +10,11 @@ import org.junit.jupiter.api.Test;
 class ConversationAssertTest {
 
     private static AgentResult turn(String finalAnswer, boolean completed) {
-        return AgentResult.builder().finalAnswer(finalAnswer).completed(completed).iterations(1).build();
+        return AgentResult.builder()
+                .finalAnswer(finalAnswer)
+                .completed(completed)
+                .iterations(1)
+                .build();
     }
 
     @Test
@@ -48,7 +52,6 @@ class ConversationAssertTest {
     @Test
     void turn_failsForOutOfRangeIndex() {
         List<AgentResult> turns = List.of(turn("hi", true));
-        assertThatThrownBy(() -> assertThat(turns).turn(5))
-                .isInstanceOf(AssertionError.class);
+        assertThatThrownBy(() -> assertThat(turns).turn(5)).isInstanceOf(AssertionError.class);
     }
 }

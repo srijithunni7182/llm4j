@@ -32,6 +32,7 @@ import io.github.llm4j.provider.SpeechToTextProvider;
 import io.github.llm4j.provider.TextToSpeechProvider;
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -148,6 +149,12 @@ public class ReActAgent {
         scratchpad.append("Question: ").append(question).append("\n");
 
         Set<String> actionHistory = new HashSet<>();
+        AtomicInteger redundantActionCount = new AtomicInteger(0);
+        int llmCallCount = 0;
+        int totalPromptTokens = 0;
+        int totalCompletionTokens = 0;
+        int totalTokens = 0;
+        boolean protocolFollowed = true;
 
         for (int i = 0; i < maxIterations; i++) {
             logger.debug("Agent iteration {}/{}", i + 1, maxIterations);
@@ -182,15 +189,25 @@ public class ReActAgent {
             String llmOutput = response.getContent();
             logger.info("=== LLM Response (Iteration {}) ===\n{}", i + 1, llmOutput);
 
+            llmCallCount++;
+            LLMResponse.TokenUsage tokenUsage = response.getTokenUsage();
+            if (tokenUsage != null) {
+                totalPromptTokens += tokenUsage.getPromptTokens();
+                totalCompletionTokens += tokenUsage.getCompletionTokens();
+                totalTokens += tokenUsage.getTotalTokens();
+            }
+
             try {
                 Map<String, Object> responseJson;
                 try {
                     responseJson = parseResponse(llmOutput);
                 } catch (Exception e) {
-                    // Fallback: If parsing fails, treat the entire output as the final answer
+                    // Fallback: If parsing fails, treat the entire output as the final answer.
+                    // The model didn't follow the expected response protocol at all here.
                     logger.warn(
                             "Failed to parse JSON, treating output as final answer: {}",
                             e.getMessage());
+                    protocolFollowed = false;
                     responseJson = new HashMap<>();
                     responseJson.put("final_answer", llmOutput);
                     responseJson.put(
@@ -208,7 +225,16 @@ public class ReActAgent {
                 if (responseJson.containsKey("final_answer")) {
                     String finalAnswer = asAnswerText(responseJson.get("final_answer"));
                     String thought = (String) responseJson.get("thought");
-                    return processFinalAnswer(question, finalAnswer, thought, steps, i);
+                    return processFinalAnswer(
+                            question,
+                            finalAnswer,
+                            thought,
+                            steps,
+                            i,
+                            new AgentResult.Usage(
+                                    llmCallCount, totalPromptTokens, totalCompletionTokens, totalTokens),
+                            redundantActionCount.get(),
+                            protocolFollowed);
                 }
 
                 String thought = (String) responseJson.get("thought");
@@ -233,10 +259,13 @@ public class ReActAgent {
                     continue;
                 }
 
-                String observation = executeAction(action, actionInput, actionHistory, thought);
+                ActionExecution execution =
+                        executeAction(action, actionInput, actionHistory, thought, redundantActionCount);
+                String observation = execution.observation();
 
                 AgentResult.AgentStep step =
-                        new AgentResult.AgentStep(thought, action, actionInput, observation);
+                        new AgentResult.AgentStep(
+                                thought, action, actionInput, observation, execution.outcome());
                 steps.add(step);
 
                 scratchpad.append("Thought: ").append(thought != null ? thought : "").append("\n");
@@ -258,7 +287,12 @@ public class ReActAgent {
                         .append("\n");
             }
         }
-        return buildFailureResult(steps);
+        return buildFailureResult(
+                steps,
+                new AgentResult.Usage(
+                        llmCallCount, totalPromptTokens, totalCompletionTokens, totalTokens),
+                redundantActionCount.get(),
+                protocolFollowed);
     }
 
     /**
@@ -298,22 +332,34 @@ public class ReActAgent {
         throw new Exception("No valid JSON block or legacy format found in LLM output.");
     }
 
-    private String executeAction(
-            String action, String actionInput, Set<String> actionHistory, String thought) {
+    /** Pairs a step's observation text with what actually happened, for {@link AgentResult.AgentStep}. */
+    private record ActionExecution(String observation, AgentResult.StepOutcome outcome) {}
+
+    private ActionExecution executeAction(
+            String action,
+            String actionInput,
+            Set<String> actionHistory,
+            String thought,
+            AtomicInteger redundantActionCount) {
         String actionKey = action + ":" + (actionInput != null ? actionInput : "");
         if (actionHistory.contains(actionKey)) {
             logger.warn("Loop detected: {}", actionKey);
-            return "Error: You have already taken this action with this input. Please try a different approach.";
+            redundantActionCount.incrementAndGet();
+            return new ActionExecution(
+                    "Error: You have already taken this action with this input. Please try a different approach.",
+                    AgentResult.StepOutcome.DUPLICATE_BLOCKED);
         }
         actionHistory.add(actionKey);
 
         Tool tool = tools.get(action.toLowerCase());
         if (tool == null) {
             logger.warn("Unknown tool: {}", action);
-            return "Error: Unknown tool '"
-                    + action
-                    + "'. Available tools: "
-                    + String.join(", ", tools.keySet());
+            return new ActionExecution(
+                    "Error: Unknown tool '"
+                            + action
+                            + "'. Available tools: "
+                            + String.join(", ", tools.keySet()),
+                    AgentResult.StepOutcome.UNKNOWN_TOOL);
         }
 
         try {
@@ -334,15 +380,19 @@ public class ReActAgent {
                 notifyApprovalRequired(action, args, thought);
                 if (approvalCallback == null) {
                     logger.warn("Tool '{}' requires approval but no ApprovalCallback is set. Blocking.", action);
-                    return "Error: Action '" + action
-                            + "' requires human approval, but no ApprovalCallback is configured."
-                            + " Add one via ReActAgent.Builder#approvalCallback().";
+                    return new ActionExecution(
+                            "Error: Action '" + action
+                                    + "' requires human approval, but no ApprovalCallback is configured."
+                                    + " Add one via ReActAgent.Builder#approvalCallback().",
+                            AgentResult.StepOutcome.APPROVAL_UNAVAILABLE);
                 }
                 boolean approved = approvalCallback.approve(action, args, thought != null ? thought : "");
                 if (!approved) {
                     logger.info("Human rejected action '{}'. Feeding back to agent.", action);
-                    return "Observation: A human supervisor rejected this action. "
-                            + "Do not attempt it again. Choose a different approach to accomplish the goal.";
+                    return new ActionExecution(
+                            "Observation: A human supervisor rejected this action. "
+                                    + "Do not attempt it again. Choose a different approach to accomplish the goal.",
+                            AgentResult.StepOutcome.REJECTED_BY_HUMAN);
                 }
                 logger.info("Human approved action '{}'.", action);
             }
@@ -356,7 +406,8 @@ public class ReActAgent {
             throw interrupt; // a deliberate stop (e.g. waiting for a human) is never a tool error
         } catch (Exception e) {
             logger.error("Error executing tool {}: {}", action, e.getMessage(), e);
-            return "Error executing tool: " + e.getMessage();
+            return new ActionExecution(
+                    "Error executing tool: " + e.getMessage(), AgentResult.StepOutcome.EXECUTION_ERROR);
         }
     }
 
@@ -365,7 +416,10 @@ public class ReActAgent {
             String finalAnswer,
             String thought,
             List<AgentResult.AgentStep> steps,
-            int iteration) {
+            int iteration,
+            AgentResult.Usage usage,
+            int redundantActionCount,
+            boolean protocolFollowed) {
         if (thought != null) notifyThought(thought);
         if (conversationHistory != null) {
             conversationHistory.addUserMessage(question);
@@ -379,6 +433,9 @@ public class ReActAgent {
                         .iterations(iteration + 1)
                         .completed(true)
                         .confidence(calculateConfidence(steps, iteration + 1, finalAnswer))
+                        .usage(usage)
+                        .redundantActionCount(redundantActionCount)
+                        .protocolFollowed(protocolFollowed)
                         .build();
 
         auditLogger.logAgentDecision(
@@ -400,7 +457,11 @@ public class ReActAgent {
         return result;
     }
 
-    private AgentResult buildFailureResult(List<AgentResult.AgentStep> steps) {
+    private AgentResult buildFailureResult(
+            List<AgentResult.AgentStep> steps,
+            AgentResult.Usage usage,
+            int redundantActionCount,
+            boolean protocolFollowed) {
         logger.warn(
                 "Agent reached max iterations ({}) without finding final answer", maxIterations);
         String uncertaintyReason = "Agent reached maximum iterations without certainty";
@@ -413,6 +474,9 @@ public class ReActAgent {
                         .confidence(ConfidenceScore.low(uncertaintyReason))
                         .uncertaintyDetected(true)
                         .uncertaintyReason(uncertaintyReason)
+                        .usage(usage)
+                        .redundantActionCount(redundantActionCount)
+                        .protocolFollowed(protocolFollowed)
                         .build();
         auditLogger.logAgentDecision(
                 AuditEvent.builder().sessionId(sessionId).agentResult(result).build());

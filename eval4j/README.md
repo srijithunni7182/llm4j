@@ -87,14 +87,29 @@ know (`.isNotNull()`, `.satisfies(...)`, `.is(Condition)`), plus these eval4j-sp
 |---|---|
 | `hasFinalAnswerContaining(String)` | Final answer contains a substring (case-insensitive) |
 | `hasFinalAnswerMatching(Pattern)` | Final answer matches a regex |
-| `usesTool(String)` | The tool was called at some point (case-insensitive) |
+| `usesTool(String)` | The tool was **attempted** at some point (case-insensitive) — see the warning below |
+| `usesToolSuccessfully(String)` | The tool actually **executed** (`StepOutcome.EXECUTED`), not just attempted |
+| `hadActionRejected(String)` | A human reviewer rejected an attempted call via Human-in-the-Loop approval |
+| `hasStepOutcome(String, AgentResult.StepOutcome)` | Some call to the tool has exactly the given outcome |
 | `usesToolsExactly(String...)` | Exactly this sequence of tools, in this order, no more |
 | `usesToolsInOrder(String...)` | These tools were called in this relative order — other tool calls may happen in between (an ordered-subsequence check, useful for trajectory testing when extra steps are allowed) |
+| `usesToolWithArgument(String, String, Object)` | Some call to the tool had the given argument key/value |
+| `extractingToolArgument(String, String)` | AssertJ `ListAssert` of that argument's value across every call to the tool |
 | `usesNoTools()` | No tools were called |
 | `isConfidentAbove(double)` | `AgentResult.getConfidence()` exceeds a threshold |
-| `completedSuccessfully()` | The agent didn't hit max iterations / give up |
+| `completedSuccessfully()` | The agent produced a final answer without hitting max iterations |
+| `followedProtocol()` | The model's raw output parsed as the expected format on every iteration — stricter than `completedSuccessfully()`, which still passes when the model ignored the protocol and its whole raw output got treated as the final answer |
 | `completesWithinIterations(int)` | Iteration budget (an "efficiency" check) |
+| `usesFewerTokensThan(int)` | `AgentResult.getUsage().getTotalTokens()` is under a budget |
+| `hasRedundantActionCountAtMost(int)` | Looping/dithering budget — repeated identical action+input pairs |
 | `hasValidJson(Class<?>)` | Final answer parses as the given JSON shape |
+
+> **`usesTool` only means the model *requested* that action — not that it ran.** `ReActAgent`
+> records a step whenever the model asks for an action, including one that named an unknown tool,
+> was blocked as a repeated/looping call, or — notably for a Human-in-the-Loop workflow — one a
+> human reviewer **rejected**. A rejected `send_email` call still satisfies `usesTool("send_email")`.
+> If success (or rejection specifically) is what you're checking, use `usesToolSuccessfully`/
+> `hadActionRejected`/`hasStepOutcome` instead.
 
 `LlmResponseAssertions.assertThat(LLMResponse)` mirrors this for a single raw LLM call (not behind
 a `ReActAgent`) — `hasContentContaining`, `hasFinishReason`, `usesFewerTokensThan` (reads
@@ -106,6 +121,12 @@ span several underlying LLM calls with no single aggregate total), and `hasValid
 multi-turn conversations.
 
 ### 2. LLM-as-judge — `LlmJudgeCondition` / `LlmJudgePresets`
+
+**Use a different (ideally stronger) model as the judge than the one being tested.** Grading an
+agent's output with the same model/client that produced it means the model is partly grading its
+own work — fine for a quick smoke test (the integration test in this repo does exactly that,
+deliberately, to keep the example to one API key), but for real suites, wire a separate `LLMClient`
+in as the judge.
 
 `LlmJudgeCondition` is a real `org.assertj.core.api.Condition`, built with:
 
@@ -128,6 +149,17 @@ Because it's a plain `Condition`, it works with `.is(...)`/`.has(...)` against a
 Internally it prompts the judge with the same fenced ` ```json ` convention `ReActAgent` itself
 already uses to parse tool calls, and wraps judge-call failures (network errors, unparseable
 responses) in a `JudgeEvaluationException`, distinct from a normal failed assertion.
+
+**The output being graded is untrusted.** It's the agent's own (possibly wrong, possibly
+adversarial) output, so the judge prompt wraps it — and context/retrieved-context/trajectory — in
+explicit `<<<BEGIN ...>>>`/`<<<END ...>>>` delimiters and instructs the judge to treat everything
+inside as data, never as instructions, even if it contains text that looks like grading
+instructions.
+
+**`taskCompletion(input)` includes the full step trajectory**, not just the final answer — set
+`.includeTrajectory(true)` on any custom `llmJudged(...)` condition if a criterion needs the same.
+Other presets stay final-answer-only by default so the judge's focus isn't diluted with irrelevant
+tool-call noise.
 
 **Scoring is rubric-based, not a raw float.** LLMs are well documented to be poorly calibrated when
 asked to directly output a continuous "probability" — they cluster around round numbers like 0.7
@@ -164,9 +196,14 @@ llmJudged("Correctness")
 Off by default (`samples(1)`) so existing tests and cost profiles don't change unless you opt in.
 
 **Caching** avoids paying for the same judge call twice. `LlmJudgeCondition` keys the cache by the
-*exact content* of the call — criterion, inputs, and the output being judged — so a hit only
-happens when the same call would be made again; there's no separate cache invalidation to manage,
-and changing anything about the scenario naturally produces a fresh key.
+*exact content* of the call — the judge rubric text itself, criterion, inputs, trajectory, the
+output being judged, and temperature — so a hit only happens when the same call would be made
+again; there's no separate cache invalidation to manage, editing the rubric or the criteria
+automatically invalidates old entries, and a `samples=1` draw can never collide with a `samples=3`
+draw (they run at different temperatures, which is now part of the key). `LLMClient` doesn't expose
+which model/provider it wraps, so if you cache across a judge-model change, also set
+`.judgeIdentifier("gemini-2.5-pro")` (or whatever you're using) — otherwise switching judge models
+while reusing the same cache would silently replay verdicts graded by the old one.
 
 ```java
 llmJudged("Correctness")

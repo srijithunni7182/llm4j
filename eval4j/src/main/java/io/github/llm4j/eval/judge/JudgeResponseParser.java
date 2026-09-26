@@ -7,9 +7,9 @@ import java.util.regex.Pattern;
 
 /**
  * Parses a judge LLM's response into a {@link JudgeVerdict}. Uses the same fenced-JSON-block
- * convention already relied on elsewhere in ai-agent4j (see {@code ReActAgent.parseResponse}):
- * the model is asked to answer with a single ```json code block, which is more reliably extracted
- * than parsing the whole response as JSON, since judge models often add a sentence of preamble.
+ * convention already relied on elsewhere in ai-agent4j (see {@code ReActAgent.parseResponse}): the
+ * model is asked to answer with a single ```json code block, which is more reliably extracted than
+ * parsing the whole response as JSON, since judge models often add a sentence of preamble.
  *
  * <p>The judge returns a discrete 1-5 {@code rating} plus its {@code reasoning}, per {@link
  * JudgePrompt}'s rubric, not a raw score — this parser converts the rating to a normalized 0.0-1.0

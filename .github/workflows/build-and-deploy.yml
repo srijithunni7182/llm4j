@@ -43,6 +43,11 @@ jobs:
       env:
         NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
+    - name: Build and Test eval4j
+      run: |
+        mvn -B clean install -DskipTests=false
+      working-directory: eval4j
+
     - name: Upload Test Reports
       if: always()
       uses: actions/upload-artifact@v4
@@ -51,6 +56,7 @@ jobs:
         path: |
           ai-agent4j/target/surefire-reports/
           ai-agent4j-addons/target/surefire-reports/
+          eval4j/target/surefire-reports/
 
   app-smoke-builds:
     name: App Smoke Builds

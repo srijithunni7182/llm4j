@@ -74,8 +74,7 @@ class EvalScenariosTest {
 
     @Test
     void scenarioToStringUsesNameForDisplay() {
-        EvalScenario named =
-                new EvalScenario("my-scenario", "input", null, null, null, null, null);
+        EvalScenario named = new EvalScenario("my-scenario", "input", null, null, null, null, null);
         assertThat(named.toString()).isEqualTo("my-scenario");
 
         EvalScenario unnamed = new EvalScenario(null, "raw input", null, null, null, null, null);

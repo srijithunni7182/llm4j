@@ -54,7 +54,10 @@ class EvalReportExtensionTest {
 
         String output = captured.toString();
         assertThat(output).contains("[PASS]").contains("passingCase");
-        assertThat(output).contains("[FAIL]").contains("failingCase").contains("expected failure for report");
+        assertThat(output)
+                .contains("[FAIL]")
+                .contains("failingCase")
+                .contains("expected failure for report");
         assertThat(output).contains("1/2 passed");
         assertThat(output).doesNotContain("disabledCase");
     }

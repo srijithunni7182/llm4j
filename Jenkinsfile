@@ -42,6 +42,14 @@ pipeline {
             }
         }
 
+        stage('Build eval4j') {
+            steps {
+                dir('eval4j') {
+                    sh 'mvn clean install -DskipTests'
+                }
+            }
+        }
+
         stage('Unit Tests & Coverage') {
             steps {
                 parallel(
@@ -53,6 +61,12 @@ pipeline {
                     "Addons Tests": {
                         dir('ai-agent4j-addons') {
                             sh 'mvn test jacoco:report'
+                        }
+                    },
+                    "eval4j Tests": {
+                        dir('eval4j') {
+                            // verify (not test) so the enforced 80% JaCoCo gate actually runs
+                            sh 'mvn verify'
                         }
                     }
                 )
@@ -74,6 +88,11 @@ pipeline {
                     },
                     "Addons Quality": {
                         dir('ai-agent4j-addons') {
+                            sh 'mvn spotless:check'
+                        }
+                    },
+                    "eval4j Quality": {
+                        dir('eval4j') {
                             sh 'mvn spotless:check'
                         }
                     }

@@ -28,7 +28,9 @@ class LlmJudgePresetsTest {
 
     private static LLMResponse verdict(int rating) {
         return LLMResponse.builder()
-                .content(String.format("```json%n{\"reasoning\": \"r\", \"rating\": %d}%n```", rating))
+                .content(
+                        String.format(
+                                "```json%n{\"reasoning\": \"r\", \"rating\": %d}%n```", rating))
                 .build();
     }
 
@@ -64,8 +66,10 @@ class LlmJudgePresetsTest {
         LlmJudgePresets presets = LlmJudgePresets.using(judgeClient);
         List<String> retrievalContext = List.of("Paris is the capital of France.");
 
-        assertThat(presets.faithfulness(retrievalContext).matches("The capital is Paris.")).isTrue();
-        assertThat(presets.groundedness(retrievalContext).matches("The capital is Paris.")).isTrue();
+        assertThat(presets.faithfulness(retrievalContext).matches("The capital is Paris."))
+                .isTrue();
+        assertThat(presets.groundedness(retrievalContext).matches("The capital is Paris."))
+                .isTrue();
     }
 
     @Test
