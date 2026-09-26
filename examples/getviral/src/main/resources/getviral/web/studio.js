@@ -42,28 +42,10 @@
 
   // ── Boot ────────────────────────────────────────────────────────────────
   async function boot() {
-    try {
-      const info = await (await fetch("/api/info")).json();
-      state.info = info;
-      const mode = info.mode === "DEMO" ? "demo model · no API key" : `${info.mode.toLowerCase()} · ${info.model}`;
-      $("#engineMeta").innerHTML = `<span class="dot"></span><span>${esc(mode)} · APIs ${esc(info.publicApis)}</span>`;
-    } catch {
-      $("#engineMeta").innerHTML = `<span class="dot" style="background:var(--bad);box-shadow:none"></span><span>studio offline</span>`;
-    }
-    ["handle", "niche", "region"].forEach((k) => { const v = store.get(k); if (v) $("#" + k).value = v; });
-    const tone = store.get("tone");
-    if (tone) $$(".chip").forEach((c) => c.classList.toggle("is-on", c.dataset.tone === tone));
-    $$(".chip").forEach((chip) => chip.addEventListener("click", () => {
-      $$(".chip").forEach((c) => c.classList.remove("is-on"));
-      chip.classList.add("is-on");
-    }));
-    let i = 0;
-    setInterval(() => { if (!$("#idea").value) $("#idea").placeholder = IDEAS[++i % IDEAS.length]; }, 3200);
-    $("#handle").addEventListener("change", peekMemory);
-    peekMemory();
-    $("#briefForm").addEventListener("submit", start);
-    $("#idea").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) start(e); });
-    $("#againBtn").addEventListener("click", () => location.reload());
+    state.me = await GV.requireMe();
+    renderAccount();
+    bindComposer();
+    $("#againBtn").addEventListener("click", () => { location.href = "/studio"; });
     $("#drawerClose").addEventListener("click", () => ($("#promptDrawer").hidden = true));
     $("#ownHook").addEventListener("submit", (e) => { e.preventDefault(); const v = $("#ownHookInput").value.trim(); if (v) answerHook(v); });
     $("#approveBtn").addEventListener("click", () => answerApproval("approve"));
@@ -73,43 +55,112 @@
     document.addEventListener("keydown", hookKeys);
     $$(".rate").forEach(bindRating);
     $$("[data-copy]").forEach((b) => b.addEventListener("click", () => copy($("#" + b.dataset.copy).innerText + "\n\n" + $("#reelTags").innerText)));
+    $$(".tabs button").forEach((b) => b.addEventListener("click", () => libraryTab(b.dataset.tab)));
+    window.addEventListener("popstate", () => location.reload());
+    route();
+  }
+
+  function route() {
+    const params = new URLSearchParams(location.search);
+    const runId = params.get("run");
+    $("#navStudio").classList.toggle("is-on", location.pathname !== "/library");
+    $("#navLibrary").classList.toggle("is-on", location.pathname === "/library");
+    if (location.pathname === "/library") return showLibrary();
+    if (runId) return openRun(runId);
+    if (state.me.activeRun) {
+      GV.toast("Picking up your pack in progress…");
+      return openRun(state.me.activeRun);
+    }
+    $("#composer").hidden = false;
+    if (params.get("guided")) setTimeout(guideComposer, 700);
+  }
+
+  function renderAccount() {
+    const me = state.me;
+    $("#menuBtn").innerHTML = `${GV.avatar(me)}<span>${esc(me.handle ? "@" + me.handle : me.name || "")}</span>`;
+    $("#menuEmail").textContent = me.email;
+    $("#quotaPill").textContent = `${me.quota.used}/${me.quota.limit} packs this month`;
+    $("#menuBtn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = $("#menuList").hidden;
+      $("#menuList").hidden = !open;
+      $("#menuBtn").setAttribute("aria-expanded", String(open));
+    });
+    document.addEventListener("click", () => ($("#menuList").hidden = true));
+    $("#signOutBtn").addEventListener("click", GV.signOut);
+    $("#deleteBtn").addEventListener("click", async () => {
+      if (!confirm("Delete your GetViral account? This permanently removes every pack, image, video, memory and connected account.")) return;
+      await GV.api("/api/me", { method: "DELETE" });
+      location.replace("/");
+    });
+  }
+
+  function bindComposer() {
+    const me = state.me;
+    $("#handleLabel").textContent = me.handle || "set up your profile";
+    $("#niche").value = me.niche || "";
+    $("#region").value = me.region || "";
+    if (me.tone) $$(".tone-row .chip").forEach((c) => c.classList.toggle("is-on", c.dataset.tone === me.tone));
+    $$(".tone-row .chip").forEach((chip) => chip.addEventListener("click", () => {
+      $$(".tone-row .chip").forEach((c) => c.classList.remove("is-on"));
+      chip.classList.add("is-on");
+    }));
+    $("#setupBanner").hidden = me.onboardingStep === "DONE";
+    let i = 0;
+    setInterval(() => { if (!$("#idea").value) $("#idea").placeholder = IDEAS[++i % IDEAS.length]; }, 3200);
+    peekMemory();
+    $("#briefForm").addEventListener("submit", start);
+    $("#idea").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) start(e); });
   }
 
   async function peekMemory() {
-    const handle = $("#handle").value.trim().replace(/^@/, "");
-    if (!handle) { $("#memoryPeek").hidden = true; return; }
     try {
-      const data = await (await fetch("/api/memory?handle=" + encodeURIComponent(handle))).json();
+      const data = await GV.api("/api/memory");
       const active = (data.memories || []).filter((m) => !m.shadow);
       $("#memoryPeek").hidden = active.length === 0;
-      $("#peekHandle").textContent = "@" + handle;
+      $("#peekHandle").textContent = state.me.handle ? "@" + state.me.handle : "you";
       $("#peekList").innerHTML = active.slice(-4).reverse().map((m) => `<li>${esc(m.content)}</li>`).join("");
     } catch { /* ignore */ }
   }
 
   async function start(e) {
     e.preventDefault();
+    if (!state.me.handle) { location.href = "/welcome?step=PROFILE"; return; }
     const idea = $("#idea").value.trim() || $("#idea").placeholder;
     const brief = {
       idea,
-      handle: $("#handle").value.trim().replace(/^@/, "") || "creator",
-      niche: $("#niche").value.trim() || "lifestyle",
-      region: ($("#region").value.trim() || "US").toUpperCase(),
-      tone: ($(".chip.is-on") || {}).dataset?.tone || "warm and witty",
-      voiceSamples: $("#voice").value.split("\n").map((s) => s.trim()).filter(Boolean),
+      niche: $("#niche").value.trim() || state.me.niche || "lifestyle",
+      region: ($("#region").value.trim() || state.me.region || "US").toUpperCase(),
+      tone: ($(".tone-row .chip.is-on") || {}).dataset?.tone || state.me.tone || "warm and witty",
     };
-    ["handle", "niche", "region", "tone"].forEach((k) => store.set(k, brief[k]));
+    const voice = $("#voice").value.split("\n").map((v) => v.trim()).filter(Boolean);
     $("#goBtn").disabled = true;
     $("#formError").textContent = "";
+    clearCoach();
     try {
-      const res = await fetch("/api/runs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(brief) });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || "Could not start");
-      state.brief = brief;
-      openStudio(body.id);
+      if (voice.length) await GV.api("/api/me/voice", { method: "POST", body: { posts: voice } });
+      const res = await GV.api("/api/runs", { method: "POST", body: brief });
+      state.brief = { ...brief, handle: state.me.handle };
+      history.pushState(null, "", `/studio?run=${res.id}`);
+      openStudio(res.id);
     } catch (err) {
-      $("#formError").textContent = err.message;
+      $("#formError").textContent = err.status === 409 && state.me.activeRun ? err.message + " Opening it…" : err.message;
+      if (err.status === 409) setTimeout(() => location.reload(), 1200);
       $("#goBtn").disabled = false;
+    }
+  }
+
+  /** Opens an existing run: live if it's still going, an instant replay if it's finished. */
+  async function openRun(id) {
+    try {
+      const run = await GV.api(`/api/runs/${id}`);
+      state.brief = { ...run.brief, idea: run.idea };
+      state.replay = ["DONE", "FAILED", "BLOCKED"].includes(run.status);
+      openStudio(id);
+    } catch (err) {
+      GV.toast(err.status === 404 ? "That pack doesn't exist (or isn't yours)." : err.message);
+      history.replaceState(null, "", "/studio");
+      $("#composer").hidden = false;
     }
   }
 
@@ -117,6 +168,7 @@
   function openStudio(id) {
     state.runId = id;
     $("#composer").hidden = true;
+    $("#library").hidden = true;
     $("#studio").hidden = false;
     $("#studioIdea").textContent = state.brief.idea;
     $("#agents").innerHTML = AGENTS.map((a) => `
@@ -129,9 +181,90 @@
     state.timer = setInterval(() => ($("#clock").textContent = ((performance.now() - state.started) / 1000).toFixed(1) + "s"), 100);
     window.scrollTo({ top: 0, behavior: "smooth" });
     loadMemory();
+    if (new URLSearchParams(location.search).get("guided") || sessionStorageGet("gv.guided")) setTimeout(guideStudio, 1500);
     state.es = new EventSource(`/api/runs/${id}/events`);
     state.es.onmessage = (m) => handle(JSON.parse(m.data));
     state.es.onerror = () => { if (["DONE", "BLOCKED", "FAILED"].includes(state.final)) state.es.close(); };
+  }
+
+  // ── Library ─────────────────────────────────────────────────────────────
+  async function showLibrary() {
+    $("#composer").hidden = true;
+    $("#studio").hidden = true;
+    $("#results").hidden = true;
+    $("#library").hidden = false;
+    const runs = await GV.api("/api/runs?limit=100");
+    $("#libPacks").innerHTML = runs.length ? runs.map((r, i) => `
+      <button type="button" class="pack-card" data-run="${esc(r.id)}" style="animation-delay:${Math.min(i, 12) * 40}ms">
+        <div class="pack-cover" style="${r.cover ? `background-image:url('${esc(r.cover)}')` : ""}">
+          <span class="status">${esc(statusLabel(r.status))}</span>${r.score ? `<span class="score">${Number(r.score).toFixed(1)}</span>` : ""}
+        </div>
+        <div class="pack-body"><h3>${esc(r.idea)}</h3>${r.hook ? `<p>“${esc(r.hook)}”</p>` : ""}
+          <small>${new Date(r.createdAt).toLocaleString()}${r.mediaCount ? ` · ${r.mediaCount} media` : ""}</small></div>
+      </button>`).join("")
+      : `<div class="empty"><h3>No packs yet</h3><p>Your packs — copy, images and Reels — will live here.</p><a class="cta" href="/studio"><span>Make your first pack</span></a></div>`;
+    $$("#libPacks [data-run]").forEach((b) => b.addEventListener("click", () => { location.href = `/studio?run=${b.dataset.run}`; }));
+  }
+
+  async function libraryTab(tab) {
+    $$(".tabs button").forEach((b) => b.classList.toggle("is-on", b.dataset.tab === tab));
+    $("#libPacks").hidden = tab !== "packs";
+    $("#libMedia").hidden = tab !== "media";
+    if (tab !== "media" || $("#libMedia").dataset.loaded) return;
+    const media = await GV.api("/api/library/media");
+    $("#libMedia").dataset.loaded = "1";
+    $("#libMedia").innerHTML = media.length ? media.map((m) => `
+      <figure class="tile">${m.kind === "video"
+        ? `<video src="${esc(m.url)}" muted loop playsinline controls preload="metadata"></video>`
+        : `<img src="${esc(m.url)}" alt="${esc(m.purpose)}" loading="lazy" width="${m.width}" height="${m.height}">`}
+        <span class="prov ${m.ai ? "ai" : "local"}">${m.ai ? "AI · " : ""}${esc(m.provider)}</span>
+        <figcaption><span>${esc(String(m.purpose).replace(/_/g, " "))} · ${esc(m.idea)}</span><a href="${esc(m.url)}" download>↓</a></figcaption>
+      </figure>`).join("")
+      : `<div class="empty"><h3>No media yet</h3><p>Thumbnails, covers, B-roll and rendered Reels from every pack collect here.</p></div>`;
+  }
+
+  function statusLabel(status) {
+    return { DONE: "ready", FAILED: "failed", BLOCKED: "blocked", QUEUED: "queued", RUNNING: "in progress", WAITING_FOR_HUMAN: "needs you" }[status] || status;
+  }
+
+  // ── Guided first pack (coach marks) ─────────────────────────────────────
+  function sessionStorageGet(k) { try { return sessionStorage.getItem(k); } catch { return null; } }
+  function sessionStorageSet(k, v) { try { sessionStorage.setItem(k, v); } catch { /* ignore */ } }
+
+  function coach(target, title, text, step, total, next) {
+    clearCoach();
+    const el = typeof target === "string" ? $(target) : target;
+    if (!el || el.offsetParent === null) return;
+    el.classList.add("coach-target");
+    const r = el.getBoundingClientRect();
+    const box = document.createElement("div");
+    box.className = "coach";
+    box.innerHTML = `<b>${esc(title)}</b><p>${esc(text)}</p><div class="coach-foot"><span>${step}/${total}</span><button type="button" class="btn small">${next ? "Next" : "Got it"}</button></div>`;
+    document.body.appendChild(box);
+    const left = Math.min(Math.max(12, r.left), innerWidth - box.offsetWidth - 12);
+    box.style.left = left + "px";
+    box.style.top = Math.min(r.bottom + 14, innerHeight - box.offsetHeight - 12) + "px";
+    box.style.setProperty("--arrow", Math.max(16, Math.min(r.left + 30 - left, box.offsetWidth - 30)) + "px");
+    $("button", box).addEventListener("click", () => { clearCoach(); if (next) next(); });
+    state.coachEl = box;
+  }
+  function clearCoach() {
+    state.coachEl?.remove();
+    state.coachEl = null;
+    $$(".coach-target").forEach((e) => e.classList.remove("coach-target"));
+  }
+  function guideComposer() {
+    sessionStorageSet("gv.guided", "1");
+    $("#idea").scrollIntoView({ behavior: "smooth", block: "center" });
+    coach("#briefForm", "Start with one idea", "Anything you'd post about — rough is fine. Try one of the rotating suggestions, or your own.", 1, 3, () =>
+      coach(".tone-row", "Set the vibe", "Your profile defaults are pre-filled. Change the tone or niche just for this pack if you like.", 2, 3, () =>
+        coach("#goBtn", "Make it viral", "The team takes it from here. You'll pick the hook in about 20 seconds.", 3, 3)));
+  }
+  function guideStudio() {
+    if (sessionStorageGet("gv.guided.studio")) return;
+    sessionStorageSet("gv.guided.studio", "1");
+    coach(".room", "This is the room", "Each card is an agent. Tap one to read the brief the Showrunner wrote for it — live.", 1, 2, () =>
+      coach(".wire", "The live wire", "Every trend check, fact, tool call and memory, as it happens. In a moment it'll ask you to pick the hook.", 2, 2));
   }
 
   function handle(ev) {
@@ -143,8 +276,9 @@
         $("#engineList").innerHTML = [
           ["Model", d.model], ["Embeddings", d.embeddings], ["Vectors", d.vectorStore],
           ["Public APIs", d.publicApis], ["Images", d.images], ["Video", d.video],
-          ["Instagram", d.instagram === "connected" ? "connected" : "dry run (no token)"],
+          ["Instagram", String(d.instagram).startsWith("connected") ? d.instagram : "not connected — publishing is a dry run"],
         ].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
+        state.info.instagram = d.instagram;
         feed("✦", "GetViral", "Brief received — assembling the team", `${esc(d.model)}`, "", ev.t);
         break;
       case "agent_start": {
@@ -209,7 +343,11 @@
         else if (d.kind === "approval") showApproval(d);
         break;
       case "human_answer":
-        if (d.kind === "hook") feed("👆", "You", "picked the hook", esc(d.answer), "", ev.t);
+        // Questions answered earlier (another tab, a replay, a timeout) must not stay open here.
+        if (d.kind === "hook") { $("#hookModal").hidden = true; state.values.hookChoice = d.answer; }
+        if (d.kind === "approval") $("#approvalModal").hidden = true;
+        if (d.kind === "publish") { state.publishQuestion = null; $("#publishForm").style.display = "none"; }
+        if (d.kind === "hook") feed("👆", d.by === "timeout" ? "Timeout" : "You", d.by === "timeout" ? "picked the first hook for you" : "picked the hook", esc(d.answer), "", ev.t);
         break;
       case "approval_request":
         state.pendingApproval = d;
@@ -258,6 +396,7 @@
           clearInterval(state.timer);
           state.es && state.es.close();
           if (state.revealed) renderMedia();
+          GV.api("/api/me").then((me) => { state.me = me; $("#quotaPill").textContent = `${me.quota.used}/${me.quota.limit} packs this month`; }).catch(() => {});
           if (d.status === "DONE") { setStage("ship", true); agentState("Publisher", "done"); $("#qualityHint").textContent = "graded"; }
         }
         break;
@@ -322,10 +461,9 @@
   }
 
   async function loadMemory() {
-    const handle = state.brief?.handle;
-    if (!handle) return;
+    const handle = state.brief?.handle || state.me?.handle || "you";
     try {
-      const data = await (await fetch("/api/memory?handle=" + encodeURIComponent(handle))).json();
+      const data = await GV.api("/api/memory");
       const list = (data.memories || []).slice(-8).reverse();
       $("#memoryList").innerHTML = list.length
         ? list.map((m) => `<li class="${m.shadow ? "shadow" : ""}" title="${esc(m.tier)} · importance ${m.importance}">${esc(m.content)}</li>`).join("")
@@ -352,7 +490,11 @@
   }
 
   async function answer(id, value) {
-    await fetch(`/api/runs/${state.runId}/answer`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, answer: value }) });
+    try {
+      await GV.api(`/api/runs/${state.runId}/answer`, { method: "POST", body: { id, answer: value } });
+    } catch (err) {
+      GV.toast(err.message);
+    }
   }
 
   function answerHook(hook) {
@@ -365,7 +507,9 @@
     state.publishQuestion = d.id;
     if (!state.revealed) reveal();
     $("#publishPanel").hidden = false;
-    $("#igMode").textContent = state.info.instagram === "connected" ? "Your account is connected." : "No IG token set, so this runs as an honest dry run that shows the exact Graph API calls.";
+    $("#igMode").innerHTML = String(state.info.instagram || "").startsWith("connected")
+      ? `Publishing to your ${esc(state.info.instagram.replace("connected as ", ""))} account.`
+      : `Instagram isn't connected, so this is an honest dry run showing the exact API calls. <a href="/welcome?step=CONNECT" style="color:var(--hot)">Connect Instagram</a>`;
   }
 
   function publishSubmit(e) {
@@ -590,7 +734,7 @@
       $$("button", el).forEach((x) => x.classList.remove("is-on"));
       b.classList.add("is-on");
       const loved = b.dataset.loved === "true";
-      await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ handle: state.brief.handle, platform: el.dataset.platform, loved, detail: loved ? "hook: " + (state.values.hookChoice || "") : "" }) });
+      await GV.api("/api/feedback", { method: "POST", body: { platform: el.dataset.platform, loved, detail: loved ? "hook: " + (state.values.hookChoice || "") : "" } });
       toast(loved ? "🧠 Saved to Engram — next time GetViral leans into this." : "🧠 Noted in Engram — next time GetViral tries a different approach.");
     }));
   }

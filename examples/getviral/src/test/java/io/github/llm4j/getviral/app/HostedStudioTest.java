@@ -83,6 +83,11 @@ class HostedStudioTest {
         assertThat(anon.get("/api/runs").statusCode()).isEqualTo(401);
         assertThat(anon.get("/media/whatever/x.png").statusCode()).isEqualTo(401);
         assertThat(anon.get("/api/public/info").statusCode()).isEqualTo(200);
+        // The page shells are public (their data comes from the authenticated API).
+        assertThat(anon.get("/").body()).contains("One idea.");
+        assertThat(anon.get("/welcome").body()).contains("Connect your accounts");
+        assertThat(anon.get("/studio").body()).contains("Your library");
+        assertThat(anon.get("/library").statusCode()).isEqualTo(200);
     }
 
     @Test

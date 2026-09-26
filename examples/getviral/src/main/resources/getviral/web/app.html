@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>GetViral Studio</title>
   <meta name="description" content="One idea in. A ready-to-post pack for X, Instagram Reels and YouTube out. Built on llm4j.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff2e88'/%3E%3Cstop offset='.5' stop-color='%23ff9a3d'/%3E%3Cstop offset='1' stop-color='%238b5cff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='18' fill='url(%23g)'/%3E%3Cpath d='M36 10 18 36h12l-4 18 20-28H34z' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -16,12 +16,29 @@
   <div class="grain" aria-hidden="true"></div>
 
   <header class="topbar">
-    <a class="brand" href="/" aria-label="GetViral home">
+    <a class="brand" href="/studio" aria-label="GetViral studio">
       <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 5 13.5h6L9.5 22 19 9.5h-6z"/></svg></span>
       <span class="brand-name">GetViral</span>
       <span class="brand-tag">studio</span>
     </a>
-    <div class="topbar-meta" id="engineMeta"><span class="dot"></span><span>connecting…</span></div>
+    <nav class="app-nav" aria-label="Main">
+      <a class="nav-link" id="navStudio" href="/studio">✦ <span>Studio</span></a>
+      <a class="nav-link" id="navLibrary" href="/library">▦ <span>Library</span></a>
+      <span class="quota-pill" id="quotaPill"></span>
+      <div class="menu" id="menu">
+        <button type="button" id="menuBtn" aria-haspopup="true" aria-expanded="false"></button>
+        <div class="menu-list" id="menuList" hidden>
+          <div class="menu-email" id="menuEmail"></div>
+          <a href="/welcome?step=PROFILE">Profile &amp; brief defaults</a>
+          <a href="/welcome?step=CONNECT">Connected accounts</a>
+          <a href="/welcome?step=VOICE">Your voice</a>
+          <a href="/welcome?step=TOUR">Take the tour</a>
+          <hr>
+          <button type="button" id="signOutBtn">Sign out</button>
+          <button type="button" class="danger" id="deleteBtn">Delete my account…</button>
+        </div>
+      </div>
+    </nav>
   </header>
 
   <!-- ═══════════════════════════ COMPOSER ═══════════════════════════ -->
@@ -37,10 +54,10 @@
       <textarea id="idea" name="idea" rows="3" maxlength="500" required placeholder="a 2-minute morning routine for busy students"></textarea>
 
       <div class="composer-grid">
-        <label class="field">
-          <span>Creator</span>
-          <div class="handle-input"><b>@</b><input id="handle" name="handle" placeholder="yourhandle" maxlength="40"></div>
-        </label>
+        <div class="field">
+          <span>Creating as</span>
+          <a class="handle-input as-link" href="/welcome?step=PROFILE" title="Edit your profile"><b>@</b><span id="handleLabel">you</span></a>
+        </div>
         <label class="field">
           <span>Niche</span>
           <input id="niche" name="niche" placeholder="productivity" maxlength="40" list="niches">
@@ -86,10 +103,22 @@
       </div>
     </section>
 
+    <div class="banner" id="setupBanner" hidden><span>Finish setting up — connect your accounts and teach GetViral your voice for sharper packs.</span><a class="btn small" href="/welcome">Continue setup</a></div>
+
     <section class="memory-peek" id="memoryPeek" hidden>
       <h3>🧠 GetViral remembers <span id="peekHandle"></span></h3>
       <ul id="peekList"></ul>
     </section>
+  </main>
+
+  <!-- ═══════════════════════════ LIBRARY ═══════════════════════════ -->
+  <main id="library" class="view view-library" hidden>
+    <div class="library-head">
+      <div><p class="eyebrow">Everything you've made</p><h1 class="display-sm">Your library</h1></div>
+      <div class="tabs" role="tablist"><button type="button" class="is-on" data-tab="packs" role="tab">Packs</button><button type="button" data-tab="media" role="tab">Media</button></div>
+    </div>
+    <section id="libPacks" class="pack-grid"></section>
+    <section id="libMedia" class="media-wall" hidden></section>
   </main>
 
   <!-- ═══════════════════════════ STUDIO ═══════════════════════════ -->
@@ -276,6 +305,7 @@
   <canvas id="confetti" aria-hidden="true"></canvas>
   <div class="toast" id="toast" role="status"></div>
 
+  <script src="common.js"></script>
   <script src="studio.js"></script>
 </body>
 </html>
