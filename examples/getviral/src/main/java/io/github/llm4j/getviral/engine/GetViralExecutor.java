@@ -37,6 +37,7 @@ public class GetViralExecutor extends HarnessExecutor {
     private final int maxRevisions;
     private final AtomicInteger criticRounds = new AtomicInteger();
     private final Map<String, List<AgentResult>> results = new ConcurrentHashMap<>();
+    private volatile Runnable onShip = () -> { };
 
     public GetViralExecutor(LoomScript script, ToolRegistry tools, LLMClientFactory models,
                             StudioRun run, PromptBook promptBook, int maxRevisions) {
@@ -49,6 +50,11 @@ public class GetViralExecutor extends HarnessExecutor {
     /** Every AgentResult produced in this run, per agent — what the eval4j suite asserts on. */
     public Map<String, List<AgentResult>> results() {
         return results;
+    }
+
+    /** Called once the critic ships the pack — GetViral starts grading while the creator decides on publishing. */
+    public void onShip(Runnable onShip) {
+        this.onShip = onShip;
     }
 
     public int criticRounds() {
@@ -139,6 +145,9 @@ public class GetViralExecutor extends HarnessExecutor {
         run.emit("agent_done", data);
 
         successHandler.onSuccess(result, value);
+        if (CRITIC.equals(agent) && value instanceof Map<?, ?> report && "SHIP".equals(report.get("verdict"))) {
+            onShip.run();
+        }
     }
 
     @Override

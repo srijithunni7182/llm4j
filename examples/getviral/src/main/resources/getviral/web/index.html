@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>GetViral Studio</title>
+  <meta name="description" content="One idea in. A ready-to-post pack for X, Instagram Reels and YouTube out. Built on llm4j.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23ff2e88'/%3E%3Cstop offset='.5' stop-color='%23ff9a3d'/%3E%3Cstop offset='1' stop-color='%238b5cff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='18' fill='url(%23g)'/%3E%3Cpath d='M36 10 18 36h12l-4 18 20-28H34z' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="studio.css">
+</head>
+<body>
+  <div class="aurora" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="GetViral home">
+      <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 5 13.5h6L9.5 22 19 9.5h-6z"/></svg></span>
+      <span class="brand-name">GetViral</span>
+      <span class="brand-tag">studio</span>
+    </a>
+    <div class="topbar-meta" id="engineMeta"><span class="dot"></span><span>connecting…</span></div>
+  </header>
+
+  <!-- ═══════════════════════════ COMPOSER ═══════════════════════════ -->
+  <main id="composer" class="view view-composer">
+    <section class="hero">
+      <p class="eyebrow"><span class="spark">✦</span> 9 AI agents · live trends · one click</p>
+      <h1 class="display">One idea.<br><span class="grad-text">Every feed.</span></h1>
+      <p class="lede">Drop an idea. A Showrunner casts a team of AI specialists, writes their prompts on the fly, researches what's trending right now, and ships a ready-to-post pack for <b>X</b>, <b>Instagram Reels</b> and <b>YouTube</b>.</p>
+    </section>
+
+    <form class="composer glass" id="briefForm" autocomplete="off">
+      <label class="idea-label" for="idea">What's the idea?</label>
+      <textarea id="idea" name="idea" rows="3" maxlength="500" required placeholder="a 2-minute morning routine for busy students"></textarea>
+
+      <div class="composer-grid">
+        <label class="field">
+          <span>Creator</span>
+          <div class="handle-input"><b>@</b><input id="handle" name="handle" placeholder="yourhandle" maxlength="40"></div>
+        </label>
+        <label class="field">
+          <span>Niche</span>
+          <input id="niche" name="niche" placeholder="productivity" maxlength="40" list="niches">
+          <datalist id="niches">
+            <option value="productivity"><option value="fitness"><option value="food"><option value="tech"><option value="travel"><option value="personal finance"><option value="beauty"><option value="gaming"><option value="education">
+          </datalist>
+        </label>
+        <label class="field field-region">
+          <span>Region</span>
+          <input id="region" name="region" placeholder="US" maxlength="2">
+        </label>
+      </div>
+
+      <div class="tone-row" role="radiogroup" aria-label="Tone">
+        <span class="tone-label">Tone</span>
+        <button type="button" class="chip is-on" data-tone="warm and witty">😄 Witty</button>
+        <button type="button" class="chip" data-tone="bold and punchy">⚡ Bold</button>
+        <button type="button" class="chip" data-tone="calm and wise">🌿 Calm</button>
+        <button type="button" class="chip" data-tone="nerdy and precise">🤓 Nerdy</button>
+        <button type="button" class="chip" data-tone="high-energy hype">🔥 Hype</button>
+      </div>
+
+      <details class="voice">
+        <summary><span>Teach it your voice</span><em>optional · paste 1–3 past posts</em></summary>
+        <textarea id="voice" rows="4" placeholder="Paste past captions or tweets, one per line. GetViral embeds them locally and matches your voice (RAG)."></textarea>
+      </details>
+
+      <div class="composer-foot">
+        <div class="platforms"><span class="pf pf-x">𝕏</span><span class="pf pf-ig">Reels</span><span class="pf pf-yt">YouTube</span></div>
+        <button class="cta" type="submit" id="goBtn"><span>Make it viral</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 5 13.5h6L9.5 22 19 9.5h-6z"/></svg></button>
+      </div>
+      <p class="form-error" id="formError" role="alert"></p>
+    </form>
+
+    <section class="stack-strip" aria-label="Built with">
+      <span class="stack-title">Built on the llm4j stack</span>
+      <div class="stack-pills">
+        <span class="sp"><b>Loom</b> orchestration</span>
+        <span class="sp"><b>ai-agent4j</b> ReAct agents</span>
+        <span class="sp"><b>Engram</b> memory</span>
+        <span class="sp"><b>addons</b> local RAG</span>
+        <span class="sp"><b>eval4j</b> quality gate</span>
+      </div>
+    </section>
+
+    <section class="memory-peek" id="memoryPeek" hidden>
+      <h3>🧠 GetViral remembers <span id="peekHandle"></span></h3>
+      <ul id="peekList"></ul>
+    </section>
+  </main>
+
+  <!-- ═══════════════════════════ STUDIO ═══════════════════════════ -->
+  <main id="studio" class="view view-studio" hidden>
+    <div class="studio-head">
+      <div>
+        <p class="eyebrow" id="runTitle">Casting the team…</p>
+        <h2 class="studio-idea" id="studioIdea"></h2>
+      </div>
+      <div class="clock"><span id="clock">0.0s</span><small>elapsed</small></div>
+    </div>
+
+    <ol class="rail" id="rail">
+      <li data-stage="cast"><i></i><span>Cast</span></li>
+      <li data-stage="scout"><i></i><span>Scout</span></li>
+      <li data-stage="strategy"><i></i><span>Strategize</span></li>
+      <li data-stage="hook"><i></i><span>Your pick</span></li>
+      <li data-stage="create"><i></i><span>Create</span></li>
+      <li data-stage="critique"><i></i><span>Critique</span></li>
+      <li data-stage="ship"><i></i><span>Ship</span></li>
+    </ol>
+
+    <div class="studio-grid">
+      <section class="room glass" aria-label="The team">
+        <header class="panel-head"><h3>The room</h3><span class="hint">tap an agent to see its live prompt</span></header>
+        <div class="agents" id="agents"></div>
+      </section>
+
+      <section class="wire glass" aria-label="Live activity">
+        <header class="panel-head"><h3><span class="live-dot"></span>Live wire</h3><span class="hint" id="wireCount">0 events</span></header>
+        <ol class="feed" id="feed"></ol>
+      </section>
+
+      <aside class="side">
+        <section class="glass stats">
+          <div class="stat"><b id="statLlm">0</b><span>LLM calls</span></div>
+          <div class="stat"><b id="statApi">0</b><span>API calls</span></div>
+          <div class="stat"><b id="statLive">–</b><span>live data</span></div>
+          <div class="stat"><b id="statPrompts">0</b><span>prompts written</span></div>
+        </section>
+        <section class="glass engine">
+          <h4>Engine</h4>
+          <dl id="engineList"></dl>
+        </section>
+        <section class="glass memory">
+          <h4>🧠 Engram memory</h4>
+          <ul id="memoryList"><li class="muted">Memories about this creator appear here.</li></ul>
+        </section>
+      </aside>
+    </div>
+
+    <!-- Critic moment -->
+    <div class="critic-toast" id="criticToast" hidden>
+      <div class="dial"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52"/><circle class="dial-fill" cx="60" cy="60" r="52"/></svg><b id="dialScore">0</b></div>
+      <div><p class="eyebrow" id="criticVerdict">Critic</p><p id="criticHeadline"></p></div>
+    </div>
+  </main>
+
+  <!-- ═══════════════════════════ RESULTS ═══════════════════════════ -->
+  <main id="results" class="view view-results" hidden>
+    <section class="reveal">
+      <div class="score-ring" id="scoreRing"><svg viewBox="0 0 120 120"><defs><linearGradient id="ringGrad" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#ff2e88"/><stop offset=".5" stop-color="#ff9a3d"/><stop offset="1" stop-color="#8b5cff"/></linearGradient></defs><circle cx="60" cy="60" r="52"/><circle class="ring-fill" cx="60" cy="60" r="52"/></svg><div><b id="finalScore">–</b><small>/10</small></div></div>
+      <div class="reveal-copy">
+        <p class="eyebrow">Your pack is ready</p>
+        <h2 class="display-sm" id="revealHook"></h2>
+        <p class="muted" id="revealHeadline"></p>
+      </div>
+      <div class="reveal-actions">
+        <a class="btn ghost" id="exportBtn" href="#" download>Export .md</a>
+        <button class="btn" id="againBtn" type="button">New idea ✦</button>
+      </div>
+    </section>
+
+    <section class="quality glass" id="quality">
+      <header class="panel-head"><h3>Quality gate <em>eval4j · LLM-as-judge</em></h3><span class="hint" id="qualityHint">grading…</span></header>
+      <div class="badges" id="badges"></div>
+    </section>
+
+    <section class="platform-grid">
+      <!-- X -->
+      <article class="platform glass" id="pfX">
+        <header class="platform-head"><span class="pf pf-x">𝕏</span><h3>Thread</h3><div class="rate" data-platform="x"><button data-loved="true" aria-label="Love the X thread">🔥</button><button data-loved="false" aria-label="Dislike the X thread">👎</button></div></header>
+        <div class="xfeed" id="xThread"></div>
+        <div class="xextra" id="xExtra"></div>
+      </article>
+
+      <!-- Reel -->
+      <article class="platform glass" id="pfReel">
+        <header class="platform-head"><span class="pf pf-ig">Reels</span><h3 id="reelTitle">Reel</h3><div class="rate" data-platform="reel"><button data-loved="true" aria-label="Love the Reel">🔥</button><button data-loved="false" aria-label="Dislike the Reel">👎</button></div></header>
+        <div class="reel-wrap">
+          <div class="phone">
+            <div class="phone-screen" id="reelScreen">
+              <div class="story-bars" id="storyBars"></div>
+              <div class="reel-bg"></div>
+              <div class="reel-overlay">
+                <p class="reel-shot" id="reelShot"></p>
+                <p class="reel-text" id="reelText"></p>
+                <p class="reel-vo" id="reelVo"></p>
+              </div>
+              <div class="reel-side"><span>♥</span><span>💬</span><span>↗</span></div>
+              <div class="reel-foot"><b id="reelHandle">@you</b><p id="reelAudio">♫ original audio</p></div>
+            </div>
+          </div>
+          <div class="reel-meta">
+            <ol class="beats" id="reelBeats"></ol>
+            <div class="caption-box"><h4>Caption</h4><p id="reelCaption"></p><p class="tags" id="reelTags"></p><button class="copy" data-copy="reelCaption">Copy caption</button></div>
+          </div>
+        </div>
+      </article>
+
+      <!-- YouTube -->
+      <article class="platform glass" id="pfYt">
+        <header class="platform-head"><span class="pf pf-yt">YouTube</span><h3>Video + Short</h3><div class="rate" data-platform="youtube"><button data-loved="true" aria-label="Love the YouTube package">🔥</button><button data-loved="false" aria-label="Dislike the YouTube package">👎</button></div></header>
+        <div class="thumb" id="ytThumb"><span id="ytThumbText"></span><em>12:04</em></div>
+        <ol class="titles" id="ytTitles"></ol>
+        <p class="yt-concept" id="ytConcept"></p>
+        <div class="yt-cols">
+          <div><h4>Hook script</h4><p id="ytHook"></p><h4>Shorts cut</h4><p id="ytShorts"></p></div>
+          <div><h4>Chapters</h4><ol class="chapters" id="ytChapters"></ol></div>
+        </div>
+        <details class="yt-desc"><summary>Description &amp; tags</summary><p id="ytDesc"></p><p class="tags" id="ytTags"></p></details>
+      </article>
+    </section>
+
+    <section class="publish glass" id="publishPanel" hidden>
+      <div>
+        <p class="eyebrow">Instagram Content Publishing API</p>
+        <h3>Post the Reel to Instagram</h3>
+        <p class="muted">Record your Reel, host the video at a public https URL, and GetViral's Publisher agent will create the media container, wait for processing and publish — <b>only after you approve</b>. <span id="igMode"></span></p>
+      </div>
+      <form class="publish-form" id="publishForm">
+        <input id="videoUrl" type="url" placeholder="https://…/my-reel.mp4" aria-label="Public video URL">
+        <button class="btn" type="submit">Publish</button>
+        <button class="btn ghost" type="button" id="skipPublish">Skip</button>
+      </form>
+      <div class="publish-log" id="publishLog"></div>
+    </section>
+
+    <section class="prompt-lab glass">
+      <header class="panel-head"><h3>Prompt lab <em>written live by the Showrunner</em></h3><span class="hint">every specialist ran on a prompt that didn't exist before this brief</span></header>
+      <div class="prompt-cards" id="promptCards"></div>
+    </section>
+  </main>
+
+  <!-- ═══════════════════════════ OVERLAYS ═══════════════════════════ -->
+  <div class="modal" id="hookModal" hidden role="dialog" aria-modal="true" aria-labelledby="hookTitle">
+    <div class="modal-card">
+      <p class="eyebrow">Human in the loop · your call</p>
+      <h2 class="display-sm" id="hookTitle">Pick the hook that stops <span class="grad-text">your</span> scroll</h2>
+      <ol class="hooks" id="hookList"></ol>
+      <form class="own-hook" id="ownHook"><input id="ownHookInput" placeholder="…or write your own hook" maxlength="200"><button class="btn" type="submit">Use mine</button></form>
+      <p class="hint">Press <kbd>1</kbd>–<kbd>5</kbd> to pick</p>
+    </div>
+  </div>
+
+  <div class="modal" id="approvalModal" hidden role="dialog" aria-modal="true" aria-labelledby="approvalTitle">
+    <div class="modal-card approval">
+      <p class="eyebrow warn">Approval required · ai-agent4j HITL gate</p>
+      <h2 class="display-sm" id="approvalTitle">Publish this to Instagram?</h2>
+      <dl class="approval-args" id="approvalArgs"></dl>
+      <div class="approval-actions"><button class="btn danger ghost" id="rejectBtn" type="button">Reject</button><button class="btn" id="approveBtn" type="button">Approve &amp; publish</button></div>
+    </div>
+  </div>
+
+  <aside class="drawer" id="promptDrawer" hidden aria-label="Agent prompt">
+    <button class="drawer-close" id="drawerClose" aria-label="Close">✕</button>
+    <p class="eyebrow" id="drawerEyebrow">Live prompt</p>
+    <h3 id="drawerTitle"></h3>
+    <div id="drawerBody"></div>
+  </aside>
+
+  <canvas id="confetti" aria-hidden="true"></canvas>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="studio.js"></script>
+</body>
+</html>

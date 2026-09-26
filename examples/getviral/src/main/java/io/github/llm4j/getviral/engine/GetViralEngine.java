@@ -35,6 +35,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 /**
@@ -108,6 +110,20 @@ public class GetViralEngine {
         executor.setMemoryEngine(memory);
         executor.setHumanInterface(new StudioHumanInterface(run, executor::getContext));
         executor.setAuditLogger(new FileAuditLogger(auditFile(run)));
+        QualityGate gate = new QualityGate(models.createClient("judge"), run);
+        AtomicReference<CompletableFuture<List<QualityGate.Badge>>> grading =
+                new AtomicReference<>();
+        executor.onShip(() -> grading.compareAndSet(null, CompletableFuture.supplyAsync(() -> {
+            Map<String, Object> ctx = executor.getContext().getAll();
+            Map<String, Object> platforms = new LinkedHashMap<>();
+            platforms.put("x", ctx.get("xPack"));
+            platforms.put("reel", ctx.get("reelPack"));
+            platforms.put("youtube", ctx.get("youtubePack"));
+            Map<String, Object> grounding = new LinkedHashMap<>();
+            grounding.put("trends", ctx.get("trendReport"));
+            grounding.put("plan", ctx.get("gamePlan"));
+            return gate.evaluate(platforms, String.valueOf(ctx.get("hookChoice")), grounding(grounding));
+        })));
 
         try {
             executor.initialize();
@@ -150,8 +166,9 @@ public class GetViralEngine {
         memory.remember("@" + brief.handle() + " picked the hook \"" + hook + "\" for \"" + brief.idea() + "\"",
                 0.8, null);
 
-        List<QualityGate.Badge> badges = new QualityGate(models.createClient("judge"), run)
-                .evaluate(Map.of("x", pack.get("x"), "reel", pack.get("reel"), "youtube", pack.get("youtube")),
+        CompletableFuture<List<QualityGate.Badge>> pending = grading.get();
+        List<QualityGate.Badge> badges = pending != null ? pending.join()
+                : gate.evaluate(Map.of("x", pack.get("x"), "reel", pack.get("reel"), "youtube", pack.get("youtube")),
                         hook, grounding(pack));
         pack.put("quality", badges.stream().map(QualityGate.Badge::toMap).toList());
         pack.put("prompts", prompts.all());

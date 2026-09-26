@@ -156,17 +156,20 @@ TRENDS: {trendReport}" to Strategist -> gamePlan retry 1
         parallel {
             delegate "Write the X package.
 IDEA: {creatorIdea}
+NICHE: {creatorNiche}
 HOOK: {hookChoice}
 TONE: {creatorTone}
 PLAN: {gamePlan}" to XWriter -> xPack retry 1
             delegate "Direct the Instagram Reel.
 IDEA: {creatorIdea}
+NICHE: {creatorNiche}
 HOOK: {hookChoice}
 TONE: {creatorTone}
 REGION: {creatorRegion}
 PLAN: {gamePlan}" to ReelDirector -> reelPack retry 1
             delegate "Produce the YouTube package.
 IDEA: {creatorIdea}
+NICHE: {creatorNiche}
 HOOK: {hookChoice}
 TONE: {creatorTone}
 PLAN: {gamePlan}" to YouTubeProducer -> youtubePack retry 1
@@ -184,6 +187,8 @@ YOUTUBE: {youtubePack}" to ViralityCritic -> criticReport
             alt (criticReport.verdict == "REVISE") {
                 delegate "RECAST the prompts for a revision round. Rewrite the prompts of the specialists the critic flagged.
 IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+TONE: {creatorTone}
 CREATOR: @{creatorHandle}
 FEEDBACK: {criticReport}" to Showrunner -> castingSheet retry 1 on_failure {
                     note "Recast failed — revising with current prompts."
@@ -191,16 +196,22 @@ FEEDBACK: {criticReport}" to Showrunner -> castingSheet retry 1 on_failure {
                 parallel {
                     delegate "REVISE the X package using the critic feedback.
 IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+TONE: {creatorTone}
 HOOK: {hookChoice}
 FEEDBACK: {criticReport}
 CURRENT: {xPack}" to XWriter -> xPack retry 1
                     delegate "REVISE the Reel using the critic feedback.
 IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+TONE: {creatorTone}
 HOOK: {hookChoice}
 FEEDBACK: {criticReport}
 CURRENT: {reelPack}" to ReelDirector -> reelPack retry 1
                     delegate "REVISE the YouTube package using the critic feedback.
 IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+TONE: {creatorTone}
 HOOK: {hookChoice}
 FEEDBACK: {criticReport}
 CURRENT: {youtubePack}" to YouTubeProducer -> youtubePack retry 1

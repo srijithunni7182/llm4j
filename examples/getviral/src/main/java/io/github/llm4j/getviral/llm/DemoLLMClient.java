@@ -254,7 +254,8 @@ public class DemoLLMClient implements LLMClient {
     private Map<String, Object> reelPack(Turn t) {
         boolean rev = t.revising();
         String hook = t.hook();
-        String song = firstSong(t.observations.isEmpty() ? "" : t.observations.get(0));
+        String song = rev ? firstMatch(t.question, "audio=(.*?) \\(trending now\\)")
+                : firstSong(t.observations.isEmpty() ? "" : t.observations.get(0));
         List<Map<String, String>> beats = new ArrayList<>();
         beats.add(beat(rev ? "0-2s" : "0-3s", "Close-up, mid-motion — no intro", hook, shortHook(hook)));
         beats.add(beat(rev ? "2-6s" : "3-8s", "Relatable fail moment, handheld",
@@ -392,7 +393,6 @@ public class DemoLLMClient implements LLMClient {
         String topic() {
             String idea = idea().replaceAll("[\"“”]", "").strip();
             idea = idea.replaceFirst("(?i)^(how to|why|tips for|ideas for)\\s+", "");
-            idea = idea.replaceFirst("(?i)^(a|an|the|my)\\s+", "");
             String[] words = idea.split("\\s+");
             return words.length <= 7 ? idea.toLowerCase(Locale.ROOT)
                     : String.join(" ", List.of(words).subList(0, 7)).toLowerCase(Locale.ROOT);
