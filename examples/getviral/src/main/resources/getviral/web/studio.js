@@ -642,7 +642,7 @@
     $("#revealMeta").innerHTML = [
       cast.lens ? `<span>🎯 Lens: <b>${esc(cast.lens)}</b></span>` : "",
       cast.visual_style ? `<span>🎨 Style: <b>${esc(trim(cast.visual_style, 60))}</b></span>` : "",
-      lastCast ? `<span>🧬 ${o.past ? (lastCast.novelty === "FRESH" ? `Original vs your last ${o.past} pack${o.past === 1 ? "" : "s"}` : "Close to earlier work") : "First pack — baseline set"}${recast ? " · re-cast once for originality" : ""}</span>` : "",
+      lastCast ? `<span>🧬 ${o.past ? (lastCast.novelty === "FRESH" ? `Original vs ${o.past === 1 ? "your last pack" : `your last ${o.past} packs`}` : "Close to earlier work") : "First pack — baseline set"}${recast ? " · re-cast once for originality" : ""}</span>` : "",
     ].filter(Boolean).join("");
     $("#exportBtn").href = `/api/runs/${state.runId}/export.md`;
     $("#exportBtn").setAttribute("download", "getviral-pack.md");

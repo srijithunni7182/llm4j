@@ -13,6 +13,8 @@ and a **VideoEditor** agent renders the Reel into a real vertical **MP4**.
 
 It is the showcase for the whole llm4j stack: every module does real work in it.
 
+![GetViral landing page: one idea, every feed](docs/landing.png)
+
 ![GetViral composer](docs/composer.png)
 
 | The room, live | You pick the hook | The pack |
@@ -47,6 +49,8 @@ yours"** panel:
 - how many facts and sources back it;
 - what was sent back and rebuilt;
 - which calls were the creator's.
+
+![Why this pack is yours: originality, a new angle, memory, sources, fixes and the creator's calls](docs/why.png)
 
 Sources: [The Creator Economy, burnout report](https://thecreatoreconomy.com/post/creator-burnout-78-percent-mental-health-2026) ·
 [Brand24, why people dislike AI content](https://brand24.com/blog/why-people-hate-ai-content-report/) ·
