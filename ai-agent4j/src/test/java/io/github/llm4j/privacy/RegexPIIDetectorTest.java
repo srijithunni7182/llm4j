@@ -15,6 +15,17 @@ class RegexPIIDetectorTest {
     }
 
     @Test
+    void datesAreNotMistakenForPhoneNumbers() {
+        assertFalse(detector.detect("Posted on 2026-09-26 about pasta").containsPII());
+        assertFalse(detector.detect("- 2026-09-20 \"weeknight pasta\" — lens: science").containsPII());
+        assertFalse(detector.detect("Deadline 26-09-2026.").containsPII());
+        assertFalse(detector.detect("Created at 2026-09-26T11:05:33.123Z").containsPII());
+        // Real phone numbers are still caught.
+        assertTrue(detector.detect("Call me on +44 20 7946 0958").containsPII());
+        assertTrue(detector.detect("Call 555-123-4567 now").containsPII());
+    }
+
+    @Test
     void testDetectEmail_simple() {
         PIIDetectionResult result = detector.detect("Contact me at john@example.com");
 

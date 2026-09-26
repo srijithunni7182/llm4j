@@ -120,6 +120,16 @@ public class LoomParser {
             } else if (match(TokenType.OUTPUT_SCHEMA)) {
                 consume(TokenType.COLON, "Expect ':' after output_schema.");
                 agent.setOutputSchema(parseSchema());
+            } else if (check(TokenType.IDENTIFIER) && "temperature".equals(peek().getValue())) {
+                // Contextual keyword, so existing scripts may still use "temperature" as a name elsewhere.
+                Token keyword = advance();
+                consume(TokenType.COLON, "Expect ':' after temperature.");
+                Token value = consume(TokenType.NUMBER_LITERAL, "Expect a number for temperature, e.g. temperature: 0.7");
+                double temperature = Double.parseDouble(value.getValue());
+                if (temperature < 0.0 || temperature > 2.0) {
+                    throw error(keyword, "temperature must be between 0.0 and 2.0, got " + value.getValue());
+                }
+                agent.setTemperature(temperature);
             } else {
                 throw error(peek(), "Unexpected token in agent body: " + peek().getType());
             }
@@ -222,6 +232,12 @@ public class LoomParser {
         Token varName = consume(TokenType.IDENTIFIER, "Expect variable name for result.");
 
         DelegateStmt stmt = new DelegateStmt(payload, target.getValue(), varName.getValue());
+
+        // Optional per-step schema: the same agent can return different structures in different steps.
+        if (check(TokenType.IDENTIFIER) && "expecting".equals(peek().getValue())) {
+            advance();
+            stmt.setExpecting(parseSchema());
+        }
 
         if (match(TokenType.RETRY)) {
             Token count = consume(TokenType.NUMBER_LITERAL, "Expect number of retries.");
@@ -375,6 +391,15 @@ public class LoomParser {
         }
         consume(TokenType.RPAREN, "Expect ')' after loop condition.");
 
+        // Optional safety bound: loop until (cond) max 5 { ... } on_exhausted { ... }
+        int max = 0;
+        if (check(TokenType.IDENTIFIER) && "max".equals(peek().getValue())) {
+            advance();
+            Token n = consume(TokenType.NUMBER_LITERAL, "Expect a number after 'max', e.g. max 5");
+            max = (int) Double.parseDouble(n.getValue());
+            if (max < 1) throw error(n, "loop max must be at least 1");
+        }
+
         consume(TokenType.LBRACE, "Expect '{' before loop body.");
         List<Statement> body = new java.util.ArrayList<>();
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
@@ -382,7 +407,18 @@ public class LoomParser {
         }
         consume(TokenType.RBRACE, "Expect '}' after loop body.");
 
-        return new LoopStmt(conditionBuilder.toString(), body);
+        LoopStmt loop = new LoopStmt(conditionBuilder.toString(), body);
+        loop.setMaxIterations(max);
+        if (check(TokenType.IDENTIFIER) && "on_exhausted".equals(peek().getValue())) {
+            Token keyword = advance();
+            if (max == 0) throw error(keyword, "on_exhausted needs a bounded loop (add 'max N')");
+            consume(TokenType.LBRACE, "Expect '{' before on_exhausted body.");
+            while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                loop.getOnExhausted().add(parseStatement());
+            }
+            consume(TokenType.RBRACE, "Expect '}' after on_exhausted body.");
+        }
+        return loop;
     }
 
     private HumanPromptStmt parseHumanPromptStmt() {

@@ -72,6 +72,7 @@ agent Analyst {
     model: "gpt-4o"
     persona: "SeniorResearchAnalyst" // Reflective lookup from PersonaLibrary
     system: "You are an analyst specializing in {domain}."
+    temperature: 0.3            // optional sampling temperature, 0.0–2.0 (creative roles high, checkers low)
     
     // Skill injection (Markdown-based instructions)
     skills: ["fs://skills/analyst_best_practices.md"]
@@ -190,6 +191,40 @@ workflow Audit() {
     alt (report.status == "SECURE") {
         note "System is secured."
     }
+
+    // Fields of a structured result can be passed straight into the next task
+    delegate "Fix the first issue: {report.issues.0}. Status was {report.status}." to Fixer -> patch
+}
+```
+
+`{var.field}` paths work in delegate payloads exactly as they do in conditions: map keys and list
+indexes (`{plan.hooks.0}`). A missing field reads as empty, as it does in `alt` conditions.
+
+### Bounded Loops
+`loop until` can carry a safety bound. If the condition still isn't true after `max` rounds, the loop stops
+and runs its `on_exhausted` block, so a model that keeps failing can't spin (and bill) forever. The current
+round is available as `{_loopRound}`, and the number of rounds run as `{_loopRounds}` in `on_exhausted`.
+
+```loom
+loop until (review.verdict == "COMPLETE") max 5 {
+    delegate "Review round {_loopRound}" to Lead -> review
+    alt (review.verdict == "INCOMPLETE") {
+        delegate "Fix: {review.fix}" to Worker -> work
+    }
+} on_exhausted {
+    note "Still incomplete after {_loopRounds} rounds"
+}
+```
+
+### Per-Step Schemas (`expecting`)
+One agent can return different structures in different steps. `expecting { ... }` on a delegate overrides
+the agent's `output_schema` for that step only:
+
+```loom
+delegate "Cast the team" to Showrunner -> casting                      // uses Showrunner's output_schema
+delegate "Review the build" to Showrunner -> review expecting {         // this step's own contract
+    verdict: enum["COMPLETE", "INCOMPLETE"],
+    fix: string
 }
 ```
 

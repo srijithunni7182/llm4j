@@ -36,6 +36,7 @@ Running a multi-agent Tic-Tac-Toe build on a **local 8GB laptop** (Gemma 2B):
 - **Introspection Loop**: A secondary LLM pass that retroactively "Shadows" old memories when they are superseded by new facts.
 - **Vector Persistence**: Plug-and-play support for `InMemoryStore` (Local) and `PGVectorStore` (Production).
 - **Edge-Optimized**: Hardened "Primitive Intelligence" prompts that enable 2B-8B local models to manage their own memory.
+- **Novelty checks**: `nearest(text, topicPrefix, n)` recalls by meaning alone (plain cosine similarity, with no recency or importance blending), and `novelty(candidate, topicPrefix, threshold)` answers "have I already said something that means this?". Agents can use it to avoid repeating an angle, a title formula or a look across sessions.
 
 ---
 
@@ -59,6 +60,11 @@ EngramEngine engram = new EngramEngine(store, cia);
 
 // Inject into your Loom executor
 executor.setMemoryEngine(engram);
+
+// Novelty: keep past outputs under a topic, then check new ones against them
+engram.remember("Explain the science of salting pasta water", MemoryTier.EPISODIC, 0.1, "casting:direction:1");
+EngramEngine.Novelty n = engram.novelty("The science behind salting your pasta water", "casting:direction:", 0.9);
+if (!n.novel()) { /* too close to what we did before: n.closest(), n.similarity() */ }
 ```
 
 👉 **[Mastering Agentic Workflows with Loom & Engram](../../docs/AGENTIC_WORKFLOWS_GUIDE.md)**

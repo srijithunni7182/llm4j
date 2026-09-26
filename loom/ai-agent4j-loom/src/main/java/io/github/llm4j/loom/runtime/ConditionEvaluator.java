@@ -72,7 +72,12 @@ public class ConditionEvaluator {
         return compareString(actualValue, expectedRaw, operator);
     }
 
-    private static Object resolvePath(String path, VariableContext context) {
+    /**
+     * Resolves {@code name} or a dotted path like {@code report.verdict} or {@code plan.hooks.0}
+     * against the context: map keys and list indexes. Returns {@code null} if any step is missing.
+     * Shared by conditions and by delegate payload substitution ({@code {report.verdict}}).
+     */
+    public static Object resolvePath(String path, VariableContext context) {
         if (!path.contains(".")) {
             return context.getVariable(path);
         }
@@ -90,6 +95,10 @@ public class ConditionEvaluator {
     private static Object getProperty(Object obj, String field) {
         if (obj instanceof java.util.Map<?, ?> map) {
             return map.get(field);
+        }
+        if (obj instanceof java.util.List<?> list && field.matches("\\d+")) {
+            int index = Integer.parseInt(field);
+            return index < list.size() ? list.get(index) : null;
         }
         return null;
     }

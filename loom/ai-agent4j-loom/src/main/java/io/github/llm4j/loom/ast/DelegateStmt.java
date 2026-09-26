@@ -8,6 +8,8 @@ public class DelegateStmt implements Statement {
     private final String targetAgent;
     private final String variableName;
     private int retryCount = 0;
+    /** Optional per-step schema ({@code expecting { ... }}) that overrides the agent's output_schema. */
+    private SchemaDef expecting;
     private final List<Statement> onFailure = new ArrayList<>();
 
     public DelegateStmt(String payload, String targetAgent, String variableName) {
@@ -27,6 +29,9 @@ public class DelegateStmt implements Statement {
     public String getVariableName() {
         return variableName;
     }
+
+    public SchemaDef getExpecting() { return expecting; }
+    public void setExpecting(SchemaDef expecting) { this.expecting = expecting; }
 
     public int getRetryCount() { return retryCount; }
     public void setRetryCount(int retryCount) { this.retryCount = retryCount; }

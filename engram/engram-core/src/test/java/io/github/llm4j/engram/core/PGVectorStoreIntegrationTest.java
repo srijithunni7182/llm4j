@@ -57,6 +57,19 @@ class PGVectorStoreIntegrationTest {
     }
 
     @Test
+    void nearestIsPureSimilarityWithinATopicPrefix() {
+        String content = "Casting lens: the thermodynamics of cooking pasta";
+        store.add(new MemoryObject(content, store.embed(content), MemoryTier.EPISODIC, 0.1, "novelty-test:lens:1"));
+        String other = "Casting lens: the thermodynamics of cooking noodles";
+        store.add(new MemoryObject(other, store.embed(other), MemoryTier.EPISODIC, 0.1, "other-topic:1"));
+
+        List<ScoredMemory> near = store.nearest("the thermodynamics of cooking pasta", "novelty-test:", 5);
+        assertEquals(1, near.size(), "only memories under the topic prefix are compared");
+        assertEquals(content, near.get(0).memory().getContent());
+        assertTrue(near.get(0).score() > 0.8, "score is plain cosine similarity: " + near.get(0).score());
+    }
+
+    @Test
     void testAddAndScore() {
         // Arrange: store a Redis-related memory
         float[] embedding = store.embed("Redis is used as the caching layer with a 15-minute TTL");

@@ -44,6 +44,19 @@ public interface VectorStore {
     List<ScoredMemory> scoreCandidates(String taskIntent, int topN, double minScore);
 
     /**
+     * Pure semantic nearest neighbours of {@code text}: the score is cosine similarity only — no
+     * recency, reinforcement, importance or decay — over non-shadowed memories whose topicKey starts
+     * with {@code topicPrefix} ({@code null} = all). Use it to ask "have I seen something that means
+     * this before?" (near-duplicate and novelty checks); use {@link #scoreCandidates} for briefings.
+     *
+     * @param text        the text to compare.
+     * @param topicPrefix restricts the search to memories whose topicKey starts with this, or null.
+     * @param topN        the maximum number of results.
+     * @return memories ranked by similarity, highest first.
+     */
+    List<ScoredMemory> nearest(String text, String topicPrefix, int topN);
+
+    /**
      * Flushes any buffered state to the underlying persistence layer.
      * No-op for implementations that commit immediately.
      */

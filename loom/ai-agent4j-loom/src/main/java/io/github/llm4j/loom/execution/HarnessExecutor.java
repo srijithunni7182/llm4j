@@ -141,6 +141,9 @@ public class HarnessExecutor implements LoomEngine {
             }
 
             ReActAgent.Builder agentBuilder = ReActAgent.builder().llmClient(llmClient);
+            if (agentDef.getTemperature() != null) {
+                agentBuilder.temperature(agentDef.getTemperature());
+            }
             if (agentDef.getTools().isEmpty() && agentDef.getMcpServers().isEmpty()) {
                 agentBuilder.systemPrompt(systemPrompt);
             } else {
@@ -323,9 +326,24 @@ public class HarnessExecutor implements LoomEngine {
             ));
         } else if (stmt instanceof LoopStmt loop) {
             log.info("Entering loop. Condition: " + loop.getCondition());
+            int rounds = 0;
+            boolean exhausted = false;
             while (!ConditionEvaluator.evaluate(loop.getCondition(), context)) {
+                if (loop.getMaxIterations() > 0 && rounds >= loop.getMaxIterations()) {
+                    exhausted = true;
+                    break;
+                }
+                rounds++;
+                context.setVariable("_loopRound", String.valueOf(rounds));
                 for (Statement lStmt : loop.getBody()) {
                     executeStatement(lStmt);
+                }
+            }
+            if (exhausted) {
+                log.warning("Loop reached its max of " + loop.getMaxIterations() + " rounds without: " + loop.getCondition());
+                context.setVariable("_loopRounds", String.valueOf(rounds));
+                for (Statement eStmt : loop.getOnExhausted()) {
+                    executeStatement(eStmt);
                 }
             }
             log.info("Exiting loop.");
@@ -494,9 +512,11 @@ public class HarnessExecutor implements LoomEngine {
         String contextBriefing = memoryEngine.assembleContext(agentDef, resolvedPayload, context);
         contextBriefing = beforeDelegateExecution(del, agentDef, resolvedPayload, contextBriefing);
         
-        if (agentDef.getOutputSchema() != null) {
-            contextBriefing += "\n\nCRITICAL: You MUST respond in valid JSON format only, following this schema: " 
-                            + stringifySchema(agentDef.getOutputSchema());
+        // A step's own `expecting { ... }` schema wins over the agent's output_schema.
+        io.github.llm4j.loom.ast.SchemaDef schema = del.getExpecting() != null ? del.getExpecting() : agentDef.getOutputSchema();
+        if (schema != null) {
+            contextBriefing += "\n\nCRITICAL: You MUST respond in valid JSON format only, following this schema: "
+                            + stringifySchema(schema);
         }
 
         int attempts = 0;
@@ -510,7 +530,7 @@ public class HarnessExecutor implements LoomEngine {
                 io.github.llm4j.agent.AgentResult result = runAgent.run(contextBriefing);
                 
                 Object finalValue = result.getFinalAnswer();
-                if (agentDef.getOutputSchema() != null) {
+                if (schema != null) {
                     finalValue = parseJsonResult(result.getFinalAnswer());
                 }
                 DelegateSuccessHandler successHandler = (agentResult, value) -> {
@@ -611,8 +631,25 @@ public class HarnessExecutor implements LoomEngine {
         }
     }
 
+    private static final java.util.regex.Pattern PAYLOAD_PATH =
+            java.util.regex.Pattern.compile("\\{([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+)}");
+
     private String resolvePayload(String rawPayload) {
         String resolved = rawPayload;
+
+        // Phase 0: {var.field.sub} paths into structured results (maps and lists), e.g. {report.verdict}
+        // or {plan.hooks.0}.
+        // Runs first so the bare-name phase below can't rewrite the variable name inside the braces.
+        java.util.regex.Matcher paths = PAYLOAD_PATH.matcher(resolved);
+        StringBuilder withPaths = new StringBuilder();
+        while (paths.find()) {
+            Object value = io.github.llm4j.loom.runtime.ConditionEvaluator.resolvePath(paths.group(1), context);
+            // Like conditions, a missing field reads as empty (e.g. a step that failed and set nothing).
+            String replacement = value != null ? String.valueOf(value) : "";
+            paths.appendReplacement(withPaths, java.util.regex.Matcher.quoteReplacement(replacement));
+        }
+        paths.appendTail(withPaths);
+        resolved = withPaths.toString();
 
         // Phase 1: delimited {varName} substitution — collision-safe, preferred syntax.
         for (Map.Entry<String, Object> entry : context.getAll().entrySet()) {

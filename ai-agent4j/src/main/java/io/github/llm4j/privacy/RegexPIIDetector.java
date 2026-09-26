@@ -85,6 +85,9 @@ public class RegexPIIDetector implements PIIDetector {
             Matcher matcher = pattern.matcher(text);
 
             while (matcher.find()) {
+                if (type == PIIType.PHONE && looksLikeDate(matcher.group())) {
+                    continue; // "2026-09-26" or "26-09-2026" is a date, not a phone number
+                }
                 allEntities.add(
                         PIIEntity.builder()
                                 .type(type)
@@ -127,6 +130,15 @@ public class RegexPIIDetector implements PIIDetector {
         PIIDetectionResult.Builder resultBuilder = PIIDetectionResult.builder();
         filteredEntities.forEach(resultBuilder::addEntity);
         return resultBuilder.build();
+    }
+
+    private static final Pattern ISO_DATE = Pattern.compile("\\d{4}-(0?[1-9]|1[0-2])-(0?[1-9]|[12]\\d|3[01])");
+    private static final Pattern DMY_DATE = Pattern.compile("(0?[1-9]|[12]\\d|3[01])-(0?[1-9]|1[0-2])-(\\d{2}|\\d{4})");
+
+    /** The international phone pattern also matches ISO and day-month-year dates; those are not PII. */
+    static boolean looksLikeDate(String match) {
+        String candidate = match.strip().replaceAll("[-\\s]+$", "");
+        return ISO_DATE.matcher(candidate).matches() || DMY_DATE.matcher(candidate).matches();
     }
 
     private boolean isOverlapping(PIIEntity e1, PIIEntity e2) {

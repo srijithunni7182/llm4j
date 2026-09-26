@@ -91,6 +91,19 @@ public class InMemoryStore implements VectorStore {
         return candidates.subList(0, Math.min(topN, candidates.size()));
     }
 
+    @Override
+    public List<ScoredMemory> nearest(String text, String topicPrefix, int topN) {
+        float[] vector = embed(text);
+        List<ScoredMemory> out = new ArrayList<>();
+        for (MemoryObject mem : store.values()) {
+            if (mem.isShadow()) continue;
+            if (topicPrefix != null && (mem.getTopicKey() == null || !mem.getTopicKey().startsWith(topicPrefix))) continue;
+            out.add(new ScoredMemory(mem, cosineSimilarity(vector, mem.getEmbedding())));
+        }
+        out.sort(Comparator.comparingDouble(ScoredMemory::score).reversed());
+        return out.subList(0, Math.min(Math.max(0, topN), out.size()));
+    }
+
     private double calculateDecay(MemoryObject memory) {
         double decayRate = switch (memory.getTier()) {
             case EPISODIC -> 0.05;
