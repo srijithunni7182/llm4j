@@ -70,7 +70,7 @@ public class DemoLLMClient implements LLMClient {
             return fenced(Map.of("thought", step.thought, "action", step.tool, "action_input", step.args));
         }
         Object answer = switch (agent) {
-            case "Showrunner" -> showrunner(turn);
+            case "Showrunner" -> turn.question.contains("REVIEW THE BUILD") ? buildReview(turn) : showrunner(turn);
             case "TrendScout" -> trendReport(turn);
             case "Researcher" -> research(turn);
             case "Strategist" -> strategy(turn);
@@ -96,7 +96,9 @@ public class DemoLLMClient implements LLMClient {
 
     private List<Step> plan(String agent, Turn t) {
         return switch (agent) {
-            case "Showrunner" -> t.question.contains("RECAST") ? List.of() : List.of(
+            case "Showrunner" -> t.question.contains("REVIEW THE BUILD")
+                    ? List.of(new Step("quality_gate", Map.of(), "Running the quality gate over every artifact before I sign off."))
+                    : t.question.contains("RECAST") ? List.of() : List.of(
                     new Step("viral_playbook", Map.of("query", "hook formulas for " + t.niche(), "scope", "playbook"),
                             "Grounding the creative direction in proven hook formulas."),
                     new Step("viral_playbook", Map.of("query", t.idea(), "scope", "voice"),
@@ -134,7 +136,7 @@ public class DemoLLMClient implements LLMClient {
                             "Finding a thumbnail reference image."),
                     new Step("fact_check", Map.of("query", t.keyword()), "Verifying a fact for the description."));
             case "ArtDirector" -> {
-                String style = "cinematic editorial photo, warm golden-hour light, magenta and amber accents, shallow depth of field, 35mm";
+                String style = orDefault(t.field("VISUAL STYLE:"), FAVOURITE_STYLE);
                 String kw = t.keyword();
                 List<String> shots = t.all("shot=([^,}]+)");
                 yield List.of(
@@ -185,6 +187,25 @@ public class DemoLLMClient implements LLMClient {
 
     // ── Agent answers ──────────────────────────────────────────────────────────────────────────
 
+    /** The Showrunner's sign-off: mirror the gate and turn each failure into an instruction for its owner. */
+    private Map<String, Object> buildReview(Turn t) {
+        String gate = t.lastObservation();
+        Map<String, Object> review = new LinkedHashMap<>();
+        boolean complete = gate.startsWith("BUILD COMPLETE");
+        review.put("verdict", complete ? "COMPLETE" : "INCOMPLETE");
+        List<String> fixes = new ArrayList<>();
+        for (String area : List.of("x", "reel", "youtube", "visuals", "video")) {
+            Matcher m = Pattern.compile("(?m)^(PASS|FIX) +" + area + " \\([A-Za-z]+\\)(?:: (.*))?$").matcher(gate);
+            boolean fix = m.find() && m.group(1).equals("FIX");
+            review.put(area, fix ? "FIX" : "PASS");
+            review.put(area + "_fix", fix ? "Fix exactly this: " + m.group(2) : "");
+            if (fix) fixes.add(area);
+        }
+        review.put("summary", complete ? "Every artifact for X, Instagram and YouTube passes — signing off the build."
+                : "Sending back: " + String.join(", ", fixes) + ".");
+        return review;
+    }
+
     private Map<String, Object> showrunner(Turn t) {
         Map<String, Object> sheet = new LinkedHashMap<>();
         String topic = t.topic();
@@ -198,7 +219,22 @@ public class DemoLLMClient implements LLMClient {
 
         Map<String, String> prompts = new LinkedHashMap<>();
         String who = "@" + t.creator() + ", a " + t.niche() + " creator whose tone is " + tone;
-        if (t.question.contains("RECAST")) {
+        boolean forOriginality = t.question.contains("RECAST FOR ORIGINALITY");
+        // Like a real model, the demo drifts to a favourite lens and look on a first cast; only when the
+        // originality gate pushes back does it take the fresh options it was dealt.
+        List<String> lenses = t.options("LENS OPTIONS:");
+        List<String> styles = t.options("STYLE OPTIONS:");
+        String lens = forOriginality && !lenses.isEmpty() ? lenses.get(0) : FAVOURITE_LENS;
+        String style = forOriginality && !styles.isEmpty() ? styles.get(0) : FAVOURITE_STYLE;
+        if (!t.question.contains("RECAST") || forOriginality) {
+            sheet.put("lens", lens);
+            sheet.put("visual_style", style);
+            sheet.put("signature_ideas", signatureIdeas(lens, t.keyword()));
+            direction = "Through the lens of " + lens + ": " + lensDirection(lens, topic) + " Voice: " + tone + ".";
+            if (!memory.isEmpty()) direction += " Building on what worked before: " + memory;
+            sheet.put("creative_direction", direction);
+        }
+        if (t.question.contains("RECAST") && !forOriginality) {
             String x = t.feedback("x_feedback");
             String reel = t.feedback("reel_feedback");
             String yt = t.feedback("youtube_feedback");
@@ -231,8 +267,8 @@ public class DemoLLMClient implements LLMClient {
             prompts.put("YouTubeProducer", "Package a YouTube video for " + who + ". Three title options under 60 "
                     + "characters that front-load the keyword, a high-contrast thumbnail with at most 3 words, a 15-second "
                     + "hook script, chapters from 0:00, and a Shorts cut pulled from the most surprising moment.");
-            prompts.put("ArtDirector", "Art-direct one coherent shoot for " + who + ": cinematic editorial photography, "
-                    + "golden-hour warmth with magenta and amber accents, shallow depth of field, 35mm. Generate a 16:9 YouTube "
+            prompts.put("ArtDirector", "Art-direct one coherent shoot for " + who + " in this visual style: " + style
+                    + ". Push it with an unexpected angle that fits the lens (" + lens + "). Generate a 16:9 YouTube "
                     + "thumbnail with an expressive face and a before/after split, a 9:16 Reel cover that reads at grid size, two "
                     + "9:16 B-roll frames matching the Reel's problem and payoff beats, and a clean 16:9 X card. Never put words in "
                     + "the image prompt — use overlay_text, 2-4 words, high tension.");
@@ -245,6 +281,33 @@ public class DemoLLMClient implements LLMClient {
         }
         sheet.put("prompts", prompts);
         return sheet;
+    }
+
+    static final String FAVOURITE_LENS = "the science behind it";
+    static final List<String> THUMBNAIL_CONCEPTS = List.of(
+            "Split frame: left, a messy 'before' desk in cold blue; right, the same scene in warm light with a bold checkmark. Creator's face centre, eyebrows raised.",
+            "Extreme close-up of one hand hovering over the key object, everything else blurred, a single red arrow and a question mark.",
+            "Top-down flat-lay of three options in a row with the middle one circled; the creator peeks in from the frame edge.",
+            "A stranger's shocked reaction in the foreground, the creator calm in the background holding the result up to the lens.",
+            "Before/after as a torn paper strip across the frame, bold two-word verdict on the tear.");
+    static final List<String> TITLE_FORMULAS = List.of(
+            "The Truth About %s Nobody Tells You", "I Tried %s for 30 Days", "%s Made Simple",
+            "%s: 3 Tiny Steps That Actually Stick", "Stop Failing at %s", "Why %s Feels Impossible (and the Fix)",
+            "The %s Mistake Everyone Makes", "What Happens If You Try %s Every Day?", "%s vs the Internet",
+            "I Asked a Pro About %s", "%s in 60 Seconds, Honestly", "The Weirdest %s Hack That Works");
+    static final String FAVOURITE_STYLE = "cinematic golden-hour editorial photo, shallow depth of field, 35mm";
+
+    private static List<String> signatureIdeas(String lens, String keyword) {
+        if (lens.equals(FAVOURITE_LENS)) return List.of("the thermodynamics of " + keyword, "one kitchen-lab experiment", "why it works, not just how");
+        String l = lens.toLowerCase(Locale.ROOT);
+        return List.of(capitalize(l.split(" — ")[0]) + " applied to " + keyword, "a " + l.split("[ ,—]")[0] + "-first opening beat",
+                "a payoff the audience can copy tonight");
+    }
+
+    private static String lensDirection(String lens, String topic) {
+        return lens.equals(FAVOURITE_LENS)
+                ? "unpack the hidden mechanics of " + topic + " — heat, chemistry, cause and effect — like a friendly lab demo."
+                : "tell " + topic + " as " + lens + ", with a concrete scene in the first second and a payoff people can try today.";
     }
 
     private String trendReport(Turn t) {
@@ -392,11 +455,35 @@ public class DemoLLMClient implements LLMClient {
         String fact = firstMatch(t.observations.size() > 1 ? t.observations.get(1) : "", "Wikipedia — [^:]+: ([^.]+\\.)");
         String source = firstMatch(t.observations.size() > 1 ? t.observations.get(1) : "", "Source: (\\S+)");
         Map<String, Object> pack = new LinkedHashMap<>();
-        pack.put("titles", rev
-                ? List.of(kw + ": 3 Tiny Steps That Actually Stick", "I Fixed My " + kw + " in 30 Days", "Stop Failing at " + kw)
-                : List.of("The Truth About " + kw + " Nobody Tells You", "I Tried " + kw + " for 30 Days", kw + " Made Simple"));
-        pack.put("thumbnail_concept", "Split frame: left, a messy 'before' desk in cold blue; right, the same scene "
-                + "in warm light with a bold checkmark. Creator's face centre, eyebrows raised.");
+        // Title formulas this creator hasn't used yet (and, when revising, not the current ones either).
+        List<String> used = new ArrayList<>();
+        int pastAt = t.question.indexOf("PAST YOUTUBE PACKAGES");
+        if (pastAt >= 0) {
+            Matcher quoted = Pattern.compile("\"([^\"]{6,})\"").matcher(t.question.substring(pastAt));
+            while (quoted.find()) used.add(quoted.group(1));
+        }
+        Matcher current = Pattern.compile("titles=\\[([^\\]]*)]").matcher(t.question);
+        if (rev && current.find()) used.add(current.group(1));
+        used.replaceAll(u -> u.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9 ]", " ").replaceAll("\\s+", " "));
+        List<String> fresh = new ArrayList<>();
+        for (String formula : TITLE_FORMULAS) {
+            boolean reused = false;
+            for (String part : formula.toLowerCase(Locale.ROOT).split("%s")) {
+                String fixed = part.replaceAll("[^a-z0-9 ]", " ").strip().replaceAll("\\s+", " ");
+                if (fixed.split(" ").length >= 2 && used.stream().anyMatch(u -> u.contains(fixed))) reused = true;
+            }
+            if (!reused) fresh.add(String.format(formula, kw));
+        }
+        pack.put("titles", fresh.size() >= 3 ? fresh.subList(0, 3) : List.of(kw + ": A Fresh Take", kw + ", Differently", "Rethinking " + kw));
+        String thumb = THUMBNAIL_CONCEPTS.get(0);
+        for (String concept : THUMBNAIL_CONCEPTS) {
+            String key = concept.substring(0, 24).toLowerCase(Locale.ROOT);
+            if (used.stream().noneMatch(u -> u.contains(key)) && !t.question.toLowerCase(Locale.ROOT).contains("thumbnail: " + key)) {
+                thumb = concept;
+                break;
+            }
+        }
+        pack.put("thumbnail_concept", thumb);
         pack.put("thumbnail_text", rev ? "2 MINUTES?!" : "IT'S THIS?");
         pack.put("thumbnail_reference", image.isEmpty() ? "Openverse search: " + t.keyword() : image);
         pack.put("hook_script", t.hook() + " In the next eight minutes I'll show you the 3-step system that finally "
@@ -419,7 +506,7 @@ public class DemoLLMClient implements LLMClient {
         List<String> urls = new ArrayList<>();
         for (String obs : t.observations) urls.add(firstMatch(obs, "url: (\\S+)"));
         Map<String, Object> pack = new LinkedHashMap<>();
-        pack.put("style", "Cinematic editorial — golden-hour warmth with magenta/amber accents, shallow depth of field, one shoot across every platform.");
+        pack.put("style", orDefault(t.field("VISUAL STYLE:"), FAVOURITE_STYLE));
         pack.put("youtube_thumbnail", urls.size() > 0 ? urls.get(0) : "");
         pack.put("reel_cover", urls.size() > 1 ? urls.get(1) : "");
         pack.put("broll", urls.size() > 3 ? List.of(urls.get(2), urls.get(3)) : List.of());
@@ -540,6 +627,13 @@ public class DemoLLMClient implements LLMClient {
         }
 
         String idea() { return orDefault(field("IDEA:"), "building better habits"); }
+
+        /** A "LABEL: a | b | c" line as a list. */
+        List<String> options(String label) {
+            String line = field(label);
+            if (line.isEmpty()) return List.of();
+            return java.util.Arrays.stream(line.split("\\s*\\|\\s*")).map(String::strip).filter(o -> !o.isEmpty()).toList();
+        }
         String niche() { return orDefault(field("NICHE:"), "lifestyle"); }
         String tone() { return orDefault(field("TONE:"), "warm and witty"); }
         String creator() { return orDefault(field("CREATOR:").replace("@", ""), "creator"); }

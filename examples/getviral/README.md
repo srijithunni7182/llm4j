@@ -80,7 +80,9 @@ flowchart LR
     C -- SHIP --> Q[[eval4j quality gate]]
     C -- SHIP --> AD[🎨 ArtDirector<br/>thumbnail · cover · B-roll · X card] --> VE[📹 VideoEditor<br/>renders the Reel MP4]
     VE --> IN[✅ Inspector<br/>decodes & spec-checks every file]
-    IN --> P([👆 Publish?]) --> PB[🚀 Publisher] --> A([✅ You approve]) --> IG[(Instagram API)]
+    IN --> QG{{🎬 Showrunner reviews the build<br/>quality gate · per-platform}}
+    QG -- FIX --> FX[send each failure to its specialist] --> QG
+    QG -- COMPLETE --> P([👆 Publish?]) --> PB[🚀 Publisher] --> A([✅ You approve]) --> IG[(Instagram API)]
 ```
 
 1. **Guardrail** — Loom's `guardrail (PII)` blocks briefs containing personal data before any agent runs.
@@ -115,10 +117,52 @@ flowchart LR
    for a broken image) and re-checks. Its brief is **fixed**: the Showrunner can't rewrite it, nor the
    Publisher's or SafetyCoach's, so the orchestrator can't prompt the verifier into passing. The Publisher
    won't post a Reel the Inspector failed.
-11. **Publish** — optional, behind *two* human gates: you supply the video URL, and the `instagram_publish`
+11. **The Showrunner signs off the build.** A pack isn't finished until every artifact for X, Instagram and
+   YouTube passes. Each round, the Showrunner runs `quality_gate` over the whole build, which combines:
+   - every file decoded and checked against its platform's spec;
+   - platform text limits;
+   - the originality checks;
+   - the eval4j judges on the X thread, Reel and YouTube package.
+
+   Each failing area is marked FIX and sent to its owner: the X thread to the XWriter, the Reel to the
+   ReelDirector, the YouTube package to the YouTubeProducer, images to the ArtDirector and the video to the
+   VideoEditor. The video is re-rendered automatically when the Reel plan or the images change. It's a Loom
+   `loop until (qualityReport.verdict == "COMPLETE") max 5`, and the review uses a per-step schema
+   (`expecting { ... }`) because the Showrunner's normal output is a casting sheet.
+
+   The Showrunner can ask for extra work but can't wave a failing build through: GetViral re-reads the gate
+   and marks COMPLETE only when every area passes. If a build still fails after 5 rounds, the run ends as
+   **needs attention** rather than done. It lists what failed, doesn't offer publishing, and doesn't count
+   against the creator's monthly quota.
+12. **Publish** — optional, only for a complete build, behind *two* human gates: you supply the video URL, and the `instagram_publish`
    tool declares `requiresApproval()`, so ai-agent4j pauses for your explicit OK.
 
 Rate any platform 🔥/👎 and it becomes an Engram memory: the next run is briefed with it.
+
+### Originality over time
+
+Language models drift back to a favourite angle: two food ideas in a row both get "the science of it",
+the same golden-hour look and the same "…Nobody Tells You" title. GetViral treats originality as part of
+the job and doesn't leave it to good intentions:
+
+- **Every casting is kept.** It stores the lens, direction, signature ideas, visual style, YouTube titles,
+  thumbnail and chosen hook, per creator: in the database on the website, in `getviral-data/casting/`
+  locally.
+- **The Showrunner is briefed with it** and dealt a few **creative lenses** and **visual styles** this
+  creator hasn't used yet, from decks of 30 lenses and 20 styles (myth vs reality, a street-level POV,
+  risograph print, claymation, film noir and so on).
+- **An originality gate checks the casting before any work is spent on it.** It looks for exact reuse (the
+  same lens, the same style, two or more of the same distinctive ideas) and for the same thing in new
+  words, using Engram's `nearest` similarity recall. A repeat goes back once as
+  `alt (castingSheet.novelty == "REPEAT")`, with exactly what overlapped named.
+- **The YouTube package gets the same check** (reused title phrasing, similar titles, a repeated thumbnail
+  concept). A repeat is marked on the package, and the critic sends it back for a new take.
+- **Temperatures are set per role in the `.loom`.** The ArtDirector (1.1), YouTubeProducer (1.05) and
+  Showrunner run hot; the Researcher, critic and Inspector run cool. Set `GETVIRAL_CREATIVITY` (for
+  example `1.2`) to push only the creative roles further.
+
+The live feed shows each check ("🧬 casting too close to earlier work — re-casting"), and the results page
+shows the pack's lens, style and originality.
 
 ---
 
@@ -276,6 +320,7 @@ GEMINI_API_KEY=... GETVIRAL_OFFLINE_APIS=false mvn test   # same suite against a
 | `GETVIRAL_MODE` | `auto` | `gemini`, `ollama`, `demo` (`auto` = Gemini if `GEMINI_API_KEY` is set) |
 | `GETVIRAL_MODEL` / `GETVIRAL_JUDGE_MODEL` | `gemini-3.5-flash` / same | any model `DefaultLLMClientFactory` understands |
 | `GETVIRAL_PORT` / `PORT` | `7070` | studio port (`PORT` is set by Cloud Run) |
+| `GETVIRAL_CREATIVITY` | `1.0` | scales the temperature of the creative roles only (0.3–1.5) |
 | `GETVIRAL_SEARCH_MODEL` | studio model, else `gemini-2.5-flash` | Gemini model for Google Search grounding (falls back to `gemini-2.5-flash` automatically) |
 | `GETVIRAL_DATA_DIR` | `./getviral-data` | Engram memories, voice samples, audit logs |
 | `GETVIRAL_MAX_REVISIONS` | `2` | critic rounds before shipping anyway |

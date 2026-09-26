@@ -89,6 +89,8 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 * **Live trends** from free public REST APIs (Wikipedia, Hacker News, Mastodon, Datamuse, Apple Music, Openverse, Nager.Date).
 * **RAG** over a viral playbook and your past posts (addons), plus **Engram** memory that makes every run sharper.
 * **Images and video**: an ArtDirector agent generates the thumbnail, cover and B-roll (Gemini, free Pollinations.ai, or a local render), and a VideoEditor agent renders the Reel into a real MP4.
+* **Not done until it's right**: the Showrunner reviews the finished build against the quality gate (files, platform limits, originality, eval4j judges) and sends every failing artifact back to its specialist until X, Instagram and YouTube all pass.
+* **Original over time**: every casting is remembered; the Showrunner is dealt lenses and visual styles the creator hasn't used, and an originality gate (Engram similarity) sends repeats back.
 * **Verified before it ships**: an independent Inspector agent decodes every image and the Reel, checks them against Instagram's and YouTube's specs, repairs what fails and reports the rest. The Reel ships as an Instagram-ready MP4 plus a WebM copy so it plays in every browser.
 * **eval4j** grades every pack at runtime and gates the test suite. Publishes to Instagram only with your approval.
 * **A real website**: Google sign-in, onboarding with connected Instagram/YouTube/X accounts, a library of everything you've made, quotas, Postgres and a Cloud Run deployment guide.

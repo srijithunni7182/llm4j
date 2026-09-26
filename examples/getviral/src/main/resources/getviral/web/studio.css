@@ -663,3 +663,14 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .verdict.v-pass_with_warnings { background: var(--warn); }
 .verdict.v-fail { background: var(--bad); }
 @media (max-width: 640px) { .chk { grid-template-columns: 24px 1fr; } .chk .d { grid-column: 2; } }
+
+/* ── Originality line under the reveal ────────────────────────────────────── */
+.reveal-meta { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0; }
+.reveal-meta span { font: 500 12px var(--mono); color: var(--muted); padding: 5px 10px; border-radius: 999px; background: var(--glass-2); border: 1px solid var(--line); }
+.reveal-meta b { color: var(--text); font-weight: 600; }
+
+/* ── Build sign-off ───────────────────────────────────────────────────────── */
+.build-issues { list-style: none; margin: 0; padding: 0 20px 16px; display: grid; gap: 6px; font-size: 13.5px; color: var(--muted); }
+.build-issues:empty { display: none; }
+.build-issues b { color: var(--bad); font: 600 12px var(--mono); margin-right: 8px; }
+.verdict.v-pass { background: var(--ok); }

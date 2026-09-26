@@ -37,6 +37,13 @@ class HostedStudioTest {
     @LocalServerPort
     int port;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    private int castings(String userId) {
+        return jdbc.queryForObject("select count(*) from casting_history where user_id = ?", Integer.class, userId);
+    }
+
     /** A browser: cookie jar + the SPA CSRF pattern (echo the XSRF-TOKEN cookie in a header). */
     final class Browser {
         final CookieManager cookies = new CookieManager();
@@ -167,8 +174,13 @@ class HostedStudioTest {
         assertThat(sam.get("/api/memory").body()).doesNotContain("picked the hook");
         assertThat(sam.send("POST", "/api/runs/" + runId + "/answer", Map.of("id", "x", "answer", "y")).statusCode()).isEqualTo(404);
 
+        // The Showrunner's casting is kept (in the database) so the next pack can be checked for originality.
+        String mayaId = (String) me.get("id");
+        assertThat(castings(mayaId)).isEqualTo(1);
+
         // Account deletion removes everything.
         assertThat(maya.send("DELETE", "/api/me", null).statusCode()).isEqualTo(200);
+        assertThat(castings(mayaId)).isZero();
         Browser mayaAgain = new Browser().login("maya@example.com");
         assertThat(mayaAgain.get("/api/runs").body()).isEqualTo("[]");
         assertThat(map(mayaAgain.get("/api/me").body()).get("onboardingStep")).isEqualTo("PROFILE");
@@ -185,6 +197,9 @@ class HostedStudioTest {
             String id = (String) map(r.body()).get("id");
             finish(user, id);
         }
+        // Each pack was briefed with, and checked against, the ones before it — kept in the database.
+        String userId = (String) map(user.get("/api/me").body()).get("id");
+        assertThat(castings(userId)).isEqualTo(3);
         HttpResponse<String> fourth = user.send("POST", "/api/runs", Map.of("idea", "one too many"));
         assertThat(fourth.statusCode()).isEqualTo(429);
         assertThat(fourth.body()).contains("3 packs");

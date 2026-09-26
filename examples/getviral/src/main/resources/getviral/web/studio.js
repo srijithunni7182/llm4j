@@ -299,10 +299,11 @@
         break;
       case "agent_start": {
         agentState(d.agent, "working");
-        if (STAGE_OF[d.agent]) setStage(STAGE_OF[d.agent]);
+        if (d.review) setStage("verify");
+        else if (STAGE_OF[d.agent]) setStage(STAGE_OF[d.agent]);
         const task = String(d.task || "");
         const recast = task.startsWith("RECAST"), revise = task.startsWith("REVISE");
-        const label = recast ? "is re-casting prompts from critic feedback" : revise ? "is revising" : d.agent === "ViralityCritic" ? `is reviewing the pack · round ${d.round}` : "started";
+        const label = d.review ? `is reviewing the whole build against the quality gate · round ${d.review}` : recast ? "is re-casting prompts from critic feedback" : revise ? "is revising" : d.agent === "ViralityCritic" ? `is reviewing the pack · round ${d.round}` : "started";
         feed(icon(d.agent), d.agent, label, "", recast ? "prompt" : "", ev.t);
         if (d.agent === "ViralityCritic") $("#criticToast").hidden = true;
         break;
@@ -331,6 +332,35 @@
         $("#statLive").textContent = Math.round((state.stats.live / state.stats.api) * 100) + "%";
         feed("🌐", "", `<span class="api-pill ${d.live ? "live" : "sample"}"><span class="d"></span>${esc(d.host)} · ${d.live ? "live" : "sample"} · ${d.ms}ms</span>`, "", "", ev.t);
         break;
+      case "build_review": {
+        state.build = d;
+        const names = { x: "𝕏", reel: "Instagram", youtube: "YouTube", visuals: "images", video: "Reel video" };
+        const areas = Object.entries(d.areas || {});
+        const failing = areas.filter(([, a]) => !a.pass);
+        feed("🏁", "Quality gate", d.complete ? `round ${d.round}: every artifact passes ✓`
+            : `round ${d.round}: ${failing.map(([k]) => names[k] || k).join(", ")} sent back`,
+          esc(areas.map(([k, a]) => `${a.pass ? "✓" : "✕"} ${names[k] || k}`).join("  ")
+            + (failing.length ? " — " + trim(failing.map(([k, a]) => `${names[k] || k}: ${(a.problems || []).join("; ")}`).join(" · "), 220) : "")),
+          d.complete ? "memory" : "err", ev.t);
+        if (state.revealed) renderBuild();
+        break;
+      }
+      case "creative_brief":
+        state.originality = { past: d.pastCastings, checks: [] };
+        feed("🎲", "Showrunner", d.pastCastings ? `dealt fresh lenses & styles · ${d.pastCastings} past pack${d.pastCastings === 1 ? "" : "s"} on file to avoid` : "dealt lenses & styles for a first pack",
+          esc((d.lensOptions || []).join(" · ")), "prompt", ev.t);
+        break;
+      case "originality": {
+        (state.originality ||= { past: 0, checks: [] }).checks.push(d);
+        const what = d.stage === "youtube" ? "YouTube package" : "casting";
+        const pct = Math.round((d.closest_similarity || 0) * 100);
+        if (d.novelty === "REPEAT") {
+          feed("🧬", "Originality", `${what} too close to earlier work${d.stage === "casting" && !d.retry ? " — re-casting" : ""}`, esc(trim((d.reasons || []).join(" · "), 220)), "err", ev.t);
+        } else {
+          feed("🧬", "Originality", `${what} is fresh`, d.compared_with ? `closest past pack ${pct}% similar${d.closest_idea ? " — “" + esc(trim(d.closest_idea, 50)) + "”" : ""}` : "first pack — this sets the baseline", "memory", ev.t);
+        }
+        break;
+      }
       case "inspection":
         feed("✅", "Inspector", `checked ${d.checks.length} artifacts · ${d.pass} pass · ${d.warn} warn · ${d.fail} fail`,
           esc((d.checks || []).filter((c) => c.status !== "PASS").map((c) => `${c.status} ${c.artifact}: ${c.detail}`).join(" · ") || "everything opens, decodes and fits its platform"),
@@ -420,7 +450,8 @@
           state.es && state.es.close();
           if (state.revealed) renderMedia();
           GV.api("/api/me").then((me) => { state.me = me; $("#quotaPill").textContent = `${me.quota.used}/${me.quota.limit} packs this month`; }).catch(() => {});
-          if (d.status === "DONE") { setStage("ship", true); agentState("Publisher", "done"); $("#qualityHint").textContent = "graded"; }
+          if (d.status === "DONE") { setStage("ship", true); agentState("Publisher", "done"); if (state.build) renderBuild(); else $("#qualityHint").textContent = "graded"; }
+          if (d.status === "FAILED" && state.build && state.revealed) renderBuild();
         }
         break;
     }
@@ -600,12 +631,24 @@
     $("#finalScore").textContent = score ? score.toFixed(1) : "–";
     requestAnimationFrame(() => ($(".ring-fill").style.strokeDashoffset = 327 - (327 * Math.min(score, 10)) / 10));
     $("#revealHook").textContent = "“" + (v.hookChoice || "") + "”";
+    $("#revealEyebrow").textContent = state.build && state.build.complete ? "Your pack is ready"
+      : "Almost there — the Showrunner is checking every artifact";
     $("#revealHeadline").textContent = critic.headline || "";
+    const cast = v.castingSheet || {};
+    const o = state.originality || { past: 0, checks: [] };
+    const lastCast = [...o.checks].reverse().find((c) => c.stage === "casting");
+    const recast = o.checks.some((c) => c.stage === "casting" && c.novelty === "REPEAT");
+    $("#revealMeta").innerHTML = [
+      cast.lens ? `<span>🎯 Lens: <b>${esc(cast.lens)}</b></span>` : "",
+      cast.visual_style ? `<span>🎨 Style: <b>${esc(trim(cast.visual_style, 60))}</b></span>` : "",
+      lastCast ? `<span>🧬 ${o.past ? (lastCast.novelty === "FRESH" ? `Original vs your last ${o.past} pack${o.past === 1 ? "" : "s"}` : "Close to earlier work") : "First pack — baseline set"}${recast ? " · re-cast once for originality" : ""}</span>` : "",
+    ].filter(Boolean).join("");
     $("#exportBtn").href = `/api/runs/${state.runId}/export.md`;
     $("#exportBtn").setAttribute("download", "getviral-pack.md");
     if (!$("#badges").children.length) $("#badges").innerHTML = Array.from({ length: 5 }, () => `<div class="badge skel"></div>`).join("");
     renderResearch(v.researchDossier);
     renderInspection(v.inspection);
+    renderBuild();
     renderX(v.xPack);
     renderReel(v.reelPack);
     renderYt(v.youtubePack);
@@ -671,6 +714,20 @@
 
   const safeUrl = (u) => /^https?:\/\//i.test(String(u || "")) ? String(u) : "";
   const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+
+  function renderBuild() {
+    const b = state.build;
+    if (!b) return;
+    const finalState = ["DONE", "FAILED"].includes(state.final);
+    $("#revealEyebrow").textContent = b.complete ? "Your pack is ready"
+      : finalState ? "Needs attention — not every artifact passed" : "Almost there — the Showrunner is fixing what failed";
+    const names = { x: "X thread", reel: "Instagram Reel", youtube: "YouTube package", visuals: "images", video: "Reel video" };
+    const failing = Object.entries(b.areas || {}).filter(([, a]) => !a.pass);
+    $("#qualityHint").innerHTML = b.complete
+      ? `<span class="verdict v-pass">Build complete</span> signed off by the Showrunner after ${b.round} review round${b.round === 1 ? "" : "s"}`
+      : `<span class="verdict v-fail">Needs attention</span> ${failing.map(([k]) => names[k] || k).join(", ")} still fail${failing.length === 1 ? "s" : ""} the gate (round ${b.round})`;
+    $("#buildIssues").innerHTML = failing.map(([k, a]) => `<li><b>${esc(names[k] || k)}</b> ${esc((a.problems || []).join("; "))}</li>`).join("");
+  }
 
   function renderInspection(r) {
     const panel = $("#inspection");
@@ -768,6 +825,7 @@
 
   function renderBadges(badges) {
     $("#qualityHint").textContent = `${badges.filter((b) => b.passed).length}/${badges.length} passed`;
+    if (state.build) renderBuild();
     $("#badges").innerHTML = badges.map((b, i) => `
       <div class="badge ${b.passed ? "pass" : "fail"}" style="animation-delay:${i * 90}ms" title="${esc(b.reason)}">
         <div class="bh"><span class="bn">${esc(b.name)}</span><span class="bs">${Math.round(b.score * 100)}</span></div>

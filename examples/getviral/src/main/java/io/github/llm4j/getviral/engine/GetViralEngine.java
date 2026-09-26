@@ -22,6 +22,7 @@ import io.github.llm4j.getviral.tools.RenderReelTool;
 import io.github.llm4j.getviral.tools.HackerNewsPulseTool;
 import io.github.llm4j.getviral.tools.HolidayMomentsTool;
 import io.github.llm4j.getviral.tools.InspectArtifactsTool;
+import io.github.llm4j.getviral.tools.QualityGateTool;
 import io.github.llm4j.getviral.tools.InstagramGraphClient;
 import io.github.llm4j.getviral.tools.InstagramPublishTool;
 import io.github.llm4j.getviral.tools.InstagramQuotaTool;
@@ -112,6 +113,22 @@ public class GetViralEngine {
     }
 
     private MediaLibrary.Sink mediaSink = MediaLibrary.Sink.NONE;
+    private CastingHistory castingHistory;
+    private final Map<String, java.util.function.UnaryOperator<Tool>> toolDecorators = new LinkedHashMap<>();
+
+    /** Test hook: wraps a tool (e.g. to simulate a Reel render that comes out broken). */
+    void decorateTool(String name, java.util.function.UnaryOperator<Tool> decorator) {
+        toolDecorators.put(name, decorator);
+    }
+
+    /** Where past castings are kept (the hosted app uses the database; default: files in the data dir). */
+    public void castingHistory(CastingHistory history) {
+        this.castingHistory = history;
+    }
+
+    public CastingHistory castingHistory() {
+        return castingHistory != null ? castingHistory : CastingHistory.files(config.dataDir());
+    }
 
     /** Where finished media is mirrored (the hosted app uploads to cloud storage). */
     public void mediaSink(MediaLibrary.Sink sink) {
@@ -165,38 +182,49 @@ public class GetViralEngine {
         run.emit("run_started", started);
 
         PromptBook prompts = new PromptBook(run);
+        // The quality gate the Showrunner reviews the build against: file inspection + platform limits +
+        // originality + eval4j judges, per specialist.
+        QualityGate gate = new QualityGate(models.createClient("judge"), run);
+        InspectArtifactsTool inspectTool = new InspectArtifactsTool(media, workflowVars, run);
+        QualityGateTool qualityTool = new QualityGateTool(inspectTool, gate, workflowVars, run);
         GetViralExecutor executor = new GetViralExecutor(loadScript(),
-                tools(run, knowledge, brief, media, imageChain, workflowVars, runConfig), models, run,
+                tools(run, knowledge, brief, media, imageChain, workflowVars, runConfig, inspectTool, qualityTool), models, run,
                 prompts, config.maxRevisions());
+        executor.qualityGate(qualityTool);
         executorRef.set(executor);
+        // Originality: brief the Showrunner with this creator's past castings, deal lenses and visual styles
+        // they haven't used, and check new castings and YouTube packages against the old ones.
+        CastingHistory history = castingHistory();
+        List<CastingHistory.PastCasting> past = history.recent(brief.memoryKey(), CastingHistory.KEEP);
+        long seed = run.id().hashCode() ^ System.nanoTime();
+        List<String> lensOptions = CreativeLenses.deal(past.stream().limit(8).map(CastingHistory.PastCasting::lens).toList(), 4, seed);
+        List<String> styleOptions = VisualStyles.deal(past.stream().limit(8)
+                .flatMap(p -> java.util.stream.Stream.of(p.visualStyle(), p.artStyle())).toList(), 4, seed + 1);
+        executor.originality(new OriginalityGate(past, brief.idea(), brief.niche()));
+        Map<String, Object> creative = new LinkedHashMap<>();
+        creative.put("pastCastings", past.size());
+        creative.put("lensOptions", lensOptions);
+        creative.put("styleOptions", styleOptions);
+        run.emit("creative_brief", creative);
+
         CreatorMemory memory = new CreatorMemory(config.dataDir(), brief.memoryKey(), intelligence(models), run);
         executor.setMemoryEngine(memory);
         executor.setHumanInterface(new StudioHumanInterface(run, executor::getContext));
         executor.setAuditLogger(new FileAuditLogger(auditFile(run)));
-        QualityGate gate = new QualityGate(models.createClient("judge"), run);
-        AtomicReference<CompletableFuture<List<QualityGate.Badge>>> grading =
-                new AtomicReference<>();
-        executor.onShip(() -> grading.compareAndSet(null, CompletableFuture.supplyAsync(() -> {
-            Map<String, Object> ctx = executor.getContext().getAll();
-            Map<String, Object> platforms = new LinkedHashMap<>();
-            platforms.put("x", ctx.get("xPack"));
-            platforms.put("reel", ctx.get("reelPack"));
-            platforms.put("youtube", ctx.get("youtubePack"));
-            Map<String, Object> grounding = new LinkedHashMap<>();
-            grounding.put("trends", ctx.get("trendReport"));
-            grounding.put("research", ctx.get("researchDossier"));
-            grounding.put("plan", ctx.get("gamePlan"));
-            return gate.evaluate(platforms, String.valueOf(ctx.get("hookChoice")), grounding(grounding));
-        })));
 
         try {
             executor.initialize();
-            executor.executeWorkflow(WORKFLOW, Map.of(
-                    "creatorIdea", brief.idea(),
-                    "creatorHandle", brief.handle(),
-                    "creatorNiche", brief.niche(),
-                    "creatorTone", brief.tone(),
-                    "creatorRegion", brief.region()));
+            Map<String, String> inputs = new LinkedHashMap<>();
+            inputs.put("creatorIdea", brief.idea());
+            inputs.put("creatorHandle", brief.handle());
+            inputs.put("creatorNiche", brief.niche());
+            inputs.put("creatorTone", brief.tone());
+            inputs.put("creatorRegion", brief.region());
+            inputs.put("pastCastings", CastingHistory.brief(past));
+            inputs.put("lensOptions", String.join(" | ", lensOptions));
+            inputs.put("styleOptions", String.join(" | ", styleOptions));
+            inputs.put("pastYouTube", youtubeHistory(past));
+            executor.executeWorkflow(WORKFLOW, inputs);
         } catch (RuntimeException e) {
             run.emit("error", Map.of("message", String.valueOf(e.getMessage())));
             run.status(StudioRun.Status.FAILED);
@@ -229,13 +257,13 @@ public class GetViralEngine {
         if (receipt != null && !receipt.toString().isBlank()) pack.put("publish", receipt);
 
         String hook = String.valueOf(pack.get("hook"));
+        recordCasting(history, brief, run, ctx, hook);
         memory.remember("@" + brief.handle() + " picked the hook \"" + hook + "\" for \"" + brief.idea() + "\"",
                 0.8, null);
 
-        CompletableFuture<List<QualityGate.Badge>> pending = grading.get();
-        List<QualityGate.Badge> badges = pending != null ? pending.join()
-                : gate.evaluate(Map.of("x", pack.get("x"), "reel", pack.get("reel"), "youtube", pack.get("youtube")),
-                        hook, grounding(pack));
+        // The badges are the quality gate's last verdict (the one the Showrunner's loop ended on).
+        QualityGateTool.Result finalGate = qualityTool.last() != null ? qualityTool.last() : qualityTool.run();
+        List<QualityGate.Badge> badges = finalGate.badges();
         pack.put("quality", badges.stream().map(QualityGate.Badge::toMap).toList());
         pack.put("prompts", prompts.all());
         pack.put("media", media.assets().stream().map(MediaAsset::toMap).toList());
@@ -245,9 +273,59 @@ public class GetViralEngine {
         if (inspection != null && !inspection.toString().isBlank()) pack.put("inspection", inspection);
         Object video = ctx.get("videoPack");
         if (video != null && !video.toString().isBlank()) pack.put("video", video);
+        Object review = ctx.get("qualityReport");
+        if (review != null && !review.toString().isBlank()) pack.put("build", review);
         run.emit("pack", pack);
+
+        // The run only counts as done when every artifact for every platform passes the gate.
+        if (!finalGate.complete()) {
+            List<String> failing = new ArrayList<>();
+            finalGate.areas().forEach((area, a) -> {
+                if (!a.pass()) failing.add(area + " (" + String.join("; ", a.problems()) + ")");
+            });
+            run.emit("error", Map.of("message", "Not every artifact passed the quality gate after the Showrunner's "
+                    + "review rounds, so this pack isn't marked done: " + String.join(" · ", failing)));
+            run.status(StudioRun.Status.FAILED);
+            return new Outcome(StudioRun.Status.FAILED, pack, badges, executor, prompts);
+        }
         run.status(StudioRun.Status.DONE);
         return new Outcome(StudioRun.Status.DONE, pack, badges, executor, prompts);
+    }
+
+    private static String youtubeHistory(List<CastingHistory.PastCasting> past) {
+        List<String> lines = new ArrayList<>();
+        for (CastingHistory.PastCasting p : past) {
+            if (p.youtubeTitles() == null || p.youtubeTitles().isEmpty()) continue;
+            lines.add("- \"" + p.idea() + "\": titles \"" + String.join("\" / \"", p.youtubeTitles()) + "\""
+                    + (p.thumbnailConcept() == null || p.thumbnailConcept().isBlank() ? "" : "; thumbnail: " + p.thumbnailConcept()));
+        }
+        return lines.isEmpty() ? "(none yet)" : String.join("\n", lines);
+    }
+
+    /** Saves what this run chose, so the next casting is briefed with it and checked against it. */
+    private static void recordCasting(CastingHistory history, Brief brief, StudioRun run, Map<String, Object> ctx, String hook) {
+        // castingSheet is the full casting (after any originality re-cast); the critic's re-casts go to revisionCast.
+        if (!(ctx.get("castingSheet") instanceof Map<?, ?> sheet)) return;
+        Map<?, ?> visuals = ctx.get("visualPack") instanceof Map<?, ?> v ? v : Map.of();
+        Map<?, ?> yt = ctx.get("youtubePack") instanceof Map<?, ?> y ? y : Map.of();
+        Map<String, String> prompts = new LinkedHashMap<>();
+        if (sheet.get("prompts") instanceof Map<?, ?> p) p.forEach((k, val) -> prompts.put(String.valueOf(k), String.valueOf(val)));
+        try {
+            history.record(brief.memoryKey(), new CastingHistory.PastCasting(run.id(), java.time.Instant.now().toString(),
+                    brief.idea(), brief.niche(), text(sheet.get("run_title")), text(sheet.get("lens")),
+                    text(sheet.get("creative_direction")), strings(sheet.get("signature_ideas")), text(sheet.get("visual_style")),
+                    text(visuals.get("style")), strings(yt.get("titles")), text(yt.get("thumbnail_concept")), hook, prompts));
+        } catch (RuntimeException e) {
+            run.emit("note", Map.of("text", "Couldn't save this casting to the creator's history: " + e.getMessage()));
+        }
+    }
+
+    private static String text(Object o) {
+        return o == null ? "" : o.toString();
+    }
+
+    private static List<String> strings(Object o) {
+        return o instanceof List<?> l ? l.stream().map(String::valueOf).toList() : List.of();
     }
 
     /** A creator's 🔥 / 👎 on a platform becomes an Engram memory; a newer rating shadows the old one. */
@@ -275,7 +353,7 @@ public class GetViralEngine {
 
     private ToolRegistry tools(StudioRun run, KnowledgeBase knowledge, Brief brief, MediaLibrary media,
                                List<ImageGenerator> imageChain, Supplier<Map<String, Object>> workflowVars,
-                               GetViralConfig runConfig) {
+                               GetViralConfig runConfig, InspectArtifactsTool inspectTool, QualityGateTool qualityTool) {
         boolean offline = config.offlineApis();
         InstagramGraphClient instagram = new InstagramGraphClient(runConfig);
         Map<String, Tool> tools = new LinkedHashMap<>();
@@ -294,9 +372,11 @@ public class GetViralEngine {
         tools.put("InstagramPublish", new InstagramPublishTool(instagram, run));
         tools.put("GenerateImage", new GenerateImageTool(imageChain, media));
         tools.put("RenderReel", new RenderReelTool(media, workflowVars, config.reelWidth(), config.reelHeight(), 24));
-        tools.put("InspectArtifacts", new InspectArtifactsTool(media, workflowVars, run));
+        tools.put("InspectArtifacts", inspectTool);
+        tools.put("QualityGate", qualityTool);
         tools.put("GenerateVideoClip", new GenerateVideoClipTool(
                 veoEnabled() ? new VeoClient(config.geminiApiKey(), config.veoModel()) : null, media));
+        toolDecorators.forEach((name, decorate) -> tools.computeIfPresent(name, (k, tool) -> decorate.apply(tool)));
         ToolRegistry registry = new ToolRegistry();
         tools.forEach(registry::register);
         return registry;
