@@ -70,6 +70,21 @@ public final class LlmJudgeCondition extends Condition<Object> {
 
     @Override
     public boolean matches(Object actual) {
+        JudgeVerdict combined = evaluate(actual);
+        describedAs(
+                "llm-judged \"%s\" (score=%.2f, threshold=%.2f): %s",
+                name, combined.score(), threshold, combined.reason());
+        return combined.score() >= threshold;
+    }
+
+    /**
+     * Runs the judge (honouring {@code samples} and {@code cache}) and returns the combined verdict
+     * without asserting. Use this outside tests, e.g. as a runtime quality gate that reports scores.
+     *
+     * @param actual an {@code AgentResult}, {@code LLMResponse}, or {@code String} to judge
+     * @return the (averaged, if sampled) verdict
+     */
+    public JudgeVerdict evaluate(Object actual) {
         String actualOutput = OutputExtractor.extract(actual);
         String baseKey =
                 cache != null
@@ -91,11 +106,17 @@ public final class LlmJudgeCondition extends Condition<Object> {
             verdicts.add(verdict);
         }
 
-        JudgeVerdict combined = combine(verdicts);
-        describedAs(
-                "llm-judged \"%s\" (score=%.2f, threshold=%.2f): %s",
-                name, combined.score(), threshold, combined.reason());
-        return combined.score() >= threshold;
+        return combine(verdicts);
+    }
+
+    /** The criterion name this condition was built with. */
+    public String getName() {
+        return name;
+    }
+
+    /** The pass threshold (0.0-1.0) this condition was built with. */
+    public double getThreshold() {
+        return threshold;
     }
 
     private JudgeVerdict callJudge(String actualOutput, double temperature) {

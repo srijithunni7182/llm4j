@@ -71,7 +71,22 @@ public class EngramEngine implements MemoryEngine {
             sm.memory().reinforce();
         }
 
-        return briefing.briefingText();
+        return withTask(taskIntent, briefing.briefingText());
+    }
+
+    /**
+     * The briefing replaces the delegate payload, so it must carry the task itself. Template
+     * briefings already embed it; LLM-synthesized ones are only a summary of memories.
+     */
+    static String withTask(String taskIntent, String briefingText) {
+        if (briefingText == null || briefingText.isBlank()) {
+            return taskIntent;
+        }
+        if (briefingText.contains(taskIntent)) {
+            return briefingText;
+        }
+        return "Current Task: " + taskIntent + "\n\nContext Briefing (Synthesized from relevant memory):\n"
+                + briefingText;
     }
 
     @Override

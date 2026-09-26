@@ -1,0 +1,278 @@
+// ─────────────────────────────────────────────────────────────────────────────
+//  GetViral — one idea in, a ready-to-post pack for X, Instagram Reels and YouTube out.
+//
+//  Neuro-symbolic by design:
+//    • Neural:   every specialist's system prompt is WRITTEN AT RUNTIME by the Showrunner
+//                (an orchestrator agent) for this creator, this idea, this moment — and
+//                re-written between revision rounds from the critic's feedback.
+//    • Symbolic: the order of work, the PII guardrail, the human hook pick, the critic
+//                loop, typed output schemas and the publish approval are deterministic.
+//
+//  The `system:` lines below are only one-line fallbacks used if the Showrunner fails.
+//  model "studio" is resolved by GetViral's LLMClientFactory (Gemini, Ollama or demo).
+// ─────────────────────────────────────────────────────────────────────────────
+
+agent Showrunner {
+    model: "studio"
+    system: "You are the Showrunner of GetViral, an elite creative director who assembles a team of AI specialists for each creator brief. Your job is not to write content: it is to write the SYSTEM PROMPTS your specialists will run with. For each specialist write a vivid, specific prompt (120-220 words) that casts them for THIS brief: name the creator, their niche, tone and audience; set the creative direction and angle; say which tools to lean on and why; give concrete do and don't rules for their platform; and define what excellent looks like. Use the viral_playbook tool (scope playbook, and scope voice for the creator's past posts) to ground your direction. When you are given critic FEEDBACK, rewrite the prompts of the specialists who fell short so they fix exactly those issues, and keep the prompts that worked. Specialists: TrendScout (live trend research), Strategist (angle, hooks, facts), XWriter (X thread), ReelDirector (Instagram Reel), YouTubeProducer (YouTube video + Short), ViralityCritic (scores the pack), ArtDirector (generates the thumbnail, Reel cover, B-roll frames and X card images), VideoEditor (renders the Reel into an MP4). For the ArtDirector, define one coherent visual style for the whole pack (palette, lighting, lens, mood) so every image looks like the same shoot."
+    tools: [ViralPlaybook]
+    output_schema: {
+        run_title: string,
+        creative_direction: string,
+        prompts: {
+            TrendScout: string,
+            Strategist: string,
+            XWriter: string,
+            ReelDirector: string,
+            YouTubeProducer: string,
+            ViralityCritic: string,
+            ArtDirector: string,
+            VideoEditor: string
+        }
+    }
+}
+
+agent TrendScout {
+    model: "studio"
+    system: "You are TrendScout. Research what is trending right now that connects to the brief and report concrete, sourced signals."
+    tools: [TrendingNow, HackerNewsPulse, TrendingHashtags, MomentCalendar, FactCheck]
+}
+
+agent Strategist {
+    model: "studio"
+    system: "You are Strategist. Turn the brief and trend research into an angle, five scroll-stopping hooks, verified key facts and hashtags."
+    tools: [ViralPlaybook, WordLab]
+    output_schema: {
+        angle: string,
+        audience_insight: string,
+        hooks: list<string>,
+        key_facts: list<string>,
+        hashtags: list<string>,
+        posting_moment: string
+    }
+}
+
+agent XWriter {
+    model: "studio"
+    system: "You are XWriter. Write a high-performing X thread and a standalone post from the chosen hook and plan."
+    tools: [WordLab, FactCheck]
+    output_schema: {
+        thread: list<string>,
+        standalone: string,
+        reply_bait: string
+    }
+}
+
+agent ReelDirector {
+    model: "studio"
+    system: "You are ReelDirector. Direct a 20-40 second Instagram Reel beat by beat with voiceover, on-screen text, audio and caption."
+    tools: [TrendingAudio, BrollFinder, ViralPlaybook]
+    output_schema: {
+        title: string,
+        duration: string,
+        beats: list<{ time: string, shot: string, voiceover: string, on_screen: string }>,
+        caption: string,
+        hashtags: list<string>,
+        audio: string,
+        cover_text: string
+    }
+}
+
+agent YouTubeProducer {
+    model: "studio"
+    system: "You are YouTubeProducer. Package a YouTube video: titles, thumbnail, hook script, outline, description with chapters and a Shorts cut."
+    tools: [BrollFinder, FactCheck, ViralPlaybook]
+    output_schema: {
+        titles: list<string>,
+        thumbnail_concept: string,
+        thumbnail_text: string,
+        thumbnail_reference: string,
+        hook_script: string,
+        outline: list<string>,
+        description: string,
+        chapters: list<string>,
+        shorts_cut: string,
+        tags: list<string>
+    }
+}
+
+agent ViralityCritic {
+    model: "studio"
+    system: "You are ViralityCritic. Score the whole pack from 0 to 10 for scroll-stopping power, platform fit, clarity and trust. SHIP at 8 or above, otherwise REVISE with precise per-platform feedback."
+    output_schema: {
+        score: number,
+        verdict: enum["SHIP", "REVISE"],
+        headline: string,
+        strengths: list<string>,
+        x_feedback: string,
+        reel_feedback: string,
+        youtube_feedback: string
+    }
+}
+
+agent ArtDirector {
+    model: "studio"
+    system: "You are ArtDirector. Generate the pack's images with generate_image: a 16:9 youtube_thumbnail, a 9:16 reel_cover, two 9:16 B-roll frames (broll_1, broll_2) and a 16:9 x_card. Keep one visual style across all of them. Prompts describe the scene only; put words in overlay_text."
+    tools: [GenerateImage]
+    output_schema: {
+        style: string,
+        youtube_thumbnail: string,
+        reel_cover: string,
+        broll: list<string>,
+        x_card: string
+    }
+}
+
+agent VideoEditor {
+    model: "studio"
+    system: "You are VideoEditor. Cut the Reel: optionally generate one AI B-roll clip with generate_video_clip, then call render_reel with the pacing that fits the tone. Report the video URL and your edit decisions."
+    tools: [RenderReel, GenerateVideoClip]
+    output_schema: {
+        video: string,
+        duration: string,
+        edit_notes: string,
+        ai_clip: string
+    }
+}
+
+agent Publisher {
+    model: "studio"
+    system: "You are Publisher. Check the Instagram quota, then publish the Reel with instagram_publish using the given video URL and the Reel caption followed by its hashtags. A human must approve the publish call. Report exactly what happened, including dry runs."
+    tools: [InstagramQuota, InstagramPublish]
+}
+
+agent SafetyCoach {
+    model: "studio"
+    system: "You are SafetyCoach. In two friendly sentences, explain that the brief contained personal data (like an email address or phone number), that GetViral never puts personal data into public content, and ask the creator to remove it and try again. Do not repeat the personal data."
+}
+
+workflow GetViral(creatorIdea, creatorHandle, creatorNiche, creatorTone, creatorRegion) {
+    observe "Brief received" { creatorHandle creatorNiche creatorTone creatorRegion }
+
+    guardrail (PII) {
+        // 1. The orchestrator casts the team: it writes every specialist's prompt for this brief.
+        delegate "Cast your team for this brief.
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+TONE: {creatorTone}
+CREATOR: @{creatorHandle}
+REGION: {creatorRegion}" to Showrunner -> castingSheet retry 1 on_failure {
+            note "Showrunner unavailable ({_error}) — specialists run on fallback prompts."
+        }
+
+        // 2. Live research from public APIs.
+        delegate "Scout live trends for this brief and report the strongest signals with sources.
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+REGION: {creatorRegion}" to TrendScout -> trendReport retry 1 on_failure {
+            note "Trend scouting failed: {_error}"
+        }
+
+        // 3. Strategy with typed output.
+        delegate "Build the content strategy.
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+TONE: {creatorTone}
+CREATOR: @{creatorHandle}
+TRENDS: {trendReport}" to Strategist -> gamePlan retry 1
+
+        // 4. Human-in-the-loop: the creator picks the hook.
+        human_prompt "HOOK_PICK: Which hook should we run with for: {creatorIdea}" -> hookChoice
+
+        // 5. Three platform specialists work in parallel.
+        parallel {
+            delegate "Write the X package.
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+HOOK: {hookChoice}
+TONE: {creatorTone}
+PLAN: {gamePlan}" to XWriter -> xPack retry 1
+            delegate "Direct the Instagram Reel.
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+HOOK: {hookChoice}
+TONE: {creatorTone}
+REGION: {creatorRegion}
+PLAN: {gamePlan}" to ReelDirector -> reelPack retry 1
+            delegate "Produce the YouTube package.
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+HOOK: {hookChoice}
+TONE: {creatorTone}
+PLAN: {gamePlan}" to YouTubeProducer -> youtubePack retry 1
+        }
+
+        // 6. Critic loop — the Showrunner re-casts prompts from the feedback before each rewrite.
+        loop until (criticReport.verdict == "SHIP") {
+            delegate "Review the full pack.
+IDEA: {creatorIdea}
+HOOK: {hookChoice}
+X: {xPack}
+REEL: {reelPack}
+YOUTUBE: {youtubePack}" to ViralityCritic -> criticReport
+
+            alt (criticReport.verdict == "REVISE") {
+                delegate "RECAST the prompts for a revision round. Rewrite the prompts of the specialists the critic flagged.
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+TONE: {creatorTone}
+CREATOR: @{creatorHandle}
+FEEDBACK: {criticReport}" to Showrunner -> castingSheet retry 1 on_failure {
+                    note "Recast failed — revising with current prompts."
+                }
+                parallel {
+                    delegate "REVISE the X package using the critic feedback.
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+TONE: {creatorTone}
+HOOK: {hookChoice}
+FEEDBACK: {criticReport}
+CURRENT: {xPack}" to XWriter -> xPack retry 1
+                    delegate "REVISE the Reel using the critic feedback.
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+TONE: {creatorTone}
+HOOK: {hookChoice}
+FEEDBACK: {criticReport}
+CURRENT: {reelPack}" to ReelDirector -> reelPack retry 1
+                    delegate "REVISE the YouTube package using the critic feedback.
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+TONE: {creatorTone}
+HOOK: {hookChoice}
+FEEDBACK: {criticReport}
+CURRENT: {youtubePack}" to YouTubeProducer -> youtubePack retry 1
+                }
+            }
+        }
+        observe "Pack approved" { criticReport }
+
+        // 7. Visuals: images first, then the Reel is rendered from them.
+        delegate "Design and generate the visuals for the approved pack.
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+TONE: {creatorTone}
+HOOK: {hookChoice}
+REEL: {reelPack}
+YOUTUBE: {youtubePack}" to ArtDirector -> visualPack retry 1 on_failure {
+            note "Image generation failed: {_error}"
+        }
+        delegate "Cut the Reel into a video.
+TONE: {creatorTone}
+HOOK: {hookChoice}
+VISUALS: {visualPack}" to VideoEditor -> videoPack retry 1 on_failure {
+            note "Reel render failed: {_error}"
+        }
+
+        // 8. Optional publishing, behind a second human gate (tool-level approval).
+        human_prompt "PUBLISH: Publish the Reel to Instagram? Paste a public https video URL of your recorded Reel, or type skip" -> reelVideoUrl
+        alt (reelVideoUrl != "skip") {
+            delegate "Publish the Reel to Instagram.
+VIDEO_URL: {reelVideoUrl}
+REEL: {reelPack}" to Publisher -> publishReceipt
+        }
+    } on_violation {
+        note "Personal data detected in the brief — generation blocked."
+        delegate "Explain the privacy block to the creator." to SafetyCoach -> safetyNotice
+    }
+}

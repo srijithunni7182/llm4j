@@ -56,4 +56,21 @@ class EngramEngineTest {
         
         assertTrue(briefing.contains("The secret code is 42."));
     }
+
+    @Test
+    void briefingAlwaysCarriesTheTaskEvenWhenTheCiaOnlySummarisesMemories() {
+        ContextIntelligenceAgent summaryOnly = new TemplateContextIntelligenceAgent() {
+            @Override
+            public io.github.llm4j.engram.core.models.ContextBriefing synthesizeBriefing(
+                    String taskIntent, java.util.List<io.github.llm4j.engram.core.models.ScoredMemory> candidates) {
+                return new io.github.llm4j.engram.core.models.ContextBriefing("No historical context available.", false);
+            }
+        };
+        EngramEngine engine = new EngramEngine((VectorStore) null, summaryOnly);
+
+        String briefing = engine.assembleContext(new AgentDef("Writer"), "Write a hook about sleep", new DefaultVariableContext());
+
+        assertTrue(briefing.contains("Write a hook about sleep"), briefing);
+        assertTrue(briefing.contains("No historical context available."), briefing);
+    }
 }
