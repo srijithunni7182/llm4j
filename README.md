@@ -134,14 +134,14 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 >
 > **[Why eval4j? Our comparison against deepeval](ai-agent4j/wiki/WHY_EVAL4J.md)**
 >
-> **[Version Matrix](VERSION_MATRIX.md)** for canonical coordinates and compatibility.
+> **[Version Matrix](docs/VERSION_MATRIX.md)** for canonical coordinates and compatibility.
 >
-> **[Migration Guide 5.0](MIGRATION_GUIDE_5_0.md)** for legacy coordinate upgrades.
+> **[Migration Guide 5.0](docs/MIGRATION_GUIDE_5_0.md)** for legacy coordinate upgrades.
 
 ## 📐 Project Standards
 
-- [Testing Strategy](TESTING_STRATEGY.md)
-- [API Compatibility Policy](API_COMPATIBILITY.md)
+- [Testing Strategy](docs/TESTING_STRATEGY.md)
+- [API Compatibility Policy](docs/API_COMPATIBILITY.md)
 - [Contributing Guide](CONTRIBUTING.md)
 
 ## 💡 Our Philosophy

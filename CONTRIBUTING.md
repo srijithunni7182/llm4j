@@ -25,14 +25,14 @@ Thanks for contributing. This document applies to the full monorepo.
   - `*Test.java` for unit tests
   - `*IntegrationTest.java` for profile-gated tests
 
-See `TESTING_STRATEGY.md` for execution model and CI mapping.
+See `docs/TESTING_STRATEGY.md` for execution model and CI mapping.
 
 ## Documentation Expectations
 
 - Update README/wiki/docs when changing setup, coordinates, or API behavior.
 - For compatibility-impacting changes, update:
-  - `API_COMPATIBILITY.md`
-  - migration guides (for example `MIGRATION_GUIDE_5_0.md`)
+  - `docs/API_COMPATIBILITY.md`
+  - migration guides (for example `docs/MIGRATION_GUIDE_5_0.md`)
 
 ## Security and Secrets
 

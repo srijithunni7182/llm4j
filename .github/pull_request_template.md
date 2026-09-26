@@ -16,7 +16,7 @@
 ## Compatibility
 
 - [ ] No public API changes
-- [ ] Public API changed and `API_COMPATIBILITY.md` updated
+- [ ] Public API changed and `docs/API_COMPATIBILITY.md` updated
 - [ ] Migration guide updated (if breaking/change in setup)
 
 ## Docs
