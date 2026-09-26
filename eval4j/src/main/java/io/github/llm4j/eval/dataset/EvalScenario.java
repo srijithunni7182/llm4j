@@ -33,8 +33,10 @@ public record EvalScenario(
         List<String> context,
         List<String> retrievalContext) {
 
-    /** Used as the parameterized-test display name, so reports show {@code name} rather than
-     * the full record dump. */
+    /**
+     * Used as the parameterized-test display name, so reports show {@code name} rather than the
+     * full record dump.
+     */
     @Override
     public String toString() {
         return name != null ? name : input;

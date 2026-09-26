@@ -29,11 +29,15 @@ class JudgeResponseParserTest {
 
     @Test
     void parse_mapsEveryRatingToItsNormalizedScore() {
-        assertThat(JudgeResponseParser.parse(fenced(1, "worst")).score()).isCloseTo(0.0, within(1e-9));
-        assertThat(JudgeResponseParser.parse(fenced(2, "poor")).score()).isCloseTo(0.25, within(1e-9));
+        assertThat(JudgeResponseParser.parse(fenced(1, "worst")).score())
+                .isCloseTo(0.0, within(1e-9));
+        assertThat(JudgeResponseParser.parse(fenced(2, "poor")).score())
+                .isCloseTo(0.25, within(1e-9));
         assertThat(JudgeResponseParser.parse(fenced(3, "ok")).score()).isCloseTo(0.5, within(1e-9));
-        assertThat(JudgeResponseParser.parse(fenced(4, "good")).score()).isCloseTo(0.75, within(1e-9));
-        assertThat(JudgeResponseParser.parse(fenced(5, "best")).score()).isCloseTo(1.0, within(1e-9));
+        assertThat(JudgeResponseParser.parse(fenced(4, "good")).score())
+                .isCloseTo(0.75, within(1e-9));
+        assertThat(JudgeResponseParser.parse(fenced(5, "best")).score())
+                .isCloseTo(1.0, within(1e-9));
     }
 
     @Test

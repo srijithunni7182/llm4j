@@ -5,10 +5,10 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Caches judge verdicts for the lifetime of this instance — typically one JVM/test run. Helps
- * when the same {@link LlmJudgeCondition} is evaluated repeatedly within a single run (e.g. inside
- * a {@code PassRate} loop with overlapping scenarios) but doesn't survive across separate {@code
- * mvn test} invocations; use {@link FileSystemJudgeCache} for that.
+ * Caches judge verdicts for the lifetime of this instance — typically one JVM/test run. Helps when
+ * the same {@link LlmJudgeCondition} is evaluated repeatedly within a single run (e.g. inside a
+ * {@code PassRate} loop with overlapping scenarios) but doesn't survive across separate {@code mvn
+ * test} invocations; use {@link FileSystemJudgeCache} for that.
  */
 public final class InMemoryJudgeCache implements JudgeCache {
 

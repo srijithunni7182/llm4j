@@ -111,7 +111,8 @@ class LlmJudgeConditionTest {
 
     @Test
     void matches_wrapsJudgeCallFailureInJudgeEvaluationException() {
-        when(judgeClient.chat(any(LLMRequest.class))).thenThrow(new RuntimeException("network down"));
+        when(judgeClient.chat(any(LLMRequest.class)))
+                .thenThrow(new RuntimeException("network down"));
 
         LlmJudgeCondition condition =
                 llmJudged("Correctness").criteria("x").judge(judgeClient).threshold(0.5).build();
@@ -167,9 +168,12 @@ class LlmJudgeConditionTest {
         boolean matched = condition.matches("36"); // average = (0.5 + 1.0 + 0.0) / 3 = 0.5
 
         verify(judgeClient, times(3)).chat(captor.capture());
-        assertThat(captor.getAllValues()).allSatisfy(r -> assertThat(r.getTemperature()).isEqualTo(0.7));
+        assertThat(captor.getAllValues())
+                .allSatisfy(r -> assertThat(r.getTemperature()).isEqualTo(0.7));
         assertThat(matched).isTrue();
-        assertThat(condition.description().value()).contains("0.50").contains("Averaged over 3 samples");
+        assertThat(condition.description().value())
+                .contains("0.50")
+                .contains("Averaged over 3 samples");
     }
 
     @Test

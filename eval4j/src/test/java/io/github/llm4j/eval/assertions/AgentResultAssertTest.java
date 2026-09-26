@@ -45,8 +45,7 @@ class AgentResultAssertTest {
     @Test
     void hasFinalAnswerMatching_failsWhenNoMatch() {
         AgentResult result = resultWithSteps("no numbers here");
-        assertThatThrownBy(
-                        () -> assertThat(result).hasFinalAnswerMatching(Pattern.compile("\\d+")))
+        assertThatThrownBy(() -> assertThat(result).hasFinalAnswerMatching(Pattern.compile("\\d+")))
                 .isInstanceOf(AssertionError.class);
     }
 
@@ -72,8 +71,7 @@ class AgentResultAssertTest {
     @Test
     void usesToolsExactly_failsOnWrongOrder() {
         AgentResult result = resultWithSteps("done", "search", "calculator");
-        assertThatThrownBy(
-                        () -> assertThat(result).usesToolsExactly("calculator", "search"))
+        assertThatThrownBy(() -> assertThat(result).usesToolsExactly("calculator", "search"))
                 .isInstanceOf(AssertionError.class);
     }
 
@@ -157,6 +155,26 @@ class AgentResultAssertTest {
     }
 
     @Test
+    void followedProtocol_passesByDefault() {
+        AgentResult result =
+                AgentResult.builder().finalAnswer("36").completed(true).iterations(1).build();
+        assertThat(result).followedProtocol();
+    }
+
+    @Test
+    void followedProtocol_failsWhenModelIgnoredResponseFormat() {
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer("some rambling raw text")
+                        .completed(true)
+                        .iterations(1)
+                        .protocolFollowed(false)
+                        .build();
+        assertThatThrownBy(() -> assertThat(result).followedProtocol())
+                .isInstanceOf(AssertionError.class);
+    }
+
+    @Test
     void completesWithinIterations_passesWhenUnderLimit() {
         AgentResult result = resultWithSteps("36", "calculator");
         assertThat(result).completesWithinIterations(5);
@@ -184,11 +202,7 @@ class AgentResultAssertTest {
     @Test
     void hasValidJson_failsForMalformedJson() {
         AgentResult result =
-                AgentResult.builder()
-                        .finalAnswer("not json")
-                        .completed(true)
-                        .iterations(1)
-                        .build();
+                AgentResult.builder().finalAnswer("not json").completed(true).iterations(1).build();
         assertThatThrownBy(() -> assertThat(result).hasValidJson(java.util.Map.class))
                 .isInstanceOf(AssertionError.class);
     }
@@ -206,6 +220,201 @@ class AgentResultAssertTest {
     @Test
     void assertThat_failsOnNullActual() {
         assertThatThrownBy(() -> assertThat((AgentResult) null).completedSuccessfully())
+                .isInstanceOf(AssertionError.class);
+    }
+
+    @Test
+    void extractingToolArgument_collectsValueAcrossMultipleCalls() {
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer("done")
+                        .completed(true)
+                        .addStep(
+                                new AgentResult.AgentStep(
+                                        "t",
+                                        "collect_evidence",
+                                        "{\"evidence_type\":\"services\"}",
+                                        "ok"))
+                        .addStep(
+                                new AgentResult.AgentStep(
+                                        "t",
+                                        "collect_evidence",
+                                        "{\"evidence_type\":\"disk\"}",
+                                        "ok"))
+                        .build();
+
+        assertThat(result)
+                .extractingToolArgument("collect_evidence", "evidence_type")
+                .containsExactly("services", "disk");
+    }
+
+    @Test
+    void extractingToolArgument_excludesCallsMissingTheKey() {
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer("done")
+                        .completed(true)
+                        .addStep(
+                                new AgentResult.AgentStep(
+                                        "t", "search", "{\"query\":\"weather\"}", "ok"))
+                        .build();
+
+        assertThat(result).extractingToolArgument("search", "evidence_type").isEmpty();
+    }
+
+    @Test
+    void usesToolWithArgument_passesWhenSomeCallMatches() {
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer("done")
+                        .completed(true)
+                        .addStep(
+                                new AgentResult.AgentStep(
+                                        "t",
+                                        "collect_evidence",
+                                        "{\"evidence_type\":\"services\"}",
+                                        "ok"))
+                        .build();
+
+        assertThat(result).usesToolWithArgument("collect_evidence", "evidence_type", "services");
+    }
+
+    @Test
+    void usesToolWithArgument_failsWhenNoCallMatches() {
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer("done")
+                        .completed(true)
+                        .addStep(
+                                new AgentResult.AgentStep(
+                                        "t",
+                                        "collect_evidence",
+                                        "{\"evidence_type\":\"disk\"}",
+                                        "ok"))
+                        .build();
+
+        assertThatThrownBy(
+                        () ->
+                                assertThat(result)
+                                        .usesToolWithArgument(
+                                                "collect_evidence", "evidence_type", "services"))
+                .isInstanceOf(AssertionError.class);
+    }
+
+    @Test
+    void usesFewerTokensThan_passesWhenUnderBudget() {
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer("done")
+                        .completed(true)
+                        .usage(new AgentResult.Usage(2, 100, 20, 120))
+                        .build();
+
+        assertThat(result).usesFewerTokensThan(200);
+    }
+
+    @Test
+    void usesFewerTokensThan_failsWhenAtOrOverBudget() {
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer("done")
+                        .completed(true)
+                        .usage(new AgentResult.Usage(2, 100, 20, 120))
+                        .build();
+
+        assertThatThrownBy(() -> assertThat(result).usesFewerTokensThan(120))
+                .isInstanceOf(AssertionError.class);
+    }
+
+    @Test
+    void hasRedundantActionCountAtMost_passesWithinBudget() {
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer("done")
+                        .completed(true)
+                        .redundantActionCount(1)
+                        .build();
+
+        assertThat(result).hasRedundantActionCountAtMost(2);
+    }
+
+    @Test
+    void hasRedundantActionCountAtMost_failsOverBudget() {
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer("done")
+                        .completed(true)
+                        .redundantActionCount(3)
+                        .build();
+
+        assertThatThrownBy(() -> assertThat(result).hasRedundantActionCountAtMost(2))
+                .isInstanceOf(AssertionError.class);
+    }
+
+    @Test
+    void usesToolSuccessfully_passesOnlyWhenOutcomeIsExecuted() {
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer("done")
+                        .completed(true)
+                        .addStep(
+                                new AgentResult.AgentStep(
+                                        "t",
+                                        "send_email",
+                                        "{}",
+                                        "ok",
+                                        AgentResult.StepOutcome.EXECUTED))
+                        .build();
+
+        assertThat(result).usesToolSuccessfully("send_email");
+    }
+
+    @Test
+    void usesToolSuccessfully_failsWhenOnlyAttemptWasRejected() {
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer("done")
+                        .completed(true)
+                        .addStep(
+                                new AgentResult.AgentStep(
+                                        "t",
+                                        "send_email",
+                                        "{}",
+                                        "rejected",
+                                        AgentResult.StepOutcome.REJECTED_BY_HUMAN))
+                        .build();
+
+        assertThatThrownBy(() -> assertThat(result).usesToolSuccessfully("send_email"))
+                .isInstanceOf(AssertionError.class);
+    }
+
+    @Test
+    void hadActionRejected_passesWhenHumanRejected() {
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer("done")
+                        .completed(true)
+                        .addStep(
+                                new AgentResult.AgentStep(
+                                        "t",
+                                        "send_email",
+                                        "{}",
+                                        "rejected",
+                                        AgentResult.StepOutcome.REJECTED_BY_HUMAN))
+                        .build();
+
+        assertThat(result).hadActionRejected("send_email");
+    }
+
+    @Test
+    void hasStepOutcome_failsWhenToolNeverAttempted() {
+        AgentResult result = resultWithSteps("done");
+
+        assertThatThrownBy(
+                        () ->
+                                assertThat(result)
+                                        .hasStepOutcome(
+                                                "send_email", AgentResult.StepOutcome.EXECUTED))
                 .isInstanceOf(AssertionError.class);
     }
 }

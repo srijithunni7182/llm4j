@@ -2,12 +2,16 @@ package io.github.llm4j.eval.assertions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.llm4j.agent.AgentResult;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.assertj.core.api.AbstractObjectAssert;
+import org.assertj.core.api.ListAssert;
 
 /**
  * AssertJ custom assertion for a {@link AgentResult}, the outcome of a {@code ReActAgent} run.
@@ -32,17 +36,69 @@ public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, A
         String finalAnswer = actual.getFinalAnswer();
         if (finalAnswer == null || !pattern.matcher(finalAnswer).find()) {
             failWithMessage(
-                    "Expected final answer to match pattern <%s> but was <%s>", pattern, finalAnswer);
+                    "Expected final answer to match pattern <%s> but was <%s>",
+                    pattern, finalAnswer);
         }
         return this;
     }
 
+    /**
+     * Passes if the agent <em>attempted</em> this action — i.e. it appears as a step at all. This
+     * does not mean the tool actually ran: {@code ReActAgent} records a step whenever the model
+     * requests an action, including one that named an unknown tool, was blocked as a repeated
+     * (looping) call, or — notably for a framework built around Human-in-the-Loop — one a human
+     * reviewer rejected via {@code ApprovalCallback}. If success matters, use {@link
+     * #usesToolSuccessfully(String)} instead; if a rejection specifically matters, use {@link
+     * #hadActionRejected(String)}.
+     */
     public AgentResultAssert usesTool(String toolName) {
         isNotNull();
         boolean used = toolNames().stream().anyMatch(name -> name.equalsIgnoreCase(toolName));
         if (!used) {
             failWithMessage(
                     "Expected agent to use tool <%s> but it used: %s", toolName, toolNames());
+        }
+        return this;
+    }
+
+    /**
+     * Passes only if {@code toolName} was actually executed — i.e. some step names it with outcome
+     * {@link AgentResult.StepOutcome#EXECUTED}. Unlike {@link #usesTool(String)}, this fails if
+     * every attempt was blocked, rejected, or errored.
+     */
+    public AgentResultAssert usesToolSuccessfully(String toolName) {
+        return hasStepOutcome(toolName, AgentResult.StepOutcome.EXECUTED);
+    }
+
+    /**
+     * Passes if a human reviewer rejected an attempted call to {@code toolName} via HITL approval.
+     */
+    public AgentResultAssert hadActionRejected(String toolName) {
+        return hasStepOutcome(toolName, AgentResult.StepOutcome.REJECTED_BY_HUMAN);
+    }
+
+    /**
+     * Passes if some step naming {@code toolName} has exactly the given {@link
+     * AgentResult.StepOutcome}.
+     */
+    public AgentResultAssert hasStepOutcome(String toolName, AgentResult.StepOutcome outcome) {
+        isNotNull();
+        List<AgentResult.AgentStep> callsToTool =
+                actual.getSteps().stream()
+                        .filter(
+                                step ->
+                                        step.getAction() != null
+                                                && step.getAction().equalsIgnoreCase(toolName))
+                        .collect(Collectors.toList());
+        boolean matched = callsToTool.stream().anyMatch(step -> step.getOutcome() == outcome);
+        if (!matched) {
+            List<AgentResult.StepOutcome> actualOutcomes =
+                    callsToTool.stream()
+                            .map(AgentResult.AgentStep::getOutcome)
+                            .collect(Collectors.toList());
+            failWithMessage(
+                    "Expected a step for tool <%s> with outcome <%s> but its outcomes were: %s",
+                    toolName, outcome, actualOutcomes);
         }
         return this;
     }
@@ -109,12 +165,105 @@ public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, A
         return this;
     }
 
+    /**
+     * Passes only if the model's raw output was successfully parsed as the expected
+     * thought/action/final-answer format on every iteration. {@link #completedSuccessfully()} can
+     * pass even when this would fail: a model that ignores the response protocol entirely still
+     * gets its whole raw output treated as a final answer (so a result exists), but that's a format
+     * failure worth catching separately from a genuine, well-formed answer.
+     */
+    public AgentResultAssert followedProtocol() {
+        isNotNull();
+        if (!actual.isProtocolFollowed()) {
+            failWithMessage(
+                    "Expected the agent to follow the expected response protocol on every iteration,"
+                            + " but it fell back to treating raw output as the final answer at least"
+                            + " once");
+        }
+        return this;
+    }
+
     public AgentResultAssert completesWithinIterations(int maxIterations) {
         isNotNull();
         if (actual.getIterations() > maxIterations) {
             failWithMessage(
                     "Expected agent to complete within <%s> iterations but it took <%s>",
                     maxIterations, actual.getIterations());
+        }
+        return this;
+    }
+
+    /**
+     * Every value the given argument key had across all calls to {@code toolName}, as an AssertJ
+     * {@link ListAssert} so it composes with any list matcher (AssertJ's own "extracting" idiom —
+     * hands off to a different assert type rather than staying on {@code this}). Calls to the tool
+     * whose parsed arguments don't include {@code argKey} are excluded.
+     */
+    public ListAssert<Object> extractingToolArgument(String toolName, String argKey) {
+        isNotNull();
+        List<Object> values =
+                actual.getSteps().stream()
+                        .filter(
+                                step ->
+                                        step.getAction() != null
+                                                && step.getAction().equalsIgnoreCase(toolName))
+                        .map(step -> parseArgs(step.getActionInput()).get(argKey))
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toList());
+        return assertThat(values)
+                .as("values of argument <%s> across calls to tool <%s>", argKey, toolName);
+    }
+
+    /** Passes if any call to {@code toolName} had {@code argKey} equal to {@code expectedValue}. */
+    public AgentResultAssert usesToolWithArgument(
+            String toolName, String argKey, Object expectedValue) {
+        isNotNull();
+        List<AgentResult.AgentStep> callsToTool =
+                actual.getSteps().stream()
+                        .filter(
+                                step ->
+                                        step.getAction() != null
+                                                && step.getAction().equalsIgnoreCase(toolName))
+                        .collect(Collectors.toList());
+        boolean found =
+                callsToTool.stream()
+                        .anyMatch(
+                                step ->
+                                        Objects.equals(
+                                                parseArgs(step.getActionInput()).get(argKey),
+                                                expectedValue));
+        if (!found) {
+            List<String> rawArgs =
+                    callsToTool.stream()
+                            .map(AgentResult.AgentStep::getActionInput)
+                            .collect(Collectors.toList());
+            failWithMessage(
+                    "Expected a call to tool <%s> with argument <%s>=<%s> but found none. Calls to %s: %s",
+                    toolName, argKey, expectedValue, toolName, rawArgs);
+        }
+        return this;
+    }
+
+    /** Reads {@code AgentResult.getUsage().getTotalTokens()} across the whole run. */
+    public AgentResultAssert usesFewerTokensThan(int maxTotalTokens) {
+        isNotNull();
+        int actualTokens = actual.getUsage().getTotalTokens();
+        if (actualTokens >= maxTotalTokens) {
+            failWithMessage(
+                    "Expected agent run to use fewer than <%s> total tokens but used <%s>",
+                    maxTotalTokens, actualTokens);
+        }
+        return this;
+    }
+
+    /** Flags looping/dithering: repeated identical action+input pairs within a single run. */
+    public AgentResultAssert hasRedundantActionCountAtMost(int max) {
+        isNotNull();
+        int actualCount = actual.getRedundantActionCount();
+        if (actualCount > max) {
+            failWithMessage(
+                    "Expected at most <%s> redundant (repeated) actions but had <%s>",
+                    max, actualCount);
         }
         return this;
     }
@@ -129,6 +278,23 @@ public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, A
                     shape.getSimpleName(), e.getMessage());
         }
         return this;
+    }
+
+    /**
+     * Parses a step's raw action-input JSON into a Map. Falls back to {@code {"input": rawText}}
+     * for a non-JSON payload — the same convention {@code ReActAgent} itself uses when handing
+     * arguments to a tool, so an argument key of {@code "input"} still resolves consistently.
+     */
+    private static Map<String, Object> parseArgs(String actionInput) {
+        if (actionInput == null || actionInput.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return new ObjectMapper()
+                    .readValue(actionInput, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            return Map.of("input", actionInput);
+        }
     }
 
     private List<String> toolNames() {
@@ -146,7 +312,8 @@ public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, A
         return true;
     }
 
-    private static boolean isSubsequenceIgnoringCase(List<String> expectedSubsequence, List<String> actual) {
+    private static boolean isSubsequenceIgnoringCase(
+            List<String> expectedSubsequence, List<String> actual) {
         int actualIndex = 0;
         for (String expectedTool : expectedSubsequence) {
             boolean found = false;

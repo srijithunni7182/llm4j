@@ -155,6 +155,31 @@ class ReActAgentTest {
         AgentResult.AgentStep step = result.getSteps().get(0);
         assertThat(step.getObservation()).contains("Unknown tool");
         assertThat(step.getObservation()).contains("WebSearch");
+        assertThat(step.getOutcome()).isEqualTo(AgentResult.StepOutcome.UNKNOWN_TOOL);
+    }
+
+    @Test
+    void testProtocolFollowedIsFalseWhenModelIgnoresResponseFormat() {
+        when(mockClient.chat(any(LLMRequest.class)))
+                .thenReturn(createResponse("I am just going to ramble without following any format."));
+
+        agent = ReActAgent.builder().llmClient(mockClient).maxIterations(3).build();
+
+        AgentResult result = agent.run("Say something");
+
+        assertThat(result.isCompleted()).isTrue();
+        assertThat(result.isProtocolFollowed()).isFalse();
+    }
+
+    @Test
+    void testProtocolFollowedIsTrueForWellFormedResponse() {
+        when(mockClient.chat(any(LLMRequest.class))).thenReturn(createResponse("Final Answer: 4"));
+
+        agent = ReActAgent.builder().llmClient(mockClient).maxIterations(3).build();
+
+        AgentResult result = agent.run("What is 2 + 2?");
+
+        assertThat(result.isProtocolFollowed()).isTrue();
     }
 
     @Test
@@ -211,7 +236,68 @@ class ReActAgentTest {
                 .isInstanceOf(NullPointerException.class);
     }
 
+    @Test
+    void testUsageAccumulatesAcrossMultipleLlmCalls() {
+        when(mockClient.chat(any(LLMRequest.class)))
+                .thenReturn(
+                        createResponseWithUsage(
+                                "Thought: I need to calculate 2 + 2\n"
+                                        + "Action: Calculator\n"
+                                        + "Action Input: 2 + 2",
+                                100,
+                                20))
+                .thenReturn(
+                        createResponseWithUsage(
+                                "Thought: I now know the final answer\n" + "Final Answer: 4",
+                                80,
+                                10));
+
+        agent =
+                ReActAgent.builder()
+                        .llmClient(mockClient)
+                        .addTool(new CalculatorTool())
+                        .maxIterations(5)
+                        .build();
+
+        AgentResult result = agent.run("What is 2 + 2?");
+
+        AgentResult.Usage usage = result.getUsage();
+        assertThat(usage.getLlmCalls()).isEqualTo(2);
+        assertThat(usage.getPromptTokens()).isEqualTo(180);
+        assertThat(usage.getCompletionTokens()).isEqualTo(30);
+        assertThat(usage.getTotalTokens()).isEqualTo(210);
+    }
+
+    @Test
+    void testRedundantActionCountIncrementsOnRepeatedAction() {
+        String repeatedAction =
+                "Thought: I need to calculate 2 + 2\n" + "Action: Calculator\n" + "Action Input: 2 + 2";
+        when(mockClient.chat(any(LLMRequest.class)))
+                .thenReturn(createResponse(repeatedAction))
+                .thenReturn(createResponse(repeatedAction))
+                .thenReturn(createResponse("Thought: Done\nFinal Answer: 4"));
+
+        agent =
+                ReActAgent.builder()
+                        .llmClient(mockClient)
+                        .addTool(new CalculatorTool())
+                        .maxIterations(5)
+                        .build();
+
+        AgentResult result = agent.run("What is 2 + 2?");
+
+        assertThat(result.getRedundantActionCount()).isEqualTo(1);
+    }
+
     private LLMResponse createResponse(String content) {
         return LLMResponse.builder().content(content).model("test-model").build();
+    }
+
+    private LLMResponse createResponseWithUsage(String content, int promptTokens, int completionTokens) {
+        return LLMResponse.builder()
+                .content(content)
+                .model("test-model")
+                .tokenUsage(promptTokens, completionTokens, promptTokens + completionTokens)
+                .build();
     }
 }
