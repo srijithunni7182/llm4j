@@ -63,6 +63,18 @@ public final class PackMarkdown {
             if (yt.get("chapters") instanceof List<?> chapters) chapters.forEach(c -> md.append(c).append('\n'));
             md.append("\n**Shorts cut:** ").append(yt.get("shorts_cut")).append("\n\n**Tags:** ").append(join(yt.get("tags"))).append('\n');
         }
+        if (pack.get("inspection") instanceof Map<?, ?> inspection) {
+            md.append("\n## Artifact check — ").append(inspection.get("verdict")).append("\n\n")
+              .append(inspection.get("summary")).append("\n\n");
+            if (inspection.get("checks") instanceof List<?> checks) {
+                for (Object c : checks) {
+                    if (c instanceof Map<?, ?> check) {
+                        md.append("- **").append(check.get("status")).append("** ").append(check.get("artifact"))
+                          .append(" — ").append(check.get("detail")).append('\n');
+                    }
+                }
+            }
+        }
         if (pack.get("critic") instanceof Map<?, ?> critic) {
             md.append("\n---\nCritic score: **").append(critic.get("score")).append("/10** — ").append(critic.get("headline")).append('\n');
         }

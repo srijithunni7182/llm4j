@@ -13,10 +13,11 @@
     { id: "ViralityCritic", icon: "🔥", role: "Scores. Sends back. Ships.", c: "linear-gradient(135deg,#ffd166,#ff6a3d)", glow: "#ffb13d" },
     { id: "ArtDirector", icon: "🎨", role: "Generates thumbnail, cover & B-roll", c: "linear-gradient(135deg,#ffd166,#ff2e88)", glow: "#ffd166" },
     { id: "VideoEditor", icon: "📹", role: "Renders the Reel to MP4", c: "linear-gradient(135deg,#2ad4f2,#8b5cff)", glow: "#2ad4f2" },
+    { id: "Inspector", icon: "✅", role: "Verifies every file plays & fits", c: "linear-gradient(135deg,#4ade80,#2ad4f2)", glow: "#4ade80" },
     { id: "Publisher", icon: "🚀", role: "Posts to Instagram — with your OK", c: "linear-gradient(135deg,#b9f36c,#2bb673)", glow: "#b9f36c" },
   ];
-  const STAGE_OF = { Showrunner: "cast", TrendScout: "scout", Researcher: "scout", Strategist: "strategy", XWriter: "create", ReelDirector: "create", YouTubeProducer: "create", ViralityCritic: "critique", ArtDirector: "visuals", VideoEditor: "visuals", Publisher: "ship" };
-  const STAGES = ["cast", "scout", "strategy", "hook", "create", "critique", "visuals", "ship"];
+  const STAGE_OF = { Showrunner: "cast", TrendScout: "scout", Researcher: "scout", Strategist: "strategy", XWriter: "create", ReelDirector: "create", YouTubeProducer: "create", ViralityCritic: "critique", ArtDirector: "visuals", VideoEditor: "visuals", Inspector: "verify", Publisher: "ship" };
+  const STAGES = ["cast", "scout", "strategy", "hook", "create", "critique", "visuals", "verify", "ship"];
   const MEDIA_ORDER = ["reel", "youtube_thumbnail", "reel_cover", "x_card", "broll_1", "broll_2", "ai_clip"];
   const IDEAS = [
     "a 2-minute morning routine for busy students",
@@ -30,6 +31,19 @@
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // The Reel ships as an H.264 MP4 (the master: Instagram/YouTube-ready) plus a WebM copy for browsers
+  // without H.264. Every <video> lists both; the browser plays the first it can decode.
+  const webmOf = (m, all) => (all || []).find((x) => x.purpose === "reel_webm" && x.url === String(m.url).replace(/\.mp4$/, "-preview.webm"));
+  const videoTag = (m, all, attrs) => {
+    const w = webmOf(m, all);
+    return `<video ${attrs}><source src="${esc(m.url)}" type="video/mp4">${w ? `<source src="${esc(w.url)}" type="video/webm">` : ""}</video>`;
+  };
+  /** Calls {@code onFail} if the browser can play none of a video's sources. */
+  const whenUnplayable = (video, onFail) => {
+    const sources = video.querySelectorAll("source");
+    const last = sources[sources.length - 1] || video;
+    last.addEventListener("error", onFail, { once: true });
+  };
   const store = {
     get(k) { try { return localStorage.getItem("gv." + k) || ""; } catch { return ""; } },
     set(k, v) { try { localStorage.setItem("gv." + k, v); } catch { /* private mode */ } },
@@ -214,9 +228,10 @@
     if (tab !== "media" || $("#libMedia").dataset.loaded) return;
     const media = await GV.api("/api/library/media");
     $("#libMedia").dataset.loaded = "1";
-    $("#libMedia").innerHTML = media.length ? media.map((m) => `
+    const shown = media.filter((m) => m.purpose !== "reel_webm");
+    $("#libMedia").innerHTML = shown.length ? shown.map((m) => `
       <figure class="tile">${m.kind === "video"
-        ? `<video src="${esc(m.url)}" muted loop playsinline controls preload="metadata"></video>`
+        ? videoTag(m, media, `muted loop playsinline controls preload="metadata"`)
         : `<img src="${esc(m.url)}" alt="${esc(m.purpose)}" loading="lazy" width="${m.width}" height="${m.height}">`}
         <span class="prov ${m.ai ? "ai" : "local"}">${m.ai ? "AI · " : ""}${esc(m.provider)}</span>
         <figcaption><span>${esc(String(m.purpose).replace(/_/g, " "))} · ${esc(m.idea)}</span><a href="${esc(m.url)}" download>↓</a></figcaption>
@@ -316,6 +331,11 @@
         $("#statLive").textContent = Math.round((state.stats.live / state.stats.api) * 100) + "%";
         feed("🌐", "", `<span class="api-pill ${d.live ? "live" : "sample"}"><span class="d"></span>${esc(d.host)} · ${d.live ? "live" : "sample"} · ${d.ms}ms</span>`, "", "", ev.t);
         break;
+      case "inspection":
+        feed("✅", "Inspector", `checked ${d.checks.length} artifacts · ${d.pass} pass · ${d.warn} warn · ${d.fail} fail`,
+          esc((d.checks || []).filter((c) => c.status !== "PASS").map((c) => `${c.status} ${c.artifact}: ${c.detail}`).join(" · ") || "everything opens, decodes and fits its platform"),
+          d.fail ? "err" : "", ev.t);
+        break;
       case "rag":
         feed("📚", "RAG", `searched the ${esc(d.scope)} for “${esc(trim(d.query, 60))}”`, esc((d.sources || []).join(" · ")), "memory", ev.t);
         break;
@@ -332,7 +352,8 @@
       case "agent_done":
         agentState(d.agent, "done");
         state.values[d.variable] = d.value;
-        if (state.revealed && (d.agent === "VideoEditor" || d.agent === "ArtDirector")) renderMedia();
+        if (state.revealed && (d.agent === "VideoEditor" || d.agent === "ArtDirector" || d.agent === "Inspector")) renderMedia();
+        if (state.revealed && d.agent === "Inspector") renderInspection(d.value);
         onAgentDone(d, ev.t);
         break;
       case "agent_error":
@@ -363,11 +384,12 @@
         break;
       case "media": {
         state.media.push(d);
+        if (d.purpose === "reel_webm") break;
         $("#statMedia").textContent = state.media.length;
         const portrait = d.height > d.width;
         const label = d.kind === "video" ? `rendered the Reel · ${d.seconds}s · ${d.width}×${d.height}` : `generated ${esc(String(d.purpose).replace(/_/g, " "))}`;
         const body = d.kind === "video"
-          ? `<video class="shot portrait" src="${esc(d.url)}" muted autoplay loop playsinline></video>`
+          ? videoTag(d, state.media, `class="shot portrait" muted autoplay loop playsinline`)
           : `<img class="shot ${portrait ? "portrait" : ""}" src="${esc(d.url)}" alt="${esc(d.purpose)}">`;
         feed(d.kind === "video" ? "📹" : "🎨", d.kind === "video" ? "VideoEditor" : "ArtDirector", label, `${esc(d.provider)}${d.ai ? "" : " · not AI"}${body}`, "media", ev.t);
         if (state.revealed) renderMedia();
@@ -583,6 +605,7 @@
     $("#exportBtn").setAttribute("download", "getviral-pack.md");
     if (!$("#badges").children.length) $("#badges").innerHTML = Array.from({ length: 5 }, () => `<div class="badge skel"></div>`).join("");
     renderResearch(v.researchDossier);
+    renderInspection(v.inspection);
     renderX(v.xPack);
     renderReel(v.reelPack);
     renderYt(v.youtubePack);
@@ -597,14 +620,14 @@
   function mediaFor(purpose) { return [...state.media].reverse().find((m) => m.purpose === purpose); }
 
   function renderMedia() {
-    const media = [...state.media].sort((a, b) => MEDIA_ORDER.indexOf(a.purpose) - MEDIA_ORDER.indexOf(b.purpose));
+    const media = state.media.filter((m) => m.purpose !== "reel_webm").sort((a, b) => MEDIA_ORDER.indexOf(a.purpose) - MEDIA_ORDER.indexOf(b.purpose));
     const expected = ["reel", "youtube_thumbnail", "reel_cover", "x_card", "broll_1", "broll_2"];
     const missing = expected.filter((p) => !media.some((m) => m.purpose === p));
     const done = ["DONE", "FAILED"].includes(state.final) || !!state.values.videoPack;
     $("#visualsHint").textContent = done ? `${media.length} files · ${media.filter((m) => m.ai).length} AI-generated` : "generating…";
     const tile = (m) => {
       const el = m.kind === "video"
-        ? `<video src="${esc(m.url)}" muted autoplay loop playsinline controls></video>`
+        ? videoTag(m, state.media, `muted autoplay loop playsinline controls`)
         : `<img src="${esc(m.url)}" alt="${esc(m.purpose)}" loading="lazy" width="${m.width}" height="${m.height}">`;
       return `<figure class="tile ${m.purpose === "reel" ? "hero" : ""}">${el}<span class="prov ${m.ai ? "ai" : "local"}">${m.ai ? "AI · " : ""}${esc(m.provider)}</span>
         <figcaption><span>${esc(String(m.purpose).replace(/_/g, " "))}${m.seconds ? " · " + m.seconds + "s" : ""}</span><a href="${esc(m.url)}" download>↓</a></figcaption></figure>`;
@@ -615,9 +638,9 @@
     $("#gallery").innerHTML =
       `<div class="gallery-reel">${videos.map(tile).join("") || (done ? "" : skel("reel"))}</div>` +
       `<div class="gallery-stills">${stills.map(tile).join("")}${done ? "" : missing.filter((p) => p !== "reel").map(skel).join("")}</div>`;
-    $$("#gallery video").forEach((v) => v.addEventListener("error", () => {
-      if (!v.parentElement.querySelector(".note")) v.insertAdjacentHTML("afterend", `<p class="note">This browser can't decode H.264 here — download the MP4 (↓) to watch it.</p>`);
-    }, { once: true }));
+    $$("#gallery video").forEach((v) => whenUnplayable(v, () => {
+      if (!v.parentElement.querySelector(".note")) v.insertAdjacentHTML("afterend", `<p class="note">This browser can't play the Reel here — download the MP4 (↓) to watch it.</p>`);
+    }));
 
     const thumb = mediaFor("youtube_thumbnail");
     if (thumb) { $("#ytThumb").style.backgroundImage = `url("${thumb.url}")`; $("#ytThumbText").hidden = true; }
@@ -627,9 +650,13 @@
     const cover = mediaFor("reel_cover");
     if (cover && !$(".cover-thumb")) $("#reelCaption").insertAdjacentHTML("beforebegin", `<img class="cover-thumb" src="${esc(cover.url)}" alt="Reel cover">`);
     const reel = mediaFor("reel");
-    if (reel && $("#reelVideo").getAttribute("src") !== reel.url) {
-      $("#reelVideo").addEventListener("error", () => { setReelMode("story"); toast("This browser can't play the MP4 inline — showing the storyboard. Download it from Visuals."); }, { once: true });
-      $("#reelVideo").src = reel.url;
+    const phone = $("#reelVideo");
+    if (reel && phone.dataset.src !== reel.url) {
+      phone.dataset.src = reel.url;
+      const w = webmOf(reel, state.media);
+      phone.innerHTML = `<source src="${esc(reel.url)}" type="video/mp4">${w ? `<source src="${esc(w.url)}" type="video/webm">` : ""}`;
+      whenUnplayable(phone, () => { setReelMode("story"); toast("This browser can't play the Reel inline — showing the storyboard. Download the MP4 from Visuals."); });
+      phone.load();
       $("#reelToggle").hidden = false;
       setReelMode("video");
     }
@@ -644,6 +671,21 @@
 
   const safeUrl = (u) => /^https?:\/\//i.test(String(u || "")) ? String(u) : "";
   const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+
+  function renderInspection(r) {
+    const panel = $("#inspection");
+    if (!r || typeof r !== "object" || !(r.checks || []).length) { panel.hidden = true; return; }
+    panel.hidden = false;
+    const checks = r.checks || [];
+    const count = (s) => checks.filter((c) => c.status === s).length;
+    const verdict = { PASS: "All clear", PASS_WITH_WARNINGS: "Clear, with warnings", FAIL: "Needs attention" }[r.verdict] || r.verdict;
+    $("#inspectionHint").innerHTML = `<span class="verdict v-${esc(String(r.verdict).toLowerCase())}">${esc(verdict)}</span> ${count("PASS")} pass · ${count("WARN")} warn · ${count("FAIL")} fail`;
+    $("#inspectionSummary").textContent = r.summary || "";
+    const order = { FAIL: 0, WARN: 1, PASS: 2 };
+    $("#checks").innerHTML = [...checks].sort((a, b) => order[a.status] - order[b.status]).map((c) =>
+      `<li class="chk s-${esc(String(c.status).toLowerCase())}"><b>${c.status === "PASS" ? "✓" : c.status === "WARN" ? "!" : "✕"}</b><span class="a">${esc(c.artifact)}</span><span class="d">${esc(c.detail)}</span></li>`).join("");
+    $("#inspectionFixes").innerHTML = (r.fixes || []).map((f) => `<li>🔧 ${esc(f)}</li>`).join("");
+  }
 
   function renderResearch(r) {
     const panel = $("#research");

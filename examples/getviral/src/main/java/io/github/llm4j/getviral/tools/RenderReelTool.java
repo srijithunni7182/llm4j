@@ -71,13 +71,21 @@ public class RenderReelTool implements Tool {
         };
         String handle = String.valueOf(vars.getOrDefault("creatorHandle", "creator"));
         Path file = library.file("reel", "mp4");
+        Path webm = file.resolveSibling(file.getFileName().toString().replaceFirst("\\.mp4$", "") + "-preview.webm");
         long start = System.nanoTime();
-        ReelRenderer.Result result = new ReelRenderer(width, height, fps).render(beats, backgrounds, handle, pace, file);
+        ReelRenderer.Result result = new ReelRenderer(width, height, fps).render(beats, backgrounds, handle, pace, file, webm);
         long ms = (System.nanoTime() - start) / 1_000_000;
+        double seconds = Math.round(result.seconds() * 10) / 10.0;
+        // The browser copy first, so by the time the master is announced both sources exist.
+        int previewW = Math.min(width & ~1, ReelRenderer.PREVIEW_WIDTH) & ~1;
+        int previewH = (int) Math.round((double) (height & ~1) * previewW / (width & ~1)) & ~1;
+        library.add("video", "reel_webm", webm, "WebM preview (VP8) for browsers without H.264", false,
+                "browser playback copy of " + file.getFileName(), previewW, previewH, seconds);
         MediaAsset asset = library.add("video", "reel", file, "GetViral Reel renderer (Java2D + jcodec H.264)", false,
-                beats.size() + " beats · pace " + pace, width, height, Math.round(result.seconds() * 10) / 10.0);
-        return String.format("Rendered a %.1fs %dx%d MP4 (%d beats, %d frames, %d background images) in %.1fs. Silent — "
-                        + "add the soundtrack from the beat sheet in your editor.%nurl: %s",
+                beats.size() + " beats · pace " + pace, width, height, seconds);
+        return String.format("Rendered a %.1fs %dx%d MP4 (%d beats, %d frames, %d background images) in %.1fs — H.264, "
+                        + "index at the front (Instagram/YouTube-ready), plus a WebM copy for browsers without H.264. "
+                        + "Silent — add the soundtrack from the beat sheet in your editor.%nurl: %s",
                 result.seconds(), width, height, beats.size(), result.frames(), backgrounds.size(), ms / 1000.0, asset.url());
     }
 

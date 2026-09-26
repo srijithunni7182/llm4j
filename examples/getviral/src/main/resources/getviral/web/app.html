@@ -44,7 +44,7 @@
   <!-- ═══════════════════════════ COMPOSER ═══════════════════════════ -->
   <main id="composer" class="view view-composer">
     <section class="hero">
-      <p class="eyebrow"><span class="spark">✦</span> 12 AI agents · web research · images &amp; video</p>
+      <p class="eyebrow"><span class="spark">✦</span> 13 AI agents · web research · images &amp; video</p>
       <h1 class="display">One idea.<br><span class="grad-text">Every feed.</span></h1>
       <p class="lede">Drop an idea. A Showrunner casts a team of AI specialists, writes their prompts on the fly, researches what's trending right now, generates the visuals, cuts the Reel, and ships a ready-to-post pack for <b>X</b>, <b>Instagram Reels</b> and <b>YouTube</b>.</p>
     </section>
@@ -139,6 +139,7 @@
       <li data-stage="create"><i></i><span>Create</span></li>
       <li data-stage="critique"><i></i><span>Critique</span></li>
       <li data-stage="visuals"><i></i><span>Visuals</span></li>
+      <li data-stage="verify"><i></i><span>Verify</span></li>
       <li data-stage="ship"><i></i><span>Ship</span></li>
     </ol>
 
@@ -198,6 +199,13 @@
     <section class="quality glass" id="quality">
       <header class="panel-head"><h3>Quality gate <em>eval4j · LLM-as-judge</em></h3><span class="hint" id="qualityHint">grading…</span></header>
       <div class="badges" id="badges"></div>
+    </section>
+
+    <section class="inspection glass" id="inspection" hidden>
+      <header class="panel-head"><h3>Artifact check <em>Inspector · every file decoded &amp; spec-checked</em></h3><span class="hint" id="inspectionHint"></span></header>
+      <p class="research-summary" id="inspectionSummary"></p>
+      <ul class="checks" id="checks"></ul>
+      <ul class="fixes" id="inspectionFixes"></ul>
     </section>
 
     <section class="research glass" id="research" hidden>

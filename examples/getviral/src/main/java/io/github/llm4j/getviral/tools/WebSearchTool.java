@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Open-web research in one call, numbered so agents can cite what they use.
@@ -70,10 +71,11 @@ public class WebSearchTool extends PublicApiTool {
         String query = arg(args, "query", "q", "topic");
         if (query.isBlank()) return "web_search needs {\"query\": \"...\"}.";
 
+        AtomicBoolean anyLive = new AtomicBoolean();
         CompletableFuture<Grounded> google = CompletableFuture.supplyAsync(() -> google(query));
-        CompletableFuture<List<Source>> news = CompletableFuture.supplyAsync(() -> news(query));
-        CompletableFuture<List<Source>> wiki = CompletableFuture.supplyAsync(() -> wikipedia(query));
-        CompletableFuture<Source> instant = CompletableFuture.supplyAsync(() -> instantAnswer(query));
+        CompletableFuture<List<Source>> news = CompletableFuture.supplyAsync(() -> news(query, anyLive));
+        CompletableFuture<List<Source>> wiki = CompletableFuture.supplyAsync(() -> wikipedia(query, anyLive));
+        CompletableFuture<Source> instant = CompletableFuture.supplyAsync(() -> instantAnswer(query, anyLive));
 
         StringBuilder out = new StringBuilder("Web research for \"").append(query).append("\":\n");
         Set<String> seen = new LinkedHashSet<>();
@@ -81,6 +83,7 @@ public class WebSearchTool extends PublicApiTool {
 
         Grounded g = google.join();
         if (g != null) {
+            anyLive.set(true);
             out.append("\nGoogle Search (via Gemini)")
                .append(g.queries().isEmpty() ? "" : " — searched: " + String.join(" · ", g.queries())).append('\n')
                .append(clip(g.answer(), 1400)).append('\n');
@@ -109,7 +112,8 @@ public class WebSearchTool extends PublicApiTool {
         } else {
             out.append("\nNext: read_page the 2-3 most useful URLs, then cite them by URL.\n");
         }
-        out.append(offline ? "[source: offline — live web unreachable, results are samples]" : "[source: live web]");
+        // Say plainly when every source fell back to a recorded sample, so no agent treats it as live.
+        out.append(anyLive.get() ? "[source: live web]" : "[source: offline — live web unreachable, results are samples]");
         return out.toString();
     }
 
@@ -129,12 +133,44 @@ public class WebSearchTool extends PublicApiTool {
 
     // ── Google Search via Gemini grounding ───────────────────────────────────────────────────
 
+    /** Used when the studio model can't run Google Search grounding. */
+    static final String FALLBACK_MODEL = "gemini-2.5-flash";
+
+    /** The model that last worked for each configured model, so a fallback is only paid for once. */
+    private static final Map<String, String> WORKING_MODEL = new ConcurrentHashMap<>();
+
+    /** Models to try, in order: the one that worked last time, the configured one, then the fallback. */
+    List<String> searchModels() {
+        Set<String> models = new LinkedHashSet<>();
+        String known = WORKING_MODEL.get(geminiModel);
+        if (known != null) models.add(known);
+        models.add(geminiModel);
+        models.add(FALLBACK_MODEL);
+        return new ArrayList<>(models);
+    }
+
     private Grounded google(String query) {
         if (offline || geminiKey == null) return null;
         Grounded cached = GROUNDED_CACHE.get(query);
         if (cached != null) return cached;
+        for (String model : searchModels()) {
+            Attempt attempt = googleWith(model, query);
+            if (attempt.grounded() != null) {
+                WORKING_MODEL.put(geminiModel, model);
+                GROUNDED_CACHE.put(query, attempt.grounded());
+                return attempt.grounded();
+            }
+            // Only a rejection by the API is worth retrying on another model; a network failure isn't.
+            if (!attempt.rejected()) return null;
+        }
+        return null;
+    }
+
+    private record Attempt(Grounded grounded, boolean rejected) { }
+
+    private Attempt googleWith(String model, String query) {
         long start = System.nanoTime();
-        String url = GEMINI + geminiModel + ":generateContent";
+        String url = GEMINI + model + ":generateContent";
         try {
             Map<String, Object> body = Map.of(
                     "contents", List.of(Map.of("parts", List.of(Map.of("text",
@@ -150,8 +186,9 @@ public class WebSearchTool extends PublicApiTool {
                     .build();
             HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() / 100 != 2) {
-                report("generativelanguage.googleapis.com", url, false, start, "HTTP " + response.statusCode());
-                return null;
+                report("generativelanguage.googleapis.com", url, false, start,
+                        "HTTP " + response.statusCode() + " on " + model);
+                return new Attempt(null, true);
             }
             JsonNode candidate = JSON.readTree(response.body()).path("candidates").path(0);
             StringBuilder answer = new StringBuilder();
@@ -165,26 +202,31 @@ public class WebSearchTool extends PublicApiTool {
                 sources.add(new Source(title.isBlank() ? "Web result" : title, web.path("uri").asText(""),
                         "Google Search", ""));
             }
+            if (answer.isEmpty() && sources.isEmpty()) {
+                // A model without search support can answer 200 with nothing grounded; try the next one.
+                report("generativelanguage.googleapis.com", url, false, start, "no grounded answer from " + model);
+                return new Attempt(null, true);
+            }
             List<String> queries = new ArrayList<>();
             meta.path("webSearchQueries").forEach(q -> queries.add(q.asText()));
-            report("generativelanguage.googleapis.com", url, true, start, "google_search, " + sources.size() + " sources");
-            Grounded grounded = new Grounded(answer.toString().strip(), sources, queries);
-            GROUNDED_CACHE.put(query, grounded);
-            return grounded;
+            report("generativelanguage.googleapis.com", url, true, start,
+                    "google_search on " + model + ", " + sources.size() + " sources");
+            return new Attempt(new Grounded(answer.toString().strip(), sources, queries), false);
         } catch (Exception e) {
             if (e instanceof InterruptedException) Thread.currentThread().interrupt();
             report("generativelanguage.googleapis.com", url, false, start, e.getClass().getSimpleName());
-            return null;
+            return new Attempt(null, false);
         }
     }
 
     // ── keyless sources ──────────────────────────────────────────────────────────────────────
 
-    private List<Source> news(String query) {
+    private List<Source> news(String query, AtomicBoolean anyLive) {
         String q = query.replaceAll("[\"()]", " ").strip();
         if (q.split("\\s+").length > 1) q = "\"" + q + "\"";
         Fetched fetched = fetch("https://api.gdeltproject.org/api/v2/doc/doc?mode=artlist&format=json&maxrecords=12"
                 + "&sort=hybridrel&timespan=1month&query=" + enc(q), "gdelt-artlist");
+        if (fetched.live()) anyLive.set(true);
         List<Source> out = new ArrayList<>();
         Set<String> titles = new LinkedHashSet<>();
         for (JsonNode a : fetched.json().path("articles")) {
@@ -197,9 +239,10 @@ public class WebSearchTool extends PublicApiTool {
         return out;
     }
 
-    private List<Source> wikipedia(String query) {
+    private List<Source> wikipedia(String query, AtomicBoolean anyLive) {
         Fetched fetched = fetch("https://en.wikipedia.org/w/rest.php/v1/search/page?limit=3&q=" + enc(query),
                 "wikipedia-search");
+        if (fetched.live()) anyLive.set(true);
         List<Source> out = new ArrayList<>();
         for (JsonNode page : fetched.json().path("pages")) {
             String key = text(page, "key");
@@ -210,9 +253,10 @@ public class WebSearchTool extends PublicApiTool {
         return out;
     }
 
-    private Source instantAnswer(String query) {
+    private Source instantAnswer(String query, AtomicBoolean anyLive) {
         Fetched fetched = fetch("https://api.duckduckgo.com/?format=json&no_html=1&skip_disambig=1&q=" + enc(query),
                 "duckduckgo-instant");
+        if (fetched.live()) anyLive.set(true);
         JsonNode json = fetched.json();
         String abstractText = text(json, "AbstractText");
         String url = text(json, "AbstractURL");
@@ -227,5 +271,6 @@ public class WebSearchTool extends PublicApiTool {
     /** Test hook. */
     public static void clearGroundedCache() {
         GROUNDED_CACHE.clear();
+        WORKING_MODEL.clear();
     }
 }

@@ -80,6 +80,7 @@ public class DemoLLMClient implements LLMClient {
             case "ViralityCritic" -> critique();
             case "ArtDirector" -> visuals(turn);
             case "VideoEditor" -> videoCut(turn);
+            case "Inspector" -> inspection(turn);
             case "Publisher" -> "Publishing result: " + clip(turn.lastObservation(), 400);
             case "SafetyCoach" -> "Heads up — your brief included personal details like an email or phone number, "
                     + "and GetViral never puts personal data into public content. Remove them and hit Go again!";
@@ -161,6 +162,17 @@ public class DemoLLMClient implements LLMClient {
                             "Trying for one AI B-roll clip first."),
                     new Step("render_reel", Map.of("pace", t.tone().contains("calm") ? "normal" : "fast", "lead_visual", "reel_cover"),
                             "Cutting the Reel — fast pace to match the tone, cover image leads."));
+            case "Inspector" -> {
+                List<Step> steps = new ArrayList<>();
+                steps.add(new Step("inspect_artifacts", Map.of(), "Decoding every artifact and checking it against each platform's spec."));
+                String first = t.observations.isEmpty() ? "" : t.observations.get(0);
+                if (first.contains("[FAIL] reel")) {
+                    steps.add(new Step("render_reel", Map.of("pace", "normal", "lead_visual", "reel_cover"),
+                            "The Reel failed inspection — re-rendering it."));
+                    steps.add(new Step("inspect_artifacts", Map.of(), "Re-checking after the repair."));
+                }
+                yield steps;
+            }
             case "Publisher" -> List.of(
                     new Step("instagram_quota", Map.of(), "Checking the Instagram publishing quota first."),
                     new Step("instagram_publish", Map.of(
@@ -425,6 +437,33 @@ public class DemoLLMClient implements LLMClient {
                 + "within 0.25s, subtitles on for muted viewing, last beat loops back to the first frame.");
         cut.put("ai_clip", clip.contains("url: ") ? firstMatch(clip, "url: (\\S+)") : "off (Veo not enabled)");
         return cut;
+    }
+
+    private Map<String, Object> inspection(Turn t) {
+        String report = "";
+        for (String obs : t.observations) if (obs.startsWith("Inspection:")) report = obs;
+        List<Map<String, String>> checks = new ArrayList<>();
+        Matcher m = Pattern.compile("(?m)^\\[(PASS|WARN|FAIL)] (.+?) — (.+)$").matcher(report);
+        int warn = 0, fail = 0;
+        while (m.find()) {
+            Map<String, String> c = new LinkedHashMap<>();
+            c.put("artifact", m.group(2));
+            c.put("status", m.group(1));
+            c.put("detail", m.group(3));
+            checks.add(c);
+            if (m.group(1).equals("WARN")) warn++;
+            if (m.group(1).equals("FAIL")) fail++;
+        }
+        boolean repaired = t.observations.stream().anyMatch(o -> o.startsWith("Rendered a"));
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("verdict", fail > 0 ? "FAIL" : warn > 0 ? "PASS_WITH_WARNINGS" : "PASS");
+        out.put("summary", checks.isEmpty() ? "Inspection produced no report."
+                : fail > 0 ? fail + " artifact check(s) still fail — see below before posting."
+                : "Every artifact opens and decodes, the Reel meets Instagram's spec and plays in every browser, and all "
+                        + "posts fit their platforms" + (warn > 0 ? " (" + warn + " warning" + (warn > 1 ? "s" : "") + ")." : "."));
+        out.put("checks", checks);
+        out.put("fixes", repaired ? List.of("Re-rendered the Reel after it failed inspection.") : List.of());
+        return out;
     }
 
     private Map<String, Object> critique() {

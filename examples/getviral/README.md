@@ -1,6 +1,6 @@
 # ⚡ GetViral — one idea, every feed
 
-**GetViral** is a multi-agent creator studio. Type one idea and a team of twelve AI agents turns it into a
+**GetViral** is a multi-agent creator studio. Type one idea and a team of thirteen AI agents turns it into a
 ready-to-post pack for **X**, **Instagram Reels** and **YouTube**. The idea is researched on the open web with
 cited sources and timed against what's trending *right now*. The pack is then illustrated, cut into a video,
 scored by a critic, graded by LLM judges and, with your approval, published to Instagram.
@@ -79,7 +79,8 @@ flowchart LR
     C -- REVISE --> SR2[🎬 Showrunner re-casts prompts] --> X & R & Y
     C -- SHIP --> Q[[eval4j quality gate]]
     C -- SHIP --> AD[🎨 ArtDirector<br/>thumbnail · cover · B-roll · X card] --> VE[📹 VideoEditor<br/>renders the Reel MP4]
-    VE --> P([👆 Publish?]) --> PB[🚀 Publisher] --> A([✅ You approve]) --> IG[(Instagram API)]
+    VE --> IN[✅ Inspector<br/>decodes & spec-checks every file]
+    IN --> P([👆 Publish?]) --> PB[🚀 Publisher] --> A([✅ You approve]) --> IG[(Instagram API)]
 ```
 
 1. **Guardrail** — Loom's `guardrail (PII)` blocks briefs containing personal data before any agent runs.
@@ -105,7 +106,16 @@ flowchart LR
    frames and a 16:9 X card in one consistent style (the Showrunner writes its art direction). The
    **VideoEditor** then renders the Reel's beat sheet into a vertical MP4 over those images, and can add an
    AI video clip from Google Veo if you opt in.
-10. **Publish** — optional, behind *two* human gates: you supply the video URL, and the `instagram_publish`
+10. **Verify** — an independent **Inspector** runs `inspect_artifacts`. The tool decodes every image and
+   checks its shape and that it isn't blank. It decodes the Reel MP4's first, middle and last frames and
+   checks it against Instagram's Reels spec (H.264, 9:16, 23–60 fps, 3 s – 15 min, index at the front, no
+   edit lists). It validates the WebM copy and checks every post against its platform's limits (X's
+   weighted 280, Instagram's 2,200 characters, 30 hashtags and 20 mentions, YouTube's title, description
+   and tag limits). If something fails, the Inspector repairs it (`render_reel` again, or `generate_image`
+   for a broken image) and re-checks. Its brief is **fixed**: the Showrunner can't rewrite it, nor the
+   Publisher's or SafetyCoach's, so the orchestrator can't prompt the verifier into passing. The Publisher
+   won't post a Reel the Inspector failed.
+11. **Publish** — optional, behind *two* human gates: you supply the video URL, and the `instagram_publish`
    tool declares `requiresApproval()`, so ai-agent4j pauses for your explicit OK.
 
 Rate any platform 🔥/👎 and it becomes an Engram memory: the next run is briefed with it.
@@ -152,8 +162,9 @@ safety rules. Open any agent in the studio to see its prompt history (v1 → v2)
 | `instagram_quota` / `instagram_publish` | Instagram Platform Content Publishing API | `POST /{ig-user-id}/media` → poll `status_code` → `POST /{ig-user-id}/media_publish` |
 
 Everything except Google Search is keyless, so research still works on Ollama or with no key. With a Gemini
-key, Google Search grounding runs on the studio model (or `GETVIRAL_SEARCH_MODEL`); Google bills grounded
-requests beyond the free tier.
+key, Google Search grounding runs on the studio model. If that model can't search, it falls back to
+`gemini-2.5-flash` automatically and keeps using whichever model worked, so there's nothing to configure.
+Set `GETVIRAL_SEARCH_MODEL` only to pin a specific model. Google bills grounded requests beyond the free tier.
 
 `read_page` runs on a shared server, so it only fetches public pages. It allows http(s) on standard ports
 only, and it refuses loopback, private, link-local (including cloud metadata) and other internal addresses,
@@ -172,10 +183,16 @@ live data. Set `GETVIRAL_OFFLINE_APIS=true` to use samples only.
 - **Words are never left to the image model.** Prompts describe the scene only, and GetViral typesets the
   overlay text (thumbnail and cover titles) itself, because image models are unreliable at legible text.
   Every image also keeps a text-free plate, and the Reel is rendered over those.
-- **The Reel MP4** is rendered frame by frame in Java2D and encoded to H.264 with jcodec, so no ffmpeg is
-  needed. It has a slow zoom-and-pan on each image, a flash cut on every beat, a pop-in headline, subtitles,
-  story progress bars and your handle. It is silent: the beat sheet names the soundtrack to add in your
-  editor or in Instagram.
+- **The Reel** is rendered frame by frame in Java2D, so no ffmpeg is needed. It has a slow zoom-and-pan on
+  each image, a flash cut on every beat, a pop-in headline, subtitles, story progress bars and your handle.
+  It is silent: the beat sheet names the soundtrack to add in your editor or in Instagram. One render
+  produces two files:
+  - **`reel.mp4`, the master**: H.264 at full size, rewritten with its index at the front ("fast start").
+    Instagram's publishing API requires that, and browsers can start playing before the download finishes.
+    This is the file you download, publish or upload to YouTube.
+  - **`reel-preview.webm`**: a lighter VP8 copy for browsers that can't decode H.264 (some Linux builds of
+    Chromium and Firefox). Every player in the studio lists both sources, and the browser plays the first
+    one it can.
 - **AI video** (`GETVIRAL_VEO=true`) calls Google Veo's long-running generation API. It is paid and slow, so
   it is off by default.
 
@@ -259,7 +276,7 @@ GEMINI_API_KEY=... GETVIRAL_OFFLINE_APIS=false mvn test   # same suite against a
 | `GETVIRAL_MODE` | `auto` | `gemini`, `ollama`, `demo` (`auto` = Gemini if `GEMINI_API_KEY` is set) |
 | `GETVIRAL_MODEL` / `GETVIRAL_JUDGE_MODEL` | `gemini-3.5-flash` / same | any model `DefaultLLMClientFactory` understands |
 | `GETVIRAL_PORT` / `PORT` | `7070` | studio port (`PORT` is set by Cloud Run) |
-| `GETVIRAL_SEARCH_MODEL` | studio model, else `gemini-2.5-flash` | Gemini model for Google Search grounding |
+| `GETVIRAL_SEARCH_MODEL` | studio model, else `gemini-2.5-flash` | Gemini model for Google Search grounding (falls back to `gemini-2.5-flash` automatically) |
 | `GETVIRAL_DATA_DIR` | `./getviral-data` | Engram memories, voice samples, audit logs |
 | `GETVIRAL_MAX_REVISIONS` | `2` | critic rounds before shipping anyway |
 | `GETVIRAL_OFFLINE_APIS` | `false` | use recorded API samples only |

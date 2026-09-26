@@ -21,6 +21,7 @@ import io.github.llm4j.getviral.tools.GenerateVideoClipTool;
 import io.github.llm4j.getviral.tools.RenderReelTool;
 import io.github.llm4j.getviral.tools.HackerNewsPulseTool;
 import io.github.llm4j.getviral.tools.HolidayMomentsTool;
+import io.github.llm4j.getviral.tools.InspectArtifactsTool;
 import io.github.llm4j.getviral.tools.InstagramGraphClient;
 import io.github.llm4j.getviral.tools.InstagramPublishTool;
 import io.github.llm4j.getviral.tools.InstagramQuotaTool;
@@ -240,6 +241,8 @@ public class GetViralEngine {
         pack.put("media", media.assets().stream().map(MediaAsset::toMap).toList());
         Object visuals = ctx.get("visualPack");
         if (visuals != null && !visuals.toString().isBlank()) pack.put("visuals", visuals);
+        Object inspection = ctx.get("inspection");
+        if (inspection != null && !inspection.toString().isBlank()) pack.put("inspection", inspection);
         Object video = ctx.get("videoPack");
         if (video != null && !video.toString().isBlank()) pack.put("video", video);
         run.emit("pack", pack);
@@ -291,6 +294,7 @@ public class GetViralEngine {
         tools.put("InstagramPublish", new InstagramPublishTool(instagram, run));
         tools.put("GenerateImage", new GenerateImageTool(imageChain, media));
         tools.put("RenderReel", new RenderReelTool(media, workflowVars, config.reelWidth(), config.reelHeight(), 24));
+        tools.put("InspectArtifacts", new InspectArtifactsTool(media, workflowVars, run));
         tools.put("GenerateVideoClip", new GenerateVideoClipTool(
                 veoEnabled() ? new VeoClient(config.geminiApiKey(), config.veoModel()) : null, media));
         ToolRegistry registry = new ToolRegistry();

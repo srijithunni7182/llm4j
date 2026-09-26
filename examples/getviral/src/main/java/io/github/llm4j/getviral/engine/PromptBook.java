@@ -24,6 +24,12 @@ public class PromptBook {
             - Respect platform limits: X posts <= 280 characters, Instagram captions <= 2,200 characters and <= 30 hashtags.
             - Follow the requested response format exactly.""";
 
+    /**
+     * Agents whose briefs are fixed and never taken from the orchestrator: the independent verifier and
+     * the safety-critical publishing and privacy roles. The Showrunner can't prompt them into passing.
+     */
+    public static final java.util.Set<String> FIXED = java.util.Set.of("Inspector", "Publisher", "SafetyCoach");
+
     public record Version(int version, String prompt, String reason) { }
 
     private final Map<String, List<Version>> versions = new LinkedHashMap<>();
@@ -41,6 +47,7 @@ public class PromptBook {
         int changed = 0;
         for (Map.Entry<?, ?> entry : prompts.entrySet()) {
             String agent = String.valueOf(entry.getKey());
+            if (FIXED.contains(agent)) continue;
             String prompt = entry.getValue() == null ? "" : entry.getValue().toString().strip();
             if (prompt.isEmpty()) continue;
             List<Version> history = versions.computeIfAbsent(agent, k -> new ArrayList<>());

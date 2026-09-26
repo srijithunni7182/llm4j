@@ -67,4 +67,13 @@ class ResearchToolsTest {
                 .contains("Google Search needs a Gemini key")
                 .endsWith("[source: offline — live web unreachable, results are samples]");
     }
+
+    @Test
+    void googleSearchFallsBackToAFlashModelWhenTheStudioModelCantSearch() {
+        WebSearchTool.clearGroundedCache();
+        assertThat(new WebSearchTool(false, null, "key", "gemini/gemini-3.5-pro").searchModels())
+                .containsExactly("gemini-3.5-pro", WebSearchTool.FALLBACK_MODEL);
+        assertThat(new WebSearchTool(false, null, "key", WebSearchTool.FALLBACK_MODEL).searchModels())
+                .containsExactly(WebSearchTool.FALLBACK_MODEL);
+    }
 }

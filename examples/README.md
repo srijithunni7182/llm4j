@@ -5,9 +5,11 @@ This directory contains showcase applications and examples demonstrating the cap
 ## Applications
 
 ### [getviral](./getviral/) ⚡ — the full-stack showcase
-One idea in, a ready-to-post pack for X, Instagram Reels and YouTube out. Eleven agents orchestrated by
-Loom, prompts written live by an orchestrator agent, tools on free public REST APIs, local RAG (addons),
-creator memory (Engram), an eval4j quality gate, and approval-gated Instagram publishing. Runs with no API key.
+One idea in, a ready-to-post pack for X, Instagram Reels and YouTube out. Thirteen agents orchestrated by
+Loom, prompts written live by an orchestrator agent, web research with cited sources, tools on free public
+REST APIs, local RAG (addons), creator memory (Engram), an eval4j quality gate, generated images and a
+rendered Reel verified by an independent Inspector agent, and approval-gated Instagram publishing. A multi-user website that deploys to Cloud Run and
+runs locally with `./launch.sh`, with no API key needed.
 
 ### [gmail-mcp-app](./gmail-mcp-app/)
 Gmail integration using Model Context Protocol (MCP).

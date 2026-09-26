@@ -62,13 +62,42 @@ class VisualsEvalTest {
     void videoEditorRendersAPlayableMp4() throws Exception {
         assertThat(last("VideoEditor")).completedSuccessfully().usesToolsInOrder("generate_video_clip", "render_reel");
 
-        List<Map<?, ?>> videos = media("video");
+        List<Map<?, ?>> videos = media("video").stream().filter(m -> "reel".equals(m.get("purpose"))).toList();
         assertThat(videos).hasSize(1);
         Path mp4 = fileOf(videos.get(0));
         byte[] head = java.util.Arrays.copyOf(Files.readAllBytes(mp4), 12);
         assertThat(new String(head, 4, 4)).as("MP4 'ftyp' box").isEqualTo("ftyp");
         assertThat(Files.size(mp4)).isGreaterThan(10_000);
         assertThat(((Number) videos.get(0).get("seconds")).doubleValue()).isBetween(10.0, 60.0);
+    }
+
+    @Test
+    void theReelShipsAsAnInstagramReadyMp4PlusAWebmCopyForBrowsers() throws Exception {
+        Map<?, ?> reel = media("video").stream().filter(m -> "reel".equals(m.get("purpose"))).findFirst().orElseThrow();
+        Map<?, ?> webm = media("video").stream().filter(m -> "reel_webm".equals(m.get("purpose"))).findFirst().orElseThrow();
+        Path mp4 = fileOf(reel);
+        assertThat(String.valueOf(webm.get("url"))).isEqualTo(String.valueOf(reel.get("url")).replace(".mp4", "-preview.webm"));
+
+        assertThat(io.github.llm4j.getviral.media.Mp4FastStart.isFastStart(mp4)).as("moov before mdat").isTrue();
+        assertThat(io.github.llm4j.getviral.media.MediaInspector.reel(mp4))
+                .allSatisfy(c -> assertThat(c.status()).as(c.detail()).isNotEqualTo(io.github.llm4j.getviral.media.MediaInspector.Status.FAIL))
+                .anySatisfy(c -> assertThat(c.detail()).contains("start, middle and end frames decode"));
+        double seconds = ((Number) reel.get("seconds")).doubleValue();
+        assertThat(io.github.llm4j.getviral.media.MediaInspector.webm(fileOf(webm), seconds))
+                .allSatisfy(c -> assertThat(c.status()).as(c.detail()).isEqualTo(io.github.llm4j.getviral.media.MediaInspector.Status.PASS));
+    }
+
+    @Test
+    void anIndependentInspectorVerifiesEveryArtifactBeforeTheCreatorSeesIt() {
+        assertThat(last("Inspector")).completedSuccessfully().usesTool("inspect_artifacts").hasValidJson(Map.class);
+        Map<?, ?> inspection = (Map<?, ?>) outcome.pack().get("inspection");
+        assertThat(inspection.get("verdict")).isIn("PASS", "PASS_WITH_WARNINGS");
+        List<?> checks = (List<?>) inspection.get("checks");
+        assertThat(checks).extracting(c -> String.valueOf(((Map<?, ?>) c).get("artifact")))
+                .contains("youtube_thumbnail", "reel_cover", "x_card", "broll_1", "broll_2", "reel.mp4",
+                        "reel-preview.webm", "x thread", "reel caption", "youtube package");
+        // Its brief is fixed: the Showrunner never wrote or rewrote it.
+        assertThat(outcome.prompts().all()).doesNotContainKey("Inspector");
     }
 
     @Test

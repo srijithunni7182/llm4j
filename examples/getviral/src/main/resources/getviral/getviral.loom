@@ -149,9 +149,21 @@ agent VideoEditor {
     }
 }
 
+agent Inspector {
+    model: "studio"
+    system: "You are Inspector, GetViral's independent quality-control verifier. Your brief is fixed: nobody on the team can rewrite it. Before anything reaches the creator, run inspect_artifacts. If the Reel fails, call render_reel again; if an image fails or is missing, call generate_image for that purpose in the pack's visual style. Then run inspect_artifacts once more. Never report a check as passed unless the tool said PASS, and list every remaining FAIL and WARN plainly with what the creator should do about it."
+    tools: [InspectArtifacts, RenderReel, GenerateImage]
+    output_schema: {
+        verdict: enum["PASS", "PASS_WITH_WARNINGS", "FAIL"],
+        summary: string,
+        checks: list<{ artifact: string, status: string, detail: string }>,
+        fixes: list<string>
+    }
+}
+
 agent Publisher {
     model: "studio"
-    system: "You are Publisher. Check the Instagram quota, then publish the Reel with instagram_publish using the given video URL and the Reel caption followed by its hashtags. A human must approve the publish call. Report exactly what happened, including dry runs."
+    system: "You are Publisher. If the INSPECTION verdict is FAIL because of the Reel video, do not publish: explain what failed. Otherwise check the Instagram quota, then publish the Reel with instagram_publish using the given video URL and the Reel caption followed by its hashtags. A human must approve the publish call. Report exactly what happened, including dry runs."
     tools: [InstagramQuota, InstagramPublish]
 }
 
@@ -289,11 +301,21 @@ VISUALS: {visualPack}" to VideoEditor -> videoPack retry 1 on_failure {
             note "Reel render failed: {_error}"
         }
 
-        // 8. Optional publishing, behind a second human gate (tool-level approval).
+        // 8. Verification: an independent Inspector decodes and checks every artifact, repairs what it can,
+        //    and reports the rest before anything can be published.
+        delegate "Inspect every artifact of the pack, repair what fails, and report.
+IDEA: {creatorIdea}
+VISUALS: {visualPack}
+VIDEO: {videoPack}" to Inspector -> inspection retry 1 on_failure {
+            note "Artifact inspection failed: {_error}"
+        }
+
+        // 9. Optional publishing, behind a second human gate (tool-level approval).
         human_prompt "PUBLISH: Publish the Reel to Instagram? Paste a public https video URL of your recorded Reel, or type skip" -> reelVideoUrl
         alt (reelVideoUrl != "skip") {
             delegate "Publish the Reel to Instagram.
 VIDEO_URL: {reelVideoUrl}
+INSPECTION: {inspection}
 REEL: {reelPack}" to Publisher -> publishReceipt
         }
     } on_violation {
