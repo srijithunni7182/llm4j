@@ -5,7 +5,8 @@ import java.util.Set;
 public enum RunStatus {
     QUEUED, RUNNING, WAITING_FOR_HUMAN, DONE, BLOCKED, FAILED;
 
-    public static final Set<RunStatus> ACTIVE = Set.of(QUEUED, RUNNING, WAITING_FOR_HUMAN);
+    /** Runs using a worker. A run waiting for its creator holds nothing, so it isn't "active". */
+    public static final Set<RunStatus> ACTIVE = Set.of(QUEUED, RUNNING);
 
     public boolean terminal() {
         return this == DONE || this == BLOCKED || this == FAILED;

@@ -111,13 +111,13 @@
 
   // ── 4 · the tour ───────────────────────────────────────────────────────
   const AGENTS = ["🎬 Showrunner", "🔬 Researcher", "📡 TrendScout", "🧭 Strategist", "𝕏 XWriter", "🎞️ ReelDirector", "▶ YouTubeProducer",
-    "🔥 ViralityCritic", "🎨 ArtDirector", "📹 VideoEditor", "✅ Inspector", "🚀 Publisher", "🛡️ SafetyCoach"];
+    "🔥 ViralityCritic", "🎨 ArtDirector", "📹 VideoEditor", "🚀 Publisher", "🛡️ SafetyCoach"];
   const SLIDES = [
     { kicker: "The promise", title: "One idea. <span class='grad-text'>Every feed.</span>",
       body: "You bring one idea. GetViral turns it into a complete pack — an X thread, an Instagram Reel (script, cover and a rendered MP4) and a YouTube video package — ready to post.",
       art: `<div class="tv-flow"><span class="tv-idea">💡 your idea</span><i></i><div class="tv-outs"><span class="pf pf-x">𝕏</span><span class="pf pf-ig">Reels</span><span class="pf pf-yt">YouTube</span></div></div>` },
     { kicker: "Meet the room", title: "A team, not a chatbot",
-      body: "Thirteen specialists work on every pack — a researcher, a trend scout, a strategist, three platform writers, an art director, a video editor, a critic, an independent inspector, a publisher and a safety coach — orchestrated step by step.",
+      body: "Twelve specialists work on every pack — a researcher, a trend scout, a strategist, three platform writers, an art director, a video editor, a critic, a publisher and a safety coach — orchestrated step by step.",
       art: `<div class="tv-agents">${AGENTS.map((a, i) => `<span style="animation-delay:${i * 60}ms">${a}</span>`).join("")}</div>` },
     { kicker: "Prompts written live", title: "Your brief, re-cast for every agent",
       body: "Nobody runs on a generic prompt. The Showrunner writes each specialist's brief for your idea, niche and voice — and rewrites the ones that fall short when the critic pushes back.",
@@ -132,7 +132,7 @@
       body: "Your past posts teach it your voice, and every hook you pick and every 🔥 or 👎 is remembered. Your next pack is briefed with what worked last time.",
       art: `<div class="tv-memory"><span>🧠 “Loved the loopable Reel ending — do more like this.”</span><span>🧠 “Picked the contrarian hook for gym content.”</span><span>🧠 “Critic: open mid-motion, not with a title.”</span></div>` },
     { kicker: "Graded before you see it", title: "Quality you can see",
-      body: "A critic sends weak work back for another round, AI judges score the finished pack, and an independent Inspector decodes every image and the Reel, checks them against Instagram's and YouTube's specs, and repairs what fails.",
+      body: "A critic sends weak work back for another round, AI judges score the finished pack, and the Showrunner checks every image, the Reel and every post against Instagram's, X's and YouTube's specs, sending anything that fails back until it all passes.",
       art: `<div class="tv-badges"><span><b>92</b>Scroll-stopping hook</span><span><b>88</b>Reel is platform-native</span><span><b>95</b>Grounded</span></div>` },
   ];
   let slide = 0;

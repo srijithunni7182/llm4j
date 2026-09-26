@@ -13,10 +13,9 @@
     { id: "ViralityCritic", icon: "🔥", role: "Scores. Sends back. Ships.", c: "linear-gradient(135deg,#ffd166,#ff6a3d)", glow: "#ffb13d" },
     { id: "ArtDirector", icon: "🎨", role: "Generates thumbnail, cover & B-roll", c: "linear-gradient(135deg,#ffd166,#ff2e88)", glow: "#ffd166" },
     { id: "VideoEditor", icon: "📹", role: "Renders the Reel to MP4", c: "linear-gradient(135deg,#2ad4f2,#8b5cff)", glow: "#2ad4f2" },
-    { id: "Inspector", icon: "✅", role: "Verifies every file plays & fits", c: "linear-gradient(135deg,#4ade80,#2ad4f2)", glow: "#4ade80" },
     { id: "Publisher", icon: "🚀", role: "Posts to Instagram — with your OK", c: "linear-gradient(135deg,#b9f36c,#2bb673)", glow: "#b9f36c" },
   ];
-  const STAGE_OF = { Showrunner: "cast", TrendScout: "scout", Researcher: "scout", Strategist: "strategy", XWriter: "create", ReelDirector: "create", YouTubeProducer: "create", ViralityCritic: "critique", ArtDirector: "visuals", VideoEditor: "visuals", Inspector: "verify", Publisher: "ship" };
+  const STAGE_OF = { Showrunner: "cast", TrendScout: "scout", Researcher: "scout", Strategist: "strategy", XWriter: "create", ReelDirector: "create", YouTubeProducer: "create", ViralityCritic: "critique", ArtDirector: "visuals", VideoEditor: "visuals", Publisher: "ship" };
   const STAGES = ["cast", "scout", "strategy", "hook", "create", "critique", "visuals", "verify", "ship"];
   const MEDIA_ORDER = ["reel", "youtube_thumbnail", "reel_cover", "x_card", "broll_1", "broll_2", "ai_clip"];
   const IDEAS = [
@@ -361,11 +360,6 @@
         }
         break;
       }
-      case "inspection":
-        feed("✅", "Inspector", `checked ${d.checks.length} artifacts · ${d.pass} pass · ${d.warn} warn · ${d.fail} fail`,
-          esc((d.checks || []).filter((c) => c.status !== "PASS").map((c) => `${c.status} ${c.artifact}: ${c.detail}`).join(" · ") || "everything opens, decodes and fits its platform"),
-          d.fail ? "err" : "", ev.t);
-        break;
       case "rag":
         feed("📚", "RAG", `searched the ${esc(d.scope)} for “${esc(trim(d.query, 60))}”`, esc((d.sources || []).join(" · ")), "memory", ev.t);
         break;
@@ -382,8 +376,7 @@
       case "agent_done":
         agentState(d.agent, "done");
         state.values[d.variable] = d.value;
-        if (state.revealed && (d.agent === "VideoEditor" || d.agent === "ArtDirector" || d.agent === "Inspector")) renderMedia();
-        if (state.revealed && d.agent === "Inspector") renderInspection(d.value);
+        if (state.revealed && (d.agent === "VideoEditor" || d.agent === "ArtDirector")) renderMedia();
         onAgentDone(d, ev.t);
         break;
       case "agent_error":
@@ -647,7 +640,6 @@
     $("#exportBtn").setAttribute("download", "getviral-pack.md");
     if (!$("#badges").children.length) $("#badges").innerHTML = Array.from({ length: 5 }, () => `<div class="badge skel"></div>`).join("");
     renderResearch(v.researchDossier);
-    renderInspection(v.inspection);
     renderBuild();
     renderX(v.xPack);
     renderReel(v.reelPack);
@@ -727,6 +719,14 @@
       ? `<span class="verdict v-pass">Build complete</span> signed off by the Showrunner after ${b.round} review round${b.round === 1 ? "" : "s"}`
       : `<span class="verdict v-fail">Needs attention</span> ${failing.map(([k]) => names[k] || k).join(", ")} still fail${failing.length === 1 ? "s" : ""} the gate (round ${b.round})`;
     $("#buildIssues").innerHTML = failing.map(([k, a]) => `<li><b>${esc(names[k] || k)}</b> ${esc((a.problems || []).join("; "))}</li>`).join("");
+    // The file-by-file checks from the same review fill the Artifact check panel.
+    const checks = b.checks || [];
+    renderInspection({
+      verdict: !b.complete ? "FAIL" : checks.some((c) => c.status === "WARN") ? "PASS_WITH_WARNINGS" : "PASS",
+      summary: b.complete ? "Every file opens, plays and fits its platform — signed off by the Showrunner."
+        : "Some artifacts still fail — the Showrunner is sending them back to their specialists.",
+      checks, fixes: [],
+    });
   }
 
   function renderInspection(r) {

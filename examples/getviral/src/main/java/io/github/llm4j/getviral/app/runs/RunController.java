@@ -89,9 +89,7 @@ public class RunController {
     @PostMapping("/{id}/answer")
     Map<String, Object> answer(@PathVariable String id, @Valid @RequestBody Answer body) {
         RunRecord run = owned(id);
-        if (!store.submitAnswer(run.getId(), body.id(), body.answer() == null ? "" : body.answer())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "That question is no longer open.");
-        }
+        service.answer(run, body.id(), body.answer() == null ? "" : body.answer());
         return Map.of("ok", true);
     }
 

@@ -60,7 +60,7 @@ public class RunRecord {
 
     public void started() {
         status = RunStatus.RUNNING;
-        startedAt = Instant.now();
+        if (startedAt == null) startedAt = Instant.now();
     }
 
     public void finished(RunStatus status, String packJson, String error) {

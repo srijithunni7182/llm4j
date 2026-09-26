@@ -6,6 +6,7 @@ import io.github.llm4j.getviral.app.media.MediaStore;
 import io.github.llm4j.getviral.app.runs.RunRecord;
 import io.github.llm4j.getviral.app.runs.RunRepository;
 import io.github.llm4j.getviral.app.runs.RunService;
+import io.github.llm4j.getviral.app.runs.RunStore;
 import io.github.llm4j.getviral.app.runs.RunStatus;
 import io.github.llm4j.getviral.engine.GetViralEngine;
 import io.github.llm4j.getviral.config.GetViralConfig;
@@ -48,10 +49,11 @@ public class MeController {
     private final GetViralConfig config;
     private final MediaStore mediaStore;
     private final ConnectionsView connections;
+    private final RunStore runStore;
 
     public MeController(CurrentUser currentUser, UserRepository users, RunService runService, RunRepository runs,
                         VoiceSamples voices, MemorySync memory, GetViralEngine engine, GetViralConfig config,
-                        MediaStore mediaStore, ConnectionsView connections) {
+                        MediaStore mediaStore, ConnectionsView connections, RunStore runStore) {
         this.currentUser = currentUser;
         this.users = users;
         this.runService = runService;
@@ -62,6 +64,7 @@ public class MeController {
         this.config = config;
         this.mediaStore = mediaStore;
         this.connections = connections;
+        this.runStore = runStore;
     }
 
     @GetMapping("/me")
@@ -175,6 +178,7 @@ public class MeController {
         List<RunRecord> all = runs.findByUserIdOrderByCreatedAtDesc(user.getId(), PageRequest.of(0, 10_000));
         for (RunRecord run : all) {
             mediaStore.deleteRun(run.getId());
+            runStore.deleteJournal(run.getId());
             deleteTree(config.dataDir().resolve("media").resolve(run.getId()));
         }
         Files.deleteIfExists(memory.file(user.getId()));

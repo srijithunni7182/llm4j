@@ -5,7 +5,6 @@ import io.github.llm4j.getviral.studio.StudioRun;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -26,7 +25,7 @@ public class ConsoleStudio {
     public void run(String idea) {
         GetViralEngine.Brief brief = new GetViralEngine.Brief(idea, env("GETVIRAL_HANDLE", "creator"),
                 env("GETVIRAL_NICHE", "lifestyle"), env("GETVIRAL_TONE", "warm and witty"), env("GETVIRAL_REGION", "US"), List.of());
-        StudioRun run = new StudioRun(brief.toMap(), Duration.ofMinutes(15));
+        StudioRun run = new StudioRun(brief.toMap());
         run.autopilot(new StudioRun.Autopilot() {
             @Override
             public String answer(String kind, String message, List<String> options) {

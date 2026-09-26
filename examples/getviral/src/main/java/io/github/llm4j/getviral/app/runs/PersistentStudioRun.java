@@ -1,32 +1,28 @@
 package io.github.llm4j.getviral.app.runs;
 
 import io.github.llm4j.getviral.studio.StudioRun;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A {@link StudioRun} whose events and human questions live in the database instead of memory.
- * The engine is unchanged: it emits and asks exactly as it does locally.
+ * A {@link StudioRun} whose events and open questions live in the database, so any instance can
+ * stream it, answer it and resume it. The engine is unchanged: it emits and asks as it does locally.
  */
 public class PersistentStudioRun extends StudioRun {
 
     private final RunStore store;
     private final RunRepository runs;
-    private final Duration humanTimeout;
     private final long startedAt = System.currentTimeMillis();
-    private final AtomicInteger seq = new AtomicInteger();
+    private final AtomicInteger seq;
 
-    public PersistentStudioRun(String id, Map<String, Object> brief, Duration humanTimeout, RunStore store,
-                               RunRepository runs, int startSeq) {
-        super(id, brief, humanTimeout);
+    public PersistentStudioRun(String id, Map<String, Object> brief, RunStore store, RunRepository runs) {
+        super(id, brief);
         this.store = store;
         this.runs = runs;
-        this.humanTimeout = humanTimeout;
-        this.seq.set(startSeq);
+        this.seq = new AtomicInteger(store.lastSeq(id));
     }
 
     @Override
@@ -39,29 +35,21 @@ public class PersistentStudioRun extends StudioRun {
         }
     }
 
+    /** Stores the question (once per step) so the creator can answer it from any instance. */
     @Override
-    public String ask(String kind, String message, List<String> options, String timeoutDefault) {
-        String questionId = kind + "-" + id().substring(0, 8) + "-" + (seq.get() + 1);
-        store.createQuestion(questionId, id(), kind, message, options);
-        status(Status.WAITING_FOR_HUMAN);
-        emit("human", Map.of("id", questionId, "kind", kind, "message", message, "options", options));
-        long deadline = System.currentTimeMillis() + humanTimeout.toMillis();
-        try {
-            while (System.currentTimeMillis() < deadline) {
-                Optional<String> answer = store.answer(questionId);
-                if (answer.isPresent()) {
-                    emit("human_answer", Map.of("kind", kind, "answer", answer.get(), "by", "creator"));
-                    return answer.get();
-                }
-                Thread.sleep(400);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } finally {
-            status(Status.RUNNING);
-        }
-        store.submitAnswer(id(), questionId, timeoutDefault);
-        emit("human_answer", Map.of("kind", kind, "answer", timeoutDefault, "by", "timeout"));
-        return timeoutDefault;
+    protected void question(String stepId, String kind, String message, List<String> options) {
+        String questionId = store.openQuestionFor(id(), stepId)
+                .orElseGet(() -> {
+                    String qid = UUID.randomUUID().toString();
+                    store.createQuestion(qid, id(), stepId, kind, message, options);
+                    return qid;
+                });
+        super.question(questionId, kind, message, options);
+    }
+
+    /** The whole run's log, including events from before it was last suspended. */
+    @Override
+    public List<Map<String, Object>> events() {
+        return store.eventsAfter(id(), 0, 100_000);
     }
 }

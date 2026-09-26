@@ -32,7 +32,7 @@ class QualityLoopEvalTest {
     }
 
     private StudioRun run(GetViralEngine.Brief brief) {
-        StudioRun run = new StudioRun(brief.toMap(), java.time.Duration.ofMinutes(5));
+        StudioRun run = new StudioRun(brief.toMap());
         run.autopilot(new StudioRun.Autopilot() {
             @Override
             public String answer(String kind, String message, List<String> options) {
@@ -75,7 +75,7 @@ class QualityLoopEvalTest {
     void theShowrunnerSendsABrokenReelBackUntilEveryArtifactPasses() {
         GetViralEngine engine = engine();
         AtomicInteger renders = new AtomicInteger();
-        // The VideoEditor's render and the Inspector's repair both come out broken; only a third render works.
+        // The VideoEditor's render and the first re-render both come out broken; only a third render works.
         engine.decorateTool("RenderReel", real -> brokenRenders(real, 2, renders));
         GetViralEngine.Brief brief = new GetViralEngine.Brief("a 5-minute morning stretch", "flex.fox", "fitness", "calm and wise", "US", List.of());
         StudioRun run = run(brief);

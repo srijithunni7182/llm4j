@@ -4,7 +4,6 @@ import io.github.llm4j.getviral.config.GetViralConfig;
 import io.github.llm4j.getviral.engine.GetViralEngine;
 import io.github.llm4j.getviral.studio.StudioRun;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -50,6 +49,6 @@ final class GetViralTestSupport {
     }
 
     static StudioRun newRun(GetViralEngine.Brief brief) {
-        return new StudioRun(brief.toMap(), Duration.ofSeconds(5));
+        return new StudioRun(brief.toMap());
     }
 }

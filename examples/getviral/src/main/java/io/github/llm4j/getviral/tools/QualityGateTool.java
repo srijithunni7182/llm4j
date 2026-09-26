@@ -2,6 +2,7 @@ package io.github.llm4j.getviral.tools;
 
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.getviral.media.MediaInspector;
+import io.github.llm4j.getviral.quality.ArtifactChecks;
 import io.github.llm4j.getviral.quality.BuildReview;
 import io.github.llm4j.getviral.quality.QualityGate;
 import io.github.llm4j.getviral.studio.StudioEvents;
@@ -25,14 +26,14 @@ public class QualityGateTool implements Tool {
         }
     }
 
-    private final InspectArtifactsTool inspector;
+    private final ArtifactChecks inspector;
     private final QualityGate gate;
     private final Supplier<Map<String, Object>> workflow;
     private final StudioEvents events;
     private volatile Result last;
     private int rounds;
 
-    public QualityGateTool(InspectArtifactsTool inspector, QualityGate gate, Supplier<Map<String, Object>> workflow,
+    public QualityGateTool(ArtifactChecks inspector, QualityGate gate, Supplier<Map<String, Object>> workflow,
                            StudioEvents events) {
         this.inspector = inspector;
         this.gate = gate;
@@ -77,6 +78,7 @@ public class QualityGateTool implements Tool {
         Map<String, Object> byArea = new LinkedHashMap<>();
         areas.forEach((k, a) -> byArea.put(k, Map.of("pass", a.pass(), "problems", a.problems())));
         event.put("areas", byArea);
+        event.put("checks", inspection.stream().map(MediaInspector.Check::toMap).toList());
         events.emit("build_review", event);
         return last;
     }

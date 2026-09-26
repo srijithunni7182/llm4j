@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -68,6 +69,28 @@ public class MediaLibrary {
         assets.add(asset);
         events.emit("media", asset.toMap());
         return asset;
+    }
+
+    /**
+     * A resumed run: re-lists the assets announced before the run was suspended (from its own
+     * {@code media} events), without announcing them again.
+     */
+    public void restore(List<Map<String, Object>> events) {
+        for (Map<String, Object> event : events) {
+            if (!"media".equals(event.get("type")) || !(event.get("data") instanceof Map<?, ?> d)) continue;
+            String url = String.valueOf(d.get("url"));
+            Path file = dir.resolve(url.substring(url.lastIndexOf('/') + 1));
+            String name = file.getFileName().toString();
+            Path plate = file.resolveSibling(name.replaceFirst("(\\.[a-z0-9]+)$", "-plate$1"));
+            assets.add(new MediaAsset(String.valueOf(d.get("kind")), String.valueOf(d.get("purpose")), url, file,
+                    String.valueOf(d.get("provider")), Boolean.TRUE.equals(d.get("ai")), String.valueOf(d.get("prompt")),
+                    number(d.get("width")), number(d.get("height")), d.get("seconds") instanceof Number n ? n.doubleValue() : 0,
+                    Files.exists(plate) ? plate : null));
+        }
+    }
+
+    private static int number(Object o) {
+        return o instanceof Number n ? n.intValue() : 0;
     }
 
     public List<MediaAsset> assets() {

@@ -102,7 +102,13 @@ public class GetViralExecutor extends HarnessExecutor {
         if (temperature != null) builder.temperature(temperature);
         // The ArtDirector makes five images, one tool call each — give it room.
         builder.maxIterations(agent.equals("ArtDirector") || agent.equals("VideoEditor") ? 12 : 8)
-               .approvalCallback((tool, args, thought) -> run.approve(tool, args, thought))
+               .approvalCallback((tool, args, thought) -> {
+                   // An approval is a question at this step: answered now, recorded, or the run suspends.
+                   String questionId = currentStep() + "#approve:" + tool;
+                   var recorded = getJournal().get(questionId);
+                   if (recorded.isPresent()) return "approve".equals(String.valueOf(recorded.get().value()));
+                   return run.approve(tool, args, thought, questionId);
+               })
                .addListener(new AgentEventListener() {
                    @Override
                    public void onThought(String thought) {
@@ -256,10 +262,51 @@ public class GetViralExecutor extends HarnessExecutor {
         }
         report.put("verdict", complete ? "COMPLETE" : "INCOMPLETE");
         report.put("round", round);
+        // What the .loom's `for each fix in qualityReport.fixes` sends out — video last, since it is cut
+        // from the Reel plan and the images.
+        List<Map<String, Object>> fixes = new java.util.ArrayList<>();
+        for (String area : io.github.llm4j.getviral.quality.BuildReview.AREAS) {
+            if ("FIX".equals(report.get(area))) fixes.add(fix(area, String.valueOf(report.get(area + "_fix"))));
+        }
+        report.put("fixes", fixes);
+        report.put("badges", result.badges().stream().map(io.github.llm4j.getviral.quality.QualityGate.Badge::toMap).toList());
         return report;
     }
 
     private volatile long reviewStartedAt;
+
+    private static final Map<String, String[]> FIX_ROUTES = Map.of(
+            "x", new String[] {"XWriter", "xPack", "REVISE the X package so it passes the quality gate."},
+            "reel", new String[] {"ReelDirector", "reelPack", "REVISE the Reel so it passes the quality gate."},
+            "youtube", new String[] {"YouTubeProducer", "youtubePack", "REVISE the YouTube package so it passes the quality gate."},
+            "visuals", new String[] {"ArtDirector", "visualPack", "REGENERATE the images that failed the quality gate."},
+            "video", new String[] {"VideoEditor", "videoPack", "RE-RENDER the Reel so it passes the quality gate."});
+
+    /** One routed fix: who does it, where the result goes, what to do, and their current work. */
+    private Map<String, Object> fix(String area, String problem) {
+        String[] route = FIX_ROUTES.get(area);
+        Map<String, Object> fix = new LinkedHashMap<>();
+        fix.put("area", area);
+        fix.put("owner", route[0]);
+        fix.put("output", route[1]);
+        fix.put("task", route[2]);
+        fix.put("problem", problem);
+        fix.put("current", String.valueOf(getContext().getAll().getOrDefault(route[1], "")));
+        return fix;
+    }
+
+    /** A resumed run replays recorded steps; restore what this executor tracks about them. */
+    @Override
+    protected void onDelegateReplayed(DelegateStmt stmt, AgentDef agentDef, Object value) {
+        String agent = agentDef.getName();
+        if (ORCHESTRATOR.equals(agent)) promptBook.restore(value);
+        if (value instanceof Map<?, ?> report && report.get("round") instanceof Number round) {
+            if (CRITIC.equals(agent)) criticRounds.set(round.intValue());
+            if (ORCHESTRATOR.equals(agent) && "COMPLETE,INCOMPLETE".contains(String.valueOf(report.get("verdict")))) {
+                reviewRounds.set(round.intValue());
+            }
+        }
+    }
 
     private void emitOriginality(String stage, boolean retry, Map<String, Object> verdict) {
         Map<String, Object> data = new LinkedHashMap<>(verdict);

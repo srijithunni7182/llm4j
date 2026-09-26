@@ -1,15 +1,12 @@
-package io.github.llm4j.getviral.tools;
+package io.github.llm4j.getviral.quality;
 
-import io.github.llm4j.agent.Tool;
 import io.github.llm4j.getviral.media.MediaInspector;
 import io.github.llm4j.getviral.media.MediaInspector.Check;
 import io.github.llm4j.getviral.media.MediaInspector.Status;
 import io.github.llm4j.getviral.media.MediaLibrary;
-import io.github.llm4j.getviral.studio.StudioEvents;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -17,61 +14,22 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Verifies every artifact of the pack before it reaches the creator: each image decodes, has the right
+ * The file and text checks behind the quality gate: every artifact of the pack is verified before it
+ * reaches the creator: each image decodes, has the right
  * shape and isn't blank; the Reel MP4 decodes end to end and meets Instagram's Reels spec; the WebM copy
  * is valid; and every post fits its platform's limits. Returns PASS / WARN / FAIL lines with the reason,
- * so the Inspector agent can repair what it can and report the rest honestly.
+ * so the Showrunner can send each failure to the specialist who owns it.
  */
-public class InspectArtifactsTool implements Tool {
+public class ArtifactChecks {
 
     private static final Pattern URL = Pattern.compile("https?://\\S+");
     private static final List<String> EXPECTED_IMAGES = List.of("youtube_thumbnail", "reel_cover", "x_card", "broll_1", "broll_2");
 
     private final MediaLibrary library;
     private final Supplier<Map<String, Object>> workflow;
-    private final StudioEvents events;
-
-    public InspectArtifactsTool(MediaLibrary library, Supplier<Map<String, Object>> workflow, StudioEvents events) {
+    public ArtifactChecks(MediaLibrary library, Supplier<Map<String, Object>> workflow) {
         this.library = library;
         this.workflow = workflow;
-        this.events = events != null ? events : StudioEvents.NONE;
-    }
-
-    @Override
-    public String getName() {
-        return "inspect_artifacts";
-    }
-
-    @Override
-    public String getDescription() {
-        return "Inspects every artifact of the pack: decodes each image and the Reel video frame by frame, checks the "
-                + "Reel against Instagram's Reels spec and the WebM browser copy, and checks every post against its "
-                + "platform's limits. Returns PASS/WARN/FAIL per artifact with the reason. Args: {}.";
-    }
-
-    @Override
-    public String execute(Map<String, Object> args) {
-        List<Check> checks = inspect();
-        long pass = checks.stream().filter(c -> c.status() == Status.PASS).count();
-        long warn = checks.stream().filter(c -> c.status() == Status.WARN).count();
-        long fail = checks.stream().filter(c -> c.status() == Status.FAIL).count();
-
-        Map<String, Object> event = new LinkedHashMap<>();
-        event.put("checks", checks.stream().map(Check::toMap).toList());
-        event.put("pass", pass);
-        event.put("warn", warn);
-        event.put("fail", fail);
-        events.emit("inspection", event);
-
-        StringBuilder out = new StringBuilder(String.format("Inspection: %d pass · %d warn · %d fail%n", pass, warn, fail));
-        for (Check c : checks) {
-            out.append('[').append(c.status()).append("] ").append(c.artifact()).append(" — ").append(c.detail()).append('\n');
-        }
-        if (fail > 0) {
-            out.append("Fix what you can: a failing reel → render_reel again; a failing image → generate_image for that "
-                    + "purpose. Then inspect_artifacts again. Report anything you can't fix.");
-        }
-        return out.toString().strip();
     }
 
     public List<Check> inspect() {

@@ -85,7 +85,7 @@ fi
 cat <<EOF
 
   ${PINK}${B}⚡ GetViral${R}  ${D}one idea · every feed${R}
-  ${D}13 agents · Loom · Engram · eval4j · ai-agent4j · addons${R}
+  ${D}12 agents · Loom · Engram · eval4j · ai-agent4j · addons${R}
 
 EOF
 

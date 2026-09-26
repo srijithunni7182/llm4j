@@ -1,5 +1,6 @@
 package io.github.llm4j.getviral.studio;
 
+import io.github.llm4j.loom.runtime.RunSuspended;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -7,23 +8,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
  * One GetViral run: its event log (replayable, so a browser that connects late sees everything),
- * and the two places a human steps in — picking the hook and approving the Instagram publish.
+ * and the places a human steps in — picking the hook, the publish step and approving the publish.
+ * A question never blocks a thread: it is announced, and the run suspends until the answer is
+ * recorded in the run's journal and the run is resumed (see {@code GetViralEngine}).
  */
 public class StudioRun implements StudioEvents {
 
     public enum Status { RUNNING, WAITING_FOR_HUMAN, DONE, BLOCKED, FAILED }
 
-    /** Decides human questions when nobody is watching (CLI piping, tests, timeouts). */
+    /** Answers human questions on the spot when someone is at hand (terminal, tests). */
     public interface Autopilot {
         String answer(String kind, String message, List<String> options);
 
@@ -35,21 +34,18 @@ public class StudioRun implements StudioEvents {
     private final Instant startedAt = Instant.now();
     private final List<Map<String, Object>> log = new CopyOnWriteArrayList<>();
     private final List<Consumer<Map<String, Object>>> subscribers = new CopyOnWriteArrayList<>();
-    private final Map<String, CompletableFuture<String>> pending = new ConcurrentHashMap<>();
     private final AtomicLong seq = new AtomicLong();
-    private final Duration humanTimeout;
     private volatile Autopilot autopilot;
     private volatile Status status = Status.RUNNING;
 
-    public StudioRun(Map<String, Object> brief, Duration humanTimeout) {
-        this(UUID.randomUUID().toString().substring(0, 8), brief, humanTimeout);
+    public StudioRun(Map<String, Object> brief) {
+        this(UUID.randomUUID().toString().substring(0, 8), brief);
     }
 
     /** A run with a caller-assigned id (the hosted app uses its database id). */
-    public StudioRun(String id, Map<String, Object> brief, Duration humanTimeout) {
+    public StudioRun(String id, Map<String, Object> brief) {
         this.id = id;
         this.brief = Map.copyOf(brief);
-        this.humanTimeout = humanTimeout;
     }
 
     public String id() {
@@ -69,7 +65,7 @@ public class StudioRun implements StudioEvents {
         emit("status", Map.of("status", status.name()));
     }
 
-    /** When set, human questions are answered automatically instead of waiting for the UI. */
+    /** When set, human questions are answered on the spot instead of suspending the run. */
     public void autopilot(Autopilot autopilot) {
         this.autopilot = autopilot;
     }
@@ -100,42 +96,34 @@ public class StudioRun implements StudioEvents {
         return () -> subscribers.remove(subscriber);
     }
 
+    /** Events emitted so far (a resumed hosted run includes the ones from before it was suspended). */
     public List<Map<String, Object>> events() {
         return List.copyOf(log);
     }
 
-    /** Blocks the workflow until a human answers (or the autopilot / timeout default does). */
-    public String ask(String kind, String message, List<String> options, String timeoutDefault) {
+    /**
+     * Asks the creator. With an autopilot the answer comes back now; otherwise the question is
+     * announced under {@code questionId} and the run suspends ({@link RunSuspended}) until answered.
+     */
+    public String ask(String kind, String questionId, String message, List<String> options) {
         Autopilot pilot = autopilot;
         if (pilot != null) {
             String answer = pilot.answer(kind, message, options);
             emit("human_answer", Map.of("kind", kind, "answer", answer, "by", "autopilot"));
             return answer;
         }
-        String questionId = kind + "-" + seq.get();
-        CompletableFuture<String> future = new CompletableFuture<>();
-        pending.put(questionId, future);
-        Status previous = status;
+        question(questionId, kind, message, options);
         status(Status.WAITING_FOR_HUMAN);
+        throw new RunSuspended(questionId, message);
+    }
+
+    /** Announces an open question (the hosted app also stores it). */
+    protected void question(String questionId, String kind, String message, List<String> options) {
         emit("human", Map.of("id", questionId, "kind", kind, "message", message, "options", options));
-        try {
-            String answer = future.get(humanTimeout.toMillis(), TimeUnit.MILLISECONDS);
-            emit("human_answer", Map.of("kind", kind, "answer", answer, "by", "creator"));
-            return answer;
-        } catch (TimeoutException e) {
-            emit("human_answer", Map.of("kind", kind, "answer", timeoutDefault, "by", "timeout"));
-            return timeoutDefault;
-        } catch (Exception e) {
-            Thread.currentThread().interrupt();
-            return timeoutDefault;
-        } finally {
-            pending.remove(questionId);
-            status(previous == Status.WAITING_FOR_HUMAN ? Status.RUNNING : previous);
-        }
     }
 
     /** The Human-in-the-Loop gate for tools that declare requiresApproval(). */
-    public boolean approve(String tool, Map<String, Object> args, String thought) {
+    public boolean approve(String tool, Map<String, Object> args, String thought, String questionId) {
         emit("approval_request", Map.of("tool", tool, "args", args, "thought", thought == null ? "" : thought));
         Autopilot pilot = autopilot;
         if (pilot != null) {
@@ -143,19 +131,6 @@ public class StudioRun implements StudioEvents {
             emit("approval_answer", Map.of("tool", tool, "approved", ok, "by", "autopilot"));
             return ok;
         }
-        String answer = ask("approval", "Approve " + tool + "?", List.of("approve", "reject"), "reject");
-        boolean ok = "approve".equalsIgnoreCase(answer);
-        emit("approval_answer", Map.of("tool", tool, "approved", ok, "by", "creator"));
-        return ok;
-    }
-
-    /** Called by the web layer with the creator's answer. */
-    public boolean answer(String questionId, String answer) {
-        CompletableFuture<String> future = pending.get(questionId);
-        return future != null && future.complete(answer);
-    }
-
-    public boolean hasPendingQuestion() {
-        return !pending.isEmpty();
+        return "approve".equalsIgnoreCase(ask("approval", questionId, "Approve " + tool + "?", List.of("approve", "reject")));
     }
 }

@@ -54,16 +54,35 @@ public class RunStore {
                 (rs, i) -> read(rs.getString("data_json")), runId, type);
     }
 
-    public void createQuestion(String questionId, String runId, String kind, String message, List<String> options) {
-        jdbc.update("insert into run_questions (id, run_id, kind, message, options_json, created_at) values (?, ?, ?, ?, ?, ?)",
-                questionId, runId, kind, message, write(options), Timestamp.from(Instant.now()));
+    public void createQuestion(String questionId, String runId, String stepId, String kind, String message, List<String> options) {
+        jdbc.update("insert into run_questions (id, run_id, step_id, kind, message, options_json, created_at) values (?, ?, ?, ?, ?, ?, ?)",
+                questionId, runId, stepId, kind, message, write(options), Timestamp.from(Instant.now()));
     }
 
-    public Optional<String> answer(String questionId) {
-        List<String> answers = jdbc.query("select answer from run_questions where id = ? and answered_at is not null",
-                (rs, i) -> rs.getString("answer"), questionId);
-        return answers.stream().findFirst();
+    /** The open question already asked at this step (a run resumed before it was answered). */
+    public Optional<String> openQuestionFor(String runId, String stepId) {
+        return jdbc.query("select id from run_questions where run_id = ? and step_id = ? and answered_at is null",
+                (rs, i) -> rs.getString(1), runId, stepId).stream().findFirst();
     }
+
+    public record Question(String id, String stepId, String kind, List<String> options) { }
+
+    public Optional<Question> openQuestion(String runId, String questionId) {
+        return jdbc.query("select id, step_id, kind, options_json from run_questions where id = ? and run_id = ? and answered_at is null",
+                (rs, i) -> new Question(rs.getString(1), rs.getString(2), rs.getString(3), readList(rs.getString(4))),
+                questionId, runId).stream().findFirst();
+    }
+
+    /** Loom's journal has no foreign key (it's a generic table), so a run's steps are removed explicitly. */
+    public void deleteJournal(String runId) {
+        jdbc.update("delete from loom_journal where run_id = ?", runId);
+    }
+
+    public int lastSeq(String runId) {
+        Integer max = jdbc.queryForObject("select max(seq) from run_events where run_id = ?", Integer.class, runId);
+        return max == null ? 0 : max;
+    }
+
 
     /** Records an answer if the question belongs to the run and is still open. */
     public boolean submitAnswer(String runId, String questionId, String answer) {

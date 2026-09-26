@@ -164,23 +164,10 @@ agent VideoEditor {
     }
 }
 
-agent Inspector {
-    model: "studio"
-    temperature: 0.2
-    system: "You are Inspector, GetViral's independent quality-control verifier. Your brief is fixed: nobody on the team can rewrite it. Before anything reaches the creator, run inspect_artifacts. If the Reel fails, call render_reel again; if an image fails or is missing, call generate_image for that purpose in the pack's visual style. Then run inspect_artifacts once more. Never report a check as passed unless the tool said PASS, and list every remaining FAIL and WARN plainly with what the creator should do about it."
-    tools: [InspectArtifacts, RenderReel, GenerateImage]
-    output_schema: {
-        verdict: enum["PASS", "PASS_WITH_WARNINGS", "FAIL"],
-        summary: string,
-        checks: list<{ artifact: string, status: string, detail: string }>,
-        fixes: list<string>
-    }
-}
-
 agent Publisher {
     model: "studio"
     temperature: 0.2
-    system: "You are Publisher. If the INSPECTION verdict is FAIL because of the Reel video, do not publish: explain what failed. Otherwise check the Instagram quota, then publish the Reel with instagram_publish using the given video URL and the Reel caption followed by its hashtags. A human must approve the publish call. Report exactly what happened, including dry runs."
+    system: "You are Publisher. Check the Instagram quota, then publish the Reel with instagram_publish using the given video URL and the Reel caption followed by its hashtags. A human must approve the publish call. Report exactly what happened, including dry runs."
     tools: [InstagramQuota, InstagramPublish]
 }
 
@@ -346,16 +333,7 @@ VISUALS: {visualPack}" to VideoEditor -> videoPack retry 1 on_failure {
             note "Reel render failed: {_error}"
         }
 
-        // 8. Verification: an independent Inspector decodes and checks every artifact, repairs what it can,
-        //    and reports the rest before anything can be published.
-        delegate "Inspect every artifact of the pack, repair what fails, and report.
-IDEA: {creatorIdea}
-VISUALS: {visualPack}
-VIDEO: {videoPack}" to Inspector -> inspection retry 1 on_failure {
-            note "Artifact inspection failed: {_error}"
-        }
-
-        // 9. The Showrunner owns the finished build. Each round it runs the quality gate (every file decoded
+        // 8. The Showrunner owns the finished build. Each round it runs the quality gate (every file decoded
         //    and spec-checked, platform limits, originality, eval4j judges) and sends each failing area back
         //    to the specialist who owns it. GetViral holds it to the gate: COMPLETE only when everything
         //    passes. Bounded, so a stubborn failure ends as "needs attention" instead of looping forever.
@@ -380,60 +358,27 @@ VISUAL STYLE: {castingSheet.visual_style}" to Showrunner -> qualityReport expect
                 note "Build review failed this round: {_error}"
             }
 
-            alt (qualityReport.x == "FIX") {
-                delegate "REVISE the X package so it passes the quality gate.
-FIX: {qualityReport.x_fix}
+            // Each failing area goes to the specialist who owns it (video last: it's cut from the others).
+            for each fix in qualityReport.fixes {
+                delegate "{fix.task}
+FIX: {fix.problem}
 IDEA: {creatorIdea}
 TONE: {creatorTone}
 HOOK: {hookChoice}
-PLAN: {gamePlan}
-CURRENT: {xPack}" to XWriter -> xPack retry 1
-            }
-            alt (qualityReport.reel == "FIX") {
-                delegate "REVISE the Reel so it passes the quality gate.
-FIX: {qualityReport.reel_fix}
-IDEA: {creatorIdea}
-TONE: {creatorTone}
-HOOK: {hookChoice}
-CURRENT: {reelPack}" to ReelDirector -> reelPack retry 1
-            }
-            alt (qualityReport.youtube == "FIX") {
-                delegate "REVISE the YouTube package so it passes the quality gate.
-FIX: {qualityReport.youtube_fix}
-IDEA: {creatorIdea}
-TONE: {creatorTone}
-HOOK: {hookChoice}
-RESEARCH: {researchDossier}
-CURRENT: {youtubePack}
-PAST YOUTUBE PACKAGES FOR THIS CREATOR (invent new title formulas and thumbnails):
-{pastYouTube}" to YouTubeProducer -> youtubePack retry 1
-            }
-            alt (qualityReport.visuals == "FIX") {
-                delegate "REGENERATE the images that failed the quality gate.
-FIX: {qualityReport.visuals_fix}
-IDEA: {creatorIdea}
 VISUAL STYLE: {castingSheet.visual_style}
-REEL: {reelPack}
-YOUTUBE: {youtubePack}" to ArtDirector -> visualPack retry 1
-            }
-            alt (qualityReport.video == "FIX") {
-                delegate "RE-RENDER the Reel so it passes the quality gate.
-FIX: {qualityReport.video_fix}
-TONE: {creatorTone}
-HOOK: {hookChoice}
-VISUALS: {visualPack}" to VideoEditor -> videoPack retry 1
+CURRENT: {fix.current}" to {fix.owner} -> {fix.output} retry 1
             }
         } on_exhausted {
             note "Quality loop reached its limit after {_loopRounds} rounds — some artifacts still fail the gate."
         }
 
-        // 10. Optional publishing — only for a complete build — behind a second human gate (tool-level approval).
+        // 9. Optional publishing — only for a complete build — behind a second human gate (tool-level approval).
         alt (qualityReport.verdict == "COMPLETE") {
             human_prompt "PUBLISH: Publish the Reel to Instagram? Paste a public https video URL of your recorded Reel, or type skip" -> reelVideoUrl
             alt (reelVideoUrl != "skip") {
                 delegate "Publish the Reel to Instagram.
 VIDEO_URL: {reelVideoUrl}
-INSPECTION: {inspection}
+QUALITY: {qualityReport.summary}
 REEL: {reelPack}" to Publisher -> publishReceipt
             }
         }

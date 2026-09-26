@@ -5,6 +5,10 @@ import io.github.llm4j.getviral.app.account.UserAccount;
 import io.github.llm4j.getviral.app.memory.MemorySync;
 import io.github.llm4j.getviral.app.memory.VoiceSamples;
 import io.github.llm4j.getviral.engine.GetViralEngine;
+import io.github.llm4j.getviral.engine.StudioHumanInterface;
+import io.github.llm4j.loom.runtime.JdbcRunJournal;
+import javax.sql.DataSource;
+import org.springframework.jdbc.core.JdbcTemplate;
 import io.github.llm4j.getviral.studio.StudioRun;
 import jakarta.annotation.PreDestroy;
 import java.time.Instant;
@@ -42,10 +46,18 @@ public class RunService {
     private final AppProperties props;
     private final ThreadPoolExecutor workers;
     private final io.github.llm4j.getviral.app.connect.ConnectService connect;
+    private final DataSource dataSource;
+    private final JdbcTemplate jdbc;
+
+    /** Resumes after a server went away before a run is given up on. */
+    static final int MAX_RESUMES = 2;
 
     public RunService(GetViralEngine engine, RunRepository runs, RunStore store, MemorySync memory,
-                      VoiceSamples voices, AppProperties props, io.github.llm4j.getviral.app.connect.ConnectService connect) {
+                      VoiceSamples voices, AppProperties props, io.github.llm4j.getviral.app.connect.ConnectService connect,
+                      DataSource dataSource) {
         this.connect = connect;
+        this.dataSource = dataSource;
+        this.jdbc = new JdbcTemplate(dataSource);
         this.engine = engine;
         this.runs = runs;
         this.store = store;
@@ -90,7 +102,7 @@ public class RunService {
         RunRecord run = runs.save(RunRecord.queued(user.getId(), cleanIdea, store.write(brief.toMap())));
         store.append(run.getId(), 1, "status", Map.of("status", "QUEUED", "position", workers.getQueue().size()), 0);
         try {
-            workers.execute(() -> execute(run.getId(), brief));
+            workers.execute(() -> execute(run.getId()));
         } catch (RejectedExecutionException e) {
             run.finished(RunStatus.FAILED, null, "GetViral is at capacity right now — please try again in a minute.");
             runs.save(run);
@@ -99,15 +111,20 @@ public class RunService {
         return run;
     }
 
-    private void execute(String runId, GetViralEngine.Brief queuedBrief) {
+    /**
+     * Runs a pack — or resumes it: the run's journal replays every step already done, so a resumed
+     * run picks up exactly where it stopped, on whichever instance runs this.
+     */
+    private void execute(String runId) {
         RunRecord record = runs.findById(runId).orElse(null);
-        if (record == null) return;
+        if (record == null || record.getStatus().terminal()) return;
         record.started();
         runs.save(record);
         String userId = record.getUserId();
-        GetViralEngine.Brief brief = new GetViralEngine.Brief(queuedBrief.idea(), queuedBrief.handle(), queuedBrief.niche(),
-                queuedBrief.tone(), queuedBrief.region(), voices.all(userId), userId);
-        PersistentStudioRun run = new PersistentStudioRun(runId, brief.toMap(), props.quota().humanTimeout(), store, runs, 1);
+        Map<String, Object> saved = store.read(record.getBriefJson());
+        GetViralEngine.Brief brief = new GetViralEngine.Brief(str(saved.get("idea")), str(saved.get("handle")),
+                str(saved.get("niche")), str(saved.get("tone")), str(saved.get("region")), voices.all(userId), userId);
+        PersistentStudioRun run = new PersistentStudioRun(runId, brief.toMap(), store, runs);
         try {
             memory.pull(userId);
             run.status(StudioRun.Status.RUNNING);
@@ -115,9 +132,15 @@ public class RunService {
             GetViralEngine.Publishing publishing = connect.instagramCredentials(userId)
                     .map(c -> new GetViralEngine.Publishing(c[0], c[1], c[2]))
                     .orElse(GetViralEngine.Publishing.DRY_RUN);
-            GetViralEngine.Outcome outcome = engine.run(run, brief, publishing);
-            RunStatus status = RunStatus.valueOf(outcome.status().name());
-            record.finished(status, outcome.pack().isEmpty() ? null : store.write(outcome.pack()), null);
+            GetViralEngine.Outcome outcome = engine.run(run, brief, publishing, new JdbcRunJournal(dataSource, runId));
+            if (outcome.status() == StudioRun.Status.WAITING_FOR_HUMAN) {
+                // Already WAITING_FOR_HUMAN in the database (set when the question was asked). Don't save
+                // this copy over it: a quick answer may already have resumed the run elsewhere.
+                record = null;
+            } else {
+                record.finished(RunStatus.valueOf(outcome.status().name()),
+                        outcome.pack().isEmpty() ? null : store.write(outcome.pack()), null);
+            }
         } catch (RuntimeException e) {
             log.warn("Run {} failed", runId, e);
             record.finished(RunStatus.FAILED, null, String.valueOf(e.getMessage()));
@@ -129,24 +152,70 @@ public class RunService {
             } catch (RuntimeException e) {
                 log.warn("Could not save memory for {}", userId, e);
             }
-            runs.save(record);
+            if (record != null) runs.save(record);
         }
     }
 
     /**
-     * Runs whose instance died (deploy, crash, scale-in) stop producing events; mark them failed so the
-     * creator can start again. Instance-agnostic: it only looks at the shared database.
+     * Records the creator's answer in the run's journal and resumes the run. Any instance can do this:
+     * the answer and every step before it live in the database.
+     */
+    public void answer(RunRecord run, String questionId, String answer) {
+        RunStore.Question question = store.openQuestion(run.getId(), questionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "That question is no longer open."));
+        String recorded = StudioHumanInterface.normalize(question.kind(), answer, question.options());
+        if (!store.submitAnswer(run.getId(), questionId, recorded)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "That question is no longer open.");
+        }
+        new JdbcRunJournal(dataSource, run.getId()).answer(question.stepId(), recorded);
+        store.append(run.getId(), store.lastSeq(run.getId()) + 1, "human_answer",
+                Map.of("kind", question.kind(), "answer", recorded, "by", "creator"), 0);
+        // Only one resume per answer, even if two instances race.
+        if (jdbc.update("update runs set status = ? where id = ? and status = ?",
+                RunStatus.QUEUED.name(), run.getId(), RunStatus.WAITING_FOR_HUMAN.name()) == 1) {
+            submit(run.getId());
+        }
+    }
+
+    private void submit(String runId) {
+        try {
+            workers.execute(() -> execute(runId));
+        } catch (RejectedExecutionException e) {
+            log.warn("Workers are full; run {} will be resumed by the sweeper", runId);
+        }
+    }
+
+    /**
+     * A run whose instance went away (deploy, crash, scale-in) stops producing events. Instead of
+     * failing it, resume it here from its journal; give up only after {@link #MAX_RESUMES} resumes.
+     * Instance-agnostic: runs are claimed with a conditional update, so only one instance resumes each.
      */
     @Scheduled(fixedDelay = 60_000, initialDelay = 60_000)
     public void sweepStaleRuns() {
-        Instant cutoff = Instant.now().minus(props.quota().humanTimeout()).minusSeconds(300);
+        Instant cutoff = Instant.now().minus(props.quota().staleAfter());
         for (RunRecord stale : runs.findStale(RunStatus.ACTIVE, cutoff)) {
-            stale.finished(RunStatus.FAILED, null, "This run stopped responding and was cancelled.");
-            runs.save(stale);
-            int next = store.eventsAfter(stale.getId(), 0, 100_000).size() + 1;
-            store.append(stale.getId(), next, "error", Map.of("message", "This run stopped responding. Please start it again."), 0);
-            store.append(stale.getId(), next + 1, "status", Map.of("status", "FAILED"), 0);
+            Integer resumes = jdbc.queryForObject("select resumes from runs where id = ?", Integer.class, stale.getId());
+            int next = store.lastSeq(stale.getId()) + 1;
+            if (resumes != null && resumes >= MAX_RESUMES) {
+                stale.finished(RunStatus.FAILED, null, "This run stopped responding and was cancelled.");
+                runs.save(stale);
+                store.append(stale.getId(), next, "error", Map.of("message", "This run stopped responding. Please start it again."), 0);
+                store.append(stale.getId(), next + 1, "status", Map.of("status", "FAILED"), 0);
+                continue;
+            }
+            int claimed = jdbc.update("update runs set status = ?, resumes = resumes + 1, last_event_at = ? "
+                            + "where id = ? and status in (?, ?) and last_event_at < ?",
+                    RunStatus.QUEUED.name(), java.sql.Timestamp.from(Instant.now()), stale.getId(),
+                    RunStatus.QUEUED.name(), RunStatus.RUNNING.name(), java.sql.Timestamp.from(cutoff));
+            if (claimed == 1) {
+                store.append(stale.getId(), next, "note", Map.of("text", "Picking this pack back up where it left off…"), 0);
+                submit(stale.getId());
+            }
         }
+    }
+
+    private static String str(Object o) {
+        return o == null ? "" : o.toString();
     }
 
     public Map<String, Object> pack(RunRecord run) {

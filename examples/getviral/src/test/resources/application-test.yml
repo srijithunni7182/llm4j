@@ -7,6 +7,6 @@ getviral:
   quota:
     packs-per-month: 3
     workers: 4
-    human-timeout: 30s
+    stale-after: 10m
   auth:
     dev-login: true

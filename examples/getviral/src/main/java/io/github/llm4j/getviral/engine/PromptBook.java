@@ -25,10 +25,10 @@ public class PromptBook {
             - Follow the requested response format exactly.""";
 
     /**
-     * Agents whose briefs are fixed and never taken from the orchestrator: the independent verifier and
-     * the safety-critical publishing and privacy roles. The Showrunner can't prompt them into passing.
+     * Agents whose briefs are fixed and never taken from the orchestrator: the safety-critical publishing
+     * and privacy roles.
      */
-    public static final java.util.Set<String> FIXED = java.util.Set.of("Inspector", "Publisher", "SafetyCoach");
+    public static final java.util.Set<String> FIXED = java.util.Set.of("Publisher", "SafetyCoach");
 
     public record Version(int version, String prompt, String reason) { }
 
@@ -39,8 +39,17 @@ public class PromptBook {
         this.events = events != null ? events : StudioEvents.NONE;
     }
 
+    /** Re-applies a recorded casting sheet on a resumed run, without announcing it again. */
+    public void restore(Object castingSheet) {
+        apply(castingSheet, "Restored", false);
+    }
+
     /** Applies a casting sheet's {@code prompts} map; only new or changed prompts create versions. */
-    public synchronized int apply(Object castingSheet, String reason) {
+    public int apply(Object castingSheet, String reason) {
+        return apply(castingSheet, reason, true);
+    }
+
+    private synchronized int apply(Object castingSheet, String reason, boolean announce) {
         if (!(castingSheet instanceof Map<?, ?> sheet) || !(sheet.get("prompts") instanceof Map<?, ?> prompts)) {
             return 0;
         }
@@ -55,7 +64,7 @@ public class PromptBook {
             Version version = new Version(history.size() + 1, prompt, reason);
             history.add(version);
             changed++;
-            events.emit("prompt", Map.of(
+            if (announce) events.emit("prompt", Map.of(
                     "agent", agent, "version", version.version(), "prompt", prompt, "reason", reason));
         }
         return changed;

@@ -1,6 +1,6 @@
 # ⚡ GetViral — one idea, every feed
 
-**GetViral** is a multi-agent creator studio. Type one idea and a team of thirteen AI agents turns it into a
+**GetViral** is a multi-agent creator studio. Type one idea and a team of twelve AI agents turns it into a
 ready-to-post pack for **X**, **Instagram Reels** and **YouTube**. The idea is researched on the open web with
 cited sources and timed against what's trending *right now*. The pack is then illustrated, cut into a video,
 scored by a critic, graded by LLM judges and, with your approval, published to Instagram.
@@ -79,8 +79,7 @@ flowchart LR
     C -- REVISE --> SR2[🎬 Showrunner re-casts prompts] --> X & R & Y
     C -- SHIP --> Q[[eval4j quality gate]]
     C -- SHIP --> AD[🎨 ArtDirector<br/>thumbnail · cover · B-roll · X card] --> VE[📹 VideoEditor<br/>renders the Reel MP4]
-    VE --> IN[✅ Inspector<br/>decodes & spec-checks every file]
-    IN --> QG{{🎬 Showrunner reviews the build<br/>quality gate · per-platform}}
+    VE --> QG{{🎬 Showrunner reviews the build<br/>quality gate · per-platform}}
     QG -- FIX --> FX[send each failure to its specialist] --> QG
     QG -- COMPLETE --> P([👆 Publish?]) --> PB[🚀 Publisher] --> A([✅ You approve]) --> IG[(Instagram API)]
 ```
@@ -108,36 +107,41 @@ flowchart LR
    frames and a 16:9 X card in one consistent style (the Showrunner writes its art direction). The
    **VideoEditor** then renders the Reel's beat sheet into a vertical MP4 over those images, and can add an
    AI video clip from Google Veo if you opt in.
-10. **Verify** — an independent **Inspector** runs `inspect_artifacts`. The tool decodes every image and
-   checks its shape and that it isn't blank. It decodes the Reel MP4's first, middle and last frames and
-   checks it against Instagram's Reels spec (H.264, 9:16, 23–60 fps, 3 s – 15 min, index at the front, no
-   edit lists). It validates the WebM copy and checks every post against its platform's limits (X's
-   weighted 280, Instagram's 2,200 characters, 30 hashtags and 20 mentions, YouTube's title, description
-   and tag limits). If something fails, the Inspector repairs it (`render_reel` again, or `generate_image`
-   for a broken image) and re-checks. Its brief is **fixed**: the Showrunner can't rewrite it, nor the
-   Publisher's or SafetyCoach's, so the orchestrator can't prompt the verifier into passing. The Publisher
-   won't post a Reel the Inspector failed.
-11. **The Showrunner signs off the build.** A pack isn't finished until every artifact for X, Instagram and
+10. **The Showrunner signs off the build.** A pack isn't finished until every artifact for X, Instagram and
    YouTube passes. Each round, the Showrunner runs `quality_gate` over the whole build, which combines:
-   - every file decoded and checked against its platform's spec;
-   - platform text limits;
+   - every file decoded and checked against its platform's spec: each image's shape and that it isn't
+     blank; the Reel MP4's first, middle and last frames against Instagram's Reels spec (H.264, 9:16,
+     23–60 fps, 3 s – 15 min, index at the front, no edit lists); and the WebM copy;
+   - platform text limits (X's weighted 280, Instagram's 2,200 characters, 30 hashtags and 20 mentions,
+     YouTube's title, description and tag limits);
    - the originality checks;
    - the eval4j judges on the X thread, Reel and YouTube package.
 
    Each failing area is marked FIX and sent to its owner: the X thread to the XWriter, the Reel to the
    ReelDirector, the YouTube package to the YouTubeProducer, images to the ArtDirector and the video to the
-   VideoEditor. The video is re-rendered automatically when the Reel plan or the images change. It's a Loom
-   `loop until (qualityReport.verdict == "COMPLETE") max 5`, and the review uses a per-step schema
-   (`expecting { ... }`) because the Showrunner's normal output is a casting sheet.
+   VideoEditor. The video is re-rendered automatically when the Reel plan or the images change. In the
+   `.loom` that is a `loop until (qualityReport.verdict == "COMPLETE") max 5` around one review and one
+   line of routing: `for each fix in qualityReport.fixes { delegate … to {fix.owner} -> {fix.output} }`.
+   The review uses a per-step schema (`expecting { ... }`) because the Showrunner's normal output is a
+   casting sheet.
 
    The Showrunner can ask for extra work but can't wave a failing build through: GetViral re-reads the gate
    and marks COMPLETE only when every area passes. If a build still fails after 5 rounds, the run ends as
    **needs attention** rather than done. It lists what failed, doesn't offer publishing, and doesn't count
    against the creator's monthly quota.
-12. **Publish** — optional, only for a complete build, behind *two* human gates: you supply the video URL, and the `instagram_publish`
+11. **Publish** — optional, only for a complete build, behind *two* human gates: you supply the video URL, and the `instagram_publish`
    tool declares `requiresApproval()`, so ai-agent4j pauses for your explicit OK.
 
 Rate any platform 🔥/👎 and it becomes an Engram memory: the next run is briefed with it.
+
+### Durable runs: nothing waits on a thread
+
+Every step of a pack is recorded in a Loom **run journal** (in the database on the website, in memory
+locally). When the workflow needs the creator (the hook pick, the publish step, the approval of the exact
+post), the run **suspends**: the question is saved, the worker is freed and nothing holds a thread. The
+creator's answer is recorded in the journal and the run resumes on whichever instance picks it up. It
+replays everything already done (no model is called twice) and carries on. The same mechanism makes deploys
+and crashes safe: a pack whose server stopped responding is resumed from its last recorded step, not failed.
 
 ### Originality over time
 
@@ -158,7 +162,7 @@ the job and doesn't leave it to good intentions:
 - **The YouTube package gets the same check** (reused title phrasing, similar titles, a repeated thumbnail
   concept). A repeat is marked on the package, and the critic sends it back for a new take.
 - **Temperatures are set per role in the `.loom`.** The ArtDirector (1.1), YouTubeProducer (1.05) and
-  Showrunner run hot; the Researcher, critic and Inspector run cool. Set `GETVIRAL_CREATIVITY` (for
+  Showrunner run hot; the Researcher and critic run cool. Set `GETVIRAL_CREATIVITY` (for
   example `1.2`) to push only the creative roles further.
 
 The live feed shows each check ("🧬 casting too close to earlier work — re-casting"), and the results page

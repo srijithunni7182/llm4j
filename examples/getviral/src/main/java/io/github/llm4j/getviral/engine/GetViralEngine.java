@@ -21,7 +21,7 @@ import io.github.llm4j.getviral.tools.GenerateVideoClipTool;
 import io.github.llm4j.getviral.tools.RenderReelTool;
 import io.github.llm4j.getviral.tools.HackerNewsPulseTool;
 import io.github.llm4j.getviral.tools.HolidayMomentsTool;
-import io.github.llm4j.getviral.tools.InspectArtifactsTool;
+import io.github.llm4j.getviral.quality.ArtifactChecks;
 import io.github.llm4j.getviral.tools.QualityGateTool;
 import io.github.llm4j.getviral.tools.InstagramGraphClient;
 import io.github.llm4j.getviral.tools.InstagramPublishTool;
@@ -47,7 +47,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -153,6 +152,16 @@ public class GetViralEngine {
      *                   IG_* environment variables, as in local single-user mode
      */
     public Outcome run(StudioRun run, Brief brief, Publishing publishing) {
+        return run(run, brief, publishing, io.github.llm4j.loom.runtime.RunJournal.inMemory());
+    }
+
+    /**
+     * Runs — or resumes — a pack. Every step is recorded in {@code journal}; when a human is needed
+     * the run returns {@code WAITING_FOR_HUMAN} without holding a thread. Record the answer in the
+     * journal and call this again with the same journal: finished steps are replayed, not re-run.
+     */
+    public Outcome run(StudioRun run, Brief brief, Publishing publishing, io.github.llm4j.loom.runtime.RunJournal journal) {
+        boolean resuming = !journal.all().isEmpty();
         GetViralConfig runConfig = publishing == null ? config : config.withInstagram(publishing.igUserId(), publishing.igAccessToken());
         StudioModels models = new StudioModels(config, run, demoPaceMillis);
         KnowledgeBase knowledge = KnowledgeBase.shared(config);
@@ -176,19 +185,20 @@ public class GetViralEngine {
         started.put("video", "Reel renderer " + config.reelWidth() + "x" + config.reelHeight()
                 + (veoEnabled() ? " + Google Veo clips" : " (Veo clips off)"));
         MediaLibrary media = new MediaLibrary(config.dataDir(), run.id(), run, mediaSink);
+        if (resuming) media.restore(run.events());
         AtomicReference<GetViralExecutor> executorRef = new AtomicReference<>();
         Supplier<Map<String, Object>> workflowVars = () -> executorRef.get() == null
                 ? Map.of() : executorRef.get().getContext().getAll();
-        run.emit("run_started", started);
+        if (resuming) run.emit("resumed", Map.of("steps", journal.all().size()));
+        else run.emit("run_started", started);
 
         PromptBook prompts = new PromptBook(run);
         // The quality gate the Showrunner reviews the build against: file inspection + platform limits +
         // originality + eval4j judges, per specialist.
         QualityGate gate = new QualityGate(models.createClient("judge"), run);
-        InspectArtifactsTool inspectTool = new InspectArtifactsTool(media, workflowVars, run);
-        QualityGateTool qualityTool = new QualityGateTool(inspectTool, gate, workflowVars, run);
+        QualityGateTool qualityTool = new QualityGateTool(new ArtifactChecks(media, workflowVars), gate, workflowVars, run);
         GetViralExecutor executor = new GetViralExecutor(loadScript(),
-                tools(run, knowledge, brief, media, imageChain, workflowVars, runConfig, inspectTool, qualityTool), models, run,
+                tools(run, knowledge, brief, media, imageChain, workflowVars, runConfig, qualityTool), models, run,
                 prompts, config.maxRevisions());
         executor.qualityGate(qualityTool);
         executorRef.set(executor);
@@ -205,12 +215,13 @@ public class GetViralEngine {
         creative.put("pastCastings", past.size());
         creative.put("lensOptions", lensOptions);
         creative.put("styleOptions", styleOptions);
-        run.emit("creative_brief", creative);
+        if (!resuming) run.emit("creative_brief", creative);
 
         CreatorMemory memory = new CreatorMemory(config.dataDir(), brief.memoryKey(), intelligence(models), run);
         executor.setMemoryEngine(memory);
         executor.setHumanInterface(new StudioHumanInterface(run, executor::getContext));
         executor.setAuditLogger(new FileAuditLogger(auditFile(run)));
+        executor.setJournal(journal);
 
         try {
             executor.initialize();
@@ -225,6 +236,9 @@ public class GetViralEngine {
             inputs.put("styleOptions", String.join(" | ", styleOptions));
             inputs.put("pastYouTube", youtubeHistory(past));
             executor.executeWorkflow(WORKFLOW, inputs);
+        } catch (io.github.llm4j.loom.runtime.RunSuspended waiting) {
+            // The question has been announced; nothing holds a thread until it is answered.
+            return new Outcome(StudioRun.Status.WAITING_FOR_HUMAN, Map.of(), List.of(), executor, prompts);
         } catch (RuntimeException e) {
             run.emit("error", Map.of("message", String.valueOf(e.getMessage())));
             run.status(StudioRun.Status.FAILED);
@@ -261,28 +275,26 @@ public class GetViralEngine {
         memory.remember("@" + brief.handle() + " picked the hook \"" + hook + "\" for \"" + brief.idea() + "\"",
                 0.8, null);
 
-        // The badges are the quality gate's last verdict (the one the Showrunner's loop ended on).
-        QualityGateTool.Result finalGate = qualityTool.last() != null ? qualityTool.last() : qualityTool.run();
-        List<QualityGate.Badge> badges = finalGate.badges();
+        // The Showrunner's last build review (journaled, so it survives a resume) decides the outcome.
+        Map<?, ?> review = ctx.get("qualityReport") instanceof Map<?, ?> r ? r : Map.of();
+        List<QualityGate.Badge> badges = badges(review);
         pack.put("quality", badges.stream().map(QualityGate.Badge::toMap).toList());
         pack.put("prompts", prompts.all());
         pack.put("media", media.assets().stream().map(MediaAsset::toMap).toList());
         Object visuals = ctx.get("visualPack");
         if (visuals != null && !visuals.toString().isBlank()) pack.put("visuals", visuals);
-        Object inspection = ctx.get("inspection");
-        if (inspection != null && !inspection.toString().isBlank()) pack.put("inspection", inspection);
         Object video = ctx.get("videoPack");
         if (video != null && !video.toString().isBlank()) pack.put("video", video);
-        Object review = ctx.get("qualityReport");
-        if (review != null && !review.toString().isBlank()) pack.put("build", review);
+        if (!review.isEmpty()) pack.put("build", review);
         run.emit("pack", pack);
 
         // The run only counts as done when every artifact for every platform passes the gate.
-        if (!finalGate.complete()) {
+        if (!"COMPLETE".equals(review.get("verdict"))) {
             List<String> failing = new ArrayList<>();
-            finalGate.areas().forEach((area, a) -> {
-                if (!a.pass()) failing.add(area + " (" + String.join("; ", a.problems()) + ")");
-            });
+            for (String area : io.github.llm4j.getviral.quality.BuildReview.AREAS) {
+                if ("FIX".equals(review.get(area))) failing.add(area + " (" + review.get(area + "_fix") + ")");
+            }
+            if (failing.isEmpty()) failing.add("the build was never reviewed");
             run.emit("error", Map.of("message", "Not every artifact passed the quality gate after the Showrunner's "
                     + "review rounds, so this pack isn't marked done: " + String.join(" · ", failing)));
             run.status(StudioRun.Status.FAILED);
@@ -290,6 +302,24 @@ public class GetViralEngine {
         }
         run.status(StudioRun.Status.DONE);
         return new Outcome(StudioRun.Status.DONE, pack, badges, executor, prompts);
+    }
+
+    /** The eval4j badges recorded with the last build review. */
+    private static List<QualityGate.Badge> badges(Map<?, ?> review) {
+        List<QualityGate.Badge> out = new ArrayList<>();
+        if (review.get("badges") instanceof List<?> list) {
+            for (Object o : list) {
+                if (o instanceof Map<?, ?> b) {
+                    out.add(new QualityGate.Badge(text(b.get("name")), text(b.get("platform")), number(b.get("score")),
+                            number(b.get("threshold")), Boolean.TRUE.equals(b.get("passed")), text(b.get("reason"))));
+                }
+            }
+        }
+        return out;
+    }
+
+    private static double number(Object o) {
+        return o instanceof Number n ? n.doubleValue() : 0;
     }
 
     private static String youtubeHistory(List<CastingHistory.PastCasting> past) {
@@ -353,7 +383,7 @@ public class GetViralEngine {
 
     private ToolRegistry tools(StudioRun run, KnowledgeBase knowledge, Brief brief, MediaLibrary media,
                                List<ImageGenerator> imageChain, Supplier<Map<String, Object>> workflowVars,
-                               GetViralConfig runConfig, InspectArtifactsTool inspectTool, QualityGateTool qualityTool) {
+                               GetViralConfig runConfig, QualityGateTool qualityTool) {
         boolean offline = config.offlineApis();
         InstagramGraphClient instagram = new InstagramGraphClient(runConfig);
         Map<String, Tool> tools = new LinkedHashMap<>();
@@ -372,7 +402,6 @@ public class GetViralEngine {
         tools.put("InstagramPublish", new InstagramPublishTool(instagram, run));
         tools.put("GenerateImage", new GenerateImageTool(imageChain, media));
         tools.put("RenderReel", new RenderReelTool(media, workflowVars, config.reelWidth(), config.reelHeight(), 24));
-        tools.put("InspectArtifacts", inspectTool);
         tools.put("QualityGate", qualityTool);
         tools.put("GenerateVideoClip", new GenerateVideoClipTool(
                 veoEnabled() ? new VeoClient(config.geminiApiKey(), config.veoModel()) : null, media));

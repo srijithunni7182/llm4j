@@ -26,12 +26,13 @@ class VisualsEvalTest {
     static Path dataDir;
 
     static GetViralEngine.Outcome outcome;
+    static StudioRun run;
 
     @BeforeAll
     static void run() {
         GetViralEngine engine = GetViralTestSupport.engine(dataDir);
         GetViralEngine.Brief brief = GetViralTestSupport.brief("the 5-minute desk reset before work", "visuals.creator");
-        StudioRun run = GetViralTestSupport.newRun(brief);
+        run = GetViralTestSupport.newRun(brief);
         run.autopilot(GetViralTestSupport.creator(0, null, false));
         outcome = engine.run(run, brief);
         assertThat(outcome.status()).isEqualTo(StudioRun.Status.DONE);
@@ -88,16 +89,16 @@ class VisualsEvalTest {
     }
 
     @Test
-    void anIndependentInspectorVerifiesEveryArtifactBeforeTheCreatorSeesIt() {
-        assertThat(last("Inspector")).completedSuccessfully().usesTool("inspect_artifacts").hasValidJson(Map.class);
-        Map<?, ?> inspection = (Map<?, ?>) outcome.pack().get("inspection");
-        assertThat(inspection.get("verdict")).isIn("PASS", "PASS_WITH_WARNINGS");
-        List<?> checks = (List<?>) inspection.get("checks");
-        assertThat(checks).extracting(c -> String.valueOf(((Map<?, ?>) c).get("artifact")))
+    void theShowrunnerSignsOffEveryArtifactBeforeTheCreatorSeesIt() {
+        Map<?, ?> build = (Map<?, ?>) outcome.pack().get("build");
+        assertThat(build.get("verdict")).isEqualTo("COMPLETE");
+        assertThat((List<?>) build.get("fixes")).isEmpty();
+        Map<?, ?> review = run.events().stream().filter(e -> "build_review".equals(e.get("type")))
+                .map(e -> (Map<?, ?>) e.get("data")).reduce((a, b) -> b).orElseThrow();
+        assertThat(review.get("complete")).isEqualTo(true);
+        assertThat((List<?>) review.get("checks")).extracting(c -> String.valueOf(((Map<?, ?>) c).get("artifact")))
                 .contains("youtube_thumbnail", "reel_cover", "x_card", "broll_1", "broll_2", "reel.mp4",
                         "reel-preview.webm", "x thread", "reel caption", "youtube package");
-        // Its brief is fixed: the Showrunner never wrote or rewrote it.
-        assertThat(outcome.prompts().all()).doesNotContainKey("Inspector");
     }
 
     @Test

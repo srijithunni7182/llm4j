@@ -15,7 +15,7 @@ public record AppProperties(
         @DefaultValue Media media) {
 
     public record Quota(@DefaultValue("20") int packsPerMonth, @DefaultValue("8") int workers,
-                        @DefaultValue("10m") Duration humanTimeout) { }
+                        @DefaultValue("10m") Duration staleAfter) { }
 
     public record Auth(@DefaultValue("false") boolean devLogin, String googleClientId, String googleClientSecret) {
         public boolean googleConfigured() {

@@ -90,8 +90,10 @@ Why these flags:
   Clients reconnect automatically and resume from the last event.
 - **`--memory=4Gi`.** It covers the bundled embedding model, image work and H.264 encoding. Each instance
   runs up to `GETVIRAL_WORKERS` (default 8) packs at once.
-- **Instance replacement is safe.** If an instance is replaced mid-run, a sweeper marks its runs failed
-  (they don't count against the creator's quota), and the creator can start again.
+- **Instance replacement is safe.** Every step of a run is journaled in Postgres. A run waiting for its
+  creator holds nothing, and a run whose instance is replaced mid-way is resumed by another instance from
+  its last recorded step (after `GETVIRAL_STALE_AFTER` of silence, default 10 minutes; given up after two
+  resumes; a run given up on doesn't count against the creator's quota).
 
 Every later release is just `gcloud builds submit --config examples/getviral/cloudbuild.yaml .`, which only
 swaps the image and keeps all of the settings above.

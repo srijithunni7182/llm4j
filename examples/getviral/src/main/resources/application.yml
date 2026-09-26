@@ -42,7 +42,7 @@ getviral:
   quota:
     packs-per-month: ${GETVIRAL_PACKS_PER_MONTH:20}
     workers: ${GETVIRAL_WORKERS:8}
-    human-timeout: ${GETVIRAL_HUMAN_TIMEOUT:10m}
+    stale-after: ${GETVIRAL_STALE_AFTER:10m}   # a running pack silent this long is resumed elsewhere
   auth:
     dev-login: ${GETVIRAL_DEV_LOGIN:false}    # local testing only — never enable on a public deployment
     google-client-id: ${GOOGLE_CLIENT_ID:}
