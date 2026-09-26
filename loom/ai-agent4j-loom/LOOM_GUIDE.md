@@ -216,6 +216,59 @@ loop until (review.verdict == "COMPLETE") max 5 {
 }
 ```
 
+### Durable Runs (no new syntax)
+Every step with side effects (a `delegate`, a `human_prompt`, a `broadcast`) records its result in a
+**run journal** under a stable step id: its position in the script, including loop round and branch.
+Run the workflow again with the same journal and Loom **replays** the recorded steps, so no model is called
+twice, and carries on from the first step that hasn't happened yet. That gives you:
+
+- **Waiting for people without holding a thread.** A `HumanInterface` can throw `RunSuspended` instead of
+  blocking. Record the answer with `journal.answer(stepId, answer)` whenever it arrives, even days later,
+  and run the workflow again on any server.
+- **Crash recovery.** If a process dies mid-run, run the workflow again with its journal; it resumes after
+  the last recorded step.
+- **Tools and approvals that need a human mid-step** call `executor.awaitHuman(key, question)`. It is not
+  an error and is never retried: the step re-runs on resume and gets the answer.
+
+Journals come in memory (the default), file (`FileRunJournal`) and SQL (`JdbcRunJournal`) versions.
+
+```java
+executor.setJournal(new JdbcRunJournal(dataSource, runId));
+try {
+    executor.executeWorkflow("Main", inputs);            // runs until done…
+} catch (RunSuspended waiting) {                          // …or until a human is needed
+    save(runId, waiting.stepId(), waiting.prompt());      // show the question, free the thread
+}
+// later, anywhere:
+journal.answer(stepId, "yes");
+newExecutor.setJournal(new JdbcRunJournal(dataSource, runId));
+newExecutor.executeWorkflow("Main", inputs);              // replays, then continues
+```
+
+### for each
+Run a block once per item of a list, one after another, or all at once with `parallel for each`. The item
+is visible to the block as `{item.field}` (and its position as `{_index}`). The agent and the result
+variable can come from the item, so one line routes work to whoever should do it:
+
+```loom
+for each fix in review.fixes {
+    delegate "Fix this: {fix.problem}" to {fix.owner} -> {fix.output}
+}
+
+parallel for each shot in plan.shots {
+    delegate "Shoot {shot.description}" to Photographer -> {shot.name}
+}
+```
+
+### Retry Backoff and Timeouts
+A step can wait between retries (the wait doubles each attempt) and give up on an attempt that hangs:
+
+```loom
+delegate "Summarise {doc}" to Writer -> summary retry 2 backoff 2s timeout 90s on_failure {
+    note "Writer unavailable: {_error}"
+}
+```
+
 ### Per-Step Schemas (`expecting`)
 One agent can return different structures in different steps. `expecting { ... }` on a delegate overrides
 the agent's `output_schema` for that step only:
