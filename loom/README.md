@@ -58,11 +58,12 @@ Loom is that layer, designed as a first-class language.
 | `broadcast` | Fan out to multiple agents in parallel, collect combined result |
 | `handoff` | Terminal node — pass control to an agent and end the current branch |
 | `alt` / `else` | Symbolic conditional branching on typed context variable values |
-| `loop until` | Retry block — executes until a symbolic condition is met |
-| `human_prompt` | Blocking suspension — parks execution until human input arrives |
+| `loop until` | Repeats a block until a symbolic condition is met; `max N … on_exhausted` bounds it |
+| `for each` | Runs a block per list item (`parallel for each` for all at once); targets may come from the item |
+| `human_prompt` | Asks a person; with a run journal the run suspends (no thread held) and resumes on the answer |
 | `guardrail` | Wraps a block — intercepts output before it escapes (e.g. PII detection) |
 | `call` | Invoke a sub-workflow with isolated variable scope |
-| `parallel { }` | Concurrent execution block — every statement runs in its own thread |
+| `parallel { }` | Concurrent execution block — every statement runs on its own branch thread |
 | `observe` | Emit a structured trace event without affecting control flow |
 | `note` | Inline documentation — ignored by the runtime |
 | `import` | Split large workflows across files — merged into a flat namespace at load time |
@@ -95,7 +96,7 @@ any condition is evaluated.
 
 ```text
 delegate "Analyze data" to AnalystAgent -> result
-    retry 3
+    retry 3 backoff 2s timeout 60s
     on_failure { handoff "Escalate" to AdminAgent }
 ```
 
@@ -104,6 +105,78 @@ delegate "Analyze data" to AnalystAgent -> result
 ```text
 call ValidateAndApprove(draft) -> approved_draft
 ```
+
+---
+
+## New: durable, data-driven workflows in one file
+
+These features came out of building [GetViral](../examples/getviral/), a 12-agent content studio that
+runs as a hosted website. Each is one keyword in the script. None needs a graph builder, a state class
+or callback code.
+
+**Runs that survive restarts and wait for people for free.** Every `delegate`, `broadcast` and
+`human_prompt` records its result in a *run journal* (in memory, a file, or any SQL database). Run the
+workflow again with the same journal and Loom replays what already happened, so no model is called twice,
+then continues. A `human_prompt` can suspend the run instead of blocking a thread; record the answer days
+later and resume it on any server. A crashed process resumes from its last step. The script doesn't
+change at all:
+
+```java
+executor.setJournal(new JdbcRunJournal(dataSource, runId));
+try { executor.executeWorkflow("Main", inputs); }
+catch (RunSuspended waiting) { askTheUser(waiting.stepId(), waiting.prompt()); }   // thread is free
+// …later, on any instance:
+journal.answer(stepId, "yes");  executor.executeWorkflow("Main", inputs);        // replays, then continues
+```
+
+**`for each`, with routing decided by data.** Iterate over any list an agent returned, sequentially or
+with `parallel for each`. The target agent and the output variable can come from the item, so one line
+replaces a chain of `alt` branches:
+
+```text
+for each fix in review.fixes {
+    delegate "Fix this: {fix.problem}" to {fix.owner} -> {fix.output}
+}
+```
+
+**Loops that can't run away.** `loop until … max N { } on_exhausted { }` bounds the rounds, so a model
+that never satisfies the condition can't spin (and bill) forever.
+
+```text
+loop until (review.verdict == "COMPLETE") max 5 {
+    delegate "Review round {_loopRound}" to Lead -> review
+    for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} -> {fix.output} }
+} on_exhausted {
+    note "Shipping with open issues after {_loopRounds} rounds"
+}
+```
+
+**Resilience you can read.** Exponential backoff and a per-attempt timeout sit next to the retry count:
+
+```text
+delegate "Summarise {doc}" to Writer -> summary retry 2 backoff 2s timeout 90s
+    on_failure { handoff "Writer unavailable: {_error}" to Supervisor }
+```
+
+**A contract for each step, not just each agent.** `expecting { }` gives one delegate its own output schema,
+so a single agent can cast a team in one step and return a verdict in another:
+
+```text
+delegate "Review the build" to Showrunner -> review expecting {
+    verdict: enum["COMPLETE", "INCOMPLETE"],
+    fixes: list
+}
+```
+
+**Smaller things that make scripts shorter:**
+
+- `temperature:` on an agent (creative roles high, checkers low);
+- `{plan.hooks.0}` paths into structured results inside any payload;
+- `parallel` branches that really run in parallel, on their own thread pool;
+- block-local variables that don't leak out of a `for each`.
+
+See the [Language Guide](./ai-agent4j-loom/LOOM_GUIDE.md#-5-the-frontier-advanced-orchestration) for each
+feature in detail.
 
 ---
 

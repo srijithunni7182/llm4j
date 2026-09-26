@@ -276,6 +276,8 @@ public class ReActAgent {
                         .append("\n");
                 scratchpad.append("Observation: ").append(observation).append("\n");
 
+            } catch (AgentInterrupt interrupt) {
+                throw interrupt;
             } catch (Exception e) {
                 logger.error("Critical error in agent loop: {}", e.getMessage(), e);
                 scratchpad
@@ -400,6 +402,8 @@ public class ReActAgent {
             logger.info("Tool '{}' returned observation: {}", action, observation);
             notifyObservation(observation);
             return new ActionExecution(observation, AgentResult.StepOutcome.EXECUTED);
+        } catch (AgentInterrupt interrupt) {
+            throw interrupt; // a deliberate stop (e.g. waiting for a human) is never a tool error
         } catch (Exception e) {
             logger.error("Error executing tool {}: {}", action, e.getMessage(), e);
             return new ActionExecution(

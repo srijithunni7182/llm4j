@@ -1,0 +1,31 @@
+# Build the image from source, push it to Artifact Registry and roll out a new Cloud Run revision.
+# Run from the REPOSITORY ROOT (see DEPLOY.md for the one-time setup):
+#   gcloud builds submit --config examples/getviral/cloudbuild.yaml .
+substitutions:
+  _REGION: us-central1
+  _REPO: getviral
+  _SERVICE: getviral
+  _IMAGE: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/getviral
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    env: ["DOCKER_BUILDKIT=1"]
+    args: ["build", "-f", "examples/getviral/Dockerfile",
+           "-t", "${_IMAGE}:${BUILD_ID}", "-t", "${_IMAGE}:latest", "."]
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: ["push", "--all-tags", "${_IMAGE}"]
+
+  # Only swaps the image: env vars, secrets, Cloud SQL and scaling set in DEPLOY.md are kept.
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args: ["run", "deploy", "${_SERVICE}", "--image", "${_IMAGE}:${BUILD_ID}", "--region", "${_REGION}", "--quiet"]
+
+images: ["${_IMAGE}:${BUILD_ID}", "${_IMAGE}:latest"]
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1800s

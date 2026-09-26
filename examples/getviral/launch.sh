@@ -85,7 +85,7 @@ fi
 cat <<EOF
 
   ${PINK}${B}⚡ GetViral${R}  ${D}one idea · every feed${R}
-  ${D}11 agents · Loom · Engram · eval4j · ai-agent4j · addons${R}
+  ${D}12 agents · Loom · Engram · eval4j · ai-agent4j · addons${R}
 
 EOF
 
@@ -131,6 +131,9 @@ if [ -z "$MODE" ]; then
 fi
 
 export GETVIRAL_PORT="$PORT"
+# Local launches sign in with the dev login unless Google sign-in is configured. Never set this on a public server.
+if [ -z "${GOOGLE_CLIENT_ID:-}" ]; then export GETVIRAL_DEV_LOGIN=true; fi
+export GETVIRAL_PUBLIC_URL="${GETVIRAL_PUBLIC_URL:-http://localhost:$PORT}"
 case "$MODE" in
   gemini)
     KEY="${GEMINI_API_KEY:-${GOOGLE_API_KEY:-}}"

@@ -9,18 +9,25 @@
 //                loop, typed output schemas and the publish approval are deterministic.
 //
 //  The `system:` lines below are only one-line fallbacks used if the Showrunner fails.
+//  `temperature:` is per role: creative roles run hot so they explore, while the roles that research,
+//  judge, verify or publish run cool so they stay precise (GETVIRAL_CREATIVITY scales the hot ones).
 //  model "studio" is resolved by GetViral's LLMClientFactory (Gemini, Ollama or demo).
 // ─────────────────────────────────────────────────────────────────────────────
 
 agent Showrunner {
     model: "studio"
-    system: "You are the Showrunner of GetViral, an elite creative director who assembles a team of AI specialists for each creator brief. Your job is not to write content: it is to write the SYSTEM PROMPTS your specialists will run with. For each specialist write a vivid, specific prompt (120-220 words) that casts them for THIS brief: name the creator, their niche, tone and audience; set the creative direction and angle; say which tools to lean on and why; give concrete do and don't rules for their platform; and define what excellent looks like. Use the viral_playbook tool (scope playbook, and scope voice for the creator's past posts) to ground your direction. When you are given critic FEEDBACK, rewrite the prompts of the specialists who fell short so they fix exactly those issues, and keep the prompts that worked. Specialists: TrendScout (live trend research), Strategist (angle, hooks, facts), XWriter (X thread), ReelDirector (Instagram Reel), YouTubeProducer (YouTube video + Short), ViralityCritic (scores the pack), ArtDirector (generates the thumbnail, Reel cover, B-roll frames and X card images), VideoEditor (renders the Reel into an MP4). For the ArtDirector, define one coherent visual style for the whole pack (palette, lighting, lens, mood) so every image looks like the same shoot."
-    tools: [ViralPlaybook]
+    temperature: 1.0
+    system: "You are the Showrunner of GetViral, an elite creative director who assembles a team of AI specialists for each creator brief. Your job is not to write content: it is to write the SYSTEM PROMPTS your specialists will run with. For each specialist write a vivid, specific prompt (120-220 words) that casts them for THIS brief: name the creator, their niche, tone and audience; set the creative direction and angle; say which tools to lean on and why; give concrete do and don't rules for their platform; and define what excellent looks like. Use the viral_playbook tool (scope playbook, and scope voice for the creator's past posts) to ground your direction. When you are given critic FEEDBACK, rewrite the prompts of the specialists who fell short so they fix exactly those issues, and keep the prompts that worked. Specialists: TrendScout (live trend signals), Researcher (researches the idea itself on the open web and reads the best sources), Strategist (angle, hooks, facts), XWriter (X thread), ReelDirector (Instagram Reel), YouTubeProducer (YouTube video + Short), ViralityCritic (scores the pack), ArtDirector (generates the thumbnail, Reel cover, B-roll frames and X card images), VideoEditor (renders the Reel into an MP4). For the ArtDirector, define one coherent visual style for the whole pack (palette, lighting, lens, mood) so every image looks like the same shoot. ORIGINALITY IS PART OF THE JOB: you are shown this creator's past castings. Never reuse their lens, visual style, signature ideas, title formulas or phrasing — even for a similar idea. Choose one lens from LENS OPTIONS and one visual style from STYLE OPTIONS (or something even fresher that is not in the past castings), name 2-4 signature ideas this pack is built on, and make the ArtDirector's and YouTubeProducer's prompts especially bold and specific to that lens and style. YOU ALSO OWN THE FINISHED BUILD: when asked to REVIEW THE BUILD, call quality_gate, then mark each area (x, reel, youtube, visuals, video) PASS or FIX and write each FIX as a precise instruction for the specialist who owns it. Nothing is finished until every artifact for X, Instagram and YouTube passes."
+    tools: [ViralPlaybook, QualityGate]
     output_schema: {
         run_title: string,
+        lens: string,
+        visual_style: string,
+        signature_ideas: list<string>,
         creative_direction: string,
         prompts: {
             TrendScout: string,
+            Researcher: string,
             Strategist: string,
             XWriter: string,
             ReelDirector: string,
@@ -34,13 +41,29 @@ agent Showrunner {
 
 agent TrendScout {
     model: "studio"
+    temperature: 0.4
     system: "You are TrendScout. Research what is trending right now that connects to the brief and report concrete, sourced signals."
     tools: [TrendingNow, HackerNewsPulse, TrendingHashtags, MomentCalendar, FactCheck]
 }
 
+agent Researcher {
+    model: "studio"
+    temperature: 0.3
+    system: "You are Researcher. Before anything is written, research the idea itself on the open web: run web_search (twice if the first results are thin), read the 2-3 most useful sources in full with read_page, and synthesise what is true, recent, surprising and debated. Every finding must carry the URL it came from; if something could not be verified, put it under caveats instead."
+    tools: [WebSearch, ReadPage, FactCheck]
+    output_schema: {
+        summary: string,
+        findings: list<{ point: string, source: string, url: string }>,
+        fresh_angles: list<string>,
+        debates: list<string>,
+        caveats: list<string>
+    }
+}
+
 agent Strategist {
     model: "studio"
-    system: "You are Strategist. Turn the brief and trend research into an angle, five scroll-stopping hooks, verified key facts and hashtags."
+    temperature: 0.9
+    system: "You are Strategist. Turn the brief, the web research and the trend signals into an angle, five scroll-stopping hooks, key facts and hashtags. Key facts come from the research findings and keep their source."
     tools: [ViralPlaybook, WordLab]
     output_schema: {
         angle: string,
@@ -54,6 +77,7 @@ agent Strategist {
 
 agent XWriter {
     model: "studio"
+    temperature: 0.95
     system: "You are XWriter. Write a high-performing X thread and a standalone post from the chosen hook and plan."
     tools: [WordLab, FactCheck]
     output_schema: {
@@ -65,6 +89,7 @@ agent XWriter {
 
 agent ReelDirector {
     model: "studio"
+    temperature: 1.0
     system: "You are ReelDirector. Direct a 20-40 second Instagram Reel beat by beat with voiceover, on-screen text, audio and caption."
     tools: [TrendingAudio, BrollFinder, ViralPlaybook]
     output_schema: {
@@ -80,7 +105,8 @@ agent ReelDirector {
 
 agent YouTubeProducer {
     model: "studio"
-    system: "You are YouTubeProducer. Package a YouTube video: titles, thumbnail, hook script, outline, description with chapters and a Shorts cut."
+    temperature: 1.05
+    system: "You are YouTubeProducer. Package a YouTube video: titles, thumbnail, hook script, outline, description with chapters and a Shorts cut. Build the outline on the research findings and end the description with a Sources list of the URLs you relied on. Be original: you are shown this creator's past titles and thumbnails — invent new title formulas and a thumbnail with a different composition and emotion, never the same template with new words. If a package comes back marked originality REPEAT, fix exactly what it names."
     tools: [BrollFinder, FactCheck, ViralPlaybook]
     output_schema: {
         titles: list<string>,
@@ -98,7 +124,8 @@ agent YouTubeProducer {
 
 agent ViralityCritic {
     model: "studio"
-    system: "You are ViralityCritic. Score the whole pack from 0 to 10 for scroll-stopping power, platform fit, clarity and trust. SHIP at 8 or above, otherwise REVISE with precise per-platform feedback."
+    temperature: 0.3
+    system: "You are ViralityCritic. Score the whole pack from 0 to 10 for scroll-stopping power, platform fit, clarity and trust. Trust means every factual claim is backed by the RESEARCH findings; flag any that are not. If a package is marked originality REPEAT, it is too close to the creator's earlier work: verdict REVISE and ask for a genuinely new angle. SHIP at 8 or above, otherwise REVISE with precise per-platform feedback."
     output_schema: {
         score: number,
         verdict: enum["SHIP", "REVISE"],
@@ -112,7 +139,8 @@ agent ViralityCritic {
 
 agent ArtDirector {
     model: "studio"
-    system: "You are ArtDirector. Generate the pack's images with generate_image: a 16:9 youtube_thumbnail, a 9:16 reel_cover, two 9:16 B-roll frames (broll_1, broll_2) and a 16:9 x_card. Keep one visual style across all of them. Prompts describe the scene only; put words in overlay_text."
+    temperature: 1.1
+    system: "You are ArtDirector. Commit fully to the VISUAL STYLE you are given — it was chosen so this creator's feed never looks the same twice — and push it further with an unexpected composition, camera angle or prop. Generate the pack's images with generate_image: a 16:9 youtube_thumbnail, a 9:16 reel_cover, two 9:16 B-roll frames (broll_1, broll_2) and a 16:9 x_card. Keep one visual style across all of them. Prompts describe the scene only; put words in overlay_text."
     tools: [GenerateImage]
     output_schema: {
         style: string,
@@ -125,6 +153,7 @@ agent ArtDirector {
 
 agent VideoEditor {
     model: "studio"
+    temperature: 0.7
     system: "You are VideoEditor. Cut the Reel: optionally generate one AI B-roll clip with generate_video_clip, then call render_reel with the pacing that fits the tone. Report the video URL and your edit decisions."
     tools: [RenderReel, GenerateVideoClip]
     output_schema: {
@@ -137,16 +166,18 @@ agent VideoEditor {
 
 agent Publisher {
     model: "studio"
+    temperature: 0.2
     system: "You are Publisher. Check the Instagram quota, then publish the Reel with instagram_publish using the given video URL and the Reel caption followed by its hashtags. A human must approve the publish call. Report exactly what happened, including dry runs."
     tools: [InstagramQuota, InstagramPublish]
 }
 
 agent SafetyCoach {
     model: "studio"
+    temperature: 0.3
     system: "You are SafetyCoach. In two friendly sentences, explain that the brief contained personal data (like an email address or phone number), that GetViral never puts personal data into public content, and ask the creator to remove it and try again. Do not repeat the personal data."
 }
 
-workflow GetViral(creatorIdea, creatorHandle, creatorNiche, creatorTone, creatorRegion) {
+workflow GetViral(creatorIdea, creatorHandle, creatorNiche, creatorTone, creatorRegion, pastCastings, lensOptions, styleOptions, pastYouTube) {
     observe "Brief received" { creatorHandle creatorNiche creatorTone creatorRegion }
 
     guardrail (PII) {
@@ -156,16 +187,46 @@ IDEA: {creatorIdea}
 NICHE: {creatorNiche}
 TONE: {creatorTone}
 CREATOR: @{creatorHandle}
-REGION: {creatorRegion}" to Showrunner -> castingSheet retry 1 on_failure {
+REGION: {creatorRegion}
+LENS OPTIONS: {lensOptions}
+STYLE OPTIONS: {styleOptions}
+YOUR PAST CASTINGS FOR THIS CREATOR (never repeat their lens, style, signature ideas or phrasing):
+{pastCastings}" to Showrunner -> castingSheet retry 1 on_failure {
             note "Showrunner unavailable ({_error}) — specialists run on fallback prompts."
         }
 
-        // 2. Live research from public APIs.
-        delegate "Scout live trends for this brief and report the strongest signals with sources.
+        // 1b. Originality gate (symbolic): GetViral compares the casting with this creator's past castings
+        //     — same lens, same style, reused signature ideas, or a direction that means the same thing —
+        //     and sends a repeat back once, naming exactly what overlapped.
+        alt (castingSheet.novelty == "REPEAT") {
+            delegate "RECAST FOR ORIGINALITY. Your casting is too close to this creator's earlier work. Write a completely new casting: a different lens, a different visual style, new signature ideas and new prompts for every specialist.
+FEEDBACK: {castingSheet.novelty_feedback}
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+TONE: {creatorTone}
+CREATOR: @{creatorHandle}
+LENS OPTIONS: {lensOptions}
+STYLE OPTIONS: {styleOptions}
+YOUR PAST CASTINGS FOR THIS CREATOR:
+{pastCastings}" to Showrunner -> castingSheet retry 1 on_failure {
+                note "Originality re-cast failed — continuing with the first casting."
+            }
+        }
+
+        // 2. Research, in parallel: the open web on the idea itself, and live trend signals.
+        parallel {
+            delegate "Research this idea on the open web and report what is true, new and debated, with a source URL for every finding.
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+REGION: {creatorRegion}" to Researcher -> researchDossier retry 1 on_failure {
+                note "Web research failed: {_error}"
+            }
+            delegate "Scout live trends for this brief and report the strongest signals with sources.
 IDEA: {creatorIdea}
 NICHE: {creatorNiche}
 REGION: {creatorRegion}" to TrendScout -> trendReport retry 1 on_failure {
-            note "Trend scouting failed: {_error}"
+                note "Trend scouting failed: {_error}"
+            }
         }
 
         // 3. Strategy with typed output.
@@ -174,6 +235,7 @@ IDEA: {creatorIdea}
 NICHE: {creatorNiche}
 TONE: {creatorTone}
 CREATOR: @{creatorHandle}
+RESEARCH: {researchDossier}
 TRENDS: {trendReport}" to Strategist -> gamePlan retry 1
 
         // 4. Human-in-the-loop: the creator picks the hook.
@@ -199,7 +261,10 @@ IDEA: {creatorIdea}
 NICHE: {creatorNiche}
 HOOK: {hookChoice}
 TONE: {creatorTone}
-PLAN: {gamePlan}" to YouTubeProducer -> youtubePack retry 1
+PLAN: {gamePlan}
+RESEARCH: {researchDossier}
+PAST YOUTUBE PACKAGES FOR THIS CREATOR (invent new title formulas and thumbnails):
+{pastYouTube}" to YouTubeProducer -> youtubePack retry 1
         }
 
         // 6. Critic loop — the Showrunner re-casts prompts from the feedback before each rewrite.
@@ -207,6 +272,7 @@ PLAN: {gamePlan}" to YouTubeProducer -> youtubePack retry 1
             delegate "Review the full pack.
 IDEA: {creatorIdea}
 HOOK: {hookChoice}
+RESEARCH: {researchDossier}
 X: {xPack}
 REEL: {reelPack}
 YOUTUBE: {youtubePack}" to ViralityCritic -> criticReport
@@ -217,7 +283,7 @@ IDEA: {creatorIdea}
 NICHE: {creatorNiche}
 TONE: {creatorTone}
 CREATOR: @{creatorHandle}
-FEEDBACK: {criticReport}" to Showrunner -> castingSheet retry 1 on_failure {
+FEEDBACK: {criticReport}" to Showrunner -> revisionCast retry 1 on_failure {
                     note "Recast failed — revising with current prompts."
                 }
                 parallel {
@@ -241,7 +307,9 @@ NICHE: {creatorNiche}
 TONE: {creatorTone}
 HOOK: {hookChoice}
 FEEDBACK: {criticReport}
-CURRENT: {youtubePack}" to YouTubeProducer -> youtubePack retry 1
+CURRENT: {youtubePack}
+PAST YOUTUBE PACKAGES FOR THIS CREATOR (invent new title formulas and thumbnails):
+{pastYouTube}" to YouTubeProducer -> youtubePack retry 1
                 }
             }
         }
@@ -253,6 +321,7 @@ IDEA: {creatorIdea}
 NICHE: {creatorNiche}
 TONE: {creatorTone}
 HOOK: {hookChoice}
+VISUAL STYLE: {castingSheet.visual_style}
 REEL: {reelPack}
 YOUTUBE: {youtubePack}" to ArtDirector -> visualPack retry 1 on_failure {
             note "Image generation failed: {_error}"
@@ -264,12 +333,54 @@ VISUALS: {visualPack}" to VideoEditor -> videoPack retry 1 on_failure {
             note "Reel render failed: {_error}"
         }
 
-        // 8. Optional publishing, behind a second human gate (tool-level approval).
-        human_prompt "PUBLISH: Publish the Reel to Instagram? Paste a public https video URL of your recorded Reel, or type skip" -> reelVideoUrl
-        alt (reelVideoUrl != "skip") {
-            delegate "Publish the Reel to Instagram.
+        // 8. The Showrunner owns the finished build. Each round it runs the quality gate (every file decoded
+        //    and spec-checked, platform limits, originality, eval4j judges) and sends each failing area back
+        //    to the specialist who owns it. GetViral holds it to the gate: COMPLETE only when everything
+        //    passes. Bounded, so a stubborn failure ends as "needs attention" instead of looping forever.
+        loop until (qualityReport.verdict == "COMPLETE") max 5 {
+            delegate "REVIEW THE BUILD (round {_loopRound}). Call quality_gate, then decide what each specialist must fix so every artifact for X, Instagram and YouTube is right.
+IDEA: {creatorIdea}
+HOOK: {hookChoice}
+VISUAL STYLE: {castingSheet.visual_style}" to Showrunner -> qualityReport expecting {
+                verdict: enum["COMPLETE", "INCOMPLETE"],
+                summary: string,
+                x: enum["PASS", "FIX"],
+                x_fix: string,
+                reel: enum["PASS", "FIX"],
+                reel_fix: string,
+                youtube: enum["PASS", "FIX"],
+                youtube_fix: string,
+                visuals: enum["PASS", "FIX"],
+                visuals_fix: string,
+                video: enum["PASS", "FIX"],
+                video_fix: string
+            } retry 1 on_failure {
+                note "Build review failed this round: {_error}"
+            }
+
+            // Each failing area goes to the specialist who owns it (video last: it's cut from the others).
+            for each fix in qualityReport.fixes {
+                delegate "{fix.task}
+FIX: {fix.problem}
+IDEA: {creatorIdea}
+TONE: {creatorTone}
+HOOK: {hookChoice}
+VISUAL STYLE: {castingSheet.visual_style}
+CURRENT: {fix.current}" to {fix.owner} -> {fix.output} retry 1
+            }
+        } on_exhausted {
+            note "Quality loop reached its limit after {_loopRounds} rounds — some artifacts still fail the gate."
+        }
+
+        // 9. Optional publishing — only for a complete build — behind a second human gate (tool-level approval).
+        alt (qualityReport.verdict == "COMPLETE") {
+            human_prompt "PUBLISH: Publish the Reel to Instagram? Paste a public https video URL of your recorded Reel, or type skip" -> reelVideoUrl
+            alt (reelVideoUrl != "skip") {
+                delegate "Publish the Reel to Instagram.
 VIDEO_URL: {reelVideoUrl}
+QUALITY: {qualityReport.summary}
 REEL: {reelPack}" to Publisher -> publishReceipt
+            }
         }
     } on_violation {
         note "Personal data detected in the brief — generation blocked."

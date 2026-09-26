@@ -21,6 +21,8 @@ public class AgentDef implements Node {
     private String routingPolicy;
     private final List<String> knowledgeBases = new ArrayList<>();
     private SchemaDef outputSchema;
+    /** Optional sampling temperature (0.0–2.0) for this agent's LLM calls; null = the runtime default. */
+    private Double temperature;
 
     public AgentDef(String name) {
         this.name = name;
@@ -69,6 +71,9 @@ public class AgentDef implements Node {
 
     public List<String> getKnowledgeBases() { return knowledgeBases; }
     public void addKnowledgeBase(String kbName) { this.knowledgeBases.add(kbName); }
+
+    public Double getTemperature() { return temperature; }
+    public void setTemperature(Double temperature) { this.temperature = temperature; }
 
     public SchemaDef getOutputSchema() { return outputSchema; }
     public void setOutputSchema(SchemaDef outputSchema) { this.outputSchema = outputSchema; }

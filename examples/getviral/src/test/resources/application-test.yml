@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:getviral-${random.uuid};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+getviral:
+  data-dir: target/test-data/${random.uuid}
+  demo-pace-ms: 0
+  quota:
+    packs-per-month: 3
+    workers: 4
+    stale-after: 10m
+  auth:
+    dev-login: true

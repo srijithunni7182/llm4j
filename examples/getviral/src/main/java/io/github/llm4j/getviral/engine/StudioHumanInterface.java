@@ -8,7 +8,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
-/** Serves Loom's {@code human_prompt} statements from the studio (or its autopilot). */
+/**
+ * Serves Loom's {@code human_prompt} statements from the studio. The question is asked under Loom's
+ * step id, so the answer can arrive later (the run suspends meanwhile) and be replayed on resume.
+ */
 public class StudioHumanInterface implements HumanInterface {
 
     private final StudioRun run;
@@ -21,18 +24,39 @@ public class StudioHumanInterface implements HumanInterface {
 
     @Override
     public String promptHuman(String message) {
-        if (message.startsWith("HOOK_PICK:")) {
-            List<String> hooks = hooks();
-            String fallback = hooks.isEmpty() ? "" : hooks.get(0);
-            String answer = run.ask("hook", message.substring("HOOK_PICK:".length()).strip(), hooks, fallback);
-            return answer == null || answer.isBlank() ? fallback : answer.strip();
-        }
-        if (message.startsWith("PUBLISH:")) {
-            String answer = run.ask("publish", message.substring("PUBLISH:".length()).strip(), List.of("skip"), "skip");
-            String url = answer == null ? "" : answer.strip();
-            return url.startsWith("https://") ? url : "skip";
-        }
-        return run.ask("question", message, List.of(), "");
+        return promptHuman("question", message);
+    }
+
+    @Override
+    public String promptHuman(String stepId, String message) {
+        String kind = kind(message);
+        List<String> options = kind.equals("hook") ? hooks() : kind.equals("publish") ? List.of("skip") : List.of();
+        return normalize(kind, run.ask(kind, stepId, text(message), options), options);
+    }
+
+    /** The question kind from its tag in the .loom ({@code HOOK_PICK:}, {@code PUBLISH:}). */
+    static String kind(String message) {
+        if (message.startsWith("HOOK_PICK:")) return "hook";
+        if (message.startsWith("PUBLISH:")) return "publish";
+        return "question";
+    }
+
+    static String text(String message) {
+        return message.replaceFirst("^(HOOK_PICK|PUBLISH):", "").strip();
+    }
+
+    /**
+     * Turns a raw answer into what the workflow expects: a blank hook pick means the first hook, and a
+     * publish answer that isn't an https URL means skip. Applied before an answer is recorded.
+     */
+    public static String normalize(String kind, String answer, List<String> options) {
+        String a = answer == null ? "" : answer.strip();
+        return switch (kind) {
+            case "hook" -> a.isEmpty() && !options.isEmpty() ? options.get(0) : a;
+            case "publish" -> a.startsWith("https://") ? a : "skip";
+            case "approval" -> "approve".equalsIgnoreCase(a) ? "approve" : "reject";
+            default -> a;
+        };
     }
 
     private List<String> hooks() {

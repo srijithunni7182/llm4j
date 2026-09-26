@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Welcome to GetViral</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="studio.css">
+</head>
+<body class="page-onboarding">
+  <div class="aurora" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <a class="brand" href="/studio" aria-label="GetViral studio">
+      <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 5 13.5h6L9.5 22 19 9.5h-6z"/></svg></span>
+      <span class="brand-name">GetViral</span>
+    </a>
+    <div class="me-chip" id="meChip"></div>
+  </header>
+
+  <main class="onboard">
+    <ol class="steps" id="steps" aria-label="Setup steps">
+      <li data-step="PROFILE"><b>1</b><span>About you</span></li>
+      <li data-step="CONNECT"><b>2</b><span>Connect</span></li>
+      <li data-step="VOICE"><b>3</b><span>Your voice</span></li>
+      <li data-step="TOUR"><b>4</b><span>The tour</span></li>
+    </ol>
+
+    <!-- 1 · PROFILE -->
+    <section class="step-panel glass" data-panel="PROFILE" hidden>
+      <p class="eyebrow">Step 1 of 4</p>
+      <h1 class="display-sm">Hey <span id="firstName">creator</span> — who are you creating as?</h1>
+      <p class="muted">This becomes the brief for every pack. You can change it any time.</p>
+      <form id="profileForm" class="profile-form" autocomplete="off">
+        <label class="field"><span>Your handle</span>
+          <div class="handle-input"><b>@</b><input id="pHandle" required maxlength="39" placeholder="yourhandle" pattern="@?[A-Za-z0-9._]{1,39}"></div></label>
+        <label class="field"><span>Region</span><input id="pRegion" maxlength="2" placeholder="US" pattern="[A-Za-z]{2}"></label>
+        <div class="field full"><span>Your niche</span>
+          <div class="chip-row" id="nicheChips">
+            <button type="button" class="chip" data-v="fitness">💪 Fitness</button><button type="button" class="chip" data-v="productivity">⏱️ Productivity</button>
+            <button type="button" class="chip" data-v="food">🍜 Food</button><button type="button" class="chip" data-v="tech">💻 Tech</button>
+            <button type="button" class="chip" data-v="travel">✈️ Travel</button><button type="button" class="chip" data-v="personal finance">💸 Money</button>
+            <button type="button" class="chip" data-v="beauty">💄 Beauty</button><button type="button" class="chip" data-v="education">🎓 Education</button>
+            <button type="button" class="chip" data-v="culture">🌍 Culture</button><button type="button" class="chip" data-v="books">📚 Books</button>
+            <button type="button" class="chip" data-v="cinema">🎬 Cinema</button><button type="button" class="chip" data-v="comedy">😂 Comedy</button>
+            <button type="button" class="chip" data-v="sports">⚽ Sports</button>
+          </div>
+          <input id="pNiche" required maxlength="80" placeholder="…or type your own"></div>
+        <div class="field full"><span>Your tone</span>
+          <div class="chip-row" id="toneChips">
+            <button type="button" class="chip" data-v="warm and witty">😄 Witty</button><button type="button" class="chip" data-v="bold and punchy">⚡ Bold</button>
+            <button type="button" class="chip" data-v="calm and wise">🌿 Calm</button><button type="button" class="chip" data-v="nerdy and precise">🤓 Nerdy</button>
+            <button type="button" class="chip" data-v="high-energy hype">🔥 Hype</button>
+          </div></div>
+        <label class="field full"><span>Who's your audience? <em>optional</em></span>
+          <input id="pAudience" maxlength="300" placeholder="e.g. busy students who want to get fit without a gym"></label>
+        <div class="step-actions"><span></span><button class="cta" type="submit"><span>Continue</span></button></div>
+        <p class="form-error" id="profileError" role="alert"></p>
+      </form>
+    </section>
+
+    <!-- 2 · CONNECT -->
+    <section class="step-panel glass" data-panel="CONNECT" hidden>
+      <p class="eyebrow">Step 2 of 4</p>
+      <h1 class="display-sm">Connect your accounts</h1>
+      <p class="muted">GetViral reads your recent posts to learn your voice, and can publish for you — <b>only ever with your approval</b>, post by post. Tokens are encrypted, and you can disconnect any time.</p>
+      <div class="connect-grid" id="connectGrid"></div>
+      <div class="step-actions"><button class="btn ghost" type="button" data-back>Back</button><button class="cta" type="button" id="connectNext"><span>Continue</span></button></div>
+    </section>
+
+    <!-- 3 · VOICE -->
+    <section class="step-panel glass" data-panel="VOICE" hidden>
+      <p class="eyebrow">Step 3 of 4</p>
+      <h1 class="display-sm">Teach GetViral your voice</h1>
+      <p class="muted" id="voiceStatus">Paste a few posts you're proud of — captions, tweets, video descriptions. They're embedded privately so every agent writes like you.</p>
+      <textarea id="voicePosts" rows="7" placeholder="Paste one post per paragraph (leave a blank line between posts)."></textarea>
+      <div class="step-actions"><button class="btn ghost" type="button" data-back>Back</button><div class="actions-right"><button class="btn ghost" type="button" id="voiceSkip">Skip for now</button><button class="cta" type="button" id="voiceNext"><span>Save &amp; continue</span></button></div></div>
+    </section>
+
+    <!-- 4 · TOUR -->
+    <section class="step-panel tour glass" data-panel="TOUR" hidden>
+      <div class="tour-stage" id="tourStage"></div>
+      <div class="tour-nav">
+        <button class="btn ghost" type="button" id="tourPrev">Back</button>
+        <div class="tour-dots" id="tourDots"></div>
+        <button class="cta" type="button" id="tourNext"><span>Next</span></button>
+      </div>
+    </section>
+  </main>
+
+  <script src="common.js"></script>
+  <script src="onboarding.js"></script>
+</body>
+</html>

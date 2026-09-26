@@ -127,6 +127,13 @@ public record GetViralConfig(
                 geminiApiKey, imageProvider, imageModel, veoEnabled, veoModel, reelWidth, reelHeight);
     }
 
+    /** A copy publishing to a specific Instagram account (null values = dry run). */
+    public GetViralConfig withInstagram(String userId, String accessToken) {
+        return new GetViralConfig(mode, model, judgeModel, port, dataDir, offlineApis, maxRevisions,
+                onnxModelPath, onnxTokenizerPath, userId, accessToken, igGraphHost, igGraphVersion,
+                geminiApiKey, imageProvider, imageModel, veoEnabled, veoModel, reelWidth, reelHeight);
+    }
+
     /** A copy with a different Reel render size (tests use a tiny one). */
     public GetViralConfig withReelSize(int width, int height) {
         return new GetViralConfig(mode, model, judgeModel, port, dataDir, offlineApis, maxRevisions,

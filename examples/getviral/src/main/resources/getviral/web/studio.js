@@ -5,6 +5,7 @@
   const AGENTS = [
     { id: "Showrunner", icon: "🎬", role: "Casts the team & writes every prompt", c: "linear-gradient(135deg,#8b5cff,#ff2e88)", glow: "#8b5cff" },
     { id: "TrendScout", icon: "📡", role: "Live trends from public APIs", c: "linear-gradient(135deg,#2ad4f2,#1e6bff)", glow: "#2ad4f2" },
+    { id: "Researcher", icon: "🔬", role: "Researches the web, reads sources", c: "linear-gradient(135deg,#6ee7b7,#2ad4f2)", glow: "#6ee7b7" },
     { id: "Strategist", icon: "🧭", role: "Angle, hooks & verified facts", c: "linear-gradient(135deg,#ff9a3d,#ff2e88)", glow: "#ff9a3d" },
     { id: "XWriter", icon: "𝕏", role: "Threads that get quoted", c: "linear-gradient(135deg,#3a3a44,#0b0b0f)", glow: "#9ca3af" },
     { id: "ReelDirector", icon: "🎞️", role: "Beat-by-beat Reels", c: "linear-gradient(45deg,#f58529,#dd2a7b,#8134af)", glow: "#dd2a7b" },
@@ -14,8 +15,8 @@
     { id: "VideoEditor", icon: "📹", role: "Renders the Reel to MP4", c: "linear-gradient(135deg,#2ad4f2,#8b5cff)", glow: "#2ad4f2" },
     { id: "Publisher", icon: "🚀", role: "Posts to Instagram — with your OK", c: "linear-gradient(135deg,#b9f36c,#2bb673)", glow: "#b9f36c" },
   ];
-  const STAGE_OF = { Showrunner: "cast", TrendScout: "scout", Strategist: "strategy", XWriter: "create", ReelDirector: "create", YouTubeProducer: "create", ViralityCritic: "critique", ArtDirector: "visuals", VideoEditor: "visuals", Publisher: "ship" };
-  const STAGES = ["cast", "scout", "strategy", "hook", "create", "critique", "visuals", "ship"];
+  const STAGE_OF = { Showrunner: "cast", TrendScout: "scout", Researcher: "scout", Strategist: "strategy", XWriter: "create", ReelDirector: "create", YouTubeProducer: "create", ViralityCritic: "critique", ArtDirector: "visuals", VideoEditor: "visuals", Publisher: "ship" };
+  const STAGES = ["cast", "scout", "strategy", "hook", "create", "critique", "visuals", "verify", "ship"];
   const MEDIA_ORDER = ["reel", "youtube_thumbnail", "reel_cover", "x_card", "broll_1", "broll_2", "ai_clip"];
   const IDEAS = [
     "a 2-minute morning routine for busy students",
@@ -29,6 +30,19 @@
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // The Reel ships as an H.264 MP4 (the master: Instagram/YouTube-ready) plus a WebM copy for browsers
+  // without H.264. Every <video> lists both; the browser plays the first it can decode.
+  const webmOf = (m, all) => (all || []).find((x) => x.purpose === "reel_webm" && x.url === String(m.url).replace(/\.mp4$/, "-preview.webm"));
+  const videoTag = (m, all, attrs) => {
+    const w = webmOf(m, all);
+    return `<video ${attrs}><source src="${esc(m.url)}" type="video/mp4">${w ? `<source src="${esc(w.url)}" type="video/webm">` : ""}</video>`;
+  };
+  /** Calls {@code onFail} if the browser can play none of a video's sources. */
+  const whenUnplayable = (video, onFail) => {
+    const sources = video.querySelectorAll("source");
+    const last = sources[sources.length - 1] || video;
+    last.addEventListener("error", onFail, { once: true });
+  };
   const store = {
     get(k) { try { return localStorage.getItem("gv." + k) || ""; } catch { return ""; } },
     set(k, v) { try { localStorage.setItem("gv." + k, v); } catch { /* private mode */ } },
@@ -38,32 +52,15 @@
     runId: null, es: null, brief: null, started: 0, timer: null,
     values: {}, prompts: {}, stats: { llm: 0, api: 0, live: 0 }, events: 0, media: [],
     pendingApproval: null, revealed: false, stage: null, reelTimer: null, info: {},
+    memory: { recalled: 0, learned: 0 }, sentBack: 0,
   };
 
   // ── Boot ────────────────────────────────────────────────────────────────
   async function boot() {
-    try {
-      const info = await (await fetch("/api/info")).json();
-      state.info = info;
-      const mode = info.mode === "DEMO" ? "demo model · no API key" : `${info.mode.toLowerCase()} · ${info.model}`;
-      $("#engineMeta").innerHTML = `<span class="dot"></span><span>${esc(mode)} · APIs ${esc(info.publicApis)}</span>`;
-    } catch {
-      $("#engineMeta").innerHTML = `<span class="dot" style="background:var(--bad);box-shadow:none"></span><span>studio offline</span>`;
-    }
-    ["handle", "niche", "region"].forEach((k) => { const v = store.get(k); if (v) $("#" + k).value = v; });
-    const tone = store.get("tone");
-    if (tone) $$(".chip").forEach((c) => c.classList.toggle("is-on", c.dataset.tone === tone));
-    $$(".chip").forEach((chip) => chip.addEventListener("click", () => {
-      $$(".chip").forEach((c) => c.classList.remove("is-on"));
-      chip.classList.add("is-on");
-    }));
-    let i = 0;
-    setInterval(() => { if (!$("#idea").value) $("#idea").placeholder = IDEAS[++i % IDEAS.length]; }, 3200);
-    $("#handle").addEventListener("change", peekMemory);
-    peekMemory();
-    $("#briefForm").addEventListener("submit", start);
-    $("#idea").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) start(e); });
-    $("#againBtn").addEventListener("click", () => location.reload());
+    state.me = await GV.requireMe();
+    renderAccount();
+    bindComposer();
+    $("#againBtn").addEventListener("click", () => { location.href = "/studio"; });
     $("#drawerClose").addEventListener("click", () => ($("#promptDrawer").hidden = true));
     $("#ownHook").addEventListener("submit", (e) => { e.preventDefault(); const v = $("#ownHookInput").value.trim(); if (v) answerHook(v); });
     $("#approveBtn").addEventListener("click", () => answerApproval("approve"));
@@ -73,43 +70,112 @@
     document.addEventListener("keydown", hookKeys);
     $$(".rate").forEach(bindRating);
     $$("[data-copy]").forEach((b) => b.addEventListener("click", () => copy($("#" + b.dataset.copy).innerText + "\n\n" + $("#reelTags").innerText)));
+    $$(".tabs button").forEach((b) => b.addEventListener("click", () => libraryTab(b.dataset.tab)));
+    window.addEventListener("popstate", () => location.reload());
+    route();
+  }
+
+  function route() {
+    const params = new URLSearchParams(location.search);
+    const runId = params.get("run");
+    $("#navStudio").classList.toggle("is-on", location.pathname !== "/library");
+    $("#navLibrary").classList.toggle("is-on", location.pathname === "/library");
+    if (location.pathname === "/library") return showLibrary();
+    if (runId) return openRun(runId);
+    if (state.me.activeRun) {
+      GV.toast("Picking up your pack in progress…");
+      return openRun(state.me.activeRun);
+    }
+    $("#composer").hidden = false;
+    if (params.get("guided")) setTimeout(guideComposer, 700);
+  }
+
+  function renderAccount() {
+    const me = state.me;
+    $("#menuBtn").innerHTML = `${GV.avatar(me)}<span>${esc(me.handle ? "@" + me.handle : me.name || "")}</span>`;
+    $("#menuEmail").textContent = me.email;
+    $("#quotaPill").textContent = `${me.quota.used}/${me.quota.limit} packs this month`;
+    $("#menuBtn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = $("#menuList").hidden;
+      $("#menuList").hidden = !open;
+      $("#menuBtn").setAttribute("aria-expanded", String(open));
+    });
+    document.addEventListener("click", () => ($("#menuList").hidden = true));
+    $("#signOutBtn").addEventListener("click", GV.signOut);
+    $("#deleteBtn").addEventListener("click", async () => {
+      if (!confirm("Delete your GetViral account? This permanently removes every pack, image, video, memory and connected account.")) return;
+      await GV.api("/api/me", { method: "DELETE" });
+      location.replace("/");
+    });
+  }
+
+  function bindComposer() {
+    const me = state.me;
+    $("#handleLabel").textContent = me.handle || "set up your profile";
+    $("#niche").value = me.niche || "";
+    $("#region").value = me.region || "";
+    if (me.tone) $$(".tone-row .chip").forEach((c) => c.classList.toggle("is-on", c.dataset.tone === me.tone));
+    $$(".tone-row .chip").forEach((chip) => chip.addEventListener("click", () => {
+      $$(".tone-row .chip").forEach((c) => c.classList.remove("is-on"));
+      chip.classList.add("is-on");
+    }));
+    $("#setupBanner").hidden = me.onboardingStep === "DONE";
+    let i = 0;
+    setInterval(() => { if (!$("#idea").value) $("#idea").placeholder = IDEAS[++i % IDEAS.length]; }, 3200);
+    peekMemory();
+    $("#briefForm").addEventListener("submit", start);
+    $("#idea").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) start(e); });
   }
 
   async function peekMemory() {
-    const handle = $("#handle").value.trim().replace(/^@/, "");
-    if (!handle) { $("#memoryPeek").hidden = true; return; }
     try {
-      const data = await (await fetch("/api/memory?handle=" + encodeURIComponent(handle))).json();
+      const data = await GV.api("/api/memory");
       const active = (data.memories || []).filter((m) => !m.shadow);
       $("#memoryPeek").hidden = active.length === 0;
-      $("#peekHandle").textContent = "@" + handle;
+      $("#peekHandle").textContent = state.me.handle ? "@" + state.me.handle : "you";
       $("#peekList").innerHTML = active.slice(-4).reverse().map((m) => `<li>${esc(m.content)}</li>`).join("");
     } catch { /* ignore */ }
   }
 
   async function start(e) {
     e.preventDefault();
+    if (!state.me.handle) { location.href = "/welcome?step=PROFILE"; return; }
     const idea = $("#idea").value.trim() || $("#idea").placeholder;
     const brief = {
       idea,
-      handle: $("#handle").value.trim().replace(/^@/, "") || "creator",
-      niche: $("#niche").value.trim() || "lifestyle",
-      region: ($("#region").value.trim() || "US").toUpperCase(),
-      tone: ($(".chip.is-on") || {}).dataset?.tone || "warm and witty",
-      voiceSamples: $("#voice").value.split("\n").map((s) => s.trim()).filter(Boolean),
+      niche: $("#niche").value.trim() || state.me.niche || "lifestyle",
+      region: ($("#region").value.trim() || state.me.region || "US").toUpperCase(),
+      tone: ($(".tone-row .chip.is-on") || {}).dataset?.tone || state.me.tone || "warm and witty",
     };
-    ["handle", "niche", "region", "tone"].forEach((k) => store.set(k, brief[k]));
+    const voice = $("#voice").value.split("\n").map((v) => v.trim()).filter(Boolean);
     $("#goBtn").disabled = true;
     $("#formError").textContent = "";
+    clearCoach();
     try {
-      const res = await fetch("/api/runs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(brief) });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || "Could not start");
-      state.brief = brief;
-      openStudio(body.id);
+      if (voice.length) await GV.api("/api/me/voice", { method: "POST", body: { posts: voice } });
+      const res = await GV.api("/api/runs", { method: "POST", body: brief });
+      state.brief = { ...brief, handle: state.me.handle };
+      history.pushState(null, "", `/studio?run=${res.id}`);
+      openStudio(res.id);
     } catch (err) {
-      $("#formError").textContent = err.message;
+      $("#formError").textContent = err.status === 409 && state.me.activeRun ? err.message + " Opening it…" : err.message;
+      if (err.status === 409) setTimeout(() => location.reload(), 1200);
       $("#goBtn").disabled = false;
+    }
+  }
+
+  /** Opens an existing run: live if it's still going, an instant replay if it's finished. */
+  async function openRun(id) {
+    try {
+      const run = await GV.api(`/api/runs/${id}`);
+      state.brief = { ...run.brief, idea: run.idea };
+      state.replay = ["DONE", "FAILED", "BLOCKED"].includes(run.status);
+      openStudio(id);
+    } catch (err) {
+      GV.toast(err.status === 404 ? "That pack doesn't exist (or isn't yours)." : err.message);
+      history.replaceState(null, "", "/studio");
+      $("#composer").hidden = false;
     }
   }
 
@@ -117,6 +183,7 @@
   function openStudio(id) {
     state.runId = id;
     $("#composer").hidden = true;
+    $("#library").hidden = true;
     $("#studio").hidden = false;
     $("#studioIdea").textContent = state.brief.idea;
     $("#agents").innerHTML = AGENTS.map((a) => `
@@ -129,9 +196,91 @@
     state.timer = setInterval(() => ($("#clock").textContent = ((performance.now() - state.started) / 1000).toFixed(1) + "s"), 100);
     window.scrollTo({ top: 0, behavior: "smooth" });
     loadMemory();
+    if (new URLSearchParams(location.search).get("guided") || sessionStorageGet("gv.guided")) setTimeout(guideStudio, 1500);
     state.es = new EventSource(`/api/runs/${id}/events`);
     state.es.onmessage = (m) => handle(JSON.parse(m.data));
     state.es.onerror = () => { if (["DONE", "BLOCKED", "FAILED"].includes(state.final)) state.es.close(); };
+  }
+
+  // ── Library ─────────────────────────────────────────────────────────────
+  async function showLibrary() {
+    $("#composer").hidden = true;
+    $("#studio").hidden = true;
+    $("#results").hidden = true;
+    $("#library").hidden = false;
+    const runs = await GV.api("/api/runs?limit=100");
+    $("#libPacks").innerHTML = runs.length ? runs.map((r, i) => `
+      <button type="button" class="pack-card" data-run="${esc(r.id)}" style="animation-delay:${Math.min(i, 12) * 40}ms">
+        <div class="pack-cover" style="${r.cover ? `background-image:url('${esc(r.cover)}')` : ""}">
+          <span class="status">${esc(statusLabel(r.status))}</span>${r.score ? `<span class="score">${Number(r.score).toFixed(1)}</span>` : ""}
+        </div>
+        <div class="pack-body"><h3>${esc(r.idea)}</h3>${r.hook ? `<p>“${esc(r.hook)}”</p>` : ""}
+          <small>${new Date(r.createdAt).toLocaleString()}${r.mediaCount ? ` · ${r.mediaCount} media` : ""}</small></div>
+      </button>`).join("")
+      : `<div class="empty"><h3>No packs yet</h3><p>Your packs — copy, images and Reels — will live here.</p><a class="cta" href="/studio"><span>Make your first pack</span></a></div>`;
+    $$("#libPacks [data-run]").forEach((b) => b.addEventListener("click", () => { location.href = `/studio?run=${b.dataset.run}`; }));
+  }
+
+  async function libraryTab(tab) {
+    $$(".tabs button").forEach((b) => b.classList.toggle("is-on", b.dataset.tab === tab));
+    $("#libPacks").hidden = tab !== "packs";
+    $("#libMedia").hidden = tab !== "media";
+    if (tab !== "media" || $("#libMedia").dataset.loaded) return;
+    const media = await GV.api("/api/library/media");
+    $("#libMedia").dataset.loaded = "1";
+    const shown = media.filter((m) => m.purpose !== "reel_webm");
+    $("#libMedia").innerHTML = shown.length ? shown.map((m) => `
+      <figure class="tile">${m.kind === "video"
+        ? videoTag(m, media, `muted loop playsinline controls preload="metadata"`)
+        : `<img src="${esc(m.url)}" alt="${esc(m.purpose)}" loading="lazy" width="${m.width}" height="${m.height}">`}
+        <span class="prov ${m.ai ? "ai" : "local"}">${m.ai ? "AI · " : ""}${esc(m.provider)}</span>
+        <figcaption><span>${esc(String(m.purpose).replace(/_/g, " "))} · ${esc(m.idea)}</span><a href="${esc(m.url)}" download>↓</a></figcaption>
+      </figure>`).join("")
+      : `<div class="empty"><h3>No media yet</h3><p>Thumbnails, covers, B-roll and rendered Reels from every pack collect here.</p></div>`;
+  }
+
+  function statusLabel(status) {
+    return { DONE: "ready", FAILED: "failed", BLOCKED: "blocked", QUEUED: "queued", RUNNING: "in progress", WAITING_FOR_HUMAN: "needs you" }[status] || status;
+  }
+
+  // ── Guided first pack (coach marks) ─────────────────────────────────────
+  function sessionStorageGet(k) { try { return sessionStorage.getItem(k); } catch { return null; } }
+  function sessionStorageSet(k, v) { try { sessionStorage.setItem(k, v); } catch { /* ignore */ } }
+
+  function coach(target, title, text, step, total, next) {
+    clearCoach();
+    const el = typeof target === "string" ? $(target) : target;
+    if (!el || el.offsetParent === null) return;
+    el.classList.add("coach-target");
+    const r = el.getBoundingClientRect();
+    const box = document.createElement("div");
+    box.className = "coach";
+    box.innerHTML = `<b>${esc(title)}</b><p>${esc(text)}</p><div class="coach-foot"><span>${step}/${total}</span><button type="button" class="btn small">${next ? "Next" : "Got it"}</button></div>`;
+    document.body.appendChild(box);
+    const left = Math.min(Math.max(12, r.left), innerWidth - box.offsetWidth - 12);
+    box.style.left = left + "px";
+    box.style.top = Math.min(r.bottom + 14, innerHeight - box.offsetHeight - 12) + "px";
+    box.style.setProperty("--arrow", Math.max(16, Math.min(r.left + 30 - left, box.offsetWidth - 30)) + "px");
+    $("button", box).addEventListener("click", () => { clearCoach(); if (next) next(); });
+    state.coachEl = box;
+  }
+  function clearCoach() {
+    state.coachEl?.remove();
+    state.coachEl = null;
+    $$(".coach-target").forEach((e) => e.classList.remove("coach-target"));
+  }
+  function guideComposer() {
+    sessionStorageSet("gv.guided", "1");
+    $("#idea").scrollIntoView({ behavior: "smooth", block: "center" });
+    coach("#briefForm", "Start with one idea", "Anything you'd post about — rough is fine. Try one of the rotating suggestions, or your own.", 1, 3, () =>
+      coach(".tone-row", "Set the vibe", "Your profile defaults are pre-filled. Change the tone or niche just for this pack if you like.", 2, 3, () =>
+        coach("#goBtn", "Make it viral", "The team takes it from here. You'll pick the hook in about 20 seconds.", 3, 3)));
+  }
+  function guideStudio() {
+    if (sessionStorageGet("gv.guided.studio")) return;
+    sessionStorageSet("gv.guided.studio", "1");
+    coach(".room", "This is the room", "Each card is an agent. Tap one to read the brief the Showrunner wrote for it — live.", 1, 2, () =>
+      coach(".wire", "The live wire", "Every trend check, fact, tool call and memory, as it happens. In a moment it'll ask you to pick the hook.", 2, 2));
   }
 
   function handle(ev) {
@@ -142,17 +291,19 @@
       case "run_started":
         $("#engineList").innerHTML = [
           ["Model", d.model], ["Embeddings", d.embeddings], ["Vectors", d.vectorStore],
-          ["Public APIs", d.publicApis], ["Images", d.images], ["Video", d.video],
-          ["Instagram", d.instagram === "connected" ? "connected" : "dry run (no token)"],
-        ].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
+          ["Public APIs", d.publicApis], ["Web search", d.webSearch], ["Images", d.images], ["Video", d.video],
+          ["Instagram", String(d.instagram).startsWith("connected") ? d.instagram : "not connected — publishing is a dry run"],
+        ].filter(([, v]) => v).map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
+        state.info.instagram = d.instagram;
         feed("✦", "GetViral", "Brief received — assembling the team", `${esc(d.model)}`, "", ev.t);
         break;
       case "agent_start": {
         agentState(d.agent, "working");
-        if (STAGE_OF[d.agent]) setStage(STAGE_OF[d.agent]);
+        if (d.review) setStage("verify");
+        else if (STAGE_OF[d.agent]) setStage(STAGE_OF[d.agent]);
         const task = String(d.task || "");
         const recast = task.startsWith("RECAST"), revise = task.startsWith("REVISE");
-        const label = recast ? "is re-casting prompts from critic feedback" : revise ? "is revising" : d.agent === "ViralityCritic" ? `is reviewing the pack · round ${d.round}` : "started";
+        const label = d.review ? `is reviewing the whole build against the quality gate · round ${d.review}` : recast ? "is re-casting prompts from critic feedback" : revise ? "is revising" : d.agent === "ViralityCritic" ? `is reviewing the pack · round ${d.round}` : "started";
         feed(icon(d.agent), d.agent, label, "", recast ? "prompt" : "", ev.t);
         if (d.agent === "ViralityCritic") $("#criticToast").hidden = true;
         break;
@@ -181,6 +332,40 @@
         $("#statLive").textContent = Math.round((state.stats.live / state.stats.api) * 100) + "%";
         feed("🌐", "", `<span class="api-pill ${d.live ? "live" : "sample"}"><span class="d"></span>${esc(d.host)} · ${d.live ? "live" : "sample"} · ${d.ms}ms</span>`, "", "", ev.t);
         break;
+      case "build_review": {
+        state.build = d;
+        if (!d.complete) {
+          state.sentBack += Object.values(d.areas || {}).filter((a) => !a.pass).length;
+          $("#statFixes").textContent = state.sentBack;
+        }
+        const names = { x: "𝕏", reel: "Instagram", youtube: "YouTube", visuals: "images", video: "Reel video" };
+        const areas = Object.entries(d.areas || {});
+        const failing = areas.filter(([, a]) => !a.pass);
+        feed("🏁", "Quality gate", d.complete ? `round ${d.round}: every artifact passes ✓`
+            : `round ${d.round}: ${failing.map(([k]) => names[k] || k).join(", ")} sent back`,
+          esc(areas.map(([k, a]) => `${a.pass ? "✓" : "✕"} ${names[k] || k}`).join("  ")
+            + (failing.length ? " — " + trim(failing.map(([k, a]) => `${names[k] || k}: ${(a.problems || []).join("; ")}`).join(" · "), 220) : "")),
+          d.complete ? "memory" : "err", ev.t);
+        if (state.revealed) { renderBuild(); renderWhy(); }
+        break;
+      }
+      case "creative_brief":
+        state.originality = { past: d.pastCastings, checks: [] };
+        feed("🎲", "Showrunner", d.pastCastings ? `dealt fresh lenses & styles · ${d.pastCastings} past pack${d.pastCastings === 1 ? "" : "s"} on file to avoid` : "dealt lenses & styles for a first pack",
+          esc((d.lensOptions || []).join(" · ")), "prompt", ev.t);
+        break;
+      case "originality": {
+        (state.originality ||= { past: 0, checks: [] }).checks.push(d);
+        if (state.revealed) renderWhy();
+        const what = d.stage === "youtube" ? "YouTube package" : "casting";
+        const pct = Math.round((d.closest_similarity || 0) * 100);
+        if (d.novelty === "REPEAT") {
+          feed("🧬", "Originality", `${what} too close to earlier work${d.stage === "casting" && !d.retry ? " — re-casting" : ""}`, esc(trim((d.reasons || []).join(" · "), 220)), "err", ev.t);
+        } else {
+          feed("🧬", "Originality", `${what} is fresh`, d.compared_with ? `closest past pack ${pct}% similar${d.closest_idea ? " — “" + esc(trim(d.closest_idea, 50)) + "”" : ""}` : "first pack — this sets the baseline", "memory", ev.t);
+        }
+        break;
+      }
       case "rag":
         feed("📚", "RAG", `searched the ${esc(d.scope)} for “${esc(trim(d.query, 60))}”`, esc((d.sources || []).join(" · ")), "memory", ev.t);
         break;
@@ -189,9 +374,11 @@
         $("#statLlm").textContent = state.stats.llm;
         break;
       case "memory_recall":
+        if (d.recalled) { state.memory.recalled++; $("#statMemory").textContent = state.memory.recalled + state.memory.learned; }
         if (d.recalled) feed("🧠", "Engram", `briefed ${esc(d.agent)} with what it remembers`, esc(trim(String(d.briefing).split("\n").filter((l) => l.includes("•")).join(" "), 180)), "memory", ev.t);
         break;
       case "memory_store":
+        if (d.learned > 0) { state.memory.learned += d.learned; $("#statMemory").textContent = state.memory.recalled + state.memory.learned; }
         if (d.learned > 0) { feed("🧠", "Engram", `learned ${d.learned} new thing${d.learned > 1 ? "s" : ""} from ${esc(d.agent)}`, esc(d.content || ""), "memory", ev.t); loadMemory(); }
         break;
       case "agent_done":
@@ -209,7 +396,11 @@
         else if (d.kind === "approval") showApproval(d);
         break;
       case "human_answer":
-        if (d.kind === "hook") feed("👆", "You", "picked the hook", esc(d.answer), "", ev.t);
+        // Questions answered earlier (another tab, a replay, a timeout) must not stay open here.
+        if (d.kind === "hook") { $("#hookModal").hidden = true; state.values.hookChoice = d.answer; }
+        if (d.kind === "approval") $("#approvalModal").hidden = true;
+        if (d.kind === "publish") { state.publishQuestion = null; $("#publishForm").style.display = "none"; }
+        if (d.kind === "hook") feed("👆", d.by === "timeout" ? "Timeout" : "You", d.by === "timeout" ? "picked the first hook for you" : "picked the hook", esc(d.answer), "", ev.t);
         break;
       case "approval_request":
         state.pendingApproval = d;
@@ -224,11 +415,12 @@
         break;
       case "media": {
         state.media.push(d);
+        if (d.purpose === "reel_webm") break;
         $("#statMedia").textContent = state.media.length;
         const portrait = d.height > d.width;
         const label = d.kind === "video" ? `rendered the Reel · ${d.seconds}s · ${d.width}×${d.height}` : `generated ${esc(String(d.purpose).replace(/_/g, " "))}`;
         const body = d.kind === "video"
-          ? `<video class="shot portrait" src="${esc(d.url)}" muted autoplay loop playsinline></video>`
+          ? videoTag(d, state.media, `class="shot portrait" muted autoplay loop playsinline`)
           : `<img class="shot ${portrait ? "portrait" : ""}" src="${esc(d.url)}" alt="${esc(d.purpose)}">`;
         feed(d.kind === "video" ? "📹" : "🎨", d.kind === "video" ? "VideoEditor" : "ArtDirector", label, `${esc(d.provider)}${d.ai ? "" : " · not AI"}${body}`, "media", ev.t);
         if (state.revealed) renderMedia();
@@ -258,7 +450,9 @@
           clearInterval(state.timer);
           state.es && state.es.close();
           if (state.revealed) renderMedia();
-          if (d.status === "DONE") { setStage("ship", true); agentState("Publisher", "done"); $("#qualityHint").textContent = "graded"; }
+          GV.api("/api/me").then((me) => { state.me = me; $("#quotaPill").textContent = `${me.quota.used}/${me.quota.limit} packs this month`; }).catch(() => {});
+          if (d.status === "DONE") { setStage("ship", true); agentState("Publisher", "done"); if (state.build) renderBuild(); else $("#qualityHint").textContent = "graded"; }
+          if (d.status === "FAILED" && state.build && state.revealed) renderBuild();
         }
         break;
     }
@@ -269,6 +463,9 @@
     if (d.agent === "Showrunner" && v && typeof v === "object") {
       if (v.run_title) $("#runTitle").textContent = v.run_title;
       feed("🎬", "Showrunner", "cast the team", esc(trim(v.creative_direction, 200)), "prompt", t);
+    } else if (d.agent === "Researcher" && v && typeof v === "object") {
+      const n = (v.findings || []).length;
+      feed("🔬", "Researcher", `brought back ${n} sourced finding${n === 1 ? "" : "s"}`, esc(trim(v.summary, 200)), "", t);
     } else if (d.agent === "ViralityCritic" && v && typeof v === "object") {
       criticMoment(v);
       $("#statRounds").textContent = v.round || 1;
@@ -322,10 +519,9 @@
   }
 
   async function loadMemory() {
-    const handle = state.brief?.handle;
-    if (!handle) return;
+    const handle = state.brief?.handle || state.me?.handle || "you";
     try {
-      const data = await (await fetch("/api/memory?handle=" + encodeURIComponent(handle))).json();
+      const data = await GV.api("/api/memory");
       const list = (data.memories || []).slice(-8).reverse();
       $("#memoryList").innerHTML = list.length
         ? list.map((m) => `<li class="${m.shadow ? "shadow" : ""}" title="${esc(m.tier)} · importance ${m.importance}">${esc(m.content)}</li>`).join("")
@@ -352,7 +548,11 @@
   }
 
   async function answer(id, value) {
-    await fetch(`/api/runs/${state.runId}/answer`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, answer: value }) });
+    try {
+      await GV.api(`/api/runs/${state.runId}/answer`, { method: "POST", body: { id, answer: value } });
+    } catch (err) {
+      GV.toast(err.message);
+    }
   }
 
   function answerHook(hook) {
@@ -365,7 +565,9 @@
     state.publishQuestion = d.id;
     if (!state.revealed) reveal();
     $("#publishPanel").hidden = false;
-    $("#igMode").textContent = state.info.instagram === "connected" ? "Your account is connected." : "No IG token set, so this runs as an honest dry run that shows the exact Graph API calls.";
+    $("#igMode").innerHTML = String(state.info.instagram || "").startsWith("connected")
+      ? `Publishing to your ${esc(state.info.instagram.replace("connected as ", ""))} account.`
+      : `Instagram isn't connected, so this is an honest dry run showing the exact API calls. <a href="/welcome?step=CONNECT" style="color:var(--hot)">Connect Instagram</a>`;
   }
 
   function publishSubmit(e) {
@@ -430,10 +632,24 @@
     $("#finalScore").textContent = score ? score.toFixed(1) : "–";
     requestAnimationFrame(() => ($(".ring-fill").style.strokeDashoffset = 327 - (327 * Math.min(score, 10)) / 10));
     $("#revealHook").textContent = "“" + (v.hookChoice || "") + "”";
+    $("#revealEyebrow").textContent = state.build && state.build.complete ? "Your pack is ready"
+      : "Almost there — the Showrunner is checking every artifact";
     $("#revealHeadline").textContent = critic.headline || "";
+    const cast = v.castingSheet || {};
+    const o = state.originality || { past: 0, checks: [] };
+    const lastCast = [...o.checks].reverse().find((c) => c.stage === "casting");
+    const recast = o.checks.some((c) => c.stage === "casting" && c.novelty === "REPEAT");
+    $("#revealMeta").innerHTML = [
+      cast.lens ? `<span>🎯 Lens: <b>${esc(cast.lens)}</b></span>` : "",
+      cast.visual_style ? `<span>🎨 Style: <b>${esc(trim(cast.visual_style, 60))}</b></span>` : "",
+      lastCast ? `<span>🧬 ${o.past ? (lastCast.novelty === "FRESH" ? `Original vs ${o.past === 1 ? "your last pack" : `your last ${o.past} packs`}` : "Close to earlier work") : "First pack — baseline set"}${recast ? " · re-cast once for originality" : ""}</span>` : "",
+    ].filter(Boolean).join("");
     $("#exportBtn").href = `/api/runs/${state.runId}/export.md`;
     $("#exportBtn").setAttribute("download", "getviral-pack.md");
     if (!$("#badges").children.length) $("#badges").innerHTML = Array.from({ length: 5 }, () => `<div class="badge skel"></div>`).join("");
+    renderResearch(v.researchDossier);
+    renderBuild();
+    renderWhy();
     renderX(v.xPack);
     renderReel(v.reelPack);
     renderYt(v.youtubePack);
@@ -448,14 +664,14 @@
   function mediaFor(purpose) { return [...state.media].reverse().find((m) => m.purpose === purpose); }
 
   function renderMedia() {
-    const media = [...state.media].sort((a, b) => MEDIA_ORDER.indexOf(a.purpose) - MEDIA_ORDER.indexOf(b.purpose));
+    const media = state.media.filter((m) => m.purpose !== "reel_webm").sort((a, b) => MEDIA_ORDER.indexOf(a.purpose) - MEDIA_ORDER.indexOf(b.purpose));
     const expected = ["reel", "youtube_thumbnail", "reel_cover", "x_card", "broll_1", "broll_2"];
     const missing = expected.filter((p) => !media.some((m) => m.purpose === p));
     const done = ["DONE", "FAILED"].includes(state.final) || !!state.values.videoPack;
     $("#visualsHint").textContent = done ? `${media.length} files · ${media.filter((m) => m.ai).length} AI-generated` : "generating…";
     const tile = (m) => {
       const el = m.kind === "video"
-        ? `<video src="${esc(m.url)}" muted autoplay loop playsinline controls></video>`
+        ? videoTag(m, state.media, `muted autoplay loop playsinline controls`)
         : `<img src="${esc(m.url)}" alt="${esc(m.purpose)}" loading="lazy" width="${m.width}" height="${m.height}">`;
       return `<figure class="tile ${m.purpose === "reel" ? "hero" : ""}">${el}<span class="prov ${m.ai ? "ai" : "local"}">${m.ai ? "AI · " : ""}${esc(m.provider)}</span>
         <figcaption><span>${esc(String(m.purpose).replace(/_/g, " "))}${m.seconds ? " · " + m.seconds + "s" : ""}</span><a href="${esc(m.url)}" download>↓</a></figcaption></figure>`;
@@ -466,9 +682,9 @@
     $("#gallery").innerHTML =
       `<div class="gallery-reel">${videos.map(tile).join("") || (done ? "" : skel("reel"))}</div>` +
       `<div class="gallery-stills">${stills.map(tile).join("")}${done ? "" : missing.filter((p) => p !== "reel").map(skel).join("")}</div>`;
-    $$("#gallery video").forEach((v) => v.addEventListener("error", () => {
-      if (!v.parentElement.querySelector(".note")) v.insertAdjacentHTML("afterend", `<p class="note">This browser can't decode H.264 here — download the MP4 (↓) to watch it.</p>`);
-    }, { once: true }));
+    $$("#gallery video").forEach((v) => whenUnplayable(v, () => {
+      if (!v.parentElement.querySelector(".note")) v.insertAdjacentHTML("afterend", `<p class="note">This browser can't play the Reel here — download the MP4 (↓) to watch it.</p>`);
+    }));
 
     const thumb = mediaFor("youtube_thumbnail");
     if (thumb) { $("#ytThumb").style.backgroundImage = `url("${thumb.url}")`; $("#ytThumbText").hidden = true; }
@@ -478,9 +694,13 @@
     const cover = mediaFor("reel_cover");
     if (cover && !$(".cover-thumb")) $("#reelCaption").insertAdjacentHTML("beforebegin", `<img class="cover-thumb" src="${esc(cover.url)}" alt="Reel cover">`);
     const reel = mediaFor("reel");
-    if (reel && $("#reelVideo").getAttribute("src") !== reel.url) {
-      $("#reelVideo").addEventListener("error", () => { setReelMode("story"); toast("This browser can't play the MP4 inline — showing the storyboard. Download it from Visuals."); }, { once: true });
-      $("#reelVideo").src = reel.url;
+    const phone = $("#reelVideo");
+    if (reel && phone.dataset.src !== reel.url) {
+      phone.dataset.src = reel.url;
+      const w = webmOf(reel, state.media);
+      phone.innerHTML = `<source src="${esc(reel.url)}" type="video/mp4">${w ? `<source src="${esc(w.url)}" type="video/webm">` : ""}`;
+      whenUnplayable(phone, () => { setReelMode("story"); toast("This browser can't play the Reel inline — showing the storyboard. Download the MP4 from Visuals."); });
+      phone.load();
       $("#reelToggle").hidden = false;
       setReelMode("video");
     }
@@ -491,6 +711,121 @@
     const video = $("#reelVideo");
     video.hidden = mode !== "video";
     if (mode === "video") video.play().catch(() => {}); else video.pause();
+  }
+
+  const safeUrl = (u) => /^https?:\/\//i.test(String(u || "")) ? String(u) : "";
+  const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+
+  function renderBuild() {
+    const b = state.build;
+    if (!b) return;
+    const finalState = ["DONE", "FAILED"].includes(state.final);
+    $("#revealEyebrow").textContent = b.complete ? "Your pack is ready"
+      : finalState ? "Needs attention — not every artifact passed" : "Almost there — the Showrunner is fixing what failed";
+    const names = { x: "X thread", reel: "Instagram Reel", youtube: "YouTube package", visuals: "images", video: "Reel video" };
+    const failing = Object.entries(b.areas || {}).filter(([, a]) => !a.pass);
+    $("#qualityHint").innerHTML = b.complete
+      ? `<span class="verdict v-pass">Build complete</span> signed off by the Showrunner after ${b.round} review round${b.round === 1 ? "" : "s"}`
+      : `<span class="verdict v-fail">Needs attention</span> ${failing.map(([k]) => names[k] || k).join(", ")} still fail${failing.length === 1 ? "s" : ""} the gate (round ${b.round})`;
+    $("#buildIssues").innerHTML = failing.map(([k, a]) => `<li><b>${esc(names[k] || k)}</b> ${esc((a.problems || []).join("; "))}</li>`).join("");
+    // The file-by-file checks from the same review fill the Artifact check panel.
+    const checks = b.checks || [];
+    renderInspection({
+      verdict: !b.complete ? "FAIL" : checks.some((c) => c.status === "WARN") ? "PASS_WITH_WARNINGS" : "PASS",
+      summary: b.complete ? "Every file opens, plays and fits its platform — signed off by the Showrunner."
+        : "Some artifacts still fail — the Showrunner is sending them back to their specialists.",
+      checks, fixes: [],
+    });
+  }
+
+  // The proof behind the pack: what made it original, what the studio remembered, where the facts came
+  // from, what was fixed before the creator saw it, and which calls were theirs.
+  function renderWhy() {
+    const v = state.values;
+    const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+    const o = state.originality || { past: 0, checks: [] };
+    const cast = [...o.checks].reverse().find((c) => c.stage === "casting");
+    const recast = o.checks.some((c) => c.stage === "casting" && c.novelty === "REPEAT");
+    const yt = [...o.checks].reverse().find((c) => c.stage === "youtube");
+    const castingSheet = v.castingSheet || {};
+    const findings = (v.researchDossier && v.researchDossier.findings) || [];
+    const sources = new Set(findings.map((f) => safeUrl(f.url)).filter(Boolean));
+    const b = state.build;
+    const cards = [
+      {
+        ic: "🧬", t: "Original", tone: cast && cast.novelty === "REPEAT" ? "warn" : "ok",
+        v: !o.past ? "Baseline set" : cast && cast.novelty === "REPEAT" ? "Close to past work" : "Fresh",
+        d: !o.past ? "Your first pack. Every future pack is checked against it so you never post the same angle twice."
+          : `Checked against ${o.past === 1 ? "your last pack" : `your last ${o.past} packs`}${cast && cast.closest_similarity != null ? ` — the closest is ${Math.round(cast.closest_similarity * 100)}% similar` : ""}.`
+            + (recast ? " The first casting was too close, so the Showrunner re-cast it." : "")
+            + (yt ? ` YouTube title and thumbnail: ${yt.novelty === "REPEAT" ? "reworked to avoid a repeat" : "fresh"}.` : ""),
+      },
+      {
+        ic: "🎯", t: "A new angle", tone: "ok",
+        v: castingSheet.lens || "—",
+        d: "Dealt from creative lenses you haven't used lately" + (castingSheet.visual_style ? `, in a visual style picked the same way: ${trim(castingSheet.visual_style, 70)}.` : "."),
+      },
+      {
+        ic: "🧠", t: "Remembers you", tone: "ok",
+        v: `${state.memory.recalled} recalled · ${state.memory.learned} learned`,
+        d: "Engram briefs the Showrunner and Strategist with what worked for you, and every hook pick and 🔥/👎 teaches the next pack.",
+      },
+      {
+        ic: "🔎", t: "Sourced, not made up", tone: findings.length ? "ok" : "warn",
+        v: findings.length ? `${plural(findings.length, "fact")} · ${plural(sources.size, "source")}` : "No web research",
+        d: findings.length ? "The Researcher read the web before anyone wrote. Every fact in the dossier links to where it came from." : "Research wasn't available for this run, so the writers worked from trends and your brief.",
+      },
+      {
+        ic: "✅", t: "Fixed before you saw it", tone: b && !b.complete ? "warn" : "ok",
+        v: b ? plural(b.round, "review round") : "reviewing…",
+        d: !b ? "The Showrunner is checking every file and post." : state.sentBack
+          ? `${plural(state.sentBack, "artifact")} sent back to specialists and rebuilt until X, Instagram and YouTube all passed.`
+          : "Every file, platform limit and judge passed on the first review.",
+      },
+      {
+        ic: "✋", t: "Your call", tone: "ok",
+        v: "You picked the hook",
+        d: (v.hookChoice ? `“${trim(v.hookChoice, 80)}”. ` : "") + "Nothing is posted without your explicit approval.",
+      },
+    ];
+    $("#why").hidden = false;
+    $("#whyHint").textContent = o.past ? `vs ${plural(o.past, "past pack")}` : "first pack";
+    $("#whyGrid").innerHTML = cards.map((c) => `<li class="why-card t-${c.tone}"><span class="why-ic">${c.ic}</span>
+      <div><h4>${esc(c.t)}</h4><b>${esc(c.v)}</b><p>${esc(c.d)}</p></div></li>`).join("");
+  }
+
+  function renderInspection(r) {
+    const panel = $("#inspection");
+    if (!r || typeof r !== "object" || !(r.checks || []).length) { panel.hidden = true; return; }
+    panel.hidden = false;
+    const checks = r.checks || [];
+    const count = (s) => checks.filter((c) => c.status === s).length;
+    const verdict = { PASS: "All clear", PASS_WITH_WARNINGS: "Clear, with warnings", FAIL: "Needs attention" }[r.verdict] || r.verdict;
+    $("#inspectionHint").innerHTML = `<span class="verdict v-${esc(String(r.verdict).toLowerCase())}">${esc(verdict)}</span> ${count("PASS")} pass · ${count("WARN")} warn · ${count("FAIL")} fail`;
+    $("#inspectionSummary").textContent = r.summary || "";
+    const order = { FAIL: 0, WARN: 1, PASS: 2 };
+    $("#checks").innerHTML = [...checks].sort((a, b) => order[a.status] - order[b.status]).map((c) =>
+      `<li class="chk s-${esc(String(c.status).toLowerCase())}"><b>${c.status === "PASS" ? "✓" : c.status === "WARN" ? "!" : "✕"}</b><span class="a">${esc(c.artifact)}</span><span class="d">${esc(c.detail)}</span></li>`).join("");
+    $("#inspectionFixes").innerHTML = (r.fixes || []).map((f) => `<li>🔧 ${esc(f)}</li>`).join("");
+  }
+
+  function renderResearch(r) {
+    const panel = $("#research");
+    if (!r || typeof r !== "object" || !(r.findings || []).length) { panel.hidden = true; return; }
+    panel.hidden = false;
+    const findings = r.findings || [];
+    const sources = new Set(findings.map((f) => safeUrl(f.url)).filter(Boolean));
+    const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+    $("#researchHint").textContent = `${plural(findings.length, "finding")} · ${plural(sources.size, "source")}`;
+    $("#researchSummary").textContent = r.summary || "";
+    $("#findings").innerHTML = findings.map((f) => {
+      const url = safeUrl(f.url);
+      const label = f.source || hostOf(url) || "source";
+      return `<li><p>${esc(f.point)}</p>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(trim(label, 60))} ↗</a>` : `<span class="src">${esc(label)}</span>`}</li>`;
+    }).join("");
+    const group = (title, items, cls) => (items || []).length
+      ? `<div class="rx ${cls}"><h4>${title}</h4><ul>${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul></div>` : "";
+    $("#researchExtra").innerHTML = group("Fresh angles", r.fresh_angles, "angles") + group("What people debate", r.debates, "debates") + group("Caveats", r.caveats, "caveats");
   }
 
   function renderX(x) {
@@ -555,6 +890,7 @@
 
   function renderBadges(badges) {
     $("#qualityHint").textContent = `${badges.filter((b) => b.passed).length}/${badges.length} passed`;
+    if (state.build) renderBuild();
     $("#badges").innerHTML = badges.map((b, i) => `
       <div class="badge ${b.passed ? "pass" : "fail"}" style="animation-delay:${i * 90}ms" title="${esc(b.reason)}">
         <div class="bh"><span class="bn">${esc(b.name)}</span><span class="bs">${Math.round(b.score * 100)}</span></div>
@@ -590,7 +926,7 @@
       $$("button", el).forEach((x) => x.classList.remove("is-on"));
       b.classList.add("is-on");
       const loved = b.dataset.loved === "true";
-      await fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ handle: state.brief.handle, platform: el.dataset.platform, loved, detail: loved ? "hook: " + (state.values.hookChoice || "") : "" }) });
+      await GV.api("/api/feedback", { method: "POST", body: { platform: el.dataset.platform, loved, detail: loved ? "hook: " + (state.values.hookChoice || "") : "" } });
       toast(loved ? "🧠 Saved to Engram — next time GetViral leans into this." : "🧠 Noted in Engram — next time GetViral tries a different approach.");
     }));
   }
@@ -598,7 +934,7 @@
   // ── Little helpers ──────────────────────────────────────────────────────
   function icon(agent) { return (AGENTS.find((a) => a.id === agent) || {}).icon || "•"; }
   function toolIcon(tool) {
-    return ({ trending_now: "📈", hn_pulse: "🗣️", trending_hashtags: "#️⃣", moment_calendar: "📅", fact_check: "🔎", word_lab: "🔤", trending_audio: "🎵", broll_finder: "🖼️", viral_playbook: "📚", instagram_quota: "📊", instagram_publish: "📤" })[tool] || "🛠️";
+    return ({ web_search: "🌍", read_page: "📖", trending_now: "📈", hn_pulse: "🗣️", trending_hashtags: "#️⃣", moment_calendar: "📅", fact_check: "🔎", word_lab: "🔤", trending_audio: "🎵", broll_finder: "🖼️", viral_playbook: "📚", instagram_quota: "📊", instagram_publish: "📤" })[tool] || "🛠️";
   }
   function trim(s, n) { s = String(s ?? "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
   async function copy(text) { try { await navigator.clipboard.writeText(text); toast("Copied ✓"); } catch { toast("Copy failed — select the text manually"); } }

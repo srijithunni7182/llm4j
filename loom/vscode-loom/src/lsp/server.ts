@@ -87,9 +87,27 @@ const LOOM_KEYWORDS: Record<string, string> = {
     parallel:
         '**parallel** `{ ... }`\n\nExecutes all contained statements concurrently and waits for all branches to complete.',
     loop:
-        '**loop** `until <condition> { ... }`\n\nRepeats the body until the condition evaluates to true.',
+        '**loop** `until <condition> [max N] { ... } [on_exhausted { ... }]`\n\nRepeats the body until the condition evaluates to true. With `max N`, stops after N rounds and runs `on_exhausted`. `{_loopRound}` is the current round.',
+    for:
+        '**for each** `<item> in <list> { ... }`\n\nRuns the block once per list item; `{item.field}` and `{_index}` are visible inside. Prefix with `parallel` to run all items at once.',
+    each:
+        '**for each** `<item> in <list> { ... }`\n\nRuns the block once per list item; `{item.field}` and `{_index}` are visible inside.',
+    max:
+        '**max** `<N>`\n\nUpper bound on the rounds of a `loop until`.',
+    on_exhausted:
+        '**on_exhausted** `{ ... }`\n\nRuns when a bounded loop reaches `max` rounds without its condition becoming true. `{_loopRounds}` holds the rounds run.',
+    expecting:
+        '**expecting** `{ field: type, ... }`\n\nOverrides the agent\'s `output_schema` for this one `delegate`.',
+    backoff:
+        '**backoff** `<duration>`\n\nWait between retries (e.g. `2s`), doubling each attempt.',
+    timeout:
+        '**timeout** `<duration>`\n\nGives up on a delegate attempt that runs longer than this (e.g. `90s`); counts as a failed attempt.',
+    temperature:
+        '**temperature** `<0.0–2.0>`\n\nSampling temperature for an agent: high for creative roles, low for checkers.',
     alt:
         '**alt** `{ ... }`\n\nDefines alternative execution branches (conditional routing).',
+    human_prompt:
+        '**human_prompt** `"<question>" -> <var>`\n\nAsks a person. With a run journal the run can suspend here (no thread held) and resume on any server once the answer is recorded.',
     call:
         '**call** `<Workflow>([args]) -> <output_var>`\n\nInvokes a sub-workflow in an isolated variable scope and writes only the output variable back.',
     guardrail:
@@ -109,7 +127,7 @@ const LOOM_KEYWORDS: Record<string, string> = {
     note:
         '**note** `"<message>"`\n\nEmits a human-readable annotation into the execution trace (no-op at runtime).',
     retry:
-        '**retry** `<N>`\n\nSpecifies the number of retry attempts for a `delegate` statement.',
+        '**retry** `<N> [backoff <duration>] [timeout <duration>]`\n\nSpecifies the number of retry attempts for a `delegate` statement.',
     on_failure:
         '**on_failure** `{ ... }`\n\nDefines a fallback block executed when all retry attempts for a `delegate` are exhausted.',
 };

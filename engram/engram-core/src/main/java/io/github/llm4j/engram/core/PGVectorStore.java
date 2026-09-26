@@ -69,6 +69,14 @@ public class PGVectorStore implements VectorStore {
             LIMIT ?
             """;
 
+    private static final String FETCH_NEAREST_SQL = """
+            SELECT id, content, embedding::text, tier, importance, topic_key, reinforcement, shadow, last_accessed
+            FROM engram_memories
+            WHERE shadow = FALSE AND (?::text IS NULL OR topic_key LIKE ?)
+            ORDER BY embedding <=> ?::vector
+            LIMIT ?
+            """;
+
     private static final String UPDATE_ACCESS_SQL = """
             UPDATE engram_memories
             SET reinforcement = reinforcement + 1, last_accessed = ?
@@ -212,6 +220,31 @@ public class PGVectorStore implements VectorStore {
 
         candidates.sort(Comparator.comparingDouble(ScoredMemory::score).reversed());
         return candidates.subList(0, Math.min(topN, candidates.size()));
+    }
+
+    @Override
+    public List<ScoredMemory> nearest(String text, String topicPrefix, int topN) {
+        float[] vector = embed(text);
+        List<ScoredMemory> out = new ArrayList<>();
+        try (Connection conn = getConnection()) {
+            PGvector.addVectorType(conn);
+            try (PreparedStatement ps = conn.prepareStatement(FETCH_NEAREST_SQL)) {
+                ps.setString(1, topicPrefix);
+                ps.setString(2, topicPrefix == null ? null : topicPrefix.replace("%", "\\%").replace("_", "\\_") + "%");
+                ps.setObject(3, toPgVectorLiteral(vector));
+                ps.setInt(4, Math.max(0, topN));
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        MemoryObject mem = mapRow(rs);
+                        out.add(new ScoredMemory(mem, cosineSimilarity(vector, mem.getEmbedding())));
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("PGVectorStore: failed to find nearest memories — " + e.getMessage());
+        }
+        out.sort(Comparator.comparingDouble(ScoredMemory::score).reversed());
+        return out;
     }
 
     @Override

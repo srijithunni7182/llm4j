@@ -72,6 +72,7 @@ agent Analyst {
     model: "gpt-4o"
     persona: "SeniorResearchAnalyst" // Reflective lookup from PersonaLibrary
     system: "You are an analyst specializing in {domain}."
+    temperature: 0.3            // optional sampling temperature, 0.0–2.0 (creative roles high, checkers low)
     
     // Skill injection (Markdown-based instructions)
     skills: ["fs://skills/analyst_best_practices.md"]
@@ -122,6 +123,12 @@ Loom provides **Symbolic Controls** that ensure your agents follow a rigid seque
 - **`broadcast`**: Parallel Map-Reduce. Executes a list of agents simultaneously and returns a combined JSON result.
 - **`parallel { }`**: Concurrency block. Executes every statement inside the block in its own thread.
 - **`alt` / `loop until`**: Comparison-based branching using `==`, `!=`, `>`, `<`, `>=`, `<=`.
+- **`for each` / `parallel for each`**: Run a block once per item of a list, in order or all at once. See [for each](#for-each).
+- **`human_prompt`**: Ask a person. With a run journal the run suspends instead of holding a thread. See [Durable Runs](#durable-runs-no-new-syntax).
+
+> **New in this release:** [durable runs](#durable-runs-no-new-syntax), [`for each` with runtime routing](#for-each),
+> [bounded loops](#bounded-loops), [retry backoff and timeouts](#retry-backoff-and-timeouts),
+> [per-step schemas](#per-step-schemas-expecting), agent `temperature:` and `{var.list.0}` payload paths.
 
 ### Concurrency Example (Parallel Branches)
 ```loom
@@ -183,6 +190,9 @@ agent Auditor {
     }
 }
 
+// Field types: string, number, boolean, enum[...], list<type>, a bare list (items of any shape),
+// and nested { ... } objects. Fields keep the order they are written in.
+
 workflow Audit() {
     delegate "Check this" to Auditor -> report
     
@@ -190,6 +200,93 @@ workflow Audit() {
     alt (report.status == "SECURE") {
         note "System is secured."
     }
+
+    // Fields of a structured result can be passed straight into the next task
+    delegate "Fix the first issue: {report.issues.0}. Status was {report.status}." to Fixer -> patch
+}
+```
+
+`{var.field}` paths work in delegate payloads exactly as they do in conditions: map keys and list
+indexes (`{plan.hooks.0}`). A missing field reads as empty, as it does in `alt` conditions.
+
+### Bounded Loops
+`loop until` can carry a safety bound. If the condition still isn't true after `max` rounds, the loop stops
+and runs its `on_exhausted` block, so a model that keeps failing can't spin (and bill) forever. The current
+round is available as `{_loopRound}`, and the number of rounds run as `{_loopRounds}` in `on_exhausted`.
+
+```loom
+loop until (review.verdict == "COMPLETE") max 5 {
+    delegate "Review round {_loopRound}" to Lead -> review
+    alt (review.verdict == "INCOMPLETE") {
+        delegate "Fix: {review.fix}" to Worker -> work
+    }
+} on_exhausted {
+    note "Still incomplete after {_loopRounds} rounds"
+}
+```
+
+### Durable Runs (no new syntax)
+Every step with side effects (a `delegate`, a `human_prompt`, a `broadcast`) records its result in a
+**run journal** under a stable step id: its position in the script, including loop round and branch.
+Run the workflow again with the same journal and Loom **replays** the recorded steps, so no model is called
+twice, and carries on from the first step that hasn't happened yet. That gives you:
+
+- **Waiting for people without holding a thread.** A `HumanInterface` can throw `RunSuspended` instead of
+  blocking. Record the answer with `journal.answer(stepId, answer)` whenever it arrives, even days later,
+  and run the workflow again on any server.
+- **Crash recovery.** If a process dies mid-run, run the workflow again with its journal; it resumes after
+  the last recorded step.
+- **Tools and approvals that need a human mid-step** call `executor.awaitHuman(key, question)`. It is not
+  an error and is never retried: the step re-runs on resume and gets the answer.
+
+Journals come in memory (the default), file (`FileRunJournal`) and SQL (`JdbcRunJournal`) versions.
+
+```java
+executor.setJournal(new JdbcRunJournal(dataSource, runId));
+try {
+    executor.executeWorkflow("Main", inputs);            // runs until done…
+} catch (RunSuspended waiting) {                          // …or until a human is needed
+    save(runId, waiting.stepId(), waiting.prompt());      // show the question, free the thread
+}
+// later, anywhere:
+journal.answer(stepId, "yes");
+newExecutor.setJournal(new JdbcRunJournal(dataSource, runId));
+newExecutor.executeWorkflow("Main", inputs);              // replays, then continues
+```
+
+### for each
+Run a block once per item of a list, one after another, or all at once with `parallel for each`. The item
+is visible to the block as `{item.field}` (and its position as `{_index}`). The agent and the result
+variable can come from the item, so one line routes work to whoever should do it:
+
+```loom
+for each fix in review.fixes {
+    delegate "Fix this: {fix.problem}" to {fix.owner} -> {fix.output}
+}
+
+parallel for each shot in plan.shots {
+    delegate "Shoot {shot.description}" to Photographer -> {shot.name}
+}
+```
+
+### Retry Backoff and Timeouts
+A step can wait between retries (the wait doubles each attempt) and give up on an attempt that hangs:
+
+```loom
+delegate "Summarise {doc}" to Writer -> summary retry 2 backoff 2s timeout 90s on_failure {
+    note "Writer unavailable: {_error}"
+}
+```
+
+### Per-Step Schemas (`expecting`)
+One agent can return different structures in different steps. `expecting { ... }` on a delegate overrides
+the agent's `output_schema` for that step only:
+
+```loom
+delegate "Cast the team" to Showrunner -> casting                      // uses Showrunner's output_schema
+delegate "Review the build" to Showrunner -> review expecting {         // this step's own contract
+    verdict: enum["COMPLETE", "INCOMPLETE"],
+    fix: string
 }
 ```
 

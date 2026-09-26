@@ -15,9 +15,25 @@ public final class PackMarkdown {
                 .map(e -> (Map<?, ?>) e.get("data"))
                 .reduce((a, b) -> b)
                 .orElse(Map.of());
-        StringBuilder md = new StringBuilder("# GetViral pack — ").append(run.brief().get("idea")).append("\n\n");
+        return render(String.valueOf(run.brief().get("idea")), pack);
+    }
+
+    public static String render(String idea, Map<?, ?> pack) {
+        StringBuilder md = new StringBuilder("# GetViral pack — ").append(idea).append("\n\n");
         md.append("**Hook:** ").append(pack.get("hook")).append("\n\n");
 
+        if (pack.get("research") instanceof Map<?, ?> research) {
+            md.append("## Research\n\n").append(research.get("summary")).append("\n\n");
+            if (research.get("findings") instanceof List<?> findings) {
+                for (Object f : findings) {
+                    if (f instanceof Map<?, ?> finding) {
+                        md.append("- ").append(finding.get("point")).append(" — [").append(finding.get("source"))
+                          .append("](").append(finding.get("url")).append(")\n");
+                    }
+                }
+            }
+            md.append('\n');
+        }
         if (pack.get("x") instanceof Map<?, ?> x) {
             md.append("## X thread\n\n");
             if (x.get("thread") instanceof List<?> thread) thread.forEach(t -> md.append("> ").append(t).append("\n>\n"));
@@ -46,6 +62,18 @@ public final class PackMarkdown {
             md.append("\n\n**Description:**\n\n").append(yt.get("description")).append("\n\n");
             if (yt.get("chapters") instanceof List<?> chapters) chapters.forEach(c -> md.append(c).append('\n'));
             md.append("\n**Shorts cut:** ").append(yt.get("shorts_cut")).append("\n\n**Tags:** ").append(join(yt.get("tags"))).append('\n');
+        }
+        if (pack.get("inspection") instanceof Map<?, ?> inspection) {
+            md.append("\n## Artifact check — ").append(inspection.get("verdict")).append("\n\n")
+              .append(inspection.get("summary")).append("\n\n");
+            if (inspection.get("checks") instanceof List<?> checks) {
+                for (Object c : checks) {
+                    if (c instanceof Map<?, ?> check) {
+                        md.append("- **").append(check.get("status")).append("** ").append(check.get("artifact"))
+                          .append(" — ").append(check.get("detail")).append('\n');
+                    }
+                }
+            }
         }
         if (pack.get("critic") instanceof Map<?, ?> critic) {
             md.append("\n---\nCritic score: **").append(critic.get("score")).append("/10** — ").append(critic.get("headline")).append('\n');

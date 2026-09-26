@@ -120,6 +120,16 @@ public class LoomParser {
             } else if (match(TokenType.OUTPUT_SCHEMA)) {
                 consume(TokenType.COLON, "Expect ':' after output_schema.");
                 agent.setOutputSchema(parseSchema());
+            } else if (check(TokenType.IDENTIFIER) && "temperature".equals(peek().getValue())) {
+                // Contextual keyword, so existing scripts may still use "temperature" as a name elsewhere.
+                Token keyword = advance();
+                consume(TokenType.COLON, "Expect ':' after temperature.");
+                Token value = consume(TokenType.NUMBER_LITERAL, "Expect a number for temperature, e.g. temperature: 0.7");
+                double temperature = Double.parseDouble(value.getValue());
+                if (temperature < 0.0 || temperature > 2.0) {
+                    throw error(keyword, "temperature must be between 0.0 and 2.0, got " + value.getValue());
+                }
+                agent.setTemperature(temperature);
             } else {
                 throw error(peek(), "Unexpected token in agent body: " + peek().getType());
             }
@@ -171,7 +181,14 @@ public class LoomParser {
         } else if (match(TokenType.GUARDRAIL)) {
             return parseGuardrailStatement();
         } else if (match(TokenType.PARALLEL)) {
+            if (check(TokenType.IDENTIFIER) && "for".equals(peek().getValue())) {
+                advance();
+                return parseForEach(true);
+            }
             return parseParallelStatement();
+        } else if (check(TokenType.IDENTIFIER) && "for".equals(peek().getValue())) {
+            advance();
+            return parseForEach(false);
         } else if (match(TokenType.OBSERVE)) {
             return parseObserveStatement();
         } else if (match(TokenType.CALL)) {
@@ -216,16 +233,28 @@ public class LoomParser {
         }
 
         consume(TokenType.TO, "Expect 'to' after delegate payload.");
-        Token target = consume(TokenType.IDENTIFIER, "Expect target agent identifier.");
+        String target = nameOrReference("Expect target agent identifier (or {item.field}).");
 
         consume(TokenType.ARROW, "Expect '->' to assign delegate result.");
-        Token varName = consume(TokenType.IDENTIFIER, "Expect variable name for result.");
+        String varName = nameOrReference("Expect variable name for result (or {item.field}).");
 
-        DelegateStmt stmt = new DelegateStmt(payload, target.getValue(), varName.getValue());
+        DelegateStmt stmt = new DelegateStmt(payload, target, varName);
+
+        // Optional per-step schema: the same agent can return different structures in different steps.
+        if (check(TokenType.IDENTIFIER) && "expecting".equals(peek().getValue())) {
+            advance();
+            stmt.setExpecting(parseSchema());
+        }
 
         if (match(TokenType.RETRY)) {
             Token count = consume(TokenType.NUMBER_LITERAL, "Expect number of retries.");
             stmt.setRetryCount((int) Double.parseDouble(count.getValue()));
+        }
+        // Optional, in any order: backoff 2s · timeout 90s
+        while (check(TokenType.IDENTIFIER) && ("backoff".equals(peek().getValue()) || "timeout".equals(peek().getValue()))) {
+            String option = advance().getValue();
+            long millis = durationMillis();
+            if (option.equals("backoff")) stmt.setBackoffMillis(millis); else stmt.setTimeoutMillis(millis);
         }
 
         if (match(TokenType.ON_FAILURE)) {
@@ -237,6 +266,47 @@ public class LoomParser {
         }
 
         return stmt;
+    }
+
+    /** An identifier, or a {@code {item.field}} reference resolved at run time. */
+    private String nameOrReference(String error) {
+        if (match(TokenType.LBRACE)) {
+            Token ref = consume(TokenType.IDENTIFIER, error);
+            consume(TokenType.RBRACE, "Expect '}' after reference.");
+            return "{" + ref.getValue() + "}";
+        }
+        return consume(TokenType.IDENTIFIER, error).getValue();
+    }
+
+    /** A duration such as {@code 2s}, {@code 500ms}, {@code 3m} (a bare number means seconds). */
+    private long durationMillis() {
+        Token n = consume(TokenType.NUMBER_LITERAL, "Expect a duration, e.g. 2s or 500ms");
+        double value = Double.parseDouble(n.getValue());
+        String unit = "s";
+        if (check(TokenType.IDENTIFIER) && List.of("ms", "s", "m", "h").contains(peek().getValue())) unit = advance().getValue();
+        return (long) switch (unit) {
+            case "ms" -> value;
+            case "m" -> value * 60_000;
+            case "h" -> value * 3_600_000;
+            default -> value * 1_000;
+        };
+    }
+
+    /** for each item in list.path { ... } */
+    private ForEachStmt parseForEach(boolean parallel) {
+        Token each = consume(TokenType.IDENTIFIER, "Expect 'each' after 'for'.");
+        if (!"each".equals(each.getValue())) throw error(each, "Expect 'for each <item> in <list>'.");
+        Token item = consume(TokenType.IDENTIFIER, "Expect a name for the item.");
+        Token in = consume(TokenType.IDENTIFIER, "Expect 'in' after the item name.");
+        if (!"in".equals(in.getValue())) throw error(in, "Expect 'for each <item> in <list>'.");
+        Token list = consume(TokenType.IDENTIFIER, "Expect the list to iterate, e.g. review.fixes.");
+        consume(TokenType.LBRACE, "Expect '{' before for each body.");
+        List<Statement> body = new java.util.ArrayList<>();
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            body.add(parseStatement());
+        }
+        consume(TokenType.RBRACE, "Expect '}' after for each body.");
+        return new ForEachStmt(item.getValue(), list.getValue(), body, parallel);
     }
 
     private CallStmt parseCallStmt() {
@@ -270,10 +340,15 @@ public class LoomParser {
     private SchemaDef parseSchema() {
         if (match(TokenType.LBRACE)) {
             SchemaDef schema = new SchemaDef(SchemaDef.Type.OBJECT);
-            java.util.Map<String, SchemaDef> fields = new java.util.HashMap<>();
+            // Insertion order, so the schema shown to the model reads as written.
+            java.util.Map<String, SchemaDef> fields = new java.util.LinkedHashMap<>();
             if (!check(TokenType.RBRACE)) {
                 do {
-                    Token fieldName = consume(TokenType.IDENTIFIER, "Expect field name.");
+                    // Any word is a valid field name, including ones Loom uses as keywords (note, model, …).
+                    Token fieldName = advance();
+                    if (fieldName.getValue() == null || !fieldName.getValue().matches("[A-Za-z_][A-Za-z0-9_]*")) {
+                        throw error(fieldName, "Expect field name.");
+                    }
                     consume(TokenType.COLON, "Expect ':' after field name.");
                     fields.put(fieldName.getValue(), parseSchema());
                 } while (match(TokenType.COMMA));
@@ -282,10 +357,11 @@ public class LoomParser {
             schema.setFields(fields);
             return schema;
         } else if (match(TokenType.LIST)) {
-            consume(TokenType.LT, "Expect '<' after list.");
             SchemaDef schema = new SchemaDef(SchemaDef.Type.LIST);
-            schema.setElementType(parseSchema());
-            consume(TokenType.GT, "Expect '>' after list type.");
+            if (match(TokenType.LT)) { // a bare `list` holds anything
+                schema.setElementType(parseSchema());
+                consume(TokenType.GT, "Expect '>' after list type.");
+            }
             return schema;
         } else if (match(TokenType.ENUM)) {
             consume(TokenType.LBRACKET, "Expect '[' after enum.");
@@ -375,6 +451,15 @@ public class LoomParser {
         }
         consume(TokenType.RPAREN, "Expect ')' after loop condition.");
 
+        // Optional safety bound: loop until (cond) max 5 { ... } on_exhausted { ... }
+        int max = 0;
+        if (check(TokenType.IDENTIFIER) && "max".equals(peek().getValue())) {
+            advance();
+            Token n = consume(TokenType.NUMBER_LITERAL, "Expect a number after 'max', e.g. max 5");
+            max = (int) Double.parseDouble(n.getValue());
+            if (max < 1) throw error(n, "loop max must be at least 1");
+        }
+
         consume(TokenType.LBRACE, "Expect '{' before loop body.");
         List<Statement> body = new java.util.ArrayList<>();
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
@@ -382,7 +467,18 @@ public class LoomParser {
         }
         consume(TokenType.RBRACE, "Expect '}' after loop body.");
 
-        return new LoopStmt(conditionBuilder.toString(), body);
+        LoopStmt loop = new LoopStmt(conditionBuilder.toString(), body);
+        loop.setMaxIterations(max);
+        if (check(TokenType.IDENTIFIER) && "on_exhausted".equals(peek().getValue())) {
+            Token keyword = advance();
+            if (max == 0) throw error(keyword, "on_exhausted needs a bounded loop (add 'max N')");
+            consume(TokenType.LBRACE, "Expect '{' before on_exhausted body.");
+            while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                loop.getOnExhausted().add(parseStatement());
+            }
+            consume(TokenType.RBRACE, "Expect '}' after on_exhausted body.");
+        }
+        return loop;
     }
 
     private HumanPromptStmt parseHumanPromptStmt() {

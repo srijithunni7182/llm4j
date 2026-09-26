@@ -144,6 +144,34 @@ public class EngramEngine implements MemoryEngine {
     }
 
     /** For tests — returns the underlying store. */
+    /**
+     * The result of a novelty check: whether {@code candidate} is new relative to what this memory
+     * holds under a topic, how close the nearest memory is, and which memory that is.
+     */
+    public record Novelty(boolean novel, double similarity, ScoredMemory closest) { }
+
+    /** Memories closest in meaning to {@code text} (pure similarity), optionally within a topic prefix. */
+    public List<ScoredMemory> nearest(String text, String topicPrefix, int topN) {
+        return store.nearest(text, topicPrefix, topN);
+    }
+
+    /**
+     * Is {@code candidate} novel relative to the memories under {@code topicPrefix}? It is not if its
+     * nearest memory is at least {@code threshold} similar (cosine). Lets agents avoid repeating
+     * themselves across sessions — the same angle, the same title formula, the same look.
+     */
+    public Novelty novelty(String candidate, String topicPrefix, double threshold) {
+        List<ScoredMemory> nearest = store.nearest(candidate, topicPrefix, 1);
+        if (nearest.isEmpty()) return new Novelty(true, 0.0, null);
+        ScoredMemory closest = nearest.get(0);
+        return new Novelty(closest.score() < threshold, closest.score(), closest);
+    }
+
+    /** Stores a piece of content under a topic (e.g. an agent's past output kept for novelty checks). */
+    public void remember(String content, MemoryTier tier, double importance, String topicKey) {
+        store.add(new MemoryObject(content, store.embed(content), tier, importance, topicKey));
+    }
+
     public VectorStore getStore() {
         return store;
     }

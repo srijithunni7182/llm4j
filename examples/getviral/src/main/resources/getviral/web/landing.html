@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>GetViral — one idea, every feed</title>
+  <meta name="description" content="Twelve AI agents turn one idea into an original, researched, ready-to-post pack for X, Instagram Reels and YouTube — and remember what works for you.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="studio.css">
+</head>
+<body class="page-landing">
+  <div class="aurora" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="GetViral home">
+      <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 5 13.5h6L9.5 22 19 9.5h-6z"/></svg></span>
+      <span class="brand-name">GetViral</span>
+    </a>
+    <a class="btn ghost small" href="#signin">Sign in</a>
+  </header>
+
+  <main class="landing">
+    <section class="landing-hero">
+      <p class="eyebrow"><span class="spark">✦</span> original every time · remembers you · researched · checked</p>
+      <h1 class="display">One idea.<br><span class="grad-text">Every feed.</span></h1>
+      <p class="lede">Drop an idea. A team of AI specialists researches what's trending <b>right now</b>, writes in <b>your voice</b>, designs the visuals, cuts the Reel — and hands you a ready-to-post pack for <b>X</b>, <b>Instagram Reels</b> and <b>YouTube</b> — with an angle you've never used before. You make every call that matters.</p>
+
+      <div class="signin glass" id="signin">
+        <a class="google-btn" id="googleBtn" href="/oauth2/authorization/google" hidden>
+          <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+          <span>Continue with Google</span>
+        </a>
+        <form class="dev-login" id="devLogin" hidden>
+          <p class="eyebrow warn">Local mode · no Google sign-in configured</p>
+          <div class="dev-row">
+            <input id="devEmail" type="email" required placeholder="you@example.com" aria-label="Email" autocomplete="email">
+            <button class="cta" type="submit"><span>Start creating</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 5 13.5h6L9.5 22 19 9.5h-6z"/></svg></button>
+          </div>
+          <p class="hint">Any email works locally — it just keeps each creator's work separate. Never enable this on a public server.</p>
+        </form>
+        <p class="form-error" id="signinError" role="alert"></p>
+        <p class="hint" id="signinNote"></p>
+      </div>
+    </section>
+
+    <section class="problems">
+      <p class="eyebrow center">Why GetViral exists</p>
+      <h2 class="display-sm center">Creators aren't short of AI tools. They're short of <span class="grad-text">originality and time</span>.</h2>
+      <div class="problem-grid">
+        <article class="problem glass">
+          <p class="stat-big">78%</p>
+          <p class="problem-text">of creators say burnout is hurting their work — posting daily on several platforms and running out of fresh ideas.</p>
+          <p class="answer"><b>GetViral:</b> one idea becomes a researched, illustrated pack for X, Instagram Reels and YouTube — and each pack is dealt an angle you haven't used yet.</p>
+        </article>
+        <article class="problem glass">
+          <p class="stat-big">72%</p>
+          <p class="problem-text">of people view AI-generated content negatively. Feeds are full of generic, repetitive “AI slop”.</p>
+          <p class="answer"><b>GetViral:</b> an originality check compares every pack with everything you've made before and sends repeats back. It never posts the same angle twice.</p>
+        </article>
+        <article class="problem glass">
+          <p class="stat-big">1st draft</p>
+          <p class="problem-text">is where most AI tools stop — you get text that invents facts and files that don't meet a platform's specs.</p>
+          <p class="answer"><b>GetViral:</b> facts come from web research with sources, and the Showrunner rebuilds any failing post, image or video until every platform passes.</p>
+        </article>
+        <article class="problem glass">
+          <p class="stat-big">You</p>
+          <p class="problem-text">are the reason people follow you. Tools that post on autopilot erase exactly that — and platforms are demonetizing content with no human judgment in it.</p>
+          <p class="answer"><b>GetViral:</b> it learns your voice and remembers what worked, you choose the hook, and nothing is posted without your approval.</p>
+        </article>
+      </div>
+      <p class="sources">Sources: The Creator Economy creator burnout report (2026); YouGov survey of US internet users (January 2026); YouTube's inauthentic-content monetization policy.</p>
+    </section>
+
+    <section class="pillars">
+      <article class="pillar glass"><span class="pillar-ic">🧬</span><h3>Never the same pack twice</h3><p>Every casting is remembered. The Showrunner is dealt creative lenses and visual styles you haven't used, and a similarity check sends anything too close to your past work back.</p></article>
+      <article class="pillar glass"><span class="pillar-ic">🧠</span><h3>It remembers you</h3><p>Your past posts, your hook picks and every 🔥/👎 shape the next pack. Each run starts from what worked for <em>you</em>, not from zero.</p></article>
+      <article class="pillar glass"><span class="pillar-ic">🔎</span><h3>Researched, with sources</h3><p>A Researcher reads the web before anyone writes a word, and live trend signals time the post. Every fact links to where it came from.</p></article>
+      <article class="pillar glass"><span class="pillar-ic">✅</span><h3>Fixed before you see it</h3><p>A critic sends weak work back, AI judges score every pack, and the Showrunner checks every file against each platform's spec until X, Instagram and YouTube all pass.</p></article>
+      <article class="pillar glass"><span class="pillar-ic">🎬</span><h3>A team, not a chatbot</h3><p>Twelve specialists — scout, researcher, strategist, writers, art director, video editor, critic — each briefed for <em>your</em> idea. Threads, an MP4 Reel and a YouTube package, ready to post.</p></article>
+      <article class="pillar glass"><span class="pillar-ic">✋</span><h3>You stay the author</h3><p>You pick the hook and approve every post. Nothing is published without your explicit say-so.</p></article>
+    </section>
+
+    <footer class="landing-foot"><span>Built on the open-source <b>llm4j</b> stack — Loom · ai-agent4j · Engram · eval4j</span></footer>
+  </main>
+
+  <script src="common.js"></script>
+  <script src="landing.js"></script>
+</body>
+</html>

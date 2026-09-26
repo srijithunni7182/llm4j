@@ -36,7 +36,8 @@ public class KnowledgeBase {
     private static final Logger log = Logger.getLogger(KnowledgeBase.class.getName());
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final String[] PLAYBOOK = {
-        "hooks.md", "x-threads.md", "instagram-reels.md", "youtube.md", "retention.md", "trust-and-safety.md"
+        "hooks.md", "x-threads.md", "instagram-reels.md", "youtube.md", "retention.md", "trust-and-safety.md",
+        "niches.md"
     };
 
     public record Hit(String text, String source, double score) { }
@@ -144,7 +145,7 @@ public class KnowledgeBase {
         } catch (IOException e) {
             log.warning("Could not persist voice sample: " + e.getMessage());
         }
-        index("voice", creator, "@" + creator + " past post", clean);
+        index("voice", creator, "your past post", clean);
     }
 
     public List<String> voiceSamples(String creator) {
@@ -163,7 +164,7 @@ public class KnowledgeBase {
         if (texts.containsKey(marker)) return;
         texts.put(marker, "");
         for (String post : voiceSamples(creator)) {
-            index("voice", creator, "@" + creator + " past post", post);
+            index("voice", creator, "your past post", post);
         }
     }
 

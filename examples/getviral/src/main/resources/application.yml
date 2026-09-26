@@ -1,0 +1,70 @@
+# GetViral hosted app. Every value can be set by an environment variable (Cloud Run friendly).
+server:
+  port: ${PORT:${GETVIRAL_PORT:7070}}
+  forward-headers-strategy: framework        # honour X-Forwarded-* from Cloud Run's front end
+  shutdown: graceful
+  servlet:
+    session:
+      timeout: 14d
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${GETVIRAL_SECURE_COOKIES:false}
+
+spring:
+  application.name: getviral
+  datasource:
+    # Local default: an embedded H2 database file. Production: Cloud SQL Postgres via GETVIRAL_DB_URL.
+    url: ${GETVIRAL_DB_URL:jdbc:h2:file:./getviral-data/db/getviral;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;AUTO_SERVER=TRUE}
+    username: ${GETVIRAL_DB_USER:sa}
+    password: ${GETVIRAL_DB_PASSWORD:}
+    hikari.maximum-pool-size: ${GETVIRAL_DB_POOL:10}
+  jpa:
+    open-in-view: false
+    hibernate.ddl-auto: none
+  flyway:
+    locations: classpath:db/migration
+  session:
+    jdbc:
+      initialize-schema: never               # created by the Flyway migration
+      cleanup-cron: "0 */15 * * * *"
+  web.resources.static-locations: classpath:/getviral/web/
+  mvc.async.request-timeout: 3600000          # SSE streams can stay open for a whole run
+
+management:
+  endpoints.web.exposure.include: health
+  endpoint.health.probes.enabled: true
+
+getviral:
+  data-dir: ${GETVIRAL_DATA_DIR:getviral-data}
+  public-url: ${GETVIRAL_PUBLIC_URL:http://localhost:7070}
+  token-key: ${GETVIRAL_TOKEN_KEY:}           # base64 AES-256 key for encrypting social tokens
+  quota:
+    packs-per-month: ${GETVIRAL_PACKS_PER_MONTH:20}
+    workers: ${GETVIRAL_WORKERS:8}
+    stale-after: ${GETVIRAL_STALE_AFTER:10m}   # a running pack silent this long is resumed elsewhere
+  auth:
+    dev-login: ${GETVIRAL_DEV_LOGIN:false}    # local testing only — never enable on a public deployment
+    google-client-id: ${GOOGLE_CLIENT_ID:}
+    google-client-secret: ${GOOGLE_CLIENT_SECRET:}
+  media:
+    gcs-bucket: ${GETVIRAL_GCS_BUCKET:}
+
+logging:
+  level:
+    root: WARN
+    io.github.llm4j.getviral: INFO
+    org.springframework.boot.web.embedded: INFO
+
+# OAuth apps for connecting creator accounts (register with Meta, Google and X; redirect URI is
+# <public-url>/connect/<platform>/callback). YouTube falls back to the Google sign-in client.
+getviral.connect:
+  instagram:
+    client-id: ${INSTAGRAM_APP_ID:}
+    client-secret: ${INSTAGRAM_APP_SECRET:}
+  youtube:
+    client-id: ${YOUTUBE_CLIENT_ID:${GOOGLE_CLIENT_ID:}}
+    client-secret: ${YOUTUBE_CLIENT_SECRET:${GOOGLE_CLIENT_SECRET:}}
+  x:
+    client-id: ${X_CLIENT_ID:}
+    client-secret: ${X_CLIENT_SECRET:}

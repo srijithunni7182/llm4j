@@ -1,13 +1,19 @@
 # ⚡ GetViral — one idea, every feed
 
-**GetViral** is a multi-agent creator studio. Type one idea and a team of eleven AI agents turns it into a
-ready-to-post pack for **X**, **Instagram Reels** and **YouTube** — researched against what's trending
-*right now*, illustrated and cut into a video, scored by a critic, graded by LLM judges, and (with your approval) published to Instagram.
+**GetViral** is a multi-agent creator studio. Type one idea and a team of twelve AI agents turns it into a
+ready-to-post pack for **X**, **Instagram Reels** and **YouTube**. The idea is researched on the open web with
+cited sources and timed against what's trending *right now*. The pack is then illustrated, cut into a video,
+scored by a critic, graded by LLM judges and, with your approval, published to Instagram.
+
+It runs as a multi-user website (sign-in, onboarding, connected accounts, a library of everything you've made)
+that deploys to Google Cloud Run, and it still runs on your laptop with one command.
 
 It doesn't stop at text: an **ArtDirector** agent generates the thumbnail, Reel cover, B-roll frames and X card,
 and a **VideoEditor** agent renders the Reel into a real vertical **MP4**.
 
 It is the showcase for the whole llm4j stack: every module does real work in it.
+
+![GetViral landing page: one idea, every feed](docs/landing.png)
 
 ![GetViral composer](docs/composer.png)
 
@@ -16,6 +22,41 @@ It is the showcase for the whole llm4j stack: every module does real work in it.
 | ![Studio](docs/studio-live.png) | ![Hook picker](docs/hook-picker.png) | ![Results](docs/results.png) |
 
 ![Generated visuals: YouTube thumbnail, X card, Reel cover, B-roll and the rendered Reel](docs/visuals.png)
+
+---
+
+## The problem today, and how GetViral answers it
+
+Creators aren't short of AI tools. OpusClip clips long videos, InVideo and Revid turn a prompt into a
+faceless video, and PostEverywhere or Blotato draft and schedule posts. What they're short of is
+**originality and time**, and most tools make the first worse while saving the second.
+
+| What creators face today | How GetViral answers it |
+|---|---|
+| **Burnout.** 78% of creators say it's hurting their motivation and health. The main causes are posting daily on several platforms and running out of fresh ideas. | One idea becomes a complete pack for X, Instagram Reels and YouTube: thread, scripted Reel rendered to MP4, YouTube title, description and thumbnail. Each pack is dealt a **creative lens and visual style the creator hasn't used lately**, so the ideas don't go stale. |
+| **"AI slop" backlash.** 72% of US internet users view AI content negatively (YouGov, January 2026). Enthusiasm for AI creator content fell from 60% in 2023 to 26% in 2025. Audiences reject content that is generic, repetitive and unowned. | **Originality over time.** Every casting is remembered. An Engram similarity check compares each new casting and YouTube package with the creator's past work and sends near-repeats back to be re-cast. |
+| **Made-up facts.** Prompt-to-post tools write from the model's memory. | **Researched, with sources.** A Researcher searches and reads the web before anyone writes, and every fact in the dossier carries its source. Live trend signals time the post. |
+| **First drafts, not finished work.** Posts over platform limits, broken media files, weak hooks. | **Fixed before you see it.** A critic sends weak work back. The Showrunner then holds the build to a quality gate (files decoded and spec-checked, platform limits, originality, eval4j judges) and routes every failure to its specialist until X, Instagram and YouTube all pass. |
+| **Losing your voice, and your income.** Autopilot tools erase the creator. YouTube demonetizes templated AI video with no human judgment in it, and the EU AI Act requires AI labelling from August 2026. | **The creator stays the author.** It learns the creator's voice from their posts, remembers what worked (Engram memory per creator), lets them pick the hook, and publishes only with their explicit approval. |
+
+The studio shows its working, so none of this is a black box. The live view counts the memories used and
+the fixes made before the creator sees anything, and every finished pack opens with a **"Why this pack is
+yours"** panel:
+
+- how original it is against the creator's past packs;
+- the new lens and visual style it was dealt;
+- what was recalled from memory and what was learned;
+- how many facts and sources back it;
+- what was sent back and rebuilt;
+- which calls were the creator's.
+
+![Why this pack is yours: originality, a new angle, memory, sources, fixes and the creator's calls](docs/why.png)
+
+Sources: [The Creator Economy, burnout report](https://thecreatoreconomy.com/post/creator-burnout-78-percent-mental-health-2026) ·
+[Brand24, why people dislike AI content](https://brand24.com/blog/why-people-hate-ai-content-report/) ·
+[eMarketer, enthusiasm for AI creator content](https://www.emarketer.com/content/exclusive--ai-slop-threat-creator-economy) ·
+[YouTube inauthentic-content policy](https://arwriterai.com/en/blog/youtube-inauthentic-content-policy-ai-creators-2026/) ·
+[AI disclosure rules by platform](https://www.socialscalehub.com/academy/ai-content-disclosure-rules-2026-tiktok-instagram-youtube)
 
 ---
 
@@ -34,6 +75,9 @@ The launcher:
 - lists your pulled Ollama models, and offers optional Instagram publishing and Veo video;
 - builds the stack from source and opens the studio in your browser.
 
+Locally you sign in with any email (a dev-only login, since Google sign-in isn't configured), and everything
+is stored in `./getviral-data`: an embedded H2 database, generated media and memory.
+
 Keys only ever reach Java through the environment, never the command line. Other flags: `--demo`,
 `--gemini`, `--ollama`, `--cli "idea"`, `--port N`, `--skip-build`.
 
@@ -41,9 +85,9 @@ Keys only ever reach Java through the environment, never the command line. Other
 
 ```bash
 # from the repo root — builds ai-agent4j, addons, Loom, Engram, eval4j and GetViral from source
-mvn -q install -DskipTests
+mvn -q install -DskipTests -pl examples/getviral -am
 cd examples/getviral
-mvn -q exec:java                       # → http://localhost:7070
+GETVIRAL_DEV_LOGIN=true mvn -q exec:java   # → http://localhost:7070
 ```
 
 With no key, GetViral runs its scripted **demo studio model**, which still drives the real workflow,
@@ -64,23 +108,31 @@ flowchart LR
     B[Brief] --> G{{PII guardrail}}
     G -- personal data --> S[SafetyCoach]
     G --> SR[🎬 Showrunner<br/>writes every prompt]
-    SR --> TS[📡 TrendScout<br/>live public APIs]
-    TS --> ST[🧭 Strategist<br/>angle · 5 hooks · facts]
+    SR --> RS[🔬 Researcher<br/>web search · reads sources] & TS[📡 TrendScout<br/>live trend signals]
+    RS & TS --> ST[🧭 Strategist<br/>angle · 5 hooks · sourced facts]
     ST --> H([👆 You pick the hook])
     H --> X[𝕏 XWriter] & R[🎞️ ReelDirector] & Y[▶ YouTubeProducer]
     X & R & Y --> C[🔥 ViralityCritic]
     C -- REVISE --> SR2[🎬 Showrunner re-casts prompts] --> X & R & Y
     C -- SHIP --> Q[[eval4j quality gate]]
     C -- SHIP --> AD[🎨 ArtDirector<br/>thumbnail · cover · B-roll · X card] --> VE[📹 VideoEditor<br/>renders the Reel MP4]
-    VE --> P([👆 Publish?]) --> PB[🚀 Publisher] --> A([✅ You approve]) --> IG[(Instagram API)]
+    VE --> QG{{🎬 Showrunner reviews the build<br/>quality gate · per-platform}}
+    QG -- FIX --> FX[send each failure to its specialist] --> QG
+    QG -- COMPLETE --> P([👆 Publish?]) --> PB[🚀 Publisher] --> A([✅ You approve]) --> IG[(Instagram API)]
 ```
 
 1. **Guardrail** — Loom's `guardrail (PII)` blocks briefs containing personal data before any agent runs.
 2. **Casting** — the **Showrunner** (orchestrator agent) reads the brief, Engram's memory of the creator and
    the viral playbook (RAG), then **writes a bespoke system prompt for every specialist**, as a typed
    `output_schema` casting sheet.
-3. **Research** — **TrendScout** calls keyless public REST APIs for live signals.
-4. **Strategy** — **Strategist** returns a typed plan: angle, five hooks, verified facts, hashtags, timing.
+3. **Research**: two agents work in a Loom `parallel` block.
+   - The **Researcher** researches the idea itself on the open web. It runs `web_search`, reads the two or
+     three best sources in full with `read_page`, and returns a typed dossier: a summary, findings that each
+     carry their URL, fresh angles, what people debate, and caveats for anything it couldn't verify.
+   - The **TrendScout** pulls live trend signals from keyless public APIs, to time the post.
+4. **Strategy** — **Strategist** returns a typed plan: angle, five hooks, key facts taken from the research
+   (with their sources), hashtags and timing. The YouTube description ends with a Sources list, and the
+   critic's trust score checks claims against the dossier.
 5. **You pick the hook** — Loom `human_prompt`.
 6. **Create** — three platform specialists run in a Loom `parallel` block.
 7. **Critique loop** — **ViralityCritic** scores the pack; on `REVISE` the Showrunner **rewrites the prompts**
@@ -92,10 +144,66 @@ flowchart LR
    frames and a 16:9 X card in one consistent style (the Showrunner writes its art direction). The
    **VideoEditor** then renders the Reel's beat sheet into a vertical MP4 over those images, and can add an
    AI video clip from Google Veo if you opt in.
-10. **Publish** — optional, behind *two* human gates: you supply the video URL, and the `instagram_publish`
+10. **The Showrunner signs off the build.** A pack isn't finished until every artifact for X, Instagram and
+   YouTube passes. Each round, the Showrunner runs `quality_gate` over the whole build, which combines:
+   - every file decoded and checked against its platform's spec: each image's shape and that it isn't
+     blank; the Reel MP4's first, middle and last frames against Instagram's Reels spec (H.264, 9:16,
+     23–60 fps, 3 s – 15 min, index at the front, no edit lists); and the WebM copy;
+   - platform text limits (X's weighted 280, Instagram's 2,200 characters, 30 hashtags and 20 mentions,
+     YouTube's title, description and tag limits);
+   - the originality checks;
+   - the eval4j judges on the X thread, Reel and YouTube package.
+
+   Each failing area is marked FIX and sent to its owner: the X thread to the XWriter, the Reel to the
+   ReelDirector, the YouTube package to the YouTubeProducer, images to the ArtDirector and the video to the
+   VideoEditor. The video is re-rendered automatically when the Reel plan or the images change. In the
+   `.loom` that is a `loop until (qualityReport.verdict == "COMPLETE") max 5` around one review and one
+   line of routing: `for each fix in qualityReport.fixes { delegate … to {fix.owner} -> {fix.output} }`.
+   The review uses a per-step schema (`expecting { ... }`) because the Showrunner's normal output is a
+   casting sheet.
+
+   The Showrunner can ask for extra work but can't wave a failing build through: GetViral re-reads the gate
+   and marks COMPLETE only when every area passes. If a build still fails after 5 rounds, the run ends as
+   **needs attention** rather than done. It lists what failed, doesn't offer publishing, and doesn't count
+   against the creator's monthly quota.
+11. **Publish** — optional, only for a complete build, behind *two* human gates: you supply the video URL, and the `instagram_publish`
    tool declares `requiresApproval()`, so ai-agent4j pauses for your explicit OK.
 
 Rate any platform 🔥/👎 and it becomes an Engram memory: the next run is briefed with it.
+
+### Durable runs: nothing waits on a thread
+
+Every step of a pack is recorded in a Loom **run journal** (in the database on the website, in memory
+locally). When the workflow needs the creator (the hook pick, the publish step, the approval of the exact
+post), the run **suspends**: the question is saved, the worker is freed and nothing holds a thread. The
+creator's answer is recorded in the journal and the run resumes on whichever instance picks it up. It
+replays everything already done (no model is called twice) and carries on. The same mechanism makes deploys
+and crashes safe: a pack whose server stopped responding is resumed from its last recorded step, not failed.
+
+### Originality over time
+
+Language models drift back to a favourite angle: two food ideas in a row both get "the science of it",
+the same golden-hour look and the same "…Nobody Tells You" title. GetViral treats originality as part of
+the job and doesn't leave it to good intentions:
+
+- **Every casting is kept.** It stores the lens, direction, signature ideas, visual style, YouTube titles,
+  thumbnail and chosen hook, per creator: in the database on the website, in `getviral-data/casting/`
+  locally.
+- **The Showrunner is briefed with it** and dealt a few **creative lenses** and **visual styles** this
+  creator hasn't used yet, from decks of 30 lenses and 20 styles (myth vs reality, a street-level POV,
+  risograph print, claymation, film noir and so on).
+- **An originality gate checks the casting before any work is spent on it.** It looks for exact reuse (the
+  same lens, the same style, two or more of the same distinctive ideas) and for the same thing in new
+  words, using Engram's `nearest` similarity recall. A repeat goes back once as
+  `alt (castingSheet.novelty == "REPEAT")`, with exactly what overlapped named.
+- **The YouTube package gets the same check** (reused title phrasing, similar titles, a repeated thumbnail
+  concept). A repeat is marked on the package, and the critic sends it back for a new take.
+- **Temperatures are set per role in the `.loom`.** The ArtDirector (1.1), YouTubeProducer (1.05) and
+  Showrunner run hot; the Researcher and critic run cool. Set `GETVIRAL_CREATIVITY` (for
+  example `1.2`) to push only the creative roles further.
+
+The live feed shows each check ("🧬 casting too close to earlier work — re-casting"), and the results page
+shows the pack's lens, style and originality.
 
 ---
 
@@ -118,10 +226,12 @@ Every generated prompt is wrapped in a fixed identity line and **house rules** (
 personal data, platform limits, exact format), so creative orchestration can never prompt away the
 safety rules. Open any agent in the studio to see its prompt history (v1 → v2).
 
-### Tools on free public REST APIs (no keys)
+### Tools on free public REST APIs
 
 | Tool | API | Used for |
 |---|---|---|
+| `web_search` | **Google Search** via Gemini search grounding (when a Gemini key is set) + **GDELT** news, last 30 days + Wikipedia full-text search + DuckDuckGo instant answers | researching the idea itself; numbered sources with URLs |
+| `read_page` | any public web page | reading a source in full before citing it (title, date, main text) |
 | `trending_now` | Wikimedia REST — most-read articles | what the internet is curious about today |
 | `hn_pulse` | Hacker News via Algolia search | live debates → contrarian angles |
 | `trending_hashtags` | Mastodon `trends/tags` | hashtags trending right now |
@@ -136,6 +246,16 @@ safety rules. Open any agent in the studio to see its prompt history (v1 → v2)
 | `generate_video_clip` | Google Veo via the Gemini API (opt-in, paid) | AI B-roll clips |
 | `instagram_quota` / `instagram_publish` | Instagram Platform Content Publishing API | `POST /{ig-user-id}/media` → poll `status_code` → `POST /{ig-user-id}/media_publish` |
 
+Everything except Google Search is keyless, so research still works on Ollama or with no key. With a Gemini
+key, Google Search grounding runs on the studio model. If that model can't search, it falls back to
+`gemini-2.5-flash` automatically and keeps using whichever model worked, so there's nothing to configure.
+Set `GETVIRAL_SEARCH_MODEL` only to pin a specific model. Google bills grounded requests beyond the free tier.
+
+`read_page` runs on a shared server, so it only fetches public pages. It allows http(s) on standard ports
+only, and it refuses loopback, private, link-local (including cloud metadata) and other internal addresses,
+checked again on every redirect. Page size is capped. Text from the web is treated as material, not
+instructions: a house rule tells every agent never to follow instructions found in pages or tool output.
+
 Each public-API tool tries the live endpoint first; if a host is unreachable it falls back to a recorded
 sample **and says so** in the observation and the UI (● live / ○ sample), so no agent mistakes a sample for
 live data. Set `GETVIRAL_OFFLINE_APIS=true` to use samples only.
@@ -148,20 +268,72 @@ live data. Set `GETVIRAL_OFFLINE_APIS=true` to use samples only.
 - **Words are never left to the image model.** Prompts describe the scene only, and GetViral typesets the
   overlay text (thumbnail and cover titles) itself, because image models are unreliable at legible text.
   Every image also keeps a text-free plate, and the Reel is rendered over those.
-- **The Reel MP4** is rendered frame by frame in Java2D and encoded to H.264 with jcodec, so no ffmpeg is
-  needed. It has a slow zoom-and-pan on each image, a flash cut on every beat, a pop-in headline, subtitles,
-  story progress bars and your handle. It is silent: the beat sheet names the soundtrack to add in your
-  editor or in Instagram.
+- **The Reel** is rendered frame by frame in Java2D, so no ffmpeg is needed. It has a slow zoom-and-pan on
+  each image, a flash cut on every beat, a pop-in headline, subtitles, story progress bars and your handle.
+  It is silent: the beat sheet names the soundtrack to add in your editor or in Instagram. One render
+  produces two files:
+  - **`reel.mp4`, the master**: H.264 at full size, rewritten with its index at the front ("fast start").
+    Instagram's publishing API requires that, and browsers can start playing before the download finishes.
+    This is the file you download, publish or upload to YouTube.
+  - **`reel-preview.webm`**: a lighter VP8 copy for browsers that can't decode H.264 (some Linux builds of
+    Chromium and Firefox). Every player in the studio lists both sources, and the browser plays the first
+    one it can.
 - **AI video** (`GETVIRAL_VEO=true`) calls Google Veo's long-running generation API. It is paid and slow, so
   it is off by default.
 
+### Niches
+
+The niche is free text, with one-tap chips for fitness, productivity, food, tech, travel, money, beauty,
+education, **culture, books, cinema, comedy** and **sports**. The RAG playbook has a
+[niche guide](src/main/resources/getviral/playbook/niches.md) the Showrunner and Strategist retrieve.
+Examples: no spoilers in cinema hooks, no broadcast footage in sports, punch up in comedy, and no long
+quotes in books.
+
 ### Instagram publishing
 
-Set `IG_USER_ID` and `IG_ACCESS_TOKEN` for an Instagram professional account with the content-publish
+On the website, each creator connects **their own** Instagram account during onboarding, and a run only
+ever publishes there. For terminal runs, set `IG_USER_ID` and `IG_ACCESS_TOKEN` for an Instagram professional account with the content-publish
 permission (optionally `IG_GRAPH_HOST`, default `https://graph.instagram.com`, and `IG_GRAPH_VERSION`,
 default `v23.0`). Without them, publishing is an honest **dry run** that shows the exact Graph API calls it
 would make. Instagram must be able to download the video from a public `https://` URL. The tool validates
 caption length (2,200), hashtags (30) and mentions (20) before calling the API.
+
+---
+
+## The website (hosted mode)
+
+GetViral is a Spring Boot app built for many creators at once:
+
+- **Sign in with Google.** Sessions are stored in the database (Spring Session JDBC), so any instance can
+  serve any user.
+- **Onboarding** has four steps:
+  1. your profile (handle, niche, tone, audience);
+  2. connect Instagram, YouTube and X (OAuth; tokens are encrypted with AES-GCM at rest);
+  3. teach it your voice with a few past posts;
+  4. a tour of how the studio works, ending in a guided first pack.
+- **Runs** are queued on a bounded worker pool, with one active run per creator and a monthly pack quota on
+  the platform key. Every event and question is written to the database, and the live view is an SSE stream
+  that tails it (resumable with `Last-Event-ID`).
+- **The Library** holds every pack and every generated image and video, with Markdown export. Creators can
+  delete their account and all of their data.
+
+### Run it like production, on your laptop
+
+```bash
+cd examples/getviral
+docker compose up --build      # the production image + PostgreSQL 16 → http://localhost:7070
+```
+
+This uses the same container that Cloud Run runs and the same database engine as Cloud SQL, with the local
+dev login. `mvn test` also re-runs the whole hosted end-to-end suite on a real PostgreSQL through
+Testcontainers whenever Docker is available.
+
+### Deploy to Google Cloud Run
+
+See **[DEPLOY.md](DEPLOY.md)** for the one-time setup (Cloud SQL, a Cloud Storage bucket, Secret Manager,
+OAuth apps) and `gcloud builds submit --config examples/getviral/cloudbuild.yaml .` for every release after
+that. On Cloud Run, the app refuses to start with laptop settings: dev login, no shared token key, H2, or no
+media bucket.
 
 ---
 
@@ -188,7 +360,9 @@ GEMINI_API_KEY=... GETVIRAL_OFFLINE_APIS=false mvn test   # same suite against a
 |---|---|---|
 | `GETVIRAL_MODE` | `auto` | `gemini`, `ollama`, `demo` (`auto` = Gemini if `GEMINI_API_KEY` is set) |
 | `GETVIRAL_MODEL` / `GETVIRAL_JUDGE_MODEL` | `gemini-3.5-flash` / same | any model `DefaultLLMClientFactory` understands |
-| `GETVIRAL_PORT` | `7070` | studio port |
+| `GETVIRAL_PORT` / `PORT` | `7070` | studio port (`PORT` is set by Cloud Run) |
+| `GETVIRAL_CREATIVITY` | `1.0` | scales the temperature of the creative roles only (0.3–1.5) |
+| `GETVIRAL_SEARCH_MODEL` | studio model, else `gemini-2.5-flash` | Gemini model for Google Search grounding (falls back to `gemini-2.5-flash` automatically) |
 | `GETVIRAL_DATA_DIR` | `./getviral-data` | Engram memories, voice samples, audit logs |
 | `GETVIRAL_MAX_REVISIONS` | `2` | critic rounds before shipping anyway |
 | `GETVIRAL_OFFLINE_APIS` | `false` | use recorded API samples only |
@@ -198,22 +372,39 @@ GEMINI_API_KEY=... GETVIRAL_OFFLINE_APIS=false mvn test   # same suite against a
 | `GETVIRAL_IMAGE_MODEL` | `gemini-2.5-flash-image` | Gemini image model |
 | `GETVIRAL_VEO` / `GETVIRAL_VEO_MODEL` | `false` / `veo-3.0-fast-generate-001` | opt-in AI video clips (paid) |
 | `GETVIRAL_REEL_SIZE` | `540x960` | rendered Reel resolution (e.g. `1080x1920`) |
-| `IG_USER_ID` / `IG_ACCESS_TOKEN` | – | enable real Instagram publishing |
+| `IG_USER_ID` / `IG_ACCESS_TOKEN` | – | Instagram publishing for terminal runs (the website uses each creator's connected account) |
+
+Website settings:
+
+| Variable | Default | |
+|---|---|---|
+| `GETVIRAL_DB_URL` (+ `_USER`, `_PASSWORD`) | embedded H2 file | PostgreSQL / Cloud SQL JDBC URL |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | – | Google sign-in |
+| `GETVIRAL_DEV_LOGIN` | `false` | sign in with any email — **local only**, refused on Cloud Run |
+| `GETVIRAL_PUBLIC_URL` | `http://localhost:7070` | base of OAuth redirect URIs |
+| `GETVIRAL_TOKEN_KEY` | generated locally | base64 AES-256 key for social tokens (required on Cloud Run) |
+| `GETVIRAL_GCS_BUCKET` | – | store media in Cloud Storage instead of local disk |
+| `GETVIRAL_PACKS_PER_MONTH` / `GETVIRAL_WORKERS` | `20` / `8` | quota per creator / concurrent runs per instance |
+| `GETVIRAL_SECURE_COOKIES` | `false` | `true` behind HTTPS |
+| `INSTAGRAM_APP_ID` / `_SECRET`, `YOUTUBE_CLIENT_ID` / `_SECRET`, `X_CLIENT_ID` / `_SECRET` | – | account connections (YouTube falls back to the Google client) |
 
 ## Project layout
 
 ```
 src/main/resources/getviral/
   getviral.loom          the workflow + agent team (Loom DSL)
-  playbook/*.md          RAG knowledge: hooks, X, Reels, YouTube, retention, trust & safety
+  playbook/*.md          RAG knowledge: hooks, X, Reels, YouTube, retention, trust & safety, niches
   fixtures/*.json        recorded public-API samples (offline fallback)
-  web/                   the studio (vanilla HTML/CSS/JS, streamed over SSE)
+  web/                   landing, onboarding, studio + library (vanilla HTML/CSS/JS over SSE)
+  db/migration/          Flyway schema (users, runs, events, connections, memory, sessions)
 src/main/java/io/github/llm4j/getviral/
   engine/                GetViralEngine, GetViralExecutor (Loom hooks), PromptBook, CreatorMemory
-  tools/                 public REST API tools, image/video tools, Instagram publishing
+  app/                   the Spring Boot website: security, accounts, runs, media, memory sync, connections
+  tools/                 web research, public REST API tools, image/video tools, Instagram publishing
   media/                 image providers, PosterArt design kit, ReelRenderer (MP4), Veo client
   rag/                   KnowledgeBase (addons embeddings + vector store)
   quality/               QualityGate (eval4j at runtime)
   llm/                   model routing, metering, the demo studio model
-  web/                   JDK HttpServer + SSE studio, terminal studio, Markdown export
+  web/                   terminal studio, Markdown export
+Dockerfile, docker-compose.yml, cloudbuild.yaml, DEPLOY.md   container + Cloud Run
 ```

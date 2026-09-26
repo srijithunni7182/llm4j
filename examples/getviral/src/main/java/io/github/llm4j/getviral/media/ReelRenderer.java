@@ -25,13 +25,18 @@ public class ReelRenderer {
 
     public record Beat(String time, String shot, String voiceover, String onScreen) { }
 
-    public record Result(Path file, double seconds, int frames) { }
+    /** @param webm the browser-preview copy, or {@code null} if none was requested */
+    public record Result(Path file, double seconds, int frames, Path webm) { }
 
     private static final Pattern RANGE = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*[-–]\\s*(\\d+(?:\\.\\d+)?)");
 
     private final int width;
     private final int height;
     private final int fps;
+
+    /** The WebM preview is intra-only VP8, so it is rendered at phone-preview size to stay light. */
+    public static final int PREVIEW_WIDTH = 360;
+    static final int PREVIEW_QUANTIZER = 60;
 
     public ReelRenderer(int width, int height, int fps) {
         this.width = width & ~1;
@@ -41,6 +46,15 @@ public class ReelRenderer {
 
     public Result render(List<Beat> beats, List<BufferedImage> backgrounds, String handle, double paceFactor,
                          Path output) throws IOException {
+        return render(beats, backgrounds, handle, paceFactor, output, null);
+    }
+
+    /**
+     * Renders the Reel once into the H.264 MP4 master (fast-started, as Instagram requires) and, if
+     * {@code webmOutput} is given, a lighter VP8 WebM copy for browsers without H.264.
+     */
+    public Result render(List<Beat> beats, List<BufferedImage> backgrounds, String handle, double paceFactor,
+                         Path output, Path webmOutput) throws IOException {
         if (beats.isEmpty()) throw new IllegalArgumentException("The Reel has no beats to render");
         List<BufferedImage> plates = new ArrayList<>();
         int plateW = (int) (width * 1.22), plateH = (int) (height * 1.22);
@@ -60,6 +74,12 @@ public class ReelRenderer {
         for (double d : durations) total += d;
 
         AWTSequenceEncoder encoder = AWTSequenceEncoder.createSequenceEncoder(output.toFile(), fps);
+        WebmWriter webm = null;
+        if (webmOutput != null) {
+            int previewW = Math.min(width, PREVIEW_WIDTH);
+            webm = new WebmWriter(webmOutput, previewW, (int) Math.round((double) height * previewW / width) & ~1, fps,
+                    PREVIEW_QUANTIZER);
+        }
         BufferedImage frame = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         int frames = 0;
         try {
@@ -68,13 +88,16 @@ public class ReelRenderer {
                 for (int f = 0; f < beatFrames; f++) {
                     drawFrame(frame, plates.get(i), beats, i, (double) f / beatFrames, (double) f / fps, handle);
                     encoder.encodeImage(frame);
+                    if (webm != null) webm.encode(frame);
                     frames++;
                 }
             }
         } finally {
             encoder.finish();
+            if (webm != null) webm.close();
         }
-        return new Result(output, total, frames);
+        Mp4FastStart.apply(output);
+        return new Result(output, total, frames, webmOutput);
     }
 
     private void drawFrame(BufferedImage frame, BufferedImage plate, List<Beat> beats, int index, double progress,
