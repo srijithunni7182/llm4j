@@ -1,0 +1,12 @@
+{"mostread": {"articles": [
+ {"titles": {"normalized": "Artificial intelligence"}, "views": 412000, "description": "Intelligence of machines or software"},
+ {"titles": {"normalized": "Solar eclipse"}, "views": 298000, "description": "Natural phenomenon when the Moon blocks the Sun"},
+ {"titles": {"normalized": "Creatine"}, "views": 187000, "description": "Organic compound used as a sports supplement"},
+ {"titles": {"normalized": "Intermittent fasting"}, "views": 153000, "description": "Eating pattern that cycles between fasting and eating"},
+ {"titles": {"normalized": "Taylor Swift"}, "views": 149000, "description": "American singer-songwriter"},
+ {"titles": {"normalized": "Electric vehicle"}, "views": 121000, "description": "Vehicle propelled by electric motors"},
+ {"titles": {"normalized": "Pomodoro Technique"}, "views": 98000, "description": "Time management method"},
+ {"titles": {"normalized": "Matcha"}, "views": 91000, "description": "Finely ground powder of green tea leaves"},
+ {"titles": {"normalized": "Marathon"}, "views": 87000, "description": "Long-distance foot race of 42.195 km"},
+ {"titles": {"normalized": "Stoicism"}, "views": 76000, "description": "Hellenistic school of philosophy"}
+]}}
