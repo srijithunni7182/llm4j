@@ -67,7 +67,17 @@
     "out/**/*",
     "bin/**/*",
     "syntaxes/**/*",
-    "language-configuration.json"
+    "language-configuration.json",
+    "node_modules/vscode-languageclient/**/*",
+    "node_modules/vscode-languageserver/**/*",
+    "node_modules/vscode-languageserver-textdocument/**/*",
+    "node_modules/vscode-languageserver-protocol/**/*",
+    "node_modules/vscode-jsonrpc/**/*",
+    "node_modules/vscode-languageserver-types/**/*",
+    "node_modules/minimatch/**/*",
+    "node_modules/semver/**/*",
+    "node_modules/brace-expansion/**/*",
+    "node_modules/balanced-match/**/*"
   ],
   "dependencies": {
     "vscode-languageclient": "9.0.1",
