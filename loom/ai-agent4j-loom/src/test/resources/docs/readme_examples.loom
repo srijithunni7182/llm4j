@@ -1,0 +1,22 @@
+// The new-feature examples from README.md and LOOM_GUIDE.md. DocumentedExamplesTest keeps them parseable.
+agent Lead { model: "m" }
+agent Writer { model: "m" temperature: 0.9 }
+agent Supervisor { model: "m" }
+agent Showrunner { model: "m" }
+workflow Main(doc) {
+    loop until (review.verdict == "COMPLETE") max 5 {
+        delegate "Review round {_loopRound}" to Lead -> review
+        for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} -> {fix.output} }
+    } on_exhausted {
+        note "Shipping with open issues after {_loopRounds} rounds"
+    }
+    delegate "Summarise {doc}" to Writer -> summary retry 2 backoff 2s timeout 90s
+        on_failure { handoff "Writer unavailable: {_error}" to Supervisor }
+    delegate "Review the build" to Showrunner -> review expecting {
+        verdict: enum["COMPLETE", "INCOMPLETE"],
+        fixes: list
+    }
+    parallel for each shot in review.fixes {
+        delegate "Shoot {shot.description}" to Lead -> {shot.name}
+    }
+}

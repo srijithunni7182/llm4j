@@ -357,10 +357,11 @@ public class LoomParser {
             schema.setFields(fields);
             return schema;
         } else if (match(TokenType.LIST)) {
-            consume(TokenType.LT, "Expect '<' after list.");
             SchemaDef schema = new SchemaDef(SchemaDef.Type.LIST);
-            schema.setElementType(parseSchema());
-            consume(TokenType.GT, "Expect '>' after list type.");
+            if (match(TokenType.LT)) { // a bare `list` holds anything
+                schema.setElementType(parseSchema());
+                consume(TokenType.GT, "Expect '>' after list type.");
+            }
             return schema;
         } else if (match(TokenType.ENUM)) {
             consume(TokenType.LBRACKET, "Expect '[' after enum.");

@@ -84,15 +84,20 @@ agent <AgentName> {
     }
     ```
 *   **Conditional Branching (Alt):** `alt (score > "0.8") { ... } else { ... }`
-*   **Loops (Until):** `loop until (isDone == "true") { ... }`
+*   **Loops (Until):** `loop until (isDone == "true") { ... }`. Always bound loops that depend on a model: `loop until (review.verdict == "OK") max 5 { ... } on_exhausted { ... }`. `{_loopRound}` is the current round.
+*   **For Each:** `for each item in plan.items { delegate "Do {item.task}" to Worker -> {item.name} }`. Use `parallel for each` when items are independent. `{_index}` is the position.
+*   **Runtime Routing:** the target and output of a delegate can come from data: `delegate "{fix.task}" to {fix.owner} -> {fix.output}`. Prefer this over a chain of `alt` branches that only differ by agent.
+*   **Human Input:** `human_prompt "Question?" -> answer`. The runtime may suspend the run here and resume it later; write the script as if the answer simply arrives.
 *   **Observability:** `observe "<label>" {<expression>}`
 
 ### Frontier Features (High-Priority)
 *   **Output Schemas:** Define `output_schema: { status: enum["A","B"], results: list<string> }` inside an agent.
-*   **Retries:** `delegate "..." to Actor -> res retry 3 on_failure { ... }`.
+*   **Retries:** `delegate "..." to Actor -> res retry 3 backoff 2s timeout 90s on_failure { ... }` (`backoff` doubles each attempt; `timeout` fails a hung attempt).
+*   **Per-Step Schemas:** `delegate "..." to Lead -> review expecting { verdict: enum["OK","FIX"], fixes: list }` overrides the agent's `output_schema` for that step only.
+*   **Temperature:** `temperature: 0.9` inside an agent for creative roles, `0.2` for reviewers and checkers.
 *   **Scoping:** The variable `_error` is available inside `on_failure`.
 *   **Composition:** `call SubWorkflow(param=val) -> resultVar`.
-*   **Typed Checks:** Access fields in conditionals: `alt (res.status == "OK")`.
+*   **Typed Checks:** Access fields in conditionals: `alt (res.status == "OK")`, and in payloads: `"{plan.hooks.0}"`.
 
 ### Variables & Interpolation
 Loom uses a thread-safe context. **Always use curly-brace syntax for variable interpolation in strings**: `delegate "Analyze: {inputData}" to Agent`.

@@ -123,6 +123,12 @@ Loom provides **Symbolic Controls** that ensure your agents follow a rigid seque
 - **`broadcast`**: Parallel Map-Reduce. Executes a list of agents simultaneously and returns a combined JSON result.
 - **`parallel { }`**: Concurrency block. Executes every statement inside the block in its own thread.
 - **`alt` / `loop until`**: Comparison-based branching using `==`, `!=`, `>`, `<`, `>=`, `<=`.
+- **`for each` / `parallel for each`**: Run a block once per item of a list, in order or all at once. See [for each](#for-each).
+- **`human_prompt`**: Ask a person. With a run journal the run suspends instead of holding a thread. See [Durable Runs](#durable-runs-no-new-syntax).
+
+> **New in this release:** [durable runs](#durable-runs-no-new-syntax), [`for each` with runtime routing](#for-each),
+> [bounded loops](#bounded-loops), [retry backoff and timeouts](#retry-backoff-and-timeouts),
+> [per-step schemas](#per-step-schemas-expecting), agent `temperature:` and `{var.list.0}` payload paths.
 
 ### Concurrency Example (Parallel Branches)
 ```loom
@@ -183,6 +189,9 @@ agent Auditor {
         issues: list<string>
     }
 }
+
+// Field types: string, number, boolean, enum[...], list<type>, a bare list (items of any shape),
+// and nested { ... } objects. Fields keep the order they are written in.
 
 workflow Audit() {
     delegate "Check this" to Auditor -> report

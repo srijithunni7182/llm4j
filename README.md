@@ -36,6 +36,9 @@ The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java 
 * **DSL-Driven**: Define agents and workflows in a human-readable script; boot systems without Java recompilation.
 * **Deterministic Routing**: Native support for `handoff`, `delegate`, `parallel` execution, and `loop until` patterns.
 * **Enterprise Governance**: Integrated PII guardrails, cost-aware routing policies, background task scheduling, and **human approval gates** (`approve` step in workflows).
+* **Durable Runs**: Every step is journaled (memory, file or SQL). A run waiting on a person holds no thread, resumes on any server when the answer arrives, and a crashed run picks up after its last step. The script doesn't change.
+* **Data-Driven Routing**: `for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} -> {fix.output} }`: iterate over what an agent returned and route each item to the agent it names, in one line.
+* **Bounded, Resilient Steps**: `loop until … max 5 … on_exhausted`, `retry 2 backoff 2s timeout 90s`, per-step `expecting { }` schemas and per-agent `temperature:`.
 
 👉 **[Master Loom Orchestration](loom/ai-agent4j-loom/LOOM_GUIDE.md)**
 
@@ -83,7 +86,7 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 
 **GetViral** is a creator studio that uses *every* module in this repo. Drop one idea and twelve AI agents turn it into a ready-to-post pack for **X**, **Instagram Reels** and **YouTube**. It runs as a multi-user website that deploys to Google Cloud Run, and still starts on a laptop with one command.
 
-* **Loom** runs the workflow: PII guardrail, parallel specialists, a critic `loop until`, and human hook-pick and publish gates.
+* **Loom** runs the workflow: PII guardrail, parallel specialists, a critic `loop until`, a bounded quality loop that routes each fix with one `for each`, and human hook-pick and publish gates that suspend the run instead of holding a thread.
 * **Prompts written live**: a Showrunner agent writes every specialist's system prompt per brief and rewrites them after critic feedback.
 * **Research before writing**: a Researcher agent searches the web (Google Search via Gemini, GDELT news, Wikipedia), reads the best sources and hands the team a dossier where every fact carries its source.
 * **Live trends** from free public REST APIs (Wikipedia, Hacker News, Mastodon, Datamuse, Apple Music, Openverse, Nager.Date).
