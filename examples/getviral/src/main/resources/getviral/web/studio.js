@@ -52,6 +52,7 @@
     runId: null, es: null, brief: null, started: 0, timer: null,
     values: {}, prompts: {}, stats: { llm: 0, api: 0, live: 0 }, events: 0, media: [],
     pendingApproval: null, revealed: false, stage: null, reelTimer: null, info: {},
+    memory: { recalled: 0, learned: 0 }, sentBack: 0,
   };
 
   // ── Boot ────────────────────────────────────────────────────────────────
@@ -333,6 +334,10 @@
         break;
       case "build_review": {
         state.build = d;
+        if (!d.complete) {
+          state.sentBack += Object.values(d.areas || {}).filter((a) => !a.pass).length;
+          $("#statFixes").textContent = state.sentBack;
+        }
         const names = { x: "𝕏", reel: "Instagram", youtube: "YouTube", visuals: "images", video: "Reel video" };
         const areas = Object.entries(d.areas || {});
         const failing = areas.filter(([, a]) => !a.pass);
@@ -341,7 +346,7 @@
           esc(areas.map(([k, a]) => `${a.pass ? "✓" : "✕"} ${names[k] || k}`).join("  ")
             + (failing.length ? " — " + trim(failing.map(([k, a]) => `${names[k] || k}: ${(a.problems || []).join("; ")}`).join(" · "), 220) : "")),
           d.complete ? "memory" : "err", ev.t);
-        if (state.revealed) renderBuild();
+        if (state.revealed) { renderBuild(); renderWhy(); }
         break;
       }
       case "creative_brief":
@@ -351,6 +356,7 @@
         break;
       case "originality": {
         (state.originality ||= { past: 0, checks: [] }).checks.push(d);
+        if (state.revealed) renderWhy();
         const what = d.stage === "youtube" ? "YouTube package" : "casting";
         const pct = Math.round((d.closest_similarity || 0) * 100);
         if (d.novelty === "REPEAT") {
@@ -368,9 +374,11 @@
         $("#statLlm").textContent = state.stats.llm;
         break;
       case "memory_recall":
+        if (d.recalled) { state.memory.recalled++; $("#statMemory").textContent = state.memory.recalled + state.memory.learned; }
         if (d.recalled) feed("🧠", "Engram", `briefed ${esc(d.agent)} with what it remembers`, esc(trim(String(d.briefing).split("\n").filter((l) => l.includes("•")).join(" "), 180)), "memory", ev.t);
         break;
       case "memory_store":
+        if (d.learned > 0) { state.memory.learned += d.learned; $("#statMemory").textContent = state.memory.recalled + state.memory.learned; }
         if (d.learned > 0) { feed("🧠", "Engram", `learned ${d.learned} new thing${d.learned > 1 ? "s" : ""} from ${esc(d.agent)}`, esc(d.content || ""), "memory", ev.t); loadMemory(); }
         break;
       case "agent_done":
@@ -641,6 +649,7 @@
     if (!$("#badges").children.length) $("#badges").innerHTML = Array.from({ length: 5 }, () => `<div class="badge skel"></div>`).join("");
     renderResearch(v.researchDossier);
     renderBuild();
+    renderWhy();
     renderX(v.xPack);
     renderReel(v.reelPack);
     renderYt(v.youtubePack);
@@ -727,6 +736,62 @@
         : "Some artifacts still fail — the Showrunner is sending them back to their specialists.",
       checks, fixes: [],
     });
+  }
+
+  // The proof behind the pack: what made it original, what the studio remembered, where the facts came
+  // from, what was fixed before the creator saw it, and which calls were theirs.
+  function renderWhy() {
+    const v = state.values;
+    const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+    const o = state.originality || { past: 0, checks: [] };
+    const cast = [...o.checks].reverse().find((c) => c.stage === "casting");
+    const recast = o.checks.some((c) => c.stage === "casting" && c.novelty === "REPEAT");
+    const yt = [...o.checks].reverse().find((c) => c.stage === "youtube");
+    const castingSheet = v.castingSheet || {};
+    const findings = (v.researchDossier && v.researchDossier.findings) || [];
+    const sources = new Set(findings.map((f) => safeUrl(f.url)).filter(Boolean));
+    const b = state.build;
+    const cards = [
+      {
+        ic: "🧬", t: "Original", tone: cast && cast.novelty === "REPEAT" ? "warn" : "ok",
+        v: !o.past ? "Baseline set" : cast && cast.novelty === "REPEAT" ? "Close to past work" : "Fresh",
+        d: !o.past ? "Your first pack. Every future pack is checked against it so you never post the same angle twice."
+          : `Checked against ${o.past === 1 ? "your last pack" : `your last ${o.past} packs`}${cast && cast.closest_similarity != null ? ` — the closest is ${Math.round(cast.closest_similarity * 100)}% similar` : ""}.`
+            + (recast ? " The first casting was too close, so the Showrunner re-cast it." : "")
+            + (yt ? ` YouTube title and thumbnail: ${yt.novelty === "REPEAT" ? "reworked to avoid a repeat" : "fresh"}.` : ""),
+      },
+      {
+        ic: "🎯", t: "A new angle", tone: "ok",
+        v: castingSheet.lens || "—",
+        d: "Dealt from creative lenses you haven't used lately" + (castingSheet.visual_style ? `, in a visual style picked the same way: ${trim(castingSheet.visual_style, 70)}.` : "."),
+      },
+      {
+        ic: "🧠", t: "Remembers you", tone: "ok",
+        v: `${state.memory.recalled} recalled · ${state.memory.learned} learned`,
+        d: "Engram briefs the Showrunner and Strategist with what worked for you, and every hook pick and 🔥/👎 teaches the next pack.",
+      },
+      {
+        ic: "🔎", t: "Sourced, not made up", tone: findings.length ? "ok" : "warn",
+        v: findings.length ? `${plural(findings.length, "fact")} · ${plural(sources.size, "source")}` : "No web research",
+        d: findings.length ? "The Researcher read the web before anyone wrote. Every fact in the dossier links to where it came from." : "Research wasn't available for this run, so the writers worked from trends and your brief.",
+      },
+      {
+        ic: "✅", t: "Fixed before you saw it", tone: b && !b.complete ? "warn" : "ok",
+        v: b ? plural(b.round, "review round") : "reviewing…",
+        d: !b ? "The Showrunner is checking every file and post." : state.sentBack
+          ? `${plural(state.sentBack, "artifact")} sent back to specialists and rebuilt until X, Instagram and YouTube all passed.`
+          : "Every file, platform limit and judge passed on the first review.",
+      },
+      {
+        ic: "✋", t: "Your call", tone: "ok",
+        v: "You picked the hook",
+        d: (v.hookChoice ? `“${trim(v.hookChoice, 80)}”. ` : "") + "Nothing is posted without your explicit approval.",
+      },
+    ];
+    $("#why").hidden = false;
+    $("#whyHint").textContent = o.past ? `vs ${plural(o.past, "past pack")}` : "first pack";
+    $("#whyGrid").innerHTML = cards.map((c) => `<li class="why-card t-${c.tone}"><span class="why-ic">${c.ic}</span>
+      <div><h4>${esc(c.t)}</h4><b>${esc(c.v)}</b><p>${esc(c.d)}</p></div></li>`).join("");
   }
 
   function renderInspection(r) {

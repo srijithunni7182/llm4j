@@ -23,6 +23,39 @@ It is the showcase for the whole llm4j stack: every module does real work in it.
 
 ---
 
+## The problem today, and how GetViral answers it
+
+Creators aren't short of AI tools. OpusClip clips long videos, InVideo and Revid turn a prompt into a
+faceless video, and PostEverywhere or Blotato draft and schedule posts. What they're short of is
+**originality and time**, and most tools make the first worse while saving the second.
+
+| What creators face today | How GetViral answers it |
+|---|---|
+| **Burnout.** 78% of creators say it's hurting their motivation and health. The main causes are posting daily on several platforms and running out of fresh ideas. | One idea becomes a complete pack for X, Instagram Reels and YouTube: thread, scripted Reel rendered to MP4, YouTube title, description and thumbnail. Each pack is dealt a **creative lens and visual style the creator hasn't used lately**, so the ideas don't go stale. |
+| **"AI slop" backlash.** 72% of US internet users view AI content negatively (YouGov, January 2026). Enthusiasm for AI creator content fell from 60% in 2023 to 26% in 2025. Audiences reject content that is generic, repetitive and unowned. | **Originality over time.** Every casting is remembered. An Engram similarity check compares each new casting and YouTube package with the creator's past work and sends near-repeats back to be re-cast. |
+| **Made-up facts.** Prompt-to-post tools write from the model's memory. | **Researched, with sources.** A Researcher searches and reads the web before anyone writes, and every fact in the dossier carries its source. Live trend signals time the post. |
+| **First drafts, not finished work.** Posts over platform limits, broken media files, weak hooks. | **Fixed before you see it.** A critic sends weak work back. The Showrunner then holds the build to a quality gate (files decoded and spec-checked, platform limits, originality, eval4j judges) and routes every failure to its specialist until X, Instagram and YouTube all pass. |
+| **Losing your voice, and your income.** Autopilot tools erase the creator. YouTube demonetizes templated AI video with no human judgment in it, and the EU AI Act requires AI labelling from August 2026. | **The creator stays the author.** It learns the creator's voice from their posts, remembers what worked (Engram memory per creator), lets them pick the hook, and publishes only with their explicit approval. |
+
+The studio shows its working, so none of this is a black box. The live view counts the memories used and
+the fixes made before the creator sees anything, and every finished pack opens with a **"Why this pack is
+yours"** panel:
+
+- how original it is against the creator's past packs;
+- the new lens and visual style it was dealt;
+- what was recalled from memory and what was learned;
+- how many facts and sources back it;
+- what was sent back and rebuilt;
+- which calls were the creator's.
+
+Sources: [The Creator Economy, burnout report](https://thecreatoreconomy.com/post/creator-burnout-78-percent-mental-health-2026) ·
+[Brand24, why people dislike AI content](https://brand24.com/blog/why-people-hate-ai-content-report/) ·
+[eMarketer, enthusiasm for AI creator content](https://www.emarketer.com/content/exclusive--ai-slop-threat-creator-economy) ·
+[YouTube inauthentic-content policy](https://arwriterai.com/en/blog/youtube-inauthentic-content-policy-ai-creators-2026/) ·
+[AI disclosure rules by platform](https://www.socialscalehub.com/academy/ai-content-disclosure-rules-2026-tiktok-instagram-youtube)
+
+---
+
 ## Launch it (Ubuntu / Linux / macOS)
 
 ```bash

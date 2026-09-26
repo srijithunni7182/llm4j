@@ -500,6 +500,16 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .pillar h3 { margin: 10px 0 6px; font: 700 16px var(--display); letter-spacing: -.01em; }
 .pillar p { margin: 0; color: var(--muted); font-size: 14px; }
 .pillar-ic { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--grad-soft); border: 1px solid var(--line-2); font-size: 19px; }
+.problems { margin: 10px 0 34px; }
+.problems .center { text-align: center; }
+.problems h2 { max-width: 760px; margin: 6px auto 22px; }
+.problem-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.problem { padding: 20px 22px; display: flex; flex-direction: column; gap: 8px; }
+.stat-big { margin: 0; font: 800 34px var(--display); letter-spacing: -.03em; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.problem-text { margin: 0; color: var(--muted); line-height: 1.5; }
+.problem .answer { margin: 4px 0 0; padding-top: 10px; border-top: 1px solid var(--line); line-height: 1.5; }
+.problem .answer b { color: var(--lime); }
+.problems .sources { margin: 12px 0 0; text-align: center; color: var(--faint); font-size: 12px; }
 .landing-foot { text-align: center; margin-top: 40px; color: var(--faint); font-size: 13px; }
 
 /* onboarding */
@@ -616,7 +626,7 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .coach-target { position: relative; z-index: 1; box-shadow: 0 0 0 4px rgba(255, 46, 136, .35), 0 0 40px rgba(255, 46, 136, .35) !important; border-radius: 16px; transition: box-shadow .3s; }
 
 @media (max-width: 860px) {
-  .pillars, .connect-grid { grid-template-columns: 1fr; }
+  .pillars, .connect-grid, .problem-grid { grid-template-columns: 1fr; }
   .steps li span { display: none; }
   .steps li { justify-content: center; }
   .profile-form { grid-template-columns: 1fr; }
@@ -647,6 +657,16 @@ body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-event
 .rx h4 { margin: 0 0 6px; font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
 .rx ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
 .rx.caveats ul { color: var(--warn); }
+
+/* ── Why this pack is yours ───────────────────────────────────────────────── */
+.why { margin-bottom: 18px; }
+.why-grid { list-style: none; margin: 0; padding: 0 16px 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.why-card { display: grid; grid-template-columns: 40px 1fr; gap: 12px; padding: 14px; border-radius: var(--radius-sm); background: var(--glass-2); border: 1px solid var(--line); }
+.why-card.t-warn { border-color: rgba(255, 154, 61, .45); }
+.why-ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 19px; background: var(--grad-soft); }
+.why-card h4 { margin: 0 0 3px; font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.why-card b { display: block; font: 700 16px var(--display); letter-spacing: -.01em; margin-bottom: 5px; overflow-wrap: anywhere; }
+.why-card p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.5; }
 
 /* ── Artifact check ───────────────────────────────────────────────────────── */
 .inspection { margin-bottom: 18px; }
