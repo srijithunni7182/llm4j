@@ -30,7 +30,7 @@ public class StudioRun implements StudioEvents {
         boolean approve(String tool, Map<String, Object> args);
     }
 
-    private final String id = UUID.randomUUID().toString().substring(0, 8);
+    private final String id;
     private final Map<String, Object> brief;
     private final Instant startedAt = Instant.now();
     private final List<Map<String, Object>> log = new CopyOnWriteArrayList<>();
@@ -42,6 +42,12 @@ public class StudioRun implements StudioEvents {
     private volatile Status status = Status.RUNNING;
 
     public StudioRun(Map<String, Object> brief, Duration humanTimeout) {
+        this(UUID.randomUUID().toString().substring(0, 8), brief, humanTimeout);
+    }
+
+    /** A run with a caller-assigned id (the hosted app uses its database id). */
+    public StudioRun(String id, Map<String, Object> brief, Duration humanTimeout) {
+        this.id = id;
         this.brief = Map.copyOf(brief);
         this.humanTimeout = humanTimeout;
     }

@@ -60,7 +60,22 @@ public class GetViralEngine {
     public static final String WORKFLOW = "GetViral";
 
     /** What the creator types into the studio. */
-    public record Brief(String idea, String handle, String niche, String tone, String region, List<String> voiceSamples) {
+    /**
+     * What the creator types into the studio. {@code ownerId} scopes memory and voice samples to an
+     * account (the hosted app passes the user id); without it the handle is used, as in local/CLI runs.
+     */
+    public record Brief(String idea, String handle, String niche, String tone, String region, List<String> voiceSamples,
+                        String ownerId) {
+
+        public Brief(String idea, String handle, String niche, String tone, String region, List<String> voiceSamples) {
+            this(idea, handle, niche, tone, region, voiceSamples, null);
+        }
+
+        /** The key Engram memory, voice samples and RAG filters are stored under. */
+        public String memoryKey() {
+            return ownerId != null && !ownerId.isBlank() ? ownerId : handle;
+        }
+
         public Brief {
             idea = idea == null ? "" : idea.strip();
             handle = handle == null || handle.isBlank() ? "creator" : handle.strip().replaceFirst("^@", "");
@@ -93,28 +108,51 @@ public class GetViralEngine {
         this.demoPaceMillis = demoPaceMillis;
     }
 
+    private MediaLibrary.Sink mediaSink = MediaLibrary.Sink.NONE;
+
+    /** Where finished media is mirrored (the hosted app uploads to cloud storage). */
+    public void mediaSink(MediaLibrary.Sink sink) {
+        this.mediaSink = sink != null ? sink : MediaLibrary.Sink.NONE;
+    }
+
     public GetViralConfig config() {
         return config;
     }
 
+    /** Instagram account a run publishes to; {@code null} fields mean an honest dry run. */
+    public record Publishing(String igUserId, String igAccessToken, String igUsername) {
+        public static final Publishing DRY_RUN = new Publishing(null, null, null);
+    }
+
     public Outcome run(StudioRun run, Brief brief) {
+        return run(run, brief, null);
+    }
+
+    /**
+     * @param publishing per-run Instagram account (hosted multi-user mode); {@code null} uses the
+     *                   IG_* environment variables, as in local single-user mode
+     */
+    public Outcome run(StudioRun run, Brief brief, Publishing publishing) {
+        GetViralConfig runConfig = publishing == null ? config : config.withInstagram(publishing.igUserId(), publishing.igAccessToken());
         StudioModels models = new StudioModels(config, run, demoPaceMillis);
         KnowledgeBase knowledge = KnowledgeBase.shared(config);
-        brief.voiceSamples().forEach(post -> knowledge.addVoiceSample(brief.handle(), post));
-        knowledge.ensureCreatorIndexed(brief.handle());
+        brief.voiceSamples().forEach(post -> knowledge.addVoiceSample(brief.memoryKey(), post));
+        knowledge.ensureCreatorIndexed(brief.memoryKey());
 
         Map<String, Object> started = new LinkedHashMap<>();
         started.put("brief", brief.toMap());
         started.put("model", models.describe());
         started.put("embeddings", knowledge.embeddingLabel());
         started.put("vectorStore", knowledge.storeLabel());
-        started.put("instagram", config.instagramConfigured() ? "connected" : "dry-run");
+        started.put("instagram", runConfig.instagramConfigured()
+                ? (publishing != null && publishing.igUsername() != null ? "connected as @" + publishing.igUsername() : "connected")
+                : "dry-run");
         started.put("publicApis", config.offlineApis() ? "offline samples" : "live (sample fallback)");
         List<ImageGenerator> imageChain = MediaStudio.imageChain(config);
         started.put("images", MediaStudio.describe(imageChain));
         started.put("video", "Reel renderer " + config.reelWidth() + "x" + config.reelHeight()
                 + (veoEnabled() ? " + Google Veo clips" : " (Veo clips off)"));
-        MediaLibrary media = new MediaLibrary(config.dataDir(), run.id(), run);
+        MediaLibrary media = new MediaLibrary(config.dataDir(), run.id(), run, mediaSink);
         AtomicReference<GetViralExecutor> executorRef = new AtomicReference<>();
         Supplier<Map<String, Object>> workflowVars = () -> executorRef.get() == null
                 ? Map.of() : executorRef.get().getContext().getAll();
@@ -122,10 +160,10 @@ public class GetViralEngine {
 
         PromptBook prompts = new PromptBook(run);
         GetViralExecutor executor = new GetViralExecutor(loadScript(),
-                tools(run, knowledge, brief, media, imageChain, workflowVars), models, run,
+                tools(run, knowledge, brief, media, imageChain, workflowVars, runConfig), models, run,
                 prompts, config.maxRevisions());
         executorRef.set(executor);
-        CreatorMemory memory = new CreatorMemory(config.dataDir(), brief.handle(), intelligence(models), run);
+        CreatorMemory memory = new CreatorMemory(config.dataDir(), brief.memoryKey(), intelligence(models), run);
         executor.setMemoryEngine(memory);
         executor.setHumanInterface(new StudioHumanInterface(run, executor::getContext));
         executor.setAuditLogger(new FileAuditLogger(auditFile(run)));
@@ -218,9 +256,10 @@ public class GetViralEngine {
     }
 
     private ToolRegistry tools(StudioRun run, KnowledgeBase knowledge, Brief brief, MediaLibrary media,
-                               List<ImageGenerator> imageChain, Supplier<Map<String, Object>> workflowVars) {
+                               List<ImageGenerator> imageChain, Supplier<Map<String, Object>> workflowVars,
+                               GetViralConfig runConfig) {
         boolean offline = config.offlineApis();
-        InstagramGraphClient instagram = new InstagramGraphClient(config);
+        InstagramGraphClient instagram = new InstagramGraphClient(runConfig);
         Map<String, Tool> tools = new LinkedHashMap<>();
         tools.put("TrendingNow", new WikipediaTrendingTool(offline, run));
         tools.put("HackerNewsPulse", new HackerNewsPulseTool(offline, run));
@@ -230,7 +269,7 @@ public class GetViralEngine {
         tools.put("WordLab", new DatamuseWordLabTool(offline, run));
         tools.put("TrendingAudio", new TrendingAudioTool(offline, run));
         tools.put("BrollFinder", new OpenverseBrollTool(offline, run));
-        tools.put("ViralPlaybook", new ViralPlaybookTool(knowledge, brief.handle(), run));
+        tools.put("ViralPlaybook", new ViralPlaybookTool(knowledge, brief.memoryKey(), run));
         tools.put("InstagramQuota", new InstagramQuotaTool(instagram));
         tools.put("InstagramPublish", new InstagramPublishTool(instagram, run));
         tools.put("GenerateImage", new GenerateImageTool(imageChain, media));

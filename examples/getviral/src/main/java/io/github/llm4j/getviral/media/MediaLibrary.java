@@ -15,8 +15,22 @@ public class MediaLibrary {
     private final Path dir;
     private final StudioEvents events;
     private final List<MediaAsset> assets = new CopyOnWriteArrayList<>();
+    private final Sink sink;
+
+    /** Mirrors finished files elsewhere (e.g. cloud storage) so any server instance can serve them. */
+    @FunctionalInterface
+    public interface Sink {
+        void stored(String runId, Path file);
+
+        Sink NONE = (runId, file) -> { };
+    }
 
     public MediaLibrary(Path dataDir, String runId, StudioEvents events) {
+        this(dataDir, runId, events, Sink.NONE);
+    }
+
+    public MediaLibrary(Path dataDir, String runId, StudioEvents events, Sink sink) {
+        this.sink = sink != null ? sink : Sink.NONE;
         this.runId = runId;
         this.dir = dataDir.resolve("media").resolve(runId);
         this.events = events != null ? events : StudioEvents.NONE;
@@ -50,6 +64,7 @@ public class MediaLibrary {
     public MediaAsset add(String kind, String purpose, Path file, String provider, boolean ai, String prompt,
                           int width, int height, double seconds, Path plate) {
         MediaAsset asset = new MediaAsset(kind, purpose, urlFor(file), file, provider, ai, prompt, width, height, seconds, plate);
+        sink.stored(runId, file);
         assets.add(asset);
         events.emit("media", asset.toMap());
         return asset;

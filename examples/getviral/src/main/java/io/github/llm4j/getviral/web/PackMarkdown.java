@@ -15,7 +15,11 @@ public final class PackMarkdown {
                 .map(e -> (Map<?, ?>) e.get("data"))
                 .reduce((a, b) -> b)
                 .orElse(Map.of());
-        StringBuilder md = new StringBuilder("# GetViral pack — ").append(run.brief().get("idea")).append("\n\n");
+        return render(String.valueOf(run.brief().get("idea")), pack);
+    }
+
+    public static String render(String idea, Map<?, ?> pack) {
+        StringBuilder md = new StringBuilder("# GetViral pack — ").append(idea).append("\n\n");
         md.append("**Hook:** ").append(pack.get("hook")).append("\n\n");
 
         if (pack.get("x") instanceof Map<?, ?> x) {
