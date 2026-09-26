@@ -214,8 +214,16 @@ public class ReActAgent {
                             "thought", "The model responded directly without JSON format.");
                 }
 
+                if (!responseJson.containsKey("final_answer")
+                        && !responseJson.containsKey("action")
+                        && !responseJson.containsKey("thought")) {
+                    // A bare JSON payload (e.g. a structured-output reply) is the answer itself.
+                    responseJson = new HashMap<>(Map.of(
+                            "final_answer", objectMapper.writeValueAsString(responseJson)));
+                }
+
                 if (responseJson.containsKey("final_answer")) {
-                    String finalAnswer = (String) responseJson.get("final_answer");
+                    String finalAnswer = asAnswerText(responseJson.get("final_answer"));
                     String thought = (String) responseJson.get("thought");
                     return processFinalAnswer(
                             question,
@@ -283,6 +291,16 @@ public class ReActAgent {
                         llmCallCount, totalPromptTokens, totalCompletionTokens, totalTokens),
                 redundantActionCount.get(),
                 protocolFollowed);
+    }
+
+    /**
+     * Models asked for structured output often put a JSON object (rather than a string) in
+     * {@code final_answer}; keep it as JSON text instead of failing the iteration.
+     */
+    private static String asAnswerText(Object finalAnswer) throws JsonProcessingException {
+        if (finalAnswer == null) return "";
+        if (finalAnswer instanceof String text) return text;
+        return objectMapper.writeValueAsString(finalAnswer);
     }
 
     private Map<String, Object> parseResponse(String llmOutput) throws Exception {
@@ -540,6 +558,14 @@ public class ReActAgent {
         if (builder.systemPrompt != null) {
             return builder.systemPrompt;
         }
+        String injected = resolveTemplatedPrompt(builder);
+        if (builder.instructions != null && !builder.instructions.isBlank()) {
+            return builder.instructions.trim() + "\n\n" + injected;
+        }
+        return injected;
+    }
+
+    private String resolveTemplatedPrompt(Builder builder) {
         String baseTemplate = DEFAULT_SYSTEM_PROMPT;
         if (builder.promptRegistry != null && builder.systemPromptId != null) {
             Optional<PromptTemplate> template = builder.promptRegistry.get(builder.systemPromptId);
@@ -674,6 +700,7 @@ public class ReActAgent {
         private LLMClient llmClient;
         private Map<String, Tool> tools = new HashMap<>();
         private String systemPrompt;
+        private String instructions;
         private int maxIterations = 10;
         private double temperature = 0.7;
         private AgentPersona persona;
@@ -744,6 +771,17 @@ public class ReActAgent {
 
         public Builder systemPrompt(String systemPrompt) {
             this.systemPrompt = systemPrompt;
+            return this;
+        }
+
+        /**
+         * Role-specific instructions placed ahead of the default ReAct protocol. Unlike
+         * {@link #systemPrompt(String)}, which replaces the whole prompt verbatim, this keeps the
+         * tool descriptions and JSON response format, so tool-using agents can be given a role
+         * without re-stating the protocol. Ignored when {@code systemPrompt} is set.
+         */
+        public Builder instructions(String instructions) {
+            this.instructions = instructions;
             return this;
         }
 

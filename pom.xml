@@ -24,5 +24,6 @@
         <module>examples/nirmaan-yantra/nirmaan-yantra-server</module>
         <module>examples/kingini</module>
         <module>examples/gmail-mcp-app</module>
+        <module>examples/getviral</module>
     </modules>
 </project>

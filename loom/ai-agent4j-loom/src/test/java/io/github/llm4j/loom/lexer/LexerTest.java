@@ -47,4 +47,23 @@ public class LexerTest {
         assertEquals(TokenType.RBRACE, tokens.get(16).getType());
         assertEquals(TokenType.EOF, tokens.get(17).getType());
     }
+
+    @Test
+    public void testDottedPathLexesAsSingleIdentifier() {
+        List<Token> tokens = new Lexer("alt (report.status == \"SECURE\") { }").tokenize();
+
+        assertEquals(TokenType.ALT, tokens.get(0).getType());
+        assertEquals(TokenType.LPAREN, tokens.get(1).getType());
+        assertEquals(TokenType.IDENTIFIER, tokens.get(2).getType());
+        assertEquals("report.status", tokens.get(2).getValue());
+        assertEquals("SECURE", tokens.get(4).getValue());
+    }
+
+    @Test
+    public void testTrailingDotIsNotConsumedIntoIdentifier() {
+        // A dot must be followed by a letter to continue the path, so numbers keep their meaning.
+        List<Token> tokens = new Lexer("retry 2.5").tokenize();
+        assertEquals(TokenType.NUMBER_LITERAL, tokens.get(1).getType());
+        assertEquals("2.5", tokens.get(1).getValue());
+    }
 }

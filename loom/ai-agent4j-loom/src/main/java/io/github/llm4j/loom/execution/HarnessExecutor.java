@@ -140,9 +140,14 @@ public class HarnessExecutor implements LoomEngine {
                 llmClient = llmClientFactory.createClient(agentDef.getModel());
             }
 
-            ReActAgent.Builder agentBuilder = ReActAgent.builder()
-                .llmClient(llmClient)
-                .systemPrompt(systemPrompt);
+            ReActAgent.Builder agentBuilder = ReActAgent.builder().llmClient(llmClient);
+            if (agentDef.getTools().isEmpty() && agentDef.getMcpServers().isEmpty()) {
+                agentBuilder.systemPrompt(systemPrompt);
+            } else {
+                // Tool-using agents keep the ReAct protocol (tool descriptions + JSON format);
+                // a verbatim system prompt would hide their tools from the model.
+                agentBuilder.instructions(systemPrompt);
+            }
 
             // Reflection-based .loot tools
             for (String toolName : agentDef.getTools()) {
@@ -172,6 +177,7 @@ public class HarnessExecutor implements LoomEngine {
                 }
             }
 
+            customizeAgent(agentDef, agentBuilder);
             ReActAgent agent = agentBuilder.build();
             activeAgents.put(agentDef.getName(), agent);
             
@@ -500,7 +506,8 @@ public class HarnessExecutor implements LoomEngine {
         while (attempts < maxAttempts) {
             try {
                 log.info("Delegating to " + del.getTargetAgent() + " (Attempt " + (attempts + 1) + ")");
-                io.github.llm4j.agent.AgentResult result = agent.run(contextBriefing);
+                ReActAgent runAgent = agentForDelegate(del, agentDef, agent);
+                io.github.llm4j.agent.AgentResult result = runAgent.run(contextBriefing);
                 
                 Object finalValue = result.getFinalAnswer();
                 if (agentDef.getOutputSchema() != null) {
@@ -620,6 +627,24 @@ public class HarnessExecutor implements LoomEngine {
         }
 
         return resolved;
+    }
+
+    /**
+     * Hook called for every agent just before it is built, after its model, prompt and tools are
+     * configured. Embedders can attach listeners, approval callbacks, iteration limits, etc.
+     */
+    protected void customizeAgent(AgentDef agentDef, ReActAgent.Builder builder) {
+        // No-op by default.
+    }
+
+    /**
+     * Hook called on every delegate attempt to choose the agent instance that runs it. Returning a
+     * rebuilt agent (e.g. {@code agent.toBuilder().systemPrompt(null).instructions(prompt).build()})
+     * lets embedders inject prompts generated at runtime — by an orchestrator agent, say — while
+     * keeping the agent's tools, listeners and approval callback.
+     */
+    protected ReActAgent agentForDelegate(DelegateStmt stmt, AgentDef agentDef, ReActAgent agent) {
+        return agent;
     }
 
     /**

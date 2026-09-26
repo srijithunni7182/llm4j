@@ -79,6 +79,21 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 
 ---
 
+## ⚡ The Flagship: [GetViral](examples/getviral/)
+
+**GetViral** is a creator studio that uses *every* module in this repo. Drop one idea and eleven AI agents turn it into a ready-to-post pack for **X**, **Instagram Reels** and **YouTube**.
+
+* **Loom** runs the workflow: PII guardrail, parallel specialists, a critic `loop until`, and human hook-pick and publish gates.
+* **Prompts written live**: a Showrunner agent writes every specialist's system prompt per brief and rewrites them after critic feedback.
+* **Live trends** from free public REST APIs (Wikipedia, Hacker News, Mastodon, Datamuse, Apple Music, Openverse, Nager.Date).
+* **RAG** over a viral playbook and your past posts (addons), plus **Engram** memory that makes every run sharper.
+* **Images and video**: an ArtDirector agent generates the thumbnail, cover and B-roll (Gemini, free Pollinations.ai, or a local render), and a VideoEditor agent renders the Reel into a real MP4.
+* **eval4j** grades every pack at runtime and gates the test suite. Publishes to Instagram only with your approval.
+
+👉 **[Get viral](examples/getviral/README.md)** (runs with no API key)
+
+---
+
 ## 🚀 The Showcase: [Hexamind Hub](examples/hexamind-hub/)
 
 **Hexamind Hub** demonstrates what `ai-agent4j` can do. It is a "Digital Boardroom" where 6 specialized AI agents (including a Cynical Skeptic and a Creative Thinker) collaborate to solve your problems.

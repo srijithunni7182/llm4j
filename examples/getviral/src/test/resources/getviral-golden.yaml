@@ -1,0 +1,23 @@
+# Golden briefs for GetViral. Plain data — the assertions live in GoldenBriefsEvalTest.
+# expectedOutputContains: a word the Strategist's hooks must mention (topic stays on-brief).
+# expectedTools: the research trajectory TrendScout must follow, in order.
+- name: student-procrastination
+  input: "how to beat procrastination as a student"
+  expectedOutputContains: "procrastination"
+  expectedTools: [trending_now, hn_pulse, trending_hashtags]
+- name: budget-travel
+  input: "budget travel hacks for a weekend in Lisbon"
+  expectedOutputContains: "travel"
+  expectedTools: [trending_now, hn_pulse, trending_hashtags]
+- name: home-workout
+  input: "a 15-minute home workout with no equipment"
+  expectedOutputContains: "workout"
+  expectedTools: [trending_now, hn_pulse, trending_hashtags]
+- name: ai-for-small-business
+  input: "using AI tools to run a small bakery"
+  expectedOutputContains: "tools"
+  expectedTools: [trending_now, hn_pulse, trending_hashtags]
+- name: plant-parenting
+  input: "keeping houseplants alive in a dark apartment"
+  expectedOutputContains: "houseplants"
+  expectedTools: [trending_now, hn_pulse, trending_hashtags]
