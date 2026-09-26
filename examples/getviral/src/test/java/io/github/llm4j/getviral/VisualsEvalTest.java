@@ -1,0 +1,96 @@
+package io.github.llm4j.getviral;
+
+import static io.github.llm4j.eval.assertions.AgentAssertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import io.github.llm4j.agent.AgentResult;
+import io.github.llm4j.eval.report.EvalReportExtension;
+import io.github.llm4j.getviral.engine.GetViralEngine;
+import io.github.llm4j.getviral.studio.StudioRun;
+import java.awt.image.BufferedImage;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import javax.imageio.ImageIO;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
+
+/** The visual stage: the ArtDirector generates a full image set and the VideoEditor renders a real MP4. */
+@ExtendWith(EvalReportExtension.class)
+class VisualsEvalTest {
+
+    @TempDir
+    static Path dataDir;
+
+    static GetViralEngine.Outcome outcome;
+
+    @BeforeAll
+    static void run() {
+        GetViralEngine engine = GetViralTestSupport.engine(dataDir);
+        GetViralEngine.Brief brief = GetViralTestSupport.brief("the 5-minute desk reset before work", "visuals.creator");
+        StudioRun run = GetViralTestSupport.newRun(brief);
+        run.autopilot(GetViralTestSupport.creator(0, null, false));
+        outcome = engine.run(run, brief);
+        assertThat(outcome.status()).isEqualTo(StudioRun.Status.DONE);
+    }
+
+    @Test
+    void artDirectorGeneratesEveryVisualTheFormatsNeed() {
+        AgentResult art = last("ArtDirector");
+        assertThat(art).completedSuccessfully().usesTool("generate_image");
+        assertThat(art.getSteps()).filteredOn(s -> s.getAction().equals("generate_image")).hasSize(5);
+
+        assertThat(media("image")).extracting(m -> String.valueOf(m.get("purpose")))
+                .containsExactlyInAnyOrder("youtube_thumbnail", "reel_cover", "broll_1", "broll_2", "x_card");
+    }
+
+    @Test
+    void imagesAreRealFilesWithTheRequestedAspectRatios() throws Exception {
+        for (Map<?, ?> image : media("image")) {
+            Path file = fileOf(image);
+            BufferedImage decoded = ImageIO.read(file.toFile());
+            assertThat(decoded).as(file.toString()).isNotNull();
+            boolean portrait = String.valueOf(image.get("purpose")).startsWith("reel") || String.valueOf(image.get("purpose")).startsWith("broll");
+            assertThat(decoded.getHeight() > decoded.getWidth()).as(image.get("purpose") + " orientation").isEqualTo(portrait);
+        }
+    }
+
+    @Test
+    void videoEditorRendersAPlayableMp4() throws Exception {
+        assertThat(last("VideoEditor")).completedSuccessfully().usesToolsInOrder("generate_video_clip", "render_reel");
+
+        List<Map<?, ?>> videos = media("video");
+        assertThat(videos).hasSize(1);
+        Path mp4 = fileOf(videos.get(0));
+        byte[] head = java.util.Arrays.copyOf(Files.readAllBytes(mp4), 12);
+        assertThat(new String(head, 4, 4)).as("MP4 'ftyp' box").isEqualTo("ftyp");
+        assertThat(Files.size(mp4)).isGreaterThan(10_000);
+        assertThat(((Number) videos.get(0).get("seconds")).doubleValue()).isBetween(10.0, 60.0);
+    }
+
+    @Test
+    void offlineImagesAreHonestlyLabelledAsNotAi() {
+        assertThat(media("image")).allSatisfy(m -> {
+            assertThat(m.get("ai")).isEqualTo(false);
+            assertThat(String.valueOf(m.get("provider"))).contains("Local design render");
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<?, ?>> media(String kind) {
+        return ((List<Map<?, ?>>) outcome.pack().get("media")).stream().filter(m -> kind.equals(m.get("kind"))).toList();
+    }
+
+    private static Path fileOf(Map<?, ?> asset) {
+        return dataDir.resolve(String.valueOf(asset.get("url")).substring(1));
+    }
+
+    private static AgentResult last(String agent) {
+        List<AgentResult> results = outcome.executor().results().get(agent);
+        assertThat(results).as(agent).isNotEmpty();
+        return results.get(results.size() - 1);
+    }
+}

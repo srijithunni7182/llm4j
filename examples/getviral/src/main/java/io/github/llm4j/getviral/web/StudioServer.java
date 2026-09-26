@@ -14,6 +14,8 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,7 +36,8 @@ public class StudioServer {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Map<String, String> TYPES = Map.of(
             "html", "text/html; charset=utf-8", "css", "text/css; charset=utf-8",
-            "js", "text/javascript; charset=utf-8", "svg", "image/svg+xml", "png", "image/png");
+            "js", "text/javascript; charset=utf-8", "svg", "image/svg+xml", "png", "image/png",
+            "jpg", "image/jpeg", "mp4", "video/mp4");
 
     private final GetViralEngine engine;
     private final Map<String, StudioRun> runs = new ConcurrentHashMap<>();
@@ -52,6 +55,7 @@ public class StudioServer {
         server.createContext("/api/runs", this::runs);
         server.createContext("/api/memory", this::memory);
         server.createContext("/api/feedback", this::feedback);
+        server.createContext("/media/", this::media);
         server.createContext("/", this::staticFile);
         server.start();
         // Warm the embedding model + playbook index so the first run starts instantly.
@@ -165,6 +169,62 @@ public class StudioServer {
         engine.feedback(str(body, "handle").replaceFirst("^@", ""), str(body, "platform"),
                 Boolean.parseBoolean(String.valueOf(body.get("loved"))), str(body, "detail"));
         json(ex, 200, Map.of("ok", true));
+    }
+
+    /** Generated images and videos, with HTTP Range support so browsers can seek the MP4. */
+    private void media(HttpExchange ex) throws IOException {
+        Path root = engine.config().dataDir().resolve("media").toAbsolutePath().normalize();
+        String relative = ex.getRequestURI().getPath().substring("/media/".length());
+        Path file = root.resolve(relative).normalize();
+        if (!file.startsWith(root) || !Files.isRegularFile(file)) {
+            send(ex, 404, "text/plain", "not found".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        String name = file.getFileName().toString();
+        String type = TYPES.getOrDefault(name.substring(name.lastIndexOf('.') + 1), "application/octet-stream");
+        long size = Files.size(file);
+        ex.getResponseHeaders().set("Content-Type", type);
+        ex.getResponseHeaders().set("Accept-Ranges", "bytes");
+        ex.getResponseHeaders().set("Cache-Control", "max-age=3600");
+        String range = ex.getRequestHeaders().getFirst("Range");
+        long start = 0, end = size - 1;
+        int status = 200;
+        if (range != null && range.startsWith("bytes=")) {
+            String[] bounds = range.substring(6).split("-", 2);
+            try {
+                if (!bounds[0].isBlank()) start = Long.parseLong(bounds[0].trim());
+                if (bounds.length > 1 && !bounds[1].isBlank()) end = Math.min(end, Long.parseLong(bounds[1].trim()));
+                if (bounds[0].isBlank() && bounds.length > 1) start = size - Long.parseLong(bounds[1].trim());
+            } catch (NumberFormatException e) {
+                start = 0;
+                end = size - 1;
+            }
+            if (start > end || start < 0) {
+                ex.getResponseHeaders().set("Content-Range", "bytes */" + size);
+                ex.sendResponseHeaders(416, -1);
+                ex.close();
+                return;
+            }
+            status = 206;
+            ex.getResponseHeaders().set("Content-Range", "bytes " + start + "-" + end + "/" + size);
+        }
+        long length = end - start + 1;
+        ex.sendResponseHeaders(status, length);
+        try (OutputStream out = ex.getResponseBody(); var channel = Files.newByteChannel(file)) {
+            channel.position(start);
+            java.nio.ByteBuffer buffer = java.nio.ByteBuffer.allocate(64 * 1024);
+            long remaining = length;
+            while (remaining > 0) {
+                buffer.clear();
+                if (remaining < buffer.capacity()) buffer.limit((int) remaining);
+                int read = channel.read(buffer);
+                if (read < 0) break;
+                out.write(buffer.array(), 0, read);
+                remaining -= read;
+            }
+        } catch (IOException e) {
+            // client stopped reading (normal for video seeking)
+        }
     }
 
     private void staticFile(HttpExchange ex) throws IOException {

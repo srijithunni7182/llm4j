@@ -21,6 +21,7 @@ public final class GetViralApp {
     public static void main(String[] args) throws Exception {
         // Loom's parallel blocks run on the common pool; small containers would otherwise serialise them.
         System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "12");
+        System.setProperty("java.awt.headless", "true");
         System.setProperty("org.slf4j.simpleLogger.defaultLogLevel",
                 System.getProperty("org.slf4j.simpleLogger.defaultLogLevel", "warn"));
         java.util.logging.LogManager.getLogManager().reset();

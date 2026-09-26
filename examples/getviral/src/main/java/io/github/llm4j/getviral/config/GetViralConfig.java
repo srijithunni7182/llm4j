@@ -18,6 +18,10 @@ import java.util.Map;
  *   <tr><td>GETVIRAL_ONNX_MODEL / GETVIRAL_ONNX_TOKENIZER</td><td>local ONNX embeddings (addons)</td></tr>
  *   <tr><td>IG_USER_ID / IG_ACCESS_TOKEN</td><td>Instagram professional account credentials</td></tr>
  *   <tr><td>IG_GRAPH_HOST / IG_GRAPH_VERSION</td><td>graph.instagram.com / v23.0 by default</td></tr>
+ *   <tr><td>GETVIRAL_IMAGE_PROVIDER</td><td>auto (default) | gemini | pollinations | local</td></tr>
+ *   <tr><td>GETVIRAL_IMAGE_MODEL</td><td>Gemini image model (default gemini-2.5-flash-image)</td></tr>
+ *   <tr><td>GETVIRAL_VEO / GETVIRAL_VEO_MODEL</td><td>opt-in AI video clips via Veo (paid; needs GEMINI_API_KEY)</td></tr>
+ *   <tr><td>GETVIRAL_REEL_SIZE</td><td>rendered Reel resolution, WIDTHxHEIGHT (default 540x960)</td></tr>
  * </table>
  */
 public record GetViralConfig(
@@ -33,7 +37,14 @@ public record GetViralConfig(
         String igUserId,
         String igAccessToken,
         String igGraphHost,
-        String igGraphVersion) {
+        String igGraphVersion,
+        String geminiApiKey,
+        String imageProvider,
+        String imageModel,
+        boolean veoEnabled,
+        String veoModel,
+        int reelWidth,
+        int reelHeight) {
 
     public enum Mode { GEMINI, OLLAMA, DEMO }
 
@@ -62,7 +73,30 @@ public record GetViralConfig(
                 env.get("IG_USER_ID"),
                 env.get("IG_ACCESS_TOKEN"),
                 env.getOrDefault("IG_GRAPH_HOST", "https://graph.instagram.com"),
-                env.getOrDefault("IG_GRAPH_VERSION", "v23.0"));
+                env.getOrDefault("IG_GRAPH_VERSION", "v23.0"),
+                firstText(env.get("GEMINI_API_KEY"), env.get("GOOGLE_API_KEY")),
+                env.getOrDefault("GETVIRAL_IMAGE_PROVIDER", "auto").trim().toLowerCase(),
+                env.getOrDefault("GETVIRAL_IMAGE_MODEL", "gemini-2.5-flash-image"),
+                Boolean.parseBoolean(env.getOrDefault("GETVIRAL_VEO", "false")),
+                env.getOrDefault("GETVIRAL_VEO_MODEL", "veo-3.0-fast-generate-001"),
+                reelSize(env.get("GETVIRAL_REEL_SIZE"))[0],
+                reelSize(env.get("GETVIRAL_REEL_SIZE"))[1]);
+    }
+
+    private static int[] reelSize(String raw) {
+        if (raw != null && raw.matches("\\d{2,4}x\\d{2,4}")) {
+            String[] parts = raw.split("x");
+            // H.264 needs even dimensions.
+            return new int[] {Integer.parseInt(parts[0]) & ~1, Integer.parseInt(parts[1]) & ~1};
+        }
+        return new int[] {540, 960};
+    }
+
+    private static String firstText(String... values) {
+        for (String v : values) {
+            if (hasText(v)) return v;
+        }
+        return null;
     }
 
     private static Mode resolveMode(Map<String, String> env) {
@@ -82,13 +116,22 @@ public record GetViralConfig(
     /** A copy with a different data directory — handy for isolated test runs. */
     public GetViralConfig withDataDir(Path dir) {
         return new GetViralConfig(mode, model, judgeModel, port, dir, offlineApis, maxRevisions,
-                onnxModelPath, onnxTokenizerPath, igUserId, igAccessToken, igGraphHost, igGraphVersion);
+                onnxModelPath, onnxTokenizerPath, igUserId, igAccessToken, igGraphHost, igGraphVersion,
+                geminiApiKey, imageProvider, imageModel, veoEnabled, veoModel, reelWidth, reelHeight);
     }
 
     /** A copy that never touches the network for public APIs. */
     public GetViralConfig withOfflineApis(boolean offline) {
         return new GetViralConfig(mode, model, judgeModel, port, dataDir, offline, maxRevisions,
-                onnxModelPath, onnxTokenizerPath, igUserId, igAccessToken, igGraphHost, igGraphVersion);
+                onnxModelPath, onnxTokenizerPath, igUserId, igAccessToken, igGraphHost, igGraphVersion,
+                geminiApiKey, imageProvider, imageModel, veoEnabled, veoModel, reelWidth, reelHeight);
+    }
+
+    /** A copy with a different Reel render size (tests use a tiny one). */
+    public GetViralConfig withReelSize(int width, int height) {
+        return new GetViralConfig(mode, model, judgeModel, port, dataDir, offlineApis, maxRevisions,
+                onnxModelPath, onnxTokenizerPath, igUserId, igAccessToken, igGraphHost, igGraphVersion,
+                geminiApiKey, imageProvider, imageModel, veoEnabled, veoModel, width & ~1, height & ~1);
     }
 
     private static boolean hasText(String s) {

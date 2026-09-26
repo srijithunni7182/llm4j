@@ -7,10 +7,18 @@ import io.github.llm4j.engram.core.ContextIntelligenceAgent;
 import io.github.llm4j.engram.core.LLMContextIntelligenceAgent;
 import io.github.llm4j.getviral.config.GetViralConfig;
 import io.github.llm4j.getviral.llm.StudioModels;
+import io.github.llm4j.getviral.media.ImageGenerator;
+import io.github.llm4j.getviral.media.MediaAsset;
+import io.github.llm4j.getviral.media.MediaLibrary;
+import io.github.llm4j.getviral.media.MediaStudio;
+import io.github.llm4j.getviral.media.VeoClient;
 import io.github.llm4j.getviral.quality.QualityGate;
 import io.github.llm4j.getviral.rag.KnowledgeBase;
 import io.github.llm4j.getviral.studio.StudioRun;
 import io.github.llm4j.getviral.tools.DatamuseWordLabTool;
+import io.github.llm4j.getviral.tools.GenerateImageTool;
+import io.github.llm4j.getviral.tools.GenerateVideoClipTool;
+import io.github.llm4j.getviral.tools.RenderReelTool;
 import io.github.llm4j.getviral.tools.HackerNewsPulseTool;
 import io.github.llm4j.getviral.tools.HolidayMomentsTool;
 import io.github.llm4j.getviral.tools.InstagramGraphClient;
@@ -37,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -101,11 +110,21 @@ public class GetViralEngine {
         started.put("vectorStore", knowledge.storeLabel());
         started.put("instagram", config.instagramConfigured() ? "connected" : "dry-run");
         started.put("publicApis", config.offlineApis() ? "offline samples" : "live (sample fallback)");
+        List<ImageGenerator> imageChain = MediaStudio.imageChain(config);
+        started.put("images", MediaStudio.describe(imageChain));
+        started.put("video", "Reel renderer " + config.reelWidth() + "x" + config.reelHeight()
+                + (veoEnabled() ? " + Google Veo clips" : " (Veo clips off)"));
+        MediaLibrary media = new MediaLibrary(config.dataDir(), run.id(), run);
+        AtomicReference<GetViralExecutor> executorRef = new AtomicReference<>();
+        Supplier<Map<String, Object>> workflowVars = () -> executorRef.get() == null
+                ? Map.of() : executorRef.get().getContext().getAll();
         run.emit("run_started", started);
 
         PromptBook prompts = new PromptBook(run);
-        GetViralExecutor executor = new GetViralExecutor(loadScript(), tools(run, knowledge, brief), models, run,
+        GetViralExecutor executor = new GetViralExecutor(loadScript(),
+                tools(run, knowledge, brief, media, imageChain, workflowVars), models, run,
                 prompts, config.maxRevisions());
+        executorRef.set(executor);
         CreatorMemory memory = new CreatorMemory(config.dataDir(), brief.handle(), intelligence(models), run);
         executor.setMemoryEngine(memory);
         executor.setHumanInterface(new StudioHumanInterface(run, executor::getContext));
@@ -172,6 +191,11 @@ public class GetViralEngine {
                         hook, grounding(pack));
         pack.put("quality", badges.stream().map(QualityGate.Badge::toMap).toList());
         pack.put("prompts", prompts.all());
+        pack.put("media", media.assets().stream().map(MediaAsset::toMap).toList());
+        Object visuals = ctx.get("visualPack");
+        if (visuals != null && !visuals.toString().isBlank()) pack.put("visuals", visuals);
+        Object video = ctx.get("videoPack");
+        if (video != null && !video.toString().isBlank()) pack.put("video", video);
         run.emit("pack", pack);
         run.status(StudioRun.Status.DONE);
         return new Outcome(StudioRun.Status.DONE, pack, badges, executor, prompts);
@@ -189,7 +213,12 @@ public class GetViralEngine {
         return CreatorMemory.list(CreatorMemory.fileFor(config.dataDir(), handle.replaceFirst("^@", "")));
     }
 
-    private ToolRegistry tools(StudioRun run, KnowledgeBase knowledge, Brief brief) {
+    private boolean veoEnabled() {
+        return config.veoEnabled() && config.geminiApiKey() != null;
+    }
+
+    private ToolRegistry tools(StudioRun run, KnowledgeBase knowledge, Brief brief, MediaLibrary media,
+                               List<ImageGenerator> imageChain, Supplier<Map<String, Object>> workflowVars) {
         boolean offline = config.offlineApis();
         InstagramGraphClient instagram = new InstagramGraphClient(config);
         Map<String, Tool> tools = new LinkedHashMap<>();
@@ -204,6 +233,10 @@ public class GetViralEngine {
         tools.put("ViralPlaybook", new ViralPlaybookTool(knowledge, brief.handle(), run));
         tools.put("InstagramQuota", new InstagramQuotaTool(instagram));
         tools.put("InstagramPublish", new InstagramPublishTool(instagram, run));
+        tools.put("GenerateImage", new GenerateImageTool(imageChain, media));
+        tools.put("RenderReel", new RenderReelTool(media, workflowVars, config.reelWidth(), config.reelHeight(), 24));
+        tools.put("GenerateVideoClip", new GenerateVideoClipTool(
+                veoEnabled() ? new VeoClient(config.geminiApiKey(), config.veoModel()) : null, media));
         ToolRegistry registry = new ToolRegistry();
         tools.forEach(registry::register);
         return registry;

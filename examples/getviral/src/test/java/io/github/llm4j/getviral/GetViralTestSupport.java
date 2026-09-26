@@ -21,7 +21,8 @@ final class GetViralTestSupport {
     static GetViralEngine engine(Path dataDir) {
         GetViralConfig config = GetViralConfig.fromEnvironment()
                 .withDataDir(dataDir)
-                .withOfflineApis(!"false".equals(System.getenv("GETVIRAL_OFFLINE_APIS")));
+                .withOfflineApis(!"false".equals(System.getenv("GETVIRAL_OFFLINE_APIS")))
+                .withReelSize(180, 320);
         return new GetViralEngine(config, 0);
     }
 

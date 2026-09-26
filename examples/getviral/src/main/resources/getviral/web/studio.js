@@ -10,10 +10,13 @@
     { id: "ReelDirector", icon: "🎞️", role: "Beat-by-beat Reels", c: "linear-gradient(45deg,#f58529,#dd2a7b,#8134af)", glow: "#dd2a7b" },
     { id: "YouTubeProducer", icon: "▶", role: "Titles, thumbnail & chapters", c: "linear-gradient(135deg,#ff3355,#b3001e)", glow: "#ff3355" },
     { id: "ViralityCritic", icon: "🔥", role: "Scores. Sends back. Ships.", c: "linear-gradient(135deg,#ffd166,#ff6a3d)", glow: "#ffb13d" },
+    { id: "ArtDirector", icon: "🎨", role: "Generates thumbnail, cover & B-roll", c: "linear-gradient(135deg,#ffd166,#ff2e88)", glow: "#ffd166" },
+    { id: "VideoEditor", icon: "📹", role: "Renders the Reel to MP4", c: "linear-gradient(135deg,#2ad4f2,#8b5cff)", glow: "#2ad4f2" },
     { id: "Publisher", icon: "🚀", role: "Posts to Instagram — with your OK", c: "linear-gradient(135deg,#b9f36c,#2bb673)", glow: "#b9f36c" },
   ];
-  const STAGE_OF = { Showrunner: "cast", TrendScout: "scout", Strategist: "strategy", XWriter: "create", ReelDirector: "create", YouTubeProducer: "create", ViralityCritic: "critique", Publisher: "ship" };
-  const STAGES = ["cast", "scout", "strategy", "hook", "create", "critique", "ship"];
+  const STAGE_OF = { Showrunner: "cast", TrendScout: "scout", Strategist: "strategy", XWriter: "create", ReelDirector: "create", YouTubeProducer: "create", ViralityCritic: "critique", ArtDirector: "visuals", VideoEditor: "visuals", Publisher: "ship" };
+  const STAGES = ["cast", "scout", "strategy", "hook", "create", "critique", "visuals", "ship"];
+  const MEDIA_ORDER = ["reel", "youtube_thumbnail", "reel_cover", "x_card", "broll_1", "broll_2", "ai_clip"];
   const IDEAS = [
     "a 2-minute morning routine for busy students",
     "why walking meetings beat Zoom calls",
@@ -33,7 +36,7 @@
 
   const state = {
     runId: null, es: null, brief: null, started: 0, timer: null,
-    values: {}, prompts: {}, stats: { llm: 0, api: 0, live: 0 }, events: 0,
+    values: {}, prompts: {}, stats: { llm: 0, api: 0, live: 0 }, events: 0, media: [],
     pendingApproval: null, revealed: false, stage: null, reelTimer: null, info: {},
   };
 
@@ -139,7 +142,8 @@
       case "run_started":
         $("#engineList").innerHTML = [
           ["Model", d.model], ["Embeddings", d.embeddings], ["Vectors", d.vectorStore],
-          ["Public APIs", d.publicApis], ["Instagram", d.instagram === "connected" ? "connected" : "dry run (no token)"],
+          ["Public APIs", d.publicApis], ["Images", d.images], ["Video", d.video],
+          ["Instagram", d.instagram === "connected" ? "connected" : "dry run (no token)"],
         ].map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
         feed("✦", "GetViral", "Brief received — assembling the team", `${esc(d.model)}`, "", ev.t);
         break;
@@ -193,6 +197,7 @@
       case "agent_done":
         agentState(d.agent, "done");
         state.values[d.variable] = d.value;
+        if (state.revealed && (d.agent === "VideoEditor" || d.agent === "ArtDirector")) renderMedia();
         onAgentDone(d, ev.t);
         break;
       case "agent_error":
@@ -217,6 +222,18 @@
       case "publish":
         onPublish(d);
         break;
+      case "media": {
+        state.media.push(d);
+        $("#statMedia").textContent = state.media.length;
+        const portrait = d.height > d.width;
+        const label = d.kind === "video" ? `rendered the Reel · ${d.seconds}s · ${d.width}×${d.height}` : `generated ${esc(String(d.purpose).replace(/_/g, " "))}`;
+        const body = d.kind === "video"
+          ? `<video class="shot portrait" src="${esc(d.url)}" muted autoplay loop playsinline></video>`
+          : `<img class="shot ${portrait ? "portrait" : ""}" src="${esc(d.url)}" alt="${esc(d.purpose)}">`;
+        feed(d.kind === "video" ? "📹" : "🎨", d.kind === "video" ? "VideoEditor" : "ArtDirector", label, `${esc(d.provider)}${d.ai ? "" : " · not AI"}${body}`, "media", ev.t);
+        if (state.revealed) renderMedia();
+        break;
+      }
       case "quality":
         renderBadges(d.badges || []);
         break;
@@ -240,6 +257,7 @@
         if (["DONE", "BLOCKED", "FAILED"].includes(d.status)) {
           clearInterval(state.timer);
           state.es && state.es.close();
+          if (state.revealed) renderMedia();
           if (d.status === "DONE") { setStage("ship", true); agentState("Publisher", "done"); $("#qualityHint").textContent = "graded"; }
         }
         break;
@@ -253,6 +271,7 @@
       feed("🎬", "Showrunner", "cast the team", esc(trim(v.creative_direction, 200)), "prompt", t);
     } else if (d.agent === "ViralityCritic" && v && typeof v === "object") {
       criticMoment(v);
+      $("#statRounds").textContent = v.round || 1;
       feed("🔥", "ViralityCritic", `scored ${v.score}/10 — ${v.verdict === "SHIP" ? "SHIP IT" : "back to the team"}`, esc(v.headline || ""), "critic", t);
       if (v.verdict === "SHIP" && !state.revealed) setTimeout(reveal, 1600);
     } else {
@@ -418,10 +437,60 @@
     renderX(v.xPack);
     renderReel(v.reelPack);
     renderYt(v.youtubePack);
+    renderMedia();
+    $$("#reelToggle button").forEach((b) => b.addEventListener("click", () => setReelMode(b.dataset.mode)));
     renderPromptLab(Object.fromEntries(Object.entries(state.prompts).map(([k, list]) => [k, list.map((p) => ({ version: p.version, prompt: p.prompt, reason: p.reason }))])));
     $("#studio").hidden = true;
     window.scrollTo({ top: 0, behavior: "smooth" });
     confetti();
+  }
+
+  function mediaFor(purpose) { return [...state.media].reverse().find((m) => m.purpose === purpose); }
+
+  function renderMedia() {
+    const media = [...state.media].sort((a, b) => MEDIA_ORDER.indexOf(a.purpose) - MEDIA_ORDER.indexOf(b.purpose));
+    const expected = ["reel", "youtube_thumbnail", "reel_cover", "x_card", "broll_1", "broll_2"];
+    const missing = expected.filter((p) => !media.some((m) => m.purpose === p));
+    const done = ["DONE", "FAILED"].includes(state.final) || !!state.values.videoPack;
+    $("#visualsHint").textContent = done ? `${media.length} files · ${media.filter((m) => m.ai).length} AI-generated` : "generating…";
+    const tile = (m) => {
+      const el = m.kind === "video"
+        ? `<video src="${esc(m.url)}" muted autoplay loop playsinline controls></video>`
+        : `<img src="${esc(m.url)}" alt="${esc(m.purpose)}" loading="lazy" width="${m.width}" height="${m.height}">`;
+      return `<figure class="tile ${m.purpose === "reel" ? "hero" : ""}">${el}<span class="prov ${m.ai ? "ai" : "local"}">${m.ai ? "AI · " : ""}${esc(m.provider)}</span>
+        <figcaption><span>${esc(String(m.purpose).replace(/_/g, " "))}${m.seconds ? " · " + m.seconds + "s" : ""}</span><a href="${esc(m.url)}" download>↓</a></figcaption></figure>`;
+    };
+    const skel = (p) => `<figure class="tile skel ${p === "reel" ? "hero" : ""}">${p === "reel" ? "rendering reel…" : esc(p.replace(/_/g, " "))}</figure>`;
+    const videos = media.filter((m) => m.kind === "video");
+    const stills = media.filter((m) => m.kind !== "video");
+    $("#gallery").innerHTML =
+      `<div class="gallery-reel">${videos.map(tile).join("") || (done ? "" : skel("reel"))}</div>` +
+      `<div class="gallery-stills">${stills.map(tile).join("")}${done ? "" : missing.filter((p) => p !== "reel").map(skel).join("")}</div>`;
+    $$("#gallery video").forEach((v) => v.addEventListener("error", () => {
+      if (!v.parentElement.querySelector(".note")) v.insertAdjacentHTML("afterend", `<p class="note">This browser can't decode H.264 here — download the MP4 (↓) to watch it.</p>`);
+    }, { once: true }));
+
+    const thumb = mediaFor("youtube_thumbnail");
+    if (thumb) { $("#ytThumb").style.backgroundImage = `url("${thumb.url}")`; $("#ytThumbText").hidden = true; }
+    const card = mediaFor("x_card");
+    const firstTweet = $("#xThread .tweet p");
+    if (card && firstTweet && !$("#xThread .media-card")) firstTweet.insertAdjacentHTML("afterend", `<div class="media-card"><img src="${esc(card.url)}" alt="X card"></div>`);
+    const cover = mediaFor("reel_cover");
+    if (cover && !$(".cover-thumb")) $("#reelCaption").insertAdjacentHTML("beforebegin", `<img class="cover-thumb" src="${esc(cover.url)}" alt="Reel cover">`);
+    const reel = mediaFor("reel");
+    if (reel && $("#reelVideo").getAttribute("src") !== reel.url) {
+      $("#reelVideo").addEventListener("error", () => { setReelMode("story"); toast("This browser can't play the MP4 inline — showing the storyboard. Download it from Visuals."); }, { once: true });
+      $("#reelVideo").src = reel.url;
+      $("#reelToggle").hidden = false;
+      setReelMode("video");
+    }
+  }
+
+  function setReelMode(mode) {
+    $$("#reelToggle button").forEach((b) => b.classList.toggle("is-on", b.dataset.mode === mode));
+    const video = $("#reelVideo");
+    video.hidden = mode !== "video";
+    if (mode === "video") video.play().catch(() => {}); else video.pause();
   }
 
   function renderX(x) {

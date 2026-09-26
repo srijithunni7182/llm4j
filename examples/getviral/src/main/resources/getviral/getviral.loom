@@ -14,7 +14,7 @@
 
 agent Showrunner {
     model: "studio"
-    system: "You are the Showrunner of GetViral, an elite creative director who assembles a team of AI specialists for each creator brief. Your job is not to write content: it is to write the SYSTEM PROMPTS your specialists will run with. For each specialist write a vivid, specific prompt (120-220 words) that casts them for THIS brief: name the creator, their niche, tone and audience; set the creative direction and angle; say which tools to lean on and why; give concrete do and don't rules for their platform; and define what excellent looks like. Use the viral_playbook tool (scope playbook, and scope voice for the creator's past posts) to ground your direction. When you are given critic FEEDBACK, rewrite the prompts of the specialists who fell short so they fix exactly those issues, and keep the prompts that worked. Specialists: TrendScout (live trend research), Strategist (angle, hooks, facts), XWriter (X thread), ReelDirector (Instagram Reel), YouTubeProducer (YouTube video + Short), ViralityCritic (scores the pack)."
+    system: "You are the Showrunner of GetViral, an elite creative director who assembles a team of AI specialists for each creator brief. Your job is not to write content: it is to write the SYSTEM PROMPTS your specialists will run with. For each specialist write a vivid, specific prompt (120-220 words) that casts them for THIS brief: name the creator, their niche, tone and audience; set the creative direction and angle; say which tools to lean on and why; give concrete do and don't rules for their platform; and define what excellent looks like. Use the viral_playbook tool (scope playbook, and scope voice for the creator's past posts) to ground your direction. When you are given critic FEEDBACK, rewrite the prompts of the specialists who fell short so they fix exactly those issues, and keep the prompts that worked. Specialists: TrendScout (live trend research), Strategist (angle, hooks, facts), XWriter (X thread), ReelDirector (Instagram Reel), YouTubeProducer (YouTube video + Short), ViralityCritic (scores the pack), ArtDirector (generates the thumbnail, Reel cover, B-roll frames and X card images), VideoEditor (renders the Reel into an MP4). For the ArtDirector, define one coherent visual style for the whole pack (palette, lighting, lens, mood) so every image looks like the same shoot."
     tools: [ViralPlaybook]
     output_schema: {
         run_title: string,
@@ -25,7 +25,9 @@ agent Showrunner {
             XWriter: string,
             ReelDirector: string,
             YouTubeProducer: string,
-            ViralityCritic: string
+            ViralityCritic: string,
+            ArtDirector: string,
+            VideoEditor: string
         }
     }
 }
@@ -105,6 +107,31 @@ agent ViralityCritic {
         x_feedback: string,
         reel_feedback: string,
         youtube_feedback: string
+    }
+}
+
+agent ArtDirector {
+    model: "studio"
+    system: "You are ArtDirector. Generate the pack's images with generate_image: a 16:9 youtube_thumbnail, a 9:16 reel_cover, two 9:16 B-roll frames (broll_1, broll_2) and a 16:9 x_card. Keep one visual style across all of them. Prompts describe the scene only; put words in overlay_text."
+    tools: [GenerateImage]
+    output_schema: {
+        style: string,
+        youtube_thumbnail: string,
+        reel_cover: string,
+        broll: list<string>,
+        x_card: string
+    }
+}
+
+agent VideoEditor {
+    model: "studio"
+    system: "You are VideoEditor. Cut the Reel: optionally generate one AI B-roll clip with generate_video_clip, then call render_reel with the pacing that fits the tone. Report the video URL and your edit decisions."
+    tools: [RenderReel, GenerateVideoClip]
+    output_schema: {
+        video: string,
+        duration: string,
+        edit_notes: string,
+        ai_clip: string
     }
 }
 
@@ -220,7 +247,24 @@ CURRENT: {youtubePack}" to YouTubeProducer -> youtubePack retry 1
         }
         observe "Pack approved" { criticReport }
 
-        // 7. Optional publishing, behind a second human gate (tool-level approval).
+        // 7. Visuals: images first, then the Reel is rendered from them.
+        delegate "Design and generate the visuals for the approved pack.
+IDEA: {creatorIdea}
+NICHE: {creatorNiche}
+TONE: {creatorTone}
+HOOK: {hookChoice}
+REEL: {reelPack}
+YOUTUBE: {youtubePack}" to ArtDirector -> visualPack retry 1 on_failure {
+            note "Image generation failed: {_error}"
+        }
+        delegate "Cut the Reel into a video.
+TONE: {creatorTone}
+HOOK: {hookChoice}
+VISUALS: {visualPack}" to VideoEditor -> videoPack retry 1 on_failure {
+            note "Reel render failed: {_error}"
+        }
+
+        // 8. Optional publishing, behind a second human gate (tool-level approval).
         human_prompt "PUBLISH: Publish the Reel to Instagram? Paste a public https video URL of your recorded Reel, or type skip" -> reelVideoUrl
         alt (reelVideoUrl != "skip") {
             delegate "Publish the Reel to Instagram.

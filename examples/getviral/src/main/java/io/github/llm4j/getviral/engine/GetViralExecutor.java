@@ -64,7 +64,8 @@ public class GetViralExecutor extends HarnessExecutor {
     @Override
     protected void customizeAgent(AgentDef agentDef, ReActAgent.Builder builder) {
         String agent = agentDef.getName();
-        builder.maxIterations(8)
+        // The ArtDirector makes five images, one tool call each — give it room.
+        builder.maxIterations(agent.equals("ArtDirector") || agent.equals("VideoEditor") ? 12 : 8)
                .temperature(0.8)
                .approvalCallback((tool, args, thought) -> run.approve(tool, args, thought))
                .addListener(new AgentEventListener() {

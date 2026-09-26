@@ -77,6 +77,8 @@ public class DemoLLMClient implements LLMClient {
             case "ReelDirector" -> reelPack(turn);
             case "YouTubeProducer" -> youtubePack(turn);
             case "ViralityCritic" -> critique();
+            case "ArtDirector" -> visuals(turn);
+            case "VideoEditor" -> videoCut(turn);
             case "Publisher" -> "Publishing result: " + clip(turn.lastObservation(), 400);
             case "SafetyCoach" -> "Heads up — your brief included personal details like an email or phone number, "
                     + "and GetViral never puts personal data into public content. Remove them and hit Go again!";
@@ -118,6 +120,35 @@ public class DemoLLMClient implements LLMClient {
                     new Step("broll_finder", Map.of("query", t.keyword() + " close up"),
                             "Finding a thumbnail reference image."),
                     new Step("fact_check", Map.of("query", t.keyword()), "Verifying a fact for the description."));
+            case "ArtDirector" -> {
+                String style = "cinematic editorial photo, warm golden-hour light, magenta and amber accents, shallow depth of field, 35mm";
+                String kw = t.keyword();
+                List<String> shots = t.all("shot=([^,}]+)");
+                yield List.of(
+                        new Step("generate_image", Map.of("purpose", "youtube_thumbnail", "aspect_ratio", "16:9",
+                                "prompt", "Expressive creator reacting to " + kw + ", split before/after composition, " + style,
+                                "overlay_text", orDefault(t.match("thumbnail_text=([^,}]+)"), "IT'S THIS?")),
+                                "Starting with the thumbnail — it decides the click."),
+                        new Step("generate_image", Map.of("purpose", "reel_cover", "aspect_ratio", "9:16",
+                                "prompt", "Vertical close-up of hands mid-motion with " + kw + " props, " + style,
+                                "overlay_text", orDefault(t.match("cover_text=([^,}]+)"), shortHook(t.hook()))),
+                                "Now a Reel cover that holds up on the profile grid."),
+                        new Step("generate_image", Map.of("purpose", "broll_1", "aspect_ratio", "9:16",
+                                "prompt", (shots.isEmpty() ? "Relatable morning scene" : shots.get(Math.min(1, shots.size() - 1))) + ", " + kw + ", " + style),
+                                "B-roll frame for the problem beat."),
+                        new Step("generate_image", Map.of("purpose", "broll_2", "aspect_ratio", "9:16",
+                                "prompt", (shots.size() > 3 ? shots.get(3) : "Calm, organised desk at sunrise") + ", " + kw + ", " + style),
+                                "B-roll frame for the payoff beat."),
+                        new Step("generate_image", Map.of("purpose", "x_card", "aspect_ratio", "16:9",
+                                "prompt", "Minimal flat-lay that sums up " + kw + ", lots of negative space, " + style,
+                                "overlay_text", "3 TINY STEPS"),
+                                "And a card to attach to the first tweet."));
+            }
+            case "VideoEditor" -> List.of(
+                    new Step("generate_video_clip", Map.of("prompt", "Slow dolly-in on a sunrise desk, " + t.keyword(), "aspect_ratio", "9:16"),
+                            "Trying for one AI B-roll clip first."),
+                    new Step("render_reel", Map.of("pace", t.tone().contains("calm") ? "normal" : "fast", "lead_visual", "reel_cover"),
+                            "Cutting the Reel — fast pace to match the tone, cover image leads."));
             case "Publisher" -> List.of(
                     new Step("instagram_quota", Map.of(), "Checking the Instagram publishing quota first."),
                     new Step("instagram_publish", Map.of(
@@ -172,6 +203,14 @@ public class DemoLLMClient implements LLMClient {
             prompts.put("YouTubeProducer", "Package a YouTube video for " + who + ". Three title options under 60 "
                     + "characters that front-load the keyword, a high-contrast thumbnail with at most 3 words, a 15-second "
                     + "hook script, chapters from 0:00, and a Shorts cut pulled from the most surprising moment.");
+            prompts.put("ArtDirector", "Art-direct one coherent shoot for " + who + ": cinematic editorial photography, "
+                    + "golden-hour warmth with magenta and amber accents, shallow depth of field, 35mm. Generate a 16:9 YouTube "
+                    + "thumbnail with an expressive face and a before/after split, a 9:16 Reel cover that reads at grid size, two "
+                    + "9:16 B-roll frames matching the Reel's problem and payoff beats, and a clean 16:9 X card. Never put words in "
+                    + "the image prompt — use overlay_text, 2-4 words, high tension.");
+            prompts.put("VideoEditor", "Cut the Reel for " + who + " like a top short-form editor: lead with the cover image "
+                    + "for thumb-stop, keep the pace " + (tone.contains("calm") ? "measured" : "fast") + ", cut hard on every beat, "
+                    + "subtitles always on for muted viewers, and end on a frame that loops into the opening.");
             prompts.put("ViralityCritic", "Judge this pack like a ruthless head of content for " + who + ". Score 0-10 on "
                     + "scroll-stopping first lines, platform fit, clarity and trust. Be specific per platform; SHIP only "
                     + "at 8 or above.");
@@ -305,6 +344,30 @@ public class DemoLLMClient implements LLMClient {
         return pack;
     }
 
+    private Map<String, Object> visuals(Turn t) {
+        List<String> urls = new ArrayList<>();
+        for (String obs : t.observations) urls.add(firstMatch(obs, "url: (\\S+)"));
+        Map<String, Object> pack = new LinkedHashMap<>();
+        pack.put("style", "Cinematic editorial — golden-hour warmth with magenta/amber accents, shallow depth of field, one shoot across every platform.");
+        pack.put("youtube_thumbnail", urls.size() > 0 ? urls.get(0) : "");
+        pack.put("reel_cover", urls.size() > 1 ? urls.get(1) : "");
+        pack.put("broll", urls.size() > 3 ? List.of(urls.get(2), urls.get(3)) : List.of());
+        pack.put("x_card", urls.size() > 4 ? urls.get(4) : "");
+        return pack;
+    }
+
+    private Map<String, Object> videoCut(Turn t) {
+        String clip = t.observations.isEmpty() ? "" : t.observations.get(0);
+        String render = t.lastObservation();
+        Map<String, Object> cut = new LinkedHashMap<>();
+        cut.put("video", firstMatch(render, "url: (\\S+)"));
+        cut.put("duration", firstMatch(render, "Rendered a ([0-9.]+s)"));
+        cut.put("edit_notes", "Cover image leads for thumb-stop, hard cuts with a flash on every beat, headline pops in "
+                + "within 0.25s, subtitles on for muted viewing, last beat loops back to the first frame.");
+        cut.put("ai_clip", clip.contains("url: ") ? firstMatch(clip, "url: (\\S+)") : "off (Veo not enabled)");
+        return cut;
+    }
+
     private Map<String, Object> critique() {
         int round = criticCalls.incrementAndGet();
         Map<String, Object> report = new LinkedHashMap<>();
@@ -423,6 +486,18 @@ public class DemoLLMClient implements LLMClient {
         String feedback(String key) {
             Matcher m = Pattern.compile(key + "=([^,}]+)").matcher(question);
             return m.find() ? m.group(1).strip() : "tighten it";
+        }
+
+        String match(String regex) {
+            Matcher m = Pattern.compile(regex).matcher(question);
+            return m.find() ? m.group(1).strip() : "";
+        }
+
+        List<String> all(String regex) {
+            List<String> found = new ArrayList<>();
+            Matcher m = Pattern.compile(regex).matcher(question);
+            while (m.find()) found.add(m.group(1).strip());
+            return found;
         }
 
         String reelCaption() {

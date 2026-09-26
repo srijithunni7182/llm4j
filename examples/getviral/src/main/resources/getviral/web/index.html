@@ -27,9 +27,9 @@
   <!-- ═══════════════════════════ COMPOSER ═══════════════════════════ -->
   <main id="composer" class="view view-composer">
     <section class="hero">
-      <p class="eyebrow"><span class="spark">✦</span> 9 AI agents · live trends · one click</p>
+      <p class="eyebrow"><span class="spark">✦</span> 11 AI agents · live trends · images &amp; video</p>
       <h1 class="display">One idea.<br><span class="grad-text">Every feed.</span></h1>
-      <p class="lede">Drop an idea. A Showrunner casts a team of AI specialists, writes their prompts on the fly, researches what's trending right now, and ships a ready-to-post pack for <b>X</b>, <b>Instagram Reels</b> and <b>YouTube</b>.</p>
+      <p class="lede">Drop an idea. A Showrunner casts a team of AI specialists, writes their prompts on the fly, researches what's trending right now, generates the visuals, cuts the Reel, and ships a ready-to-post pack for <b>X</b>, <b>Instagram Reels</b> and <b>YouTube</b>.</p>
     </section>
 
     <form class="composer glass" id="briefForm" autocomplete="off">
@@ -109,6 +109,7 @@
       <li data-stage="hook"><i></i><span>Your pick</span></li>
       <li data-stage="create"><i></i><span>Create</span></li>
       <li data-stage="critique"><i></i><span>Critique</span></li>
+      <li data-stage="visuals"><i></i><span>Visuals</span></li>
       <li data-stage="ship"><i></i><span>Ship</span></li>
     </ol>
 
@@ -129,6 +130,8 @@
           <div class="stat"><b id="statApi">0</b><span>API calls</span></div>
           <div class="stat"><b id="statLive">–</b><span>live data</span></div>
           <div class="stat"><b id="statPrompts">0</b><span>prompts written</span></div>
+          <div class="stat"><b id="statMedia">0</b><span>media made</span></div>
+          <div class="stat"><b id="statRounds">0</b><span>critic rounds</span></div>
         </section>
         <section class="glass engine">
           <h4>Engine</h4>
@@ -168,6 +171,11 @@
       <div class="badges" id="badges"></div>
     </section>
 
+    <section class="visuals glass" id="visuals">
+      <header class="panel-head"><h3>Visuals <em>ArtDirector + VideoEditor</em></h3><span class="hint" id="visualsHint">generating…</span></header>
+      <div class="gallery" id="gallery"></div>
+    </section>
+
     <section class="platform-grid">
       <!-- X -->
       <article class="platform glass" id="pfX">
@@ -180,6 +188,8 @@
       <article class="platform glass" id="pfReel">
         <header class="platform-head"><span class="pf pf-ig">Reels</span><h3 id="reelTitle">Reel</h3><div class="rate" data-platform="reel"><button data-loved="true" aria-label="Love the Reel">🔥</button><button data-loved="false" aria-label="Dislike the Reel">👎</button></div></header>
         <div class="reel-wrap">
+          <div class="phone-col">
+          <div class="reel-toggle" id="reelToggle" hidden><button type="button" class="is-on" data-mode="video">▶ Rendered MP4</button><button type="button" data-mode="story">Storyboard</button></div>
           <div class="phone">
             <div class="phone-screen" id="reelScreen">
               <div class="story-bars" id="storyBars"></div>
@@ -191,7 +201,9 @@
               </div>
               <div class="reel-side"><span>♥</span><span>💬</span><span>↗</span></div>
               <div class="reel-foot"><b id="reelHandle">@you</b><p id="reelAudio">♫ original audio</p></div>
+              <video id="reelVideo" class="reel-video" muted loop playsinline hidden></video>
             </div>
+          </div>
           </div>
           <div class="reel-meta">
             <ol class="beats" id="reelBeats"></ol>
