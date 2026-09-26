@@ -97,4 +97,50 @@ class ToolAgentProtocolTest {
         assertEquals("SHIP", ((Map<?, ?>) review).get("verdict"));
         assertEquals("ok", executor.getContext().getVariable("party"), "dotted alt condition should pass");
     }
+
+    @Test
+    void agentForDelegateCanSwapInARuntimePrompt() {
+        List<String> systemPrompts = new CopyOnWriteArrayList<>();
+        LLMClientFactory factory = model -> new LLMClient() {
+            @Override
+            public LLMResponse chat(LLMRequest request) {
+                systemPrompts.add(request.getMessages().get(0).getContent());
+                return LLMResponse.builder()
+                        .content("```json\n{\"thought\": \"done\", \"final_answer\": \"ok\"}\n```")
+                        .model(model).build();
+            }
+
+            @Override
+            public Stream<LLMResponse> chatStream(LLMRequest request) {
+                return Stream.empty();
+            }
+        };
+
+        LoomScript script = new LoomParser(new Lexer("""
+                agent Scout {
+                    model: "test"
+                    system: "Static fallback."
+                    tools: [MockTool]
+                }
+                workflow Main() {
+                    delegate "Go" to Scout -> out
+                }
+                """).tokenize()).parseScript();
+        ToolRegistry registry = new ToolRegistry();
+        registry.register("MockTool", new MockTool());
+
+        HarnessExecutor executor = new HarnessExecutor(script, registry, factory) {
+            @Override
+            protected ReActAgent agentForDelegate(io.github.llm4j.loom.ast.DelegateStmt stmt, AgentDef agentDef, ReActAgent agent) {
+                return agent.toBuilder().systemPrompt(null).instructions("Dynamic prompt v2.").build();
+            }
+        };
+        executor.initialize();
+        executor.executeWorkflow("Main", Map.of());
+
+        assertEquals(1, systemPrompts.size());
+        assertTrue(systemPrompts.get(0).startsWith("Dynamic prompt v2."));
+        assertTrue(systemPrompts.get(0).contains("MockTool"), "rebuilt agent keeps its tools");
+        assertFalse(systemPrompts.get(0).contains("Static fallback."));
+    }
 }

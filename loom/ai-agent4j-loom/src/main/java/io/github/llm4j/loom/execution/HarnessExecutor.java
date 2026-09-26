@@ -506,7 +506,8 @@ public class HarnessExecutor implements LoomEngine {
         while (attempts < maxAttempts) {
             try {
                 log.info("Delegating to " + del.getTargetAgent() + " (Attempt " + (attempts + 1) + ")");
-                io.github.llm4j.agent.AgentResult result = agent.run(contextBriefing);
+                ReActAgent runAgent = agentForDelegate(del, agentDef, agent);
+                io.github.llm4j.agent.AgentResult result = runAgent.run(contextBriefing);
                 
                 Object finalValue = result.getFinalAnswer();
                 if (agentDef.getOutputSchema() != null) {
@@ -634,6 +635,16 @@ public class HarnessExecutor implements LoomEngine {
      */
     protected void customizeAgent(AgentDef agentDef, ReActAgent.Builder builder) {
         // No-op by default.
+    }
+
+    /**
+     * Hook called on every delegate attempt to choose the agent instance that runs it. Returning a
+     * rebuilt agent (e.g. {@code agent.toBuilder().systemPrompt(null).instructions(prompt).build()})
+     * lets embedders inject prompts generated at runtime — by an orchestrator agent, say — while
+     * keeping the agent's tools, listeners and approval callback.
+     */
+    protected ReActAgent agentForDelegate(DelegateStmt stmt, AgentDef agentDef, ReActAgent agent) {
+        return agent;
     }
 
     /**
