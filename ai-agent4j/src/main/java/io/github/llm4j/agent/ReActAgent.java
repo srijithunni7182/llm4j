@@ -401,7 +401,7 @@ public class ReActAgent {
             String observation = tool.execute(args);
             logger.info("Tool '{}' returned observation: {}", action, observation);
             notifyObservation(observation);
-            return observation;
+            return new ActionExecution(observation, AgentResult.StepOutcome.EXECUTED);
         } catch (AgentInterrupt interrupt) {
             throw interrupt; // a deliberate stop (e.g. waiting for a human) is never a tool error
         } catch (Exception e) {
