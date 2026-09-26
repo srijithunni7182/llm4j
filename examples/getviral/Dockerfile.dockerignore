@@ -1,0 +1,6 @@
+# Build context is the repo root; keep it small.
+**/target
+**/node_modules
+**/getviral-data
+**/.idea
+.git
