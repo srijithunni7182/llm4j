@@ -170,4 +170,22 @@ class WindowedBudgetTest {
         assertThat(life.remaining().tokens().getAsLong()).isEqualTo(600);
         assertThat(b.toString()).contains("per day");
     }
+
+    @Test
+    void raiseAddsToTheLimitsThatExist() {
+        Budget b = Budget.builder().name("r").tokens(300).cost("0.50").build();
+        var client = Standard.client(new ScriptedLLMClient(), b);
+        client.chat(Standard.request());
+        client.chat(Standard.request());
+        assertThatThrownBy(() -> client.chat(Standard.request())).isInstanceOf(BudgetExceeded.class);
+        assertThat(b.refused()).isTrue();
+        b.raise(new Limits(300L, 5L, new BigDecimal("0.25")));
+        assertThat(b.limits().tokens()).isEqualTo(600);
+        assertThat(b.limits().calls()).isNull(); // no calls limit to raise
+        assertThat(b.limits().cost()).isEqualByComparingTo("0.75");
+        assertThat(b.refused()).isFalse();
+        client.chat(Standard.request());
+        b.raise(new Limits(null, null, null));
+        assertThat(b.limits().tokens()).isEqualTo(600);
+    }
 }

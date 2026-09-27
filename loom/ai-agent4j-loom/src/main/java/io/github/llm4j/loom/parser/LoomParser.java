@@ -39,8 +39,12 @@ public class LoomParser {
                 Token keyword = advance();
                 if (script.getBudget() != null) throw error(keyword, "Only one top-level budget block is allowed.");
                 script.setBudget(parseBudgetBlock(false));
+            } else if (isBlockKeyword("rate_limits")) {
+                Token keyword = advance();
+                if (script.getRateLimits() != null) throw error(keyword, "Only one rate_limits block is allowed.");
+                script.setRateLimits(parseRateLimits());
             } else {
-                throw error(peek(), "Expected 'agent', 'workflow', 'mcp', 'audit', 'knowledge', 'routing', 'schedule' or 'budget' declaration, but got: " + peek().getType());
+                throw error(peek(), "Expected 'agent', 'workflow', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: " + peek().getType());
             }
         }
 
@@ -800,18 +804,106 @@ public class LoomParser {
         return next == TokenType.NUMBER_LITERAL || next == TokenType.STRING_LITERAL;
     }
 
-    /** {@code budget { tokens: N  calls: N  cost: "$X"  warn_at: 80%  per_call: N }} — after the keyword. */
+    /** A contextual keyword opening a block: {@code name {}. */
+    private boolean isBlockKeyword(String name) {
+        return check(TokenType.IDENTIFIER) && name.equals(peek().getValue())
+                && tokens.size() > current + 1 && tokens.get(current + 1).getType() == TokenType.LBRACE;
+    }
+
+    /** {@code rate_limits { on_limit: suspend|wait|fail  max_wait: 24h  max_resumes: 50 }} — after the keyword. */
+    private io.github.llm4j.loom.ast.RateLimitDef parseRateLimits() {
+        io.github.llm4j.loom.ast.RateLimitDef def = new io.github.llm4j.loom.ast.RateLimitDef();
+        consume(TokenType.LBRACE, "Expect '{' after rate_limits.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token field = consume(TokenType.IDENTIFIER, "Expect a rate_limits field: on_limit, max_wait or max_resumes.");
+            consume(TokenType.COLON, "Expect ':' after '" + field.getValue() + "'.");
+            switch (field.getValue()) {
+                case "on_limit" -> {
+                    Token v = consume(TokenType.IDENTIFIER, "Expect suspend, wait or fail after on_limit.");
+                    try {
+                        def.setOnLimit(io.github.llm4j.loom.ast.RateLimitDef.OnLimit.valueOf(v.getValue().toUpperCase(java.util.Locale.ROOT)));
+                    } catch (IllegalArgumentException e) {
+                        throw error(v, "on_limit must be suspend, wait or fail, got '" + v.getValue() + "'");
+                    }
+                }
+                case "max_wait" -> def.setMaxWait(duration(field));
+                case "max_resumes" -> def.setMaxResumes((int) Math.min(Integer.MAX_VALUE, positiveWhole(field)));
+                default -> throw error(field, "Unknown rate_limits field '" + field.getValue()
+                        + "'. Use on_limit, max_wait or max_resumes.");
+            }
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after rate_limits block.");
+        return def;
+    }
+
+    /** A positive duration: {@code 30s}, {@code 15m}, {@code 6h}, {@code 2d} (or the same as a string). */
+    private java.time.Duration duration(Token field) {
+        Token n;
+        String unit;
+        if (check(TokenType.STRING_LITERAL)) {
+            n = advance();
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("\\s*(\\d+)\\s*([smhd])\\s*").matcher(n.getValue());
+            if (!m.matches()) throw error(n, field.getValue() + " must be a duration like 30s, 15m, 6h or 2d, got \"" + n.getValue() + "\"");
+            return durationOf(n, field, Long.parseLong(m.group(1)), m.group(2));
+        }
+        n = consume(TokenType.NUMBER_LITERAL, "Expect a duration for " + field.getValue() + ", e.g. 30s, 15m, 6h or 2d.");
+        Token u = consume(TokenType.IDENTIFIER, "Expect a unit (s, m, h or d) after " + n.getValue() + ", e.g. " + n.getValue() + "h.");
+        unit = u.getValue();
+        double value = Double.parseDouble(n.getValue());
+        if (value != Math.floor(value)) throw error(n, field.getValue() + " must be a whole number of " + unit);
+        return durationOf(n, field, (long) value, unit);
+    }
+
+    private java.time.Duration durationOf(Token at, Token field, long amount, String unit) {
+        if (amount <= 0) throw error(at, field.getValue() + " must be positive");
+        return switch (unit) {
+            case "s" -> java.time.Duration.ofSeconds(amount);
+            case "m" -> java.time.Duration.ofMinutes(amount);
+            case "h" -> java.time.Duration.ofHours(amount);
+            case "d" -> java.time.Duration.ofDays(amount);
+            default -> throw error(at, "Unknown duration unit '" + unit + "'. Use s, m, h or d.");
+        };
+    }
+
+    /** Optional {@code per minute|hour|day} after a budget limit; one window per budget. */
+    private void window(io.github.llm4j.loom.ast.BudgetDef budget) {
+        if (!(check(TokenType.IDENTIFIER) && "per".equals(peek().getValue()))) return;
+        advance();
+        Token w = consume(TokenType.IDENTIFIER, "Expect minute, hour or day after 'per'.");
+        io.github.llm4j.budget.Window window;
+        try {
+            window = io.github.llm4j.budget.Window.parse(w.getValue());
+        } catch (IllegalArgumentException e) {
+            throw error(w, "A budget window must be per minute, per hour or per day, got 'per " + w.getValue() + "'");
+        }
+        if (budget.getWindow() != null && budget.getWindow() != window) {
+            throw error(w, "A budget has one window: it is already per " + budget.getWindow().name().toLowerCase(java.util.Locale.ROOT));
+        }
+        budget.setWindow(window);
+    }
+
+    /** {@code budget { tokens: N [per day]  calls: N  cost: "$X"  warn_at: 80%  per_call: N  when_exhausted: stop }} — after the keyword. */
     private io.github.llm4j.loom.ast.BudgetDef parseBudgetBlock(boolean forAgent) {
         io.github.llm4j.loom.ast.BudgetDef budget = new io.github.llm4j.loom.ast.BudgetDef();
         consume(TokenType.LBRACE, "Expect '{' after budget.");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
-            Token field = consume(TokenType.IDENTIFIER, "Expect a budget field: tokens, calls, cost, warn_at"
+            Token field = consume(TokenType.IDENTIFIER, "Expect a budget field: tokens, calls, cost, warn_at, when_exhausted"
                     + (forAgent ? " or per_call" : "") + ".");
             consume(TokenType.COLON, "Expect ':' after budget field '" + field.getValue() + "'.");
             switch (field.getValue()) {
-                case "tokens" -> budget.setTokens(positiveWhole(field));
-                case "calls" -> budget.setCalls(positiveWhole(field));
-                case "cost" -> budget.setCost(money(field));
+                case "tokens" -> { budget.setTokens(positiveWhole(field)); window(budget); }
+                case "calls" -> { budget.setCalls(positiveWhole(field)); window(budget); }
+                case "cost" -> { budget.setCost(money(field)); window(budget); }
+                case "when_exhausted" -> {
+                    Token v = consume(TokenType.IDENTIFIER, "Expect stop, suspend or ask after when_exhausted.");
+                    try {
+                        budget.setWhenExhausted(io.github.llm4j.loom.ast.BudgetDef.WhenExhausted.valueOf(
+                                v.getValue().toUpperCase(java.util.Locale.ROOT)));
+                    } catch (IllegalArgumentException e) {
+                        throw error(v, "when_exhausted must be stop, suspend or ask, got '" + v.getValue() + "'");
+                    }
+                }
                 case "per_call" -> {
                     if (!forAgent) throw error(field, "per_call is only allowed in an agent's budget block.");
                     budget.setPerCall((int) Math.min(Integer.MAX_VALUE, positiveWhole(field)));
@@ -824,11 +916,14 @@ public class LoomParser {
                     budget.setWarnAt(value);
                 }
                 default -> throw error(field, "Unknown budget field '" + field.getValue()
-                        + "'. Use tokens, calls, cost, warn_at" + (forAgent ? " or per_call" : "") + ".");
+                        + "'. Use tokens, calls, cost, warn_at, when_exhausted" + (forAgent ? " or per_call" : "") + ".");
             }
             match(TokenType.COMMA);
         }
         consume(TokenType.RBRACE, "Expect '}' after budget block.");
+        if (budget.getWhenExhausted() == io.github.llm4j.loom.ast.BudgetDef.WhenExhausted.SUSPEND && budget.getWindow() == null) {
+            throw error(previous(), "when_exhausted: suspend needs a budget that refills, e.g. tokens: 100000 per day");
+        }
         return budget;
     }
 

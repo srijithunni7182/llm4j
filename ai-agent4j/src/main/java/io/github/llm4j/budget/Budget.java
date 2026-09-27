@@ -34,7 +34,7 @@ public final class Budget {
     private static final AtomicLong SEQUENCE = new AtomicLong();
 
     private final String name;
-    private final Limits limits;
+    private volatile Limits limits;
     private final double warnAt;
     private final long order = SEQUENCE.incrementAndGet(); // total lock order across budgets
     final ReentrantLock lock = new ReentrantLock();
@@ -172,6 +172,27 @@ public final class Budget {
         } finally {
             lock.unlock();
         }
+    }
+
+    /**
+     * Raises the limits by {@code more} (its unset dimensions leave a limit unchanged) — for example after
+     * a person approves another allowance. The budget can refuse (and announce it) again afterwards.
+     */
+    public void raise(Limits more) {
+        lock.lock();
+        try {
+            Limits l = limits;
+            limits = new Limits(plus(l.tokens(), more.tokens()), plus(l.calls(), more.calls()),
+                    l.cost() == null || more.cost() == null ? l.cost() : l.cost().add(more.cost()));
+            exhaustedFired = false;
+            warned = false;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private static Long plus(Long limit, Long more) {
+        return limit == null || more == null ? limit : Long.valueOf(limit + more);
     }
 
     /** Adds spend recorded elsewhere (a resumed run's journaled usage). Never refuses. */
