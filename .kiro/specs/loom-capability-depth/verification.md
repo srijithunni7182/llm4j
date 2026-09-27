@@ -109,3 +109,101 @@ Unless a check says otherwise, it uses:
 | L1 | Sarvam: translate English to Hindi, detect language, speak a short text, then transcribe it back. |
 | L2 | `sarvam/sarvam-m` answers a question. |
 | L3 | Gemini-embedded facts recalled across two runs. |
+
+---
+
+## Results (2026-09-27)
+
+**N1, all suites pass:**
+
+| Suite | Tests |
+|---|---|
+| ai-agent4j | 531 (was 496) |
+| addons | 17 |
+| eval4j | 125 |
+| Loom | 353, 1 skipped (was 297) |
+| Engram | 9, 1 skipped |
+| Tantrik | 22 |
+| GetViral | 77, 4 skipped |
+
+**Spring Boot examples.** hexamind-hub, tantrik-console-server, nirmaan-yantra-server, kingini and
+gmail-mcp-app can't build offline here, because `spring-boot-maven-plugin` isn't in the local Maven cache.
+Their use of Loom is source-compatible: `LLMClientFactory` is still a functional interface, and the other
+changes only add to the API.
+
+**Where each part of the plan is covered:**
+
+| Plan section | Test classes |
+|---|---|
+| V1 | `depth/MemoryTest` |
+| V2 | `depth/VoiceAndLanguageTest` (Sarvam on MockWebServer), plus the library's `SarvamFixesTest` and `ReActAgentMemoryAndVoiceSettingsTest` |
+| V3 | `depth/ProvidersTest` (real Sarvam and Ollama providers against MockWebServer) |
+| V4 | `depth/GraphTest`, `FileGraphStoreTest` |
+| V5 | `depth/GuardTest`, `MaskingLLMClientTest`, `RuleBasedBiasMonitorTest`, `LLMBiasMonitorTest` |
+| V6 and V7 | `depth/SkillsAndPersonasTest` |
+| V8 | `depth/TraceTest`, including `weave run --trace` and `--trace=json` |
+| N2 | `RepositoryScriptsTest` (the new `docs/depth_examples.loom` included) |
+| N3 | `DocumentedExamplesTest` |
+| N6 | `depth/CheckCallsNothingTest` |
+| Also | `depth/PayloadSubstitutionTest` and `tools/SafePathsTest` (see below) |
+
+**N4:** no new runtime dependencies. Tantrik gained `junit-jupiter-params` at test scope; its test already
+used it.
+
+**N5, coverage of the new classes:**
+
+| Classes | Lines | Branches |
+|---|---|---|
+| Loom (`AgentMemory`, `AgentGuard`, `AgentVoice`, `LanguageTools`, `GraphKind`, `SafePaths`, `DefaultLLMClientFactory`, `ConsoleTrace`, …) | 95.4% | 80.5% |
+| ai-agent4j (`FileMemoryVectorStore`, `FileGraphStore`, `MaskingLLMClient`, `RuleBasedBiasMonitor`, `LLMBiasMonitor`) | 98.3% | 87.8% |
+
+### Found and fixed along the way
+
+- **Personal data leaked back into payloads.** Payload substitution rescanned inserted values for bare
+  variable names. Found while testing `pii: block`: `_error` said "the task for Support…", and the word
+  *task* was replaced by the task's own text, email included. Now `{name}` and `{a.b}` values are inserted
+  as-is, and bare names (the legacy form) are replaced only in the script's own text, in one pass, longest
+  name first.
+- **Loom's Ollama calls never reached Ollama.** Loom passed `http://localhost:11434`, but the provider
+  appends `/chat` to an `/api` root, so every call went to `/chat` and got a 404. Base URLs are now
+  normalised, and `http://host:11434` works.
+- **Personas.**
+  - An agent with both `persona:` and `system:` silently lost its `system:` prompt.
+  - An unknown persona silently fell back.
+  - `system_template` with no prompt registry silently fell back.
+
+  All three now behave as the spec says. The boardroom sample used three personas that never existed;
+  they are now declared in it.
+- **LOOM_PROMPT taught syntax that never existed**: an inline `knowledge { type: "RAG" }`,
+  `memory { type: "SEMANTIC" }`, and `gpt-4o` routing. It now shows real syntax, which matters when models
+  write Loom from it.
+- **Sarvam** (ai-agent4j):
+  - language detection called a guessed endpoint;
+  - speech-to-text hard-coded its model;
+  - chat ignored the configured model;
+  - `ReActAgent.toBuilder()` dropped the speech language and model.
+- **Symbolic links.** Paths are checked with symbolic links resolved, so a link inside the script's
+  directory can't be used to read or write outside it (`SafePathsTest`).
+
+### Deviations from the design
+
+1. **Loom manages agent memory itself.** Recall uses the step's resolved task, not the whole
+   context-carrying prompt, and the conversation records that task rather than the full briefing. This
+   gives cleaner prompts and exact control on replay. The originally planned per-delegate agent rebuild
+   wasn't needed. `ReActAgent.semanticRecall` was still added for library users.
+2. **`SarvamServices` became part of `LanguageTools`.**
+3. **URLs are not treated as PII.** PII means personal identifiers (email, phone, SSN, card, IP address).
+   Agents routinely need URLs; `MaskingLLMClient` can be given any types.
+4. **Model-name checks and host factories.** `weave check` checks model names with the environment's
+   client factory. Host factories are trusted with their own names, as the repository sweep is:
+   GetViral's `studio` and test mocks are resolved by their hosts.
+5. **Small usability additions**:
+   - problems are listed in line order;
+   - routing accepts `strategy: fallback` unquoted, and `fallbacks:` as an alias of `fallback:`.
+
+### Open
+
+- **L1–L3** (task 12): live Sarvam (needs `SARVAM_API_KEY`) and Gemini facts (needs `GEMINI_API_KEY`).
+  Sarvam's `/text-lid` path and response fields follow its public API and are checked only against the
+  mock until L1 runs.
+- **OpenAI and Anthropic chat providers.** This is a library gap, outside this spec.

@@ -104,6 +104,37 @@ class DocumentedExamplesTest {
     }
 
     @Test
+    void theMemoryVoiceProviderPersonaGraphAndGuardExamplesParse() throws Exception {
+        String source;
+        try (var in = getClass().getResourceAsStream("/docs/depth_examples.loom")) {
+            source = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        LoomScript script = new LoomParser(new Lexer(source).tokenize()).parseScript();
+        assertEquals(2, script.getProviders().size());
+        assertEquals("ollama", script.getProviders().get(0).getKind());
+        assertTrue(script.getProviders().get(1).getOptions().get("api_key").fromEnv());
+        assertEquals("Mentor", script.getPersonas().get(0).getName());
+        assertEquals(2, script.getPersonas().get(0).getConstraints().size());
+        var concierge = script.getAgents().get(0).getMemory();
+        assertEquals("chats", concierge.getConversation());
+        assertEquals("{user_id}", concierge.getSession());
+        assertEquals(0.7, concierge.getMinSimilarity());
+        assertEquals("sarvam/bulbul:v2", script.getAgents().get(1).getVoice().getSpeak());
+        assertEquals("replies", script.getAgents().get(1).getVoice().getOut());
+        assertEquals("Mentor", script.getAgents().get(4).getPersona());
+        assertEquals("mask", script.getAgents().get(5).getGuard().getPii());
+        assertEquals("fallback", script.getRoutingPolicies().get(0).getStrategy());
+        assertEquals(java.util.List.of("gemini-2.5-flash", "Box/gemma3"), script.getRoutingPolicies().get(0).getFallbackModels());
+        // and the guide's one-liners
+        new LoomParser(new Lexer("""
+                agent A { model: "m" memory { conversation: "chats"  session: "{user_id}" }
+                          voice  { speak: "sarvam/bulbul:v2"  language: "hi-IN" }
+                          guard  { pii: mask  bias: warn } }
+                agent B { model: "m" skills: ["https://skills.example.com/refunds.md"] }
+                """).tokenize()).parseScript();
+    }
+
+    @Test
     void aBareListHoldsAnything() {
         LoomScript script = new LoomParser(new Lexer("""
                 agent A { model: "m" output_schema: { items: list, names: list<string> } }

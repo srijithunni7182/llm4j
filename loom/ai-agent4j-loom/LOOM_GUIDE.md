@@ -71,6 +71,8 @@ Exit codes: `0` done, `1` failed, `2` bad options, `3` stopped by a budget, `4` 
 ```bash
 weave check digest.loom          # every problem, with its line — without running anything or spending
 weave run digest.loom --lenient  # accept not-yet-supported syntax as warnings while migrating
+weave run digest.loom --trace    # watch agents think, call tools and spend, live, on stderr
+weave run digest.loom --trace=json   # the same as JSON lines, for tools and dashboards
 ```
 
 ### 2. Packaging for Deployment (`package`)
@@ -97,9 +99,9 @@ governance, all declared in the script.
 ### Agent Definition Syntax
 ```loom
 agent Analyst {
-    model: "gemini-2.5-flash"
-    persona: "technicalAnalyst"          // a PersonaLibrary persona (optional)
-    system: "You are an analyst specialising in {domain}."
+    model: "gemini-2.5-flash"            // or "sarvam/sarvam-m", "ollama/llama3", "Box/llama3" (a declared provider)
+    persona: Mentor                      // a persona declared in the script, or a PersonaLibrary one ("technicalAnalyst")
+    system: "You are an analyst specialising in {domain}."   // follows the persona when both are given
     temperature: 0.3                     // 0.0–2.0: creative roles high, checkers low
     max_iterations: 8                    // how many reasoning steps it may take
 
@@ -109,6 +111,9 @@ agent Analyst {
     approve: [Search]                    // tool calls that need a person's yes
     routing: HighReliability             // a routing policy
     budget { tokens: 20000  per_call: 2000 }
+    memory { conversation: "chats"  session: "{user_id}" }   // remembers each user's conversation
+    voice  { speak: "sarvam/bulbul:v2"  language: "hi-IN" }  // speaks its answers
+    guard  { pii: mask  bias: warn }                        // keeps personal data from the model
 }
 ```
 
@@ -116,8 +121,8 @@ Every setting takes effect, and anything Loom can't honour is rejected before th
 line number. `weave check` runs those checks without running anything.
 
 **Not supported yet** (rejected with a clear message; `--lenient` turns them into warnings while you
-migrate): an agent `memory { }` block (workflow context comes from Loom's memory engine), and guardrail
-types other than `PII`. Voice, language services and agent long-term memory are planned.
+migrate): guardrail statement types other than `PII` (use an agent's `guard { }` for bias). OpenAI and
+Anthropic chat models aren't available yet: ai-agent4j has no provider for them.
 
 ### Tools, Knowledge and Approvals
 
@@ -138,9 +143,13 @@ tool Invoices { use: class  class: "com.acme.tools.InvoiceTool" }     // any no-
 | `openapi` | `spec` (path or URL), and optionally `auth_header` or `auth_query` with `auth_value` (env) |
 | `calculator`, `datetime`, `current_time` | none |
 | `class` | `class` |
+| `translate`, `transliterate`, `detect_language`, `speak`, `transcribe` | see [Memory, Voice and Languages](#memory-voice-and-languages) |
+| `knowledge_graph` | `store` (file or `memory`), `read_only?` |
+| `skill_registry` | `url`, `api_key?` (env) |
 
 - **Built-ins** work by name with no declaration: `web_search` (DuckDuckGo), `calculator`, `datetime`,
-  `current_time`.
+  `current_time`, and the language tools `translate`, `transliterate`, `detect_language`, `speak`,
+  `transcribe` (with `SARVAM_API_KEY`).
 - A name in `tools:` is looked up in the script's declarations, then in tools the host registered
   (`.loot` or Java), then among the built-ins. The model sees the name you gave the tool.
 - Hosts can add their own kinds with `executor.addToolKind(...)`.
@@ -188,16 +197,161 @@ agent Publisher {
 - **Audited**: `approval_requested`, `approval_granted` and `approval_rejected` are logged, with personal
   data masked.
 
+### Memory, Voice and Languages
+
+**Agent memory** lets an agent remember conversations and facts across runs. It's separate from Loom's
+memory engine, which passes context between the steps of one run.
+
+```loom
+agent Concierge {
+    model: "gemini-2.5-flash"
+    memory {
+        conversation: "chats"            // a directory (kept across runs), or memory
+        limit: 20                        // messages put in front of each task (default 20)
+        session: "{user_id}"             // whose conversation; default: the agent's name
+        facts: "memory/facts.json"       // long-term facts (a file, or memory)
+        embedding: "gemini/text-embedding-004"   // needed with facts
+        recall: 5                        // facts recalled per task (default 5)
+        min_similarity: 0.7              // how close a fact must be (default 0.7)
+    }
+}
+```
+
+- **Conversation**: before each delegate, the session's earlier messages come first. After an answer, the
+  task and the answer are added.
+- **Sessions**: `session` is resolved from the workflow's variables on every delegate, so one agent can
+  serve many users, and they never see each other's messages or facts.
+- **Facts**: the agent gets a `save_memory_fact` tool. Facts relevant to a task are recalled by meaning
+  before it starts.
+- **Resumed runs**: a replayed step neither recalls nor records.
+- **Cost and audit**: embeddings aren't charged to budgets. Each recall is audited as `memory_recalled`.
+
+**Language and voice tools** (Sarvam, with the key in `SARVAM_API_KEY`) work by name, like the other
+built-ins:
+
+| Tool | Does |
+|---|---|
+| `translate` | `text`, `target` (e.g. `hi-IN` or `Hindi`), optional `source` |
+| `transliterate` | writes `text` in another script (`target`) |
+| `detect_language` | returns a language code |
+| `speak` | saves speech as a WAV under `audio/` and returns its path |
+| `transcribe` | turns an audio file (`path`) into text |
+
+Declare one to set defaults:
+
+```loom
+tool Hindi { use: translate  target: "hi-IN" }
+tool Say   { use: speak  language: "ta-IN"  voice: "anushka"  out: "replies" }
+```
+
+Every kind also takes `api_key: env.X` and `base_url`. Files are only read and written inside the script's
+directory.
+
+An agent's **`voice`** makes the agent itself listen and speak:
+
+```loom
+agent Helpline {
+    model: "gemini-2.5-flash"
+    voice {
+        listen: "sarvam/saarika:v2.5"
+        speak: "sarvam/bulbul:v2"
+        language: "hi-IN"
+        voice: "anushka"
+        out: "replies"
+    }
+}
+
+workflow Main(recording) {
+    delegate "{recording}" to Helpline -> answer   // recording = "calls/q1.wav": the agent hears it
+    note "Spoken reply: {answer_audio}"       // replies/answer-….wav
+}
+```
+
+- **Listening**: a task that is just the path of an audio file (wav, mp3, ogg, flac, m4a, aac, webm) is
+  transcribed first.
+- **Speaking**: the answer is spoken to a WAV file, and its path goes into `<result>_audio`. A resumed run
+  restores that path without speaking again.
+- **Failures**: if speaking or listening fails, the step fails, and `on_failure` gets `_error`.
+
+### Models and Providers
+
+`model:` understands these names:
+
+- `gemini-…` (key in `GEMINI_API_KEY`);
+- `ollama/<model>` (at `OLLAMA_BASE_URL`, default `http://localhost:11434`);
+- `sarvam/<model>` (`SARVAM_API_KEY`).
+
+To reach a specific endpoint with its own key, declare a **provider**:
+
+```loom
+provider Box    { use: ollama  base_url: "http://gpu-box:11434" }
+provider Team   { use: sarvam  api_key: env.TEAM_SARVAM_KEY }
+
+agent Local  { model: "Box/llama3" }
+agent Indic  { model: "Team/sarvam-m" }
+```
+
+- `use:` is `gemini`, `ollama` or `sarvam`.
+- `api_key` must come from the environment.
+- Declared providers work in routing policies too.
+- An unknown model, or a missing key, is reported when the script loads.
+
 ### Model Routing Policies
 Define global policies to manage costs and reliability across different LLM providers.
 
 ```loom
 routing HighReliability {
-    strategy: "fallback"                 // fallback: in the order written | cost_aware (default)
+    strategy: fallback                   // fallback: in the order written | cost_aware (default)
     primary: "gemini-2.5-pro"
-    fallback: ["gemini-2.5-flash", "ollama/gemma3"]
+    fallback: ["gemini-2.5-flash", "Box/gemma3"]
 }
 ```
+
+### Personas, Skills and Knowledge Graphs
+
+**Personas** can be declared in the script. An agent's `system:` prompt follows its persona:
+
+```loom
+persona Mentor {
+    role: "senior engineer who mentors juniors"
+    expertise: "Java, testing"
+    tone: "patient"
+    description: "Explains the why before the how."
+    constraints: ["Never write the code for them", "Ask one question at a time"]
+}
+
+agent Coach { model: "gemini-2.5-flash"  persona: Mentor  system: "Review the student's pull request." }
+```
+
+- `persona:` looks for a persona declared in the script first, then for one of the `PersonaLibrary`
+  personas (`technicalAnalyst`, `softwareDeveloper`, …).
+- An unknown persona is a load error, and so is a `system_template` with no prompt registry.
+
+**Skills** can live at a URL:
+
+```loom
+skills: ["https://skills.example.com/refunds.md"]    // http:// only for localhost
+```
+
+- Remote skills are fetched when the script loads.
+- A skill that can't be fetched fails the load.
+
+A **skill registry** tool lets an agent find and read skills itself:
+
+```loom
+tool Skills { use: skill_registry  url: "https://skills.example.com/api"  api_key: env.SKILLS_KEY }
+```
+
+**Knowledge graphs** record entities and relations, and persist them:
+
+```loom
+tool Graph { use: knowledge_graph  store: "graphs/customers.json" }   // or store: memory
+tool Facts { use: knowledge_graph  store: "graphs/customers.json"  read_only: true }
+```
+
+- The agent calls `Graph` with `action: "add"` (a subject, a predicate and an object) or `action: "query"`
+  (by entity id, by type, or by relations from an entity).
+- Declarations naming the same file share one graph.
 
 ---
 
@@ -248,6 +402,35 @@ workflow ApprovedTransfer(amount) {
 ---
 
 ## 🛡️ 4. Enterprise Safety & Lifecycle
+
+### Agent Guards
+
+An agent's `guard` protects everything it does:
+
+```loom
+agent Support {
+    model: "gemini-2.5-flash"
+    guard {
+        pii: mask                        // mask | block | warn
+        bias: warn                       // warn | block
+        bias_model: "gemini-2.5-flash"   // optional: a model judges bias instead of rules
+    }
+}
+```
+
+- **`pii: mask`**: every message the agent sends its model has emails, phone numbers, SSNs, card numbers
+  and IP addresses replaced by placeholders (`[EMAIL]`). That covers the task, context, memory and tool
+  results. The answer is masked before it is stored.
+- **`pii: block`**: a task or an answer that contains personal data fails the step. `_error` names the
+  kinds of data, never the values.
+- **`pii: warn`**: records `pii_detected` and carries on.
+- **`bias`**: the answer is checked. The default check uses rules that catch sweeping statements about
+  groups of people; `bias_model` asks a model instead, charged to your budgets. Findings are audited as
+  `bias_detected`, and `block` fails the step when a finding is HIGH or CRITICAL.
+- **Audit and resumed runs**: the audit log records counts and kinds, never the data itself. Replayed
+  steps aren't checked again.
+
+URLs are not treated as personal data.
 
 ### PII Guardrails
 You can wrap statement blocks in guardrails to prevent sensitive data leakage.
@@ -601,6 +784,27 @@ workflow Main() {
 ### Scheduled Background Tasks
 Recurring work is declared with `schedule` blocks — see [Schedules and Triggers](#schedules-and-triggers)
 for cron schedules, scheduled workflows and keeping them across restarts.
+
+### Live Trace
+
+`weave run --trace` shows what agents do as they do it, on stderr:
+
+```text
+09:14:02 [Main/s0] Researcher  ▶ Find three sources on {topic}
+09:14:03 [Main/s0] Researcher  💭 I should search first
+09:14:03 [Main/s0] Researcher  🔧 Search {"query": "neuro-symbolic AI"}
+09:14:04 [Main/s0] Researcher  👁 1. Neuro-symbolic AI survey …
+09:14:06 [Main/s0] Researcher  ✔ Here are three sources …
+```
+
+- `--trace=json` prints one JSON object per line.
+- From Java, `executor.addTraceListener(event -> …)` (added before `initialize()`) receives the same events:
+  - delegates starting, ending or replayed;
+  - thoughts, tool calls and observations;
+  - spend;
+  - approvals;
+  - memory, guard and voice events;
+  - pauses.
 
 ### Observability
 Use `observe` to log the state of variables at specific points for tracing.

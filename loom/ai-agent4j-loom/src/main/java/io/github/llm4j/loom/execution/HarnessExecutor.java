@@ -2193,37 +2193,50 @@ public class HarnessExecutor implements LoomEngine {
             java.util.regex.Pattern.compile("\\{([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+)}");
 
     private String resolvePayload(String rawPayload) {
-        String resolved = rawPayload;
-
-        // Phase 0: {var.field.sub} paths into structured results (maps and lists), e.g. {report.verdict}
-        // or {plan.hooks.0}.
-        // Runs first so the bare-name phase below can't rewrite the variable name inside the braces.
-        java.util.regex.Matcher paths = PAYLOAD_PATH.matcher(resolved);
-        StringBuilder withPaths = new StringBuilder();
-        while (paths.find()) {
-            Object value = io.github.llm4j.loom.runtime.ConditionEvaluator.resolvePath(paths.group(1), view());
-            // Like conditions, a missing field reads as empty (e.g. a step that failed and set nothing).
-            String replacement = value != null ? String.valueOf(value) : "";
-            paths.appendReplacement(withPaths, java.util.regex.Matcher.quoteReplacement(replacement));
+        if (rawPayload == null) return null;
+        // {name} and {var.field.sub} are replaced by values; bare names (the legacy form) only in the text the
+        // script wrote — never inside a value just inserted, so one variable's text can't rewrite another's.
+        VariableContext scope = view();
+        Map<String, Object> vars = scope.getAll();
+        java.util.regex.Matcher m = PLACEHOLDER.matcher(rawPayload);
+        StringBuilder out = new StringBuilder();
+        int last = 0;
+        while (m.find()) {
+            out.append(bareNames(rawPayload.substring(last, m.start())));
+            String name = m.group(1);
+            if (PAYLOAD_PATH.matcher(m.group()).matches()) {
+                // Like conditions, a missing field reads as empty (e.g. a step that failed and set nothing).
+                Object value = io.github.llm4j.loom.runtime.ConditionEvaluator.resolvePath(name, scope);
+                out.append(value != null ? String.valueOf(value) : "");
+            } else if (vars.containsKey(name)) {
+                out.append(String.valueOf(vars.get(name)));
+            } else {
+                out.append(m.group()); // not a variable: left as written
+            }
+            last = m.end();
         }
-        paths.appendTail(withPaths);
-        resolved = withPaths.toString();
+        out.append(bareNames(rawPayload.substring(last)));
+        return out.toString();
+    }
 
-        // Phase 1: delimited {varName} substitution — collision-safe, preferred syntax.
-        for (Map.Entry<String, Object> entry : view().getAll().entrySet()) {
-            resolved = resolved.replace("{" + entry.getKey() + "}", String.valueOf(entry.getValue()));
-        }
+    private static final java.util.regex.Pattern PLACEHOLDER = java.util.regex.Pattern.compile("\\{([^{}\\s]+)}");
 
-        // Phase 2: bare-name substitution for backward compatibility with existing .loom scripts.
-        // Workflow variables only: block-local names (for each items, _error) are common words, so they
-        // must be written {like.this}.
-        java.util.List<Map.Entry<String, Object>> entries = new java.util.ArrayList<>(context.getAll().entrySet());
-        entries.sort((a, b) -> Integer.compare(b.getKey().length(), a.getKey().length()));
-        for (Map.Entry<String, Object> entry : entries) {
-            resolved = resolved.replace(entry.getKey(), String.valueOf(entry.getValue()));
-        }
-
-        return resolved;
+    /**
+     * Bare-name substitution, for backward compatibility with older scripts. Workflow variables only:
+     * block-local names (for each items, _error) are common words, so they must be written {like.this}.
+     */
+    private String bareNames(String text) {
+        if (text.isEmpty()) return text;
+        Map<String, Object> vars = context.getAll();
+        if (vars.isEmpty()) return text;
+        // One pass, longest names first: a value put in is never scanned again.
+        String alternatives = vars.keySet().stream().filter(k -> !k.isEmpty())
+                .sorted((x, y) -> Integer.compare(y.length(), x.length()))
+                .map(java.util.regex.Pattern::quote)
+                .collect(java.util.stream.Collectors.joining("|"));
+        if (alternatives.isEmpty()) return text;
+        return java.util.regex.Pattern.compile(alternatives).matcher(text)
+                .replaceAll(r -> java.util.regex.Matcher.quoteReplacement(String.valueOf(vars.get(r.group()))));
     }
 
     /**

@@ -1,7 +1,8 @@
 # Gap Analysis: ai-agent4j Capabilities vs. What Loom Exposes
 
-*Status: P0 and P1 are implemented (see `requirements.md` … `verification.md` in this folder). P2 and
-later remain open.*
+*Status: P0 and P1 are implemented (spec in this folder); P2 and P3 are implemented (spec in
+[`../loom-capability-depth/`](../loom-capability-depth/)). What remains is the "Library" row: OpenAI and
+Anthropic chat providers in ai-agent4j.*
 
 ## 1. Summary
 

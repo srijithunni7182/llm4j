@@ -116,6 +116,20 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**max_iterations** `: N`\n\nOn an agent: the most reasoning steps it may take for one task.',
     source:
         '**source** `: "docs/"`\n\nIn a `knowledge` block: a file or directory of md, txt, html, json or csv files.',
+    provider:
+        '**provider** `Name { use: gemini | ollama | sarvam  base_url: "…"  api_key: env.X }`\n\nA model endpoint with its own key. Agents use it as `model: "Name/<model>"`.',
+    persona:
+        '**persona** `Name { role: "…" expertise: "…" tone: "…" constraints: ["…"] }`\n\nA persona for agents (`persona: Name`); an agent\'s `system:` prompt follows it.',
+    memory:
+        '**memory** `{ conversation: "chats"  session: "{user}"  facts: "facts.json"  embedding: "…" }`\n\nOn an agent: its conversation per session and long-term facts, kept across runs.',
+    voice:
+        '**voice** `{ listen: "sarvam/…"  speak: "sarvam/…"  language: "hi-IN" }`\n\nOn an agent: audio-file tasks are transcribed; answers are spoken to `{result_audio}`.',
+    guard:
+        '**guard** `{ pii: mask | block | warn  bias: warn | block  bias_model: "…" }`\n\nOn an agent: keeps personal data from the model and out of results; checks answers for bias.',
+    session:
+        '**session** `: "{user_id}"`\n\nIn `memory`: whose conversation and facts; resolved per delegate (default: the agent\'s name).',
+    facts:
+        '**facts** `: "memory/facts.json" | memory`\n\nIn `memory`: long-term facts the agent saves with `save_memory_fact`, recalled by meaning (needs `embedding`).',
     top_k:
         '**top_k** `: 4`\n\nIn a `knowledge` block: how many passages each question retrieves.',
     per:

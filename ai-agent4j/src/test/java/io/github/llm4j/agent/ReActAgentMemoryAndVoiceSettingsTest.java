@@ -67,4 +67,23 @@ class ReActAgentMemoryAndVoiceSettingsTest {
         assertEquals("bulbul:v2", request.getValue().getModel().orElseThrow());
         assertEquals("hi-IN", request.getValue().getTargetLanguageCode().orElseThrow());
     }
+
+    @Test
+    void agentResultToBuilderCopiesEverything() {
+        AgentResult original = AgentResult.builder().finalAnswer("secret a@b.io").iterations(3).completed(true)
+                .uncertaintyDetected(true).uncertaintyReason("why").redundantActionCount(2).protocolFollowed(false)
+                .usage(new AgentResult.Usage(2, 10, 5, 15, false, null))
+                .addStep(new AgentResult.AgentStep("t", "a", "i", "o", AgentResult.StepOutcome.EXECUTED)).build();
+        AgentResult copy = original.toBuilder().finalAnswer("secret [EMAIL]").build();
+        assertEquals("secret [EMAIL]", copy.getFinalAnswer());
+        assertEquals(3, copy.getIterations());
+        assertTrue(copy.isCompleted());
+        assertTrue(copy.isUncertaintyDetected());
+        assertEquals("why", copy.getUncertaintyReason());
+        assertEquals(2, copy.getRedundantActionCount());
+        assertFalse(copy.isProtocolFollowed());
+        assertEquals(15, copy.getUsage().getTotalTokens());
+        assertEquals(1, copy.getSteps().size());
+        assertEquals("secret a@b.io", original.getFinalAnswer());
+    }
 }
