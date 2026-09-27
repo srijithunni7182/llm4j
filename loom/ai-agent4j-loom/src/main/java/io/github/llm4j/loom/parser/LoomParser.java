@@ -36,6 +36,13 @@ public class LoomParser {
                 script.addSchedule(parseSchedule());
             } else if (match(TokenType.TOOL)) {
                 script.addTool(parseToolDef());
+            } else if (isNamedBlock("provider")) {
+                advance();
+                script.addProvider(parseProviderDef());
+            } else if (check(TokenType.PERSONA) && tokens.size() > current + 1
+                    && tokens.get(current + 1).getType() == TokenType.IDENTIFIER) {
+                advance();
+                script.addPersona(parsePersonaDef());
             } else if (isBudgetKeyword()) {
                 // Contextual keyword: `budget` stays usable as a variable name everywhere else.
                 Token keyword = advance();
@@ -46,7 +53,7 @@ public class LoomParser {
                 if (script.getRateLimits() != null) throw error(keyword, "Only one rate_limits block is allowed.");
                 script.setRateLimits(parseRateLimits());
             } else {
-                throw error(peek(), "Expected 'agent', 'workflow', 'tool', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: " + peek().getType());
+                throw error(peek(), "Expected 'agent', 'workflow', 'tool', 'provider', 'persona', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: " + peek().getType());
             }
         }
 
@@ -80,7 +87,8 @@ public class LoomParser {
                 agent.setSystemTemplate(tmpl.getValue());
             } else if (match(TokenType.PERSONA)) {
                 consume(TokenType.COLON, "Expect ':' after persona.");
-                Token personaToken = consume(TokenType.STRING_LITERAL, "Expect string literal for persona name.");
+                Token personaToken = check(TokenType.IDENTIFIER) ? advance()
+                        : consume(TokenType.STRING_LITERAL, "Expect a persona name, e.g. persona: Mentor");
                 agent.setPersona(personaToken.getValue());
             } else if (match(TokenType.TOOLS)) {
                 consume(TokenType.COLON, "Expect ':' after tools.");
@@ -114,9 +122,16 @@ public class LoomParser {
                 consume(TokenType.RBRACKET, "Expect ']' after skills list.");
             } else if (match(TokenType.MEMORY)) {
                 int memoryLine = previous().getLine();
-                consume(TokenType.COLON, "Expect ':' after memory.");
-                agent.setMemory(parseMemoryConfig());
-                agent.getMemory().setLine(memoryLine);
+                match(TokenType.COLON);
+                agent.setMemory(parseSettings(new AgentDef.MemoryConfig(), "memory", memoryLine));
+            } else if (isSettingsBlock("voice")) {
+                int line = advance().getLine();
+                match(TokenType.COLON);
+                agent.setVoice(parseSettings(new AgentDef.VoiceConfig(), "voice", line));
+            } else if (isSettingsBlock("guard")) {
+                int line = advance().getLine();
+                match(TokenType.COLON);
+                agent.setGuard(parseSettings(new AgentDef.GuardConfig(), "guard", line));
             } else if (match(TokenType.ROUTING)) {
                 consume(TokenType.COLON, "Expect ':' after routing.");
                 Token policyToken = consume(TokenType.IDENTIFIER, "Expect routing policy name.");
@@ -684,11 +699,12 @@ public class LoomParser {
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
             if (match(TokenType.STRATEGY)) {
                 consume(TokenType.COLON, "Expect ':' after strategy.");
-                rp.setStrategy(consume(TokenType.STRING_LITERAL, "Expect strategy string.").getValue());
+                rp.setStrategy(check(TokenType.STRING_LITERAL) ? advance().getValue()
+                        : word("Expect a strategy: cost_aware or fallback").getValue());
             } else if (match(TokenType.PRIMARY)) {
                 consume(TokenType.COLON, "Expect ':' after primary.");
                 rp.setPrimaryModel(consume(TokenType.STRING_LITERAL, "Expect primary model string.").getValue());
-            } else if (match(TokenType.FALLBACK)) {
+            } else if (match(TokenType.FALLBACK) || (check(TokenType.IDENTIFIER) && "fallbacks".equals(peek().getValue()) && advance() != null)) {
                 consume(TokenType.COLON, "Expect ':' after fallback.");
                 consume(TokenType.LBRACKET, "Expect '['.");
                 if (!check(TokenType.RBRACKET)) {
@@ -705,28 +721,93 @@ public class LoomParser {
         return rp;
     }
 
-    private AgentDef.MemoryConfig parseMemoryConfig() {
-        AgentDef.MemoryConfig cfg = new AgentDef.MemoryConfig();
-        consume(TokenType.LBRACE, "Expect '{' before memory config.");
+    /** {@code { key: value … }} into a settings block; keys and values are checked at load time. */
+    private <T extends Settings> T parseSettings(T settings, String what, int line) {
+        settings.setLine(line);
+        consume(TokenType.LBRACE, "Expect '{' after " + what + ".");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
-            if (match(TokenType.TYPE)) {
-                consume(TokenType.COLON, "Expect ':' after type.");
-                cfg.setType(consume(TokenType.STRING_LITERAL, "Expect memory type string.").getValue());
-            } else if (match(TokenType.PATH)) {
-                consume(TokenType.COLON, "Expect ':' after path.");
-                cfg.setPath(consume(TokenType.STRING_LITERAL, "Expect path string.").getValue());
-            } else if (match(TokenType.NUMBER_LITERAL)) { // Assume this was mean to be a limit? Wait, I need a keyword
-                 // Actually I'll use match(TokenType.IDENTIFIER) and check if it's "limit"
-            } else if (peek().getType() == TokenType.IDENTIFIER && peek().getValue().equals("limit")) {
-                advance();
-                consume(TokenType.COLON, "Expect ':'.");
-                cfg.setLimit(Integer.parseInt(consume(TokenType.NUMBER_LITERAL, "Expect number.").getValue()));
-            } else {
-                throw error(peek(), "Unexpected token in memory body: " + peek().getType());
-            }
+            Token key = word("Expect a " + what + " setting, e.g. key: value");
+            consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
+            if (settings.has(key.getValue())) throw error(key, key.getValue() + " is given twice in " + what);
+            settings.put(key.getValue(), optionValue(), key.getLine());
+            match(TokenType.COMMA);
         }
-        consume(TokenType.RBRACE, "Expect '}' after memory config.");
-        return cfg;
+        consume(TokenType.RBRACE, "Expect '}' after " + what + " settings.");
+        return settings;
+    }
+
+    /** {@code voice {} / guard {}}: a contextual keyword followed by a block (with an optional colon). */
+    private boolean isSettingsBlock(String name) {
+        if (!check(TokenType.IDENTIFIER) || !name.equals(peek().getValue()) || tokens.size() <= current + 1) return false;
+        TokenType next = tokens.get(current + 1).getType();
+        return next == TokenType.LBRACE
+                || next == TokenType.COLON && tokens.size() > current + 2 && tokens.get(current + 2).getType() == TokenType.LBRACE;
+    }
+
+    /** A contextual keyword followed by a name and a block: {@code provider Box { … }}. */
+    private boolean isNamedBlock(String name) {
+        return check(TokenType.IDENTIFIER) && name.equals(peek().getValue()) && tokens.size() > current + 2
+                && tokens.get(current + 1).getType() == TokenType.IDENTIFIER
+                && tokens.get(current + 2).getType() == TokenType.LBRACE;
+    }
+
+    private ProviderDef parseProviderDef() {
+        Token name = consume(TokenType.IDENTIFIER, "Expect a provider name, e.g. provider Box { use: ollama }");
+        ProviderDef provider = new ProviderDef(name.getValue());
+        provider.setLine(name.getLine());
+        consume(TokenType.LBRACE, "Expect '{' after provider " + name.getValue() + ".");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token key = word("Expect a provider option, e.g. use: ollama");
+            consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
+            if (key.getValue().equals("use")) {
+                provider.setKind(word("Expect a provider kind after use:, e.g. use: ollama").getValue());
+            } else {
+                if (provider.getOptions().containsKey(key.getValue())) throw error(key, "option " + key.getValue() + " is given twice");
+                provider.getOptions().put(key.getValue(), optionValue());
+            }
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after provider " + name.getValue() + ".");
+        if (provider.getKind() == null) throw error(name, "provider " + name.getValue() + " needs use: gemini | ollama | sarvam");
+        return provider;
+    }
+
+    private PersonaDef parsePersonaDef() {
+        Token name = consume(TokenType.IDENTIFIER, "Expect a persona name, e.g. persona Mentor { role: \"…\" }");
+        PersonaDef persona = new PersonaDef(name.getValue());
+        persona.setLine(name.getLine());
+        consume(TokenType.LBRACE, "Expect '{' after persona " + name.getValue() + ".");
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token key = word("Expect a persona field: role, expertise, tone, description or constraints");
+            consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
+            if (!seen.add(key.getValue())) throw error(key, key.getValue() + " is given twice in persona " + name.getValue());
+            switch (key.getValue()) {
+                case "role" -> persona.setRole(personaText(key));
+                case "expertise" -> persona.setExpertise(personaText(key));
+                case "tone" -> persona.setTone(personaText(key));
+                case "description" -> persona.setDescription(personaText(key));
+                case "constraints" -> {
+                    consume(TokenType.LBRACKET, "Expect [\"…\", …] after constraints:");
+                    if (!check(TokenType.RBRACKET)) {
+                        do {
+                            persona.getConstraints().add(consume(TokenType.STRING_LITERAL, "Expect a constraint (string).").getValue());
+                        } while (match(TokenType.COMMA));
+                    }
+                    consume(TokenType.RBRACKET, "Expect ']' after constraints.");
+                }
+                default -> throw error(key, "unknown persona field " + key.getValue()
+                        + "; use role, expertise, tone, description or constraints");
+            }
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after persona " + name.getValue() + ".");
+        if (persona.getRole() == null) throw error(name, "persona " + name.getValue() + " needs role: \"…\"");
+        return persona;
+    }
+
+    private String personaText(Token key) {
+        return consume(TokenType.STRING_LITERAL, "Expect a string after " + key.getValue() + ":").getValue();
     }
 
     private GuardrailStmt parseGuardrailStatement() {

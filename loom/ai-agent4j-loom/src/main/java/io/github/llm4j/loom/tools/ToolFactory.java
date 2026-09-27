@@ -31,7 +31,12 @@ public final class ToolFactory {
             "web_search", "duckduckgo",
             "calculator", "calculator",
             "datetime", "datetime",
-            "current_time", "current_time");
+            "current_time", "current_time",
+            "translate", "translate",
+            "transliterate", "transliterate",
+            "detect_language", "detect_language",
+            "speak", "speak",
+            "transcribe", "transcribe");
 
     private final Map<String, ToolKind> kinds = new LinkedHashMap<>();
 
@@ -96,6 +101,13 @@ public final class ToolFactory {
             }
             return (Tool) c.getDeclaredConstructor().newInstance();
         }));
+        LanguageTools.registerAll(this);
+        register(new GraphKind());
+        register(simple("skill_registry", Set.of("url"), Set.of("api_key"), Set.of("api_key"), (n, o, dir) -> {
+            io.github.llm4j.agent.skill.RestSkillRegistry.Builder b = io.github.llm4j.agent.skill.RestSkillRegistry.builder().baseUrl(o.get("url"));
+            if (o.containsKey("api_key")) b.apiKey(o.get("api_key"));
+            return new io.github.llm4j.agent.tool.SkillDiscoveryTool(b.build());
+        }));
     }
 
     @FunctionalInterface
@@ -156,6 +168,11 @@ public final class ToolFactory {
      * contacted.
      */
     public List<String> problems(ToolDef def, Function<String, String> env) {
+        return problems(def, env, Path.of("").toAbsolutePath());
+    }
+
+    /** As {@link #problems(ToolDef, Function)}, resolving files against the script's directory. */
+    public List<String> problems(ToolDef def, Function<String, String> env, Path baseDir) {
         List<String> out = new java.util.ArrayList<>();
         ToolKind kind = kinds.get(def.getKind());
         if (kind == null) {
@@ -163,7 +180,14 @@ public final class ToolFactory {
             return out;
         }
         for (String req : kind.required()) {
-            if (!def.getOptions().containsKey(req)) out.add("use: " + kind.name() + " needs " + req + ":");
+            if (def.getOptions().containsKey(req)) continue;
+            ToolDef.OptionValue fallback = kind.defaults().get(req);
+            if (fallback == null) {
+                out.add("use: " + kind.name() + " needs " + req + ":");
+            } else if (fallback.fromEnv() && isUnset(env.apply(fallback.value()))) {
+                out.add("environment variable " + fallback.value() + " is not set (for " + req
+                        + "; or give " + req + ": env.<NAME>)");
+            }
         }
         for (Map.Entry<String, ToolDef.OptionValue> e : def.getOptions().entrySet()) {
             String key = e.getKey();
@@ -184,24 +208,30 @@ public final class ToolFactory {
             }
         }
         if (out.isEmpty()) {
-            String extra = kind.check(resolve(def, env));
+            String extra = kind.check(resolve(kind, def, env), baseDir);
             if (extra != null) out.add(extra);
         }
         return out;
     }
 
+    private static boolean isUnset(String value) {
+        return value == null || value.isBlank();
+    }
+
     /** Builds the tool, presented under its declared name. Call only when {@link #problems} is empty. */
     public Tool create(ToolDef def, Function<String, String> env, Path baseDir) throws Exception {
         ToolKind kind = kinds.get(def.getKind());
-        Tool tool = kind.create(def.getName(), resolve(def, env), baseDir);
+        Tool tool = kind.create(def.getName(), resolve(kind, def, env), baseDir);
         return new NamedTool(def.getName(), tool);
     }
 
-    private static Map<String, String> resolve(ToolDef def, Function<String, String> env) {
+    private static Map<String, String> resolve(ToolKind kind, ToolDef def, Function<String, String> env) {
         Map<String, String> out = new LinkedHashMap<>();
-        def.getOptions().forEach((k, v) -> {
+        Map<String, ToolDef.OptionValue> all = new LinkedHashMap<>(kind.defaults());
+        all.putAll(def.getOptions());
+        all.forEach((k, v) -> {
             String value = v.fromEnv() ? env.apply(v.value()) : v.value();
-            if (value != null) out.put(k, value);
+            if (!isUnset(value)) out.put(k, value);
         });
         return out;
     }

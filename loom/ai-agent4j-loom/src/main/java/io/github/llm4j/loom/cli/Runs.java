@@ -77,6 +77,7 @@ final class Runs {
             executor.setSleeper(env.sleeper());
             if (spec.prices() != null) executor.setPriceTable(io.github.llm4j.budget.PriceTable.load(Path.of(spec.prices())));
             executor.setBudgetOverrides(spec.maxTokens(), spec.maxCalls(), cost);
+            if (spec.trace() != null) executor.addTraceListener(new ConsoleTrace(env.err(), "json".equals(spec.trace())));
             if (runDir != null) {
                 executor.setJournal(new FileRunJournal(runDir.resolve("journal.json")));
                 executor.setTriggerStore(new FileTriggerStore(Path.of(spec.store())));

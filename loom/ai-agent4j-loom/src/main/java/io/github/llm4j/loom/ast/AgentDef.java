@@ -97,20 +97,42 @@ public class AgentDef implements Node {
     public SchemaDef getOutputSchema() { return outputSchema; }
     public void setOutputSchema(SchemaDef outputSchema) { this.outputSchema = outputSchema; }
 
-    /** Inner class for agent memory configuration. */
-    public static class MemoryConfig {
-        private int line;
-        public int getLine() { return line; }
-        public void setLine(int line) { this.line = line; }
-        private String type;
-        private String path;
-        private int limit = 10;
-
-        public String getType() { return type; }
-        public void setType(String type) { this.type = type; }
-        public String getPath() { return path; }
-        public void setPath(String path) { this.path = path; }
-        public int getLimit() { return limit; }
-        public void setLimit(int limit) { this.limit = limit; }
+    /**
+     * {@code memory { conversation: "chats/"  limit: 20  session: "{user}"  facts: "facts.json"  embedding: "…" }}:
+     * the agent's own conversations and long-term facts. (Loom's memory engine, which passes workflow
+     * context between steps, is separate.)
+     */
+    public static class MemoryConfig extends Settings {
+        public String getConversation() { return get("conversation"); }
+        public int getLimit() { return getInt("limit", 20); }
+        public String getSession() { return get("session"); }
+        public String getFacts() { return get("facts"); }
+        public String getEmbedding() { return get("embedding"); }
+        public int getRecall() { return getInt("recall", 5); }
+        public double getMinSimilarity() { return getDouble("min_similarity", 0.7); }
     }
+
+    /** {@code voice { listen: "sarvam/…"  speak: "sarvam/…"  language: "hi-IN"  voice: "…"  out: "audio" }}. */
+    public static class VoiceConfig extends Settings {
+        public String getListen() { return get("listen"); }
+        public String getSpeak() { return get("speak"); }
+        public String getLanguage() { return get("language"); }
+        public String getVoice() { return get("voice"); }
+        public String getOut() { return get("out", "audio"); }
+    }
+
+    /** {@code guard { pii: mask|block|warn  bias: warn|block  bias_model: "…" }}. */
+    public static class GuardConfig extends Settings {
+        public String getPii() { return get("pii"); }
+        public String getBias() { return get("bias"); }
+        public String getBiasModel() { return get("bias_model"); }
+    }
+
+    private VoiceConfig voice;
+    private GuardConfig guard;
+
+    public VoiceConfig getVoice() { return voice; }
+    public void setVoice(VoiceConfig voice) { this.voice = voice; }
+    public GuardConfig getGuard() { return guard; }
+    public void setGuard(GuardConfig guard) { this.guard = guard; }
 }

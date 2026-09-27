@@ -78,5 +78,6 @@ final class ApprovalGate {
         data.put("step", executor.currentStep());
         data.put("args", maskedArgs);
         executor.audit(event, data);
+        executor.trace(TraceEvent.APPROVAL, agent, event.replace('_', ' ') + ": " + tool + " " + maskedArgs, data);
     }
 }

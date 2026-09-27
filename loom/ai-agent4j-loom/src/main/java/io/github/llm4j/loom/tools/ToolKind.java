@@ -31,6 +31,20 @@ public interface ToolKind {
         return null;
     }
 
+    /** As {@link #check(Map)}, for kinds that also look at files (relative to the script's directory). */
+    default String check(Map<String, String> options, Path baseDir) {
+        return check(options);
+    }
+
+    /**
+     * Values for options the declaration leaves out, usually environment references (a built-in
+     * {@code translate} takes its key from {@code SARVAM_API_KEY}). A default whose variable isn't set is
+     * simply absent — reported only if the option is required.
+     */
+    default Map<String, io.github.llm4j.loom.ast.ToolDef.OptionValue> defaults() {
+        return Map.of();
+    }
+
     /**
      * @param options values with env references already resolved
      * @param baseDir where relative paths are resolved (the script's directory)

@@ -32,13 +32,14 @@ class NothingIgnoredTest {
             """;
 
     @Test
-    void v1_1_agentMemoryIsRejected() {
+    void v1_1_oldAgentMemoryKeysAreRejected() {
+        // Agent memory is supported now (P2); the old placeholder keys point to the new ones.
         assertThatThrownBy(() -> scripts.ready(MEMORY)).isInstanceOfSatisfying(LoomLoadException.class, e -> {
-            assertThat(e.problems()).singleElement().satisfies(p -> {
+            assertThat(e.problems()).allSatisfy(p -> {
                 assertThat(p.line()).isEqualTo(4);
                 assertThat(p.construct()).isEqualTo("agent B");
             });
-            assertThat(e.getMessage()).contains("line 4: agent B: agent memory is not supported yet");
+            assertThat(e.getMessage()).contains("line 4: agent B: memory type: is no longer used; write conversation:");
         });
     }
 
@@ -83,14 +84,13 @@ class NothingIgnoredTest {
 
     @Test
     void v1_6_lenientTurnsUnsupportedIntoWarnings() {
-        HarnessExecutor e = scripts.executor(MEMORY, x -> x.setLenient(true));
-        e.initialize();
-        e.executeWorkflow("Main", Map.of());
         HarnessExecutor g = scripts.executor(GUARDRAIL, x -> x.setLenient(true));
         g.initialize();
-        List<ScriptValidator.Problem> problems = new ScriptValidator().validate(Scripts.parse(MEMORY + GUARDRAIL.replace("agent A { model: \"m\" }", "")
-                .replace("workflow Main()", "workflow Other()")), g.validationContext());
-        assertThat(problems).hasSize(2).allSatisfy(p -> assertThat(p.severity()).isEqualTo(ScriptValidator.Severity.WARNING));
+        g.executeWorkflow("Main", Map.of());
+        List<ScriptValidator.Problem> problems = new ScriptValidator().validate(Scripts.parse(GUARDRAIL), g.validationContext());
+        assertThat(problems).singleElement().satisfies(p -> assertThat(p.severity()).isEqualTo(ScriptValidator.Severity.WARNING));
+        // Wrong memory settings are mistakes, not unsupported features: lenient doesn't hide them.
+        assertThatThrownBy(() -> scripts.executor(MEMORY, x -> x.setLenient(true)).initialize()).isInstanceOf(LoomLoadException.class);
     }
 
     @Test
@@ -109,8 +109,8 @@ class NothingIgnoredTest {
                 }
                 workflow Main() { guardrail (ODD) { note "x" } }
                 """)).isInstanceOfSatisfying(LoomLoadException.class, e -> {
-            assertThat(e.problems()).hasSize(3);
-            assertThat(e.getMessage()).contains("3 problems").contains("line 1:").contains("line 4:").contains("line 6:");
+            assertThat(e.problems()).hasSize(4); // the tool, memory's old key and its missing store, the guardrail
+            assertThat(e.getMessage()).contains("4 problems").contains("line 1:").contains("line 4:").contains("line 6:");
         });
     }
 

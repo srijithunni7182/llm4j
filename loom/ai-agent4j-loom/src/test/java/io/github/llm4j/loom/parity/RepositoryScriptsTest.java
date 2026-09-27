@@ -42,6 +42,7 @@ class RepositoryScriptsTest {
             }
             ToolRegistry hostTools = new ToolRegistry();
             for (AgentDef a : parsed.getAgents()) a.getTools().forEach(t -> hostTools.register(t, new io.github.llm4j.agent.tools.EchoTool()));
+            // Hosts resolve their own model names (GetViral's "studio", test mocks): a host factory is trusted.
             HarnessExecutor e = new HarnessExecutor(parsed, hostTools, m -> { throw new IllegalStateException(); });
             e.setBaseDir(script.getParent());
             e.setEnvLookup(name -> "set");
