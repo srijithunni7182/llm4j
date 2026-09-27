@@ -68,6 +68,38 @@ Explore the full capabilities of the framework through our detailed guides:
 - **🚦 Intelligent Provider Routing**: Cost-aware routing and automatic rate-limit failover.
 - **🔍 xAI Standards Compliance**: Transparent reasoning and audit trails for explainable AI.
 - **🔒 Private & Local**: Zero-cost, 100% private retrieval via `rag-addons`.
+- **💸 Cost Budgets**: Cap tokens, calls or money per agent; over-budget calls are refused before they reach the model. See below.
+
+### Cost budgets
+
+Every token an agent spends goes through `LLMClient.chat()`, so that is where budgets are enforced:
+
+```java
+Budget budget = Budget.builder().tokens(50_000).calls(40).warnAt(0.8).build();
+
+ReActAgent agent = ReActAgent.builder()
+        .llmClient(client)
+        .budget(budget)                 // refuse calls that can't be paid for
+        .maxTokensPerCall(1500)         // and cap every answer
+        .build();
+
+AgentResult r = agent.run("Research the topic");
+if (r.budgetExhausted()) {             // ran out part-way: this is its best answer so far
+    System.out.println(r.getFinalAnswer() + " — " + r.getBudgetExceeded().getMessage());
+}
+System.out.println(budget.spent());    // tokens, calls, cost, and whether any usage was estimated
+```
+
+- **Before each call** the budget is checked and the call reserved; a call that can't fit throws
+  `BudgetExceeded` without reaching the model (it is never retried). The answer's `maxTokens` is lowered
+  to what is left.
+- **After each call** the reservation is replaced by the provider's reported usage, or an estimate
+  (about 4 characters per token) marked as estimated when a provider reports none.
+- **Money** needs your own `PriceTable` (`PriceTable.load(path)`, lines of `model = input / output` per
+  million tokens); none ship with the library. `ollama/*` models are free.
+- **Many budgets at once** — run, agent, step — go in a `BudgetSet`; a call must fit them all and is charged
+  to each. Concurrent calls can't jointly overspend. Use `BudgetedLLMClient` to meter any client directly.
+- `onBudgetExhausted(BudgetPolicy.FAIL)` throws instead of returning the partial answer.
 
 ---
 

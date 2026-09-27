@@ -42,48 +42,89 @@ public class WeaveCLI implements Callable<Integer> {
         @Option(names = {"-i", "--input"}, description = "Initial context variables in key=value format.")
         private Map<String, String> inputs = new HashMap<>();
 
+        @Option(names = "--max-tokens", description = "Cap the run's tokens (replaces the script's run budget).")
+        private Long maxTokens;
+
+        @Option(names = "--max-calls", description = "Cap the run's LLM calls (replaces the script's run budget).")
+        private Long maxCalls;
+
+        @Option(names = "--max-cost", description = "Cap the run's cost, e.g. 0.50 (needs --prices).")
+        private String maxCost;
+
+        @Option(names = "--prices", description = "Price table: lines of 'model = input / output' per million tokens.")
+        private File prices;
+
         @Override
         public Integer call() throws Exception {
             if (!scriptFile.exists()) {
                 System.err.println("Error: Script file not found: " + scriptFile);
                 return 1;
             }
+            return execute(scriptFile, lootFile, workflowName, inputs, new DefaultLLMClientFactory(),
+                    maxTokens, maxCalls, maxCost, prices, new ConsoleHumanInterface(), System.out, System.err);
+        }
+    }
 
-            System.out.println("🧵 Weaving workflow: " + scriptFile.getName());
-
-            // 1. Parsing
-            LoomLoader loader = new LoomLoader();
-            LoomScript script = loader.load(scriptFile.getAbsolutePath());
-
-            // 2. Setup
-            ToolRegistry registry = new ToolRegistry();
-            if (lootFile != null && lootFile.exists()) {
-                new LootLoader().loadIntoRegistry(lootFile.getAbsolutePath(), registry);
-                System.out.println("🛠️  Loaded tools from: " + lootFile.getName());
+    /**
+     * Runs a workflow the way {@code weave run} does, with an explicit client factory and output streams
+     * (so it can be tested). Exit codes: 0 done, 1 failed, 2 bad budget options, 3 stopped by a budget.
+     */
+    static int execute(File scriptFile, File lootFile, String workflowName, Map<String, String> inputs,
+                       LLMClientFactory clientFactory, Long maxTokens, Long maxCalls, String maxCost, File pricesFile,
+                       io.github.llm4j.loom.runtime.HumanInterface human, java.io.PrintStream out,
+                       java.io.PrintStream err) throws Exception {
+        java.math.BigDecimal cost = null;
+        if (maxCost != null) {
+            if (pricesFile == null) {
+                err.println("Error: --max-cost needs --prices <file> (lines of 'model = input / output' per million tokens).");
+                return 2;
             }
+            cost = new java.math.BigDecimal(maxCost.strip().replaceFirst("^\\$", ""));
+        }
+        if ((maxTokens != null && maxTokens <= 0) || (maxCalls != null && maxCalls <= 0)
+                || (cost != null && cost.signum() <= 0)) {
+            err.println("Error: budget limits must be positive.");
+            return 2;
+        }
 
-            // Default simple factory (using system properties/env vars via ai-agent4j core logic)
-            // Note: HarnessExecutor usually needs an LLMClientFactory. 
-            // For the CLI, we'll try to use a simple one that relies on standard provider detection.
-            LLMClientFactory clientFactory = new DefaultLLMClientFactory();
+        out.println("🧵 Weaving workflow: " + scriptFile.getName());
 
-            HarnessExecutor executor = new HarnessExecutor(script, registry, clientFactory);
-            executor.setHumanInterface(new ConsoleHumanInterface());
-            executor.initialize();
+        // 1. Parsing
+        LoomLoader loader = new LoomLoader();
+        LoomScript script = loader.load(scriptFile.getAbsolutePath());
 
-            System.out.println("🚀 Executing workflow: " + workflowName + "...");
-            try {
-                executor.executeWorkflow(workflowName, inputs);
-                System.out.println("✅ Workflow completed successfully.");
-            } catch (Exception e) {
-                System.err.println("❌ Execution failed: " + e.getMessage());
-                e.printStackTrace();
-                return 1;
-            } finally {
-                executor.shutdown();
-            }
+        // 2. Setup
+        ToolRegistry registry = new ToolRegistry();
+        if (lootFile != null && lootFile.exists()) {
+            new LootLoader().loadIntoRegistry(lootFile.getAbsolutePath(), registry);
+            out.println("🛠️  Loaded tools from: " + lootFile.getName());
+        }
 
+        HarnessExecutor executor = new HarnessExecutor(script, registry, clientFactory);
+        executor.setHumanInterface(human);
+        if (pricesFile != null) executor.setPriceTable(io.github.llm4j.budget.PriceTable.load(pricesFile.toPath()));
+        executor.setBudgetOverrides(maxTokens, maxCalls, cost);
+        executor.initialize();
+
+        out.println("🚀 Executing workflow: " + workflowName + "...");
+        try {
+            executor.executeWorkflow(workflowName, inputs);
+            out.println("✅ Workflow completed successfully.");
             return 0;
+        } catch (io.github.llm4j.budget.BudgetExceeded stop) {
+            out.println("⛔ Stopped: " + stop.getMessage() + ". Everything paid for so far is kept.");
+            return 3;
+        } catch (Exception e) {
+            err.println("❌ Execution failed: " + e.getMessage());
+            e.printStackTrace(err);
+            return 1;
+        } finally {
+            if (executor.getRunBudget() != null) {
+                out.println();
+                out.println("💸 Spend");
+                out.print(executor.spend().table());
+            }
+            executor.shutdown();
         }
     }
 

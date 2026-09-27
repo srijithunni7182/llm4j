@@ -102,6 +102,12 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**backoff** `<duration>`\n\nWait between retries (e.g. `2s`), doubling each attempt.',
     timeout:
         '**timeout** `<duration>`\n\nGives up on a delegate attempt that runs longer than this (e.g. `90s`); counts as a failed attempt.',
+    budget:
+        '**budget** `{ tokens: N  calls: N  cost: "$X"  warn_at: 80% }` or `budget N tokens`\n\nCaps what LLM calls may spend: at top level for the whole run, inside an agent (with `per_call`), or after a `delegate`, `broadcast`, `loop until` or `for each`. A call that can\'t be paid for is refused before it reaches the model and is never retried; `{_budget.remaining}` and friends are live.',
+    per_call:
+        '**per_call** `: N`\n\nInside an agent\'s `budget { }`: caps the output tokens of every answer that agent gives.',
+    warn_at:
+        '**warn_at** `: 80%`\n\nInside a `budget { }`: when to log a `budget_warning` (default 80%).',
     temperature:
         '**temperature** `<0.0–2.0>`\n\nSampling temperature for an agent: high for creative roles, low for checkers.',
     alt:

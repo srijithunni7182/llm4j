@@ -211,3 +211,50 @@ the code, or the spec is changed first with the reason recorded here.
 | 9 Compatibility | 9.1–9.3 | V9.1–V9.3, the no-regression criterion |
 
 Every acceptance criterion maps to at least one check, and every check maps back to a criterion.
+
+---
+
+## 7. Results (implementation of phases 1–3)
+
+Every check in sections 2–5 passes except where noted below. Suites at completion: ai-agent4j 448,
+ai-agent4j-addons 17, eval4j 125, Loom 94, Engram 9 (1 skipped), GetViral 77 (4 skipped). The skips are
+Docker-based container tests that need a Docker host.
+
+| Checks | Where they live | Status |
+|---|---|---|
+| V1.1–V1.6 | `ai-agent4j/.../budget/BudgetTest` | ✅ |
+| V2.1–V2.6, V2.3b, V2.8, V3.1, V3.5 | `BudgetedLLMClientTest` | ✅ |
+| V2.7a (×20 seeds), V2.7b, V2.7c, overhead | `BudgetConcurrencyTest` | ✅ exact totals on every seed; overhead well under 50 µs/call |
+| V3.2, V3.3 | `PriceTableTest` | ✅ |
+| V4.1–V4.7 | `ReActAgentBudgetTest` | ✅ |
+| Coverage | JaCoCo, `io.github.llm4j.budget` | ✅ 99.8% lines, 90.7% branches |
+| V5.1–V5.5 (+ 12 modifier cases) | `loom/.../budget/BudgetParserTest` | ✅ |
+| V3.4, V6.1–V6.8, V9.1, E2E-1, E2E-3 | `BudgetEnforcementTest` | ✅ |
+| V7.1–V7.4, E2E-2 (H2 SQL journal) | `BudgetDurabilityTest` | ✅ |
+| V8.1, V8.2 | `BudgetReportingTest` | ✅ |
+| V8.3, V8.4 | `loom/.../cli/WeaveCliBudgetTest` | ✅ |
+| V9.2 | ai-agent4j V4.7 plus unchanged eval4j suite | ✅ |
+| V9.3 | `DocumentedExamplesTest` (budget example parses); VS Code hover table checked by a node script | ✅ |
+
+Deviations, recorded as the plan requires:
+
+- **Fixtures.** ai-agent4j publishes no test-jar, so Loom's tests use their own equivalent in
+  `loom/.../budget/BudgetScript` (same numbers: estimate 100, usage 100 + 50, `per_call` 50) rather than
+  adding test-jar packaging.
+- **V4.4.** Retries live inside the providers' HTTP layer, not in `DefaultLLMClient`. The check therefore
+  asserts at the agent level: a refused call never reaches the model and the agent never retries it.
+- **Refusal vs. partial answer in Loom.** `AgentResult` now carries the `BudgetExceeded` that stopped it
+  (`getBudgetExceeded()`). A delegate whose agent was refused before its first call is treated as a
+  refused step (`on_failure`); one that ran out part-way keeps its partial answer (Requirement 6.3).
+- **Loops can't spin on handled refusals.** Refusals may be swallowed by a step's `on_failure`, so a
+  loop or for-each also stops as soon as its own, the run's or any enclosing budget has refused a call
+  (`Budget.refused()`), with `_loopExhaustedBy = "budget"`.
+- **`broadcast`** now runs on Loom's branch threads instead of the JVM common pool, so its branches
+  inherit the step path and budgets.
+
+Still open:
+
+- **Manual smoke test (§3)** against a real local model (Ollama) or a hosted API: this needs the
+  developer's machine or an API key.
+- **Task 11 (optional): GetViral adoption.** A per-pack budget, a live spend meter and a creator token
+  cap. It was left for after the libraries ship, as planned.

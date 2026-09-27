@@ -21,118 +21,118 @@ its partial answer.
 <!-- PHASE 1: ai-agent4j                                              -->
 <!-- ================================================================ -->
 
-- [ ] 1. Budget core (`io.github.llm4j.budget`)
-  - [ ] 1.1 `Budget`, `Budget.Builder`, `Limits`, `Spent`, `Remaining`, `Charge`, `Reservation` with
+- [x] 1. Budget core (`io.github.llm4j.budget`)
+  - [x] 1.1 `Budget`, `Budget.Builder`, `Limits`, `Spent`, `Remaining`, `Charge`, `Reservation` with
         per-budget lock, reserve/settle/restore and warning threshold
     - _Requirements: 1.1, 1.2, 1.3, 1.4_
-  - [ ] 1.2 `BudgetSet` with all-or-nothing reservation in a fixed lock order and a `Lease` that
+  - [x] 1.2 `BudgetSet` with all-or-nothing reservation in a fixed lock order and a `Lease` that
         settles or releases every member
     - _Requirements: 1.5, 2.7_
-  - [ ] 1.3 `BudgetExceeded extends AgentInterrupt` carrying budget name, dimension, spent and limits
+  - [x] 1.3 `BudgetExceeded extends AgentInterrupt` carrying budget name, dimension, spent and limits
     - _Requirements: 2.1, 4.4_
-  - [ ] 1.4 Unit tests: limits per dimension, unlimited dimensions, warning fires once, all-or-nothing
+  - [x] 1.4 Unit tests: limits per dimension, unlimited dimensions, warning fires once, all-or-nothing
         release, 32-thread stress test (no overdraw, exact totals)
     - _Requirements: 1.1–1.5, 2.7_
 
-- [ ] 2. Metering at the call
-  - [ ] 2.1 `TokenEstimator` interface and `CharsPerTokenEstimator` (4 chars/token × 1.1)
+- [x] 2. Metering at the call
+  - [x] 2.1 `TokenEstimator` interface and `CharsPerTokenEstimator` (4 chars/token × 1.1)
     - _Requirements: 2.1, 2.5_
-  - [ ] 2.2 `PriceTable` (`load(Path)`, `of(Map)`, `ollama/*` = 0, unknown = empty)
+  - [x] 2.2 `PriceTable` (`load(Path)`, `of(Map)`, `ollama/*` = 0, unknown = empty)
     - _Requirements: 3.1, 3.2, 3.3, 3.5_
-  - [ ] 2.3 `BudgetedLLMClient`: preflight refusal, output cap on `maxTokens`, minimum useful
+  - [x] 2.3 `BudgetedLLMClient`: preflight refusal, output cap on `maxTokens`, minimum useful
         output, settle with reported or estimated usage, failed-call charge, streaming settle on close
     - _Requirements: 2.1–2.6, 2.8_
-  - [ ] 2.4 Unit tests with a scripted client: refused call never reaches the delegate; `maxTokens`
+  - [x] 2.4 Unit tests with a scripted client: refused call never reaches the delegate; `maxTokens`
         lowered; estimated usage flagged; failed call charged; cost computed from input and output
         separately
     - _Requirements: 2.1–2.6, 2.8, 3.5_
 
-- [ ] 3. ReActAgent support
-  - [ ] 3.1 Builder options `budget`, `maxTokensPerCall`, `onBudgetExhausted(RETURN_PARTIAL | FAIL)`;
+- [x] 3. ReActAgent support
+  - [x] 3.1 Builder options `budget`, `maxTokensPerCall`, `onBudgetExhausted(RETURN_PARTIAL | FAIL)`;
         wrap the client only when budgeted and not already wrapped
     - _Requirements: 4.1, 9.1_
-  - [ ] 3.2 Catch `BudgetExceeded` around the LLM call: partial result (default) or rethrow; add
+  - [x] 3.2 Catch `BudgetExceeded` around the LLM call: partial result (default) or rethrow; add
         `StepOutcome.BUDGET_EXHAUSTED` and `AgentResult.budgetExhausted()`
     - _Requirements: 4.2, 4.3, 4.4_
-  - [ ] 3.3 `AgentResult.Usage` gains `estimated` and `cost`; `AgentEventListener.onBudget` default
+  - [x] 3.3 `AgentResult.Usage` gains `estimated` and `cost`; `AgentEventListener.onBudget` default
         method with WARNING / EXHAUSTED events
     - _Requirements: 4.5, 4.6, 9.2_
-  - [ ] 3.4 Tests: partial answer returned with outcome and usage; FAIL policy propagates; no retry
+  - [x] 3.4 Tests: partial answer returned with outcome and usage; FAIL policy propagates; no retry
         after refusal; listener receives warning then exhausted; unbudgeted agent unchanged
     - _Requirements: 4.1–4.6, 9.1_
 
-- [ ] 4. Checkpoint: `mvn install` in ai-agent4j; all existing tests still pass
+- [x] 4. Checkpoint: `mvn install` in ai-agent4j; all existing tests still pass
 
 <!-- ================================================================ -->
 <!-- PHASE 2: Loom                                                    -->
 <!-- ================================================================ -->
 
-- [ ] 5. Syntax
-  - [ ] 5.1 Contextual `budget` keyword: top-level block, agent block (`per_call` allowed), statement
+- [x] 5. Syntax
+  - [x] 5.1 Contextual `budget` keyword: top-level block, agent block (`per_call` allowed), statement
         modifier on `delegate`, `broadcast`, `loop until`, `for each`
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
-  - [ ] 5.2 AST: `BudgetDef` on `LoomScript` and `AgentDef`; `BudgetLimit` on the four statements
+  - [x] 5.2 AST: `BudgetDef` on `LoomScript` and `AgentDef`; `BudgetLimit` on the four statements
     - _Requirements: 5.1–5.3_
-  - [ ] 5.3 Validation: non-positive values and `cost` without currency symbol are ParseErrors with
+  - [x] 5.3 Validation: non-positive values and `cost` without currency symbol are ParseErrors with
         the line
     - _Requirements: 5.5_
-  - [ ] 5.4 Parser tests, including a script that uses `budget` as a variable name
+  - [x] 5.4 Parser tests, including a script that uses `budget` as a variable name
     - _Requirements: 5.1–5.5_
 
-- [ ] 6. Enforcement in `HarnessExecutor`
-  - [ ] 6.1 Run budget (always present for counting), agent budgets, and a thread-local scope stack
+- [x] 6. Enforcement in `HarnessExecutor`
+  - [x] 6.1 Run budget (always present for counting), agent budgets, and a thread-local scope stack
         for step/loop/for-each budgets that `parallel` branches inherit
     - _Requirements: 6.1, 6.7_
-  - [ ] 6.2 Wrap every factory client (including routing tiers) in `BudgetedLLMClient` with a
+  - [x] 6.2 Wrap every factory client (including routing tiers) in `BudgetedLLMClient` with a
         per-call `Supplier<BudgetSet>`; only when any budget is declared
     - _Requirements: 6.1, 9.1_
-  - [ ] 6.3 Outcomes: refused step → `on_failure`, no retry; partial result → bind + `_budget.exhausted`
+  - [x] 6.3 Outcomes: refused step → `on_failure`, no retry; partial result → bind + `_budget.exhausted`
         + `on_failure`; loop/for-each → `on_exhausted` with `_loopExhaustedBy`; unhandled →
         `BudgetExceeded` thrown from `executeWorkflow` with context kept
     - _Requirements: 6.2, 6.3, 6.4, 6.5_
-  - [ ] 6.4 `_budget.spent / remaining / calls / exhausted` readable in payloads and conditions
+  - [x] 6.4 `_budget.spent / remaining / calls / exhausted` readable in payloads and conditions
     - _Requirements: 6.6_
-  - [ ] 6.5 Cost limits: fail `initialize()` if any model the script uses is unpriced
+  - [x] 6.5 Cost limits: fail `initialize()` if any model the script uses is unpriced
     - _Requirements: 3.4_
-  - [ ] 6.6 Tests: each outcome above; `parallel` branches share one budget exactly; `alt` routing on
+  - [x] 6.6 Tests: each outcome above; `parallel` branches share one budget exactly; `alt` routing on
         `_budget.remaining`; unbudgeted scripts behave as before (see verification.md)
     - _Requirements: 6.1–6.7, 9.1_
 
-- [ ] 7. Checkpoint: Loom suite green; GetViral suite green against the new Loom
+- [x] 7. Checkpoint: Loom suite green; GetViral suite green against the new Loom
 
 <!-- ================================================================ -->
 <!-- PHASE 3: Durability, reporting, adoption                         -->
 <!-- ================================================================ -->
 
-- [ ] 8. Durable budgets
-  - [ ] 8.1 Journal `stepId#usage` entries (new `usage` entry kind) for every settled step
+- [x] 8. Durable budgets
+  - [x] 8.1 Journal `stepId#usage` entries (new `usage` entry kind) for every settled step
     - _Requirements: 7.1_
-  - [ ] 8.2 On resume, restore run and agent spend from usage entries; replayed steps never charge
+  - [x] 8.2 On resume, restore run and agent spend from usage entries; replayed steps never charge
     - _Requirements: 7.2, 7.4_
-  - [ ] 8.3 Tests: resume charges nothing for replayed steps; a run stopped at its cap and resumed
+  - [x] 8.3 Tests: resume charges nothing for replayed steps; a run stopped at its cap and resumed
         with a bigger cap finishes, with totals equal to one uninterrupted run
     - _Requirements: 7.2, 7.3_
 
-- [ ] 9. Reporting and CLI
-  - [ ] 9.1 `SpendReport` via `executor.spend()`: totals, by agent, by step, estimated flag
+- [x] 9. Reporting and CLI
+  - [x] 9.1 `SpendReport` via `executor.spend()`: totals, by agent, by step, estimated flag
     - _Requirements: 8.1_
-  - [ ] 9.2 Audit events `budget_warning` and `budget_refused`
+  - [x] 9.2 Audit events `budget_warning` and `budget_refused`
     - _Requirements: 8.2_
-  - [ ] 9.3 `weave run`: `--max-tokens`, `--max-calls`, `--max-cost`, `--prices`; spend table at the end
+  - [x] 9.3 `weave run`: `--max-tokens`, `--max-calls`, `--max-cost`, `--prices`; spend table at the end
     - _Requirements: 8.3, 8.4_
 
-- [ ] 10. Documentation
-  - [ ] 10.1 LOOM_GUIDE "Budgets" section, README feature entry, LOOM_PROMPT syntax, VS Code grammar
+- [x] 10. Documentation
+  - [x] 10.1 LOOM_GUIDE "Budgets" section, README feature entry, LOOM_PROMPT syntax, VS Code grammar
         and hover docs; add the example to `docs/readme_examples.loom`
     - _Requirements: 9.3_
-  - [ ] 10.2 ai-agent4j README: `Budget` and `BudgetedLLMClient` usage for plain Java
+  - [x] 10.2 ai-agent4j README: `Budget` and `BudgetedLLMClient` usage for plain Java
 
 - [ ]* 11. GetViral adoption (optional, after the libraries ship)
   - [ ]* 11.1 A per-pack `budget { }` in `getviral.loom` and `per_call` caps on the chattiest agents
   - [ ]* 11.2 Live spend meter in the studio from budget events; spend in the pack export
   - [ ]* 11.3 Monthly token cap per creator next to the pack quota
 
-- [ ] 12. Final checkpoint
+- [x] 12. Final checkpoint
   - All suites green: ai-agent4j, Loom, Engram, eval4j, GetViral
   - Documented examples parse
   - Ask the user if questions arise

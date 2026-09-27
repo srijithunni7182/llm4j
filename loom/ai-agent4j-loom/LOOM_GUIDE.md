@@ -44,7 +44,14 @@ Test your scripts immediately without writing a single line of Java.
 ```bash
 # Run the 'Main' workflow with inputs
 weave run research.loom --loot tools.loot --input topic="NeuroSymbolic AI"
+
+# Cap what the run may spend (replaces the script's run budget) and see where it went
+weave run research.loom --max-tokens 50000 --max-calls 40
+weave run research.loom --max-cost 0.25 --prices prices.properties
 ```
+
+With any budget in play, the run ends with a spend table (calls, prompt and completion tokens, cost per
+agent). A run stopped by its budget exits with code 3 and keeps everything it already paid for.
 
 ### 2. Packaging for Deployment (`package`)
 Encapsulate your workflow into a JAR that can run anywhere.
@@ -125,8 +132,9 @@ Loom provides **Symbolic Controls** that ensure your agents follow a rigid seque
 - **`alt` / `loop until`**: Comparison-based branching using `==`, `!=`, `>`, `<`, `>=`, `<=`.
 - **`for each` / `parallel for each`**: Run a block once per item of a list, in order or all at once. See [for each](#for-each).
 - **`human_prompt`**: Ask a person. With a run journal the run suspends instead of holding a thread. See [Durable Runs](#durable-runs-no-new-syntax).
+- **`budget`**: Cap what a run, an agent or a single step may spend on LLM calls. See [Cost Budgets](#cost-budgets).
 
-> **New in this release:** [durable runs](#durable-runs-no-new-syntax), [`for each` with runtime routing](#for-each),
+> **New in this release:** [cost budgets](#cost-budgets), [durable runs](#durable-runs-no-new-syntax), [`for each` with runtime routing](#for-each),
 > [bounded loops](#bounded-loops), [retry backoff and timeouts](#retry-backoff-and-timeouts),
 > [per-step schemas](#per-step-schemas-expecting), agent `temperature:` and `{var.list.0}` payload paths.
 
@@ -289,6 +297,65 @@ delegate "Review the build" to Showrunner -> review expecting {         // this 
     fix: string
 }
 ```
+
+### Cost Budgets
+A budget caps what LLM calls may spend, in **tokens** (the default), **calls**, or **money** (with a price
+table you supply). The runtime enforces it at the call itself: before each call it checks what is left
+and **refuses without calling the model** if the call can't fit, and it lowers the answer's `maxTokens`
+so one long answer can't break the cap. Budgets go in three places, one line each:
+
+```loom
+budget { tokens: 200000  calls: 150  warn_at: 80% }       // the whole run
+
+agent Writer {
+    model: "gemini/gemini-2.5-flash"
+    budget { tokens: 20000  per_call: 2000 }                // this agent's share; per_call caps each answer
+}
+
+workflow Main(topic) {
+    delegate "Draft {topic}" to Writer -> draft budget 5000 tokens
+        on_failure { note "Out of budget: {_error}" }
+
+    loop until (review.verdict == "OK") max 5 budget 30000 tokens {
+        delegate "Review {draft}" to Critic -> review
+    } on_exhausted {
+        note "Stopped by {_loopExhaustedBy} after {_loopRounds} rounds"
+    }
+
+    alt (_budget.remaining < 20000) {                        // cost-aware routing, symbolically
+        delegate "Polish {draft}" to CheapWriter -> final
+    } else {
+        delegate "Polish {draft}" to Writer -> final
+    }
+}
+```
+
+What happens when a budget runs out:
+
+| Situation | Behaviour |
+|---|---|
+| A step's call would exceed a budget | The model is **not** called. The step fails: its `on_failure` runs with `{_error}` naming the budget. A budget refusal is **never retried**. |
+| An agent runs out part-way through a task | Its best answer so far is bound to the output variable, `{_budget.exhausted}` becomes `true`, and `on_failure` runs if present; otherwise the run continues. |
+| A loop's or for-each's budget runs out | It stops and runs `on_exhausted`, with `{_loopExhaustedBy}` set to `budget` (or `rounds` when `max` was reached). |
+| Nothing handles it | `executeWorkflow` throws `BudgetExceeded`. Every variable already bound is kept, and `spend()` shows where the money went. |
+
+- **Budgets nest.** Each call is charged to the run, its agent and every enclosing step, loop and for-each
+  budget, and must fit all of them. Parallel branches share the same budgets exactly.
+- **`{_budget.spent}`, `{_budget.remaining}`, `{_budget.calls}`, `{_budget.cost}` and
+  `{_budget.exhausted}`** are live, so scripts can route to cheaper agents as money runs low.
+- **Money** needs a price table. Prices go stale, so none ship with Loom: write a file of
+  `model = input / output` prices per million tokens and pass it with `--prices` (or `setPriceTable`).
+  Local `ollama/*` models cost nothing. A cost budget with an unpriced model fails at start-up.
+- **Durable.** Each step's usage is journaled. A replayed step is never charged again, and a run stopped
+  by its budget can be resumed with a bigger one: it continues from the refused step, and nothing already
+  paid for runs twice.
+- **Estimates.** Before a call, prompts are estimated at about 4 characters per token (+10%). Reported
+  usage always wins; if a provider reports none, the charge is estimated and marked as such.
+- **Reporting.** `executor.spend()` totals tokens, calls and cost per agent and per step; warnings
+  (default at 80%) and refusals go to the audit log as `budget_warning` and `budget_refused`.
+
+`budget` is a contextual keyword: scripts that use it as a variable name keep working. Scripts without
+budgets are not metered at all.
 
 ### Workflow-Level Retry & Error Contracts
 Define resilience logic directly in the DSL. If an agent fails (API error, timeout, or malformed JSON), Loom handles retries and triggers the `on_failure` recovery block.

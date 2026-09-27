@@ -19,6 +19,9 @@ class DocumentedExamplesTest {
         }
         LoomScript script = new LoomParser(new Lexer(source).tokenize()).parseScript();
         assertEquals(1, script.getWorkflows().size());
+        assertEquals(200_000L, script.getBudget().getTokens());
+        assertEquals(2000, script.getAgents().stream().filter(a -> a.getName().equals("Writer"))
+                .findFirst().orElseThrow().getBudget().getPerCall());
     }
 
     @Test

@@ -38,6 +38,7 @@ The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java 
 * **Enterprise Governance**: Integrated PII guardrails, cost-aware routing policies, background task scheduling, and **human approval gates** (`approve` step in workflows).
 * **Durable Runs**: Every step is journaled (memory, file or SQL). A run waiting on a person holds no thread, resumes on any server when the answer arrives, and a crashed run picks up after its last step. The script doesn't change.
 * **Data-Driven Routing**: `for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} -> {fix.output} }`: iterate over what an agent returned and route each item to the agent it names, in one line.
+* **Cost Budgets**: `budget { tokens: 200000 }` for a run, `budget { tokens: 20000 per_call: 2000 }` for an agent, `budget 5000 tokens` for a step or loop. Over-budget calls are refused before they reach the model; `weave run --max-tokens` caps any script, and every run reports where its tokens went.
 * **Bounded, Resilient Steps**: `loop until … max 5 … on_exhausted`, `retry 2 backoff 2s timeout 90s`, per-step `expecting { }` schemas and per-agent `temperature:`.
 
 👉 **[Master Loom Orchestration](loom/ai-agent4j-loom/LOOM_GUIDE.md)**

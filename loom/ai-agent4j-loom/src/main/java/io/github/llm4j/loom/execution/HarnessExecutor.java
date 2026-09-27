@@ -90,6 +90,9 @@ public class HarnessExecutor implements LoomEngine {
     private java.math.BigDecimal overrideCost;
     private final java.util.concurrent.atomic.AtomicBoolean budgetExhausted = new java.util.concurrent.atomic.AtomicBoolean();
     private final List<SpendReport.Line> spendLines = new java.util.concurrent.CopyOnWriteArrayList<>();
+    /** Journal key prefix for a step's usage: {@code <step>#usage:<agent>}. */
+    static final String USAGE = "#usage:";
+    private boolean spendRestored;
     
     @FunctionalInterface
     public interface DelegateSuccessHandler {
@@ -395,7 +398,10 @@ public class HarnessExecutor implements LoomEngine {
             .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + workflowName));
 
         log.info("Starting workflow: " + workflowName);
-        if (budgeting) context.setVariable("_budget", new BudgetView());
+        if (budgeting) {
+            restoreSpend();
+            context.setVariable("_budget", new BudgetView());
+        }
 
         String parent = step.get();
         step.set(parent.isEmpty() ? workflowName : parent + ">" + workflowName);
@@ -1051,8 +1057,75 @@ public class HarnessExecutor implements LoomEngine {
                 .model(model)
                 .perCallCap(agentDef.getBudget() != null ? agentDef.getBudget().getPerCall() : null)
                 .build();
-        metered.addChargeListener((m, charge) -> spendLines.add(new SpendReport.Line(step.get(), agentName, m, charge)));
+        metered.addChargeListener((m, charge) -> {
+            String stepId = step.get();
+            spendLines.add(new SpendReport.Line(stepId, agentName, m, charge));
+            journalUsage(stepId, agentName, m, charge);
+        });
         return metered;
+    }
+
+    /**
+     * Records what a step's calls cost, cumulatively per step and agent, so a resumed run knows what was
+     * already paid for — including calls of a step that never finished (they were billed all the same).
+     */
+    private synchronized void journalUsage(String stepId, String agentName, String model, io.github.llm4j.budget.Charge c) {
+        String key = stepId + USAGE + agentName;
+        Map<String, Object> prior = journal.get(key)
+                .map(e -> e.value() instanceof Map<?, ?> m ? castMap(m) : Map.<String, Object>of())
+                .orElse(Map.of());
+        Map<String, Object> usage = new java.util.LinkedHashMap<>();
+        usage.put("agent", agentName);
+        usage.put("model", model);
+        usage.put("prompt", number(prior.get("prompt")) + c.promptTokens());
+        usage.put("completion", number(prior.get("completion")) + c.completionTokens());
+        usage.put("calls", number(prior.get("calls")) + c.calls());
+        usage.put("cost", money(prior.get("cost")).add(c.cost()).toPlainString());
+        usage.put("estimated", Boolean.TRUE.equals(prior.get("estimated")) || c.estimated());
+        journal.put(key, new RunJournal.Entry("usage", usage));
+    }
+
+    /** A resumed run: counts what earlier runs already spent (from the journal), once. */
+    private synchronized void restoreSpend() {
+        if (spendRestored) return;
+        spendRestored = true;
+        for (Map.Entry<String, RunJournal.Entry> e : journal.all().entrySet()) {
+            if (!"usage".equals(e.getValue().kind()) || !(e.getValue().value() instanceof Map<?, ?> raw)) continue;
+            Map<String, Object> u = castMap(raw);
+            io.github.llm4j.budget.Charge charge = new io.github.llm4j.budget.Charge(number(u.get("prompt")),
+                    number(u.get("completion")), (int) number(u.get("calls")), money(u.get("cost")),
+                    Boolean.TRUE.equals(u.get("estimated")));
+            io.github.llm4j.budget.Spent spent = io.github.llm4j.budget.Spent.of(charge);
+            runBudget.restore(spent);
+            String agent = String.valueOf(u.get("agent"));
+            if (agentBudgets.containsKey(agent)) agentBudgets.get(agent).restore(spent);
+            String stepId = e.getKey().substring(0, e.getKey().indexOf(USAGE));
+            spendLines.add(new SpendReport.Line(stepId, agent, String.valueOf(u.get("model")), charge));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> castMap(Map<?, ?> map) {
+        return (Map<String, Object>) map;
+    }
+
+    private static long number(Object value) {
+        if (value instanceof Number n) return n.longValue();
+        if (value == null) return 0;
+        try {
+            return Long.parseLong(String.valueOf(value));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private static java.math.BigDecimal money(Object value) {
+        if (value == null) return java.math.BigDecimal.ZERO;
+        try {
+            return new java.math.BigDecimal(String.valueOf(value));
+        } catch (NumberFormatException e) {
+            return java.math.BigDecimal.ZERO;
+        }
     }
 
     private io.github.llm4j.budget.BudgetSet budgetsFor(String agentName) {

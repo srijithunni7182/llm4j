@@ -1,6 +1,13 @@
 // The new-feature examples from README.md and LOOM_GUIDE.md. DocumentedExamplesTest keeps them parseable.
+budget { tokens: 200000  calls: 150  warn_at: 80% }
 agent Lead { model: "m" }
-agent Writer { model: "m" temperature: 0.9 }
+agent Writer {
+    model: "gemini/gemini-2.5-flash"
+    temperature: 0.9
+    budget { tokens: 20000  per_call: 2000 }
+}
+agent Critic { model: "m" }
+agent CheapWriter { model: "m" }
 agent Supervisor { model: "m" }
 agent Showrunner { model: "m" }
 workflow Main(doc) {
@@ -18,5 +25,18 @@ workflow Main(doc) {
     }
     parallel for each shot in review.fixes {
         delegate "Shoot {shot.description}" to Lead -> {shot.name}
+    }
+    // Cost budgets (README + LOOM_GUIDE "Cost Budgets")
+    delegate "Draft {topic}" to Writer -> draft budget 5000 tokens
+        on_failure { note "Out of budget: {_error}" }
+    loop until (critique.verdict == "OK") max 5 budget 30000 tokens {
+        delegate "Review {draft}" to Critic -> critique
+    } on_exhausted {
+        note "Stopped by {_loopExhaustedBy} after {_loopRounds} rounds"
+    }
+    alt (_budget.remaining < 20000) {
+        delegate "Polish {draft}" to CheapWriter -> final
+    } else {
+        delegate "Polish {draft}" to Writer -> final
     }
 }

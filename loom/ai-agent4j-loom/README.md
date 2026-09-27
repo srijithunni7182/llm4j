@@ -81,6 +81,7 @@ SqlQuery    = com.mycompany.tools.DatabaseTool
 | `loop until` | Repeats a block until a symbolic condition is met; `max N … on_exhausted` bounds it |
 | `for each` | Runs a block per list item (`parallel for each` for all at once); targets may come from the item |
 | `human_prompt` | Asks a person; with a run journal the run suspends (no thread held) and resumes on the answer |
+| `budget` | Caps a run, an agent or a step in tokens, calls or money; enforced before each LLM call |
 | `guardrail` | Wraps a block — intercepts output before it escapes (e.g. PII detection) |
 | `call` | Invoke a sub-workflow with isolated variable scope |
 | `parallel { }` | Concurrent execution block — every statement runs on its own branch thread |
@@ -185,6 +186,21 @@ delegate "Review the build" to Showrunner -> review expecting {
     fixes: list
 }
 ```
+
+**Budgets you can't overspend.** Cap a run, an agent or a single step in tokens, calls or money. The
+runtime refuses a call *before* it reaches the model if it can't be paid for, caps each answer to what is
+left, and reports where every token went. On a hobby budget, a runaway loop can't run up a bill:
+
+```text
+budget { tokens: 200000  warn_at: 80% }
+agent Writer { model: "gemini/gemini-2.5-flash"  budget { tokens: 20000  per_call: 2000 } }
+
+loop until (review.verdict == "OK") max 5 budget 30000 tokens { ... } on_exhausted { ... }
+alt (_budget.remaining < 20000) { delegate "Polish {draft}" to CheapWriter -> final }
+```
+
+`weave run app.loom --max-tokens 50000` caps any script from the command line. See
+[Cost Budgets](LOOM_GUIDE.md#cost-budgets).
 
 **Smaller things that make scripts shorter:**
 
