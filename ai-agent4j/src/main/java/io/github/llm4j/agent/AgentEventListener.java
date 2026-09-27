@@ -41,4 +41,13 @@ public interface AgentEventListener {
     default void onApprovalRequired(String toolName, Map<String, Object> args, String thought) {
         // no-op by default; implementors opt in
     }
+
+    /**
+     * Called when the agent's budget crosses its warning threshold, or refuses a call.
+     *
+     * @param event what happened, with the budget's spend and limits
+     */
+    default void onBudget(io.github.llm4j.budget.BudgetEvent event) {
+        // no-op by default; implementors opt in
+    }
 }
