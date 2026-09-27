@@ -16,6 +16,11 @@ import java.util.Map;
  * </pre>
  */
 public class McpServerDef implements Node {
+    private int line;
+    /** The line it was declared on, for error messages. */
+    public int getLine() { return line; }
+    public void setLine(int line) { this.line = line; }
+
     private final String name;
     private String transport = "stdio";
     private String cmd;

@@ -63,6 +63,9 @@ public class WeaveCLI implements Callable<Integer> {
         @Option(names = "--wait", description = "When the run pauses, stay alive and resume it when its limit resets.")
         private boolean waitForResume;
 
+        @Option(names = "--lenient", description = "Treat features that aren't supported yet as warnings, not errors.")
+        private boolean lenient;
+
         @Override
         public Integer call() throws Exception {
             if (!scriptFile.exists()) {
@@ -71,7 +74,7 @@ public class WeaveCLI implements Callable<Integer> {
             }
             return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, prices,
                     journal == null ? null : journal.toPath(), store == null ? null : store.toPath(), waitForResume,
-                    WeaveEnv.system());
+                    lenient, WeaveEnv.system());
         }
     }
 
@@ -93,12 +96,20 @@ public class WeaveCLI implements Callable<Integer> {
 
     static int run(File scriptFile, File lootFile, String workflowName, Map<String, String> inputs, Long maxTokens,
                    Long maxCalls, String maxCost, File pricesFile, Path journal, Path store, boolean wait, WeaveEnv env) {
+        return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, pricesFile, journal, store,
+                wait, false, env);
+    }
+
+    static int run(File scriptFile, File lootFile, String workflowName, Map<String, String> inputs, Long maxTokens,
+                   Long maxCalls, String maxCost, File pricesFile, Path journal, Path store, boolean wait,
+                   boolean lenient, WeaveEnv env) {
         Path runDir = journal == null ? null : journal.toAbsolutePath().normalize();
         Path storeDir = runDir == null ? null
                 : (store != null ? store.toAbsolutePath().normalize() : Runs.defaultStore(runDir));
         RunSpec spec = new RunSpec(scriptFile.getAbsolutePath(), lootFile == null ? null : lootFile.getAbsolutePath(),
                 workflowName, inputs, maxTokens, maxCalls, maxCost,
-                pricesFile == null ? null : pricesFile.getAbsolutePath(), storeDir == null ? null : storeDir.toString());
+                pricesFile == null ? null : pricesFile.getAbsolutePath(), storeDir == null ? null : storeDir.toString(),
+                lenient);
         if (runDir != null) spec.write(runDir);
         Runs.Result result = Runs.execute(spec, runDir, null, env);
         if (result.exit() == 4 && wait && runDir != null && result.resumeAt() != null) {
@@ -137,6 +148,58 @@ public class WeaveCLI implements Callable<Integer> {
             case HUMAN, SUSPENDED -> 4;
             default -> 1;
         };
+    }
+
+    @Command(name = "check", description = "Checks a script — tools, knowledge, secrets, names — without running it.")
+    static class CheckCommand implements Callable<Integer> {
+        @Parameters(index = "0", description = "The .loom script to check.")
+        private File scriptFile;
+
+        @Option(names = {"-l", "--loot"}, description = "The .loot tool mapping file.")
+        private File lootFile;
+
+        @Option(names = "--lenient", description = "Treat features that aren't supported yet as warnings.")
+        private boolean lenient;
+
+        @Override
+        public Integer call() {
+            return check(scriptFile, lootFile, lenient, WeaveEnv.system());
+        }
+    }
+
+    /**
+     * Runs every load-time check without calling a model, embedding or starting a server. Prints every
+     * problem with its line; exit 0 when there are no errors, 2 otherwise. Never prints secret values.
+     */
+    static int check(File scriptFile, File lootFile, boolean lenient, WeaveEnv env) {
+        io.github.llm4j.loom.ast.LoomScript script;
+        try {
+            script = new LoomLoader().load(scriptFile.getAbsolutePath());
+        } catch (Exception e) {
+            env.out().println("✗ " + scriptFile.getName() + ": " + e.getMessage());
+            return 2;
+        }
+        ToolRegistry registry = new ToolRegistry();
+        if (lootFile != null && lootFile.exists()) new LootLoader().loadIntoRegistry(lootFile.getAbsolutePath(), registry);
+        HarnessExecutor executor = new HarnessExecutor(script, registry, model -> {
+            throw new IllegalStateException("weave check never creates model clients");
+        });
+        executor.setLenient(lenient);
+        executor.setEnvLookup(env.env());
+        executor.setHumanInterface(env.human()); // the CLI always has a console
+        List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems =
+                new io.github.llm4j.loom.execution.ScriptValidator().validate(script, executor.validationContext());
+        long errors = problems.stream()
+                .filter(p -> p.severity() == io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR).count();
+        for (var p : problems) env.out().println((p.severity() == io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR
+                ? "✗ " : "⚠ ") + p);
+        if (errors == 0) {
+            env.out().println("✓ " + scriptFile.getName() + ": ready to run"
+                    + (problems.isEmpty() ? "" : " (" + problems.size() + " warning" + (problems.size() == 1 ? "" : "s") + ")"));
+            return 0;
+        }
+        env.out().println(errors + " problem" + (errors == 1 ? "" : "s") + " in " + scriptFile.getName());
+        return 2;
     }
 
     @Command(name = "resume", description = "Resumes a paused run now, from its run directory.")
@@ -419,6 +482,7 @@ public class WeaveCLI implements Callable<Integer> {
     public static void main(String[] args) {
         int exitCode = new CommandLine(new WeaveCLI())
                 .addSubcommand(new RunCommand())
+                .addSubcommand(new CheckCommand())
                 .addSubcommand(new ResumeCommand())
                 .addSubcommand(new TickCommand())
                 .addSubcommand(new DaemonCommand())

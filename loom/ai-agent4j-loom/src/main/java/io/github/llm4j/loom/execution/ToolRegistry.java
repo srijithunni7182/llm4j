@@ -14,4 +14,9 @@ public class ToolRegistry {
     public Tool getTool(String name) {
         return tools.get(name);
     }
+
+    /** The names tools are registered under (from .loot files or Java). */
+    public java.util.Set<String> names() {
+        return java.util.Set.copyOf(tools.keySet());
+    }
 }

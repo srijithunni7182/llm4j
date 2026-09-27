@@ -59,6 +59,7 @@ public class LoomParser {
     private AgentDef parseAgent() {
         Token nameToken = consume(TokenType.IDENTIFIER, "Expect agent name.");
         AgentDef agent = new AgentDef(nameToken.getValue());
+        agent.setLine(nameToken.getLine());
 
         consume(TokenType.LBRACE, "Expect '{' before agent body.");
 
@@ -110,8 +111,10 @@ public class LoomParser {
                 }
                 consume(TokenType.RBRACKET, "Expect ']' after skills list.");
             } else if (match(TokenType.MEMORY)) {
+                int memoryLine = previous().getLine();
                 consume(TokenType.COLON, "Expect ':' after memory.");
                 agent.setMemory(parseMemoryConfig());
+                agent.getMemory().setLine(memoryLine);
             } else if (match(TokenType.ROUTING)) {
                 consume(TokenType.COLON, "Expect ':' after routing.");
                 Token policyToken = consume(TokenType.IDENTIFIER, "Expect routing policy name.");
@@ -542,6 +545,7 @@ public class LoomParser {
     private McpServerDef parseMcpServer() {
         Token nameToken = consume(TokenType.IDENTIFIER, "Expect MCP server name.");
         McpServerDef mcp = new McpServerDef(nameToken.getValue());
+        mcp.setLine(nameToken.getLine());
 
         consume(TokenType.LBRACE, "Expect '{' before mcp server body.");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
@@ -593,6 +597,7 @@ public class LoomParser {
     private KnowledgeDef parseKnowledgeBase() {
         Token nameToken = consume(TokenType.IDENTIFIER, "Expect knowledge base name.");
         KnowledgeDef kb = new KnowledgeDef(nameToken.getValue());
+        kb.setLine(nameToken.getLine());
 
         consume(TokenType.LBRACE, "Expect '{' before knowledge body.");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
@@ -619,6 +624,7 @@ public class LoomParser {
     private RoutingPolicyDef parseRoutingPolicy() {
         Token nameToken = consume(TokenType.IDENTIFIER, "Expect routing policy name.");
         RoutingPolicyDef rp = new RoutingPolicyDef(nameToken.getValue());
+        rp.setLine(nameToken.getLine());
 
         consume(TokenType.LBRACE, "Expect '{' before routing body.");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
@@ -675,6 +681,7 @@ public class LoomParser {
         consume(TokenType.RPAREN, "Expect ')'.");
 
         GuardrailStmt stmt = new GuardrailStmt(typeToken.getValue());
+        stmt.setLine(typeToken.getLine());
 
         consume(TokenType.LBRACE, "Expect '{' before guardrail body.");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {

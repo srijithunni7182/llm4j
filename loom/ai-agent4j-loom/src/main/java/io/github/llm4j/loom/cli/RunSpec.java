@@ -14,7 +14,12 @@ import java.util.Map;
  * later, can rebuild the run.
  */
 record RunSpec(String script, String loot, String workflow, Map<String, String> inputs, Long maxTokens,
-               Long maxCalls, String maxCost, String prices, String store) {
+               Long maxCalls, String maxCost, String prices, String store, boolean lenient) {
+
+    RunSpec(String script, String loot, String workflow, Map<String, String> inputs, Long maxTokens,
+            Long maxCalls, String maxCost, String prices, String store) {
+        this(script, loot, workflow, inputs, maxTokens, maxCalls, maxCost, prices, store, false);
+    }
 
     static final String FILE = "run.json";
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -36,6 +41,7 @@ record RunSpec(String script, String loot, String workflow, Map<String, String> 
             m.put("maxCost", maxCost);
             m.put("prices", prices);
             m.put("store", store);
+            m.put("lenient", lenient);
             Files.writeString(runDir.resolve(FILE), JSON.writerWithDefaultPrettyPrinter().writeValueAsString(m));
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot write " + runDir.resolve(FILE), e);
@@ -50,7 +56,8 @@ record RunSpec(String script, String loot, String workflow, Map<String, String> 
             Map<String, Object> m = JSON.readValue(file.toFile(), Map.class);
             return new RunSpec((String) m.get("script"), (String) m.get("loot"), (String) m.get("workflow"),
                     (Map<String, String>) m.get("inputs"), number(m.get("maxTokens")), number(m.get("maxCalls")),
-                    (String) m.get("maxCost"), (String) m.get("prices"), (String) m.get("store"));
+                    (String) m.get("maxCost"), (String) m.get("prices"), (String) m.get("store"),
+                    Boolean.TRUE.equals(m.get("lenient")));
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot read " + file, e);
         }

@@ -4,6 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AgentDef implements Node {
+    private int line;
+    /** The line it was declared on, for error messages. */
+    public int getLine() { return line; }
+    public void setLine(int line) { this.line = line; }
+
     private final String name;
     private String model;
     private String systemPrompt;
@@ -84,6 +89,9 @@ public class AgentDef implements Node {
 
     /** Inner class for agent memory configuration. */
     public static class MemoryConfig {
+        private int line;
+        public int getLine() { return line; }
+        public void setLine(int line) { this.line = line; }
         private String type;
         private String path;
         private int limit = 10;

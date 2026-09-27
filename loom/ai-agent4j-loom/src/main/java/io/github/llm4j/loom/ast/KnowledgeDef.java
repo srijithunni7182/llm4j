@@ -4,6 +4,11 @@ package io.github.llm4j.loom.ast;
  * AST node for a Knowledge Base / RAG source.
  */
 public class KnowledgeDef implements Node {
+    private int line;
+    /** The line it was declared on, for error messages. */
+    public int getLine() { return line; }
+    public void setLine(int line) { this.line = line; }
+
     private final String name;
     private String type;
     private String path;

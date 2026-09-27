@@ -70,6 +70,8 @@ final class Runs {
             }
             executor = new HarnessExecutor(script, registry, env.models());
             executor.setHumanInterface(env.human());
+            executor.setLenient(spec.lenient());
+            executor.setEnvLookup(env.env());
             executor.setClock(env.clock());
             executor.setSleeper(env.sleeper());
             if (spec.prices() != null) executor.setPriceTable(io.github.llm4j.budget.PriceTable.load(Path.of(spec.prices())));

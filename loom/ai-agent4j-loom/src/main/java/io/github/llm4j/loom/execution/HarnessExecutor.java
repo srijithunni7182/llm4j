@@ -110,6 +110,8 @@ public class HarnessExecutor implements LoomEngine {
     private io.github.llm4j.loom.trigger.TriggerStore triggerStore;
     private String runId;
     private String scriptRef = "script";
+    private boolean lenient;
+    private java.util.function.Function<String, String> envLookup = System::getenv;
     private final List<java.util.function.Consumer<RunSuspended>> suspensionListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     
     @FunctionalInterface
@@ -222,6 +224,29 @@ public class HarnessExecutor implements LoomEngine {
         ReActAgent agent = activeAgents.get(agentName);
         if (agent == null) throw new IllegalArgumentException("Agent not found: " + agentName);
         return runUnderLimits(agent, task);
+    }
+
+    /**
+     * Lenient mode: features the runtime doesn't support yet (agent memory, unknown guardrail types) are
+     * warnings instead of load errors. Unknown names and missing secrets are always errors.
+     */
+    public void setLenient(boolean lenient) {
+        this.lenient = lenient;
+    }
+
+    /** Where {@code env.NAME} values come from (default: the process environment). */
+    public void setEnvLookup(java.util.function.Function<String, String> envLookup) {
+        this.envLookup = envLookup != null ? envLookup : System::getenv;
+    }
+
+    /** The load-time checks for this script, as {@code initialize()} runs them (see {@link ScriptValidator}). */
+    public ScriptValidator.Context validationContext() {
+        java.util.Set<String> tools = new java.util.HashSet<>(toolRegistry.names());
+        return new ScriptValidator.Context()
+                .registeredTools(tools)
+                .env(envLookup)
+                .lenient(lenient)
+                .humanInterface(humanInterface != null);
     }
 
     /** How many times this run has been resumed after pausing for a limit. */
@@ -352,6 +377,11 @@ public class HarnessExecutor implements LoomEngine {
             }
         }
 
+        // ── 0b. Check the script: fail now, with every problem, rather than mid-run ──
+        for (ScriptValidator.Problem warning : new ScriptValidator().validateOrThrow(script, validationContext())) {
+            log.warning(warning.toString());
+        }
+
         // ── 1. Boot MCP servers ───────────────────────────────────────────────
         for (McpServerDef mcpDef : script.getMcpServers()) {
             if (mcpDef.getCmd() == null || mcpDef.getCmd().isBlank()) {
@@ -366,7 +396,8 @@ public class HarnessExecutor implements LoomEngine {
                 mcpClients.put(mcpDef.getName(), client);
                 log.info("MCP server initialised: " + mcpDef.getName());
             } catch (Exception e) {
-                log.severe("Failed to initialise MCP server '" + mcpDef.getName() + "': " + e.getMessage());
+                throw new LoomLoadException(List.of(new ScriptValidator.Problem(mcpDef.getLine(), "mcp " + mcpDef.getName(),
+                        "failed to start `" + mcpDef.getCmd() + "`: " + e.getMessage(), ScriptValidator.Severity.ERROR)));
             }
         }
 
@@ -386,14 +417,16 @@ public class HarnessExecutor implements LoomEngine {
                         .orElse(null);
                 
                 if (policy != null) {
+                    boolean fallback = policy.getStrategy() != null
+                            && "fallback".equals(ScriptValidator.routingStrategy(policy.getStrategy()));
                     RoutingLLMClient.Builder routingBuilder = RoutingLLMClient.builder()
-                            .strategy(new CostAwareRoutingStrategy());
-                    
-                    routingBuilder.addClient(ProviderTier.REASONING,
+                            .strategy(fallback ? new io.github.llm4j.routing.FallbackRoutingStrategy() : new CostAwareRoutingStrategy());
+                    // fallback: one tier, tried in the order written (primary first); cost-aware: primary is the strong tier
+                    routingBuilder.addClient(fallback ? ProviderTier.FAST_CHEAP : ProviderTier.REASONING,
                             metered(llmClientFactory.createClient(policy.getPrimaryModel()), agentDef, policy.getPrimaryModel()));
-                    for (String fallback : policy.getFallbackModels()) {
-                        routingBuilder.addClient(ProviderTier.BALANCED,
-                                metered(llmClientFactory.createClient(fallback), agentDef, fallback));
+                    for (String fb : policy.getFallbackModels()) {
+                        routingBuilder.addClient(fallback ? ProviderTier.FAST_CHEAP : ProviderTier.BALANCED,
+                                metered(llmClientFactory.createClient(fb), agentDef, fb));
                     }
                     llmClient = routingBuilder.build();
                 }
@@ -779,6 +812,12 @@ public class HarnessExecutor implements LoomEngine {
      * 3. Inline {@code system}      → used verbatim
      */
     private String resolveSystemPrompt(AgentDef agentDef) {
+        String base = basePrompt(agentDef);
+        // Skills always apply, whatever the base prompt came from.
+        return agentDef.getSkills().isEmpty() ? base : base + "\n\n" + resolveSkills(agentDef.getSkills());
+    }
+
+    private String basePrompt(AgentDef agentDef) {
         // Priority 1: system_template
         if (agentDef.getSystemTemplate() != null && promptRegistry != null) {
             return promptRegistry.get(agentDef.getSystemTemplate())
@@ -800,35 +839,19 @@ public class HarnessExecutor implements LoomEngine {
                 log.warning("Persona '" + agentDef.getPersona() + "' not found in PersonaLibrary — falling back. Error: " + e.getMessage());
             }
         }
-
-        String finalPrompt = fallbackSystemPrompt(agentDef);
-        
-        // Tier 2: Append Skills
-        if (!agentDef.getSkills().isEmpty()) {
-            finalPrompt += "\n\n" + resolveSkills(agentDef.getSkills());
-        }
-        
-        return finalPrompt;
+        return fallbackSystemPrompt(agentDef);
     }
 
     private String resolveSkills(List<String> skillUris) {
         StringBuilder sb = new StringBuilder("## Skills\n");
-        SkillLoader fsLoader = new FileSystemSkillLoader();
-        
         for (String uri : skillUris) {
             try {
-                AgentSkill skill;
-                if (uri.startsWith("fs://")) {
-                    skill = fsLoader.load(uri.substring(5));
-                } else if (uri.startsWith("classpath://")) {
-                    skill = AgentSkill.fromClasspath(uri.substring(12));
-                } else {
-                    skill = fsLoader.load(uri);
-                }
+                AgentSkill skill = ScriptValidator.loadSkill(uri);
                 sb.append("\n").append(skill.toSystemPromptSection()).append("\n");
                 log.info("Loaded skill: " + skill.getName());
             } catch (Exception e) {
-                log.warning("Failed to load skill '" + uri + "': " + e.getMessage());
+                // validated at load time; a skill that vanished since is still worth failing on
+                throw new IllegalStateException("Skill " + uri + " can't be loaded: " + e.getMessage(), e);
             }
         }
         return sb.toString();

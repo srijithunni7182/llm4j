@@ -20,9 +20,6 @@ agent BusinessAnalyst {
 agent Architect {
     model: "gemini-3.5-flash"
     system: "You are a Lead Software Architect. Given a PRD, produce both a High-Level Design (HLD) and Low-Level Design (LLD). HLD covers system components, data flow, and integration points. LLD covers class structures, API contracts, database schemas, and sequence diagrams. Justify every technology choice."
-    memory: {
-        type: "SEMANTIC"
-    }
 }
 
 agent TestArchitect {
