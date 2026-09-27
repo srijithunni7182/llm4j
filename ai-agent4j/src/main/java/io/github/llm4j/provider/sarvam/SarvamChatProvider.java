@@ -54,6 +54,8 @@ public class SarvamChatProvider implements LLMProvider {
             logger.debug("Calling Sarvam AI Chat API URL: {}", url);
             String responseJson = httpClient.post(url, requestJson, headers);
             return parseResponse(responseJson, request.getModel());
+        } catch (io.github.llm4j.exception.RateLimitException e) {
+            throw e;
         } catch (IOException | LLMException e) {
             throw new ProviderException(getProviderName(), "Failed to process chat request", e);
         }

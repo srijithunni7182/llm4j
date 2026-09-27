@@ -227,8 +227,17 @@ public class ReActAgent {
             LLMResponse response;
             try {
                 response = llmClient.chat(request);
+            } catch (io.github.llm4j.exception.RateLimitException limited) {
+                // Too long to wait inline (the HTTP layer already waited out short limits): hand the
+                // reset time to the caller instead of retrying or answering half-way.
+                throw new io.github.llm4j.ratelimit.RateLimited(
+                        limited.infoOrEstimate(java.time.Instant.now(), java.time.Duration.ofSeconds(60)),
+                        io.github.llm4j.ratelimit.RateLimited.Reason.PROVIDER_LIMIT);
             } catch (BudgetExceeded exhausted) {
                 if (budgetPolicy == BudgetPolicy.FAIL) throw exhausted;
+                if (budgetPolicy == BudgetPolicy.SUSPEND && exhausted.resetAt().isPresent()) {
+                    throw io.github.llm4j.ratelimit.RateLimited.of(exhausted);
+                }
                 return buildBudgetExhaustedResult(
                         exhausted,
                         lastThought != null ? lastThought : lastObservation != null ? lastObservation : "",

@@ -5,5 +5,11 @@ public enum BudgetPolicy {
     /** Return the best answer so far, marked as budget-exhausted (the default). */
     RETURN_PARTIAL,
     /** Propagate {@link BudgetExceeded}. */
-    FAIL
+    FAIL,
+    /**
+     * When the refusing budget is windowed (it refills at a known time), throw
+     * {@link io.github.llm4j.ratelimit.RateLimited} so a harness can pause and resume the task after the
+     * refill; otherwise behave as {@link #RETURN_PARTIAL}.
+     */
+    SUSPEND
 }

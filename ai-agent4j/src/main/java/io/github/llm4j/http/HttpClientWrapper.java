@@ -2,9 +2,16 @@ package io.github.llm4j.http;
 
 import io.github.llm4j.config.RetryPolicy;
 import io.github.llm4j.exception.LLMException;
+import io.github.llm4j.exception.RateLimitException;
+import io.github.llm4j.ratelimit.RateLimitInfo;
+import io.github.llm4j.ratelimit.RateLimitParser;
+import io.github.llm4j.ratelimit.RateLimitParsers;
 import java.io.IOException;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.ThreadLocalRandom;
 import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +25,7 @@ public class HttpClientWrapper {
     private final OkHttpClient client;
     private final RetryPolicy retryPolicy;
     private final boolean enableLogging;
+    private final RateLimitParsers rateLimits;
 
     public HttpClientWrapper(
             Duration timeout,
@@ -26,6 +34,8 @@ public class HttpClientWrapper {
             boolean enableLogging) {
         this.retryPolicy = Objects.requireNonNull(retryPolicy, "retryPolicy cannot be null");
         this.enableLogging = enableLogging;
+        this.rateLimits = RateLimitParsers.standard(retryPolicy.getDailyResetZone(),
+                retryPolicy.getFallbackDelay(), retryPolicy.getMaxFallbackDelay());
         this.client =
                 new OkHttpClient.Builder()
                         .callTimeout(timeout)
@@ -128,11 +138,14 @@ public class HttpClientWrapper {
     private String executeWithRetry(Request request) {
         int attempt = 0;
         LLMException lastException = null;
+        Duration nextWait = null; // set by a 429 that told us when to come back
+        String provider = providerOf(request);
 
         while (attempt <= retryPolicy.getMaxRetries()) {
             try {
                 if (attempt > 0) {
-                    Duration backoff = retryPolicy.calculateBackoff(attempt - 1);
+                    Duration backoff = nextWait != null ? nextWait : retryPolicy.calculateBackoff(attempt - 1);
+                    nextWait = null;
                     if (enableLogging) {
                         logger.info(
                                 "Retrying request after {} ms (attempt {}/{})",
@@ -140,7 +153,7 @@ public class HttpClientWrapper {
                                 attempt,
                                 retryPolicy.getMaxRetries());
                     }
-                    Thread.sleep(backoff.toMillis());
+                    retryPolicy.getSleeper().sleep(backoff);
                 }
 
                 if (enableLogging) {
@@ -159,6 +172,24 @@ public class HttpClientWrapper {
                                     "HTTP request failed with status {}: {}",
                                     statusCode,
                                     bodyString);
+                        }
+
+                        if (statusCode == 429) {
+                            Instant now = retryPolicy.getClock().instant();
+                            RateLimitInfo info = rateLimits.parse(
+                                    new RateLimitParser.Response(provider, statusCode,
+                                            response.headers().toMultimap(), bodyString),
+                                    retryPolicy.getClock());
+                            Duration wait = info.waitFrom(now);
+                            if (attempt < retryPolicy.getMaxRetries()
+                                    && retryPolicy.isRetryable(statusCode)
+                                    && wait.compareTo(retryPolicy.getInlineWaitThreshold()) <= 0) {
+                                nextWait = wait.plus(jitter(wait));
+                                lastException = new RateLimitException(info, now, bodyString);
+                                attempt++;
+                                continue;
+                            }
+                            throw new RateLimitException(info, now, bodyString);
                         }
 
                         // Check if we should retry
@@ -184,7 +215,7 @@ public class HttpClientWrapper {
                     if (enableLogging) {
                         logger.debug("HTTP request succeeded with status {}", response.code());
                     }
-
+                    rateLimits.success(provider);
                     return bodyString;
                 }
             } catch (IOException e) {
@@ -209,6 +240,23 @@ public class HttpClientWrapper {
                 ? lastException
                 : new LLMException(
                         "Request failed after " + retryPolicy.getMaxRetries() + " retries");
+    }
+
+    /** Up to 10% extra, so many clients throttled together don't all return in the same instant. */
+    private static Duration jitter(Duration wait) {
+        long max = wait.toMillis() / 10;
+        return max <= 0 ? Duration.ZERO : Duration.ofMillis(ThreadLocalRandom.current().nextLong(max + 1));
+    }
+
+    /** A short provider name from the request host, for rate-limit reports. */
+    static String providerOf(Request request) {
+        String host = request.url().host().toLowerCase(Locale.ROOT);
+        if (host.contains("googleapis") || host.contains("google")) return "google";
+        if (host.contains("anthropic")) return "anthropic";
+        if (host.contains("openai")) return "openai";
+        if (host.contains("sarvam")) return "sarvam";
+        if (request.url().port() == 11434 || host.contains("ollama")) return "ollama";
+        return host;
     }
 
     /** Closes the HTTP client and releases resources. */

@@ -86,11 +86,12 @@ public final class BudgetSet {
         BudgetEvent exhausted = null;
         Budget refusing = null;
         try {
+            for (Budget b : members) b.rollLocked();
             // Calls.
             for (Budget b : members) {
                 if (b.availableCalls() < 1) {
                     refusing = b; exhausted = b.exhaustedLocked();
-                    throw new BudgetExceeded(b.name(), Dimension.CALLS, b.spentLocked(), b.limits());
+                    throw new BudgetExceeded(b.name(), Dimension.CALLS, b.spentLocked(), b.limits(), b.windowEndLocked());
                 }
             }
             BigDecimal promptCost = pricing == null ? BigDecimal.ZERO : pricing.cost(promptTokens, 0);
@@ -99,7 +100,7 @@ public final class BudgetSet {
                 BigDecimal left = b.availableCost();
                 if (left != null && left.compareTo(promptCost) < 0) {
                     refusing = b; exhausted = b.exhaustedLocked();
-                    throw new BudgetExceeded(b.name(), Dimension.COST, b.spentLocked(), b.limits());
+                    throw new BudgetExceeded(b.name(), Dimension.COST, b.spentLocked(), b.limits(), b.windowEndLocked());
                 }
             }
             Long output = wanted;
@@ -123,7 +124,7 @@ public final class BudgetSet {
                 }
                 if (out < need) {
                     refusing = binding; exhausted = binding.exhaustedLocked();
-                    throw new BudgetExceeded(binding.name(), bindingDim, binding.spentLocked(), binding.limits());
+                    throw new BudgetExceeded(binding.name(), bindingDim, binding.spentLocked(), binding.limits(), binding.windowEndLocked());
                 }
                 output = out;
             }

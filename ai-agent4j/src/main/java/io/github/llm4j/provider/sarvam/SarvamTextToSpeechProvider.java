@@ -67,6 +67,8 @@ public class SarvamTextToSpeechProvider implements TextToSpeechProvider {
             return parseResponse(responseJson);
         } catch (ProviderException e) {
             throw e;
+        } catch (io.github.llm4j.exception.RateLimitException e) {
+            throw e;
         } catch (IOException | io.github.llm4j.exception.LLMException e) {
             throw new ProviderException(getProviderName(), "Failed to process TTS request", e);
         }

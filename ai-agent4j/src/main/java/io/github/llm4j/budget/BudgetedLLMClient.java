@@ -78,7 +78,7 @@ public final class BudgetedLLMClient implements LLMClient {
         try {
             response = delegate.chat(call.request);
         } catch (RuntimeException e) {
-            call.failed();
+            call.failed(e);
             throw e;
         }
         return call.settle(response, response.getContent());
@@ -91,7 +91,7 @@ public final class BudgetedLLMClient implements LLMClient {
         try {
             source = delegate.chatStream(call.request);
         } catch (RuntimeException e) {
-            call.failed();
+            call.failed(e);
             throw e;
         }
         Iterator<LLMResponse> it = source.iterator();
@@ -104,7 +104,7 @@ public final class BudgetedLLMClient implements LLMClient {
                 try {
                     more = it.hasNext();
                 } catch (RuntimeException e) {
-                    call.failed();
+                    call.failed(e);
                     throw e;
                 }
                 if (!more) call.settle(last[0], text.toString());
@@ -170,8 +170,15 @@ public final class BudgetedLLMClient implements LLMClient {
             this.modelId = modelId;
         }
 
-        /** A sent request that failed: providers may bill it, so charge its prompt and one call, estimated. */
-        void failed() {
+        /**
+         * A sent request that failed: providers may bill it, so charge its prompt and one call, estimated.
+         * A rate-limit refusal (429) is not billed: it counts as a call only.
+         */
+        void failed(RuntimeException e) {
+            if (e instanceof io.github.llm4j.exception.RateLimitException) {
+                charge(new Charge(0, 0, 1, BigDecimal.ZERO, false));
+                return;
+            }
             charge(new Charge(prompt, 0, 1, cost(prompt, 0), true));
         }
 

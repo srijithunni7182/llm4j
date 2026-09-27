@@ -1,6 +1,8 @@
 package io.github.llm4j.budget;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -19,7 +21,13 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <pre>{@code
  * Budget run = Budget.builder().name("run").tokens(200_000).calls(150).warnAt(0.8).build();
+ * Budget daily = Budget.builder().name("daily").tokens(100_000).window(Window.DAY).build();
  * }</pre>
+ *
+ * <p>A <b>windowed</b> budget's limits apply per minute, hour or day (aligned to its clock's zone): when
+ * the window rolls over, spend starts again from zero. {@link #spent()} is the current window;
+ * {@link #lifetimeSpent()} includes every window. Its refusals say when it refills
+ * ({@link BudgetExceeded#resetAt()}).
  */
 public final class Budget {
 
@@ -31,6 +39,8 @@ public final class Budget {
     private final long order = SEQUENCE.incrementAndGet(); // total lock order across budgets
     final ReentrantLock lock = new ReentrantLock();
     private final List<BudgetListener> listeners = new CopyOnWriteArrayList<>();
+    private final Window window;
+    private final Clock clock;
 
     // guarded by lock
     private long promptTokens;
@@ -43,9 +53,23 @@ public final class Budget {
     private BigDecimal reservedCost = BigDecimal.ZERO;
     private boolean warned;
     private boolean exhaustedFired;
+    // windowed budgets only (guarded by lock)
+    private Instant windowStart;
+    private Instant windowEnd;
+    private long pastPrompt;
+    private long pastCompletion;
+    private long pastCalls;
+    private BigDecimal pastCost = BigDecimal.ZERO;
 
     private Budget(Builder b) {
         this.name = b.name;
+        this.window = b.window;
+        this.clock = b.clock != null ? b.clock : Clock.systemUTC();
+        if (window != null) {
+            Instant now = clock.instant();
+            windowStart = window.start(now, clock.getZone());
+            windowEnd = window.end(now, clock.getZone());
+        }
         this.limits = new Limits(b.tokens, b.calls, b.cost);
         this.warnAt = b.warnAt;
         if (b.listener != null) listeners.add(b.listener);
@@ -72,6 +96,33 @@ public final class Budget {
         return warnAt;
     }
 
+    /** The refill period, or null for a lifetime budget. */
+    public Window window() {
+        return window;
+    }
+
+    /** When the current window ends and the budget refills; null for a lifetime budget. */
+    public Instant windowEnd() {
+        lock.lock();
+        try {
+            return windowEndLocked();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** Spend across all windows (equal to {@link #spent()} for a lifetime budget). */
+    public Spent lifetimeSpent() {
+        lock.lock();
+        try {
+            rollLocked();
+            return new Spent(pastPrompt + promptTokens, pastCompletion + completionTokens, pastCalls + calls,
+                    pastCost.add(cost), estimated, 0);
+        } finally {
+            lock.unlock();
+        }
+    }
+
     long order() {
         return order;
     }
@@ -87,6 +138,7 @@ public final class Budget {
     public Spent spent() {
         lock.lock();
         try {
+            rollLocked();
             long tokens = promptTokens + completionTokens;
             long overdraw = limits.tokens() == null ? 0 : Math.max(0, tokens - limits.tokens());
             return new Spent(promptTokens, completionTokens, calls, cost, estimated, overdraw);
@@ -115,6 +167,7 @@ public final class Budget {
     public boolean refused() {
         lock.lock();
         try {
+            rollLocked();
             return exhaustedFired;
         } finally {
             lock.unlock();
@@ -123,9 +176,26 @@ public final class Budget {
 
     /** Adds spend recorded elsewhere (a resumed run's journaled usage). Never refuses. */
     public void restore(Spent already) {
+        restore(already, null);
+    }
+
+    /**
+     * Adds spend recorded elsewhere at time {@code at}. For a windowed budget, spend from before the
+     * current window only counts towards {@link #lifetimeSpent()}. Never refuses.
+     */
+    public void restore(Spent already, Instant at) {
         List<BudgetEvent> events;
         lock.lock();
         try {
+            rollLocked();
+            if (window != null && at != null && at.isBefore(windowStart)) {
+                pastPrompt += already.promptTokens();
+                pastCompletion += already.completionTokens();
+                pastCalls += already.calls();
+                pastCost = pastCost.add(already.cost());
+                estimated |= already.estimated();
+                return;
+            }
             promptTokens += already.promptTokens();
             completionTokens += already.completionTokens();
             calls += already.calls();
@@ -139,6 +209,30 @@ public final class Budget {
     }
 
     // ── called by BudgetSet with this budget's lock held ─────────────────────────────────────
+
+    /** Starts a new window if the current one has ended. Reservations in flight carry over. */
+    void rollLocked() {
+        if (window == null) return;
+        Instant now = clock.instant();
+        if (now.isBefore(windowEnd)) return;
+        pastPrompt += promptTokens;
+        pastCompletion += completionTokens;
+        pastCalls += calls;
+        pastCost = pastCost.add(cost);
+        promptTokens = 0;
+        completionTokens = 0;
+        calls = 0;
+        cost = BigDecimal.ZERO;
+        warned = false;
+        exhaustedFired = false;
+        windowStart = window.start(now, clock.getZone());
+        windowEnd = window.end(now, clock.getZone());
+    }
+
+    Instant windowEndLocked() {
+        rollLocked();
+        return windowEnd;
+    }
 
     long availableTokens() {
         return limits.tokens() == null ? Long.MAX_VALUE : limits.tokens() - promptTokens - completionTokens - reservedTokens;
@@ -160,6 +254,7 @@ public final class Budget {
 
     /** Replaces a reservation with the actual charge; returns the events to fire after unlocking. */
     List<BudgetEvent> settleLocked(long tokens, long callCount, BigDecimal money, Charge charge) {
+        rollLocked();
         reservedTokens -= tokens;
         reservedCalls -= callCount;
         reservedCost = reservedCost.subtract(money);
@@ -216,7 +311,8 @@ public final class Budget {
 
     @Override
     public String toString() {
-        return "Budget{" + name + ": " + limits + ", spent " + spent().tokens() + " tokens}";
+        return "Budget{" + name + ": " + limits + (window != null ? " per " + window.name().toLowerCase() : "")
+                + ", spent " + spent().tokens() + " tokens}";
     }
 
     public static final class Builder {
@@ -226,8 +322,22 @@ public final class Budget {
         private BigDecimal cost;
         private double warnAt = 0.8;
         private BudgetListener listener;
+        private Window window;
+        private Clock clock;
 
         private Builder() { }
+
+        /** Makes the limits apply per window: spend starts from zero each minute, hour or day. */
+        public Builder window(Window window) {
+            this.window = window;
+            return this;
+        }
+
+        /** The clock for windows (and its zone for aligning them). Default: system UTC. */
+        public Builder clock(Clock clock) {
+            this.clock = clock;
+            return this;
+        }
 
         public Builder name(String name) {
             this.name = name;
