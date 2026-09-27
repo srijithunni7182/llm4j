@@ -108,6 +108,16 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**per_call** `: N`\n\nInside an agent\'s `budget { }`: caps the output tokens of every answer that agent gives.',
     warn_at:
         '**warn_at** `: 80%`\n\nInside a `budget { }`: when to log a `budget_warning` (default 80%).',
+    use:
+        '**use** `: serpapi | duckduckgo | google_search | openapi | calculator | datetime | current_time | class`\n\nIn a `tool Name { }` block: the kind of tool. Secret options (`api_key`, `auth_value`) must be `env.NAME`.',
+    approve:
+        '**approve** `: [Tool, …] | all`\n\nOn an agent: those tool calls wait for a person\'s yes. Journaled per call; a durable run pauses until someone answers.',
+    max_iterations:
+        '**max_iterations** `: N`\n\nOn an agent: the most reasoning steps it may take for one task.',
+    source:
+        '**source** `: "docs/"`\n\nIn a `knowledge` block: a file or directory of md, txt, html, json or csv files.',
+    top_k:
+        '**top_k** `: 4`\n\nIn a `knowledge` block: how many passages each question retrieves.',
     per:
         '**per** `minute | hour | day`\n\nAfter a budget limit (`tokens: 100000 per day`): the budget refills each window.',
     when_exhausted:

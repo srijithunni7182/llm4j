@@ -1,7 +1,7 @@
 # Gap Analysis: ai-agent4j Capabilities vs. What Loom Exposes
 
-*Status: analysis only. Nothing here is implemented yet. It is meant to become a spec (requirements,
-design, tasks, verification) once priorities are agreed.*
+*Status: P0 and P1 are implemented (see `requirements.md` … `verification.md` in this folder). P2 and
+later remain open.*
 
 ## 1. Summary
 

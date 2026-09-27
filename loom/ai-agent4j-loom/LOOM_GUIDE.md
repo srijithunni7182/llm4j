@@ -68,6 +68,11 @@ weave schedule sync digest.loom --store runs/.loom-triggers
 
 Exit codes: `0` done, `1` failed, `2` bad options, `3` stopped by a budget, `4` paused.
 
+```bash
+weave check digest.loom          # every problem, with its line — without running anything or spending
+weave run digest.loom --lenient  # accept not-yet-supported syntax as warnings while migrating
+```
+
 ### 2. Packaging for Deployment (`package`)
 Encapsulate your workflow into a JAR that can run anywhere.
 
@@ -86,50 +91,111 @@ java -jar my-app.jar topic="Advanced Agentic Coding"
 
 ## 🤖 3. Deep Dive: Agent Configuration
 
-Agents in Loom are more than just LLM wrappers; they are stateful entities with memory, knowledge, and governance.
+Agents in Loom are more than LLM wrappers: they carry tools, knowledge, skills, approvals, budgets and
+governance, all declared in the script.
 
 ### Agent Definition Syntax
 ```loom
 agent Analyst {
-    model: "gpt-4o"
-    persona: "SeniorResearchAnalyst" // Reflective lookup from PersonaLibrary
-    system: "You are an analyst specializing in {domain}."
-    temperature: 0.3            // optional sampling temperature, 0.0–2.0 (creative roles high, checkers low)
-    
-    // Skill injection (Markdown-based instructions)
-    skills: ["fs://skills/analyst_best_practices.md"]
-    
-    // Tools defined here must be mapped in .loot
-    tools: [WebSearch, Calculator]
-    
-    // Configure Domain Knowledge (RAG)
-    knowledge {
-        type: "RAG"
-        path: "data/kb/"
-        chunk_size: 1024
-        embedding: "text-embedding-3-small"
-    }
+    model: "gemini-2.5-flash"
+    persona: "technicalAnalyst"          // a PersonaLibrary persona (optional)
+    system: "You are an analyst specialising in {domain}."
+    temperature: 0.3                     // 0.0–2.0: creative roles high, checkers low
+    max_iterations: 8                    // how many reasoning steps it may take
 
-    // Configure Long-Term Semantic Memory
-    memory {
-        type: "SEMANTIC"
-        threshold: 0.85
-        max_results: 5
-    }
-
-    // Apply a specific routing policy
-    routing: HighReliability
+    skills: ["fs://skills/analyst_best_practices.md"]   // Markdown instructions, relative to the script
+    tools: [Search, calculator]          // declared tools, built-ins, or .loot / Java tools
+    knowledge: [Handbook]                // knowledge bases it draws on
+    approve: [Search]                    // tool calls that need a person's yes
+    routing: HighReliability             // a routing policy
+    budget { tokens: 20000  per_call: 2000 }
 }
 ```
+
+Every setting takes effect, and anything Loom can't honour is rejected before the run starts, with its
+line number. `weave check` runs those checks without running anything.
+
+**Not supported yet** (rejected with a clear message; `--lenient` turns them into warnings while you
+migrate): an agent `memory { }` block (workflow context comes from Loom's memory engine), and guardrail
+types other than `PII`. Voice, language services and agent long-term memory are planned.
+
+### Tools, Knowledge and Approvals
+
+**Tools** are declared once and configured in the script. Secrets can only come from the environment:
+
+```loom
+tool Search   { use: serpapi  api_key: env.SERPAPI_KEY }
+tool Web      { use: duckduckgo }
+tool Petstore { use: openapi  spec: "specs/petstore.json"  auth_header: "X-API-Key"  auth_value: env.PETSTORE_KEY }
+tool Invoices { use: class  class: "com.acme.tools.InvoiceTool" }     // any no-arg Tool on the classpath
+```
+
+| `use:` | Options |
+|---|---|
+| `duckduckgo` | `base_url?` |
+| `serpapi` | `api_key` (env), `base_url?` |
+| `google_search` | `api_key` (env), `cx` |
+| `openapi` | `spec` (path or URL), and optionally `auth_header` or `auth_query` with `auth_value` (env) |
+| `calculator`, `datetime`, `current_time` | none |
+| `class` | `class` |
+
+- **Built-ins** work by name with no declaration: `web_search` (DuckDuckGo), `calculator`, `datetime`,
+  `current_time`.
+- A name in `tools:` is looked up in the script's declarations, then in tools the host registered
+  (`.loot` or Java), then among the built-ins. The model sees the name you gave the tool.
+- Hosts can add their own kinds with `executor.addToolKind(...)`.
+
+**Knowledge bases** index your documents, and agents get the relevant passages:
+
+```loom
+knowledge Handbook {
+    source: "docs/handbook/"             // a file or directory: md, txt, html, json, csv
+    embedding: "gemini/text-embedding-004"
+    chunk_size: 800                      // default 1000
+    overlap: 100                         // default 100
+    top_k: 4                             // passages per question (default 4)
+    store: "index/handbook.json"         // or memory (default)
+    mode: context                        // context (default) | tool
+}
+```
+
+- **`mode: context`**: before each delegate, the most relevant passages, with their source files, are put in
+  front of the task.
+- **`mode: tool`**: the agent instead gets a `search_handbook` tool and looks things up when it decides to.
+- **Indexing** happens when the script loads. With a file `store`, later loads only re-embed files that
+  changed, drop files that were removed, and rebuild if the embedding model or chunking changes.
+- **Embeddings**: `gemini/<model>` uses `GEMINI_API_KEY`. `onnx/<model.onnx>|<tokenizer.json>` and
+  `djl/<url>` run locally with the addons module. Hosts can plug in their own with `setEmbeddingFactory`.
+- **Cost**: embedding calls are not LLM calls and are not charged to budgets. The audit log records a
+  `knowledge_indexed` event with files, chunks and how many were embedded.
+
+**Approvals** make chosen tool calls wait for a person:
+
+```loom
+agent Publisher {
+    model: "gemini-2.5-flash"
+    tools: [Instagram, calculator]
+    approve: [Instagram]                 // or: approve: all
+}
+```
+
+- **Before each approved call**, the human interface is asked: *"Agent Publisher wants to call Instagram
+  with {…}. Reason: …. Approve? yes/no"*.
+- **Rejected**: the call doesn't run, and the agent is told it was rejected.
+- **Journaled**: the answer is recorded against the tool and its exact arguments. A resumed run never asks
+  twice for the same call, and a different call is asked again. With a durable journal, the run pauses
+  (holding no thread) until someone answers, as with `human_prompt`.
+- **Audited**: `approval_requested`, `approval_granted` and `approval_rejected` are logged, with personal
+  data masked.
 
 ### Model Routing Policies
 Define global policies to manage costs and reliability across different LLM providers.
 
 ```loom
 routing HighReliability {
-    strategy: "COST_AWARE"
-    primary: "gpt-4o"
-    fallback: ["claude-3-haiku", "gemini-1.5-flash"]
+    strategy: "fallback"                 // fallback: in the order written | cost_aware (default)
+    primary: "gemini-2.5-pro"
+    fallback: ["gemini-2.5-flash", "ollama/gemma3"]
 }
 ```
 

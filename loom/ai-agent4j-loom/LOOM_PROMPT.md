@@ -74,6 +74,16 @@ agent <AgentName> {
         overlap: skip            // or queue
     }
     ```
+*   **Tools** (declared in the script; secrets only from the environment; built-ins `web_search`, `calculator`, `datetime`, `current_time` need no declaration):
+    ```loom
+    tool Search { use: serpapi  api_key: env.SERPAPI_KEY }
+    tool Petstore { use: openapi  spec: "specs/petstore.json" }
+    ```
+*   **Knowledge Bases** (retrieval for agents that list them in `knowledge: [..]`):
+    ```loom
+    knowledge Handbook { source: "docs/"  embedding: "gemini/text-embedding-004"  top_k: 4  store: "index/handbook.json" }
+    ```
+*   **Agent extras**: `approve: [Tool]` (or `all`) makes those tool calls wait for a person; `max_iterations: 8` bounds reasoning; `knowledge: [Handbook]`. Do not write an agent `memory { }` block — it is not supported.
 *   **Rate Limits** (pause and resume instead of failing):
     ```loom
     rate_limits { on_limit: suspend  max_wait: 24h  max_resumes: 50 }   // suspend | wait | fail

@@ -83,6 +83,27 @@ class DocumentedExamplesTest {
     }
 
     @Test
+    void theToolsKnowledgeAndApprovalExamplesParse() throws Exception {
+        String source;
+        try (var in = getClass().getResourceAsStream("/docs/tools_examples.loom")) {
+            source = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        LoomScript script = new LoomParser(new Lexer(source).tokenize()).parseScript();
+        assertEquals(5, script.getTools().size());
+        assertEquals("serpapi", script.getTools().get(0).getKind());
+        assertTrue(script.getTools().get(0).getOptions().get("api_key").fromEnv());
+        assertEquals(io.github.llm4j.loom.ast.KnowledgeDef.Mode.CONTEXT, script.getKnowledgeBases().get(0).getMode());
+        assertEquals(8, script.getAgents().get(0).getMaxIterations());
+        assertEquals(java.util.List.of("Instagram"), script.getAgents().get(1).getApprove());
+        // and the README one-liners
+        new LoomParser(new Lexer("""
+                tool Search { use: serpapi api_key: env.SERPAPI_KEY }
+                knowledge Handbook { source: "docs/" embedding: "gemini/text-embedding-004" }
+                agent P { model: "m" tools: [Search] approve: [Search] }
+                """).tokenize()).parseScript();
+    }
+
+    @Test
     void aBareListHoldsAnything() {
         LoomScript script = new LoomParser(new Lexer("""
                 agent A { model: "m" output_schema: { items: list, names: list<string> } }
