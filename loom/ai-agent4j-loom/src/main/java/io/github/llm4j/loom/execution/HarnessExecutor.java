@@ -75,6 +75,21 @@ public class HarnessExecutor implements LoomEngine {
     });
     /** Block-local names (a for-each item, _error) visible to the statements of that block. */
     private final ThreadLocal<Map<String, Object>> locals = ThreadLocal.withInitial(Map::of);
+
+    // ── Budgets ──────────────────────────────────────────────────────────
+    /** True when the script (or an override) declares any budget; only then are clients metered. */
+    private boolean budgeting;
+    private io.github.llm4j.budget.Budget runBudget;
+    private final Map<String, io.github.llm4j.budget.Budget> agentBudgets = new HashMap<>();
+    /** Step, loop and for-each budgets enclosing the statement this thread is running. */
+    private final ThreadLocal<List<io.github.llm4j.budget.Budget>> scopes = ThreadLocal.withInitial(List::of);
+    private io.github.llm4j.budget.PriceTable priceTable;
+    private io.github.llm4j.budget.TokenEstimator tokenEstimator;
+    private Long overrideTokens;
+    private Long overrideCalls;
+    private java.math.BigDecimal overrideCost;
+    private final java.util.concurrent.atomic.AtomicBoolean budgetExhausted = new java.util.concurrent.atomic.AtomicBoolean();
+    private final List<SpendReport.Line> spendLines = new java.util.concurrent.CopyOnWriteArrayList<>();
     
     @FunctionalInterface
     public interface DelegateSuccessHandler {
@@ -135,6 +150,41 @@ public class HarnessExecutor implements LoomEngine {
         // No-op by default.
     }
 
+    /** Prices for cost budgets and cost reporting (see {@link io.github.llm4j.budget.PriceTable}). */
+    public void setPriceTable(io.github.llm4j.budget.PriceTable prices) {
+        this.priceTable = prices;
+    }
+
+    /** How tokens are estimated before a call and when a provider reports none. */
+    public void setTokenEstimator(io.github.llm4j.budget.TokenEstimator estimator) {
+        this.tokenEstimator = estimator;
+    }
+
+    /**
+     * Replaces the script's run limits (null keeps the script's value), e.g. from {@code weave --max-tokens}.
+     * Call before {@link #initialize()}.
+     */
+    public void setBudgetOverrides(Long tokens, Long calls, java.math.BigDecimal cost) {
+        this.overrideTokens = tokens;
+        this.overrideCalls = calls;
+        this.overrideCost = cost;
+    }
+
+    /** The run budget, or null when the script declares no budgets. */
+    public io.github.llm4j.budget.Budget getRunBudget() {
+        return runBudget;
+    }
+
+    /** An agent's own budget (its {@code budget { }} block), or null. */
+    public io.github.llm4j.budget.Budget getAgentBudget(String agentName) {
+        return agentBudgets.get(agentName);
+    }
+
+    /** What the run has spent so far: totals, per agent and per step. */
+    public SpendReport spend() {
+        return new SpendReport(List.copyOf(spendLines));
+    }
+
     /** Variables as the current block sees them: workflow variables plus block-local names. */
     private VariableContext view() {
         Map<String, Object> l = locals.get();
@@ -156,14 +206,17 @@ public class HarnessExecutor implements LoomEngine {
 
     /** Runs {@code work} on another thread with this thread's step id and block-local names. */
     private CompletableFuture<Void> forkWith(String stepId, Map<String, Object> names, Runnable work) {
+        List<io.github.llm4j.budget.Budget> budgets = scopes.get();
         return CompletableFuture.runAsync(() -> {
             step.set(stepId);
             locals.set(names);
+            scopes.set(budgets);
             try {
                 work.run();
             } finally {
                 step.remove();
                 locals.remove();
+                scopes.remove();
             }
         }, BRANCHES);
     }
@@ -207,6 +260,9 @@ public class HarnessExecutor implements LoomEngine {
             }
         }
 
+        // ── 1b. Budgets ───────────────────────────────────────────────────────
+        setUpBudgets();
+
         // ── 2. Build agents ───────────────────────────────────────────────────
         for (AgentDef agentDef : script.getAgents()) {
             String systemPrompt = resolveSystemPrompt(agentDef);
@@ -223,16 +279,18 @@ public class HarnessExecutor implements LoomEngine {
                     RoutingLLMClient.Builder routingBuilder = RoutingLLMClient.builder()
                             .strategy(new CostAwareRoutingStrategy());
                     
-                    routingBuilder.addClient(ProviderTier.REASONING, llmClientFactory.createClient(policy.getPrimaryModel()));
+                    routingBuilder.addClient(ProviderTier.REASONING,
+                            metered(llmClientFactory.createClient(policy.getPrimaryModel()), agentDef, policy.getPrimaryModel()));
                     for (String fallback : policy.getFallbackModels()) {
-                        routingBuilder.addClient(ProviderTier.BALANCED, llmClientFactory.createClient(fallback));
+                        routingBuilder.addClient(ProviderTier.BALANCED,
+                                metered(llmClientFactory.createClient(fallback), agentDef, fallback));
                     }
                     llmClient = routingBuilder.build();
                 }
             }
             
             if (llmClient == null) {
-                llmClient = llmClientFactory.createClient(agentDef.getModel());
+                llmClient = metered(llmClientFactory.createClient(agentDef.getModel()), agentDef, agentDef.getModel());
             }
 
             ReActAgent.Builder agentBuilder = ReActAgent.builder().llmClient(llmClient);
@@ -337,6 +395,7 @@ public class HarnessExecutor implements LoomEngine {
             .orElseThrow(() -> new IllegalArgumentException("Workflow not found: " + workflowName));
 
         log.info("Starting workflow: " + workflowName);
+        if (budgeting) context.setVariable("_budget", new BudgetView());
 
         String parent = step.get();
         step.set(parent.isEmpty() ? workflowName : parent + ">" + workflowName);
@@ -414,11 +473,44 @@ public class HarnessExecutor implements LoomEngine {
             if (recorded.isPresent()) {
                 results = String.valueOf(recorded.get().value());
             } else {
-                results = broadcast.getTargetAgents().parallelStream().map(agentName -> {
-                    ReActAgent broadcastAgent = activeAgents.get(agentName);
-                    if (broadcastAgent == null) throw new IllegalStateException("Agent not found: " + agentName);
-                    return broadcastAgent.run(resolvedPayload).getFinalAnswer();
-                }).toList().toString();
+                List<io.github.llm4j.budget.Budget> outerScopes = scopes.get();
+                if (broadcast.getBudget() != null && budgeting) {
+                    scopes.set(plus(outerScopes, newBudget("step " + stepId, broadcast.getBudget())));
+                }
+                try {
+                    Map<String, Object> names = locals.get();
+                    List<io.github.llm4j.budget.Budget> branchScopes = scopes.get();
+                    List<CompletableFuture<String>> answers = new java.util.ArrayList<>();
+                    for (String agentName : broadcast.getTargetAgents()) {
+                        ReActAgent broadcastAgent = activeAgents.get(agentName);
+                        if (broadcastAgent == null) throw new IllegalStateException("Agent not found: " + agentName);
+                        answers.add(CompletableFuture.supplyAsync(() -> {
+                            step.set(stepId);
+                            locals.set(names);
+                            scopes.set(branchScopes);
+                            try {
+                                io.github.llm4j.agent.AgentResult r = broadcastAgent.run(resolvedPayload);
+                                if (r.budgetExhausted()) {
+                                    budgetExhausted.set(true);
+                                    if (r.getUsage().getLlmCalls() == 0) throw r.getBudgetExceeded();
+                                }
+                                return r.getFinalAnswer();
+                            } finally {
+                                step.remove();
+                                locals.remove();
+                                scopes.remove();
+                            }
+                        }, BRANCHES));
+                    }
+                    try {
+                        results = answers.stream().map(CompletableFuture::join).toList().toString();
+                    } catch (java.util.concurrent.CompletionException e) {
+                        if (e.getCause() instanceof RuntimeException re) throw re;
+                        throw e;
+                    }
+                } finally {
+                    scopes.set(outerScopes);
+                }
                 journal.put(stepId, new RunJournal.Entry("broadcast", results));
             }
 
@@ -432,20 +524,48 @@ public class HarnessExecutor implements LoomEngine {
         } else if (stmt instanceof LoopStmt loop) {
             log.info("Entering loop. Condition: " + loop.getCondition());
             int rounds = 0;
-            boolean exhausted = false;
-            while (!ConditionEvaluator.evaluate(loop.getCondition(), view())) {
-                if (loop.getMaxIterations() > 0 && rounds >= loop.getMaxIterations()) {
-                    exhausted = true;
-                    break;
+            String exhaustedBy = null;
+            io.github.llm4j.budget.BudgetExceeded refusal = null;
+            io.github.llm4j.budget.Budget loopBudget = loop.getBudget() != null && budgeting
+                    ? newBudget("loop " + step.get(), loop.getBudget()) : null;
+            List<io.github.llm4j.budget.Budget> outerScopes = scopes.get();
+            if (loopBudget != null) scopes.set(plus(outerScopes, loopBudget));
+            try {
+                while (!ConditionEvaluator.evaluate(loop.getCondition(), view())) {
+                    if (loop.getMaxIterations() > 0 && rounds >= loop.getMaxIterations()) {
+                        exhaustedBy = "rounds";
+                        break;
+                    }
+                    // A budget that already refused can't pay for another round (its steps may have
+                    // handled the refusal in on_failure): stop instead of spinning.
+                    if (anyRefused(loopBudget)) {
+                        exhaustedBy = "budget";
+                        break;
+                    }
+                    rounds++;
+                    context.setVariable("_loopRound", String.valueOf(rounds));
+                    try {
+                        runBlock(loop.getBody(), "r" + rounds + ".");
+                    } catch (io.github.llm4j.budget.BudgetExceeded e) {
+                        if (loopBudget == null || !e.budget().equals(loopBudget.name())) throw e;
+                        refusal = e;
+                        rounds--; // that round couldn't be paid for
+                        exhaustedBy = "budget";
+                        break;
+                    }
                 }
-                rounds++;
-                context.setVariable("_loopRound", String.valueOf(rounds));
-                runBlock(loop.getBody(), "r" + rounds + ".");
+            } finally {
+                scopes.set(outerScopes);
             }
-            if (exhausted) {
-                log.warning("Loop reached its max of " + loop.getMaxIterations() + " rounds without: " + loop.getCondition());
+            if (exhaustedBy != null) {
+                log.warning("Loop stopped (" + exhaustedBy + ") after " + rounds + " round(s) without: " + loop.getCondition());
                 context.setVariable("_loopRounds", String.valueOf(rounds));
-                runBlock(loop.getOnExhausted(), "x");
+                context.setVariable("_loopExhaustedBy", exhaustedBy);
+                if (!loop.getOnExhausted().isEmpty()) {
+                    runBlock(loop.getOnExhausted(), "x");
+                } else if (refusal != null) {
+                    throw refusal;
+                }
             }
             log.info("Exiting loop.");
         } else if (stmt instanceof HumanPromptStmt hp) {
@@ -616,8 +736,38 @@ public class HarnessExecutor implements LoomEngine {
                 + (each.isParallel() ? " in parallel" : ""));
         String parent = step.get();
         Map<String, Object> outer = locals.get();
+        io.github.llm4j.budget.Budget eachBudget = each.getBudget() != null && budgeting
+                ? newBudget("for each " + parent, each.getBudget()) : null;
+        List<io.github.llm4j.budget.Budget> outerScopes = scopes.get();
+        if (eachBudget != null) scopes.set(plus(outerScopes, eachBudget));
+        io.github.llm4j.budget.BudgetExceeded refusal = null;
+        boolean stopped = false;
+        try {
+            refusal = runItems(each, items, parent, outer, eachBudget);
+        } catch (io.github.llm4j.budget.BudgetExceeded e) {
+            if (eachBudget == null || !e.budget().equals(eachBudget.name())) throw e;
+            refusal = e;
+        } finally {
+            scopes.set(outerScopes);
+        }
+        stopped = refusal != null || (eachBudget != null && eachBudget.refused());
+        if (stopped) {
+            log.warning("for each " + each.getItemName() + " stopped: its budget ran out");
+            context.setVariable("_loopExhaustedBy", "budget");
+            if (!each.getOnExhausted().isEmpty()) {
+                runBlock(each.getOnExhausted(), "x");
+            } else if (refusal != null) {
+                throw refusal;
+            }
+        }
+    }
+
+    /** Runs each item (in parallel or in turn); returns this for-each's own refusal if it stopped the items. */
+    private io.github.llm4j.budget.BudgetExceeded runItems(ForEachStmt each, List<?> items, String parent,
+                                                          Map<String, Object> outer, io.github.llm4j.budget.Budget eachBudget) {
         List<CompletableFuture<Void>> futures = new java.util.ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
+            if (!each.isParallel() && anyRefused(eachBudget)) break;
             Map<String, Object> names = new HashMap<>(outer);
             names.put(each.getItemName(), items.get(i));
             names.put("_index", String.valueOf(i));
@@ -630,6 +780,9 @@ public class HarnessExecutor implements LoomEngine {
                 locals.set(names);
                 try {
                     body.run();
+                } catch (io.github.llm4j.budget.BudgetExceeded e) {
+                    if (eachBudget == null || !e.budget().equals(eachBudget.name())) throw e;
+                    return e;
                 } finally {
                     step.set(parent);
                     locals.set(outer);
@@ -637,6 +790,7 @@ public class HarnessExecutor implements LoomEngine {
             }
         }
         joinAll(futures);
+        return null;
     }
 
     /** A name written {@code {item.field}} is resolved now; a plain name is used as written. */
@@ -687,7 +841,13 @@ public class HarnessExecutor implements LoomEngine {
         int attempts = 0;
         int maxAttempts = del.getRetryCount() + 1;
         Exception lastError = null;
-
+        io.github.llm4j.budget.BudgetExceeded refused = null;
+        io.github.llm4j.budget.BudgetExceeded partial = null;
+        List<io.github.llm4j.budget.Budget> outerScopes = scopes.get();
+        if (del.getBudget() != null && budgeting) {
+            scopes.set(plus(outerScopes, newBudget("step " + stepId, del.getBudget())));
+        }
+        try {
         while (attempts < maxAttempts) {
             try {
                 if (attempts > 0 && del.getBackoffMillis() > 0) {
@@ -698,9 +858,15 @@ public class HarnessExecutor implements LoomEngine {
                 io.github.llm4j.agent.AgentResult result = del.getTimeoutMillis() > 0
                         ? runWithTimeout(runAgent, contextBriefing, del.getTimeoutMillis())
                         : runAgent.run(contextBriefing);
-                
+                if (result.budgetExhausted()) {
+                    budgetExhausted.set(true);
+                    // Refused before its first call: nothing to keep, the step failed.
+                    if (result.getUsage().getLlmCalls() == 0) throw result.getBudgetExceeded();
+                    partial = result.getBudgetExceeded(); // ran out part-way: keep its best answer
+                }
+
                 Object finalValue = result.getFinalAnswer();
-                if (schema != null) {
+                if (schema != null && partial == null) {
                     finalValue = parseJsonResult(result.getFinalAnswer());
                 }
                 DelegateSuccessHandler successHandler = (agentResult, value) -> {
@@ -716,7 +882,11 @@ public class HarnessExecutor implements LoomEngine {
                             .build());
                 };
                 afterDelegateExecution(del, agentDef, resolvedPayload, contextBriefing, result, finalValue, successHandler);
-                return; // Success
+                break; // Success (possibly a partial answer)
+            } catch (io.github.llm4j.budget.BudgetExceeded exceeded) {
+                budgetExhausted.set(true);
+                refused = exceeded; // never retried: a retry would only spend more
+                break;
             } catch (io.github.llm4j.agent.AgentInterrupt interrupt) {
                 throw interrupt; // waiting for a human is not a failure — never retried
             } catch (InterruptedException e) {
@@ -729,6 +899,21 @@ public class HarnessExecutor implements LoomEngine {
                 attempts++;
             }
         }
+        } finally {
+            scopes.set(outerScopes);
+        }
+
+        if (refused != null) {
+            // Refused by a budget: on_failure handles it (outside the exhausted step budget), else it propagates.
+            if (del.getOnFailure().isEmpty()) throw refused;
+            handleExhausted(del, agentName, refused.getMessage(), refused);
+            return;
+        }
+        if (partial != null) {
+            if (!del.getOnFailure().isEmpty()) handleExhausted(del, agentName, partial.getMessage(), partial);
+            return;
+        }
+        if (attempts < maxAttempts) return; // succeeded
 
         // Exhausted retries
         log.severe("Exhausted retries for delegate to " + agentName);
@@ -760,14 +945,17 @@ public class HarnessExecutor implements LoomEngine {
     private io.github.llm4j.agent.AgentResult runWithTimeout(ReActAgent agent, String task, long timeoutMillis) throws Exception {
         String stepId = step.get();
         Map<String, Object> names = locals.get();
+        List<io.github.llm4j.budget.Budget> budgets = scopes.get();
         CompletableFuture<io.github.llm4j.agent.AgentResult> future = CompletableFuture.supplyAsync(() -> {
             step.set(stepId);
             locals.set(names);
+            scopes.set(budgets);
             try {
                 return agent.run(task);
             } finally {
                 step.remove();
                 locals.remove();
+                scopes.remove();
             }
         }, BRANCHES);
         try {
@@ -778,6 +966,156 @@ public class HarnessExecutor implements LoomEngine {
         } catch (java.util.concurrent.ExecutionException e) {
             if (e.getCause() instanceof RuntimeException re) throw re;
             throw e;
+        }
+    }
+
+    // ── Budgets ─────────────────────────────────────────────────────────────────────────────
+
+    /** Builds the run and agent budgets, and decides whether clients are metered at all. */
+    private void setUpBudgets() {
+        io.github.llm4j.loom.ast.BudgetDef runDef = script.getBudget();
+        boolean overridden = overrideTokens != null || overrideCalls != null || overrideCost != null;
+        budgeting = runDef != null || overridden
+                || script.getAgents().stream().anyMatch(a -> a.getBudget() != null)
+                || script.getWorkflows().stream().anyMatch(w -> hasStatementBudget(w.getStatements()));
+        if (!budgeting) return;
+
+        io.github.llm4j.loom.ast.BudgetDef merged = new io.github.llm4j.loom.ast.BudgetDef();
+        if (runDef != null) {
+            merged.setTokens(runDef.getTokens());
+            merged.setCalls(runDef.getCalls());
+            merged.setCost(runDef.getCost());
+            merged.setWarnAt(runDef.getWarnAt());
+        }
+        if (overrideTokens != null) merged.setTokens(overrideTokens);
+        if (overrideCalls != null) merged.setCalls(overrideCalls);
+        if (overrideCost != null) merged.setCost(overrideCost);
+        runBudget = newBudget("run", merged);
+
+        for (AgentDef agentDef : script.getAgents()) {
+            if (agentDef.getBudget() != null && agentDef.getBudget().hasLimits()) {
+                agentBudgets.put(agentDef.getName(), newBudget("agent " + agentDef.getName(), agentDef.getBudget()));
+            }
+        }
+        // A cost limit needs a price for every model it covers — say so now, not mid-run.
+        for (AgentDef agentDef : script.getAgents()) {
+            boolean costed = runBudget.limits().cost() != null
+                    || (agentBudgets.containsKey(agentDef.getName()) && agentBudgets.get(agentDef.getName()).limits().cost() != null);
+            if (!costed) continue;
+            for (String model : modelsOf(agentDef)) {
+                if (priceTable == null || priceTable.price(model).isEmpty()) {
+                    throw new IllegalStateException("A cost budget covers agent " + agentDef.getName() + ", but model '"
+                            + model + "' has no price. Supply a price table (weave --prices <file>, or setPriceTable).");
+                }
+            }
+        }
+    }
+
+    private List<String> modelsOf(AgentDef agentDef) {
+        if (agentDef.getRoutingPolicy() != null) {
+            for (RoutingPolicyDef policy : script.getRoutingPolicies()) {
+                if (policy.getName().equals(agentDef.getRoutingPolicy())) {
+                    List<String> models = new java.util.ArrayList<>();
+                    models.add(policy.getPrimaryModel());
+                    models.addAll(policy.getFallbackModels());
+                    return models;
+                }
+            }
+        }
+        return List.of(String.valueOf(agentDef.getModel()));
+    }
+
+    private static boolean hasStatementBudget(List<Statement> statements) {
+        for (Statement st : statements) {
+            if (st instanceof DelegateStmt d && (d.getBudget() != null || hasStatementBudget(d.getOnFailure()))) return true;
+            if (st instanceof BroadcastStmt b && b.getBudget() != null) return true;
+            if (st instanceof LoopStmt l && (l.getBudget() != null || hasStatementBudget(l.getBody())
+                    || hasStatementBudget(l.getOnExhausted()))) return true;
+            if (st instanceof ForEachStmt f && (f.getBudget() != null || hasStatementBudget(f.getBody()))) return true;
+            if (st instanceof AltStmt a && (hasStatementBudget(a.getIfBranch())
+                    || (a.getElseBranch() != null && hasStatementBudget(a.getElseBranch())))) return true;
+            if (st instanceof ParallelStmt p && hasStatementBudget(p.getBody())) return true;
+            if (st instanceof GuardrailStmt g && (hasStatementBudget(g.getBody()) || hasStatementBudget(g.getOnViolation()))) return true;
+        }
+        return false;
+    }
+
+    /** Meters a client against run + agent + enclosing budgets, when the script uses budgets. */
+    private io.github.llm4j.LLMClient metered(io.github.llm4j.LLMClient client, AgentDef agentDef, String model) {
+        if (!budgeting || client == null) return client;
+        String agentName = agentDef.getName();
+        io.github.llm4j.budget.BudgetedLLMClient metered = io.github.llm4j.budget.BudgetedLLMClient.builder(client)
+                .budgets(() -> budgetsFor(agentName))
+                .estimator(tokenEstimator)
+                .prices(priceTable)
+                .model(model)
+                .perCallCap(agentDef.getBudget() != null ? agentDef.getBudget().getPerCall() : null)
+                .build();
+        metered.addChargeListener((m, charge) -> spendLines.add(new SpendReport.Line(step.get(), agentName, m, charge)));
+        return metered;
+    }
+
+    private io.github.llm4j.budget.BudgetSet budgetsFor(String agentName) {
+        return io.github.llm4j.budget.BudgetSet.of(runBudget, agentBudgets.get(agentName))
+                .with(scopes.get().toArray(io.github.llm4j.budget.Budget[]::new));
+    }
+
+    private io.github.llm4j.budget.Budget newBudget(String name, io.github.llm4j.loom.ast.BudgetDef def) {
+        io.github.llm4j.budget.Budget.Builder b = io.github.llm4j.budget.Budget.builder().name(name);
+        if (def.getTokens() != null) b.tokens(def.getTokens());
+        if (def.getCalls() != null) b.calls(def.getCalls());
+        if (def.getCost() != null) b.cost(def.getCost());
+        if (def.getWarnAt() != null) b.warnAt(def.getWarnAt());
+        io.github.llm4j.budget.Budget budget = b.build();
+        budget.addListener(event -> {
+            String kind = event.kind() == io.github.llm4j.budget.BudgetEvent.Kind.WARNING ? "budget_warning" : "budget_refused";
+            log.warning(kind + ": " + event.budget() + " spent " + event.spent().tokens() + " tokens, "
+                    + event.spent().calls() + " calls (limits: " + event.limits() + ")");
+            Map<String, Object> data = new java.util.LinkedHashMap<>();
+            data.put("budget", event.budget());
+            data.put("spentTokens", String.valueOf(event.spent().tokens()));
+            data.put("spentCalls", String.valueOf(event.spent().calls()));
+            data.put("spentCost", event.spent().cost().toPlainString());
+            data.put("limits", event.limits().toString());
+            auditLogger.logConversationEvent(sessionId, null, kind, data);
+        });
+        return budget;
+    }
+
+    private static List<io.github.llm4j.budget.Budget> plus(List<io.github.llm4j.budget.Budget> list,
+                                                          io.github.llm4j.budget.Budget more) {
+        List<io.github.llm4j.budget.Budget> all = new java.util.ArrayList<>(list);
+        all.add(more);
+        return List.copyOf(all);
+    }
+
+    /** True when {@code own}, the run budget, or any enclosing budget has already refused a call. */
+    private boolean anyRefused(io.github.llm4j.budget.Budget own) {
+        if (!budgeting) return false;
+        if (own != null && own.refused()) return true;
+        if (runBudget != null && runBudget.refused()) return true;
+        for (io.github.llm4j.budget.Budget b : scopes.get()) if (b.refused()) return true;
+        return false;
+    }
+
+    /** {@code _budget.*}: the run budget, read live. */
+    private final class BudgetView extends java.util.AbstractMap<String, Object> {
+        @Override
+        public java.util.Set<Map.Entry<String, Object>> entrySet() {
+            io.github.llm4j.budget.Spent spent = runBudget.spent();
+            java.util.OptionalLong left = runBudget.remaining().tokens();
+            Map<String, Object> view = new java.util.LinkedHashMap<>();
+            view.put("spent", spent.tokens());
+            view.put("remaining", left.isPresent() ? (Object) left.getAsLong() : "unlimited");
+            view.put("calls", spent.calls());
+            view.put("cost", spent.cost().stripTrailingZeros().toPlainString());
+            view.put("exhausted", String.valueOf(budgetExhausted.get() || runBudget.exhausted()));
+            return view.entrySet();
+        }
+
+        @Override
+        public String toString() {
+            return "budget" + entrySet();
         }
     }
 

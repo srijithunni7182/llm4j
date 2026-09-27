@@ -68,6 +68,7 @@ class ReActAgentBudgetTest {
         assertThat(r.getSteps().get(r.getSteps().size() - 1).getOutcome()).isEqualTo(AgentResult.StepOutcome.BUDGET_EXHAUSTED);
         assertThat(r.getFinalAnswer()).isEqualTo("T2");
         assertThat(r.getUsage().getLlmCalls()).isEqualTo(2);
+        assertThat(r.getBudgetExceeded().dimension()).isEqualTo(Dimension.CALLS);
     }
 
     @Test

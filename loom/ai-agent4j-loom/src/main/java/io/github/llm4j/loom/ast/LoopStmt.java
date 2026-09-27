@@ -20,4 +20,9 @@ public class LoopStmt implements Statement {
     public int getMaxIterations() { return maxIterations; }
     public void setMaxIterations(int maxIterations) { this.maxIterations = maxIterations; }
     public List<Statement> getOnExhausted() { return onExhausted; }
+
+    private BudgetDef budget;
+    /** This statement's own budget ({@code budget N tokens}), or null. */
+    public BudgetDef getBudget() { return budget; }
+    public void setBudget(BudgetDef budget) { this.budget = budget; }
 }

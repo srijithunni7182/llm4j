@@ -83,6 +83,7 @@ class BudgetEdgeCasesTest {
         var client = Standard.client(new ScriptedLLMClient(), b);
         client.chat(Standard.request());
         assertThatThrownBy(() -> client.chat(Standard.request())).isInstanceOf(BudgetExceeded.class);
+        assertThat(b.refused()).isTrue();
         b.removeListener(broken);
         assertThat(b.toString()).contains("tokens 150");
     }

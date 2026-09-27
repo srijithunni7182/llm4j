@@ -93,6 +93,7 @@ public enum TokenType {
     GTE,        // >=
     ARROW,      // ->
     PLUS,       // + (for string concat)
+    PERCENT,    // % (e.g. warn_at: 80%)
 
     // End of File
     EOF

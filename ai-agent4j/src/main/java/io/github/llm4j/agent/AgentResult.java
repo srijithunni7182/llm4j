@@ -21,6 +21,7 @@ public final class AgentResult {
     private final int redundantActionCount;
     private final boolean protocolFollowed;
     private final boolean budgetExhausted;
+    private final io.github.llm4j.budget.BudgetExceeded budgetExceeded;
 
     private AgentResult(Builder builder) {
         this.finalAnswer = builder.finalAnswer;
@@ -33,7 +34,8 @@ public final class AgentResult {
         this.usage = builder.usage != null ? builder.usage : Usage.EMPTY;
         this.redundantActionCount = builder.redundantActionCount;
         this.protocolFollowed = builder.protocolFollowed;
-        this.budgetExhausted = builder.budgetExhausted;
+        this.budgetExceeded = builder.budgetExceeded;
+        this.budgetExhausted = builder.budgetExhausted || builder.budgetExceeded != null;
     }
 
     public String getFinalAnswer() {
@@ -98,6 +100,11 @@ public final class AgentResult {
      */
     public boolean budgetExhausted() {
         return budgetExhausted;
+    }
+
+    /** The refusal that stopped this run, when {@link #budgetExhausted()}: which budget, and what it had spent. */
+    public io.github.llm4j.budget.BudgetExceeded getBudgetExceeded() {
+        return budgetExceeded;
     }
 
     public boolean isHighConfidence() {
@@ -357,8 +364,15 @@ public final class AgentResult {
         private int redundantActionCount;
         private boolean protocolFollowed = true;
         private boolean budgetExhausted;
+        private io.github.llm4j.budget.BudgetExceeded budgetExceeded;
 
         private Builder() {}
+
+        /** The refusal that stopped the run (also marks it budget-exhausted). */
+        public Builder budgetExceeded(io.github.llm4j.budget.BudgetExceeded budgetExceeded) {
+            this.budgetExceeded = budgetExceeded;
+            return this;
+        }
 
         public Builder budgetExhausted(boolean budgetExhausted) {
             this.budgetExhausted = budgetExhausted;

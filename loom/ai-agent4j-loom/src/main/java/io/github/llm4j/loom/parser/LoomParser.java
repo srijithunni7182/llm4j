@@ -34,8 +34,13 @@ public class LoomParser {
                 script.addRoutingPolicy(parseRoutingPolicy());
             } else if (match(TokenType.SCHEDULE)) {
                 script.addSchedule(parseSchedule());
+            } else if (isBudgetKeyword()) {
+                // Contextual keyword: `budget` stays usable as a variable name everywhere else.
+                Token keyword = advance();
+                if (script.getBudget() != null) throw error(keyword, "Only one top-level budget block is allowed.");
+                script.setBudget(parseBudgetBlock(false));
             } else {
-                throw error(peek(), "Expected 'agent', 'workflow', 'mcp', 'audit', 'knowledge', 'routing', or 'schedule' declaration, but got: " + peek().getType());
+                throw error(peek(), "Expected 'agent', 'workflow', 'mcp', 'audit', 'knowledge', 'routing', 'schedule' or 'budget' declaration, but got: " + peek().getType());
             }
         }
 
@@ -130,6 +135,10 @@ public class LoomParser {
                     throw error(keyword, "temperature must be between 0.0 and 2.0, got " + value.getValue());
                 }
                 agent.setTemperature(temperature);
+            } else if (isBudgetKeyword()) {
+                Token keyword = advance();
+                if (agent.getBudget() != null) throw error(keyword, "An agent can have only one budget block.");
+                agent.setBudget(parseBudgetBlock(true));
             } else {
                 throw error(peek(), "Unexpected token in agent body: " + peek().getType());
             }
@@ -246,15 +255,20 @@ public class LoomParser {
             stmt.setExpecting(parseSchema());
         }
 
-        if (match(TokenType.RETRY)) {
-            Token count = consume(TokenType.NUMBER_LITERAL, "Expect number of retries.");
-            stmt.setRetryCount((int) Double.parseDouble(count.getValue()));
-        }
-        // Optional, in any order: backoff 2s · timeout 90s
-        while (check(TokenType.IDENTIFIER) && ("backoff".equals(peek().getValue()) || "timeout".equals(peek().getValue()))) {
-            String option = advance().getValue();
-            long millis = durationMillis();
-            if (option.equals("backoff")) stmt.setBackoffMillis(millis); else stmt.setTimeoutMillis(millis);
+        // Optional, in any order: retry 3 · backoff 2s · timeout 90s · budget 5000 tokens
+        while (true) {
+            if (match(TokenType.RETRY)) {
+                Token count = consume(TokenType.NUMBER_LITERAL, "Expect number of retries.");
+                stmt.setRetryCount((int) Double.parseDouble(count.getValue()));
+            } else if (check(TokenType.IDENTIFIER) && ("backoff".equals(peek().getValue()) || "timeout".equals(peek().getValue()))) {
+                String option = advance().getValue();
+                long millis = durationMillis();
+                if (option.equals("backoff")) stmt.setBackoffMillis(millis); else stmt.setTimeoutMillis(millis);
+            } else if (isBudgetModifier()) {
+                stmt.setBudget(parseBudgetModifier(stmt.getBudget()));
+            } else {
+                break;
+            }
         }
 
         if (match(TokenType.ON_FAILURE)) {
@@ -300,13 +314,26 @@ public class LoomParser {
         Token in = consume(TokenType.IDENTIFIER, "Expect 'in' after the item name.");
         if (!"in".equals(in.getValue())) throw error(in, "Expect 'for each <item> in <list>'.");
         Token list = consume(TokenType.IDENTIFIER, "Expect the list to iterate, e.g. review.fixes.");
+        io.github.llm4j.loom.ast.BudgetDef budget = null;
+        while (isBudgetModifier()) budget = parseBudgetModifier(budget);
         consume(TokenType.LBRACE, "Expect '{' before for each body.");
         List<Statement> body = new java.util.ArrayList<>();
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
             body.add(parseStatement());
         }
         consume(TokenType.RBRACE, "Expect '}' after for each body.");
-        return new ForEachStmt(item.getValue(), list.getValue(), body, parallel);
+        ForEachStmt loop = new ForEachStmt(item.getValue(), list.getValue(), body, parallel);
+        loop.setBudget(budget);
+        if (check(TokenType.IDENTIFIER) && "on_exhausted".equals(peek().getValue())) {
+            Token keyword = advance();
+            if (budget == null) throw error(keyword, "on_exhausted on a for each needs a budget (add 'budget N tokens')");
+            consume(TokenType.LBRACE, "Expect '{' before on_exhausted body.");
+            while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                loop.getOnExhausted().add(parseStatement());
+            }
+            consume(TokenType.RBRACE, "Expect '}' after on_exhausted body.");
+        }
+        return loop;
     }
 
     private CallStmt parseCallStmt() {
@@ -439,7 +466,9 @@ public class LoomParser {
         consume(TokenType.ARROW, "Expect '->' to assign broadcast result.");
         Token varName = consume(TokenType.IDENTIFIER, "Expect variable name for result.");
 
-        return new BroadcastStmt(payload, targetAgents, varName.getValue());
+        BroadcastStmt broadcast = new BroadcastStmt(payload, targetAgents, varName.getValue());
+        while (isBudgetModifier()) broadcast.setBudget(parseBudgetModifier(broadcast.getBudget()));
+        return broadcast;
     }
 
     private LoopStmt parseLoopStmt() {
@@ -459,6 +488,8 @@ public class LoomParser {
             max = (int) Double.parseDouble(n.getValue());
             if (max < 1) throw error(n, "loop max must be at least 1");
         }
+        io.github.llm4j.loom.ast.BudgetDef loopBudget = null;
+        while (isBudgetModifier()) loopBudget = parseBudgetModifier(loopBudget);
 
         consume(TokenType.LBRACE, "Expect '{' before loop body.");
         List<Statement> body = new java.util.ArrayList<>();
@@ -469,9 +500,12 @@ public class LoomParser {
 
         LoopStmt loop = new LoopStmt(conditionBuilder.toString(), body);
         loop.setMaxIterations(max);
+        loop.setBudget(loopBudget);
         if (check(TokenType.IDENTIFIER) && "on_exhausted".equals(peek().getValue())) {
             Token keyword = advance();
-            if (max == 0) throw error(keyword, "on_exhausted needs a bounded loop (add 'max N')");
+            if (max == 0 && loopBudget == null) {
+                throw error(keyword, "on_exhausted needs a bounded loop (add 'max N' or 'budget N tokens')");
+            }
             consume(TokenType.LBRACE, "Expect '{' before on_exhausted body.");
             while (!check(TokenType.RBRACE) && !isAtEnd()) {
                 loop.getOnExhausted().add(parseStatement());
@@ -750,6 +784,91 @@ public class LoomParser {
     private Token consume(TokenType type, String message) {
         if (check(type)) return advance();
         throw error(peek(), message);
+    }
+
+    // ── Budgets ──────────────────────────────────────────────────────────────────────────────
+
+    private boolean isBudgetKeyword() {
+        return check(TokenType.IDENTIFIER) && "budget".equals(peek().getValue())
+                && tokens.size() > current + 1 && tokens.get(current + 1).getType() == TokenType.LBRACE;
+    }
+
+    /** {@code budget} followed by a number or a string: a statement's budget modifier. */
+    private boolean isBudgetModifier() {
+        if (!check(TokenType.IDENTIFIER) || !"budget".equals(peek().getValue()) || tokens.size() <= current + 1) return false;
+        TokenType next = tokens.get(current + 1).getType();
+        return next == TokenType.NUMBER_LITERAL || next == TokenType.STRING_LITERAL;
+    }
+
+    /** {@code budget { tokens: N  calls: N  cost: "$X"  warn_at: 80%  per_call: N }} — after the keyword. */
+    private io.github.llm4j.loom.ast.BudgetDef parseBudgetBlock(boolean forAgent) {
+        io.github.llm4j.loom.ast.BudgetDef budget = new io.github.llm4j.loom.ast.BudgetDef();
+        consume(TokenType.LBRACE, "Expect '{' after budget.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token field = consume(TokenType.IDENTIFIER, "Expect a budget field: tokens, calls, cost, warn_at"
+                    + (forAgent ? " or per_call" : "") + ".");
+            consume(TokenType.COLON, "Expect ':' after budget field '" + field.getValue() + "'.");
+            switch (field.getValue()) {
+                case "tokens" -> budget.setTokens(positiveWhole(field));
+                case "calls" -> budget.setCalls(positiveWhole(field));
+                case "cost" -> budget.setCost(money(field));
+                case "per_call" -> {
+                    if (!forAgent) throw error(field, "per_call is only allowed in an agent's budget block.");
+                    budget.setPerCall((int) Math.min(Integer.MAX_VALUE, positiveWhole(field)));
+                }
+                case "warn_at" -> {
+                    Token n = consume(TokenType.NUMBER_LITERAL, "Expect a percentage for warn_at, e.g. warn_at: 80%");
+                    double value = Double.parseDouble(n.getValue());
+                    if (match(TokenType.PERCENT) || value > 1) value = value / 100.0;
+                    if (value <= 0 || value > 1) throw error(n, "warn_at must be between 1% and 100%, got " + n.getValue());
+                    budget.setWarnAt(value);
+                }
+                default -> throw error(field, "Unknown budget field '" + field.getValue()
+                        + "'. Use tokens, calls, cost, warn_at" + (forAgent ? " or per_call" : "") + ".");
+            }
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after budget block.");
+        return budget;
+    }
+
+    /** {@code budget 5000 tokens}, {@code budget 10 calls} or {@code budget "$0.05"}, merged into {@code into}. */
+    private io.github.llm4j.loom.ast.BudgetDef parseBudgetModifier(io.github.llm4j.loom.ast.BudgetDef into) {
+        Token keyword = advance(); // budget
+        io.github.llm4j.loom.ast.BudgetDef budget = into != null ? into : new io.github.llm4j.loom.ast.BudgetDef();
+        if (check(TokenType.STRING_LITERAL)) {
+            budget.setCost(money(keyword));
+            return budget;
+        }
+        long n = positiveWhole(keyword);
+        Token unit = consume(TokenType.IDENTIFIER, "Expect 'tokens' or 'calls' after the budget amount, e.g. budget 5000 tokens");
+        switch (unit.getValue()) {
+            case "tokens" -> budget.setTokens(n);
+            case "calls" -> budget.setCalls(n);
+            default -> throw error(unit, "Expect 'tokens' or 'calls' after the budget amount, got '" + unit.getValue() + "'");
+        }
+        return budget;
+    }
+
+    private long positiveWhole(Token field) {
+        Token n = consume(TokenType.NUMBER_LITERAL, "Expect a whole number for budget " + field.getValue() + ".");
+        double value = Double.parseDouble(n.getValue());
+        if (value <= 0 || value != Math.floor(value)) {
+            throw error(n, "budget " + field.getValue() + " must be a positive whole number, got " + n.getValue());
+        }
+        return (long) value;
+    }
+
+    /** A cost written with its currency symbol, e.g. "$0.50". */
+    private java.math.BigDecimal money(Token field) {
+        Token s = consume(TokenType.STRING_LITERAL, "Expect a cost with its currency symbol, e.g. \"$0.50\".");
+        String raw = s.getValue().strip();
+        if (!raw.matches("[$€£₹¥]\\s*\\d+(\\.\\d+)?")) {
+            throw error(s, "budget cost must include a currency symbol, e.g. \"$0.50\", got \"" + raw + "\"");
+        }
+        java.math.BigDecimal amount = new java.math.BigDecimal(raw.substring(1).strip());
+        if (amount.signum() <= 0) throw error(s, "budget cost must be positive, got \"" + raw + "\"");
+        return amount;
     }
 
     private RuntimeException error(Token token, String message) {

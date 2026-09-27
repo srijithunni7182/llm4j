@@ -541,7 +541,7 @@ public class ReActAgent {
                         .steps(all)
                         .iterations(iteration)
                         .completed(false)
-                        .budgetExhausted(true)
+                        .budgetExceeded(exhausted)
                         .confidence(ConfidenceScore.low(exhausted.getMessage()))
                         .uncertaintyDetected(true)
                         .uncertaintyReason(exhausted.getMessage())

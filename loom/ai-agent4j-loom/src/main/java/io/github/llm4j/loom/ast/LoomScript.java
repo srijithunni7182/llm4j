@@ -12,6 +12,7 @@ public class LoomScript implements Node {
     private final List<ScheduleDef> schedules = new ArrayList<>();
     private final List<String> imports = new ArrayList<>();
     private AuditConfig auditConfig;
+    private BudgetDef budget;
 
     public void addAgent(AgentDef agent) {
         this.agents.add(agent);
@@ -45,6 +46,10 @@ public class LoomScript implements Node {
     public void setAuditConfig(AuditConfig auditConfig) { this.auditConfig = auditConfig; }
     public AuditConfig getAuditConfig() { return auditConfig; }
 
+    /** The run's budget ({@code budget { }} at top level), or null. */
+    public BudgetDef getBudget() { return budget; }
+    public void setBudget(BudgetDef budget) { this.budget = budget; }
+
     public void merge(LoomScript other) {
         this.agents.addAll(other.agents);
         this.workflows.addAll(other.workflows);
@@ -54,6 +59,9 @@ public class LoomScript implements Node {
         this.schedules.addAll(other.schedules);
         if (this.auditConfig == null) {
             this.auditConfig = other.auditConfig;
+        }
+        if (this.budget == null) {
+            this.budget = other.budget;
         }
     }
 }

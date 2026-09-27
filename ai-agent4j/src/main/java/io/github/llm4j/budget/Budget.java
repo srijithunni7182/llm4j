@@ -111,6 +111,16 @@ public final class Budget {
                 || (r.cost().isPresent() && r.cost().get().signum() == 0);
     }
 
+    /** True once this budget has refused a call. */
+    public boolean refused() {
+        lock.lock();
+        try {
+            return exhaustedFired;
+        } finally {
+            lock.unlock();
+        }
+    }
+
     /** Adds spend recorded elsewhere (a resumed run's journaled usage). Never refuses. */
     public void restore(Spent already) {
         List<BudgetEvent> events;
