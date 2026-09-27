@@ -41,11 +41,11 @@ its partial answer.
     - _Requirements: 3.1, 3.2, 3.3, 3.5_
   - [ ] 2.3 `BudgetedLLMClient`: preflight refusal, output cap on `maxTokens`, minimum useful
         output, settle with reported or estimated usage, failed-call charge, streaming settle on close
-    - _Requirements: 2.1–2.6_
+    - _Requirements: 2.1–2.6, 2.8_
   - [ ] 2.4 Unit tests with a scripted client: refused call never reaches the delegate; `maxTokens`
         lowered; estimated usage flagged; failed call charged; cost computed from input and output
         separately
-    - _Requirements: 2.1–2.6, 3.5_
+    - _Requirements: 2.1–2.6, 2.8, 3.5_
 
 - [ ] 3. ReActAgent support
   - [ ] 3.1 Builder options `budget`, `maxTokensPerCall`, `onBudgetExhausted(RETURN_PARTIAL | FAIL)`;
@@ -88,14 +88,14 @@ its partial answer.
     - _Requirements: 6.1, 9.1_
   - [ ] 6.3 Outcomes: refused step → `on_failure`, no retry; partial result → bind + `_budget.exhausted`
         + `on_failure`; loop/for-each → `on_exhausted` with `_loopExhaustedBy`; unhandled →
-        `BUDGET_EXCEEDED` with context kept
+        `BudgetExceeded` thrown from `executeWorkflow` with context kept
     - _Requirements: 6.2, 6.3, 6.4, 6.5_
   - [ ] 6.4 `_budget.spent / remaining / calls / exhausted` readable in payloads and conditions
     - _Requirements: 6.6_
   - [ ] 6.5 Cost limits: fail `initialize()` if any model the script uses is unpriced
     - _Requirements: 3.4_
   - [ ] 6.6 Tests: each outcome above; `parallel` branches share one budget exactly; `alt` routing on
-        `_budget.remaining`; unbudgeted scripts behave as before
+        `_budget.remaining`; unbudgeted scripts behave as before (see verification.md)
     - _Requirements: 6.1–6.7, 9.1_
 
 - [ ] 7. Checkpoint: Loom suite green; GetViral suite green against the new Loom

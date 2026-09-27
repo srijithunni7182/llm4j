@@ -77,8 +77,8 @@ made, so that a runaway agent can never spend more than I allowed.
    BudgetedLLMClient SHALL raise BudgetExceeded without calling the model.
 2. WHEN a call is allowed, THE BudgetedLLMClient SHALL set the request's `maxTokens` to no more than
    the output tokens the Budget_Set can still afford after the estimated prompt.
-3. WHEN the affordable output is below a minimum useful size (default 64 tokens), THE BudgetedLLMClient
-   SHALL refuse the call as in criterion 1.
+3. WHEN the affordable output is below the smaller of the requested output and a minimum useful size
+   (default 64 tokens), THE BudgetedLLMClient SHALL refuse the call as in criterion 1.
 4. WHEN a call completes, THE BudgetedLLMClient SHALL settle the Reservation with the provider's reported
    usage.
 5. IF the provider reports no usage, THEN THE BudgetedLLMClient SHALL settle with an estimate and mark
@@ -86,8 +86,12 @@ made, so that a runaway agent can never spend more than I allowed.
 6. IF a call fails after being sent, THEN THE BudgetedLLMClient SHALL settle the estimated prompt tokens
    and one call, since providers may bill failed requests.
 7. WHILE concurrent calls share a budget, THE BudgetedLLMClient SHALL hold a Reservation between
-   preflight and Settlement so that the budget is never overdrawn by more than one call's
-   estimation error.
+   preflight and Settlement, so that the budget is overdrawn by at most the sum of the prompt-estimate
+   errors of the calls in flight. Output cannot overdraw it, because each call's `maxTokens` is capped
+   to its reservation.
+8. IF a provider returns more output tokens than the request's `maxTokens`, THEN THE BudgetedLLMClient
+   SHALL charge the actual amount, record the overdraw in the Spend_Report, and refuse later calls
+   until the budget has room again.
 
 ---
 
@@ -166,7 +170,8 @@ constructs I already know, so that I can handle it symbolically.
    loop's `on_exhausted` block if present, with `{_loopExhaustedBy}` set to `budget` (or `rounds` when
    `max` was reached).
 5. IF budget exhaustion is not handled by any enclosing construct, THEN THE HarnessExecutor SHALL stop
-   the run with status `BUDGET_EXCEEDED`, keeping every variable already bound.
+   the run by throwing BudgetExceeded from `executeWorkflow`, keeping every variable already bound and
+   the Spend_Report readable.
 6. THE HarnessExecutor SHALL expose `{_budget.spent}`, `{_budget.remaining}`, `{_budget.calls}` and
    `{_budget.exhausted}` for the run budget, usable in payloads and in `alt` / `loop until` conditions.
 7. WHILE `parallel` branches or `parallel for each` items run concurrently, THE HarnessExecutor SHALL

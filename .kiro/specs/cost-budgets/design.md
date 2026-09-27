@@ -73,7 +73,9 @@ public record Charge(long promptTokens, long completionTokens, int calls, BigDec
 ```
 
 - **Concurrency.** One `ReentrantLock` per budget; `reserve` and `settle` are short critical sections.
-  The totals `spent + reserved` never exceed the limit at reservation time (Requirement 1.3, 2.7).
+  The totals `spent + reserved` never exceed the limit at reservation time (Requirements 1.3, 2.7).
+  Output is capped to its reservation, so an overdraw can only come from prompt estimates that were
+  too low, summed over the calls in flight, or from a provider ignoring `maxTokens` (Requirement 2.8).
 - **Warning.** The threshold is checked on `settle`. The first crossing fires one `BudgetEvent.WARNING`.
 - **Unset limits** are unlimited. A budget with no limits only counts spend (useful for reports).
 
@@ -111,7 +113,8 @@ without rebuilding clients.
 promptEst  = estimator.prompt(request)                       // chars/4 × 1.1 over all messages
 wanted     = request.maxTokens ?? perCallCap ?? DEFAULT_OUTPUT (1024)
 affordable = min over budgets of (remainingTokens - promptEst)
-if affordable < MIN_OUTPUT (64)          → throw BudgetExceeded(first short budget)   // nothing sent
+if affordable < min(wanted, MIN_OUTPUT)  → throw BudgetExceeded(first short budget)   // nothing sent
+                                                              // MIN_OUTPUT = 64
 output     = min(wanted, affordable)
 lease      = budgets.reserve(promptEst + output, price(promptEst, output))            // may throw
 request'   = request with maxTokens = output
@@ -241,7 +244,7 @@ any budget (Requirement 9.1).
 | Preflight refuses a step's call | Step failed; `_error` = "budget exhausted: step Main/3 (tokens 5000/5000)"; run `on_failure` or propagate; never retried |
 | Agent returns a Partial_Result | Bind the partial value, set `_budget.exhausted = true`, run `on_failure` if present, else continue |
 | A loop or for-each budget refuses | Stop iterating; `_loopExhaustedBy = "budget"`; run `on_exhausted` or propagate |
-| `BudgetExceeded` reaches the workflow | Run ends with `RunStatus.BUDGET_EXCEEDED`; context kept; `Spend_Report` attached |
+| `BudgetExceeded` reaches the workflow | `executeWorkflow` ends by throwing `BudgetExceeded` (an `AgentInterrupt`); the context and `spend()` stay readable; hosts map it to their own status (GetViral: `BUDGET_EXCEEDED`) |
 
 **Variables.** `_budget.*` variables are computed on read from the run budget: `spent`, `remaining`
 (tokens, or `unlimited`), `calls` and `exhausted`. That makes them valid in `ConditionEvaluator` paths
