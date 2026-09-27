@@ -28,6 +28,11 @@ public interface RunJournal {
     /** Every recorded step, for inspection. */
     Map<String, Entry> all();
 
+    /** True when the journal outlives the process (a file or a database), so a run can pause and resume later. */
+    default boolean isDurable() {
+        return false;
+    }
+
     /** A journal that lives as long as the executor: runs are replayable within one process. */
     static RunJournal inMemory() {
         return new RunJournal() {

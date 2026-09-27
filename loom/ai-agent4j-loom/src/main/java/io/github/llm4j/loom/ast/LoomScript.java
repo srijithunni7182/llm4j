@@ -12,6 +12,8 @@ public class LoomScript implements Node {
     private final List<ScheduleDef> schedules = new ArrayList<>();
     private final List<String> imports = new ArrayList<>();
     private AuditConfig auditConfig;
+    private BudgetDef budget;
+    private RateLimitDef rateLimits;
 
     public void addAgent(AgentDef agent) {
         this.agents.add(agent);
@@ -45,6 +47,14 @@ public class LoomScript implements Node {
     public void setAuditConfig(AuditConfig auditConfig) { this.auditConfig = auditConfig; }
     public AuditConfig getAuditConfig() { return auditConfig; }
 
+    /** The run's budget ({@code budget { }} at top level), or null. */
+    public BudgetDef getBudget() { return budget; }
+    public void setBudget(BudgetDef budget) { this.budget = budget; }
+
+    /** The {@code rate_limits { }} block, or null. */
+    public RateLimitDef getRateLimits() { return rateLimits; }
+    public void setRateLimits(RateLimitDef rateLimits) { this.rateLimits = rateLimits; }
+
     public void merge(LoomScript other) {
         this.agents.addAll(other.agents);
         this.workflows.addAll(other.workflows);
@@ -54,6 +64,12 @@ public class LoomScript implements Node {
         this.schedules.addAll(other.schedules);
         if (this.auditConfig == null) {
             this.auditConfig = other.auditConfig;
+        }
+        if (this.budget == null) {
+            this.budget = other.budget;
+        }
+        if (this.rateLimits == null) {
+            this.rateLimits = other.rateLimits;
         }
     }
 }

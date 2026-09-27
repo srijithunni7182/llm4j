@@ -102,6 +102,34 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**backoff** `<duration>`\n\nWait between retries (e.g. `2s`), doubling each attempt.',
     timeout:
         '**timeout** `<duration>`\n\nGives up on a delegate attempt that runs longer than this (e.g. `90s`); counts as a failed attempt.',
+    budget:
+        '**budget** `{ tokens: N  calls: N  cost: "$X"  warn_at: 80% }` or `budget N tokens`\n\nCaps what LLM calls may spend: at top level for the whole run, inside an agent (with `per_call`), or after a `delegate`, `broadcast`, `loop until` or `for each`. A call that can\'t be paid for is refused before it reaches the model and is never retried; `{_budget.remaining}` and friends are live.',
+    per_call:
+        '**per_call** `: N`\n\nInside an agent\'s `budget { }`: caps the output tokens of every answer that agent gives.',
+    warn_at:
+        '**warn_at** `: 80%`\n\nInside a `budget { }`: when to log a `budget_warning` (default 80%).',
+    per:
+        '**per** `minute | hour | day`\n\nAfter a budget limit (`tokens: 100000 per day`): the budget refills each window.',
+    when_exhausted:
+        '**when_exhausted** `: stop | suspend | ask`\n\nInside a `budget { }`: stop the run (default), pause it until the budget refills (needs `per …`), or ask a person to allow more.',
+    rate_limits:
+        '**rate_limits** `{ on_limit: suspend  max_wait: 24h  max_resumes: 50 }`\n\nWhat a run does when a provider rate limit or quota stops it: pause and resume when it lifts (`suspend`, the default with a durable journal), `wait` inline, or `fail`.',
+    on_limit:
+        '**on_limit** `: suspend | wait | fail`\n\nInside `rate_limits { }`.',
+    max_wait:
+        '**max_wait** `: 24h`\n\nInside `rate_limits { }`: limits further away than this fail the run.',
+    max_resumes:
+        '**max_resumes** `: 50`\n\nInside `rate_limits { }`: a run resumed more often than this is failed.',
+    cron:
+        '**cron** `: "0 7 * * *"`\n\nIn a `schedule`: minute hour day-of-month month day-of-week, read in `timezone` (default UTC).',
+    every:
+        '**every** `: 6h`\n\nIn a `schedule`: a fixed interval instead of `cron`.',
+    timezone:
+        '**timezone** `: "Asia/Kolkata"`\n\nIn a `schedule`: the zone `cron` is read in.',
+    misfire:
+        '**misfire** `: run_once | skip`\n\nIn a `schedule`: after slots were missed while nothing ran, fire once or skip to the next slot.',
+    overlap:
+        '**overlap** `: skip | queue`\n\nIn a `schedule`: while an earlier run is still paused, skip this slot or start another run.',
     temperature:
         '**temperature** `<0.0–2.0>`\n\nSampling temperature for an agent: high for creative roles, low for checkers.',
     alt:
@@ -115,7 +143,7 @@ const LOOM_KEYWORDS: Record<string, string> = {
     observe:
         '**observe** `<Agent>`\n\nPassively observes the output of an agent without modifying the variable context.',
     schedule:
-        '**schedule** `<Name> { ... }`\n\nDefines a scheduled trigger for a workflow.',
+        '**schedule** `<Name> { cron: "0 7 * * *"  run: Workflow(arg="x") }`\n\nRuns a workflow (or `agent` + `task`) on a cron or `every` interval. With a trigger store it is persisted and survives restarts; `weave triggers install` lets the OS wake it.',
     routing:
         '**routing** `<Name> { ... }`\n\nDefines a routing policy that selects an agent based on runtime conditions.',
     import:

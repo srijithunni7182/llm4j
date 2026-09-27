@@ -84,6 +84,8 @@ public class SarvamAudioProvider implements SpeechToTextProvider {
 
         } catch (ProviderException e) {
             throw e;
+        } catch (io.github.llm4j.exception.RateLimitException e) {
+            throw e;
         } catch (IOException
                 | io.github.llm4j.exception.LLMException
                         e) { // Catching Exception because postMultipart might throw runtime

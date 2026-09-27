@@ -35,6 +35,7 @@ Explore the full capabilities of the framework through our detailed guides:
 - [**Memory & Persistence**](wiki/Memory-and-Persistence.md) — Managing conversation history and long-term storage.
 - [**Real-time Streaming**](wiki/Thought-Streaming.md) — Capturing agent "thoughts" for responsive UIs via SSE/WebSockets.
 - [**Advanced Configuration**](wiki/Advanced-Configuration.md) — Retry policies, custom tools, and error handling.
+- [**Budgets and Rate Limits**](wiki/Budgets-and-Rate-Limits.md) — Cap tokens, calls or money; budgets that refill; reading 429s and pausing until the limit lifts.
 
 ### Advanced Features
 
@@ -68,6 +69,67 @@ Explore the full capabilities of the framework through our detailed guides:
 - **🚦 Intelligent Provider Routing**: Cost-aware routing and automatic rate-limit failover.
 - **🔍 xAI Standards Compliance**: Transparent reasoning and audit trails for explainable AI.
 - **🔒 Private & Local**: Zero-cost, 100% private retrieval via `rag-addons`.
+- **💸 Cost Budgets**: Cap tokens, calls or money per agent; over-budget calls are refused before they reach the model. See below.
+
+### Cost budgets
+
+> The full guide — windows, `BudgetSet`, price tables, events, rate-limit parsing, recipes and API
+> reference — is [**Budgets and Rate Limits**](wiki/Budgets-and-Rate-Limits.md).
+
+Every token an agent spends goes through `LLMClient.chat()`, so that is where budgets are enforced:
+
+```java
+Budget budget = Budget.builder().tokens(50_000).calls(40).warnAt(0.8).build();
+
+ReActAgent agent = ReActAgent.builder()
+        .llmClient(client)
+        .budget(budget)                 // refuse calls that can't be paid for
+        .maxTokensPerCall(1500)         // and cap every answer
+        .build();
+
+AgentResult r = agent.run("Research the topic");
+if (r.budgetExhausted()) {             // ran out part-way: this is its best answer so far
+    System.out.println(r.getFinalAnswer() + " — " + r.getBudgetExceeded().getMessage());
+}
+System.out.println(budget.spent());    // tokens, calls, cost, and whether any usage was estimated
+```
+
+- **Before each call** the budget is checked and the call reserved; a call that can't fit throws
+  `BudgetExceeded` without reaching the model (it is never retried). The answer's `maxTokens` is lowered
+  to what is left.
+- **After each call** the reservation is replaced by the provider's reported usage, or an estimate
+  (about 4 characters per token) marked as estimated when a provider reports none.
+- **Money** needs your own `PriceTable` (`PriceTable.load(path)`, lines of `model = input / output` per
+  million tokens); none ship with the library. `ollama/*` models are free.
+- **Many budgets at once** — run, agent, step — go in a `BudgetSet`; a call must fit them all and is charged
+  to each. Concurrent calls can't jointly overspend. Use `BudgetedLLMClient` to meter any client directly.
+- `onBudgetExhausted(BudgetPolicy.FAIL)` throws instead of returning the partial answer.
+- **Budgets that refill**: `Budget.builder().tokens(100_000).window(Window.DAY)` limits spend per minute,
+  hour or day; a refusal says when it refills (`BudgetExceeded.resetAt()`), and
+  `onBudgetExhausted(BudgetPolicy.SUSPEND)` turns it into `RateLimited` for a harness to pause on.
+
+### Rate limits
+
+A provider's 429 says when to come back. The HTTP layer reads it — Gemini's error body (`RetryInfo`,
+`QuotaFailure`; a per-day quota resets at midnight Pacific), Anthropic's `anthropic-ratelimit-*-reset`,
+OpenAI's `x-ratelimit-reset-*`, or `Retry-After` — and:
+
+- waits out limits that lift within 30 s, retrying exactly when they reset (plus a little jitter);
+- raises `RateLimitException` for longer ones, with `info()` giving the reset **instant**, the kind of limit
+  (requests, tokens, daily quota) and whether the time was estimated (no reset information: 60 s, doubling
+  on repeated 429s, up to an hour).
+
+```java
+try {
+    agent.run("Summarise today's papers");
+} catch (RateLimited limited) {           // an AgentInterrupt: never retried, never a half answer
+    scheduleRetryAt(limited.resetAt());   // e.g. 2026-09-28T07:00:00Z for Gemini's free-tier daily quota
+}
+```
+
+`RetryPolicy.builder().inlineWaitThreshold(…).fallbackDelay(…).dailyResetZone(…)` tunes this. A refused call
+counts as a call against a budget but costs no tokens, and `RoutingLLMClient` reports the soonest reset when
+every tier is limited. Loom builds on this to pause workflows and resume them automatically.
 
 ---
 

@@ -88,6 +88,9 @@ class DuckDuckGoSearchToolTest {
     void testNoResults() throws Exception {
         String htmlResponse = "<html><body>No results found</body></html>";
 
+        // Nothing from the GET, nothing from the POST fallback either.
+        mockWebServer.enqueue(
+                new MockResponse().setBody(htmlResponse).addHeader("Content-Type", "text/html"));
         mockWebServer.enqueue(
                 new MockResponse().setBody(htmlResponse).addHeader("Content-Type", "text/html"));
 
@@ -104,5 +107,30 @@ class DuckDuckGoSearchToolTest {
         String result = tool.execute(Map.of("query", "error"));
 
         assertThat(result).contains("Error: DuckDuckGo Lite returned HTTP 500");
+    }
+
+    @Test
+    void fallsBackToTheLiteFormPostWhenTheGetReturnsNothing() throws Exception {
+        mockWebServer.enqueue(new MockResponse().setBody("<html><body></body></html>"));
+        mockWebServer.enqueue(new MockResponse().setBody("<table><tr><td>"
+                + "<a class=\"result-link\" href=\"//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.org%2Fbread&rut=x\">Bread science</a>"
+                + "</td></tr><tr><td class=\"result-snippet\">Cold proofing slows yeast.</td></tr></table>"));
+
+        java.util.List<DuckDuckGoSearchTool.Result> results = tool.search("cold proof", 5);
+
+        assertThat(results).containsExactly(new DuckDuckGoSearchTool.Result(
+                "Bread science", "https://example.org/bread", "Cold proofing slows yeast."));
+        assertThat(mockWebServer.takeRequest().getMethod()).isEqualTo("GET");
+        okhttp3.mockwebserver.RecordedRequest post = mockWebServer.takeRequest();
+        assertThat(post.getMethod()).isEqualTo("POST");
+        assertThat(post.getBody().readUtf8()).isEqualTo("q=cold+proof");
+    }
+
+    @Test
+    void skipsSponsoredResults() {
+        java.util.List<DuckDuckGoSearchTool.Result> results = DuckDuckGoSearchTool.parse("<table>"
+                + "<tr><td><a class=\"result-link\" href=\"https://duckduckgo.com/y.js?ad=1\">Ad</a></td></tr>"
+                + "<tr><td><a class=\"result-link\" href=\"https://example.org/\">Real</a></td></tr></table>", 5);
+        assertThat(results).extracting(DuckDuckGoSearchTool.Result::title).containsExactly("Real");
     }
 }

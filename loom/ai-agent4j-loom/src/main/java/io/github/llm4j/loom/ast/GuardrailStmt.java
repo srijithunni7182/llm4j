@@ -7,6 +7,11 @@ import java.util.List;
  * AST node for a guardrail statement (e.g., PII protection).
  */
 public class GuardrailStmt implements Statement {
+    private int line;
+    /** The line it was declared on, for error messages. */
+    public int getLine() { return line; }
+    public void setLine(int line) { this.line = line; }
+
     private final String type;
     private final List<Statement> body = new ArrayList<>();
     private final List<Statement> onViolation = new ArrayList<>();

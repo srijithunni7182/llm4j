@@ -61,6 +61,8 @@ public class GoogleProvider implements DescribableProvider {
             return parseResponse(responseJson, model);
         } catch (ProviderException e) {
             throw e;
+        } catch (io.github.llm4j.exception.RateLimitException e) {
+            throw e;
         } catch (IOException | LLMException e) {
             throw new ProviderException(getProviderName(), "Failed to process request", e);
         }
@@ -105,6 +107,8 @@ public class GoogleProvider implements DescribableProvider {
             return new String[0];
         } catch (ProviderException e) {
             throw e;
+        } catch (io.github.llm4j.exception.RateLimitException e) {
+            throw e;
         } catch (IOException | LLMException e) {
             logger.error("Failed to list models from Google API", e);
             throw new ProviderException(getProviderName(), "Failed to list models", e);
@@ -134,6 +138,8 @@ public class GoogleProvider implements DescribableProvider {
             }
             return null;
         } catch (ProviderException e) {
+            throw e;
+        } catch (io.github.llm4j.exception.RateLimitException e) {
             throw e;
         } catch (IOException | LLMException e) {
             logger.error("Failed to get available models from Google API", e);

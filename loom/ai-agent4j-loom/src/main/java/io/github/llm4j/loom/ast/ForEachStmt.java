@@ -23,4 +23,13 @@ public class ForEachStmt implements Statement {
     public String getCollectionPath() { return collectionPath; }
     public List<Statement> getBody() { return body; }
     public boolean isParallel() { return parallel; }
+
+    private BudgetDef budget;
+    /** This statement's own budget ({@code budget N tokens}), or null. */
+    public BudgetDef getBudget() { return budget; }
+    public void setBudget(BudgetDef budget) { this.budget = budget; }
+
+    private final List<Statement> onExhausted = new java.util.ArrayList<>();
+    /** Runs when the for-each's budget runs out before every item was processed. */
+    public List<Statement> getOnExhausted() { return onExhausted; }
 }

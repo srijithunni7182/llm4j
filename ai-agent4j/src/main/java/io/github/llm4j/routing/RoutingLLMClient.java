@@ -68,6 +68,8 @@ public class RoutingLLMClient implements LLMClient {
             }
         }
 
+        io.github.llm4j.exception.RateLimitException limited = soonestIfAllRateLimited(suppressedExceptions);
+        if (limited != null) throw limited;
         LLMException fatal = new LLMException("All available LLM Clients failed to process the request.");
         for (Exception e : suppressedExceptions) {
             fatal.addSuppressed(e);
@@ -139,5 +141,24 @@ public class RoutingLLMClient implements LLMClient {
         public RoutingLLMClient build() {
             return new RoutingLLMClient(this);
         }
+    }
+
+    /**
+     * When every client failed only because it is rate limited, the request can go through as soon as
+     * the first of them resets: report that one, so callers can wait for it rather than give up.
+     */
+    public static io.github.llm4j.exception.RateLimitException soonestIfAllRateLimited(List<Exception> failures) {
+        if (failures.isEmpty()) return null;
+        io.github.llm4j.exception.RateLimitException soonest = null;
+        for (Exception e : failures) {
+            if (!(e instanceof io.github.llm4j.exception.RateLimitException r)) return null;
+            if (soonest == null) {
+                soonest = r;
+            } else if (r.info() != null && (soonest.info() == null
+                    || r.info().resetAt().isBefore(soonest.info().resetAt()))) {
+                soonest = r;
+            }
+        }
+        return soonest;
     }
 }

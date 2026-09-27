@@ -178,8 +178,8 @@ public class GetViralEngine {
                 : "dry-run");
         started.put("publicApis", config.offlineApis() ? "offline samples" : "live (sample fallback)");
         started.put("webSearch", config.offlineApis() ? "offline"
-                : config.geminiApiKey() != null ? "Google Search via Gemini + GDELT news + Wikipedia"
-                : "GDELT news + Wikipedia + DuckDuckGo (add a Gemini key for Google Search)");
+                : config.geminiApiKey() != null ? "DuckDuckGo + Google Search via Gemini + GDELT news + Wikipedia"
+                : "DuckDuckGo + GDELT news + Wikipedia (add a Gemini key for Google Search)");
         List<ImageGenerator> imageChain = MediaStudio.imageChain(config);
         started.put("images", MediaStudio.describe(imageChain));
         started.put("video", "Reel renderer " + config.reelWidth() + "x" + config.reelHeight()

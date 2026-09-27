@@ -97,9 +97,12 @@ public class Lexer {
             case ',': addToken(TokenType.COMMA); break;
             case ':': addToken(TokenType.COLON); break;
             case '+': addToken(TokenType.PLUS); break;
+            case '%': addToken(TokenType.PERCENT); break;
             case '-':
                 if (match('>')) {
                     addToken(TokenType.ARROW);
+                } else if (isDigit(peek())) {
+                    number(); // a negative number, so the parser can say why it isn't allowed
                 } else {
                     // It could be a minus, but we haven't defined minus yet. Let's just ignore or throw.
                     throw new RuntimeException("Unexpected character '-' at line " + line);

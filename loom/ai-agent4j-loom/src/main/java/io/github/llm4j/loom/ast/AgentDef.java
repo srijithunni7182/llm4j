@@ -4,6 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class AgentDef implements Node {
+    private int line;
+    /** The line it was declared on, for error messages. */
+    public int getLine() { return line; }
+    public void setLine(int line) { this.line = line; }
+
     private final String name;
     private String model;
     private String systemPrompt;
@@ -23,6 +28,7 @@ public class AgentDef implements Node {
     private SchemaDef outputSchema;
     /** Optional sampling temperature (0.0–2.0) for this agent's LLM calls; null = the runtime default. */
     private Double temperature;
+    private BudgetDef budget;
 
     public AgentDef(String name) {
         this.name = name;
@@ -73,6 +79,9 @@ public class AgentDef implements Node {
     public void addKnowledgeBase(String kbName) { this.knowledgeBases.add(kbName); }
 
     public Double getTemperature() { return temperature; }
+    /** This agent's budget ({@code budget { }} inside the agent), or null. */
+    public BudgetDef getBudget() { return budget; }
+    public void setBudget(BudgetDef budget) { this.budget = budget; }
     public void setTemperature(Double temperature) { this.temperature = temperature; }
 
     public SchemaDef getOutputSchema() { return outputSchema; }
@@ -80,6 +89,9 @@ public class AgentDef implements Node {
 
     /** Inner class for agent memory configuration. */
     public static class MemoryConfig {
+        private int line;
+        public int getLine() { return line; }
+        public void setLine(int line) { this.line = line; }
         private String type;
         private String path;
         private int limit = 10;

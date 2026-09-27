@@ -61,6 +61,9 @@ Loom is that layer, designed as a first-class language.
 | `loop until` | Repeats a block until a symbolic condition is met; `max N … on_exhausted` bounds it |
 | `for each` | Runs a block per list item (`parallel for each` for all at once); targets may come from the item |
 | `human_prompt` | Asks a person; with a run journal the run suspends (no thread held) and resumes on the answer |
+| `budget` | Caps a run, an agent or a step in tokens, calls or money; enforced before each LLM call. `per day` makes it refill |
+| `rate_limits` | Pause a run when a provider limit or quota is hit, and resume it when the limit lifts |
+| `schedule` | Run a workflow or agent task on a cron or interval — stored, so it survives restarts |
 | `guardrail` | Wraps a block — intercepts output before it escapes (e.g. PII detection) |
 | `call` | Invoke a sub-workflow with isolated variable scope |
 | `parallel { }` | Concurrent execution block — every statement runs on its own branch thread |
@@ -167,6 +170,40 @@ delegate "Review the build" to Showrunner -> review expecting {
     fixes: list
 }
 ```
+
+**Budgets you can't overspend.** Cap a run, an agent or a single step in tokens, calls or money. The
+runtime refuses a call *before* it reaches the model if it can't be paid for, caps each answer to what is
+left, and reports where every token went. On a hobby budget, a runaway loop can't run up a bill:
+
+```text
+budget { tokens: 200000  warn_at: 80% }
+agent Writer { model: "gemini/gemini-2.5-flash"  budget { tokens: 20000  per_call: 2000 } }
+
+loop until (review.verdict == "OK") max 5 budget 30000 tokens { ... } on_exhausted { ... }
+alt (_budget.remaining < 20000) { delegate "Polish {draft}" to CheapWriter -> final }
+```
+
+`weave run app.loom --max-tokens 50000` caps any script from the command line. See
+[Cost Budgets](./ai-agent4j-loom/LOOM_GUIDE.md#cost-budgets).
+
+**Agents that keep going in the background.** Rate limits and daily quotas lift at a known time, so a
+long-running workflow shouldn't fail on them. Loom reads the reset time from the provider (Gemini, Anthropic,
+OpenAI, `Retry-After`), **pauses the run** — no thread held — and **resumes it when the limit lifts**,
+replaying everything already done. Budgets can refill per minute, hour or day, and schedules run on cron:
+
+```text
+rate_limits { on_limit: suspend  max_wait: 24h }
+budget { tokens: 100000 per day  when_exhausted: suspend }
+
+schedule MorningDigest { cron: "0 7 * * *"  timezone: "Asia/Kolkata"  run: DailyDigest(topic="AI agents") }
+```
+
+Resumes and schedules live in a trigger store (files or SQL). Something wakes Loom to fire them: `weave
+daemon`, or — so nothing has to stay running — **your OS**: `weave triggers install <store> --apply` adds a
+cron line, systemd timer, launchd agent or Windows task that runs `weave tick`; on Cloud Run, Cloud
+Scheduler calls a tick endpoint. See [Pausing and Resuming on Limits](./ai-agent4j-loom/LOOM_GUIDE.md#pausing-and-resuming-on-limits)
+and [Schedules and Triggers](./ai-agent4j-loom/LOOM_GUIDE.md#schedules-and-triggers). The complete guide is
+[**Budgets, Pausing and Scheduling**](./ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md).
 
 **Smaller things that make scripts shorter:**
 

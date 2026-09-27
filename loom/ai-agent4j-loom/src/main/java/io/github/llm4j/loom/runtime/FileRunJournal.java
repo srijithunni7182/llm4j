@@ -51,4 +51,9 @@ public class FileRunJournal implements RunJournal {
     public synchronized Map<String, Entry> all() {
         return Map.copyOf(entries);
     }
+
+    @Override
+    public boolean isDurable() {
+        return true;
+    }
 }

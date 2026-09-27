@@ -77,6 +77,8 @@ public class SarvamTextProvider
             return new TranslationResponse(
                     translatedText, request.getSourceLanguageCode().orElse(null));
 
+        } catch (io.github.llm4j.exception.RateLimitException e) {
+            throw e;
         } catch (Exception e) {
             throw new ProviderException(getProviderName(), "Translation failed", e);
         }
@@ -113,6 +115,8 @@ public class SarvamTextProvider
 
             return new TransliterationResponse(transliterated);
 
+        } catch (io.github.llm4j.exception.RateLimitException e) {
+            throw e;
         } catch (Exception e) {
             throw new ProviderException(getProviderName(), "Transliteration failed", e);
         }
@@ -163,6 +167,8 @@ public class SarvamTextProvider
 
             return new LanguageDetectionResponse(languageCode, null, confidence);
 
+        } catch (io.github.llm4j.exception.RateLimitException e) {
+            throw e;
         } catch (Exception e) {
             throw new ProviderException(getProviderName(), "Language detection failed", e);
         }

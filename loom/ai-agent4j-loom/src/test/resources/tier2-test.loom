@@ -20,11 +20,6 @@ agent SmartAgent {
     routing: FastFallback
     skills: ["classpath://skills/coding.md"]
     knowledge: [WikiBase]
-    memory: {
-        type: "file"
-        path: "./target/agent-memory.json"
-        limit: 20
-    }
 }
 
 workflow Tier2Test(inputData) {

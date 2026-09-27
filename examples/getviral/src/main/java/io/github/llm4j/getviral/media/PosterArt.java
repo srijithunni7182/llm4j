@@ -106,6 +106,20 @@ public final class PosterArt {
         g.fillRect(0, 0, w, (int) (h * 0.22f));
     }
 
+    /**
+     * Drops what {@code font} can't draw — colour emoji and the joiners and variation selectors around
+     * them — so on-screen text never shows empty boxes. Java2D has no colour-emoji font to fall back on.
+     */
+    public static String drawable(Font font, String text) {
+        if (text == null) return "";
+        StringBuilder out = new StringBuilder(text.length());
+        text.codePoints().forEach(cp -> {
+            boolean invisible = cp == 0x200D || (cp >= 0xFE00 && cp <= 0xFE0F) || (cp >= 0x1F3FB && cp <= 0x1F3FF);
+            if (!invisible && (Character.isWhitespace(cp) || font.canDisplay(cp))) out.appendCodePoint(cp);
+        });
+        return out.toString().replaceAll("[ \\t]{2,}", " ").strip();
+    }
+
     public static Font display(float size) {
         Font font = new Font("DejaVu Sans", Font.BOLD, 1);
         if (!font.getFamily().startsWith("DejaVu")) font = new Font(Font.SANS_SERIF, Font.BOLD, 1);
@@ -142,7 +156,8 @@ public final class PosterArt {
      */
     public static void headline(Graphics2D g, String text, int x, int anchorY, int maxWidth, float maxSize,
                                 double tiltDegrees, float scale) {
-        if (text == null || text.isBlank()) return;
+        text = drawable(display(maxSize), text);
+        if (text.isBlank()) return;
         String upper = text.toUpperCase();
         float size = maxSize;
         List<String> lines;

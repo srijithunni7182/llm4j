@@ -7,6 +7,11 @@ import java.util.List;
  * AST node for an LLM Routing Policy.
  */
 public class RoutingPolicyDef implements Node {
+    private int line;
+    /** The line it was declared on, for error messages. */
+    public int getLine() { return line; }
+    public void setLine(int line) { this.line = line; }
+
     private final String name;
     private String strategy;
     private String primaryModel;

@@ -108,7 +108,7 @@ flowchart LR
     B[Brief] --> G{{PII guardrail}}
     G -- personal data --> S[SafetyCoach]
     G --> SR[🎬 Showrunner<br/>writes every prompt]
-    SR --> RS[🔬 Researcher<br/>web search · reads sources] & TS[📡 TrendScout<br/>live trend signals]
+    SR --> RS[🔬 Researcher<br/>DuckDuckGo + web search · reads sources] & TS[📡 TrendScout<br/>live trend signals]
     RS & TS --> ST[🧭 Strategist<br/>angle · 5 hooks · sourced facts]
     ST --> H([👆 You pick the hook])
     H --> X[𝕏 XWriter] & R[🎞️ ReelDirector] & Y[▶ YouTubeProducer]
@@ -156,7 +156,12 @@ flowchart LR
 
    Each failing area is marked FIX and sent to its owner: the X thread to the XWriter, the Reel to the
    ReelDirector, the YouTube package to the YouTubeProducer, images to the ArtDirector and the video to the
-   VideoEditor. The video is re-rendered automatically when the Reel plan or the images change. In the
+   VideoEditor. The video is re-rendered automatically when the Reel plan or the images change.
+   While this runs, the results page shows a **live build tracker**: every artifact as a card moving from
+   queued → making → made → checking → passed (or sent back → fixing, with the reason), previews popping in
+   as files are made, an overall progress bar, and each quality-gate round with its verdict per area.
+
+   ![The build tracker while the VideoEditor cuts the Reel](docs/tracker.png) In the
    `.loom` that is a `loop until (qualityReport.verdict == "COMPLETE") max 5` around one review and one
    line of routing: `for each fix in qualityReport.fixes { delegate … to {fix.owner} -> {fix.output} }`.
    The review uses a per-step schema (`expecting { ... }`) because the Showrunner's normal output is a
@@ -230,7 +235,7 @@ safety rules. Open any agent in the studio to see its prompt history (v1 → v2)
 
 | Tool | API | Used for |
 |---|---|---|
-| `web_search` | **Google Search** via Gemini search grounding (when a Gemini key is set) + **GDELT** news, last 30 days + Wikipedia full-text search + DuckDuckGo instant answers | researching the idea itself; numbered sources with URLs |
+| `web_search` | **DuckDuckGo** web results (the keyless Lite page, via ai-agent4j's `DuckDuckGoSearchTool`) + **Google Search** via Gemini search grounding (when a Gemini key is set) + **GDELT** news, last 30 days + Wikipedia full-text search | researching the idea itself; numbered sources with URLs |
 | `read_page` | any public web page | reading a source in full before citing it (title, date, main text) |
 | `trending_now` | Wikimedia REST — most-read articles | what the internet is curious about today |
 | `hn_pulse` | Hacker News via Algolia search | live debates → contrarian angles |
@@ -246,6 +251,9 @@ safety rules. Open any agent in the studio to see its prompt history (v1 → v2)
 | `generate_video_clip` | Google Veo via the Gemini API (opt-in, paid) | AI B-roll clips |
 | `instagram_quota` / `instagram_publish` | Instagram Platform Content Publishing API | `POST /{ig-user-id}/media` → poll `status_code` → `POST /{ig-user-id}/media_publish` |
 
+All sources run in parallel, and one being down or rate-limited never leaves the Researcher empty-handed.
+DuckDuckGo gives the pages to read and cite. It is fetched the way a browser would (a GET, then the Lite
+search form as a POST if the GET comes back empty), and its redirect links are resolved to the real URLs.
 Everything except Google Search is keyless, so research still works on Ollama or with no key. With a Gemini
 key, Google Search grounding runs on the studio model. If that model can't search, it falls back to
 `gemini-2.5-flash` automatically and keeps using whichever model worked, so there's nothing to configure.
@@ -277,7 +285,16 @@ live data. Set `GETVIRAL_OFFLINE_APIS=true` to use samples only.
     This is the file you download, publish or upload to YouTube.
   - **`reel-preview.webm`**: a lighter VP8 copy for browsers that can't decode H.264 (some Linux builds of
     Chromium and Firefox). Every player in the studio lists both sources, and the browser plays the first
-    one it can.
+    one it can. If a browser picks the MP4 and then fails to decode it (browsers don't fall back on their
+    own in that case), the studio switches to the WebM itself; if nothing plays, it says why and offers
+    the download.
+  - The MP4 declares **Constrained Baseline** H.264, which is what the encoder writes, so strict hardware
+    decoders (Safari, Android, Windows) accept it.
+  - **The same MP4 is your YouTube Short.** The YouTube card has its own Short player and download
+    (`getviral-youtube-short.mp4`). Every download button saves the file under a readable name instead of
+    opening it in a tab.
+  - Checked in real browsers: Chrome, Firefox with H.264 and Firefox without it all play every video on
+    every page.
 - **AI video** (`GETVIRAL_VEO=true`) calls Google Veo's long-running generation API. It is paid and slow, so
   it is off by default.
 

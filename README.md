@@ -38,9 +38,11 @@ The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java 
 * **Enterprise Governance**: Integrated PII guardrails, cost-aware routing policies, background task scheduling, and **human approval gates** (`approve` step in workflows).
 * **Durable Runs**: Every step is journaled (memory, file or SQL). A run waiting on a person holds no thread, resumes on any server when the answer arrives, and a crashed run picks up after its last step. The script doesn't change.
 * **Data-Driven Routing**: `for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} -> {fix.output} }`: iterate over what an agent returned and route each item to the agent it names, in one line.
+* **Cost Budgets**: `budget { tokens: 200000 }` for a run, `budget { tokens: 20000 per_call: 2000 }` for an agent, `budget 5000 tokens` for a step or loop. Over-budget calls are refused before they reach the model; `weave run --max-tokens` caps any script, and every run reports where its tokens went.
+* **Pause and Resume on Limits**: a rate limit or daily quota no longer kills a long-running workflow. ai-agent4j reads when the limit resets; Loom pauses the run (no thread held) and resumes it then. `budget { tokens: 100000 per day when_exhausted: suspend }` gives background agents a daily allowance, and `schedule { cron: "0 7 * * *" run: Digest() }` runs workflows on a schedule, all kept in a trigger store that cron, systemd, launchd, Windows Task Scheduler or Cloud Scheduler can wake (`weave triggers install`).
 * **Bounded, Resilient Steps**: `loop until … max 5 … on_exhausted`, `retry 2 backoff 2s timeout 90s`, per-step `expecting { }` schemas and per-agent `temperature:`.
 
-👉 **[Master Loom Orchestration](loom/ai-agent4j-loom/LOOM_GUIDE.md)**
+👉 **[Master Loom Orchestration](loom/ai-agent4j-loom/LOOM_GUIDE.md)** · **[Budgets, Pausing and Scheduling](loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md)** · **[ai-agent4j Budgets and Rate Limits](ai-agent4j/wiki/Budgets-and-Rate-Limits.md)**
 
 ## 🧠 The Memory: [Engram](engram/engram-core/)
 
@@ -88,13 +90,13 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 
 * **Loom** runs the workflow: PII guardrail, parallel specialists, a critic `loop until`, a bounded quality loop that routes each fix with one `for each`, and human hook-pick and publish gates that suspend the run instead of holding a thread.
 * **Prompts written live**: a Showrunner agent writes every specialist's system prompt per brief and rewrites them after critic feedback.
-* **Research before writing**: a Researcher agent searches the web (Google Search via Gemini, GDELT news, Wikipedia), reads the best sources and hands the team a dossier where every fact carries its source.
+* **Research before writing**: a Researcher agent searches the web (DuckDuckGo, Google Search via Gemini, GDELT news, Wikipedia), reads the best sources and hands the team a dossier where every fact carries its source.
 * **Live trends** from free public REST APIs (Wikipedia, Hacker News, Mastodon, Datamuse, Apple Music, Openverse, Nager.Date).
 * **RAG** over a viral playbook and your past posts (addons), plus **Engram** memory that makes every run sharper.
 * **Images and video**: an ArtDirector agent generates the thumbnail, cover and B-roll (Gemini, free Pollinations.ai, or a local render), and a VideoEditor agent renders the Reel into a real MP4.
 * **Not done until it's right**: the Showrunner reviews the finished build against the quality gate (files, platform limits, originality, eval4j judges) and sends every failing artifact back to its specialist until X, Instagram and YouTube all pass.
 * **Original over time**: every casting is remembered; the Showrunner is dealt lenses and visual styles the creator hasn't used, and an originality gate (Engram similarity) sends repeats back.
-* **Durable runs**: every step is journaled, so a pack waiting for its creator holds no thread, and a pack whose server restarts picks up where it left off. The Reel ships as an Instagram-ready MP4 plus a WebM copy so it plays in every browser.
+* **Durable runs**: every step is journaled, so a pack waiting for its creator holds no thread, and a pack whose server restarts picks up where it left off. The Reel ships as an Instagram-ready MP4 (which doubles as the YouTube Short) plus a WebM copy so it plays in every browser, and a live build tracker shows every artifact being made and checked.
 * **eval4j** grades every pack at runtime and gates the test suite. Publishes to Instagram only with your approval.
 * **A real website**: Google sign-in, onboarding with connected Instagram/YouTube/X accounts, a library of everything you've made, quotas, Postgres and a Cloud Run deployment guide.
 

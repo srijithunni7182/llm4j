@@ -15,6 +15,12 @@ import io.github.llm4j.agent.skill.AgentSkill;
 import io.github.llm4j.audit.AuditEvent;
 import io.github.llm4j.audit.AuditLogger;
 import io.github.llm4j.audit.NoOpAuditLogger;
+import io.github.llm4j.budget.Budget;
+import io.github.llm4j.budget.BudgetExceeded;
+import io.github.llm4j.budget.BudgetPolicy;
+import io.github.llm4j.budget.BudgetedLLMClient;
+import io.github.llm4j.budget.PriceTable;
+import io.github.llm4j.budget.TokenEstimator;
 import io.github.llm4j.fairness.BiasContext;
 import io.github.llm4j.fairness.BiasEvent;
 import io.github.llm4j.fairness.BiasMonitor;
@@ -83,6 +89,13 @@ public class ReActAgent {
 
     // ... (fields remain the same)
     private final LLMClient llmClient;
+    private final LLMClient baseClient; // as given to the builder, before any budget wrapping
+    private final Budget budget;
+    private final Integer maxTokensPerCall;
+    private final BudgetPolicy budgetPolicy;
+    private final PriceTable priceTable;
+    private final String budgetModel;
+    private final TokenEstimator tokenEstimator;
     private final Map<String, Tool> tools;
     private final String systemPrompt;
     private final int maxIterations;
@@ -108,7 +121,14 @@ public class ReActAgent {
 
     private ReActAgent(Builder builder) {
         // ... (constructor remains the same)
-        this.llmClient = Objects.requireNonNull(builder.llmClient, "llmClient cannot be null");
+        this.baseClient = Objects.requireNonNull(builder.llmClient, "llmClient cannot be null");
+        this.budget = builder.budget;
+        this.maxTokensPerCall = builder.maxTokensPerCall;
+        this.budgetPolicy = builder.budgetPolicy;
+        this.priceTable = builder.priceTable;
+        this.budgetModel = builder.budgetModel;
+        this.tokenEstimator = builder.tokenEstimator;
+        this.llmClient = budgeted(baseClient);
         this.tools = new HashMap<>(builder.tools);
         this.persona = builder.persona;
         this.skills = Collections.unmodifiableList(new ArrayList<>(builder.skills));
@@ -120,6 +140,9 @@ public class ReActAgent {
         this.conversationHistory = builder.conversationHistory;
         this.semanticMemoryService = builder.semanticMemoryService;
         this.listeners = new ArrayList<>(builder.listeners);
+        if (budget != null && !listeners.isEmpty()) {
+            budget.addListener(event -> listeners.forEach(l -> l.onBudget(event)));
+        }
         this.auditLogger =
                 builder.auditLogger != null ? builder.auditLogger : new NoOpAuditLogger();
         this.sessionId =
@@ -135,6 +158,18 @@ public class ReActAgent {
         this.autoPlayAudio = builder.autoPlayAudio;
         this.ttsLanguage = builder.ttsLanguage;
         this.ttsModel = builder.ttsModel;
+    }
+
+    /** Wraps the client in a {@link BudgetedLLMClient} when this agent has a budget or a per-call cap. */
+    private LLMClient budgeted(LLMClient client) {
+        if ((budget == null && maxTokensPerCall == null) || client instanceof BudgetedLLMClient) return client;
+        BudgetedLLMClient.Builder b = BudgetedLLMClient.builder(client)
+                .perCallCap(maxTokensPerCall)
+                .prices(priceTable)
+                .model(budgetModel)
+                .estimator(tokenEstimator);
+        if (budget != null) b.budget(budget);
+        return b.build();
     }
 
     public AgentResult run(String question) {
@@ -154,6 +189,10 @@ public class ReActAgent {
         int totalPromptTokens = 0;
         int totalCompletionTokens = 0;
         int totalTokens = 0;
+        boolean usageEstimated = false;
+        java.math.BigDecimal totalCost = null;
+        String lastThought = null;
+        String lastObservation = null;
         boolean protocolFollowed = true;
 
         for (int i = 0; i < maxIterations; i++) {
@@ -185,7 +224,30 @@ public class ReActAgent {
                             .addUserMessage(context + scratchpad.toString())
                             .temperature(temperature)
                             .build();
-            LLMResponse response = llmClient.chat(request);
+            LLMResponse response;
+            try {
+                response = llmClient.chat(request);
+            } catch (io.github.llm4j.exception.RateLimitException limited) {
+                // Too long to wait inline (the HTTP layer already waited out short limits): hand the
+                // reset time to the caller instead of retrying or answering half-way.
+                throw new io.github.llm4j.ratelimit.RateLimited(
+                        limited.infoOrEstimate(java.time.Instant.now(), java.time.Duration.ofSeconds(60)),
+                        io.github.llm4j.ratelimit.RateLimited.Reason.PROVIDER_LIMIT);
+            } catch (BudgetExceeded exhausted) {
+                if (budgetPolicy == BudgetPolicy.FAIL) throw exhausted;
+                if (budgetPolicy == BudgetPolicy.SUSPEND && exhausted.resetAt().isPresent()) {
+                    throw io.github.llm4j.ratelimit.RateLimited.of(exhausted);
+                }
+                return buildBudgetExhaustedResult(
+                        exhausted,
+                        lastThought != null ? lastThought : lastObservation != null ? lastObservation : "",
+                        steps,
+                        i,
+                        new AgentResult.Usage(llmCallCount, totalPromptTokens, totalCompletionTokens,
+                                totalTokens, usageEstimated, totalCost),
+                        redundantActionCount.get(),
+                        protocolFollowed);
+            }
             String llmOutput = response.getContent();
             logger.info("=== LLM Response (Iteration {}) ===\n{}", i + 1, llmOutput);
 
@@ -195,6 +257,12 @@ public class ReActAgent {
                 totalPromptTokens += tokenUsage.getPromptTokens();
                 totalCompletionTokens += tokenUsage.getCompletionTokens();
                 totalTokens += tokenUsage.getTotalTokens();
+            }
+            if (response.getMetadata() != null) {
+                if (Boolean.TRUE.equals(response.getMetadata().get(BudgetedLLMClient.ESTIMATED))) usageEstimated = true;
+                if (response.getMetadata().get(BudgetedLLMClient.COST) instanceof java.math.BigDecimal c) {
+                    totalCost = totalCost == null ? c : totalCost.add(c);
+                }
             }
 
             try {
@@ -232,7 +300,8 @@ public class ReActAgent {
                             steps,
                             i,
                             new AgentResult.Usage(
-                                    llmCallCount, totalPromptTokens, totalCompletionTokens, totalTokens),
+                                    llmCallCount, totalPromptTokens, totalCompletionTokens, totalTokens,
+                                    usageEstimated, totalCost),
                             redundantActionCount.get(),
                             protocolFollowed);
                 }
@@ -251,7 +320,10 @@ public class ReActAgent {
                         thought,
                         action,
                         actionInput);
-                if (thought != null) notifyThought(thought);
+                if (thought != null) {
+                    notifyThought(thought);
+                    lastThought = thought;
+                }
                 if (action != null) notifyAction(action, actionInput);
 
                 if (action == null || action.isEmpty()) {
@@ -262,6 +334,7 @@ public class ReActAgent {
                 ActionExecution execution =
                         executeAction(action, actionInput, actionHistory, thought, redundantActionCount);
                 String observation = execution.observation();
+                lastObservation = observation;
 
                 AgentResult.AgentStep step =
                         new AgentResult.AgentStep(
@@ -290,7 +363,8 @@ public class ReActAgent {
         return buildFailureResult(
                 steps,
                 new AgentResult.Usage(
-                        llmCallCount, totalPromptTokens, totalCompletionTokens, totalTokens),
+                        llmCallCount, totalPromptTokens, totalCompletionTokens, totalTokens,
+                        usageEstimated, totalCost),
                 redundantActionCount.get(),
                 protocolFollowed);
     }
@@ -454,6 +528,38 @@ public class ReActAgent {
                                     event.getExplanation(),
                                     event.getSeverity()));
         }
+        return result;
+    }
+
+    /** The budget ran out mid-task: return the best answer so far, clearly marked. */
+    private AgentResult buildBudgetExhaustedResult(
+            BudgetExceeded exhausted,
+            String bestSoFar,
+            List<AgentResult.AgentStep> steps,
+            int iteration,
+            AgentResult.Usage usage,
+            int redundantActionCount,
+            boolean protocolFollowed) {
+        logger.warn("Agent stopped: {}", exhausted.getMessage());
+        List<AgentResult.AgentStep> all = new ArrayList<>(steps);
+        all.add(new AgentResult.AgentStep(null, null, null, exhausted.getMessage(),
+                AgentResult.StepOutcome.BUDGET_EXHAUSTED));
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer(bestSoFar)
+                        .steps(all)
+                        .iterations(iteration)
+                        .completed(false)
+                        .budgetExceeded(exhausted)
+                        .confidence(ConfidenceScore.low(exhausted.getMessage()))
+                        .uncertaintyDetected(true)
+                        .uncertaintyReason(exhausted.getMessage())
+                        .usage(usage)
+                        .redundantActionCount(redundantActionCount)
+                        .protocolFollowed(protocolFollowed)
+                        .build();
+        auditLogger.logAgentDecision(
+                AuditEvent.builder().sessionId(sessionId).agentResult(result).build());
         return result;
     }
 
@@ -724,11 +830,23 @@ public class ReActAgent {
         private boolean autoPlayAudio = true;
         private String ttsLanguage;
         private String ttsModel;
+        private Budget budget;
+        private Integer maxTokensPerCall;
+        private BudgetPolicy budgetPolicy = BudgetPolicy.RETURN_PARTIAL;
+        private PriceTable priceTable;
+        private String budgetModel;
+        private TokenEstimator tokenEstimator;
 
         private Builder() {}
 
         private Builder(ReActAgent agent) {
-            this.llmClient = agent.llmClient;
+            this.llmClient = agent.baseClient;
+            this.budget = agent.budget;
+            this.maxTokensPerCall = agent.maxTokensPerCall;
+            this.budgetPolicy = agent.budgetPolicy;
+            this.priceTable = agent.priceTable;
+            this.budgetModel = agent.budgetModel;
+            this.tokenEstimator = agent.tokenEstimator;
             this.tools = new HashMap<>(agent.tools);
             this.systemPrompt = agent.systemPrompt;
             this.maxIterations = agent.maxIterations;
@@ -913,6 +1031,42 @@ public class ReActAgent {
 
         public Builder ttsModel(String ttsModel) {
             this.ttsModel = ttsModel;
+            return this;
+        }
+
+        /** Caps what this agent may spend; see {@link Budget}. */
+        public Builder budget(Budget budget) {
+            this.budget = budget;
+            return this;
+        }
+
+        /** Caps every answer's output tokens. */
+        public Builder maxTokensPerCall(int maxTokens) {
+            if (maxTokens <= 0) throw new IllegalArgumentException("maxTokensPerCall must be positive");
+            this.maxTokensPerCall = maxTokens;
+            return this;
+        }
+
+        /** What to do when the budget runs out mid-task. Default {@link BudgetPolicy#RETURN_PARTIAL}. */
+        public Builder onBudgetExhausted(BudgetPolicy policy) {
+            this.budgetPolicy = Objects.requireNonNull(policy);
+            return this;
+        }
+
+        /** Prices for cost budgets and cost reporting. */
+        public Builder priceTable(PriceTable prices) {
+            this.priceTable = prices;
+            return this;
+        }
+
+        /** The model id to price calls with, when requests don't name one. */
+        public Builder budgetModel(String model) {
+            this.budgetModel = model;
+            return this;
+        }
+
+        public Builder tokenEstimator(TokenEstimator estimator) {
+            this.tokenEstimator = estimator;
             return this;
         }
 

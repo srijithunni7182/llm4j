@@ -60,6 +60,8 @@ public class OllamaProvider implements DescribableProvider {
             return parseResponse(responseJson, model);
         } catch (ProviderException e) {
             throw e;
+        } catch (io.github.llm4j.exception.RateLimitException e) {
+            throw e;
         } catch (IOException | LLMException e) {
             throw new ProviderException(getProviderName(), "Failed to process request", e);
         }
@@ -98,6 +100,8 @@ public class OllamaProvider implements DescribableProvider {
             }
             return new String[0];
         } catch (ProviderException e) {
+            throw e;
+        } catch (io.github.llm4j.exception.RateLimitException e) {
             throw e;
         } catch (IOException | LLMException e) {
             logger.error("Failed to list models from Ollama API", e);

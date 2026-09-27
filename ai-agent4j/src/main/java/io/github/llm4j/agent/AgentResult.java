@@ -20,6 +20,8 @@ public final class AgentResult {
     private final Usage usage;
     private final int redundantActionCount;
     private final boolean protocolFollowed;
+    private final boolean budgetExhausted;
+    private final io.github.llm4j.budget.BudgetExceeded budgetExceeded;
 
     private AgentResult(Builder builder) {
         this.finalAnswer = builder.finalAnswer;
@@ -32,6 +34,8 @@ public final class AgentResult {
         this.usage = builder.usage != null ? builder.usage : Usage.EMPTY;
         this.redundantActionCount = builder.redundantActionCount;
         this.protocolFollowed = builder.protocolFollowed;
+        this.budgetExceeded = builder.budgetExceeded;
+        this.budgetExhausted = builder.budgetExhausted || builder.budgetExceeded != null;
     }
 
     public String getFinalAnswer() {
@@ -89,6 +93,20 @@ public final class AgentResult {
         return protocolFollowed;
     }
 
+    /**
+     * True when the run stopped because its budget ran out. The final answer is then the best the agent
+     * had so far, {@link #isCompleted()} is false and the last step's outcome is
+     * {@link StepOutcome#BUDGET_EXHAUSTED}.
+     */
+    public boolean budgetExhausted() {
+        return budgetExhausted;
+    }
+
+    /** The refusal that stopped this run, when {@link #budgetExhausted()}: which budget, and what it had spent. */
+    public io.github.llm4j.budget.BudgetExceeded getBudgetExceeded() {
+        return budgetExceeded;
+    }
+
     public boolean isHighConfidence() {
         return confidence != null && confidence.isHigh();
     }
@@ -135,7 +153,9 @@ public final class AgentResult {
         /** A human reviewer rejected the action via the configured {@code ApprovalCallback}. */
         REJECTED_BY_HUMAN,
         /** The tool was approved (or required none) but threw while executing. */
-        EXECUTION_ERROR
+        EXECUTION_ERROR,
+        /** The agent's budget ran out; the run stopped here with its best answer so far. */
+        BUDGET_EXHAUSTED
     }
 
     /** Represents a single step in the agent's reasoning process. */
@@ -250,12 +270,35 @@ public final class AgentResult {
         private final int promptTokens;
         private final int completionTokens;
         private final int totalTokens;
+        private final boolean estimated;
+        private final java.math.BigDecimal cost;
 
         public Usage(int llmCalls, int promptTokens, int completionTokens, int totalTokens) {
+            this(llmCalls, promptTokens, completionTokens, totalTokens, false, null);
+        }
+
+        /**
+         * @param estimated true if any call's usage was estimated because its provider reported none
+         * @param cost the run's cost from a price table, or {@code null} if unpriced
+         */
+        public Usage(int llmCalls, int promptTokens, int completionTokens, int totalTokens, boolean estimated,
+                     java.math.BigDecimal cost) {
             this.llmCalls = llmCalls;
             this.promptTokens = promptTokens;
             this.completionTokens = completionTokens;
             this.totalTokens = totalTokens;
+            this.estimated = estimated;
+            this.cost = cost;
+        }
+
+        /** True if any of this usage was estimated because a provider reported none. */
+        public boolean isEstimated() {
+            return estimated;
+        }
+
+        /** Cost from a price table, or {@code null} when no price was known. */
+        public java.math.BigDecimal getCost() {
+            return cost;
         }
 
         public int getLlmCalls() {
@@ -282,12 +325,14 @@ public final class AgentResult {
             return llmCalls == that.llmCalls
                     && promptTokens == that.promptTokens
                     && completionTokens == that.completionTokens
-                    && totalTokens == that.totalTokens;
+                    && totalTokens == that.totalTokens
+                    && estimated == that.estimated
+                    && (cost == null ? that.cost == null : that.cost != null && cost.compareTo(that.cost) == 0);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(llmCalls, promptTokens, completionTokens, totalTokens);
+            return Objects.hash(llmCalls, promptTokens, completionTokens, totalTokens, estimated);
         }
 
         @Override
@@ -301,6 +346,8 @@ public final class AgentResult {
                     + completionTokens
                     + ", totalTokens="
                     + totalTokens
+                    + (estimated ? ", estimated" : "")
+                    + (cost != null ? ", cost=" + cost.toPlainString() : "")
                     + '}';
         }
     }
@@ -316,8 +363,21 @@ public final class AgentResult {
         private Usage usage;
         private int redundantActionCount;
         private boolean protocolFollowed = true;
+        private boolean budgetExhausted;
+        private io.github.llm4j.budget.BudgetExceeded budgetExceeded;
 
         private Builder() {}
+
+        /** The refusal that stopped the run (also marks it budget-exhausted). */
+        public Builder budgetExceeded(io.github.llm4j.budget.BudgetExceeded budgetExceeded) {
+            this.budgetExceeded = budgetExceeded;
+            return this;
+        }
+
+        public Builder budgetExhausted(boolean budgetExhausted) {
+            this.budgetExhausted = budgetExhausted;
+            return this;
+        }
 
         public Builder finalAnswer(String finalAnswer) {
             this.finalAnswer = finalAnswer;

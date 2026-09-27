@@ -1,0 +1,33 @@
+// The examples of LOOM_GUIDE "Pausing and Resuming on Limits" and "Schedules and Triggers", and the READMEs.
+rate_limits {
+    on_limit: suspend        // suspend | wait | fail
+    max_wait: 24h            // give up on limits further away than this
+    max_resumes: 50
+}
+
+budget {
+    tokens: 100000 per day   // per minute | per hour | per day: refills each window
+    when_exhausted: suspend  // stop (default) | suspend | ask
+}
+
+agent Writer { model: "m" system: "You are Writer." }
+agent AdminBot { model: "m" }
+
+workflow DailyDigest(topic) {
+    delegate "Digest of {topic} (resume {_run.resumes})" to Writer -> digest
+}
+
+schedule MorningDigest {
+    cron: "0 7 * * *"                  // or: every: 6h
+    timezone: "Asia/Kolkata"           // default UTC; daylight-saving safe
+    run: DailyDigest(topic="AI agents")
+    misfire: run_once                  // missed slots while nothing ran: run_once (default) | skip
+    overlap: skip                      // previous run still paused: skip (default) | queue
+}
+
+schedule DailyCleanup {                // the classic form still works
+    initial_delay: "30s"
+    pattern: "24h"
+    agent: AdminBot
+    task: "Purge temporary RAG indices"
+}

@@ -44,7 +44,29 @@ Test your scripts immediately without writing a single line of Java.
 ```bash
 # Run the 'Main' workflow with inputs
 weave run research.loom --loot tools.loot --input topic="NeuroSymbolic AI"
+
+# Cap what the run may spend (replaces the script's run budget) and see where it went
+weave run research.loom --max-tokens 50000 --max-calls 40
+weave run research.loom --max-cost 0.25 --prices prices.properties
 ```
+
+With any budget in play, the run ends with a spend table (calls, prompt and completion tokens, cost per
+agent). A run stopped by its budget exits with code 3 and keeps everything it already paid for.
+
+```bash
+# A durable run: it can pause on a rate limit or budget window and carry on later
+weave run digest.loom --journal runs/digest-1          # exits 4 with "⏸ Paused … resumes at 07:00"
+weave run digest.loom --journal runs/digest-1 --wait   # …or stay alive and resume by itself
+
+weave resume runs/digest-1                  # resume a paused run now
+weave tick runs/.loom-triggers              # fire whatever is due (what cron/systemd run)
+weave daemon runs/.loom-triggers            # or keep one process watching
+weave triggers list runs/.loom-triggers     # pause | enable | cancel | fire <id> too
+weave triggers install runs/.loom-triggers --apply     # let the OS wake Loom (see Schedules and Triggers)
+weave schedule sync digest.loom --store runs/.loom-triggers
+```
+
+Exit codes: `0` done, `1` failed, `2` bad options, `3` stopped by a budget, `4` paused.
 
 ### 2. Packaging for Deployment (`package`)
 Encapsulate your workflow into a JAR that can run anywhere.
@@ -125,8 +147,9 @@ Loom provides **Symbolic Controls** that ensure your agents follow a rigid seque
 - **`alt` / `loop until`**: Comparison-based branching using `==`, `!=`, `>`, `<`, `>=`, `<=`.
 - **`for each` / `parallel for each`**: Run a block once per item of a list, in order or all at once. See [for each](#for-each).
 - **`human_prompt`**: Ask a person. With a run journal the run suspends instead of holding a thread. See [Durable Runs](#durable-runs-no-new-syntax).
+- **`budget`**: Cap what a run, an agent or a single step may spend on LLM calls. See [Cost Budgets](#cost-budgets).
 
-> **New in this release:** [durable runs](#durable-runs-no-new-syntax), [`for each` with runtime routing](#for-each),
+> **New in this release:** [cost budgets](#cost-budgets), [durable runs](#durable-runs-no-new-syntax), [`for each` with runtime routing](#for-each),
 > [bounded loops](#bounded-loops), [retry backoff and timeouts](#retry-backoff-and-timeouts),
 > [per-step schemas](#per-step-schemas-expecting), agent `temperature:` and `{var.list.0}` payload paths.
 
@@ -290,6 +313,178 @@ delegate "Review the build" to Showrunner -> review expecting {         // this 
 }
 ```
 
+### Cost Budgets
+> **In depth:** [Budgets, Pausing and Scheduling](BUDGETS_AND_SCHEDULING.md) covers budgets, refilling
+> windows, rate limits, pausing and resuming, schedules, system triggers, the CLI and Java embedding.
+
+A budget caps what LLM calls may spend, in **tokens** (the default), **calls**, or **money** (with a price
+table you supply). The runtime enforces it at the call itself: before each call it checks what is left
+and **refuses without calling the model** if the call can't fit, and it lowers the answer's `maxTokens`
+so one long answer can't break the cap. Budgets go in three places, one line each:
+
+```loom
+budget { tokens: 200000  calls: 150  warn_at: 80% }       // the whole run
+
+agent Writer {
+    model: "gemini/gemini-2.5-flash"
+    budget { tokens: 20000  per_call: 2000 }                // this agent's share; per_call caps each answer
+}
+
+workflow Main(topic) {
+    delegate "Draft {topic}" to Writer -> draft budget 5000 tokens
+        on_failure { note "Out of budget: {_error}" }
+
+    loop until (review.verdict == "OK") max 5 budget 30000 tokens {
+        delegate "Review {draft}" to Critic -> review
+    } on_exhausted {
+        note "Stopped by {_loopExhaustedBy} after {_loopRounds} rounds"
+    }
+
+    alt (_budget.remaining < 20000) {                        // cost-aware routing, symbolically
+        delegate "Polish {draft}" to CheapWriter -> final
+    } else {
+        delegate "Polish {draft}" to Writer -> final
+    }
+}
+```
+
+What happens when a budget runs out:
+
+| Situation | Behaviour |
+|---|---|
+| A step's call would exceed a budget | The model is **not** called. The step fails: its `on_failure` runs with `{_error}` naming the budget. A budget refusal is **never retried**. |
+| An agent runs out part-way through a task | Its best answer so far is bound to the output variable, `{_budget.exhausted}` becomes `true`, and `on_failure` runs if present; otherwise the run continues. |
+| A loop's or for-each's budget runs out | It stops and runs `on_exhausted`, with `{_loopExhaustedBy}` set to `budget` (or `rounds` when `max` was reached). |
+| Nothing handles it | `executeWorkflow` throws `BudgetExceeded`. Every variable already bound is kept, and `spend()` shows where the money went. |
+
+- **Budgets nest.** Each call is charged to the run, its agent and every enclosing step, loop and for-each
+  budget, and must fit all of them. Parallel branches share the same budgets exactly.
+- **`{_budget.spent}`, `{_budget.remaining}`, `{_budget.calls}`, `{_budget.cost}` and
+  `{_budget.exhausted}`** are live, so scripts can route to cheaper agents as money runs low.
+- **Money** needs a price table. Prices go stale, so none ship with Loom: write a file of
+  `model = input / output` prices per million tokens and pass it with `--prices` (or `setPriceTable`).
+  Local `ollama/*` models cost nothing. A cost budget with an unpriced model fails at start-up.
+- **Durable.** Each step's usage is journaled. A replayed step is never charged again, and a run stopped
+  by its budget can be resumed with a bigger one: it continues from the refused step, and nothing already
+  paid for runs twice.
+- **Estimates.** Before a call, prompts are estimated at about 4 characters per token (+10%). Reported
+  usage always wins; if a provider reports none, the charge is estimated and marked as such.
+- **Reporting.** `executor.spend()` totals tokens, calls and cost per agent and per step; warnings
+  (default at 80%) and refusals go to the audit log as `budget_warning` and `budget_refused`.
+
+`budget` is a contextual keyword: scripts that use it as a variable name keep working. Scripts without
+budgets are not metered at all.
+
+### Pausing and Resuming on Limits
+> In depth: [Budgets, Pausing and Scheduling §3–4](BUDGETS_AND_SCHEDULING.md#3-rate-limits-and-quotas).
+
+Background agents run into limits that **lift at a known time**: a provider's per-minute rate limit, a
+free tier's daily quota, or your own budget that refills every hour. Loom reads the reset time and, instead
+of failing or retrying blindly, **pauses the run and resumes it when the limit lifts** — holding no thread
+while it waits.
+
+```loom
+rate_limits {
+    on_limit: suspend        // suspend | wait | fail
+    max_wait: 24h            // give up on limits further away than this
+    max_resumes: 50
+}
+
+budget {
+    tokens: 100000 per day   // per minute | per hour | per day: refills each window
+    when_exhausted: suspend  // stop (default) | suspend | ask
+}
+```
+
+**Where the reset time comes from.** ai-agent4j reads it from the provider's refusal:
+Gemini's error body (`RetryInfo`, and `QuotaFailure` — a per-day quota resets at midnight Pacific),
+Anthropic's `anthropic-ratelimit-*-reset` headers, OpenAI's `x-ratelimit-reset-*`, or `Retry-After`.
+With nothing to go on, it assumes 60 s, doubling on repeated refusals (up to an hour). Limits that lift
+within 30 s are simply waited out inside the HTTP call; anything longer reaches Loom.
+
+| Policy | What happens |
+|---|---|
+| `suspend` (default when the run has a durable journal) | The run stops with `RunSuspended` (reason `RATE_LIMIT` or `BUDGET_WINDOW`, `resumeAt`). The journal records why and until when. Resuming replays every finished step for free and re-runs only the step that hit the limit. |
+| `wait` (default otherwise, up to 5 minutes) | The step waits for the reset, then runs again. |
+| `fail` | The step fails: `on_failure` runs with `{_error}` naming the limit and its reset time. |
+| `when_exhausted: ask` | A person is asked "Allow N more?". A journaled yes raises the budget by its original amount. |
+
+- **Parallel work finishes first.** In `parallel`, `broadcast` and `parallel for each`, branches that can
+  still work finish and are journaled; the run then pauses once, until the latest reset. A sequential
+  `for each` pauses at the limited item.
+- **Budget windows.** Spend in earlier windows no longer counts once a window rolls over (reports still
+  show it all), and a refusal says when the budget refills. Journaled usage records when it was spent, so a
+  resumed run only counts this window's spend.
+- **Safety valves.** A reset further away than `max_wait` fails the run with a clear message; a run
+  resumed more than `max_resumes` times is failed rather than retried for ever.
+- **Visible.** `{_run.resumes}` and `{_run.lastSuspension.reason}` are available after a pause; the audit
+  log records `run_suspended`, `run_resumed` and `rate_limit_wait`.
+- **Refused calls are free.** A 429 counts as a call against your budget but costs no tokens.
+
+Who resumes the run? Give the executor a **trigger store** and a run id, and a paused run leaves a resume
+trigger there — see the next section.
+
+### Schedules and Triggers
+> In depth, with per-OS setup and Cloud Run: [Budgets, Pausing and Scheduling §5–9](BUDGETS_AND_SCHEDULING.md#5-schedules).
+
+Everything that must happen later is a **trigger**, kept in a durable **trigger store** (files for one
+machine, a SQL table for several): resumes of paused runs, and your `schedule` blocks.
+
+```loom
+schedule MorningDigest {
+    cron: "0 7 * * *"                  // or: every: 6h
+    timezone: "Asia/Kolkata"           // default UTC; daylight-saving safe
+    run: DailyDigest(topic="AI agents")
+    misfire: run_once                  // missed slots while nothing ran: run_once (default) | skip
+    overlap: skip                      // previous run still paused: skip (default) | queue
+}
+
+schedule DailyCleanup {                // the classic form still works
+    initial_delay: "30s"
+    pattern: "24h"
+    agent: AdminBot
+    task: "Purge temporary RAG indices"
+}
+```
+
+- When a script loads with a trigger store, its schedules are **written to the store**: new ones added,
+  changed ones updated (keeping when they last ran), removed ones disabled. Without a store, classic agent
+  schedules still run in memory, as before.
+- Each scheduled run gets its own run id (`MorningDigest@2026-09-28T01:30:00Z`) and journal, so it can
+  pause and resume like any other run while the schedule moves on.
+- A trigger fires **once** even with several processes or machines on one store (claims are atomic; a
+  claim left by a crashed process is taken over after 10 minutes).
+
+**Waking Loom.** Something must look at the store now and then. Pick one:
+
+| How | When |
+|---|---|
+| `weave daemon <store>` | A process that is always running anyway. |
+| `weave triggers install <store> --apply` | Let the OS do it: a **cron** line, a **systemd** user timer, a **launchd** agent or a **Windows** scheduled task runs `weave tick <store>` every 5 minutes (`--every 1m`). No Loom process waits in between. |
+| `--mode exact` | Also add one OS entry at each pending trigger's exact time (re-synced after every tick). |
+| `--backend cloud-scheduler --url https://… --service-account …` | Google Cloud Scheduler calls your service's `POST /loom/tick` (`TriggerEndpoint`), for services that scale to zero. |
+
+`install` shows exactly what it will write and run, and changes nothing without `--apply`. It only writes
+user-level entries (never needs root), tags them, and `weave triggers uninstall <store> --apply` removes
+exactly those. System schedulers don't see your shell's environment: keep API keys in a file
+(`chmod 600`) and pass `--env-file ~/.loom/env`.
+
+In Java, the same pieces:
+
+```java
+TriggerStore store = new JdbcTriggerStore(dataSource);          // or new FileTriggerStore(dir)
+executor.setJournal(new JdbcRunJournal(dataSource, runId));
+executor.setTriggerStore(store);
+executor.setRunId(runId);                                         // paused runs leave "resume:<runId>"
+
+TriggerRunner runner = new TriggerRunner(store, (trigger, id) -> {
+    // rebuild the run named by id and call executeWorkflow; map the result to an Outcome
+    return TriggerTarget.Outcome.done();
+}, Clock.systemUTC());
+runner.start(Duration.ofSeconds(5));                              // embedded, or:
+TriggerEndpoint tick = TriggerEndpoint.fromEnvironment(runner, oidcVerifier); // POST /loom/tick
+```
+
 ### Workflow-Level Retry & Error Contracts
 Define resilience logic directly in the DSL. If an agent fails (API error, timeout, or malformed JSON), Loom handles retries and triggers the `on_failure` recovery block.
 
@@ -338,16 +533,8 @@ workflow Main() {
 ```
 
 ### Scheduled Background Tasks
-Define recurring tasks that run independently of workflows.
-
-```loom
-schedule DailyCleanup {
-    initial_delay: "30s"      // Boot grace period
-    pattern: "24h"           // Interval
-    agent: AdminBot
-    task: "Purge temporary RAG indices"
-}
-```
+Recurring work is declared with `schedule` blocks — see [Schedules and Triggers](#schedules-and-triggers)
+for cron schedules, scheduled workflows and keeping them across restarts.
 
 ### Observability
 Use `observe` to log the state of variables at specific points for tracing.

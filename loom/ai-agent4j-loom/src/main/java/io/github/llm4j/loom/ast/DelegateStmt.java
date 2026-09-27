@@ -50,4 +50,9 @@ public class DelegateStmt implements Statement {
     public void setRetryCount(int retryCount) { this.retryCount = retryCount; }
 
     public List<Statement> getOnFailure() { return onFailure; }
+
+    private BudgetDef budget;
+    /** This statement's own budget ({@code budget N tokens}), or null. */
+    public BudgetDef getBudget() { return budget; }
+    public void setBudget(BudgetDef budget) { this.budget = budget; }
 }

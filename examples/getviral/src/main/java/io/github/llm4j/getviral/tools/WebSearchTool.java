@@ -1,6 +1,7 @@
 package io.github.llm4j.getviral.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.github.llm4j.agent.tools.DuckDuckGoSearchTool;
 import io.github.llm4j.getviral.studio.StudioEvents;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -20,13 +21,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Open-web research in one call, numbered so agents can cite what they use.
  *
  * <ul>
+ *   <li><b>DuckDuckGo</b> web results (the Lite HTML page, no key) — the pages to read and cite;</li>
  *   <li><b>Google Search</b> through Gemini's search grounding, when a Gemini key is available — a
  *       synthesised answer plus the web pages it was grounded on;</li>
  *   <li><b>GDELT</b> — the free global news index — for coverage from the last month;</li>
  *   <li><b>Wikipedia</b> full-text search for background;</li>
  *   <li><b>DuckDuckGo</b> instant answers for a quick definition.</li>
  * </ul>
- * The keyless sources always run, so research still works on Ollama or with no key at all.
+ * The keyless sources always run in parallel, so research works on Ollama or with no key at all, and
+ * one source being down or rate-limited never leaves the Researcher empty-handed.
  */
 public class WebSearchTool extends PublicApiTool {
 
@@ -37,13 +40,21 @@ public class WebSearchTool extends PublicApiTool {
     private final boolean offline;
     private final String geminiKey;
     private final String geminiModel;
+    private final DuckDuckGoSearchTool duckDuckGo;
 
     /**
      * @param geminiKey   enables Google Search grounding; {@code null} = keyless sources only
      * @param geminiModel a Gemini model that supports the {@code google_search} tool
      */
     public WebSearchTool(boolean offline, StudioEvents events, String geminiKey, String geminiModel) {
+        this(offline, events, geminiKey, geminiModel, new DuckDuckGoSearchTool());
+    }
+
+    /** @param duckDuckGo the DuckDuckGo Lite client (swappable for tests) */
+    public WebSearchTool(boolean offline, StudioEvents events, String geminiKey, String geminiModel,
+                         DuckDuckGoSearchTool duckDuckGo) {
         super(offline, events);
+        this.duckDuckGo = duckDuckGo;
         this.offline = offline;
         this.geminiKey = geminiKey == null || geminiKey.isBlank() ? null : geminiKey;
         this.geminiModel = geminiModel == null ? "gemini-2.5-flash" : geminiModel.replaceFirst("^(google|gemini)/", "");
@@ -56,8 +67,8 @@ public class WebSearchTool extends PublicApiTool {
 
     @Override
     public String getDescription() {
-        return "Searches the open web for a topic: " + (geminiKey != null ? "Google Search (via Gemini), " : "")
-                + "news from the last month (GDELT), Wikipedia and DuckDuckGo. Returns numbered sources with URLs — "
+        return "Searches the open web for a topic: DuckDuckGo web results, " + (geminiKey != null ? "Google Search (via Gemini), " : "")
+                + "news from the last month (GDELT) and Wikipedia. Returns numbered sources with URLs — "
                 + "call read_page on the best ones before citing them. Args: {\"query\": \"what to research\"}.";
     }
 
@@ -72,6 +83,7 @@ public class WebSearchTool extends PublicApiTool {
         if (query.isBlank()) return "web_search needs {\"query\": \"...\"}.";
 
         AtomicBoolean anyLive = new AtomicBoolean();
+        CompletableFuture<List<Source>> web = CompletableFuture.supplyAsync(() -> duckDuckGo(query, anyLive));
         CompletableFuture<Grounded> google = CompletableFuture.supplyAsync(() -> google(query));
         CompletableFuture<List<Source>> news = CompletableFuture.supplyAsync(() -> news(query, anyLive));
         CompletableFuture<List<Source>> wiki = CompletableFuture.supplyAsync(() -> wikipedia(query, anyLive));
@@ -81,6 +93,12 @@ public class WebSearchTool extends PublicApiTool {
         Set<String> seen = new LinkedHashSet<>();
         int[] n = {0};
 
+        List<Source> pages = web.join();
+        if (!pages.isEmpty()) {
+            out.append("\nWeb results (DuckDuckGo):\n");
+            appendAll(out, pages, seen, n, 8);
+        }
+
         Grounded g = google.join();
         if (g != null) {
             anyLive.set(true);
@@ -89,7 +107,7 @@ public class WebSearchTool extends PublicApiTool {
                .append(clip(g.answer(), 1400)).append('\n');
             appendAll(out, g.sources(), seen, n, 8);
         } else if (geminiKey == null) {
-            out.append("\n(Google Search needs a Gemini key — using the open sources below.)\n");
+            out.append("\n(Google Search needs a Gemini key — the other sources cover it.)\n");
         }
 
         List<Source> recent = news.join();
@@ -220,6 +238,33 @@ public class WebSearchTool extends PublicApiTool {
     }
 
     // ── keyless sources ──────────────────────────────────────────────────────────────────────
+
+    private List<Source> duckDuckGo(String query, AtomicBoolean anyLive) {
+        if (offline || duckDuckGo == null) return List.of();
+        long start = System.nanoTime();
+        String url = "https://duckduckgo.com/lite/?q=" + enc(query);
+        try {
+            List<Source> out = new ArrayList<>();
+            for (DuckDuckGoSearchTool.Result r : duckDuckGo.search(query, 10)) {
+                out.add(new Source(r.title(), r.url(), host(r.url()), r.snippet()));
+            }
+            report("duckduckgo.com", url, !out.isEmpty(), start, out.size() + " web results");
+            if (!out.isEmpty()) anyLive.set(true);
+            return out;
+        } catch (Exception e) {
+            report("duckduckgo.com", url, false, start, e.getClass().getSimpleName() + ": " + e.getMessage());
+            return List.of();
+        }
+    }
+
+    private static String host(String url) {
+        try {
+            String host = URI.create(url).getHost();
+            return host == null ? "" : host.replaceFirst("^www\\.", "");
+        } catch (Exception e) {
+            return "";
+        }
+    }
 
     private List<Source> news(String query, AtomicBoolean anyLive) {
         String q = query.replaceAll("[\"()]", " ").strip();

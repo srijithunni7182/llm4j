@@ -14,9 +14,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Serves a creator's own generated media (only theirs), with HTTP Range support for video seeking. */
+/**
+ * Serves a creator's own generated media (only theirs), with HTTP Range support for video seeking.
+ * {@code ?download=name.mp4} sends it as a file download under that name instead of opening it inline.
+ */
 @RestController
 public class MediaController {
 
@@ -33,7 +37,8 @@ public class MediaController {
     }
 
     @GetMapping("/media/{runId}/{fileName:.+}")
-    void media(@PathVariable String runId, @PathVariable String fileName, HttpServletRequest request,
+    void media(@PathVariable String runId, @PathVariable String fileName,
+               @RequestParam(name = "download", required = false) String download, HttpServletRequest request,
                HttpServletResponse response) throws IOException {
         var user = currentUser.require();
         runs.findByIdAndUserId(runId, user.getId()).orElseThrow(ApiErrors::notFound);
@@ -47,6 +52,11 @@ public class MediaController {
         response.setContentType(GcsMediaStore.contentType(fileName));
         response.setHeader("Accept-Ranges", "bytes");
         response.setHeader("Cache-Control", "private, max-age=3600");
+        if (download != null) {
+            String name = download.replaceAll("[^A-Za-z0-9._-]", "");
+            if (name.isBlank() || !name.contains(".")) name = fileName;
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + name + "\"");
+        }
         String range = request.getHeader("Range");
         if (range != null && range.startsWith("bytes=")) {
             String[] bounds = range.substring(6).split("-", 2);

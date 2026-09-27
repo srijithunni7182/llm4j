@@ -36,6 +36,20 @@ class MediaInspectorTest {
     }
 
     @Test
+    void renderedReelDeclaresConstrainedBaselineSoStrictDecodersAcceptIt() throws Exception {
+        Path mp4 = dir.resolve("reel.mp4");
+        new ReelRenderer(180, 320, 24).render(beats(), List.of(), "tester", 1.0, mp4, null);
+        byte[] b = Files.readAllBytes(mp4);
+        int avcC = new String(b, java.nio.charset.StandardCharsets.ISO_8859_1).indexOf("avcC");
+        assertThat(b[avcC + 5] & 0xff).as("profile").isEqualTo(66);
+        assertThat(b[avcC + 6] & 0xC0).as("avcC constraint_set0/1").isEqualTo(0xC0);
+        assertThat(b[avcC + 12] & 0x1f).as("SPS NAL").isEqualTo(7);
+        assertThat(b[avcC + 14] & 0xC0).as("SPS constraint_set0/1").isEqualTo(0xC0);
+        assertThat(MediaInspector.reel(mp4)).extracting(MediaInspector.Check::status).containsOnly(Status.PASS);
+        assertThat(Mp4FastStart.markConstrainedBaseline(mp4)).as("idempotent").isFalse();
+    }
+
+    @Test
     void fastStartMovesTheIndexAndKeepsTheVideoDecodable() throws Exception {
         // jcodec's own encoder writes the index at the end, which Instagram rejects.
         Path mp4 = dir.resolve("plain.mp4");

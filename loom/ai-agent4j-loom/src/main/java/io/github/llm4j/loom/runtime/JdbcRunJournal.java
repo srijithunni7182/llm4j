@@ -118,4 +118,9 @@ public class JdbcRunJournal implements RunJournal {
             throw new IllegalStateException("Corrupt run journal entry", e);
         }
     }
+
+    @Override
+    public boolean isDurable() {
+        return true;
+    }
 }
