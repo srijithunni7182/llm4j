@@ -696,6 +696,7 @@ public class LoomParser {
     private ScheduleDef parseSchedule() {
         Token nameToken = consume(TokenType.IDENTIFIER, "Expect schedule name.");
         ScheduleDef sd = new ScheduleDef(nameToken.getValue());
+        sd.setLine(nameToken.getLine());
 
         consume(TokenType.LBRACE, "Expect '{' before schedule body.");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
@@ -713,16 +714,78 @@ public class LoomParser {
                  consume(TokenType.COLON, "Expect ':'.");
                  sd.setInitialDelay(consume(TokenType.STRING_LITERAL, "Expect delay string.").getValue());
             } else if (peek().getType() == TokenType.IDENTIFIER) {
-                String key = advance().getValue();
+                Token keyToken = advance();
+                String key = keyToken.getValue();
                 consume(TokenType.COLON, "Expect ':' after key.");
-                String value = consume(TokenType.STRING_LITERAL, "Expect string value.").getValue();
-                if ("task".equals(key)) sd.setTask(value);
-                else if ("initial_delay".equals(key)) sd.setInitialDelay(value);
+                switch (key) {
+                    case "cron" -> {
+                        Token v = consume(TokenType.STRING_LITERAL, "Expect a cron string, e.g. cron: \"0 7 * * *\"");
+                        try {
+                            io.github.llm4j.loom.trigger.CronSchedule.parse(v.getValue());
+                        } catch (IllegalArgumentException e) {
+                            throw error(v, e.getMessage());
+                        }
+                        sd.setCron(v.getValue());
+                    }
+                    case "every" -> sd.setEvery(duration(keyToken));
+                    case "timezone" -> {
+                        Token v = consume(TokenType.STRING_LITERAL, "Expect a time zone string, e.g. timezone: \"Asia/Kolkata\"");
+                        try {
+                            java.time.ZoneId.of(v.getValue());
+                        } catch (java.time.DateTimeException e) {
+                            throw error(v, "Unknown time zone '" + v.getValue() + "'");
+                        }
+                        sd.setTimezone(v.getValue());
+                    }
+                    case "run" -> {
+                        sd.setRunWorkflow(consume(TokenType.IDENTIFIER, "Expect a workflow to run, e.g. run: Digest()").getValue());
+                        consume(TokenType.LPAREN, "Expect '(' after the workflow name.");
+                        if (!check(TokenType.RPAREN)) {
+                            do {
+                                Token argName = consume(TokenType.IDENTIFIER, "Expect argument name.");
+                                consume(TokenType.ASSIGN, "Expect '=' after argument name.");
+                                sd.getRunArgs().put(argName.getValue(),
+                                        consume(TokenType.STRING_LITERAL, "Expect a string argument value.").getValue());
+                            } while (match(TokenType.COMMA));
+                        }
+                        consume(TokenType.RPAREN, "Expect ')' after run arguments.");
+                    }
+                    case "misfire" -> {
+                        Token v = consume(TokenType.IDENTIFIER, "Expect run_once or skip after misfire.");
+                        if (!v.getValue().equals("run_once") && !v.getValue().equals("skip")) {
+                            throw error(v, "misfire must be run_once or skip, got '" + v.getValue() + "'");
+                        }
+                        sd.setMisfire(v.getValue());
+                    }
+                    case "overlap" -> {
+                        Token v = consume(TokenType.IDENTIFIER, "Expect skip or queue after overlap.");
+                        if (!v.getValue().equals("skip") && !v.getValue().equals("queue")) {
+                            throw error(v, "overlap must be skip or queue, got '" + v.getValue() + "'");
+                        }
+                        sd.setOverlap(v.getValue());
+                    }
+                    case "task" -> sd.setTask(consume(TokenType.STRING_LITERAL, "Expect string value.").getValue());
+                    case "initial_delay" -> sd.setInitialDelay(consume(TokenType.STRING_LITERAL, "Expect string value.").getValue());
+                    default -> throw error(keyToken, "Unknown schedule field '" + key
+                            + "'. Use cron, every, timezone, run, misfire, overlap, agent, task, pattern or initial_delay.");
+                }
             } else {
                 throw error(peek(), "Unexpected token in schedule body: " + peek().getType());
             }
         }
-        consume(TokenType.RBRACE, "Expect '}' after schedule body.");
+        Token close = consume(TokenType.RBRACE, "Expect '}' after schedule body.");
+        if (sd.getCron() != null && (sd.getEvery() != null || sd.getPattern() != null)) {
+            throw error(nameToken, "schedule " + sd.getName() + ": use cron or every, not both");
+        }
+        if (sd.getRunWorkflow() != null && sd.getAgentName() != null) {
+            throw error(nameToken, "schedule " + sd.getName() + ": use run (a workflow) or agent + task, not both");
+        }
+        if (sd.getRunWorkflow() == null && sd.getAgentName() == null) {
+            throw error(close, "schedule " + sd.getName() + " needs run: <Workflow>(...) or agent + task");
+        }
+        if (sd.getCron() == null && sd.getEvery() == null && sd.getPattern() == null && sd.getRunWorkflow() != null) {
+            throw error(close, "schedule " + sd.getName() + " needs cron: \"...\" or every: <duration>");
+        }
         return sd;
     }
 

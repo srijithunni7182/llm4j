@@ -107,6 +107,9 @@ public class HarnessExecutor implements LoomEngine {
     private java.time.Clock clock = java.time.Clock.systemUTC();
     private io.github.llm4j.ratelimit.Sleeper sleeper = io.github.llm4j.ratelimit.Sleeper.SYSTEM;
     private int resumes;
+    private io.github.llm4j.loom.trigger.TriggerStore triggerStore;
+    private String runId;
+    private String scriptRef = "script";
     private final List<java.util.function.Consumer<RunSuspended>> suspensionListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     
     @FunctionalInterface
@@ -185,6 +188,40 @@ public class HarnessExecutor implements LoomEngine {
     /** Told whenever the run pauses for a limit, before {@link RunSuspended} leaves {@code executeWorkflow}. */
     public void addSuspensionListener(java.util.function.Consumer<RunSuspended> listener) {
         suspensionListeners.add(listener);
+    }
+
+    /**
+     * Where resume triggers and the script's schedules are kept. With a store and a {@link #setRunId run id},
+     * a run that pauses for a limit leaves a trigger to resume it; {@code schedule} blocks are written to
+     * the store instead of running in memory.
+     */
+    public void setTriggerStore(io.github.llm4j.loom.trigger.TriggerStore store) {
+        this.triggerStore = store;
+    }
+
+    public io.github.llm4j.loom.trigger.TriggerStore getTriggerStore() {
+        return triggerStore;
+    }
+
+    /** The id a resume trigger names, so the host can rebuild this run (e.g. its run directory). */
+    public void setRunId(String runId) {
+        this.runId = runId;
+    }
+
+    public String getRunId() {
+        return runId;
+    }
+
+    /** How schedule triggers refer to this script (e.g. its path); part of their ids. Default "script". */
+    public void setScriptRef(String scriptRef) {
+        this.scriptRef = scriptRef != null ? scriptRef : "script";
+    }
+
+    /** Gives one agent one task, waiting out or failing on limits (a scheduled agent task). */
+    public io.github.llm4j.agent.AgentResult runAgentTask(String agentName, String task) {
+        ReActAgent agent = activeAgents.get(agentName);
+        if (agent == null) throw new IllegalArgumentException("Agent not found: " + agentName);
+        return runUnderLimits(agent, task);
     }
 
     /** How many times this run has been resumed after pausing for a limit. */
@@ -427,21 +464,42 @@ public class HarnessExecutor implements LoomEngine {
             log.info("Initialized Agent: " + agentDef.getName());
         }
 
-        // ── 3. Initialize Schedulers ──────────────────────────────────────────
+        // ── 3. Schedules ──────────────────────────────────────────────────────
         for (ScheduleDef sd : script.getSchedules()) {
-            ReActAgent agent = activeAgents.get(sd.getAgentName());
-            if (agent == null) {
-                log.warning("Agent '" + sd.getAgentName() + "' not found for schedule '" + sd.getName() + "'");
+            if (sd.getRunWorkflow() != null && script.getWorkflows().stream().noneMatch(w -> w.getName().equals(sd.getRunWorkflow()))) {
+                throw new IllegalStateException("schedule " + sd.getName() + " (line " + sd.getLine() + "): run: "
+                        + sd.getRunWorkflow() + " is not a workflow in this script");
+            }
+            if (sd.getAgentName() != null && script.getAgents().stream().noneMatch(a -> a.getName().equals(sd.getAgentName()))) {
+                throw new IllegalStateException("schedule " + sd.getName() + " (line " + sd.getLine() + "): agent "
+                        + sd.getAgentName() + " is not defined");
+            }
+        }
+        if (triggerStore != null) {
+            if (!script.getSchedules().isEmpty()) {
+                List<String> written = io.github.llm4j.loom.trigger.Schedules.reconcile(script, scriptRef, triggerStore, clock.instant());
+                log.info("Schedules stored as triggers: " + written);
+            }
+            return;
+        }
+        for (ScheduleDef sd : script.getSchedules()) {
+            if (sd.getRunWorkflow() != null) {
+                log.warning("schedule " + sd.getName() + " runs a workflow: give the executor a trigger store "
+                        + "(setTriggerStore) to keep it — it is not run in memory.");
                 continue;
             }
+            log.warning("schedule " + sd.getName() + " runs in memory only: it is lost when this process stops. "
+                    + "Give the executor a trigger store to keep it.");
+            ReActAgent agent = activeAgents.get(sd.getAgentName());
             AgentScheduler scheduler = new AgentScheduler(agent);
             schedulers.put(sd.getName(), scheduler);
 
             Duration delay = parseDuration(sd.getInitialDelay());
-            if (sd.getPattern() != null && !sd.getPattern().isEmpty()) {
-                Duration period = parseDuration(sd.getPattern()); // Treat pattern as fixed-rate duration for now
+            Duration period = sd.getEvery() != null ? sd.getEvery()
+                    : sd.getPattern() != null && !sd.getPattern().isEmpty() ? parseDuration(sd.getPattern()) : null;
+            if (period != null) {
                 scheduler.scheduleRecurringTask(sd.getTask(), delay, period);
-                log.info("Scheduled recurring task '" + sd.getName() + "' every " + sd.getPattern());
+                log.info("Scheduled recurring task '" + sd.getName() + "' every " + period);
             } else {
                 scheduler.scheduleTask(sd.getTask(), delay);
                 log.info("Scheduled one-off task '" + sd.getName() + "' with delay " + sd.getInitialDelay());
@@ -1376,7 +1434,7 @@ public class HarnessExecutor implements LoomEngine {
         return String.join(", ", parts);
     }
 
-    static String human(Duration d) {
+    public static String human(Duration d) {
         long s = d.toSeconds();
         if (s < 60) return s + "s";
         if (s < 3600) return (s / 60) + "m" + (s % 60 == 0 ? "" : (s % 60) + "s");
@@ -1450,6 +1508,12 @@ public class HarnessExecutor implements LoomEngine {
             rec.put("detail", paused.limit().describe());
         }
         journal.put(SUSPENSION, new RunJournal.Entry("suspension", rec));
+        if (triggerStore != null && runId != null) {
+            Duration wait = Duration.between(clock.instant(), paused.resumeAt());
+            Instant at = paused.resumeAt().plus(io.github.llm4j.loom.trigger.Schedules.jitter(wait.isNegative() ? Duration.ZERO : wait));
+            triggerStore.upsert(io.github.llm4j.loom.trigger.Trigger.resume(runId, at, String.valueOf(rec.get("detail")), resumes + 1));
+            rec.put("trigger", io.github.llm4j.loom.trigger.Trigger.resumeId(runId));
+        }
         log.warning("Run paused at " + paused.stepId() + " (" + rec.get("detail") + "); resumes at " + paused.resumeAt());
         auditLogger.logConversationEvent(sessionId, null, "run_suspended", new java.util.LinkedHashMap<>(rec));
         for (java.util.function.Consumer<RunSuspended> l : suspensionListeners) {

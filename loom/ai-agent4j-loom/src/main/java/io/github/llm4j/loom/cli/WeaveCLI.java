@@ -54,77 +54,235 @@ public class WeaveCLI implements Callable<Integer> {
         @Option(names = "--prices", description = "Price table: lines of 'model = input / output' per million tokens.")
         private File prices;
 
+        @Option(names = "--journal", description = "Run directory: makes the run durable, so it can pause on limits and resume later.")
+        private File journal;
+
+        @Option(names = "--store", description = "Trigger store for resumes (default: <journal>/../.loom-triggers).")
+        private File store;
+
+        @Option(names = "--wait", description = "When the run pauses, stay alive and resume it when its limit resets.")
+        private boolean waitForResume;
+
         @Override
         public Integer call() throws Exception {
             if (!scriptFile.exists()) {
                 System.err.println("Error: Script file not found: " + scriptFile);
                 return 1;
             }
-            return execute(scriptFile, lootFile, workflowName, inputs, new DefaultLLMClientFactory(),
-                    maxTokens, maxCalls, maxCost, prices, new ConsoleHumanInterface(), System.out, System.err);
+            return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, prices,
+                    journal == null ? null : journal.toPath(), store == null ? null : store.toPath(), waitForResume,
+                    WeaveEnv.system());
         }
     }
 
     /**
      * Runs a workflow the way {@code weave run} does, with an explicit client factory and output streams
-     * (so it can be tested). Exit codes: 0 done, 1 failed, 2 bad budget options, 3 stopped by a budget.
+     * (so it can be tested). Exit codes: 0 done, 1 failed, 2 bad budget options, 3 stopped by a budget,
+     * 4 paused.
      */
     static int execute(File scriptFile, File lootFile, String workflowName, Map<String, String> inputs,
                        LLMClientFactory clientFactory, Long maxTokens, Long maxCalls, String maxCost, File pricesFile,
                        io.github.llm4j.loom.runtime.HumanInterface human, java.io.PrintStream out,
                        java.io.PrintStream err) throws Exception {
-        java.math.BigDecimal cost = null;
-        if (maxCost != null) {
-            if (pricesFile == null) {
-                err.println("Error: --max-cost needs --prices <file> (lines of 'model = input / output' per million tokens).");
-                return 2;
-            }
-            cost = new java.math.BigDecimal(maxCost.strip().replaceFirst("^\\$", ""));
+        WeaveEnv env = new WeaveEnv(clientFactory, human, out, err, java.time.Clock.systemDefaultZone(),
+                io.github.llm4j.ratelimit.Sleeper.SYSTEM, io.github.llm4j.loom.trigger.system.CommandRunner.SYSTEM,
+                WeaveEnv.selfCommand());
+        return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, pricesFile, null, null,
+                false, env);
+    }
+
+    static int run(File scriptFile, File lootFile, String workflowName, Map<String, String> inputs, Long maxTokens,
+                   Long maxCalls, String maxCost, File pricesFile, Path journal, Path store, boolean wait, WeaveEnv env) {
+        Path runDir = journal == null ? null : journal.toAbsolutePath().normalize();
+        Path storeDir = runDir == null ? null
+                : (store != null ? store.toAbsolutePath().normalize() : Runs.defaultStore(runDir));
+        RunSpec spec = new RunSpec(scriptFile.getAbsolutePath(), lootFile == null ? null : lootFile.getAbsolutePath(),
+                workflowName, inputs, maxTokens, maxCalls, maxCost,
+                pricesFile == null ? null : pricesFile.getAbsolutePath(), storeDir == null ? null : storeDir.toString());
+        if (runDir != null) spec.write(runDir);
+        Runs.Result result = Runs.execute(spec, runDir, null, env);
+        if (result.exit() == 4 && wait && runDir != null && result.resumeAt() != null) {
+            return waitForRun(runDir, storeDir, env);
         }
-        if ((maxTokens != null && maxTokens <= 0) || (maxCalls != null && maxCalls <= 0)
-                || (cost != null && cost.signum() <= 0)) {
-            err.println("Error: budget limits must be positive.");
+        return result.exit();
+    }
+
+    /** {@code --wait}: sleeps until the run's resume trigger is due, resumes it, and repeats until it ends. */
+    static int waitForRun(Path runDir, Path storeDir, WeaveEnv env) {
+        io.github.llm4j.loom.trigger.FileTriggerStore store = new io.github.llm4j.loom.trigger.FileTriggerStore(storeDir);
+        String id = Runs.resumeTriggerId(runDir);
+        io.github.llm4j.loom.trigger.TriggerTarget.Outcome[] last = new io.github.llm4j.loom.trigger.TriggerTarget.Outcome[1];
+        io.github.llm4j.loom.trigger.TriggerRunner runner = new io.github.llm4j.loom.trigger.TriggerRunner(store,
+                new WeaveTriggerTarget(storeDir, env), env.clock()).onFired(f -> {
+                    if (f.trigger().id().equals(id)) last[0] = f.outcome();
+                });
+        for (int round = 0; round < 10_000; round++) {
+            var pending = store.get(id);
+            if (pending.isEmpty()) break;
+            java.time.Duration wait = java.time.Duration.between(env.clock().instant(), pending.get().nextFire());
+            if (!wait.isNegative() && !wait.isZero()) {
+                env.out().println("⏳ Waiting " + HarnessExecutor.human(wait) + " to resume...");
+                try {
+                    env.sleeper().sleep(wait);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return 4;
+                }
+            }
+            runner.tick();
+        }
+        if (last[0] == null) return 4;
+        return switch (last[0].status()) {
+            case DONE -> 0;
+            case HUMAN, SUSPENDED -> 4;
+            default -> 1;
+        };
+    }
+
+    @Command(name = "resume", description = "Resumes a paused run now, from its run directory.")
+    static class ResumeCommand implements Callable<Integer> {
+        @Parameters(index = "0", description = "The run directory (as given to run --journal).")
+        private File runDir;
+
+        @Override
+        public Integer call() {
+            return resume(runDir.toPath(), WeaveEnv.system());
+        }
+    }
+
+    static int resume(Path runDir, WeaveEnv env) {
+        Path dir = runDir.toAbsolutePath().normalize();
+        RunSpec spec;
+        try {
+            spec = RunSpec.read(dir);
+        } catch (RuntimeException e) {
+            env.err().println("Error: " + e.getMessage());
             return 2;
         }
-
-        out.println("🧵 Weaving workflow: " + scriptFile.getName());
-
-        // 1. Parsing
-        LoomLoader loader = new LoomLoader();
-        LoomScript script = loader.load(scriptFile.getAbsolutePath());
-
-        // 2. Setup
-        ToolRegistry registry = new ToolRegistry();
-        if (lootFile != null && lootFile.exists()) {
-            new LootLoader().loadIntoRegistry(lootFile.getAbsolutePath(), registry);
-            out.println("🛠️  Loaded tools from: " + lootFile.getName());
+        Runs.Result r = Runs.execute(spec, dir, null, env);
+        if (r.exit() != 4 && spec.store() != null) {
+            new io.github.llm4j.loom.trigger.FileTriggerStore(Path.of(spec.store())).remove(Runs.resumeTriggerId(dir));
         }
+        return r.exit();
+    }
 
-        HarnessExecutor executor = new HarnessExecutor(script, registry, clientFactory);
-        executor.setHumanInterface(human);
-        if (pricesFile != null) executor.setPriceTable(io.github.llm4j.budget.PriceTable.load(pricesFile.toPath()));
-        executor.setBudgetOverrides(maxTokens, maxCalls, cost);
-        executor.initialize();
+    @Command(name = "tick", description = "Fires every trigger that is due in a store, then exits (for cron, systemd, launchd).")
+    static class TickCommand implements Callable<Integer> {
+        @Parameters(index = "0", description = "The trigger store directory.")
+        private File store;
 
-        out.println("🚀 Executing workflow: " + workflowName + "...");
+        @Override
+        public Integer call() {
+            return tick(store.toPath(), WeaveEnv.system());
+        }
+    }
+
+    static int tick(Path storeDir, WeaveEnv env) {
+        Path dir = storeDir.toAbsolutePath().normalize();
+        io.github.llm4j.loom.trigger.FileTriggerStore store = new io.github.llm4j.loom.trigger.FileTriggerStore(dir);
+        int fired = new io.github.llm4j.loom.trigger.TriggerRunner(store, new WeaveTriggerTarget(dir, env), env.clock()).tick();
+        if (fired > 0) env.out().println("🔔 Fired " + fired + " trigger(s)");
+        Triggers.resyncExact(dir, store, env);
+        return 0;
+    }
+
+    @Command(name = "daemon", description = "Keeps running and fires triggers from a store as they come due.")
+    static class DaemonCommand implements Callable<Integer> {
+        @Parameters(index = "0", description = "The trigger store directory.")
+        private File store;
+
+        @Option(names = "--poll", description = "How often to look for due triggers, e.g. 5s.", defaultValue = "5s")
+        private String poll;
+
+        @Override
+        public Integer call() throws Exception {
+            return daemon(store.toPath(), io.github.llm4j.loom.trigger.Schedules.parse(poll), null, WeaveEnv.system());
+        }
+    }
+
+    static int daemon(Path storeDir, java.time.Duration poll, java.time.Duration runFor, WeaveEnv env) throws InterruptedException {
+        Path dir = storeDir.toAbsolutePath().normalize();
+        io.github.llm4j.loom.trigger.TriggerRunner runner = new io.github.llm4j.loom.trigger.TriggerRunner(
+                new io.github.llm4j.loom.trigger.FileTriggerStore(dir), new WeaveTriggerTarget(dir, env), env.clock());
+        env.out().println("👂 Watching " + dir + " (every " + HarnessExecutor.human(poll) + "). Ctrl+C to stop.");
+        runner.start(poll);
         try {
-            executor.executeWorkflow(workflowName, inputs);
-            out.println("✅ Workflow completed successfully.");
-            return 0;
-        } catch (io.github.llm4j.budget.BudgetExceeded stop) {
-            out.println("⛔ Stopped: " + stop.getMessage() + ". Everything paid for so far is kept.");
-            return 3;
-        } catch (Exception e) {
-            err.println("❌ Execution failed: " + e.getMessage());
-            e.printStackTrace(err);
-            return 1;
+            if (runFor == null) Thread.currentThread().join();
+            else Thread.sleep(runFor.toMillis());
         } finally {
-            if (executor.getRunBudget() != null) {
-                out.println();
-                out.println("💸 Spend");
-                out.print(executor.spend().table());
+            runner.stop();
+        }
+        return 0;
+    }
+
+    @Command(name = "triggers", description = "Lists and manages stored triggers, and installs system triggers.%n"
+            + "  list | pause <id> | enable <id> | cancel <id> | fire <id> | install | uninstall")
+    static class TriggersCommand implements Callable<Integer> {
+        @Parameters(index = "0", description = "list, pause, enable, cancel, fire, install or uninstall.")
+        private String action;
+
+        @Parameters(index = "1", description = "The trigger store directory.")
+        private File store;
+
+        @Parameters(index = "2", arity = "0..1", description = "The trigger id (pause, enable, cancel, fire).")
+        private String id;
+
+        @Option(names = "--backend", description = "cron, systemd, launchd, windows or cloud-scheduler (default: detected).")
+        private String backend;
+
+        @Option(names = "--mode", description = "heartbeat (default) or exact.", defaultValue = "heartbeat")
+        private String mode;
+
+        @Option(names = "--every", description = "Heartbeat interval, e.g. 5m.", defaultValue = "5m")
+        private String every;
+
+        @Option(names = "--apply", description = "Make the change (without it, only show what would change).")
+        private boolean apply;
+
+        @Option(names = "--weave", description = "The command that runs weave (default: this Java and classpath).")
+        private String weave;
+
+        @Option(names = "--env-file", description = "A file of KEY=VALUE lines (API keys) loaded before each tick.")
+        private File envFile;
+
+        @Option(names = "--url", description = "cloud-scheduler: the service URL exposing /loom/tick.")
+        private String url;
+
+        @Option(names = "--service-account", description = "cloud-scheduler: service account for the OIDC token.")
+        private String serviceAccount;
+
+        @Option(names = "--region", description = "cloud-scheduler: location, e.g. asia-south1.")
+        private String region;
+
+        @Override
+        public Integer call() throws Exception {
+            WeaveEnv env = WeaveEnv.system();
+            if (weave != null) env = env.withWeave(List.of(weave.trim().split("\\s+")));
+            Triggers.InstallOptions options = new Triggers.InstallOptions(backend, mode, every, apply,
+                    envFile == null ? null : envFile.toPath(), url, serviceAccount, region,
+                    Path.of(System.getProperty("user.home")), System.getProperty("os.name"));
+            return Triggers.run(action, store.toPath(), id, options, env);
+        }
+    }
+
+    @Command(name = "schedule", description = "schedule sync <script> --store <dir>: writes a script's schedule blocks to a trigger store.")
+    static class ScheduleCommand implements Callable<Integer> {
+        @Parameters(index = "0", description = "sync")
+        private String action;
+
+        @Parameters(index = "1", description = "The .loom script.")
+        private File script;
+
+        @Option(names = "--store", required = true, description = "The trigger store directory.")
+        private File store;
+
+        @Override
+        public Integer call() {
+            if (!"sync".equals(action)) {
+                System.err.println("Error: unknown action '" + action + "'. Use: weave schedule sync <script> --store <dir>");
+                return 2;
             }
-            executor.shutdown();
+            return Triggers.syncSchedules(script.toPath(), store.toPath(), WeaveEnv.system());
         }
     }
 
@@ -261,6 +419,11 @@ public class WeaveCLI implements Callable<Integer> {
     public static void main(String[] args) {
         int exitCode = new CommandLine(new WeaveCLI())
                 .addSubcommand(new RunCommand())
+                .addSubcommand(new ResumeCommand())
+                .addSubcommand(new TickCommand())
+                .addSubcommand(new DaemonCommand())
+                .addSubcommand(new TriggersCommand())
+                .addSubcommand(new ScheduleCommand())
                 .addSubcommand(new PackageCommand())
                 .execute(args);
         System.exit(exitCode);
