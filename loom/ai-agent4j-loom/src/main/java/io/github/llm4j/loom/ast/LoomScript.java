@@ -10,6 +10,7 @@ public class LoomScript implements Node {
     private final List<KnowledgeDef> knowledgeBases = new ArrayList<>();
     private final List<RoutingPolicyDef> routingPolicies = new ArrayList<>();
     private final List<ScheduleDef> schedules = new ArrayList<>();
+    private final List<ToolDef> tools = new ArrayList<>();
     private final List<String> imports = new ArrayList<>();
     private AuditConfig auditConfig;
     private BudgetDef budget;
@@ -41,6 +42,10 @@ public class LoomScript implements Node {
     public void addSchedule(ScheduleDef schedule) { this.schedules.add(schedule); }
     public List<ScheduleDef> getSchedules() { return schedules; }
 
+    public void addTool(ToolDef tool) { this.tools.add(tool); }
+    /** Tools declared with {@code tool Name { use: … }}. */
+    public List<ToolDef> getTools() { return tools; }
+
     public void addImport(String path) { this.imports.add(path); }
     public List<String> getImports() { return imports; }
 
@@ -62,6 +67,7 @@ public class LoomScript implements Node {
         this.knowledgeBases.addAll(other.knowledgeBases);
         this.routingPolicies.addAll(other.routingPolicies);
         this.schedules.addAll(other.schedules);
+        this.tools.addAll(other.tools);
         if (this.auditConfig == null) {
             this.auditConfig = other.auditConfig;
         }

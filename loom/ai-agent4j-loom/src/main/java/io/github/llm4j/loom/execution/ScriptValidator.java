@@ -36,6 +36,7 @@ public class ScriptValidator {
         Function<String, String> env = System::getenv;
         boolean lenient;
         boolean humanInterface;
+        java.nio.file.Path baseDir = java.nio.file.Path.of("").toAbsolutePath();
         final List<Consumer<Checker>> extraChecks = new ArrayList<>();
 
         public Context registeredTools(Set<String> names) {
@@ -62,6 +63,16 @@ public class ScriptValidator {
         public Context check(Consumer<Checker> check) {
             extraChecks.add(check);
             return this;
+        }
+
+        /** Where relative paths (fs:// skills) are resolved. */
+        public Context baseDir(java.nio.file.Path dir) {
+            this.baseDir = dir;
+            return this;
+        }
+
+        public boolean hasHumanInterface() {
+            return humanInterface;
         }
     }
 
@@ -152,7 +163,7 @@ public class ScriptValidator {
             }
             for (String uri : a.getSkills()) {
                 try {
-                    loadSkill(uri);
+                    loadSkill(uri, c.context().baseDir);
                 } catch (Exception e) {
                     c.error(a.getLine(), who, "skill " + uri + " can't be loaded: " + e.getMessage());
                 }
@@ -211,9 +222,11 @@ public class ScriptValidator {
         return s.equals("cost_aware") || s.equals("fallback") ? s : null;
     }
 
-    public static AgentSkill loadSkill(String uri) throws Exception {
+    /** {@code classpath://…}, or a file ({@code fs://…} or a plain path) relative to {@code baseDir}. */
+    public static AgentSkill loadSkill(String uri, java.nio.file.Path baseDir) throws Exception {
         if (uri.startsWith("classpath://")) return AgentSkill.fromClasspath(uri.substring(12));
-        String path = uri.startsWith("fs://") ? uri.substring(5) : uri;
-        return new FileSystemSkillLoader().load(path);
+        java.nio.file.Path path = java.nio.file.Path.of(uri.startsWith("fs://") ? uri.substring(5) : uri);
+        if (!path.isAbsolute()) path = baseDir.resolve(path);
+        return new FileSystemSkillLoader().load(path.toString());
     }
 }

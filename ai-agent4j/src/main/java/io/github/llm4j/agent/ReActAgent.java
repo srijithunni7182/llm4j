@@ -474,6 +474,11 @@ public class ReActAgent {
 
             String observation = tool.execute(args);
             logger.info("Tool '{}' returned observation: {}", action, observation);
+            try {
+                auditLogger.logToolExecution(sessionId, action, String.valueOf(args), observation, java.time.Instant.now());
+            } catch (RuntimeException auditFailure) {
+                logger.warn("Audit logging of tool '{}' failed: {}", action, auditFailure.getMessage());
+            }
             notifyObservation(observation);
             return new ActionExecution(observation, AgentResult.StepOutcome.EXECUTED);
         } catch (AgentInterrupt interrupt) {

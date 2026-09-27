@@ -185,6 +185,7 @@ public class WeaveCLI implements Callable<Integer> {
             throw new IllegalStateException("weave check never creates model clients");
         });
         executor.setLenient(lenient);
+        executor.setBaseDir(scriptFile.getAbsoluteFile().getParentFile().toPath());
         executor.setEnvLookup(env.env());
         executor.setHumanInterface(env.human()); // the CLI always has a console
         List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems =

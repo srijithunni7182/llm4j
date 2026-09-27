@@ -34,6 +34,8 @@ public class LoomParser {
                 script.addRoutingPolicy(parseRoutingPolicy());
             } else if (match(TokenType.SCHEDULE)) {
                 script.addSchedule(parseSchedule());
+            } else if (match(TokenType.TOOL)) {
+                script.addTool(parseToolDef());
             } else if (isBudgetKeyword()) {
                 // Contextual keyword: `budget` stays usable as a variable name everywhere else.
                 Token keyword = advance();
@@ -44,7 +46,7 @@ public class LoomParser {
                 if (script.getRateLimits() != null) throw error(keyword, "Only one rate_limits block is allowed.");
                 script.setRateLimits(parseRateLimits());
             } else {
-                throw error(peek(), "Expected 'agent', 'workflow', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: " + peek().getType());
+                throw error(peek(), "Expected 'agent', 'workflow', 'tool', 'mcp', 'audit', 'knowledge', 'routing', 'schedule', 'budget' or 'rate_limits' declaration, but got: " + peek().getType());
             }
         }
 
@@ -132,6 +134,30 @@ public class LoomParser {
             } else if (match(TokenType.OUTPUT_SCHEMA)) {
                 consume(TokenType.COLON, "Expect ':' after output_schema.");
                 agent.setOutputSchema(parseSchema());
+            } else if (check(TokenType.IDENTIFIER) && "approve".equals(peek().getValue())) {
+                advance();
+                consume(TokenType.COLON, "Expect ':' after approve.");
+                if (check(TokenType.IDENTIFIER) && "all".equals(peek().getValue())) {
+                    advance();
+                    agent.setApproveAll(true);
+                } else {
+                    consume(TokenType.LBRACKET, "Expect [Tool, …] or all after approve:");
+                    if (!check(TokenType.RBRACKET)) {
+                        do {
+                            agent.getApprove().add(consume(TokenType.IDENTIFIER, "Expect a tool name.").getValue());
+                        } while (match(TokenType.COMMA));
+                    }
+                    consume(TokenType.RBRACKET, "Expect ']' after approve list.");
+                }
+            } else if (check(TokenType.IDENTIFIER) && "max_iterations".equals(peek().getValue())) {
+                Token keyword = advance();
+                consume(TokenType.COLON, "Expect ':' after max_iterations.");
+                Token n = consume(TokenType.NUMBER_LITERAL, "Expect a whole number for max_iterations.");
+                double v = Double.parseDouble(n.getValue());
+                if (v < 1 || v != Math.floor(v)) {
+                    throw error(keyword, "max_iterations must be a positive whole number, got " + n.getValue());
+                }
+                agent.setMaxIterations((int) v);
             } else if (check(TokenType.IDENTIFIER) && "temperature".equals(peek().getValue())) {
                 // Contextual keyword, so existing scripts may still use "temperature" as a name elsewhere.
                 Token keyword = advance();
@@ -613,6 +639,34 @@ public class LoomParser {
             } else if (match(TokenType.EMBEDDING)) {
                 consume(TokenType.COLON, "Expect ':' after embedding.");
                 kb.setEmbeddingProvider(consume(TokenType.STRING_LITERAL, "Expect embedding provider string.").getValue());
+            } else if (check(TokenType.IDENTIFIER) && "source".equals(peek().getValue())) {
+                advance();
+                consume(TokenType.COLON, "Expect ':' after source.");
+                kb.setPath(consume(TokenType.STRING_LITERAL, "Expect a file or directory, e.g. source: \"docs/\"").getValue());
+            } else if (check(TokenType.IDENTIFIER) && ("overlap".equals(peek().getValue()) || "top_k".equals(peek().getValue()))) {
+                Token key = advance();
+                consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
+                Token n = consume(TokenType.NUMBER_LITERAL, "Expect a whole number for " + key.getValue() + ".");
+                double v = Double.parseDouble(n.getValue());
+                boolean overlap = key.getValue().equals("overlap");
+                if (v != Math.floor(v) || v < (overlap ? 0 : 1)) {
+                    throw error(n, key.getValue() + " must be a " + (overlap ? "non-negative" : "positive") + " whole number");
+                }
+                if (overlap) kb.setOverlap((int) v); else kb.setTopK((int) v);
+            } else if (check(TokenType.IDENTIFIER) && "store".equals(peek().getValue())) {
+                advance();
+                consume(TokenType.COLON, "Expect ':' after store.");
+                if (match(TokenType.MEMORY)) kb.setStore(null);
+                else kb.setStore(consume(TokenType.STRING_LITERAL, "Expect an index file path, or memory").getValue());
+            } else if (check(TokenType.IDENTIFIER) && "mode".equals(peek().getValue())) {
+                advance();
+                consume(TokenType.COLON, "Expect ':' after mode.");
+                Token m = word("Expect context or tool.");
+                switch (m.getValue()) {
+                    case "context" -> kb.setMode(io.github.llm4j.loom.ast.KnowledgeDef.Mode.CONTEXT);
+                    case "tool" -> kb.setMode(io.github.llm4j.loom.ast.KnowledgeDef.Mode.TOOL);
+                    default -> throw error(m, "mode must be context or tool, got '" + m.getValue() + "'");
+                }
             } else {
                 throw error(peek(), "Unexpected token in knowledge body: " + peek().getType());
             }
@@ -858,6 +912,53 @@ public class LoomParser {
     private Token consume(TokenType type, String message) {
         if (check(type)) return advance();
         throw error(peek(), message);
+    }
+
+    // ── Tools ────────────────────────────────────────────────────────────────────────────────
+
+    /** {@code tool Name { use: kind  option: value … }} — after the keyword. */
+    private io.github.llm4j.loom.ast.ToolDef parseToolDef() {
+        Token name = consume(TokenType.IDENTIFIER, "Expect a tool name, e.g. tool Search { use: duckduckgo }");
+        io.github.llm4j.loom.ast.ToolDef tool = new io.github.llm4j.loom.ast.ToolDef(name.getValue());
+        tool.setLine(name.getLine());
+        consume(TokenType.LBRACE, "Expect '{' after tool " + name.getValue() + ".");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token key = word("Expect a tool option, e.g. use: serpapi");
+            consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
+            if (key.getValue().equals("use")) {
+                tool.setKind(word("Expect a tool kind after use:, e.g. use: duckduckgo").getValue());
+            } else {
+                if (tool.getOptions().containsKey(key.getValue())) throw error(key, "option " + key.getValue() + " is given twice");
+                tool.getOptions().put(key.getValue(), optionValue());
+            }
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after tool " + name.getValue() + ".");
+        if (tool.getKind() == null) throw error(name, "tool " + name.getValue() + " needs use: <kind>");
+        return tool;
+    }
+
+    /** A bare word: an identifier or a keyword (option names like path, type, class). */
+    private Token word(String message) {
+        if (!isAtEnd() && peek().getValue() != null && peek().getValue().matches("[A-Za-z_][A-Za-z0-9_.]*")
+                && peek().getType() != TokenType.STRING_LITERAL) {
+            return advance();
+        }
+        throw error(peek(), message);
+    }
+
+    /** A string, number, true/false, a word, or {@code env.NAME}. */
+    private io.github.llm4j.loom.ast.ToolDef.OptionValue optionValue() {
+        if (check(TokenType.STRING_LITERAL) || check(TokenType.NUMBER_LITERAL)) {
+            return io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(advance().getValue());
+        }
+        Token w = word("Expect a value: a \"string\", a number, true/false, or env.NAME");
+        if (w.getValue().startsWith("env.")) {
+            String var = w.getValue().substring(4);
+            if (var.isEmpty() || var.contains(".")) throw error(w, "an environment reference is env.NAME, got " + w.getValue());
+            return io.github.llm4j.loom.ast.ToolDef.OptionValue.env(var);
+        }
+        return io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(w.getValue());
     }
 
     // ── Budgets ──────────────────────────────────────────────────────────────────────────────

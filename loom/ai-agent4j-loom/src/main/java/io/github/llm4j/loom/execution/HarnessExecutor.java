@@ -111,6 +111,11 @@ public class HarnessExecutor implements LoomEngine {
     private String runId;
     private String scriptRef = "script";
     private boolean lenient;
+    private final io.github.llm4j.loom.tools.ToolFactory toolFactory = new io.github.llm4j.loom.tools.ToolFactory();
+    private Path baseDir = Path.of("").toAbsolutePath();
+    private io.github.llm4j.loom.knowledge.EmbeddingFactory embeddingFactory;
+    private final Map<String, io.github.llm4j.loom.knowledge.KnowledgeIndex> knowledge = new java.util.LinkedHashMap<>();
+    private final Map<String, io.github.llm4j.loom.knowledge.Retriever> retrievers = new HashMap<>();
     private java.util.function.Function<String, String> envLookup = System::getenv;
     private final List<java.util.function.Consumer<RunSuspended>> suspensionListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     
@@ -148,6 +153,18 @@ public class HarnessExecutor implements LoomEngine {
 
     public RunJournal getJournal() {
         return journal;
+    }
+
+    HumanInterface humanInterface() {
+        return humanInterface;
+    }
+
+    String maskPii(String text) {
+        return piiDetector.mask(text, io.github.llm4j.privacy.MaskingStrategy.PLACEHOLDER);
+    }
+
+    void audit(String event, Map<String, Object> data) {
+        auditLogger.logConversationEvent(sessionId, null, event, data);
     }
 
     /** The stable id of the step running on this thread (e.g. inside a tool or approval callback). */
@@ -239,14 +256,121 @@ public class HarnessExecutor implements LoomEngine {
         this.envLookup = envLookup != null ? envLookup : System::getenv;
     }
 
+    /** How knowledge bases embed text (default: gemini/…, and onnx/… or djl/… with the addons module). */
+    public void setEmbeddingFactory(io.github.llm4j.loom.knowledge.EmbeddingFactory factory) {
+        this.embeddingFactory = factory;
+    }
+
+    private io.github.llm4j.loom.knowledge.EmbeddingFactory embeddings() {
+        if (embeddingFactory == null) embeddingFactory = new io.github.llm4j.loom.knowledge.DefaultEmbeddingFactory(envLookup);
+        return embeddingFactory;
+    }
+
+    /** A knowledge base's index, after {@code initialize()}. */
+    public io.github.llm4j.loom.knowledge.KnowledgeIndex getKnowledge(String name) {
+        return knowledge.get(name);
+    }
+
+    /** Adds a kind of tool scripts can declare with {@code use: <name>}. */
+    public void addToolKind(io.github.llm4j.loom.tools.ToolKind kind) {
+        toolFactory.register(kind);
+    }
+
+    /** Where relative paths in the script (OpenAPI specs, knowledge sources) are resolved. Default: working directory. */
+    public void setBaseDir(Path dir) {
+        this.baseDir = dir != null ? dir.toAbsolutePath() : Path.of("").toAbsolutePath();
+    }
+
     /** The load-time checks for this script, as {@code initialize()} runs them (see {@link ScriptValidator}). */
     public ScriptValidator.Context validationContext() {
         java.util.Set<String> tools = new java.util.HashSet<>(toolRegistry.names());
+        script.getTools().forEach(t -> tools.add(t.getName()));
+        tools.addAll(io.github.llm4j.loom.tools.ToolFactory.BUILT_INS.keySet());
         return new ScriptValidator.Context()
                 .registeredTools(tools)
                 .env(envLookup)
                 .lenient(lenient)
-                .humanInterface(humanInterface != null);
+                .humanInterface(humanInterface != null)
+                .baseDir(baseDir)
+                .check(this::checkToolsAndApprovals)
+                .check(this::checkKnowledge);
+    }
+
+    private void checkKnowledge(ScriptValidator.Checker c) {
+        for (KnowledgeDef kb : script.getKnowledgeBases()) {
+            String who = "knowledge " + kb.getName();
+            if (kb.getType() != null) {
+                c.warn(kb.getLine(), who, "type: is no longer used (every knowledge base is searched by meaning); remove it");
+            }
+            if (kb.getSource() == null) {
+                c.error(kb.getLine(), who, "needs source: \"<file or directory>\"");
+            } else {
+                Path src = io.github.llm4j.loom.knowledge.KnowledgeIndexer.source(kb, baseDir);
+                if (!java.nio.file.Files.exists(src)) {
+                    c.error(kb.getLine(), who, "source " + kb.getSource() + " does not exist (looked in " + src + ")");
+                } else if (!hasIndexableFile(src)) {
+                    c.warn(kb.getLine(), who, "source " + kb.getSource() + " has no text files to index ("
+                            + String.join(", ", new java.util.TreeSet<>(io.github.llm4j.loom.knowledge.KnowledgeIndexer.TEXT)) + ")");
+                }
+            }
+            String problem = embeddings().problem(kb.getEmbeddingProvider());
+            if (problem != null) c.error(kb.getLine(), who, problem);
+            if (kb.getChunkSize() < 1) c.error(kb.getLine(), who, "chunk_size must be positive");
+            else if (kb.getOverlap() >= kb.getChunkSize()) c.error(kb.getLine(), who, "overlap must be smaller than chunk_size");
+        }
+    }
+
+    private static boolean hasIndexableFile(Path src) {
+        try (java.util.stream.Stream<Path> all = java.nio.file.Files.walk(src)) {
+            return all.filter(java.nio.file.Files::isRegularFile).anyMatch(p -> {
+                String n = p.getFileName().toString();
+                int dot = n.lastIndexOf('.');
+                return dot > 0 && io.github.llm4j.loom.knowledge.KnowledgeIndexer.TEXT.contains(n.substring(dot + 1).toLowerCase());
+            });
+        } catch (java.io.IOException e) {
+            return false;
+        }
+    }
+
+    /** Builds (or brings up to date) every knowledge base's index. */
+    private void indexKnowledge() {
+        for (KnowledgeDef kb : script.getKnowledgeBases()) {
+            try {
+                io.github.llm4j.loom.knowledge.KnowledgeIndex index = io.github.llm4j.loom.knowledge.KnowledgeIndexer.index(
+                        kb, embeddings().create(kb.getEmbeddingProvider()), baseDir);
+                knowledge.put(kb.getName(), index);
+                log.info("📚 " + kb.getName() + ": " + index.stats());
+                Map<String, Object> data = new java.util.LinkedHashMap<>();
+                data.put("kb", kb.getName());
+                data.put("files", String.valueOf(index.stats().files()));
+                data.put("skipped", String.valueOf(index.stats().skipped()));
+                data.put("chunks", String.valueOf(index.stats().chunks()));
+                data.put("embedded", String.valueOf(index.stats().embedded()));
+                auditLogger.logConversationEvent(sessionId, null, "knowledge_indexed", data);
+            } catch (Exception e) {
+                throw new LoomLoadException(List.of(new ScriptValidator.Problem(kb.getLine(), "knowledge " + kb.getName(),
+                        "indexing failed: " + e.getMessage(), ScriptValidator.Severity.ERROR)));
+            }
+        }
+    }
+
+    private void checkToolsAndApprovals(ScriptValidator.Checker c) {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (io.github.llm4j.loom.ast.ToolDef t : script.getTools()) {
+            if (!seen.add(t.getName())) c.error(t.getLine(), "tool " + t.getName(), "declared twice");
+            for (String problem : toolFactory.problems(t, envLookup)) c.error(t.getLine(), "tool " + t.getName(), problem);
+        }
+        for (AgentDef a : script.getAgents()) {
+            String who = "agent " + a.getName();
+            for (String name : a.getApprove()) {
+                if (!a.getTools().contains(name)) {
+                    c.error(a.getLine(), who, "approve: " + name + " is not one of its tools " + a.getTools());
+                }
+            }
+            if ((a.isApproveAll() || !a.getApprove().isEmpty()) && !c.context().hasHumanInterface()) {
+                c.error(a.getLine(), who, "approve needs someone to ask: set a HumanInterface (weave provides the console)");
+            }
+        }
     }
 
     /** How many times this run has been resumed after pausing for a limit. */
@@ -293,6 +417,37 @@ public class HarnessExecutor implements LoomEngine {
     private VariableContext view() {
         Map<String, Object> l = locals.get();
         return l.isEmpty() ? context : new ScopedContext(l, context);
+    }
+
+    private Tool resolveTool(String name) {
+        for (io.github.llm4j.loom.ast.ToolDef def : script.getTools()) {
+            if (def.getName().equals(name)) return createTool(def);
+        }
+        Tool registered = toolRegistry.getTool(name);
+        if (registered != null) return registered;
+        io.github.llm4j.loom.ast.ToolDef builtIn = io.github.llm4j.loom.tools.ToolFactory.builtIn(name);
+        if (builtIn != null) return createTool(builtIn);
+        throw new IllegalStateException("tool " + name + " is not defined"); // validated earlier
+    }
+
+    private final Map<String, Tool> createdTools = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private Tool createTool(io.github.llm4j.loom.ast.ToolDef def) {
+        return createdTools.computeIfAbsent(def.getName(), n -> {
+            try {
+                return toolFactory.create(def, envLookup, baseDir);
+            } catch (Exception e) {
+                throw new LoomLoadException(List.of(new ScriptValidator.Problem(def.getLine(), "tool " + def.getName(),
+                        "can't be created: " + e.getMessage(), ScriptValidator.Severity.ERROR)));
+            }
+        });
+    }
+
+    private ApprovalGate approvalGate;
+
+    private synchronized ApprovalGate approvals() {
+        if (approvalGate == null) approvalGate = new ApprovalGate(this);
+        return approvalGate;
     }
 
     /** Runs a block, giving each statement a stable step id under the current one. */
@@ -404,6 +559,9 @@ public class HarnessExecutor implements LoomEngine {
         // ── 1b. Budgets ───────────────────────────────────────────────────────
         setUpBudgets();
 
+        // ── 1c. Knowledge bases ───────────────────────────────────────────────
+        indexKnowledge();
+
         // ── 2. Build agents ───────────────────────────────────────────────────
         for (AgentDef agentDef : script.getAgents()) {
             String systemPrompt = resolveSystemPrompt(agentDef);
@@ -440,7 +598,9 @@ public class HarnessExecutor implements LoomEngine {
             if (agentDef.getTemperature() != null) {
                 agentBuilder.temperature(agentDef.getTemperature());
             }
-            if (agentDef.getTools().isEmpty() && agentDef.getMcpServers().isEmpty()) {
+            boolean searchesKnowledge = agentDef.getKnowledgeBases().stream()
+                    .anyMatch(kb -> knowledge.get(kb).def().getMode() == KnowledgeDef.Mode.TOOL);
+            if (agentDef.getTools().isEmpty() && agentDef.getMcpServers().isEmpty() && !searchesKnowledge) {
                 agentBuilder.systemPrompt(systemPrompt);
             } else {
                 // Tool-using agents keep the ReAct protocol (tool descriptions + JSON format);
@@ -448,15 +608,27 @@ public class HarnessExecutor implements LoomEngine {
                 agentBuilder.instructions(systemPrompt);
             }
 
-            // Reflection-based .loot tools
+            // Tools: script declarations, then host-registered (.loot or Java), then built-ins
             for (String toolName : agentDef.getTools()) {
-                Tool tool = toolRegistry.getTool(toolName);
-                if (tool != null) {
-                    agentBuilder.addTool(tool);
-                } else {
-                    log.warning("Tool not found in registry: " + toolName);
+                Tool tool = resolveTool(toolName);
+                if (agentDef.isApproveAll() || agentDef.getApprove().contains(toolName)) {
+                    tool = new io.github.llm4j.loom.tools.ApprovalTool(tool);
                 }
+                agentBuilder.addTool(tool);
             }
+            if (agentDef.isApproveAll() || !agentDef.getApprove().isEmpty()) {
+                String agentName = agentDef.getName();
+                agentBuilder.approvalCallback((tool, args, thought) -> approvals().approve(agentName, tool, args, thought));
+            }
+            if (agentDef.getMaxIterations() != null) agentBuilder.maxIterations(agentDef.getMaxIterations());
+            List<io.github.llm4j.loom.knowledge.KnowledgeIndex> inContext = new java.util.ArrayList<>();
+            for (String kbName : agentDef.getKnowledgeBases()) {
+                io.github.llm4j.loom.knowledge.KnowledgeIndex index = knowledge.get(kbName);
+                if (index.def().getMode() == KnowledgeDef.Mode.TOOL) agentBuilder.addTool(io.github.llm4j.loom.knowledge.Retriever.searchTool(index));
+                else inContext.add(index);
+            }
+            if (!inContext.isEmpty()) retrievers.put(agentDef.getName(), new io.github.llm4j.loom.knowledge.Retriever(inContext));
+            agentBuilder.auditLogger(auditLogger).sessionId(sessionId);
 
             // MCP-sourced tools
             for (String serverName : agentDef.getMcpServers()) {
@@ -480,20 +652,6 @@ public class HarnessExecutor implements LoomEngine {
             ReActAgent agent = agentBuilder.build();
             activeAgents.put(agentDef.getName(), agent);
             
-            // Tier 2: Wrap with RAG if knowledge bases are defined
-            if (!agentDef.getKnowledgeBases().isEmpty()) {
-                // In a real implementation, we'd look up properties from KnowledgeDef.
-                // For now, we assume VectorStore and EmbeddingProvider are provided by the factory or environment.
-                // RAGAgent ragAgent = RAGAgent.builder().agent(agent).vectorStore(...).embeddingProvider(...).build();
-                // ragAgents.put(agentDef.getName(), ragAgent);
-                log.info("RAG enabled for agent: " + agentDef.getName() + " (Placeholder implementation)");
-            }
-            
-            // Tier 2: Setup memory
-            if (agentDef.getMemory() != null) {
-                log.info("Semantic memory enabled for agent: " + agentDef.getName() + " (Placeholder implementation)");
-            }
-
             log.info("Initialized Agent: " + agentDef.getName());
         }
 
@@ -846,7 +1004,7 @@ public class HarnessExecutor implements LoomEngine {
         StringBuilder sb = new StringBuilder("## Skills\n");
         for (String uri : skillUris) {
             try {
-                AgentSkill skill = ScriptValidator.loadSkill(uri);
+                AgentSkill skill = ScriptValidator.loadSkill(uri, baseDir);
                 sb.append("\n").append(skill.toSystemPromptSection()).append("\n");
                 log.info("Loaded skill: " + skill.getName());
             } catch (Exception e) {
@@ -987,6 +1145,11 @@ public class HarnessExecutor implements LoomEngine {
         String resolvedPayload = resolvePayload(del.getPayload());
         
         String contextBriefing = memoryEngine.assembleContext(agentDef, resolvedPayload, view());
+        io.github.llm4j.loom.knowledge.Retriever retriever = retrievers.get(agentName);
+        if (retriever != null) {
+            String found = io.github.llm4j.loom.knowledge.Retriever.format(retriever.search(resolvedPayload, retriever.topK()));
+            if (!found.isEmpty()) contextBriefing = found + "\n" + contextBriefing;
+        }
         contextBriefing = beforeDelegateExecution(del, agentDef, resolvedPayload, contextBriefing);
         
         // A step's own `expecting { ... }` schema wins over the agent's output_schema.

@@ -29,6 +29,9 @@ public class AgentDef implements Node {
     /** Optional sampling temperature (0.0–2.0) for this agent's LLM calls; null = the runtime default. */
     private Double temperature;
     private BudgetDef budget;
+    private final List<String> approve = new ArrayList<>();
+    private boolean approveAll;
+    private Integer maxIterations;
 
     public AgentDef(String name) {
         this.name = name;
@@ -80,6 +83,13 @@ public class AgentDef implements Node {
 
     public Double getTemperature() { return temperature; }
     /** This agent's budget ({@code budget { }} inside the agent), or null. */
+    /** Tools whose calls need a person's approval ({@code approve: [..]}). */
+    public List<String> getApprove() { return approve; }
+    /** {@code approve: all}. */
+    public boolean isApproveAll() { return approveAll; }
+    public void setApproveAll(boolean approveAll) { this.approveAll = approveAll; }
+    public Integer getMaxIterations() { return maxIterations; }
+    public void setMaxIterations(Integer maxIterations) { this.maxIterations = maxIterations; }
     public BudgetDef getBudget() { return budget; }
     public void setBudget(BudgetDef budget) { this.budget = budget; }
     public void setTemperature(Double temperature) { this.temperature = temperature; }

@@ -71,6 +71,7 @@ final class Runs {
             executor = new HarnessExecutor(script, registry, env.models());
             executor.setHumanInterface(env.human());
             executor.setLenient(spec.lenient());
+            executor.setBaseDir(scriptFile.getAbsoluteFile().getParentFile().toPath());
             executor.setEnvLookup(env.env());
             executor.setClock(env.clock());
             executor.setSleeper(env.sleeper());
