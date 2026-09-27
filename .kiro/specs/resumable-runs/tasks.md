@@ -7,8 +7,9 @@ Three phases, each shippable on its own:
 1. **ai-agent4j signal.** Rate-limit parsing, honest inline waits, `RateLimitException` with a reset
    time, windowed budgets, and `RateLimited`.
 2. **Loom suspension.** Policies, the suspension record, parallel suspension, and resume bookkeeping.
-3. **Scheduling and hosting.** `RunScheduler` (memory/file/JDBC), CLI `--journal/--wait/resume/daemon`,
-   and docs.
+3. **Triggers and hosting.** A persistent `TriggerStore` (file/JDBC) for resumes and `schedule` blocks
+   (cron/interval), `TriggerRunner`, system triggers (cron, systemd, launchd, Windows, Cloud
+   Scheduler), the CLI and docs.
 
 Defaults: durable runs suspend; non-durable runs wait inline up to 5 min; budgets still `stop` unless
 `when_exhausted` says otherwise.
@@ -36,7 +37,7 @@ Defaults: durable runs suspend; non-durable runs wait inline up to 5 min; budget
   - [ ] 2.3 Google/Ollama/Sarvam pass `RateLimitException` through
     - _Requirements: 1.6_
   - [ ] 2.4 Tests on MockWebServer
-    - _Requirements: 1.4–1.7, 8.1_
+    - _Requirements: 1.4–1.7, 10.1_
 
 - [ ] 3. Windowed budgets
   - [ ] 3.1 `Window`, `Budget.Builder.window/clock`, roll-over under lock, `lifetimeSpent()`
@@ -61,7 +62,7 @@ Defaults: durable runs suspend; non-durable runs wait inline up to 5 min; budget
 
 - [ ] 6. Syntax
   - [ ] 6.1 Duration literal; `rate_limits { }`; `per minute|hour|day`; `when_exhausted`
-    - _Requirements: 2.5, 4.1, 4.2_
+    - _Requirements: 2.5, 4.1, 4.2, 6.1_
   - [ ] 6.2 AST and import merge; parse errors with line numbers
   - [ ] 6.3 Parser tests (including `per` and `rate_limits` used as ordinary identifiers)
 
@@ -77,41 +78,69 @@ Defaults: durable runs suspend; non-durable runs wait inline up to 5 min; budget
   - [ ] 7.5 Usage entries carry `at`; windowed restore
     - _Requirements: 2.4_
   - [ ] 7.6 `_run.resumes`, `_run.lastSuspension`; audit `run_suspended` / `run_resumed`
-    - _Requirements: 7.1, 7.2_
+    - _Requirements: 9.1, 9.2_
   - [ ] 7.7 Tests (see verification.md)
 
 - [ ] 8. Checkpoint: Loom suite green; existing budget and durability tests unchanged
 
 <!-- PHASE 3: Scheduling and hosting -->
 
-- [ ] 9. `RunScheduler`
-  - [ ] 9.1 Interface, `WakeUp`, `RunResumer`, `AbstractPollingScheduler` with jitter
-    - _Requirements: 5.1, 5.7_
-  - [ ] 9.2 `InMemoryRunScheduler`, `FileRunScheduler`, `JdbcRunScheduler` (claim semantics, stale claims)
-    - _Requirements: 5.1, 5.3_
-  - [ ] 9.3 Executor registers/replaces wake-ups; overdue on start; cancel/resumeNow
-    - _Requirements: 5.2, 5.4, 5.5, 5.6_
-  - [ ] 9.4 Tests, including two JDBC schedulers racing on one H2 database
-    - _Requirements: 5.1–5.7_
+- [ ] 9. Persistent triggers (`loom.trigger`)
+  - [ ] 9.1 `Trigger`, `Target` variants, `Misfire`, `Overlap`; `CronSchedule` (5-field, zones, DST)
+    - _Requirements: 5.1, 5.2, 5.3_
+  - [ ] 9.2 `TriggerStore`: in-memory, file (atomic writes, exclusive claim files, tick lock), JDBC
+        (`loom_triggers`, claim UPDATE, stale claims)
+    - _Requirements: 5.1, 5.5, 7.7_
+  - [ ] 9.3 `TriggerRunner`: `tick()`, embedded loop, firing rules, misfire, overlap, jitter, max_resumes
+    - _Requirements: 5.4–5.9, 5.11_
+  - [ ] 9.4 Executor upserts `resume:<runId>` on suspension; per-run ids for scheduled workflows
+    - _Requirements: 5.4, 5.6, 5.10_
+  - [ ] 9.5 Tests, including two JDBC runners racing on one H2 database and two `weave tick`s on one dir
+    - _Requirements: 5.1–5.11_
 
-- [ ] 10. CLI
-  - [ ] 10.1 `--journal <dir>` with `run.json`; exit 4 and the paused message
-    - _Requirements: 6.1, 6.4_
-  - [ ] 10.2 `--wait`, `weave resume`, `weave daemon`
-    - _Requirements: 6.2, 6.3_
-  - [ ] 10.3 CLI tests
+- [ ] 10. Schedules in Loom
+  - [ ] 10.1 Parser: `cron`, `every`, `timezone`, `run`, `misfire`, `overlap`; old fields still accepted
+    - _Requirements: 6.1, 6.2, 6.4_
+  - [ ] 10.2 Reconcile script schedules into the store on `initialize()`; in-memory fallback logs a warning
+    - _Requirements: 6.3, 10.2_
+  - [ ] 10.3 Tests
 
-- [ ] 11. Documentation: LOOM_GUIDE "Pausing and resuming", LOOM_PROMPT, READMEs, VS Code grammar,
-      ai-agent4j README "Rate limits"; documented example parses
-  - _Requirements: 8.3_
+- [ ] 11. System triggers (`loom.trigger.system`)
+  - [ ] 11.1 `SystemTriggerBackend`, `Plan`, `PlanApplier`, `CommandRunner`; heartbeat and exact modes
+    - _Requirements: 7.2, 7.3, 7.4_
+  - [ ] 11.2 Backends: cron, systemd (user), launchd, windows (schtasks), cloud-scheduler (gcloud command)
+    - _Requirements: 7.2, 7.5, 7.6_
+  - [ ] 11.3 `TriggerEndpoint` (HTTP tick with OIDC or `LOOM_TRIGGER_TOKEN`)
+    - _Requirements: 7.5_
+  - [ ] 11.4 Exact-mode re-sync after tick; backend auto-detection
+    - _Requirements: 7.3_
+  - [ ] 11.5 Golden-file tests per backend; real-crontab integration test with a temp HOME (skipped if
+        absent)
 
-- [ ]* 12. Live check (needs a key): trigger a real Gemini free-tier 429 and confirm the parsed reset
-- [ ]* 13. GetViral: background pack generation suspends on quota and resumes from the JDBC scheduler
+- [ ] 12. CLI
+  - [ ] 12.1 `--journal` + `run.json`, `--store`; exit 4 and the paused message naming the system trigger
+    - _Requirements: 8.1, 8.5_
+  - [ ] 12.2 `--wait`, `resume`, `tick`, `daemon`, `triggers list|pause|cancel|fire|install|uninstall`,
+        `schedule sync`
+    - _Requirements: 7.1, 8.2–8.4_
+  - [ ] 12.3 CLI tests
 
-- [ ] 14. Final checkpoint: all suites green
+- [ ] 13. Documentation: LOOM_GUIDE "Pausing, resuming and scheduling" (with a system-trigger how-to
+      per OS and for Cloud Run), LOOM_PROMPT, READMEs, VS Code grammar, ai-agent4j README "Rate limits";
+      documented examples parse
+  - _Requirements: 10.3_
+
+- [ ]* 14. Live check (needs a key): trigger a real Gemini free-tier 429 and confirm the parsed reset
+- [ ]* 15. GetViral: background pack generation suspends on quota and resumes via Cloud Scheduler →
+      `TriggerEndpoint` on the JDBC store
+- [ ]* 16. Real system-trigger smoke test on the user's machine (install, fire, uninstall)
+
+- [ ] 17. Final checkpoint: all suites green
 
 ## Notes
 
 - Tasks marked `*` are optional or need the user's API key.
-- No thread is held during a suspension; the journal plus a wake-up row is the whole state.
+- No thread is held during a suspension; the journal plus a trigger row is the whole state.
+- Triggers are never memory-only outside tests; the store is the truth, and system triggers only wake Loom.
+- `weave triggers install` changes nothing without `--apply`, and only writes user-level entries.
 - 429s are never billed as tokens.

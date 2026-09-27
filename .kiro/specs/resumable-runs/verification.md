@@ -80,47 +80,88 @@ temp dir.
 | V6.14 | budget with no `when_exhausted` | behaves exactly as cost-budgets V6.* (regression) |
 | V6.15 | Spend report after 2 suspensions | totals equal the sum of all attempts; replayed steps charged once |
 
-## 6. Scheduler
+## 6. Persistent triggers
 
 | ID | Given | Then |
 |---|---|---|
-| V7.1 | InMemory: schedule r1@10:05; tick at 10:04:59 | not fired; tick at 10:05 + jitter bound → resumer called once with r1 |
-| V7.2 | schedule r1 twice (10:05 then 10:30) | one pending wake-up at 10:30 |
-| V7.3 | Resumer throws `RunSuspended(resumeAt 12:00)` via executor | pending r1@12:00, attempt 2 |
-| V7.4 | Resumer completes | no pending wake-up |
-| V7.5 | Human suspension | wake-up removed, none added |
-| V7.6 | start() with wake-ups due at 09:00 (overdue) | fired on the first tick |
-| V7.7 | cancel(r1) / resumeNow(r1) | never fires / fires on the next tick |
-| V7.8 | Jitter for a 1 h wait | 0 ≤ jitter ≤ 30 s; for a 60 s wait ≤ 6 s |
-| V7.9 | FileRunScheduler: two schedulers over one dir, one due wake-up | resumer called exactly once in total |
-| V7.10 | JdbcRunScheduler on H2: two instances, 50 due wake-ups | each run resumed exactly once; none twice |
-| V7.11 | JDBC claim older than 10 min (crashed instance) | re-claimed and resumed |
-| V7.12 | Scheduler restarted (new instance, same DB) | pending wake-ups still fire |
+| V7.1 | AT `resume:r1` @10:05; tick at 10:04:59 | nothing fired; tick at 10:05 + jitter bound fires r1 once |
+| V7.2 | upsert `resume:r1` @10:05 then @10:30 | one trigger, nextFire 10:30 |
+| V7.3 | target returns SUSPENDED(12:00) | `resume:r1` @12:00, attempts 2 |
+| V7.4 | target returns DONE for AT | trigger deleted; for CRON `0 7 * * *` Asia/Kolkata: nextFire 2026-09-28T01:30:00Z, lastOutcome DONE |
+| V7.5 | target returns HUMAN | AT deleted, none added |
+| V7.6 | Cron parser: `*/15 9-17 * * MON-FRI`, `0 0 1 * *`, `30 2 * * *` across US DST start/end | exact next instants from a fixture table; skipped hour moves forward; repeated hour fires once |
+| V7.7 | invalid cron `61 * * * *`, zone `Mars/Base` | errors naming the field |
+| V7.8 | `every 6h` last fired 00:00, runner down until 19:00, `misfire: run_once` | fires once at 19:00; next 00:00 (next day) |
+| V7.9 | same with `misfire: skip` | not fired; next 00:00 |
+| V7.10 | resume triggers overdue by 2 days | always fire on the first tick |
+| V7.11 | `overlap: skip`, the 07:00 run is suspended when 07:00 next day arrives | no second run; `trigger_fired` outcome SKIPPED_OVERLAP |
+| V7.12 | `overlap: queue` | second run starts with id `MorningDigest@2026-09-28T01:30:00Z` |
+| V7.13 | pause / cancel / fire-now | never fires / removed / fires on the next tick |
+| V7.14 | File store: process killed between claim and complete (claim file left) | re-claimed after `staleAfter`; fired exactly once more |
+| V7.15 | File store: two `tick()` calls on two threads/processes, 20 due triggers | each fired exactly once |
+| V7.16 | JDBC on H2: two runners, 50 due triggers | each fired exactly once |
+| V7.17 | New runner instance on the same store after restart | pending triggers still fire |
+| V7.18 | Jitter: 1 h wait ≤ 30 s; 60 s wait ≤ 6 s | holds over 1000 samples |
+
+## 6b. Schedules in scripts
+
+| ID | Given | Then |
+|---|---|---|
+| V8.1 | `schedule MorningDigest { cron: "0 7 * * *" timezone: "Asia/Kolkata" run: DailyDigest(topic="AI") }` | parses; initialize upserts `schedule:<script>/MorningDigest` with StartWorkflow target and args |
+| V8.2 | old `schedule DailyCleanup { pattern: "24h" agent: AdminBot task: "…" }` with a store | EVERY PT24H, AgentTask target; without a store, runs in memory as today and logs "not persistent" |
+| V8.3 | script edited: cron changed; one schedule removed | changed one keeps lastFire with a new nextFire; removed one `enabled=false` |
+| V8.4 | `run: NoSuchWorkflow()` | initialize error naming the line |
+| V8.5 | a scheduled workflow run hits a rate limit | its own journal and `resume:MorningDigest@…` trigger; the schedule's nextFire advances independently |
+
+## 6c. System triggers
+
+Tested on the Plan (golden files) with a fake `CommandRunner`; nothing on the test machine changes.
+
+| ID | Backend / mode | Then |
+|---|---|---|
+| V9.1 | cron heartbeat | crontab = existing lines untouched + `*/5 * * * * '<weave>' tick '<store>' # loom:<id>`; re-install is byte-identical; uninstall restores the original crontab exactly |
+| V9.2 | cron exact with 2 pending triggers | 2 minute-precision lines + heartbeat, all tagged |
+| V9.3 | systemd heartbeat | `loom-<id>.service` (ExecStart) and `.timer` (`OnCalendar=*:0/5`, `Persistent=true`) under `~/.config/systemd/user`; commands `systemctl --user daemon-reload`, `enable --now loom-<id>.timer` |
+| V9.4 | launchd | plist `dev.llm4j.loom.<id>` with `StartInterval` 300; `launchctl bootstrap gui/<uid> …` |
+| V9.5 | windows | `schtasks /Create /TN \Loom\<id> /SC MINUTE /MO 5 /TR "…" /F`; uninstall `/Delete /F` |
+| V9.6 | cloud-scheduler | the exact `gcloud scheduler jobs create http` command with `--oidc-service-account-email`, printed and never executed unless `--apply` |
+| V9.7 | `install` without `--apply` | CommandRunner never invoked; plan printed |
+| V9.8 | any backend | no path outside the user's home; no `sudo`; paths with spaces quoted |
+| V9.9 | exact mode: a tick creates `resume:r2` and completes `resume:r1` | re-sync adds r2's entry and removes r1's |
+| V9.10 | `TriggerEndpoint`: no token / wrong token / right token | 401 / 401 / 200 with `{"fired": n}`; token read from env only |
+| V9.11 | Linux integration (if `crontab` exists; temp HOME) | install → `crontab -l` shows the line → uninstall → gone |
+| V9.12 | `weave tick` with nothing due | exit 0, no output beyond a debug line; a concurrent `tick` exits 0 without firing (lock held) |
 
 ## 7. End to end
 
 | ID | Scenario | Then |
 |---|---|---|
-| E2E-1 | Gemini daily quota: MockWebServer returns V1.7's body for `draft`; H2 journal + JdbcRunScheduler; clock advanced to 07:00Z next day; server now returns 200 | the run suspends, a wake-up exists for 2026-09-28T07:00Z (+jitter), the scheduler resumes it, the run completes, the server saw research once and draft twice |
-| E2E-2 | Background agent: `tokens: 1000 per hour when_exhausted: suspend`, `for each` over 10 items costing 300 each | runs 3 items/hour; suspends 3 times; completes after the 4th window; total spend 3000 |
-| E2E-3 | CLI: `weave run x.loom --journal d` hitting a limit | exit 4, prints "Paused" + resume time + `weave resume d`; `d/run.json` and `d/wakeup` exist; `weave resume d` (limit lifted) exits 0 with the spend table |
+| E2E-1 | Gemini daily quota: MockWebServer returns V1.7's body for `draft`; H2 journal + JDBC store; clock advanced to 07:00Z next day; server now returns 200; `TriggerEndpoint` called (as Cloud Scheduler would) | the run suspends, `resume:` trigger exists for 2026-09-28T07:00Z (+jitter), the endpoint call fires it, the run completes, the server saw research once and draft twice |
+| E2E-2 | Background agent: `tokens: 1000 per hour when_exhausted: suspend`, `for each` over 10 items costing 300 each, driven only by `tick()` calls every 5 min of test clock | runs 3 items/hour; suspends 3 times; completes after the 4th window; total spend 3000 |
+| E2E-3 | CLI: `weave run x.loom --journal d --store s` hitting a limit; then a **separate** `weave tick s` process after the reset | first exits 4 with "Paused" + resume time + install hint; second resumes from `d/run.json` and completes, printing the spend table |
 | E2E-4 | CLI `--wait` with a 3 s reset (test clock) | single process completes, exit 0 |
+| E2E-5 | Scheduled workflow: `cron: "*/5 * * * *"`, `weave tick` at 10:00, 10:05, 10:10 (test clock), the 10:05 run suspended | runs at 10:00 and 10:10 complete; the 10:05 run resumes via its own trigger; `overlap: skip` respected |
 
 ## 8. Non-functional
 
 - **N1.** A suspended run holds no thread: after V6.1, no executor thread named `loom-*` is alive.
+- **N1b.** No trigger lives only in memory when a store is configured: killing the runner at any point
+  (fault injection between each store call) loses no trigger and never fires one twice after a
+  completed `complete()`.
 - **N2.** Parsing a 429 never throws; fuzz 1000 random header/body combinations.
 - **N3.** No new runtime dependencies in ai-agent4j or Loom.
-- **N4.** Coverage for `ratelimit` and scheduler packages ≥ 90% lines / 85% branches.
+- **N4.** Coverage for the `ratelimit`, `trigger` and `trigger.system` packages ≥ 90% lines / 85% branches.
 - **N5.** All existing suites stay green (ai-agent4j 448, Loom 94, addons, eval4j, Engram, GetViral).
 
-## 9. Live checks (need the user's key)
+## 9. Live checks (need the user's key or machine)
 
 - **L1.** A real Gemini free-tier 429 parses to the documented scope and a plausible reset.
 - **L2.** A real Anthropic or OpenAI 429 (if a key is provided) parses headers correctly.
+- **L3.** On your machine: `weave triggers install --apply` (systemd or launchd), a paused run resumes
+  unattended, and `uninstall` leaves no trace.
 
 ## 10. Phase gates
 
 - **Phase 1 done:** V1–V4 and N2–N4 (ai-agent4j part) pass.
 - **Phase 2 done:** V5, V6 and N1 pass; cost-budgets tests are unchanged.
-- **Phase 3 done:** V7, E2E-1..4 and N5 pass; docs are updated and their examples parse.
+- **Phase 3 done:** V7–V9, E2E-1..5, N1b and N5 pass; docs are updated and their examples parse.

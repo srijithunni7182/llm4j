@@ -19,8 +19,10 @@ It spans the stack:
 2. **Loom** decides what the workflow does with that signal: **suspend** the run (the default for
    durable runs), wait inline, fail, or ask a person. It records the reason and the resume time in the
    run journal.
-3. **Loom's scheduler** is a durable list of wake-ups that resumes each suspended run once its limit has
-   reset. It is safe with several instances, survives restarts, and is also usable from the `weave` CLI.
+3. **Loom's triggers** are persisted, never kept only in memory. Resume wake-ups and `schedule` blocks
+   (cron or interval) live in one Trigger_Store. They are fired either by an embedded runner or by a
+   **system trigger** (cron, systemd, launchd, Windows Task Scheduler, Cloud Scheduler) that calls
+   `weave tick`, so no process has to stay up just to wait.
 
 It builds on what already exists: durable replay from the run journal, `RunSuspended` (a pause that
 holds no thread), journaled spend, and budgets enforced at the call.
@@ -37,8 +39,13 @@ holds no thread), journaled spend, and budgets enforced at the call.
 - **Windowed_Budget**: A budget whose spend resets at fixed window boundaries (minute, hour, day).
 - **Suspension**: A paused run: the step that hit the limit, the reason and the Reset_Time, recorded in
   the run journal.
-- **Wake_Up**: A scheduled resume of one run at one instant.
-- **Run_Scheduler**: The durable store of Wake_Ups plus the loop that fires them.
+- **Trigger**: A persisted rule that fires a target at a time. It is `at` (once), `every` or `cron`, and
+  its target is a run resume, a workflow start or an agent task.
+- **Trigger_Store**: The durable home of every Trigger (file or SQL).
+- **Trigger_Runner**: Fires due Triggers. It runs embedded in a host (poll loop) or once per
+  `weave tick`, called by a System_Trigger.
+- **System_Trigger**: An entry in the OS or cloud scheduler (cron, systemd timer, launchd, Windows Task
+  Scheduler, Google Cloud Scheduler) that wakes Loom.
 - **Run_Resumer**: The host's callback that rebuilds an executor for a run id and calls
   `executeWorkflow` with its journal.
 - **Clock**: An injectable `java.time.Clock`. Every time decision uses it, so tests control time.
@@ -143,59 +150,135 @@ resumes, waits, fails or asks me when it hits a limit.
 
 ---
 
-### Requirement 5: Scheduling Resumes
+### Requirement 5: Persistent Triggers
 
-**User Story:** As someone running agents that "just keep running in the background", I want paused
-runs to resume by themselves when their limit resets, even after a restart or on another server.
+**User Story:** As someone running agents that "just keep running in the background", I want every
+schedule and every pending resume to be stored durably, so that nothing is lost when the process
+restarts, is scaled to zero, or moves to another server.
 
 #### Acceptance Criteria
 
-1. THE Run_Scheduler SHALL store each Wake_Up (run id, resume time, reason, attempts) durably. There
-   SHALL be in-memory, file and SQL (`loom_wakeups` table) versions.
-2. WHEN a run is suspended with a Reset_Time, THE harness SHALL register a Wake_Up at that time. Only one
-   pending Wake_Up SHALL exist per run.
-3. WHEN a Wake_Up is due, THE Run_Scheduler SHALL claim it atomically, so exactly one instance resumes a
-   given run, and SHALL call the Run_Resumer.
-4. IF the resumed run suspends again, THEN its new Wake_Up SHALL replace the old one and attempts SHALL
-   increase. After `max_resumes` (default 50) the run SHALL be marked failed.
-5. WHEN the scheduler starts, THE Run_Scheduler SHALL fire every overdue Wake_Up (missed while nothing
-   was running).
-6. THE Run_Scheduler SHALL allow a Wake_Up to be cancelled or brought forward (e.g. after a manual
-   top-up).
-7. THE Run_Scheduler SHALL use the injectable Clock and a configurable poll interval (default 5 s).
+1. THE Trigger_Store SHALL persist every Trigger. There SHALL be in-memory (tests only), file and SQL
+   (`loom_triggers` table) versions. A Trigger has:
+   - an id, a kind and a target;
+   - a next fire time, a last fire time and an outcome;
+   - an attempt count, a misfire policy and an enabled flag.
+2. THE Trigger kinds SHALL be:
+   - `at`: a one-shot instant (used for resume wake-ups);
+   - `every`: a fixed interval;
+   - `cron`: a 5-field cron expression with a time zone.
+3. A Trigger's target SHALL be one of: resume run `<runId>`; start workflow `<name>(args)`; run agent
+   task (today's `schedule` blocks).
+4. WHEN a run is suspended with a Reset_Time, THE harness SHALL upsert an `at` Trigger for that run
+   (id `resume:<runId>`). Only one pending resume Trigger SHALL exist per run.
+5. WHEN a Trigger is due, THE Trigger_Runner SHALL claim it atomically, so exactly one instance fires it,
+   then fire it and compute its next fire time. `at` Triggers are removed once their target completes.
+6. IF a resumed run suspends again, THEN its resume Trigger SHALL be replaced and its attempts
+   increased. After `max_resumes` (default 50) the run SHALL be marked failed.
+7. WHEN Triggers were missed while nothing was running, THE Trigger_Runner SHALL apply the misfire
+   policy:
+   - resume Triggers always fire;
+   - schedules fire once (`misfire: run_once`, default) or skip to the next slot (`misfire: skip`).
+8. WHERE a scheduled workflow's previous run is still running or suspended, THE Trigger_Runner SHALL
+   follow `overlap: skip` (default) or `overlap: queue`.
+9. THE Trigger_Store SHALL allow a Trigger to be listed, paused, cancelled or fired now.
+10. Every scheduled workflow run SHALL get its own run id and journal, so it can itself suspend and resume.
+11. THE Trigger_Runner SHALL use the injectable Clock.
 
 ---
 
-### Requirement 6: The weave CLI
+### Requirement 6: Schedules in Loom
+
+**User Story:** As a script author, I want to declare in the script that a workflow runs every morning,
+and have that schedule survive restarts.
+
+#### Acceptance Criteria
+
+1. THE Parser SHALL accept:
+   ```loom
+   schedule MorningDigest {
+       cron: "0 7 * * *"  timezone: "Asia/Kolkata"
+       run: DailyDigest(topic="AI agents")
+       misfire: run_once  overlap: skip
+   }
+   ```
+   It SHALL also accept `every: 6h` in place of `cron`.
+2. Existing `schedule` blocks (`pattern`, `initial_delay`, `agent`, `task`) SHALL keep working. They
+   become `every` Triggers with an agent-task target.
+3. WHEN a script is loaded, THE harness SHALL reconcile its schedules into the Trigger_Store:
+   - add new schedules;
+   - update changed ones, keeping `lastFire`;
+   - disable (not delete) schedules that were removed from the script.
+4. Invalid cron expressions, time zones or workflow names SHALL be ParseErrors or initialize errors with
+   the line.
+
+---
+
+### Requirement 7: System Triggers
+
+**User Story:** As a solo developer, I don't want a Java process running all day just to wait for a
+reset at 7 a.m. I want the operating system or my cloud's scheduler to wake Loom when needed.
+
+#### Acceptance Criteria
+
+1. THE Trigger_Runner SHALL be startable in two ways:
+   - embedded: a poll loop inside the host;
+   - `weave tick <store>`: a one-off command that fires every due Trigger and then exits.
+2. `weave triggers install --backend <b> <store>` SHALL create a system trigger that runs `weave tick`
+   for that store. `<b>` is one of `cron`, `systemd`, `launchd`, `windows` or `cloud-scheduler`.
+3. THE system trigger SHALL be installed in one of two modes:
+   - **heartbeat** (default): a recurring system entry, every 5 min by default and configurable, that
+     calls `weave tick`. It is always correct, because the store is the truth.
+   - **exact**: one system entry per pending Trigger at its exact time (systemd `OnCalendar`, launchd
+     calendar intervals, Windows task triggers, `at`/crontab lines). These entries are re-synced after
+     every tick.
+4. Install SHALL show what it will change and do nothing without `--apply`. Entries SHALL be tagged
+   (`# loom:<store-id>`, unit and plist names prefixed `loom-`), so that `weave triggers uninstall` removes
+   exactly them and a repeat install is idempotent.
+5. WHERE the backend is `cloud-scheduler`, THE CLI SHALL generate the `gcloud scheduler jobs create
+   http` command. It targets an HTTP endpoint that the host exposes through
+   `TriggerEndpoint.handle(request)`, which fires due Triggers and is authenticated by an OIDC token or
+   a shared secret taken from the environment.
+6. Backends SHALL only write user-level entries (the user crontab, `~/.config/systemd/user`,
+   `~/Library/LaunchAgents`, a per-user Windows task). They SHALL never require root.
+7. `weave tick` SHALL take a lock on the store, so overlapping system invocations are safe, and SHALL
+   exit 0 when there is nothing due.
+
+---
+
+### Requirement 8: The weave CLI
 
 **User Story:** As a solo developer, I want to start a background workflow from the command line and
 have it pause and continue on its own.
 
 #### Acceptance Criteria
 
-1. `weave run --journal <dir>` SHALL use a file journal, so the run is durable. A suspension SHALL print
-   the reason, the resume time and the command to resume.
-2. `weave run --journal <dir> --wait` SHALL stay alive and resume the run itself when it is due.
-3. `weave resume <dir>` SHALL resume a suspended run now. `weave daemon <dir>` SHALL watch a directory
-   of run journals and resume each when due.
-4. Exit codes: 0 done, 1 failed, 3 stopped by a budget, 4 suspended.
+1. `weave run --journal <dir>` SHALL use a file journal, so the run is durable. A suspension SHALL:
+   - write a resume Trigger to the store (default `<dir>/../.loom-triggers`, or `--store`);
+   - print the reason and the resume time;
+   - tell the user either that a system trigger will pick it up, or how to install one.
+2. `weave run --journal <dir> --wait` SHALL stay alive and resume the run itself when due.
+3. `weave resume <dir>` SHALL resume a suspended run now. `weave daemon <store>` SHALL run the embedded
+   Trigger_Runner in the foreground.
+4. `weave triggers list|pause|cancel|fire <store> [id]` SHALL manage stored Triggers.
+5. Exit codes: 0 done, 1 failed, 3 stopped by a budget, 4 suspended.
 
 ---
 
-### Requirement 7: Observability
+### Requirement 9: Observability
 
 **User Story:** As an operator, I want to see why a run is paused and when it will continue.
 
 #### Acceptance Criteria
 
-1. THE audit log SHALL record `run_suspended` (reason, resume time, limit detail) and `run_resumed`
-   (waited for, attempt).
+1. THE audit log SHALL record `run_suspended` (reason, resume time, limit detail), `run_resumed`
+   (waited for, attempt) and `trigger_fired` (id, kind, target, outcome, late by).
 2. THE HarnessExecutor SHALL expose `{_run.resumes}` and `{_run.lastSuspension}` to scripts.
 3. THE Spend_Report SHALL cover the whole run across resumes.
 
 ---
 
-### Requirement 8: Compatibility
+### Requirement 10: Compatibility
 
 **User Story:** As an existing user, I want nothing to change unless I opt in, apart from clearer errors.
 

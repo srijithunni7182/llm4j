@@ -13,12 +13,18 @@
  HarnessExecutor ──► policy: suspend | wait | fail | ask
                      │  suspend: journal "suspension" entry, throw RunSuspended(resumeAt, reason)
                      ▼
- RunScheduler ─────► durable Wake_Up(runId, resumeAt) ──due──► RunResumer.resume(runId)
-                                                              └► executeWorkflow(journal) replays, continues
+ TriggerStore ─────► persisted Trigger resume:<runId> @resumeAt      (file or SQL; never memory-only)
+   also holds       schedule blocks: cron "0 7 * * *" / every 6h → StartWorkflow
+                     ▼ due
+ TriggerRunner ────► embedded poll loop  ─or─  `weave tick` called by a SYSTEM TRIGGER
+                     (cron · systemd timer · launchd · Windows Task Scheduler · Cloud Scheduler → HTTP)
+                     ▼
+ TriggerTarget ────► executeWorkflow(journal) replays finished steps, continues
 ```
 
-Nothing sleeps with a thread held during a long wait: a suspended run is just a journal plus a
-wake-up row. That is what makes "agents that quietly run in the background for days" cheap.
+Nothing sleeps with a thread held during a long wait: a suspended run is just a journal plus a trigger
+row, and no Loom process needs to be alive until a system trigger calls `weave tick`. That is what makes
+"agents that quietly run in the background for days" cheap.
 
 ---
 
@@ -138,6 +144,19 @@ budget {
 }
 ```
 
+```loom
+schedule MorningDigest {
+    cron: "0 7 * * *"        // or: every: 6h
+    timezone: "Asia/Kolkata"
+    run: DailyDigest(topic="AI agents")
+    misfire: run_once        // run_once | skip
+    overlap: skip            // skip | queue
+}
+```
+
+`ScheduleDef` gains `cron`, `every`, `timezone`, `run` (a workflow call), `misfire` and `overlap`. The
+old `pattern`/`initial_delay`/`agent`/`task` fields map to `every` plus an agent-task target.
+
 - The lexer adds a duration literal (`NUMBER` immediately followed by `s|m|h|d`). `per` becomes a
   contextual keyword inside budget blocks only.
 - AST: `RateLimitDef(onLimit, maxWait, maxResumes)` on `LoomScript`. `BudgetDef` gains
@@ -147,7 +166,7 @@ budget {
 ### 2.2 HarnessExecutor
 
 New collaborators, all optional setters:
-`setClock(Clock)`, `setRunScheduler(RunScheduler)`, `setRunId(String)`.
+`setClock(Clock)`, `setTriggerStore(TriggerStore)`, `setRunId(String)`.
 
 **Catching limits.** The delegate path already catches `BudgetExceeded`. It now also catches
 `RateLimited`, and `BudgetExceeded` from a `suspend` budget, and passes them to `onLimit(stepId, info)`:
@@ -181,65 +200,154 @@ branches replay and the suspended ones run again.
 **Windowed spend on resume.** Usage entries gain `at` (epoch millis). `restoreSpend` passes it to
 `Budget.restore(spent, at)`, so yesterday's tokens don't count against today's window.
 
-### 2.3 RunScheduler
+### 2.3 Triggers (`io.github.llm4j.loom.trigger`)
+
+One model covers resume wake-ups and scheduled workflows, and it is always persisted.
 
 ```java
-public interface RunScheduler extends AutoCloseable {
-    void schedule(WakeUp wakeUp);                 // upsert by runId
-    void cancel(String runId);
-    void resumeNow(String runId);                 // bring forward
-    List<WakeUp> pending();
-    void start(RunResumer resumer);               // begins polling; fires overdue immediately
+public record Trigger(
+        String id,                 // "resume:<runId>" | "schedule:<script>/<name>"
+        Kind kind,                 // AT, EVERY, CRON
+        String spec,               // ISO instant | ISO duration | "0 7 * * *"
+        ZoneId zone,
+        Target target,             // ResumeRun(runId) | StartWorkflow(script, name, args) | AgentTask(script, agent, task)
+        Instant nextFire, Instant lastFire, String lastOutcome,
+        int attempts, Misfire misfire, Overlap overlap, boolean enabled,
+        String claimedBy, Instant claimedAt) { }
+
+public interface TriggerStore {                  // FileTriggerStore, JdbcTriggerStore, InMemoryTriggerStore
+    void upsert(Trigger t);
+    Optional<Trigger> get(String id);
+    List<Trigger> all();
+    List<Trigger> due(Instant now);
+    boolean claim(String id, String owner, Instant now, Duration staleAfter);
+    void complete(String id, Instant nextFireOrNull, String outcome);   // null → delete (AT)
+    void remove(String id);
+    Instant nextDue();                            // for the "exact" system mode and --wait
 }
-public record WakeUp(String runId, Instant at, String reason, int attempt) { }
-@FunctionalInterface public interface RunResumer { void resume(String runId) throws Exception; }
+
+public interface TriggerTarget {                  // supplied by the host (or the CLI)
+    Outcome fire(Trigger t) throws Exception;     // DONE, FAILED, SUSPENDED(resumeAt), HUMAN
+}
+
+public final class TriggerRunner {
+    TriggerRunner(TriggerStore store, TriggerTarget target, Clock clock, String owner);
+    int tick();                                   // fire everything due now; returns count; used by weave tick
+    void start(Duration pollEvery);               // embedded loop (daemon thread); tick() on start = overdue
+    void stop();
+}
 ```
 
-Implementations share `AbstractPollingScheduler` (a poll loop on a single daemon thread with the
-Clock and poll interval; resumes are handed to a small executor):
+**`CronSchedule`** is a small in-house parser for 5-field cron. It supports `*`, lists, ranges, steps and
+the names `MON`/`JAN`. It computes `next(after, zone)` DST-safely: a slot inside a skipped hour moves
+forward, and a repeated hour fires once. There is no new dependency.
 
-- `InMemoryRunScheduler`: a map, for tests and single-process hosts.
-- `FileRunScheduler(dir)`: one `<runId>.wakeup` JSON file per run. It claims a wake-up by atomically
-  renaming it to `.claimed`. Used by `weave daemon`.
-- `JdbcRunScheduler(DataSource)`:
+**Stores.**
+- **File:** `<store>/triggers/<id>.json`, one file per trigger, written atomically (temp file plus move).
+  A claim adds `<id>.claim` with `O_CREAT|O_EXCL` semantics (`Files.createFile`); a stale claim is
+  re-claimable after `staleAfter`. `<store>/tick.lock` (`FileChannel.tryLock`) serialises `weave tick`.
+- **SQL:**
   ```sql
-  CREATE TABLE loom_wakeups (run_id VARCHAR(200) PRIMARY KEY, due_at TIMESTAMP NOT NULL,
-      reason VARCHAR(200), attempt INT NOT NULL, claimed_by VARCHAR(100), claimed_at TIMESTAMP)
+  CREATE TABLE loom_triggers (id VARCHAR(300) PRIMARY KEY, kind VARCHAR(10) NOT NULL, spec VARCHAR(200),
+      zone VARCHAR(60), target TEXT NOT NULL, next_fire TIMESTAMP, last_fire TIMESTAMP,
+      last_outcome VARCHAR(200), attempts INT NOT NULL, misfire VARCHAR(10), overlap VARCHAR(10),
+      enabled BOOLEAN NOT NULL, claimed_by VARCHAR(100), claimed_at TIMESTAMP)
   ```
-  A claim is `UPDATE … SET claimed_by=?, claimed_at=? WHERE run_id=? AND claimed_by IS NULL AND due_at<=?`.
-  One updated row means this instance owns the resume. Claims older than 10 min are considered dead
-  and can be re-claimed.
+  A claim is an `UPDATE … WHERE id=? AND enabled AND next_fire<=? AND (claimed_by IS NULL OR claimed_at<?)`
+  statement. One updated row means this instance owns the firing.
 
-**Lifecycle.** The resumer's outcome decides what happens next:
-- `RunSuspended` with `resumeAt`: the harness has already `schedule`d the new wake-up. The claim row is
-  replaced, not deleted.
-- Success or a failure: the wake-up is deleted.
-- Human suspension: the wake-up is deleted and no new one is created. A human answer resumes it.
+**Firing rules.**
 
-`HarnessExecutor` registers the wake-up itself when a scheduler is set, so hosts only supply the
-`RunResumer`:
+| Target outcome | AT (resume) | EVERY / CRON |
+|---|---|---|
+| DONE / FAILED | delete | `nextFire = next slot after now`; `lastOutcome` recorded |
+| SUSPENDED(resumeAt) | the harness has already upserted `resume:<runId>`, and it replaces this one | schedule advances; the run's own resume trigger carries it on |
+| HUMAN | delete; the answer resumes it | advance |
+
+- **Misfire.** When `nextFire` is more than one slot behind, `run_once` fires once and jumps to the next
+  future slot, while `skip` jumps without firing.
+- **Overlap.** Each scheduled workflow run gets the run id `<schedule>@<slot ISO>`. `overlap: skip` does
+  not fire if a `resume:` trigger or a running claim exists for an earlier run of the same schedule.
+- **Jitter.** `AT` triggers get `+[0, min(30s, 10% of wait)]`.
+
+**Reconciling scripts.** `HarnessExecutor.initialize()`, when a store is set, upserts the script's
+`schedule` blocks:
+- a changed spec recomputes `nextFire` but keeps `lastFire`;
+- a schedule removed from the script is set to `enabled=false`.
+
+Today's in-memory `AgentScheduler` path remains only when no store is configured, and logs that the
+schedule is not persistent.
+
+**Resume from the executor.** On `RunSuspended` with `resumeAt`, the executor upserts
+`resume:<runId>` → `ResumeRun(runId)` if a store is set. Hosts supply only the `TriggerTarget`, e.g.:
+
 ```java
-scheduler.start(runId -> newExecutorFor(runId).executeWorkflow(Map.of()));
+TriggerTarget target = t -> switch (t.target()) {
+    case ResumeRun r      -> outcomeOf(() -> executorFor(r.runId()).executeWorkflow(Map.of()));
+    case StartWorkflow w  -> outcomeOf(() -> newRun(w).executeWorkflow(w.args()));
+    case AgentTask a      -> outcomeOf(() -> agent(a.agent()).run(a.task()));
+};
+new TriggerRunner(store, target, clock, hostName).start(Duration.ofSeconds(5));
 ```
 
-**Jitter.** Each wake-up gets `+[0, min(30s, 10% of wait)]` so a fleet of runs throttled by the same
-provider doesn't all return at the same second.
+The CLI ships `WeaveTriggerTarget`, which rebuilds runs from `<runDir>/run.json` (script path, inputs,
+options), so any stored trigger can be fired by a fresh process.
 
-### 2.4 CLI
+### 2.4 System triggers (`io.github.llm4j.loom.trigger.system`)
 
-- `weave run file.loom --journal runs/my-run` uses a `FileRunJournal` at `runs/my-run/journal.json`.
-  On suspension it writes `runs/my-run/wakeup` and exits 4:
-  `⏸ Paused: google daily quota. Resumes at 2026-09-28 00:00 PDT (in 7h12m). Run: weave resume runs/my-run`.
-- `--wait` keeps the process alive with an in-memory scheduler and prints a countdown line every minute.
-- `weave resume <dir>` resumes now. `weave daemon <parentDir>` runs a FileRunScheduler over every
-  sub-directory.
-- The script, the inputs (`--input` values) and the options are saved in `runs/my-run/run.json`, so a
-  resume needs only the directory.
+```java
+public interface SystemTriggerBackend {
+    String name();                                        // cron | systemd | launchd | windows | cloud-scheduler
+    Plan plan(InstallRequest req);                        // files to write, commands to run, entries to remove
+    Plan uninstall(String storeId);
+}
+public record InstallRequest(String storeId, Path store, Path weaveCommand, Mode mode,
+                             Duration heartbeat, List<Trigger> pending) { }
+public enum Mode { HEARTBEAT, EXACT }
+```
+
+A **Plan** is pure data: file writes, commands and removals. `weave triggers install` prints it, and
+applies it only with `--apply` through a `PlanApplier` with an injectable `CommandRunner`. That keeps
+every backend unit-testable without touching the machine.
+
+| Backend | Heartbeat | Exact |
+|---|---|---|
+| `cron` | one line in the user crontab: `*/5 * * * * <weave> tick <store> # loom:<id>`, edited through `crontab -l` / `crontab -` | one line per pending trigger (minute resolution), plus the heartbeat as a safety net |
+| `systemd` | `~/.config/systemd/user/loom-<id>.service` + `.timer` (`OnCalendar=*:0/5`, `Persistent=true`); `systemctl --user daemon-reload && enable --now` | one `.timer` per pending trigger with `OnCalendar=<exact UTC>` |
+| `launchd` | `~/Library/LaunchAgents/dev.llm4j.loom.<id>.plist` with `StartInterval` 300; `launchctl bootstrap gui/$UID` | `StartCalendarInterval` dict per pending trigger |
+| `windows` | `schtasks /Create /TN \Loom\<id> /SC MINUTE /MO 5 /TR "<weave> tick <store>"` | one `/SC ONCE /ST /SD` task per pending trigger |
+| `cloud-scheduler` | `gcloud scheduler jobs create http loom-<id> --schedule="*/5 * * * *" --uri=<url>/loom/tick --oidc-service-account-email=…` | same (Cloud Scheduler has minute resolution; heartbeat recommended) |
+
+- **Exact mode is re-synced.** After every `weave tick`, when `--sync-system <backend>` was installed,
+  the entries match `store.all()`. Stale per-trigger entries are removed, and new ones are added (for
+  example, a resume trigger created by a suspension).
+- **Cloud Run and serverless.** The `TriggerEndpoint` servlet-agnostic handler runs
+  `TriggerRunner.tick()` with a JDBC store, so a scaled-to-zero service only wakes when Cloud Scheduler
+  calls it. It checks `Authorization: Bearer <OIDC>` (audience configured) or `X-Loom-Token` against
+  env `LOOM_TRIGGER_TOKEN`.
+- **Why heartbeat is the default:** it is one entry that never needs re-syncing, and its lateness is at
+  most the heartbeat interval. Rate-limit resets rarely need better than 5-minute precision.
+- **Detection.** `weave triggers install` without `--backend` picks systemd (if `systemctl --user`
+  works), else cron on Linux, launchd on macOS, and windows on Windows.
+
+### 2.4b CLI
+
+- `weave run file.loom --journal runs/job [--store runs/.loom-triggers]`
+  - On suspension it writes the `resume:` trigger and exits 4:
+    `⏸ Paused: google daily quota. Resumes at 2026-09-28 00:00 PDT (in 7h12m).`
+  - Then it prints either `A system trigger (systemd, every 5m) will resume it.` or
+    `No system trigger installed: run weave triggers install runs/.loom-triggers, or weave daemon`.
+- `--wait` keeps the process alive, running an embedded `TriggerRunner` on the same store.
+- `weave tick <store>`, `weave daemon <store>`, `weave resume <runDir>`.
+- `weave triggers list|pause|cancel|fire|install|uninstall <store> …`.
+- `weave schedule sync file.loom --store …` reconciles a script's `schedule` blocks into the store
+  without running anything.
 
 ### 2.5 Audit
 
 `run_suspended {step, reason, resumeAt, provider, quotaId, estimated}` and
-`run_resumed {attempt, waitedMillis}` go through the existing `AuditLogger`.
+`run_resumed {attempt, waitedMillis}` and `trigger_fired {id, kind, target, outcome, lateMillis}` go
+through the existing `AuditLogger`.
 
 ---
 
@@ -249,7 +357,10 @@ provider doesn't all return at the same second.
   recording Sleeper, so a "one day" wait runs in milliseconds and its duration is asserted exactly.
 - 429s come from OkHttp `MockWebServer` (already a test dependency of ai-agent4j) with
   real header and body fixtures copied from provider docs.
-- Scheduler tests run the polling loop with a controllable clock and `tick()` rather than real time.
+- Trigger tests call `TriggerRunner.tick()` with a controllable clock rather than real time.
+- System backends are tested on their **Plan** (golden files for crontab lines, unit files, plists,
+  schtasks and gcloud commands) with a fake `CommandRunner`. One Linux integration test runs the real
+  `crontab` binary against a temp `HOME`, if available, and is skipped otherwise.
 - JDBC tests run on H2, like the durable-run tests.
 
 ## 4. Decisions and alternatives
@@ -259,6 +370,10 @@ provider doesn't all return at the same second.
 - **Unknown resets use an estimate with backoff**, not a failure. It is marked `estimated` in audit so
   an operator can tell.
 - **No resumer inside Loom that rebuilds executors by itself:** the host owns agent factories, secrets
-  and inputs. The CLI is the one built-in host.
-- **Not using Quartz or cron libraries:** one table and one poll loop are enough, and avoid a
-  dependency.
+  and inputs. The CLI is the one built-in host, via `run.json`.
+- **The store is the truth, and system triggers only wake Loom.** Losing a crontab line never loses a
+  schedule: re-installing restores it, and `weave tick` catches up on misfires.
+- **Install is a dry run unless `--apply` is given,** and entries are user-level and tagged. Changing a
+  user's crontab or timers is an outward-facing action.
+- **Not using Quartz or cron libraries:** one table, a small cron parser and one poll loop are enough,
+  and avoid a dependency.
