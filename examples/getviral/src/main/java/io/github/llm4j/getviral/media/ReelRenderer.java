@@ -97,6 +97,7 @@ public class ReelRenderer {
             if (webm != null) webm.close();
         }
         Mp4FastStart.apply(output);
+        Mp4FastStart.markConstrainedBaseline(output);
         return new Result(output, total, frames, webmOutput);
     }
 
@@ -143,8 +144,9 @@ public class ReelRenderer {
     }
 
     private void subtitles(Graphics2D g, String voiceover) {
-        if (voiceover == null || voiceover.isBlank()) return;
         Font font = PosterArt.body(width / 22f);
+        voiceover = PosterArt.drawable(font, voiceover);
+        if (voiceover.isBlank()) return;
         List<String> lines = PosterArt.wrap(voiceover, font, g, (int) (width * 0.78));
         if (lines.size() > 3) lines = lines.subList(0, 3);
         FontMetrics fm = g.getFontMetrics(font);

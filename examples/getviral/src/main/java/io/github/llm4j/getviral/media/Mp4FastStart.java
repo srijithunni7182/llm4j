@@ -98,6 +98,38 @@ public final class Mp4FastStart {
         return true;
     }
 
+    /**
+     * Declares a Baseline H.264 track as <b>Constrained</b> Baseline (constraint_set0 and 1) in its
+     * {@code avcC} record and SPS. jcodec's encoder only ever writes what that profile allows (one slice
+     * group, slices in order, no redundant pictures) but leaves the flags at zero, and some hardware
+     * decoders (Safari, Android, Windows) only accept Baseline streams that say they are constrained.
+     * Patched in place; returns true if anything changed.
+     */
+    public static boolean markConstrainedBaseline(Path mp4) throws IOException {
+        try (FileChannel fc = FileChannel.open(mp4, StandardOpenOption.READ, StandardOpenOption.WRITE)) {
+            Box moov = boxes(fc).stream().filter(b -> b.type().equals("moov")).findFirst()
+                    .orElseThrow(() -> new IOException("No moov box"));
+            if (moov.size() > 64L * 1024 * 1024) throw new IOException("moov box too large");
+            ByteBuffer index = ByteBuffer.allocate((int) moov.size());
+            fc.read(index, moov.offset());
+            byte[] b = index.array();
+            boolean changed = false;
+            for (int i = 0; i + 16 < b.length; i++) {
+                if (b[i] != 'a' || b[i + 1] != 'v' || b[i + 2] != 'c' || b[i + 3] != 'C') continue;
+                int body = i + 4;                                   // version, profile, compat, level, ...
+                if ((b[body + 1] & 0xff) != 66) break;              // only Baseline
+                int sps = body + 8;                                 // 6 header bytes + 2-byte SPS length
+                if ((b[body + 5] & 0x1f) == 0 || (b[sps] & 0x1f) != 7) break;
+                byte flags = (byte) 0xC0;
+                if ((b[body + 2] & 0xC0) != 0xC0) { b[body + 2] |= flags; changed = true; }
+                if ((b[sps + 2] & 0xC0) != 0xC0) { b[sps + 2] |= flags; changed = true; }
+                break;
+            }
+            if (changed) fc.write(ByteBuffer.wrap(b), moov.offset());
+            return changed;
+        }
+    }
+
     /** Walks container boxes inside {@code buf[from, to)} and adds {@code delta} to every chunk offset. */
     private static void shiftChunkOffsets(ByteBuffer buf, int from, int to, long delta) throws IOException {
         int pos = from;

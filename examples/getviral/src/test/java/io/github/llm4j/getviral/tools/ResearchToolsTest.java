@@ -76,4 +76,37 @@ class ResearchToolsTest {
         assertThat(new WebSearchTool(false, null, "key", WebSearchTool.FALLBACK_MODEL).searchModels())
                 .containsExactly(WebSearchTool.FALLBACK_MODEL);
     }
+
+    @Test
+    void duckDuckGoWebResultsLeadTheSourcesAndCountAsLive() {
+        PublicApiTool.clearCache();
+        var ddg = new io.github.llm4j.agent.tools.DuckDuckGoSearchTool() {
+            @Override
+            public java.util.List<Result> search(String query, int max) {
+                return java.util.List.of(
+                        new Result("The science of cold proofing", "https://www.kingarthurbaking.com/cold-proof", "Retarding dough slows yeast."),
+                        new Result("Overnight sourdough", "https://example.org/overnight", "Flavour develops at 4C."));
+            }
+        };
+        String out = new WebSearchTool(false, null, null, null, ddg).execute(Map.of("query", "cold sourdough proof"));
+        assertThat(out).contains("Web results (DuckDuckGo):")
+                .contains("[1] The science of cold proofing — kingarthurbaking.com")
+                .contains("https://www.kingarthurbaking.com/cold-proof")
+                .contains("Retarding dough slows yeast.")
+                .contains("[2] Overnight sourdough")
+                .endsWith("[source: live web]");
+    }
+
+    @Test
+    void aDuckDuckGoOutageLeavesTheOtherSourcesStanding() {
+        PublicApiTool.clearCache();
+        var down = new io.github.llm4j.agent.tools.DuckDuckGoSearchTool() {
+            @Override
+            public java.util.List<Result> search(String query, int max) throws java.io.IOException {
+                throw new java.io.IOException("DuckDuckGo Lite returned HTTP 403");
+            }
+        };
+        String out = new WebSearchTool(true, null, null, null, down).execute(Map.of("query", "habits"));
+        assertThat(out).doesNotContain("Web results (DuckDuckGo)").contains("[1] Habit — Wikipedia");
+    }
 }

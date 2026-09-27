@@ -37,12 +37,39 @@
     const w = webmOf(m, all);
     return `<video ${attrs}><source src="${esc(m.url)}" type="video/mp4">${w ? `<source src="${esc(w.url)}" type="video/webm">` : ""}</video>`;
   };
-  /** Calls {@code onFail} if the browser can play none of a video's sources. */
-  const whenUnplayable = (video, onFail) => {
-    const sources = video.querySelectorAll("source");
-    const last = sources[sources.length - 1] || video;
-    last.addEventListener("error", onFail, { once: true });
-  };
+  /** A download link that saves the file (not opens it) under a readable name. */
+  const downloadUrl = (m, name) => `${m.url}?download=${encodeURIComponent(name || "getviral-" + String(m.purpose).replace(/_/g, "-") + (String(m.url).match(/\.[a-z0-9]+$/i) || [""])[0])}`;
+  const MEDIA_ERRORS = { 1: "loading was aborted", 2: "a network error", 3: "the video couldn't be decoded", 4: "the format isn't supported" };
+  /** Calls {@code onFail} once the browser has given up on every source of a video (see the handler below). */
+  const whenUnplayable = (video, onFail) => video.addEventListener("gv-unplayable", onFail, { once: true });
+  // Every <video> lists the MP4 and then the WebM. Browsers only move on to the next <source> when a file
+  // can't be *selected*; if the MP4 is picked but then fails to decode, they stop. So on any failure we
+  // switch to the next untried file ourselves, and when none is left we say why and offer the download.
+  document.addEventListener("error", (e) => {
+    const el = e.target;
+    const video = el && el.tagName === "VIDEO" ? el : el && el.tagName === "SOURCE" ? el.parentElement : null;
+    if (!video || video.tagName !== "VIDEO" || video.dataset.gaveUp) return;
+    const urls = [...video.querySelectorAll("source")].map((x) => x.src);
+    if (!urls.length) return;
+    if (el.tagName === "SOURCE" && el.src !== urls[urls.length - 1]) return; // the browser tries the next one itself
+    const failed = new Set((video.dataset.failed || "").split(" ").filter(Boolean));
+    failed.add(el.tagName === "SOURCE" ? el.src : video.currentSrc);
+    video.dataset.failed = [...failed].join(" ");
+    const next = urls.find((u) => !failed.has(u));
+    if (next && el.tagName === "VIDEO") {
+      video.src = next;
+      video.load();
+      if (video.autoplay) video.play().catch(() => {});
+      return;
+    }
+    video.dataset.gaveUp = "1";
+    const why = MEDIA_ERRORS[video.error && video.error.code] || "none of its formats are supported here";
+    const mp4 = urls.find((u) => /\.mp4(\?|$)/.test(u)) || urls[0];
+    if (!video.parentElement.querySelector(".video-note")) {
+      video.insertAdjacentHTML("afterend", `<p class="video-note">This browser couldn't play the video (${esc(why)}). The file itself is fine: <a href="${esc(mp4)}?download=getviral-reel.mp4">download the MP4</a> and it plays in any video player and uploads to Instagram and YouTube as it is.</p>`);
+    }
+    video.dispatchEvent(new CustomEvent("gv-unplayable", { detail: { why } }));
+  }, true);
   const store = {
     get(k) { try { return localStorage.getItem("gv." + k) || ""; } catch { return ""; } },
     set(k, v) { try { localStorage.setItem("gv." + k, v); } catch { /* private mode */ } },
@@ -53,6 +80,7 @@
     values: {}, prompts: {}, stats: { llm: 0, api: 0, live: 0 }, events: 0, media: [],
     pendingApproval: null, revealed: false, stage: null, reelTimer: null, info: {},
     memory: { recalled: 0, learned: 0 }, sentBack: 0,
+    art: {}, gate: { round: 0, areas: {}, log: [] }, now: "",
   };
 
   // ── Boot ────────────────────────────────────────────────────────────────
@@ -234,7 +262,7 @@
         ? videoTag(m, media, `muted loop playsinline controls preload="metadata"`)
         : `<img src="${esc(m.url)}" alt="${esc(m.purpose)}" loading="lazy" width="${m.width}" height="${m.height}">`}
         <span class="prov ${m.ai ? "ai" : "local"}">${m.ai ? "AI · " : ""}${esc(m.provider)}</span>
-        <figcaption><span>${esc(String(m.purpose).replace(/_/g, " "))} · ${esc(m.idea)}</span><a href="${esc(m.url)}" download>↓</a></figcaption>
+        <figcaption><span>${esc(String(m.purpose).replace(/_/g, " "))} · ${esc(m.idea)}</span><a href="${esc(downloadUrl(m))}" download title="Download">↓</a></figcaption>
       </figure>`).join("")
       : `<div class="empty"><h3>No media yet</h3><p>Thumbnails, covers, B-roll and rendered Reels from every pack collect here.</p></div>`;
   }
@@ -285,6 +313,7 @@
 
   function handle(ev) {
     const d = ev.data || {};
+    queueMicrotask(() => trackEvent(ev)); // after this handler has updated the shared state
     state.events++;
     $("#wireCount").textContent = state.events + " events";
     switch (ev.type) {
@@ -648,6 +677,7 @@
     $("#exportBtn").setAttribute("download", "getviral-pack.md");
     if (!$("#badges").children.length) $("#badges").innerHTML = Array.from({ length: 5 }, () => `<div class="badge skel"></div>`).join("");
     renderResearch(v.researchDossier);
+    renderTracker();
     renderBuild();
     renderWhy();
     renderX(v.xPack);
@@ -674,7 +704,7 @@
         ? videoTag(m, state.media, `muted autoplay loop playsinline controls`)
         : `<img src="${esc(m.url)}" alt="${esc(m.purpose)}" loading="lazy" width="${m.width}" height="${m.height}">`;
       return `<figure class="tile ${m.purpose === "reel" ? "hero" : ""}">${el}<span class="prov ${m.ai ? "ai" : "local"}">${m.ai ? "AI · " : ""}${esc(m.provider)}</span>
-        <figcaption><span>${esc(String(m.purpose).replace(/_/g, " "))}${m.seconds ? " · " + m.seconds + "s" : ""}</span><a href="${esc(m.url)}" download>↓</a></figcaption></figure>`;
+        <figcaption><span>${esc(String(m.purpose).replace(/_/g, " "))}${m.seconds ? " · " + m.seconds + "s" : ""}</span><a href="${esc(downloadUrl(m))}" download title="Download">↓</a></figcaption></figure>`;
     };
     const skel = (p) => `<figure class="tile skel ${p === "reel" ? "hero" : ""}">${p === "reel" ? "rendering reel…" : esc(p.replace(/_/g, " "))}</figure>`;
     const videos = media.filter((m) => m.kind === "video");
@@ -682,9 +712,6 @@
     $("#gallery").innerHTML =
       `<div class="gallery-reel">${videos.map(tile).join("") || (done ? "" : skel("reel"))}</div>` +
       `<div class="gallery-stills">${stills.map(tile).join("")}${done ? "" : missing.filter((p) => p !== "reel").map(skel).join("")}</div>`;
-    $$("#gallery video").forEach((v) => whenUnplayable(v, () => {
-      if (!v.parentElement.querySelector(".note")) v.insertAdjacentHTML("afterend", `<p class="note">This browser can't play the Reel here — download the MP4 (↓) to watch it.</p>`);
-    }));
 
     const thumb = mediaFor("youtube_thumbnail");
     if (thumb) { $("#ytThumb").style.backgroundImage = `url("${thumb.url}")`; $("#ytThumbText").hidden = true; }
@@ -699,10 +726,22 @@
       phone.dataset.src = reel.url;
       const w = webmOf(reel, state.media);
       phone.innerHTML = `<source src="${esc(reel.url)}" type="video/mp4">${w ? `<source src="${esc(w.url)}" type="video/webm">` : ""}`;
-      whenUnplayable(phone, () => { setReelMode("story"); toast("This browser can't play the Reel inline — showing the storyboard. Download the MP4 from Visuals."); });
+      delete phone.dataset.gaveUp; delete phone.dataset.failed; phone.removeAttribute("src");
+      whenUnplayable(phone, (e) => { setReelMode("story"); toast(`This browser couldn't play the Reel (${e.detail.why}) — showing the storyboard. Download the MP4 from Visuals.`); });
       phone.load();
       $("#reelToggle").hidden = false;
       setReelMode("video");
+    }
+    if (reel) {
+      const player = $("#ytShortPlayer");
+      if (player.dataset.src !== reel.url) {
+        player.dataset.src = reel.url;
+        player.innerHTML = videoTag(reel, state.media, `muted loop playsinline controls preload="metadata"`);
+      }
+      $("#ytShortMeta").textContent = `Vertical 9:16 · ${reel.seconds ? reel.seconds + "s · " : ""}${reel.width}×${reel.height} · silent`;
+      const dl = $("#ytShortDl");
+      dl.href = downloadUrl(reel, "getviral-youtube-short.mp4");
+      dl.hidden = false;
     }
   }
 
@@ -736,6 +775,144 @@
         : "Some artifacts still fail — the Showrunner is sending them back to their specialists.",
       checks, fixes: [],
     });
+  }
+
+  // ── Build tracker ─────────────────────────────────────────────────────────
+  // Everything the creator gets, as cards that move queued → making → made → checked → passed (or sent
+  // back → fixing), driven by the run's own events. Shown on the results page while the pack is finished.
+  const ARTS = [
+    { key: "x", label: "𝕏 thread", area: "x", agent: "XWriter", variable: "xPack" },
+    { key: "reel", label: "Reel script", area: "reel", agent: "ReelDirector", variable: "reelPack" },
+    { key: "youtube", label: "YouTube package", area: "youtube", agent: "YouTubeProducer", variable: "youtubePack" },
+    { key: "youtube_thumbnail", label: "Thumbnail", area: "visuals", agent: "ArtDirector", media: /^youtube_thumbnail/ },
+    { key: "reel_cover", label: "Reel cover", area: "visuals", agent: "ArtDirector", media: /^reel_cover/ },
+    { key: "x_card", label: "X card", area: "visuals", agent: "ArtDirector", media: /^x_card/ },
+    { key: "broll", label: "B-roll", area: "visuals", agent: "ArtDirector", media: /^broll/ },
+    { key: "video", label: "Reel video", area: "video", agent: "VideoEditor", media: /^reel$/ },
+    { key: "short", label: "YouTube Short", area: "video", agent: "VideoEditor", media: /^reel$/ },
+  ];
+  const ART_STATE = {
+    queued: { w: 0, label: "queued" }, making: { w: 0.35, label: "making" }, made: { w: 0.7, label: "made" },
+    checking: { w: 0.8, label: "checking" }, sent: { w: 0.5, label: "sent back" }, fixing: { w: 0.55, label: "fixing" },
+    passed: { w: 1, label: "✓ passed" },
+  };
+  const AREA_NAMES = { x: "𝕏", reel: "Reel", youtube: "YouTube", visuals: "Images", video: "Video" };
+  const art = (key) => (state.art[key] ||= { s: "queued" });
+  const setArt = (key, s, extra = {}) => { const a = art(key); if (a.s !== s) a.changed = true; Object.assign(a, { s }, extra); };
+
+  function trackEvent(ev) {
+    const d = ev.data || {};
+    switch (ev.type) {
+      case "agent_start":
+        if (d.review) {
+          state.now = `The Showrunner is checking every file against the quality gate · round ${d.review}`;
+          ARTS.forEach((a) => { if (["made", "fixing"].includes(art(a.key).s)) setArt(a.key, "checking"); });
+        } else {
+          ARTS.filter((a) => a.agent === d.agent).forEach((a) => {
+            const s = art(a.key).s;
+            if (s === "queued") setArt(a.key, "making");
+            else if (s === "sent") setArt(a.key, "fixing");
+          });
+          const doing = { ArtDirector: "The ArtDirector is designing your images", VideoEditor: "The VideoEditor is cutting your Reel",
+            XWriter: "XWriter is working on the thread", ReelDirector: "ReelDirector is working on the Reel script",
+            YouTubeProducer: "YouTubeProducer is working on the YouTube package", ViralityCritic: "The critic is scoring the pack" }[d.agent];
+          if (doing) state.now = String(d.task || "").startsWith("REVISE") || art(ARTS.find((a) => a.agent === d.agent)?.key || "").s === "fixing"
+            ? doing.replace("is working on", "is fixing").replace("is designing", "is redoing").replace("is cutting", "is re-cutting") : doing;
+        }
+        break;
+      case "agent_done":
+        ARTS.filter((a) => a.variable && a.variable === d.variable).forEach((a) => setArt(a.key, "made", { preview: textPreview(a.key, d.value) }));
+        break;
+      case "media":
+        ARTS.filter((a) => a.media && a.media.test(String(d.purpose))).forEach((a) => setArt(a.key, "made",
+          { img: d.kind === "video" ? null : d.url, wide: d.width > d.height, video: d.kind === "video" ? d : null }));
+        break;
+      case "build_review": {
+        state.gate.round = d.round;
+        Object.entries(d.areas || {}).forEach(([area, v]) => {
+          state.gate.areas[area] = v.pass;
+          ARTS.filter((a) => a.area === area).forEach((a) => {
+            if (v.pass) { if (art(a.key).s !== "queued") setArt(a.key, "passed", { why: "" }); }
+            else setArt(a.key, "sent", { why: (v.problems || [])[0] || "needs another pass" });
+          });
+          if (!v.pass) state.gate.log.push(`Round ${d.round}: ${AREA_NAMES[area] || area} sent back — ${(v.problems || []).join("; ")}`);
+        });
+        if (d.complete) {
+          state.gate.log.push(`Round ${d.round}: every artifact passed`);
+          state.now = "Every file is built and checked";
+        } else {
+          state.now = "Fixes are on their way back to the specialists";
+        }
+        break;
+      }
+      case "status":
+        if (d.status === "DONE" && state.build && state.build.complete) ARTS.forEach((a) => { if (art(a.key).s !== "queued") setArt(a.key, "passed"); });
+        break;
+      default:
+        return;
+    }
+    if (state.revealed) scheduleTracker();
+  }
+
+  function textPreview(key, v) {
+    if (!v || typeof v !== "object") return trim(String(v ?? ""), 90);
+    if (key === "x") return trim((v.thread || [])[0] || "", 110);
+    if (key === "reel") return `${(v.beats || []).length} beats · “${trim(v.cover_text || v.title || "", 50)}”`;
+    if (key === "youtube") return trim((v.titles || [])[0] || "", 90);
+    return "";
+  }
+
+  let trackerFrame = 0;
+  function scheduleTracker() {
+    if (!trackerFrame) trackerFrame = requestAnimationFrame(() => { trackerFrame = 0; renderTracker(); });
+  }
+
+  function renderTracker() {
+    const panel = $("#tracker");
+    // The pack is finished the moment every artifact passes the gate; publishing is a separate choice.
+    const complete = !!(state.build && state.build.complete);
+    const stopped = ["FAILED", "BLOCKED"].includes(state.final) || (state.final === "DONE" && !complete);
+    const finished = complete || stopped;
+    panel.hidden = false;
+    panel.classList.toggle("is-done", complete);
+    const total = ARTS.reduce((n, a) => n + ART_STATE[art(a.key).s].w, 0) / ARTS.length;
+    const pct = complete ? 100 : Math.min(99, Math.round(total * 100));
+    $("#trackerPct").textContent = pct;
+    $("#trackerFill").style.width = pct + "%";
+    $("#trackerEyebrow").textContent = complete ? "Your pack is finished" : finished ? "Stopped before everything passed" : "Finishing your pack";
+    $("#trackerNow").textContent = complete
+      ? `Every file built and checked${state.gate.round ? ` in ${state.gate.round} review round${state.gate.round === 1 ? "" : "s"}` : ""}${state.sentBack ? ` · ${state.sentBack} fix${state.sentBack === 1 ? "" : "es"} along the way` : ""}`
+      : state.now || "The team is building every file…";
+    const list = $("#trackerCards");
+    if (!list.children.length) list.innerHTML = ARTS.map((a) => `<li class="art" id="art-${a.key}"><div class="pv"></div><h5><span>${esc(a.label)}</span><span class="st"></span></h5><p class="why-sent" hidden></p></li>`).join("");
+    ARTS.forEach((a) => {
+      const st = art(a.key);
+      const li = $("#art-" + a.key);
+      const cls = { queued: "s-queued", making: "s-making", made: "s-made", checking: "s-checking", sent: "s-sent", fixing: "s-fixing", passed: "s-passed" }[st.s];
+      li.className = "art " + cls;
+      if (st.changed) { void li.offsetWidth; li.classList.add("pop"); st.changed = false; }
+      $(".st", li).textContent = ART_STATE[st.s].label;
+      const pv = $(".pv", li);
+      const media = st.video || null;
+      const busy = { queued: "waiting its turn", making: a.agent === "VideoEditor" ? "rendering…" : a.agent === "ArtDirector" ? "designing…" : "writing…",
+        fixing: "fixing…", checking: "checking…" }[st.s] || "";
+      const key = st.img || (media && media.url) || st.preview || "s:" + busy;
+      if (pv.dataset.key !== key) {
+        pv.dataset.key = key;
+        pv.classList.toggle("has-img", !!(st.img || media));
+        pv.style.backgroundImage = st.img ? `url("${st.img}")` : "";
+        pv.classList.toggle("wide", !!st.wide);
+        pv.innerHTML = media ? videoTag(media, state.media, `muted autoplay loop playsinline preload="metadata"`)
+          : st.img ? "" : esc(st.preview || busy);
+      }
+      const why = $(".why-sent", li);
+      why.hidden = st.s !== "sent" && st.s !== "fixing";
+      why.textContent = st.why ? trim(st.why, 90) : "";
+    });
+    const g = state.gate;
+    $("#trackerRound").textContent = g.round ? `Quality gate · round ${g.round}` : "Quality gate · runs once everything is built";
+    $("#trackerAreas").innerHTML = Object.keys(AREA_NAMES).map((k) => `<span class="area ${g.areas[k] === true ? "pass" : g.areas[k] === false ? "fix" : ""}">${g.areas[k] === true ? "✓ " : g.areas[k] === false ? "↺ " : ""}${AREA_NAMES[k]}</span>`).join("");
+    $("#trackerLog").innerHTML = g.log.slice(-4).map((l) => `<li class="${/every artifact passed/.test(l) ? "ok" : ""}">${esc(trim(l, 160))}</li>`).join("");
   }
 
   // The proof behind the pack: what made it original, what the studio remembered, where the facts came

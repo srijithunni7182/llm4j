@@ -199,6 +199,23 @@
       </div>
     </section>
 
+    <section class="tracker glass" id="tracker" hidden aria-live="polite">
+      <div class="tracker-top">
+        <div class="tracker-copy">
+          <p class="eyebrow" id="trackerEyebrow">Finishing your pack</p>
+          <h3 id="trackerNow">The team is building every file…</h3>
+        </div>
+        <div class="tracker-pct"><b id="trackerPct">0</b><small>%</small></div>
+      </div>
+      <div class="tracker-bar"><i id="trackerFill"></i></div>
+      <ol class="tracker-cards" id="trackerCards"></ol>
+      <div class="tracker-gate">
+        <span class="tracker-gate-label" id="trackerRound">Quality gate · waiting for the first build</span>
+        <span class="tracker-areas" id="trackerAreas"></span>
+      </div>
+      <ul class="tracker-log" id="trackerLog"></ul>
+    </section>
+
     <section class="why glass" id="why" hidden>
       <header class="panel-head"><h3>Why this pack is yours <em>originality · memory · research · review</em></h3><span class="hint" id="whyHint"></span></header>
       <ul class="why-grid" id="whyGrid"></ul>
@@ -271,8 +288,18 @@
         <div class="thumb" id="ytThumb"><span id="ytThumbText"></span><em>12:04</em></div>
         <ol class="titles" id="ytTitles"></ol>
         <p class="yt-concept" id="ytConcept"></p>
+        <div class="yt-short" id="ytShort">
+          <div class="yt-short-player" id="ytShortPlayer"><span class="skel">rendering the Short…</span></div>
+          <div class="yt-short-copy">
+            <h4>YouTube Short</h4>
+            <p class="yt-short-meta" id="ytShortMeta">Vertical 9:16 · silent</p>
+            <p id="ytShorts"></p>
+            <a class="btn small" id="ytShortDl" hidden>↓ Download the Short (MP4)</a>
+            <p class="hint">Upload it to YouTube Shorts as it is. It's the same vertical master as your Reel, so one file works for both.</p>
+          </div>
+        </div>
         <div class="yt-cols">
-          <div><h4>Hook script</h4><p id="ytHook"></p><h4>Shorts cut</h4><p id="ytShorts"></p></div>
+          <div><h4>Hook script</h4><p id="ytHook"></p></div>
           <div><h4>Chapters</h4><ol class="chapters" id="ytChapters"></ol></div>
         </div>
         <details class="yt-desc"><summary>Description &amp; tags</summary><p id="ytDesc"></p><p class="tags" id="ytTags"></p></details>

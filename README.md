@@ -88,13 +88,13 @@ For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilit
 
 * **Loom** runs the workflow: PII guardrail, parallel specialists, a critic `loop until`, a bounded quality loop that routes each fix with one `for each`, and human hook-pick and publish gates that suspend the run instead of holding a thread.
 * **Prompts written live**: a Showrunner agent writes every specialist's system prompt per brief and rewrites them after critic feedback.
-* **Research before writing**: a Researcher agent searches the web (Google Search via Gemini, GDELT news, Wikipedia), reads the best sources and hands the team a dossier where every fact carries its source.
+* **Research before writing**: a Researcher agent searches the web (DuckDuckGo, Google Search via Gemini, GDELT news, Wikipedia), reads the best sources and hands the team a dossier where every fact carries its source.
 * **Live trends** from free public REST APIs (Wikipedia, Hacker News, Mastodon, Datamuse, Apple Music, Openverse, Nager.Date).
 * **RAG** over a viral playbook and your past posts (addons), plus **Engram** memory that makes every run sharper.
 * **Images and video**: an ArtDirector agent generates the thumbnail, cover and B-roll (Gemini, free Pollinations.ai, or a local render), and a VideoEditor agent renders the Reel into a real MP4.
 * **Not done until it's right**: the Showrunner reviews the finished build against the quality gate (files, platform limits, originality, eval4j judges) and sends every failing artifact back to its specialist until X, Instagram and YouTube all pass.
 * **Original over time**: every casting is remembered; the Showrunner is dealt lenses and visual styles the creator hasn't used, and an originality gate (Engram similarity) sends repeats back.
-* **Durable runs**: every step is journaled, so a pack waiting for its creator holds no thread, and a pack whose server restarts picks up where it left off. The Reel ships as an Instagram-ready MP4 plus a WebM copy so it plays in every browser.
+* **Durable runs**: every step is journaled, so a pack waiting for its creator holds no thread, and a pack whose server restarts picks up where it left off. The Reel ships as an Instagram-ready MP4 (which doubles as the YouTube Short) plus a WebM copy so it plays in every browser, and a live build tracker shows every artifact being made and checked.
 * **eval4j** grades every pack at runtime and gates the test suite. Publishes to Instagram only with your approval.
 * **A real website**: Google sign-in, onboarding with connected Instagram/YouTube/X accounts, a library of everything you've made, quotas, Postgres and a Cloud Run deployment guide.
 
