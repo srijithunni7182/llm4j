@@ -45,6 +45,44 @@ class DocumentedExamplesTest {
     }
 
     @Test
+    void theBudgetsAndSchedulingWalkthroughsParse() {
+        for (String source : new String[] {
+                """
+                rate_limits { on_limit: suspend }
+                agent Researcher { model: "gemini/gemini-2.5-flash" system: "You are Researcher." tools: [WebSearch] }
+                workflow Main(topic) {
+                    delegate "Research the history of {topic}" to Researcher -> history
+                    delegate "Research the state of the art of {topic}" to Researcher -> current
+                    delegate "Research the open problems of {topic}" to Researcher -> problems
+                    delegate "Write a briefing from {history} {current} {problems}" to Researcher -> briefing
+                }
+                """,
+                """
+                budget { tokens: 200000 per day  when_exhausted: suspend }
+                agent Triage { model: "gemini/gemini-2.5-flash" system: "You are Triage." }
+                workflow Main() {
+                    for each ticket in backlog {
+                        delegate "Triage {ticket}" to Triage -> {ticket.id}
+                    }
+                }
+                """,
+                """
+                budget { tokens: 100000 per day  calls: 500 per day  when_exhausted: suspend }
+                workflow Sweep() { note "x" }
+                schedule Hourly { every: 1h  run: Sweep() }
+                agent Critic { model: "m" }
+                workflow Main(topic) {
+                    delegate "Draft {topic}" to Critic -> draft budget 5000 tokens
+                        on_failure { note "Out of budget: {_error}" }
+                    broadcast "Review {draft}" to [Critic] -> reviews budget 3000 tokens
+                    for each i in items budget 300 tokens { delegate "{i}" to Critic -> out } on_exhausted { note "x" }
+                }
+                """}) {
+            assertNotNull(new LoomParser(new Lexer(source).tokenize()).parseScript());
+        }
+    }
+
+    @Test
     void aBareListHoldsAnything() {
         LoomScript script = new LoomParser(new Lexer("""
                 agent A { model: "m" output_schema: { items: list, names: list<string> } }

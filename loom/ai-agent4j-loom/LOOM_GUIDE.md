@@ -314,6 +314,9 @@ delegate "Review the build" to Showrunner -> review expecting {         // this 
 ```
 
 ### Cost Budgets
+> **In depth:** [Budgets, Pausing and Scheduling](BUDGETS_AND_SCHEDULING.md) covers budgets, refilling
+> windows, rate limits, pausing and resuming, schedules, system triggers, the CLI and Java embedding.
+
 A budget caps what LLM calls may spend, in **tokens** (the default), **calls**, or **money** (with a price
 table you supply). The runtime enforces it at the call itself: before each call it checks what is left
 and **refuses without calling the model** if the call can't fit, and it lowers the answer's `maxTokens`
@@ -373,6 +376,8 @@ What happens when a budget runs out:
 budgets are not metered at all.
 
 ### Pausing and Resuming on Limits
+> In depth: [Budgets, Pausing and Scheduling §3–4](BUDGETS_AND_SCHEDULING.md#3-rate-limits-and-quotas).
+
 Background agents run into limits that **lift at a known time**: a provider's per-minute rate limit, a
 free tier's daily quota, or your own budget that refills every hour. Loom reads the reset time and, instead
 of failing or retrying blindly, **pauses the run and resumes it when the limit lifts** — holding no thread
@@ -420,6 +425,8 @@ Who resumes the run? Give the executor a **trigger store** and a run id, and a p
 trigger there — see the next section.
 
 ### Schedules and Triggers
+> In depth, with per-OS setup and Cloud Run: [Budgets, Pausing and Scheduling §5–9](BUDGETS_AND_SCHEDULING.md#5-schedules).
+
 Everything that must happen later is a **trigger**, kept in a durable **trigger store** (files for one
 machine, a SQL table for several): resumes of paused runs, and your `schedule` blocks.
 

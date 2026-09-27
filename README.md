@@ -42,7 +42,7 @@ The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java 
 * **Pause and Resume on Limits**: a rate limit or daily quota no longer kills a long-running workflow. ai-agent4j reads when the limit resets; Loom pauses the run (no thread held) and resumes it then. `budget { tokens: 100000 per day when_exhausted: suspend }` gives background agents a daily allowance, and `schedule { cron: "0 7 * * *" run: Digest() }` runs workflows on a schedule, all kept in a trigger store that cron, systemd, launchd, Windows Task Scheduler or Cloud Scheduler can wake (`weave triggers install`).
 * **Bounded, Resilient Steps**: `loop until … max 5 … on_exhausted`, `retry 2 backoff 2s timeout 90s`, per-step `expecting { }` schemas and per-agent `temperature:`.
 
-👉 **[Master Loom Orchestration](loom/ai-agent4j-loom/LOOM_GUIDE.md)**
+👉 **[Master Loom Orchestration](loom/ai-agent4j-loom/LOOM_GUIDE.md)** · **[Budgets, Pausing and Scheduling](loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md)** · **[ai-agent4j Budgets and Rate Limits](ai-agent4j/wiki/Budgets-and-Rate-Limits.md)**
 
 ## 🧠 The Memory: [Engram](engram/engram-core/)
 

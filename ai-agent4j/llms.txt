@@ -11,6 +11,7 @@ AI Agent4J is a high-performance, developer-first framework for building autonom
 - [Multi-Agent Orchestration](#multi-agent-orchestration)
 - [Memory & RAG](#memory-and-rag)
 - [Background Tasks](#background-tasks)
+- [Budgets and Rate Limits](#budgets-and-rate-limits)
 - [Comparison vs LangChain4j/SpringAI](#comparison)
 
 ## 🏛️ Philosophy
@@ -44,8 +45,21 @@ Uses the `DelegateTaskTool` to implement the **Manager-Worker** pattern.
 - `SemanticMemoryConfig`: One-liner setup for the entire memory stack.
 
 ## ⏰ Background Tasks
-- `AgentScheduler`: Allows agents to schedule themselves for future execution.
+- `AgentScheduler`: Allows agents to schedule themselves for future execution (in memory).
 - `ScheduledActionTool`: Natural language scheduling interface.
+- For schedules that survive restarts (cron, time zones) and runs that pause on limits and resume, use Loom's
+  `schedule` blocks and trigger store: loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md.
+
+## 💸 Budgets and Rate Limits
+- `Budget.builder().tokens(50_000).calls(40).cost("0.50").warnAt(0.8).window(Window.DAY).build()`: caps
+  enforced before each call; a call that can't be paid for throws `BudgetExceeded` without reaching the model.
+- `ReActAgent.builder().budget(b).maxTokensPerCall(1500).onBudgetExhausted(RETURN_PARTIAL | FAIL | SUSPEND)`.
+- `BudgetedLLMClient` meters any client; `BudgetSet` applies several budgets per call; `PriceTable.load(path)`
+  prices money budgets (none ship with the library).
+- HTTP 429s are parsed (Gemini body incl. daily quotas, Anthropic/OpenAI headers, Retry-After): short limits
+  are waited out inline, long ones raise `RateLimitException(info)` → `RateLimited` in agents, with the exact
+  `resetAt()`.
+- Guide: wiki/Budgets-and-Rate-Limits.md
 
 ## 🆚 Comparison
 AI Agent4J is for developers who find LangChain4j too bloated or Spring AI too opinionated. We offer 100% control, faster startup times, and focus on the **Autonomous Agentic loop** rather than just "Chat with PDF" templates.

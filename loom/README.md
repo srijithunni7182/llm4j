@@ -202,7 +202,8 @@ Resumes and schedules live in a trigger store (files or SQL). Something wakes Lo
 daemon`, or — so nothing has to stay running — **your OS**: `weave triggers install <store> --apply` adds a
 cron line, systemd timer, launchd agent or Windows task that runs `weave tick`; on Cloud Run, Cloud
 Scheduler calls a tick endpoint. See [Pausing and Resuming on Limits](./ai-agent4j-loom/LOOM_GUIDE.md#pausing-and-resuming-on-limits)
-and [Schedules and Triggers](./ai-agent4j-loom/LOOM_GUIDE.md#schedules-and-triggers).
+and [Schedules and Triggers](./ai-agent4j-loom/LOOM_GUIDE.md#schedules-and-triggers). The complete guide is
+[**Budgets, Pausing and Scheduling**](./ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md).
 
 **Smaller things that make scripts shorter:**
 

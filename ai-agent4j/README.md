@@ -35,6 +35,7 @@ Explore the full capabilities of the framework through our detailed guides:
 - [**Memory & Persistence**](wiki/Memory-and-Persistence.md) — Managing conversation history and long-term storage.
 - [**Real-time Streaming**](wiki/Thought-Streaming.md) — Capturing agent "thoughts" for responsive UIs via SSE/WebSockets.
 - [**Advanced Configuration**](wiki/Advanced-Configuration.md) — Retry policies, custom tools, and error handling.
+- [**Budgets and Rate Limits**](wiki/Budgets-and-Rate-Limits.md) — Cap tokens, calls or money; budgets that refill; reading 429s and pausing until the limit lifts.
 
 ### Advanced Features
 
@@ -71,6 +72,9 @@ Explore the full capabilities of the framework through our detailed guides:
 - **💸 Cost Budgets**: Cap tokens, calls or money per agent; over-budget calls are refused before they reach the model. See below.
 
 ### Cost budgets
+
+> The full guide — windows, `BudgetSet`, price tables, events, rate-limit parsing, recipes and API
+> reference — is [**Budgets and Rate Limits**](wiki/Budgets-and-Rate-Limits.md).
 
 Every token an agent spends goes through `LLMClient.chat()`, so that is where budgets are enforced:
 
