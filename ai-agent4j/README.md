@@ -100,6 +100,32 @@ System.out.println(budget.spent());    // tokens, calls, cost, and whether any u
 - **Many budgets at once** — run, agent, step — go in a `BudgetSet`; a call must fit them all and is charged
   to each. Concurrent calls can't jointly overspend. Use `BudgetedLLMClient` to meter any client directly.
 - `onBudgetExhausted(BudgetPolicy.FAIL)` throws instead of returning the partial answer.
+- **Budgets that refill**: `Budget.builder().tokens(100_000).window(Window.DAY)` limits spend per minute,
+  hour or day; a refusal says when it refills (`BudgetExceeded.resetAt()`), and
+  `onBudgetExhausted(BudgetPolicy.SUSPEND)` turns it into `RateLimited` for a harness to pause on.
+
+### Rate limits
+
+A provider's 429 says when to come back. The HTTP layer reads it — Gemini's error body (`RetryInfo`,
+`QuotaFailure`; a per-day quota resets at midnight Pacific), Anthropic's `anthropic-ratelimit-*-reset`,
+OpenAI's `x-ratelimit-reset-*`, or `Retry-After` — and:
+
+- waits out limits that lift within 30 s, retrying exactly when they reset (plus a little jitter);
+- raises `RateLimitException` for longer ones, with `info()` giving the reset **instant**, the kind of limit
+  (requests, tokens, daily quota) and whether the time was estimated (no reset information: 60 s, doubling
+  on repeated 429s, up to an hour).
+
+```java
+try {
+    agent.run("Summarise today's papers");
+} catch (RateLimited limited) {           // an AgentInterrupt: never retried, never a half answer
+    scheduleRetryAt(limited.resetAt());   // e.g. 2026-09-28T07:00:00Z for Gemini's free-tier daily quota
+}
+```
+
+`RetryPolicy.builder().inlineWaitThreshold(…).fallbackDelay(…).dailyResetZone(…)` tunes this. A refused call
+counts as a call against a budget but costs no tokens, and `RoutingLLMClient` reports the soonest reset when
+every tier is limited. Loom builds on this to pause workflows and resume them automatically.
 
 ---
 

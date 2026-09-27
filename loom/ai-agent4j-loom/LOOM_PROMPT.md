@@ -64,6 +64,20 @@ agent <AgentName> {
         task: "Instructions"
     }
     ```
+*   **Scheduled Workflows** (kept in a trigger store, survive restarts):
+    ```loom
+    schedule <Name> {
+        cron: "0 7 * * *"        // or every: 6h
+        timezone: "Asia/Kolkata"
+        run: <Workflow>(arg="value")
+        misfire: run_once        // or skip
+        overlap: skip            // or queue
+    }
+    ```
+*   **Rate Limits** (pause and resume instead of failing):
+    ```loom
+    rate_limits { on_limit: suspend  max_wait: 24h  max_resumes: 50 }   // suspend | wait | fail
+    ```
 
 ### Workflow Statements (Inside Workflows)
 *   **Sequential Delegation:** `delegate "<payload>" to <AgentName> -> <variable_name>`
@@ -95,7 +109,7 @@ agent <AgentName> {
 *   **Retries:** `delegate "..." to Actor -> res retry 3 backoff 2s timeout 90s on_failure { ... }` (`backoff` doubles each attempt; `timeout` fails a hung attempt).
 *   **Per-Step Schemas:** `delegate "..." to Lead -> review expecting { verdict: enum["OK","FIX"], fixes: list }` overrides the agent's `output_schema` for that step only.
 *   **Temperature:** `temperature: 0.9` inside an agent for creative roles, `0.2` for reviewers and checkers.
-*   **Budgets:** cap spend with `budget { tokens: 200000 calls: 150 warn_at: 80% }` at top level, `budget { tokens: 20000 per_call: 2000 }` inside an agent, and `budget 5000 tokens` (or `budget 10 calls`, `budget "$0.05"`) on a `delegate`, `broadcast`, `loop until` or `for each`. A refused step goes to `on_failure` (never retried); a loop or for-each runs `on_exhausted` with `{_loopExhaustedBy}`. Route on money left with `alt (_budget.remaining < 20000) { ... }`. Add a budget whenever a script loops over model calls.
+*   **Budgets:** cap spend with `budget { tokens: 200000 calls: 150 warn_at: 80% }` at top level, `budget { tokens: 20000 per_call: 2000 }` inside an agent, and `budget 5000 tokens` (or `budget 10 calls`, `budget "$0.05"`) on a `delegate`, `broadcast`, `loop until` or `for each`. A refused step goes to `on_failure` (never retried); a loop or for-each runs `on_exhausted` with `{_loopExhaustedBy}`. Route on money left with `alt (_budget.remaining < 20000) { ... }`. Add a budget whenever a script loops over model calls. For agents that keep working in the background, use a refilling budget that pauses rather than stops: `budget { tokens: 100000 per day when_exhausted: suspend }` (`per minute|hour|day`; `when_exhausted: stop | suspend | ask`).
 *   **Scoping:** The variable `_error` is available inside `on_failure`.
 *   **Composition:** `call SubWorkflow(param=val) -> resultVar`.
 *   **Typed Checks:** Access fields in conditionals: `alt (res.status == "OK")`, and in payloads: `"{plan.hooks.0}"`.

@@ -165,3 +165,62 @@ Tested on the Plan (golden files) with a fake `CommandRunner`; nothing on the te
 - **Phase 1 done:** V1–V4 and N2–N4 (ai-agent4j part) pass.
 - **Phase 2 done:** V5, V6 and N1 pass; cost-budgets tests are unchanged.
 - **Phase 3 done:** V7–V9, E2E-1..5, N1b and N5 pass; docs are updated and their examples parse.
+
+## 11. Results (2026-09-27)
+
+**Every suite passes:**
+
+| Suite | Tests |
+|---|---|
+| ai-agent4j | 496 (was 448) |
+| addons | 17 |
+| eval4j | 125 |
+| Loom | 232, 1 skipped (was 94) |
+| Engram | 9, 1 skipped |
+| GetViral | 77, 4 skipped |
+
+**Where each part of the plan is covered:**
+
+| Plan section | Test classes |
+|---|---|
+| V1–V2 | `RateLimitParsersTest`, `ParserEdgeCasesTest`, `HttpRateLimitTest` (MockWebServer, real providers) |
+| V3 | `WindowedBudgetTest` |
+| V4 | `RateLimitedAgentTest` |
+| V5 | `ResumeSyntaxTest` |
+| V6 and N1 | `SuspensionTest` |
+| V7 and N1b | `CronScheduleTest`, `TriggerRunnerTest`, `StoreContractTest` (file and H2, including races and crash injection), `TriggerEdgeCasesTest` |
+| V8 | `ScheduleSyncTest` |
+| V9 | `SystemTriggerTest`, `BackendEdgeCasesTest`, `TriggerEndpointTest` |
+| E2E-1 | `GeminiQuotaEndToEndTest` |
+| E2E-2 | `BackgroundAgentEndToEndTest` |
+| E2E-3 to E2E-5 and V9.12 | `WeaveResumeCliTest` |
+| Documented examples | `DocumentedExamplesTest` |
+
+**N4 coverage (lines / branches):**
+
+| Package | Lines | Branches |
+|---|---|---|
+| `ratelimit` | 98.1% | 96.1% |
+| `loom.trigger` | 90.3% | 91.2% |
+| `loom.trigger.system` | 98.1% | 88.9% |
+
+**V9.11** is opt-in with `-Dloom.realCrontabTest=true`. It was run once in the build container after installing `cron`: install, `crontab -l` shows the tagged line, uninstall restores the crontab.
+
+### Deviations from the design
+
+1. **Parser order.** Google's structured error body is read before `Retry-After`: a daily `QuotaFailure` is more specific than a generic delay.
+2. **Durations are parsed in the parser** (a number followed by `s|m|h|d`, or a string), not as a lexer literal. The lexer is unchanged, so no existing script can lex differently.
+3. **`max_wait` default.** It is 5 minutes for `wait` and 7 days for `suspend`.
+4. **Sequential `for each` pauses at the limited item.** It does not skip ahead, so order-dependent loops stay correct. V6.8 applies to `parallel for each`; V6.8b covers the sequential case.
+5. **SQL trigger store columns.** `loom_triggers` stores times as epoch milliseconds and adds a `note` column.
+6. **Bearer tokens.** `TriggerEndpoint` checks them through a pluggable `BearerVerifier`. No OIDC library is bundled; `X-Loom-Token` with `LOOM_TRIGGER_TOKEN` works out of the box.
+7. **CLI state.** It lives in `<run dir>/run.json` plus the trigger store, not a `<run dir>/wakeup` file.
+8. **`_run` is published only once a run has paused.** Legacy bare-name substitution would otherwise rewrite words such as "dry_run".
+9. **Windowed spend.** A step's usage counts in the window of its last call (journaled `at`).
+10. **Provider name.** `RateLimitInfo.provider` comes from the request host: google, anthropic, openai, sarvam, ollama, else the host.
+11. **Agent-level policy.** `BudgetPolicy.SUSPEND` was added for plain Java agents. Loom applies `when_exhausted` per budget itself.
+
+### Open
+
+- **L1–L3:** live checks, which need your API key and machine (tasks 14 and 16).
+- **Task 15:** GetViral adoption (optional).

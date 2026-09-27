@@ -53,6 +53,21 @@ weave run research.loom --max-cost 0.25 --prices prices.properties
 With any budget in play, the run ends with a spend table (calls, prompt and completion tokens, cost per
 agent). A run stopped by its budget exits with code 3 and keeps everything it already paid for.
 
+```bash
+# A durable run: it can pause on a rate limit or budget window and carry on later
+weave run digest.loom --journal runs/digest-1          # exits 4 with "⏸ Paused … resumes at 07:00"
+weave run digest.loom --journal runs/digest-1 --wait   # …or stay alive and resume by itself
+
+weave resume runs/digest-1                  # resume a paused run now
+weave tick runs/.loom-triggers              # fire whatever is due (what cron/systemd run)
+weave daemon runs/.loom-triggers            # or keep one process watching
+weave triggers list runs/.loom-triggers     # pause | enable | cancel | fire <id> too
+weave triggers install runs/.loom-triggers --apply     # let the OS wake Loom (see Schedules and Triggers)
+weave schedule sync digest.loom --store runs/.loom-triggers
+```
+
+Exit codes: `0` done, `1` failed, `2` bad options, `3` stopped by a budget, `4` paused.
+
 ### 2. Packaging for Deployment (`package`)
 Encapsulate your workflow into a JAR that can run anywhere.
 
@@ -357,6 +372,112 @@ What happens when a budget runs out:
 `budget` is a contextual keyword: scripts that use it as a variable name keep working. Scripts without
 budgets are not metered at all.
 
+### Pausing and Resuming on Limits
+Background agents run into limits that **lift at a known time**: a provider's per-minute rate limit, a
+free tier's daily quota, or your own budget that refills every hour. Loom reads the reset time and, instead
+of failing or retrying blindly, **pauses the run and resumes it when the limit lifts** — holding no thread
+while it waits.
+
+```loom
+rate_limits {
+    on_limit: suspend        // suspend | wait | fail
+    max_wait: 24h            // give up on limits further away than this
+    max_resumes: 50
+}
+
+budget {
+    tokens: 100000 per day   // per minute | per hour | per day: refills each window
+    when_exhausted: suspend  // stop (default) | suspend | ask
+}
+```
+
+**Where the reset time comes from.** ai-agent4j reads it from the provider's refusal:
+Gemini's error body (`RetryInfo`, and `QuotaFailure` — a per-day quota resets at midnight Pacific),
+Anthropic's `anthropic-ratelimit-*-reset` headers, OpenAI's `x-ratelimit-reset-*`, or `Retry-After`.
+With nothing to go on, it assumes 60 s, doubling on repeated refusals (up to an hour). Limits that lift
+within 30 s are simply waited out inside the HTTP call; anything longer reaches Loom.
+
+| Policy | What happens |
+|---|---|
+| `suspend` (default when the run has a durable journal) | The run stops with `RunSuspended` (reason `RATE_LIMIT` or `BUDGET_WINDOW`, `resumeAt`). The journal records why and until when. Resuming replays every finished step for free and re-runs only the step that hit the limit. |
+| `wait` (default otherwise, up to 5 minutes) | The step waits for the reset, then runs again. |
+| `fail` | The step fails: `on_failure` runs with `{_error}` naming the limit and its reset time. |
+| `when_exhausted: ask` | A person is asked "Allow N more?". A journaled yes raises the budget by its original amount. |
+
+- **Parallel work finishes first.** In `parallel`, `broadcast` and `parallel for each`, branches that can
+  still work finish and are journaled; the run then pauses once, until the latest reset. A sequential
+  `for each` pauses at the limited item.
+- **Budget windows.** Spend in earlier windows no longer counts once a window rolls over (reports still
+  show it all), and a refusal says when the budget refills. Journaled usage records when it was spent, so a
+  resumed run only counts this window's spend.
+- **Safety valves.** A reset further away than `max_wait` fails the run with a clear message; a run
+  resumed more than `max_resumes` times is failed rather than retried for ever.
+- **Visible.** `{_run.resumes}` and `{_run.lastSuspension.reason}` are available after a pause; the audit
+  log records `run_suspended`, `run_resumed` and `rate_limit_wait`.
+- **Refused calls are free.** A 429 counts as a call against your budget but costs no tokens.
+
+Who resumes the run? Give the executor a **trigger store** and a run id, and a paused run leaves a resume
+trigger there — see the next section.
+
+### Schedules and Triggers
+Everything that must happen later is a **trigger**, kept in a durable **trigger store** (files for one
+machine, a SQL table for several): resumes of paused runs, and your `schedule` blocks.
+
+```loom
+schedule MorningDigest {
+    cron: "0 7 * * *"                  // or: every: 6h
+    timezone: "Asia/Kolkata"           // default UTC; daylight-saving safe
+    run: DailyDigest(topic="AI agents")
+    misfire: run_once                  // missed slots while nothing ran: run_once (default) | skip
+    overlap: skip                      // previous run still paused: skip (default) | queue
+}
+
+schedule DailyCleanup {                // the classic form still works
+    initial_delay: "30s"
+    pattern: "24h"
+    agent: AdminBot
+    task: "Purge temporary RAG indices"
+}
+```
+
+- When a script loads with a trigger store, its schedules are **written to the store**: new ones added,
+  changed ones updated (keeping when they last ran), removed ones disabled. Without a store, classic agent
+  schedules still run in memory, as before.
+- Each scheduled run gets its own run id (`MorningDigest@2026-09-28T01:30:00Z`) and journal, so it can
+  pause and resume like any other run while the schedule moves on.
+- A trigger fires **once** even with several processes or machines on one store (claims are atomic; a
+  claim left by a crashed process is taken over after 10 minutes).
+
+**Waking Loom.** Something must look at the store now and then. Pick one:
+
+| How | When |
+|---|---|
+| `weave daemon <store>` | A process that is always running anyway. |
+| `weave triggers install <store> --apply` | Let the OS do it: a **cron** line, a **systemd** user timer, a **launchd** agent or a **Windows** scheduled task runs `weave tick <store>` every 5 minutes (`--every 1m`). No Loom process waits in between. |
+| `--mode exact` | Also add one OS entry at each pending trigger's exact time (re-synced after every tick). |
+| `--backend cloud-scheduler --url https://… --service-account …` | Google Cloud Scheduler calls your service's `POST /loom/tick` (`TriggerEndpoint`), for services that scale to zero. |
+
+`install` shows exactly what it will write and run, and changes nothing without `--apply`. It only writes
+user-level entries (never needs root), tags them, and `weave triggers uninstall <store> --apply` removes
+exactly those. System schedulers don't see your shell's environment: keep API keys in a file
+(`chmod 600`) and pass `--env-file ~/.loom/env`.
+
+In Java, the same pieces:
+
+```java
+TriggerStore store = new JdbcTriggerStore(dataSource);          // or new FileTriggerStore(dir)
+executor.setJournal(new JdbcRunJournal(dataSource, runId));
+executor.setTriggerStore(store);
+executor.setRunId(runId);                                         // paused runs leave "resume:<runId>"
+
+TriggerRunner runner = new TriggerRunner(store, (trigger, id) -> {
+    // rebuild the run named by id and call executeWorkflow; map the result to an Outcome
+    return TriggerTarget.Outcome.done();
+}, Clock.systemUTC());
+runner.start(Duration.ofSeconds(5));                              // embedded, or:
+TriggerEndpoint tick = TriggerEndpoint.fromEnvironment(runner, oidcVerifier); // POST /loom/tick
+```
+
 ### Workflow-Level Retry & Error Contracts
 Define resilience logic directly in the DSL. If an agent fails (API error, timeout, or malformed JSON), Loom handles retries and triggers the `on_failure` recovery block.
 
@@ -405,16 +526,8 @@ workflow Main() {
 ```
 
 ### Scheduled Background Tasks
-Define recurring tasks that run independently of workflows.
-
-```loom
-schedule DailyCleanup {
-    initial_delay: "30s"      // Boot grace period
-    pattern: "24h"           // Interval
-    agent: AdminBot
-    task: "Purge temporary RAG indices"
-}
-```
+Recurring work is declared with `schedule` blocks — see [Schedules and Triggers](#schedules-and-triggers)
+for cron schedules, scheduled workflows and keeping them across restarts.
 
 ### Observability
 Use `observe` to log the state of variables at specific points for tracing.
