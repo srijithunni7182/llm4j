@@ -1,0 +1,167 @@
+# Verification Plan
+
+The work is done when every check below passes, in automated tests unless marked *live*.
+
+Unless a check says otherwise, it uses:
+
+| Stand-in for | What |
+|---|---|
+| Models | scripted mock `LLMClient`s that make the tool calls the check needs |
+| HTTP services | MockWebServer (loopback, so the tools are configured for it as described in R3.2) |
+| SMTP | GreenMail, or `outbox` mode |
+| Databases | H2 in PostgreSQL mode |
+| Files | JUnit `@TempDir` |
+| Processes | small, fixed programs from the JDK's `bin/` or `sh` scripts written to the temp dir |
+| Crashes | a journal that throws after the Nth `put`, or an executor abandoned mid-step |
+
+## V1: Shared foundations (R1)
+
+| # | Check |
+|---|---|
+| V1.1 | The six kinds appear in `ToolFactory.kinds()`. A script using each with valid options loads with no problems. |
+| V1.2 | For each kind: a missing required option, an unknown option, and a wrong-typed value (`timeout: soon`, `max_rows: 0`) are each a load error naming the tool, option and line. |
+| V1.3 | Each secret option written as a literal is a load error that suggests `env.NAME`. An unset variable is a load error naming it. |
+| V1.4 | `"header.X-Trace-Id": "abc"` parses on `http` and `webhook`. On `file` it is an unknown-option error. `header.Authorization: "literal"` and `"header.X-Api-Key": "literal"` are errors; `env.NAME` is accepted. |
+| V1.5 | A secret never appears: for each kind, call with a mock that echoes the request back in its response body and in an error, and assert the returned text, the audit events, the trace events and the journal contain no secret value, nor its URL-encoded or Base64 form. |
+| V1.6 | A tool call that throws inside the kind returns an `Error:` text, not an exception. |
+| V1.7 | Every kind honours `timeout` (a mock that never answers gives an `Error:` within the limit) and truncates a large result with a marker naming the bytes cut. |
+| V1.8 | `description:` appears after the generated text. The generated description of a `file` tool in `read` mode doesn't mention `write`. |
+| V1.9 | The existing suites (parser, tools, approvals, budgets, resume) pass unchanged. Existing kinds accept `description:`. |
+| V1.10 | `pii: mask` on an agent masks personal data in a tool result from each read-only kind. |
+| V1.11 | `tool_call` and `tool_effect` audit events and trace events are recorded with target, outcome and millis, and contain no body, address list or query result. |
+
+## V2: Effect journal (R2)
+
+| # | Check |
+|---|---|
+| V2.1 | A side-effect call writes `pending` then `done` under the documented key. |
+| V2.2 | **Replay.** Run a workflow with a delegate that calls `webhook`; abandon the executor after the tool call but before the delegate's result is journaled; run again with the same journal. The mock receives **one** request in total, and the agent's tool result says it was already done. |
+| V2.3 | **Unknown outcome, `skip`.** Fault-inject between `pending` and `done`; on re-run the mock receives no second request, the agent is told the outcome is unknown, and `effect_unknown` is audited. |
+| V2.4 | **Unknown outcome, `retry`.** As V2.3 with `on_unknown: retry`: a second request arrives. |
+| V2.5 | **Idempotency.** With `idempotency: true`, both requests carry the same `Idempotency-Key`, and it equals across a resume. |
+| V2.6 | Different arguments run; two identical calls in one step run twice; replaying both returns each recorded result in order. |
+| V2.7 | An `Error:` result is recorded `effect_failed`, and the identical call afterwards runs again (it isn't reported as done). |
+| V2.8 | Reads (`http` GET, `file` read/list/exists, `sql`) write no effect records. |
+| V2.9 | Two `parallel` branches calling the same tool with the same arguments have separate records and both run. |
+| V2.10 | Works with the in-memory, file and JDBC journals. A journal from before this change loads and runs. |
+| V2.11 | `ApprovalGate.key` gives the same values before and after moving the hashing to `CanonicalArgs`. |
+
+## V3: Egress policy (R3)
+
+| # | Check |
+|---|---|
+| V3.1 | `http://example.com/x` is refused for a tool without `allow_http`. `http://localhost:<port>` is accepted. `https://user:pw@host/` is refused. |
+| V3.2 | With a stub resolver: hosts resolving to `10.0.0.5`, `192.168.1.1`, `172.16.0.1`, `169.254.169.254`, `127.0.0.1`, `::1`, `fd00::1`, `0.0.0.0` and `::ffff:10.0.0.5` are each refused with "resolves to a private address" and no connection is made. `allow_private: true` lets them through. |
+| V3.3 | **Rebinding.** A stub resolver that answers a public address first and a private one on a second lookup: the connection uses the checked address only, and the resolver is asked once per host per call. |
+| V3.4 | `hosts: "*.example.com"` allows `a.example.com` and refuses `example.com` and `example.com.evil.net`. |
+| V3.5 | A 302 to another host is not followed by default. With `follow_redirects: true` it is followed to an allowed host, refused to a private address, refused to a disallowed host, refused from https to http, and stops after 3. |
+| V3.6 | A refusal names its rule and doesn't echo the webhook URL's path or query. |
+| V3.7 | A 10 MiB response with `max_bytes: 64k` is read as at most 64 KiB (+1) and truncated with a marker. |
+
+## V4: `webhook` (R4)
+
+| # | Check |
+|---|---|
+| V4.1 | `slack`: the mock receives `{"text": "*Title*\nBody"}` with `Content-Type: application/json`; result `Sent to slack webhook (HTTP 200).` and no URL. |
+| V4.2 | `discord`: body `{"content": …}`, cut at 2000 characters with a marker. `json`: `{"title", "text"}`. `teams`: an Adaptive Card envelope. |
+| V4.3 | Empty text and text over 20,000 characters are refused with no request. |
+| V4.4 | 429 with `Retry-After: 1` then 200: sent after one retry. A 500 three times with `retries: 2` fails with the status and an excerpt. `Retry-After: 120` fails at once. A 404 is not retried. |
+| V4.5 | `url: "https://…"` literal is a load error (secret). |
+| V4.6 | `"header.X-Source": "loom"` reaches the mock. |
+
+## V5: `email` (R5)
+
+| # | Check |
+|---|---|
+| V5.1 | Fixed `to`: GreenMail receives one message with the right From, To, Subject and plain-text body. The agent's `to` argument is refused (not offered in the description). |
+| V5.2 | `allow_to: "*@example.com"`: `a@example.com` is accepted; `a@evil.com` is refused and the list isn't revealed; `a@example.com.evil.com` is refused. |
+| V5.3 | Subject or address containing CR/LF is refused with no message sent. `max_recipients` and a 200 KB+ body are refused. |
+| V5.4 | `max_per_run: 2`: the third call is refused, and after a simulated crash and resume the count still includes the earlier two. |
+| V5.5 | `html: true` sends `text/html`. `attachments: true` attaches a file inside the directory and refuses `../x` and a symlink out; over 10 MiB is refused. Without `attachments: true`, `attach` isn't accepted. |
+| V5.6 | `outbox: "mail/"`: an `.eml` is written, parsable, and GreenMail receives nothing. |
+| V5.7 | `security: starttls` (default) refuses a server that doesn't offer it. `none` is a load error for a non-loopback host, unless `allow_insecure: true`. |
+| V5.8 | A wrong password gives "authentication failed" with no password or server text. |
+| V5.9 | A script with no `email` tool doesn't load any `jakarta.mail` class (checked with a class-loading probe). |
+| V5.10 | `to` and `allow_to` together, or neither, are load errors. `username` without `password` is a load error. |
+
+## V6: `http` (R6)
+
+| # | Check |
+|---|---|
+| V6.1 | GET `/repos/x` → mock sees `GET /repos/x`, the fixed headers, and the auth header. Result: `HTTP 200 OK`, content type, body. |
+| V6.2 | The agent can't change the host or headers. Paths `https://evil/`, `//evil`, `/a/../b`, `/x@y`, `:80/x` and a control character are refused with no request. |
+| V6.3 | `allow_paths: "/repos/*"`: `/repos/a` passes, `/repos/a/b` and `/users/a` are refused; `**` crosses segments. |
+| V6.4 | `query` is added with encoding. `auth_query` is added and not echoed. Both `auth_header` and `auth_query`, or `auth_value` without either, are load errors. |
+| V6.5 | POST with an object body sends JSON; with a string, `text/plain`. `PUT`/`DELETE` are refused unless listed in `methods`. |
+| V6.6 | An `image/png` response is refused as not text. `application/vnd.api+json` and `text/csv` are returned. |
+| V6.7 | GET retries on 500 and 429 (`Retry-After`), POST doesn't unless `idempotency: true`. |
+| V6.8 | GET writes no effect record; POST does, and is replayed per V2. |
+| V6.9 | The host of `base_url` is checked by `NetPolicy` at load (a literal private IP is a load error). |
+
+## V7: `file` (R7)
+
+| # | Check |
+|---|---|
+| V7.1 | `write` creates a file atomically (no partial file visible while writing; verified by a slow reader on a large content). A second `write` fails unless `overwrite: true`. `append` adds a newline if missing and creates the file if absent. |
+| V7.2 | `read` returns content; `from_line` and `lines` select a window; a file over `max_bytes` is cut with a marker; a file with a NUL byte is refused. |
+| V7.3 | Refused: `../x`, an absolute path, a symlink pointing out, a hidden file or directory (`.env`, `.loom-triggers/x`), the run journal directory and trigger store when they're inside `root`, a name outside `allow`. `list` omits hidden entries and is sorted and capped. |
+| V7.4 | Modes: `write` in `read` mode and `read` in `write` mode are refused, and the description lists only the allowed actions. |
+| V7.5 | `root` outside the script's directory, or a file, is a load error. |
+| V7.6 | Two parallel branches appending to one file produce whole, non-interleaved lines (200 lines each). |
+| V7.7 | `write`/`append` follow V2 (replay doesn't append twice). `read`/`list`/`exists` don't. |
+
+## V8: `shell` (R8)
+
+| # | Check |
+|---|---|
+| V8.1 | `allow: "echo"`: `program: "echo", args: ["a b", "$HOME", "; rm -rf /"]` prints the three arguments literally: no expansion, no second command. |
+| V8.2 | A `program` not in `allow`, or given as a path (`/bin/echo`, `../x`), is refused. A name in `allow` not on the `PATH` is a load error. |
+| V8.3 | `sh`, `bash`, `python3`, `env`, `xargs`, `find`, `sed` in `allow` are load errors, and accepted with `allow_interpreters: true`. |
+| V8.4 | Arguments with NUL, CR or LF, more than 64 arguments, or one longer than 4,096 characters are refused. |
+| V8.5 | The child's environment holds only `PATH`, `LANG`, `TZ` and `env_pass` names: a parent variable holding a marker value isn't visible to a program that prints its environment. |
+| V8.6 | `cwd` outside the script's directory is a load error. The program runs in `cwd`. |
+| V8.7 | A program that sleeps past `timeout` is killed, its child process too (a `sleep` grandchild is gone), and the call reports the timeout. |
+| V8.8 | A program that prints 50 MB is cut at `max_output` per stream, with a marker, and memory use stays bounded. Nothing deadlocks on a full pipe. |
+| V8.9 | Result shows `exit <code>` (0 and non-zero), stdout and stderr separately. |
+| V8.10 | **Approval rule.** An agent using a `shell` tool with neither `approve:` for it nor `unattended: true` on the tool fails at load with the two ways out. With either, it loads. `approve: all` counts. |
+| V8.11 | A call goes through the approval gate when the agent lists the tool in `approve:`: a rejection means the program doesn't run. |
+| V8.12 | Follows V2 (a resumed run doesn't run the program twice). |
+
+## V9: `sql` (R9)
+
+| # | Check |
+|---|---|
+| V9.1 | `SELECT` with bound params returns a table, JSON or CSV as chosen. Values arrive only as bound parameters (a param `x'; DROP TABLE t; --` is returned as data). |
+| V9.2 | `SqlGuard` accepts: `SELECT 1`, `select * from t where n = 'DELETE'`, `WITH a AS (SELECT 1) SELECT * FROM a`, `SELECT created_at FROM t`, a query with comments and dollar-quoted text containing `INSERT`. |
+| V9.3 | `SqlGuard` refuses: `INSERT …`, `DELETE …`, `SELECT 1; SELECT 2`, `SELECT 1; DROP TABLE t`, `SELECT * INTO x FROM t`, `WITH x AS (DELETE FROM t RETURNING *) SELECT * FROM x`, `/* */ UPDATE t …`, `CALL p()`, an empty statement. Each says which rule. |
+| V9.4 | The connection is read-only: with the guard bypassed in a test, a write on a database that enforces read-only connections fails. |
+| V9.5 | `max_rows` cuts the result and says rows were dropped; more than 1,000 is a load error; a 5,000-character cell is cut at 1,000. |
+| V9.6 | A query over `timeout` is cancelled and reported. |
+| V9.7 | `schema` lists tables and columns, and one table's columns with `table`. |
+| V9.8 | A URL with no driver on the classpath is a load error naming the scheme. The `url` and password never appear in errors. |
+| V9.9 | `sql` writes no effect records. |
+
+## V10: Documentation, tooling and sample (R10)
+
+| # | Check |
+|---|---|
+| V10.1 | Every block in the new guide section is in `generic_tools_examples.loom`, which parses and validates with a fake environment. |
+| V10.2 | The VS Code grammar and server list the six kinds and offer their options (checked by the extension's existing tests or a scripted completion request). |
+| V10.3 | `samples/digest/digest.loom` runs end to end in a test against MockWebServer with a scripted model: it collects over `http`, writes the report and state with `file`, and leaves an `.eml` in the outbox. A second run the next "day" reads the state file. |
+| V10.4 | `digest-slack.loom` sends one webhook to the mock. Resuming after a crash between the report and the notification sends it once. |
+| V10.5 | The digest's `schedule` block syncs (`weave schedule sync`) and `weave triggers install` prints the expected plan without `--apply`. |
+| V10.6 | READMEs, `LOOM_PROMPT.md` and the gap analysis are updated. |
+
+## Live checks (optional, need accounts)
+
+| # | Check |
+|---|---|
+| L1 | A real Slack, Discord and Teams (Workflows) webhook receives a message. Confirms the `teams` envelope (the one body shape here that is an assumption). |
+| L2 | A real SMTP account (STARTTLS on 587 and SSL on 465) delivers a message. |
+| L3 | `http` calls GitHub's API with a token, and a second tool uses a paid API with `auth_query`. |
+| L4 | `sql` against a PostgreSQL database with a read-only user, and with a writable user (the statement guard is what stops the write). |
+
+## Results
+
+*To be recorded when the work is done: test counts per module, the commands run, and the outcome of each
+live check.*
