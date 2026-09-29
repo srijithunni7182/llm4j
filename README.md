@@ -31,22 +31,21 @@ The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java 
 
 ## 🧵 The Orchestrator: [Loom](loom/ai-agent4j-loom/)
 
-**Loom** is the **Neuro-Symbolic** orchestration layer of the llm4j stack. It provides a specialized DSL (`.loom`) to manage complex, multi-agent workflows with deterministic precision.
+**Loom** is a **neuro-symbolic orchestration language** for multi-agent workflows. Agents reason; the routing,
+limits and safety rules around them are written in a small `.loom` script and enforced by the runtime, not left
+to a model.
 
-* **Neuro-Symbolic**: Combines the reasoning power of LLMs with the rigid reliability of symbolic logic.
-* **DSL-Driven**: Define agents and workflows in a human-readable script; boot systems without Java recompilation.
-* **Deterministic Routing**: Native support for `handoff`, `delegate`, `parallel` execution, and `loop until` patterns.
-* **Enterprise Governance**: PII guardrails, cost-aware and fallback routing, persistent scheduling, and **human approval gates**: `approve: [Publish]` on an agent makes those tool calls wait for a person (durably, holding no thread).
-* **Tools, Knowledge and Checks in the Script**: `tool Search { use: serpapi api_key: env.SERPAPI_KEY }`, built-in `web_search`/`calculator`, OpenAPI specs as tools, and `knowledge Handbook { source: "docs/" embedding: "gemini/text-embedding-004" }` for grounded answers. Nothing is silently ignored: `weave check` reports every problem with its line before anything runs.
-* **Memory, Voice, Guards and Providers in the Script**: agents that remember each user (`memory { conversation: "chats" session: "{user_id}" facts: "facts.json" }`), speak and listen in Indian languages (`voice { speak: "sarvam/bulbul:v2" }`, and `translate`, `transcribe` and friends as tools), keep personal data from the model (`guard { pii: mask bias: warn }`), use knowledge graphs, script-defined personas and remote skills, and reach any Gemini, Claude, Ollama or Sarvam endpoint (`provider Box { use: ollama base_url: "…" }`). `weave run --trace` shows every thought, tool call and cost live.
-* **Durable Runs**: Every step is journaled (memory, file or SQL). A run waiting on a person holds no thread, resumes on any server when the answer arrives, and a crashed run picks up after its last step. The script doesn't change.
-* **Data-Driven Routing**: `for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} -> {fix.output} }`: iterate over what an agent returned and route each item to the agent it names, in one line.
-* **Cost Budgets**: `budget { tokens: 200000 }` for a run, `budget { tokens: 20000 per_call: 2000 }` for an agent, `budget 5000 tokens` for a step or loop. Over-budget calls are refused before they reach the model; `weave run --max-tokens` caps any script, and every run reports where its tokens went.
-* **Pause and Resume on Limits**: a rate limit or daily quota no longer kills a long-running workflow. ai-agent4j reads when the limit resets; Loom pauses the run (no thread held) and resumes it then. `budget { tokens: 100000 per day when_exhausted: suspend }` gives background agents a daily allowance, and `schedule { cron: "0 7 * * *" run: Digest() }` runs workflows on a schedule, all kept in a trigger store that cron, systemd, launchd, Windows Task Scheduler or Cloud Scheduler can wake (`weave triggers install`).
-* **Any Model, One Line**: `model: "gemini-2.5-flash"`, `"sarvam/sarvam-m"`, `"ollama/llama3"` or `"claude-opus-5-5"`; the rest of the script doesn't change.
-* **Bounded, Resilient Steps**: `loop until … max 5 … on_exhausted`, `retry 2 backoff 2s timeout 90s`, per-step `expecting { }` schemas and per-agent `temperature:`.
+* **Readable workflows**: `delegate`, `parallel`, `for each`, bounded `loop until`, `alt` and typed output
+  schemas, in a script you can run without recompiling Java.
+* **Built for long-running, autonomous work**: every step is journaled, so runs survive restarts, wait for
+  people without holding a thread, pause on rate limits and resume when they lift, and run on schedules.
+* **Spend you can't overrun**: token, call and money budgets per run, agent or step, checked before each call.
+* **Everything ai-agent4j can do, from the script**: tools, knowledge bases, human approvals, memory, voice
+  in Indian languages, PII guards, and any Gemini, Sarvam, Ollama or Claude model.
+* **Checked and observable**: `weave check` finds problems before anything runs; `weave run --trace` shows
+  every step live.
 
-👉 **[Master Loom Orchestration](loom/ai-agent4j-loom/LOOM_GUIDE.md)** · **[Budgets, Pausing and Scheduling](loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md)** · **[ai-agent4j Budgets and Rate Limits](ai-agent4j/wiki/Budgets-and-Rate-Limits.md)**
+👉 **[Loom overview](loom/ai-agent4j-loom/README.md)** · **[Why Loom? (vs. LangGraph)](loom/ai-agent4j-loom/WHY_LOOM.md)** · **[Language Guide](loom/ai-agent4j-loom/LOOM_GUIDE.md)** · **[Budgets, Pausing and Scheduling](loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md)**
 
 ## 🧠 The Memory: [Engram](engram/engram-core/)
 

@@ -48,6 +48,8 @@ only does what models are good at — reasoning about content.
 
 Loom is that layer, designed as a first-class language.
 
+👉 **[Why Loom?](WHY_LOOM.md)** How Loom runs long-running, autonomous workflows, and how it compares with LangGraph.
+
 ---
 
 ## How it works
@@ -137,6 +139,39 @@ delegate "Analyze data" to AnalystAgent -> result
 ```text
 call ValidateAndApprove(draft) -> approved_draft
 ```
+
+---
+
+## Everything ai-agent4j can do, from the script
+
+Tools, knowledge, approvals, memory, voice, guards and providers are declared next to the agents that use
+them. Secrets only ever come from the environment (`env.NAME`), and nothing is silently ignored: `weave check`
+reports every problem with its line before anything runs.
+
+```text
+tool Search          { use: serpapi  api_key: env.SERPAPI_KEY }
+tool Refunds         { use: openapi  spec: "specs/refunds.json"  auth_header: "X-API-Key"  auth_value: env.REFUNDS_KEY }
+knowledge Handbook   { source: "docs/"  embedding: "gemini/text-embedding-004" }
+provider Box         { use: ollama  base_url: "http://gpu-box:11434" }
+
+agent Support {
+    model: "gemini-2.5-flash"
+    tools: [Search, Refunds, calculator]
+    knowledge: [Handbook]                                      // grounded answers from your documents
+    approve: [Refunds]                                         // these tool calls wait for a person
+    memory { conversation: "chats"  session: "{user_id}"       // remembers each user
+             facts: "facts.json"  embedding: "gemini/text-embedding-004" }
+    voice  { speak: "sarvam/bulbul:v2" }                       // answers aloud, in Indian languages (SARVAM_API_KEY)
+    guard  { pii: mask  bias: warn }                           // personal data never reaches the model
+}
+```
+
+- **Approvals are durable.** An approval is journaled per tool call and holds no thread while it waits.
+- **Voice and language tools.** `translate`, `transcribe` and `speak` are tools too.
+- **More in the script.** Knowledge graphs, personas declared in the script, and skills fetched from a URL.
+- **See it live.** `weave run --trace` shows every plan, tool call and token spent as it happens.
+
+The [Language Guide](LOOM_GUIDE.md#tools-knowledge-and-approvals) covers each block in detail.
 
 ---
 
