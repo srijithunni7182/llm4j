@@ -129,7 +129,7 @@ class ProvidersTest {
                 """)).isInstanceOfSatisfying(LoomLoadException.class, e -> assertThat(e.getMessage())
                 .contains("line 1: provider P: api_key must come from the environment")
                 .contains("line 2: provider Q: environment variable MISSING is not set")
-                .contains("line 3: provider R: unknown use: openai; use one of gemini, ollama, sarvam")
+                .contains("line 3: provider R: unknown use: openai; use one of gemini, anthropic, ollama, sarvam")
                 .contains("line 4: provider gemini: the name gemini is reserved")
                 .contains("line 5: provider S: unknown option colour")
                 .contains("line 6: provider S: declared twice")
@@ -194,5 +194,62 @@ class ProvidersTest {
         assertThatThrownBy(() -> DefaultLLMClientFactory.forProvider(new ProviderSpec("X", "openai", null, "k"), "m"))
                 .hasMessageContaining("unknown provider kind");
         assertThat(DefaultLLMClientFactory.forProvider(new ProviderSpec("G", "gemini", "https://g.example", "k"), "gemini-x")).isNotNull();
+    }
+
+    static final String CLAUDE_ANSWER = "```json\\n{\\\"thought\\\": \\\"t\\\", \\\"final_answer\\\": \\\"hi\\\"}\\n```";
+
+    static MockResponse claude(String text) {
+        return new MockResponse().setHeader("Content-Type", "application/json").setBody(
+                "{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-opus-5-5\","
+                        + "\"content\":[{\"type\":\"text\",\"text\":\"" + text + "\"}],\"stop_reason\":\"end_turn\","
+                        + "\"usage\":{\"input_tokens\":7,\"output_tokens\":3}}");
+    }
+
+    @Test
+    void anthropicModelsResolveByNameAndThroughDeclarations() throws Exception {
+        server.enqueue(claude(CLAUDE_ANSWER));
+        Map<String, String> env = Map.of("ANTHROPIC_API_KEY", "sk-ant-test", "ANTHROPIC_BASE_URL", base());
+        Harness h = new Harness(dir);
+        var e = h.executor("""
+                agent A { model: "anthropic/claude-opus-5-5" }
+                workflow Main() { delegate "hello" to A -> out }
+                """, new DefaultLLMClientFactory(env::get), null);
+        e.initialize();
+        e.executeWorkflow("Main", Map.of());
+        RecordedRequest r = server.takeRequest();
+        assertThat(r.getPath()).isEqualTo("/v1/messages");
+        assertThat(r.getHeader("x-api-key")).isEqualTo("sk-ant-test");
+        assertThat(r.getHeader("anthropic-version")).isEqualTo("2023-06-01");
+        String body = r.getBody().readUtf8();
+        assertThat(body).contains("\"model\":\"claude-opus-5-5\"").contains("\"max_tokens\":16000")
+                .doesNotContain("temperature"); // the agent's default temperature is left out for this model
+        assertThat(e.getContext().getVariable("out")).isEqualTo("hi");
+
+        server.enqueue(claude(CLAUDE_ANSWER));
+        Harness h2 = new Harness(dir);
+        h2.env.put("TEAM_KEY", "sk-ant-team");
+        var e2 = h2.executor("""
+                provider Team { use: anthropic  api_key: env.TEAM_KEY  base_url: "%s" }
+                agent B { model: "Team/claude-haiku-4-5" }
+                workflow Main() { delegate "hello" to B -> out }
+                """.formatted(base()), new DefaultLLMClientFactory(n -> null), null);
+        e2.initialize();
+        e2.executeWorkflow("Main", Map.of());
+        RecordedRequest r2 = server.takeRequest();
+        assertThat(r2.getHeader("x-api-key")).isEqualTo("sk-ant-team");
+        assertThat(r2.getBody().readUtf8()).contains("\"model\":\"claude-haiku-4-5\"").contains("\"temperature\"");
+    }
+
+    @Test
+    void anthropicNeedsItsKeyAndItsNameIsReserved() {
+        DefaultLLMClientFactory none = new DefaultLLMClientFactory(n -> null);
+        assertThat(none.problem("claude-opus-5-5")).isEqualTo("model claude-opus-5-5 needs ANTHROPIC_API_KEY in the environment");
+        assertThat(none.problem("anthropic/claude-haiku-4-5")).contains("ANTHROPIC_API_KEY");
+        assertThat(new DefaultLLMClientFactory(Map.of("ANTHROPIC_API_KEY", "k")::get).problem("claude-sonnet-5-5")).isNull();
+        assertThatThrownBy(() -> none.createClient("claude-opus-5-5")).hasMessageContaining("ANTHROPIC_API_KEY");
+        assertThatThrownBy(() -> new Harness(dir).ready("provider anthropic { use: anthropic api_key: env.K }"))
+                .hasMessageContaining("the name anthropic is reserved");
+        assertThatThrownBy(() -> new Harness(dir).executor("agent A { model: \"claude-opus-5-5\" }", none, null).initialize())
+                .isInstanceOf(LoomLoadException.class).hasMessageContaining("needs ANTHROPIC_API_KEY");
     }
 }

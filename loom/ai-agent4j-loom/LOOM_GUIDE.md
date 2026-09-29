@@ -121,8 +121,8 @@ Every setting takes effect, and anything Loom can't honour is rejected before th
 line number. `weave check` runs those checks without running anything.
 
 **Not supported yet** (rejected with a clear message; `--lenient` turns them into warnings while you
-migrate): guardrail statement types other than `PII` (use an agent's `guard { }` for bias). OpenAI and
-Anthropic chat models aren't available yet: ai-agent4j has no provider for them.
+migrate): guardrail statement types other than `PII` (use an agent's `guard { }` for bias). OpenAI chat
+models aren't available yet: ai-agent4j has no provider for them.
 
 ### Tools, Knowledge and Approvals
 
@@ -278,6 +278,7 @@ workflow Main(recording) {
 `model:` understands these names:
 
 - `gemini-…` (key in `GEMINI_API_KEY`);
+- `claude-…` or `anthropic/<model>` (`ANTHROPIC_API_KEY`), e.g. `claude-opus-5-5`, `claude-haiku-4-5`;
 - `ollama/<model>` (at `OLLAMA_BASE_URL`, default `http://localhost:11434`);
 - `sarvam/<model>` (`SARVAM_API_KEY`).
 
@@ -291,7 +292,7 @@ agent Local  { model: "Box/llama3" }
 agent Indic  { model: "Team/sarvam-m" }
 ```
 
-- `use:` is `gemini`, `ollama` or `sarvam`.
+- `use:` is `gemini`, `anthropic`, `ollama` or `sarvam`.
 - `api_key` must come from the environment.
 - Declared providers work in routing policies too.
 - An unknown model, or a missing key, is reported when the script loads.

@@ -396,7 +396,7 @@ public class HarnessExecutor implements LoomEngine {
                         + "/… models; pick another name");
             }
             if (!ProviderSpec.KINDS.contains(p.getKind())) {
-                c.error(p.getLine(), who, "unknown use: " + p.getKind() + "; use one of gemini, ollama, sarvam");
+                c.error(p.getLine(), who, "unknown use: " + p.getKind() + "; use one of gemini, anthropic, ollama, sarvam");
                 continue;
             }
             for (var e : p.getOptions().entrySet()) {

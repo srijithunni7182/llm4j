@@ -88,14 +88,15 @@ class SarvamChatProviderTest {
     }
 
     @Test
-    void chatStream_shouldThrowUnsupportedOperationException() {
-        // Arrange
+    void chatStream_streamsThroughTheHttpClientAndKeepsTypedErrors() {
+        // Streaming is supported now (uniform provider contract; full behaviour in SarvamContractTest).
         LLMRequest request =
                 LLMRequest.builder()
                         .messages(Collections.singletonList(Message.user("test")))
                         .build();
+        when(httpClient.stream(any(String.class), any(String.class), any(Headers.class)))
+                .thenThrow(new io.github.llm4j.exception.AuthenticationException("bad key", 401, "{}"));
 
-        // Act & Assert
-        assertThrows(UnsupportedOperationException.class, () -> provider.chatStream(request));
+        assertThrows(io.github.llm4j.exception.AuthenticationException.class, () -> provider.chatStream(request));
     }
 }

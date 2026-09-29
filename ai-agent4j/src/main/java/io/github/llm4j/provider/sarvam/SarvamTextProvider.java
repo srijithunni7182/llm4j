@@ -80,7 +80,7 @@ public class SarvamTextProvider
         } catch (io.github.llm4j.exception.RateLimitException e) {
             throw e;
         } catch (Exception e) {
-            throw new ProviderException(getProviderName(), "Translation failed", e);
+            throw io.github.llm4j.provider.Providers.typed(getProviderName(), "Translation failed", e);
         }
     }
 
@@ -118,7 +118,7 @@ public class SarvamTextProvider
         } catch (io.github.llm4j.exception.RateLimitException e) {
             throw e;
         } catch (Exception e) {
-            throw new ProviderException(getProviderName(), "Transliteration failed", e);
+            throw io.github.llm4j.provider.Providers.typed(getProviderName(), "Transliteration failed", e);
         }
     }
 
@@ -157,7 +157,7 @@ public class SarvamTextProvider
         } catch (io.github.llm4j.exception.RateLimitException e) {
             throw e;
         } catch (Exception e) {
-            throw new ProviderException(getProviderName(), "Language detection failed", e);
+            throw io.github.llm4j.provider.Providers.typed(getProviderName(), "Language detection failed", e);
         }
     }
 

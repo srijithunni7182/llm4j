@@ -1,5 +1,7 @@
 package io.github.llm4j.provider.ollama;
 
+import io.github.llm4j.provider.Providers;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -63,14 +65,48 @@ public class OllamaProvider implements DescribableProvider {
         } catch (io.github.llm4j.exception.RateLimitException e) {
             throw e;
         } catch (IOException | LLMException e) {
-            throw new ProviderException(getProviderName(), "Failed to process request", e);
+            throw Providers.typed(getProviderName(), "Failed to process request", e);
         }
     }
 
+    /**
+     * Streams with {@code "stream": true}: Ollama answers with one JSON object per line; each line's
+     * {@code message.content} is a chunk, and the line with {@code done: true} carries the finish reason
+     * and token counts for the final chunk.
+     */
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
-        logger.warn("chatStream is not yet implemented for the Ollama provider.");
-        throw new UnsupportedOperationException("Streaming is not yet implemented for Ollama provider");
+        String model = request.getModel() != null ? request.getModel() : config.getDefaultModel();
+        if (model == null) model = getFirstAvailableModel();
+        if (model == null) {
+            throw new InvalidRequestException("Model must be specified in request or config, and no models found on server");
+        }
+        String answering = model;
+        io.github.llm4j.http.StreamingBody body;
+        try {
+            body = httpClient.stream(baseUrl + "/chat", buildRequestJson(request, model, true), buildHeaders());
+        } catch (IOException | LLMException e) {
+            throw Providers.typed(getProviderName(), "Failed to start streaming", e);
+        }
+        return body.lines().map(line -> {
+            JsonNode root;
+            try {
+                root = objectMapper.readTree(line);
+            } catch (IOException e) {
+                throw new ProviderException(getProviderName(), "Unreadable stream line: " + line, e);
+            }
+            if (root.has("error")) {
+                throw new ProviderException(getProviderName(), root.path("error").asText("Unknown error"), 500);
+            }
+            if (root.path("done").asBoolean(false)) {
+                String reason = root.has("done_reason") ? root.path("done_reason").asText() : "stop";
+                return Providers.finalChunk(reason,
+                        root.has("prompt_eval_count") ? root.path("prompt_eval_count").asInt() : null,
+                        root.has("eval_count") ? root.path("eval_count").asInt() : null, answering);
+            }
+            return Providers.textChunk(root.path("message").path("content").asText(""), answering);
+        }).filter(chunk -> !chunk.getContent().isEmpty() || chunk.getFinishReason() != LLMResponse.FinishReason.UNKNOWN
+                || chunk.getTokenUsage() != null).onClose(body::close);
     }
 
     @Override
@@ -105,7 +141,7 @@ public class OllamaProvider implements DescribableProvider {
             throw e;
         } catch (IOException | LLMException e) {
             logger.error("Failed to list models from Ollama API", e);
-            throw new ProviderException(getProviderName(), "Failed to list models", e);
+            throw Providers.typed(getProviderName(), "Failed to list models", e);
         }
     }
 
@@ -124,9 +160,13 @@ public class OllamaProvider implements DescribableProvider {
     }
 
     private String buildRequestJson(LLMRequest request, String model) throws IOException {
+        return buildRequestJson(request, model, false);
+    }
+
+    private String buildRequestJson(LLMRequest request, String model, boolean stream) throws IOException {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("model", model);
-        root.put("stream", false);
+        root.put("stream", stream);
 
         ArrayNode messagesArray = root.putArray("messages");
 
@@ -184,6 +224,7 @@ public class OllamaProvider implements DescribableProvider {
                 .model(model)
                 .tokenUsage(tokenUsage)
                 .finishReason(finishReason)
+                .addMetadata(Providers.FINISH_REASON_RAW, finishReason)
                 .build();
     }
 }

@@ -768,7 +768,7 @@ public class LoomParser {
             match(TokenType.COMMA);
         }
         consume(TokenType.RBRACE, "Expect '}' after provider " + name.getValue() + ".");
-        if (provider.getKind() == null) throw error(name, "provider " + name.getValue() + " needs use: gemini | ollama | sarvam");
+        if (provider.getKind() == null) throw error(name, "provider " + name.getValue() + " needs use: gemini | anthropic | ollama | sarvam");
         return provider;
     }
 

@@ -6,13 +6,13 @@
 
 <img src="docs/images/hero.png" width="50%" alt="AI Agent4J Hero">
 
-**Build autonomous agents, RAG pipelines, and specialized tools with Google Gemini, Sarvam AI, and local LLMs.**
+**Build autonomous agents, RAG pipelines, and specialized tools with Google Gemini, Anthropic Claude, Sarvam AI, and local LLMs.**
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.srijithunni7182/ai-agent4j.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.srijithunni7182/ai-agent4j)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-orange)](https://www.oracle.com/java/technologies/downloads/#java17)
 
-`ai-agent4j` is a high-performance, modular LLM library for Java that prioritizes simplicity and correctness. It provides a unified API for cloud providers (Gemini), regional specialists (Sarvam AI), and local models (Ollama).
+`ai-agent4j` is a high-performance, modular LLM library for Java that prioritizes simplicity and correctness. It provides a unified API for cloud providers (Gemini, Claude), regional specialists (Sarvam AI), and local models (Ollama). Every provider meets [one contract](wiki/Providers-and-the-Uniform-Contract.md): the same requests, finish reasons, exceptions and streaming, so you switch models by changing a name.
 
 ---
 
@@ -56,7 +56,9 @@ Explore the full capabilities of the framework through our detailed guides:
 
 ## 🚀 Key Features
 
+- **🔁 One Contract, Any Provider**: Gemini, Claude, Sarvam and Ollama behave the same — requests, finish reasons, exceptions, token usage and streaming — checked by a shared conformance suite and a key-gated live suite. See [Providers and the Uniform Contract](wiki/Providers-and-the-Uniform-Contract.md).
 - **🤖 Google Gemini Native**: Optimized support for Gemini 1.5 Flash, Pro, and 2.x.
+- **🧠 Anthropic Claude**: `AnthropicProvider` over plain HTTP (no SDK): handles Claude's quirks (top-level system prompt, required `max_tokens`, models that reject `temperature`, refusals, 529 "overloaded") and streams.
 - **🛠️ ReAct Agent Framework**: Built-in reasoning loops with self-correction.
 
 ### Steps to Create a Tool

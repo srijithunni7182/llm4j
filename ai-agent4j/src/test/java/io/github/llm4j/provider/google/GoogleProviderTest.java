@@ -98,7 +98,10 @@ class GoogleProviderTest {
         ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
         verify(mockHttpClient).post(anyString(), captor.capture(), any(Headers.class));
 
-        assertThat(captor.getValue()).contains("You are a helpful bot.\\n\\nAre you a bot?");
+        // Contract R1.1: the system prompt goes in Gemini's systemInstruction, not the user's text
+        assertThat(captor.getValue())
+                .contains("\"systemInstruction\":{\"parts\":[{\"text\":\"You are a helpful bot.\"}]}")
+                .contains("{\"role\":\"user\",\"parts\":[{\"text\":\"Are you a bot?\"}]}");
     }
 
     @Test

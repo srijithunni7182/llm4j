@@ -19,7 +19,9 @@ import java.util.stream.Stream;
  *   <li>{@code gemini-*} (any name containing {@code gemini}): Google, {@code GEMINI_API_KEY};
  *   <li>{@code ollama/<model>}, or a name containing llama, gemma or mistral: Ollama at
  *       {@code OLLAMA_BASE_URL} (default {@code http://localhost:11434});
- *   <li>{@code sarvam/<model>}: Sarvam, {@code SARVAM_API_KEY}, optionally {@code SARVAM_BASE_URL}.
+ *   <li>{@code sarvam/<model>}: Sarvam, {@code SARVAM_API_KEY}, optionally {@code SARVAM_BASE_URL};
+ *   <li>{@code anthropic/<model>} or {@code claude-*}: Anthropic, {@code ANTHROPIC_API_KEY}, optionally
+ *       {@code ANTHROPIC_BASE_URL}.
  * </ul>
  */
 public class DefaultLLMClientFactory implements LLMClientFactory {
@@ -35,11 +37,12 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
         this.env = env;
     }
 
-    private enum Kind { GEMINI, OLLAMA, SARVAM }
+    private enum Kind { GEMINI, OLLAMA, SARVAM, ANTHROPIC }
 
     private static Kind kindOf(String modelName) {
         String m = modelName.toLowerCase(Locale.ROOT);
         if (m.startsWith("sarvam/")) return Kind.SARVAM;
+        if (m.startsWith("anthropic/") || m.startsWith("claude-")) return Kind.ANTHROPIC;
         if (m.contains("gemini")) return Kind.GEMINI;
         if (m.startsWith("ollama/") || m.contains("llama") || m.contains("gemma") || m.contains("mistral")) return Kind.OLLAMA;
         return null;
@@ -60,11 +63,12 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
         if (modelName == null || modelName.isBlank()) return "no model given";
         Kind kind = kindOf(modelName);
         if (kind == null) {
-            return "unknown model \"" + modelName + "\": use gemini-…, ollama/<model>, sarvam/<model>, "
+            return "unknown model \"" + modelName + "\": use gemini-…, claude-… (or anthropic/<model>), ollama/<model>, sarvam/<model>, "
                     + "or a provider declared in the script (provider Name { use: … }, then \"Name/<model>\")";
         }
         if (kind == Kind.GEMINI && geminiKey() == null) return "model " + modelName + " needs GEMINI_API_KEY in the environment";
         if (kind == Kind.SARVAM && env("SARVAM_API_KEY") == null) return "model " + modelName + " needs SARVAM_API_KEY in the environment";
+        if (kind == Kind.ANTHROPIC && env("ANTHROPIC_API_KEY") == null) return "model " + modelName + " needs ANTHROPIC_API_KEY in the environment";
         return null;
     }
 
@@ -86,6 +90,12 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
                 if (key == null) throw new IllegalStateException("SARVAM_API_KEY environment variable is required for model: " + modelName);
                 yield forProvider(new ProviderSpec("sarvam", "sarvam", env("SARVAM_BASE_URL"), key), modelName.substring("sarvam/".length()));
             }
+            case ANTHROPIC -> {
+                String key = env("ANTHROPIC_API_KEY");
+                if (key == null) throw new IllegalStateException("ANTHROPIC_API_KEY environment variable is required for model: " + modelName);
+                yield forProvider(new ProviderSpec("anthropic", "anthropic", env("ANTHROPIC_BASE_URL"), key),
+                        modelName.startsWith("anthropic/") ? modelName.substring("anthropic/".length()) : modelName);
+            }
         };
     }
 
@@ -98,6 +108,7 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
             case "gemini" -> new GoogleProvider(config.build());
             case "ollama" -> new OllamaProvider(config.build());
             case "sarvam" -> new SarvamChatProvider(config.build());
+            case "anthropic" -> new io.github.llm4j.provider.anthropic.AnthropicProvider(config.build());
             default -> throw new IllegalArgumentException("unknown provider kind " + spec.kind() + "; use one of " + ProviderSpec.KINDS);
         };
         return wrap(provider);
@@ -110,16 +121,6 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
     }
 
     private static LLMClient wrap(LLMProvider provider) {
-        return new LLMClient() {
-            @Override
-            public LLMResponse chat(LLMRequest request) {
-                return provider.chat(request);
-            }
-
-            @Override
-            public Stream<LLMResponse> chatStream(LLMRequest request) {
-                return provider.chatStream(request);
-            }
-        };
+        return new io.github.llm4j.DefaultLLMClient(provider);
     }
 }
