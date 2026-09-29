@@ -149,6 +149,11 @@ public final class JudgeCalls {
         return JudgePrompt.sanitize(text);
     }
 
+    /** The text to grade from an {@code AgentResult}, {@code LLMResponse} or {@code String}. */
+    public static String outputText(Object actual) {
+        return OutputExtractor.extract(actual);
+    }
+
     /** The shared judge system prompt (data-only notice + 1-5 rubric). */
     public static String judgeSystemPrompt() {
         return JudgePrompt.SYSTEM_PROMPT;
