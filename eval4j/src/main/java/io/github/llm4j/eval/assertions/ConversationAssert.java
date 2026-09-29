@@ -1,8 +1,10 @@
 package io.github.llm4j.eval.assertions;
 
 import io.github.llm4j.agent.AgentResult;
+import io.github.llm4j.eval.judge.Transcript;
 import java.util.List;
 import org.assertj.core.api.AbstractObjectAssert;
+import org.assertj.core.api.ObjectAssert;
 
 /**
  * AssertJ custom assertion for a multi-turn conversation — a sequence of {@link AgentResult}s from
@@ -33,6 +35,16 @@ public class ConversationAssert
             }
         }
         return this;
+    }
+
+    /**
+     * Pairs the given user inputs with these results into a {@link Transcript} so
+     * conversation-level judge conditions apply: {@code
+     * assertThat(results).conversation(inputs).is(conv.roleAdherence(...))}.
+     */
+    public ObjectAssert<Transcript> conversation(List<String> userInputs) {
+        isNotNull();
+        return new ObjectAssert<>(Transcript.fromResults(userInputs, actual));
     }
 
     /** Returns an {@link AgentResultAssert} for the turn at the given zero-based index. */

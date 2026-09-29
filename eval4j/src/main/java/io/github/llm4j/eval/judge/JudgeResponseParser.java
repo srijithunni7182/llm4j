@@ -38,6 +38,10 @@ final class JudgeResponseParser {
         try {
             node = OBJECT_MAPPER.readTree(jsonText);
         } catch (Exception e) {
+            JudgeVerdict salvaged = salvageRating(jsonText);
+            if (salvaged != null) {
+                return salvaged;
+            }
             throw new JudgeEvaluationException(
                     "Judge response was not valid JSON: " + judgeOutput, e);
         }
@@ -62,6 +66,31 @@ final class JudgeResponseParser {
         String reasoning = node.has("reasoning") ? node.get("reasoning").asText() : "";
         double score = (rating - MIN_RATING) / (double) (MAX_RATING - MIN_RATING);
         return new JudgeVerdict(score, "[" + rating + "/5] " + reasoning);
+    }
+
+    private static final Pattern RATING_FIELD = Pattern.compile("\"rating\"\\s*:\\s*\"?([1-5])\"?");
+    private static final Pattern REASONING_FIELD =
+            Pattern.compile("\"reasoning\"\\s*:\\s*\"(.*)\"\\s*,\\s*\"rating\"", Pattern.DOTALL);
+
+    /**
+     * Judges sometimes emit a well-formed rating next to reasoning that contains unescaped quotes,
+     * which breaks strict JSON parsing even though the verdict is unambiguous. Recover the rating
+     * (and best-effort reasoning) instead of failing the whole evaluation; anything that doesn't
+     * contain exactly one in-range rating is still rejected.
+     */
+    private static JudgeVerdict salvageRating(String text) {
+        Matcher matcher = RATING_FIELD.matcher(text);
+        if (!matcher.find()) {
+            return null;
+        }
+        int rating = Integer.parseInt(matcher.group(1));
+        if (matcher.find()) {
+            return null; // ambiguous: more than one rating field
+        }
+        Matcher reasoning = REASONING_FIELD.matcher(text);
+        String why = reasoning.find() ? reasoning.group(1) : "(reasoning unparseable)";
+        double score = (rating - MIN_RATING) / (double) (MAX_RATING - MIN_RATING);
+        return new JudgeVerdict(score, "[" + rating + "/5] " + why);
     }
 
     private static String extractJson(String judgeOutput) {

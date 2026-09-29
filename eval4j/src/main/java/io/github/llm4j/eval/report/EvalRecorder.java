@@ -1,0 +1,84 @@
+package io.github.llm4j.eval.report;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Supplier;
+
+/**
+ * Collects one {@link EvalRecord} per judged evaluation so {@link EvalReportExtension} can write
+ * reports and check regression baselines. Recording is a no-op unless the recorder is active —
+ * {@link EvalReportExtension} activates it — so code that never applies the extension behaves
+ * exactly as before.
+ *
+ * <p>State is global to the JVM and thread-safe. The current test's identity is tracked per thread
+ * (set by the extension around each test), so parallel tests attribute records correctly.
+ */
+public final class EvalRecorder {
+
+    private static final List<EvalRecord> RECORDS = new CopyOnWriteArrayList<>();
+    private static final ThreadLocal<String[]> CURRENT_TEST = new ThreadLocal<>();
+    private static volatile boolean active;
+    private static volatile Supplier<Instant> clock = Instant::now;
+
+    private EvalRecorder() {}
+
+    public static void activate() {
+        active = true;
+    }
+
+    public static void deactivate() {
+        active = false;
+    }
+
+    public static boolean isActive() {
+        return active;
+    }
+
+    /** Clears all records and deactivates. Mainly for tests. */
+    public static void reset() {
+        RECORDS.clear();
+        CURRENT_TEST.remove();
+        active = false;
+        clock = Instant::now;
+    }
+
+    /** Injects a clock (for deterministic reports in tests). */
+    public static void setClock(Supplier<Instant> newClock) {
+        clock = newClock == null ? Instant::now : newClock;
+    }
+
+    static void setCurrentTest(String suite, String testName) {
+        CURRENT_TEST.set(new String[] {suite, testName});
+    }
+
+    static void clearCurrentTest() {
+        CURRENT_TEST.remove();
+    }
+
+    /** Records one evaluation; no-op when the recorder is not active. */
+    public static void record(
+            String metric, double score, double threshold, String reason, String judgeIdentifier) {
+        if (!active) {
+            return;
+        }
+        String[] test = CURRENT_TEST.get();
+        RECORDS.add(
+                new EvalRecord(
+                        test == null ? null : test[0],
+                        test == null ? null : test[1],
+                        metric,
+                        score,
+                        threshold,
+                        score >= threshold,
+                        reason,
+                        judgeIdentifier,
+                        clock.get().toString()));
+    }
+
+    /** A snapshot of everything recorded so far, in recording order. */
+    public static List<EvalRecord> records() {
+        return new ArrayList<>(RECORDS);
+    }
+}

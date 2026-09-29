@@ -16,6 +16,7 @@ import org.junit.platform.testkit.engine.Events;
  * since the extension's behavior only makes sense in terms of engine callbacks
  * (testSuccessful/testFailed/afterAll), not as a plain unit under direct method calls.
  */
+@org.junit.jupiter.api.parallel.ResourceLock("eval4j-recorder")
 class EvalReportExtensionTest {
 
     @ExtendWith(EvalReportExtension.class)
