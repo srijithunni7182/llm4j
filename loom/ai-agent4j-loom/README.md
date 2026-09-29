@@ -48,6 +48,8 @@ only does what models are good at — reasoning about content.
 
 Loom is that layer, designed as a first-class language.
 
+👉 **[Why Loom?](WHY_LOOM.md)** How Loom runs long-running, autonomous workflows, and how it compares with LangGraph.
+
 ---
 
 ## How it works
@@ -111,7 +113,7 @@ text, but symbolic conditions need typed values. Loom addresses this directly.
 
 ```text
 agent Auditor {
-    model: "claude-opus-5-5"
+    model: "gemini-2.5-pro"
     system: "Audit the code for security vulnerabilities."
     output_schema {
         status: enum["SECURE", "VULNERABLE"]
@@ -140,28 +142,61 @@ call ValidateAndApprove(draft) -> approved_draft
 
 ---
 
+## Everything ai-agent4j can do, from the script
+
+Tools, knowledge, approvals, memory, voice, guards and providers are declared next to the agents that use
+them. Secrets only ever come from the environment (`env.NAME`), and nothing is silently ignored: `weave check`
+reports every problem with its line before anything runs.
+
+```text
+tool Search          { use: serpapi  api_key: env.SERPAPI_KEY }
+tool Refunds         { use: openapi  spec: "specs/refunds.json"  auth_header: "X-API-Key"  auth_value: env.REFUNDS_KEY }
+knowledge Handbook   { source: "docs/"  embedding: "gemini/text-embedding-004" }
+provider Box         { use: ollama  base_url: "http://gpu-box:11434" }
+
+agent Support {
+    model: "gemini-2.5-flash"
+    tools: [Search, Refunds, calculator]
+    knowledge: [Handbook]                                      // grounded answers from your documents
+    approve: [Refunds]                                         // these tool calls wait for a person
+    memory { conversation: "chats"  session: "{user_id}"       // remembers each user
+             facts: "facts.json"  embedding: "gemini/text-embedding-004" }
+    voice  { speak: "sarvam/bulbul:v2" }                       // answers aloud, in Indian languages (SARVAM_API_KEY)
+    guard  { pii: mask  bias: warn }                           // personal data never reaches the model
+}
+```
+
+- **Approvals are durable.** An approval is journaled per tool call and holds no thread while it waits.
+- **Voice and language tools.** `translate`, `transcribe` and `speak` are tools too.
+- **More in the script.** Knowledge graphs, personas declared in the script, and skills fetched from a URL.
+- **See it live.** `weave run --trace` shows every plan, tool call and token spent as it happens.
+
+The [Language Guide](LOOM_GUIDE.md#tools-knowledge-and-approvals) covers each block in detail.
+
+---
+
 ## Any model, one line
 
 Every agent picks its model by name, and every provider behaves the same underneath (ai-agent4j's
 [uniform provider contract](../../ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md)), so switching is a one-word change:
 
 ```text
-agent Planner  { model: "claude-opus-5-5" }          // ANTHROPIC_API_KEY
 agent Writer   { model: "gemini-2.5-flash" }          // GEMINI_API_KEY
-agent Local    { model: "ollama/llama3" }             // OLLAMA_BASE_URL, default localhost
 agent Indic    { model: "sarvam/sarvam-m" }           // SARVAM_API_KEY
+agent Local    { model: "ollama/llama3" }             // OLLAMA_BASE_URL, default localhost
+agent Planner  { model: "claude-opus-5-5" }           // ANTHROPIC_API_KEY
 
-provider Box   { use: ollama     base_url: "http://gpu-box:11434" }
-provider Team  { use: anthropic  api_key: env.TEAM_ANTHROPIC_KEY }
-agent Reviewer { model: "Team/claude-haiku-4-5" }
+provider Box   { use: ollama  base_url: "http://gpu-box:11434" }
+provider Team  { use: sarvam  api_key: env.TEAM_SARVAM_KEY }
+agent Reviewer { model: "Team/sarvam-m" }
 ```
 
 - **Checked before running**: `weave check app.loom` reports an unknown model, a missing key or any other
   problem with its line, before any model is called.
 - **Watched while running**: `weave run app.loom --trace` streams every plan, tool call, observation and
   token spent (`--trace=json` for machines).
-- **Verified live**: a Loom script with a Claude agent, the calculator tool and an `output_schema` runs in
-  the live suite against the real API (`mvn -Plive test` with `ANTHROPIC_API_KEY` set).
+- **Checked against the real services**: the live suite (`mvn -Plive test`) runs a Loom script with a tool
+  and an `output_schema` on every provider you have credentials for.
 
 ---
 

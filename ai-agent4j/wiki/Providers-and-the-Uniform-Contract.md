@@ -4,9 +4,9 @@ ai-agent4j talks to **Google Gemini, Anthropic Claude, Sarvam and Ollama** behin
 between them by changing the provider or the model name; the rest of your code stays the same:
 
 ```java
-LLMClient client = new DefaultLLMClient(new AnthropicProvider(
-        LLMConfig.builder().apiKey(System.getenv("ANTHROPIC_API_KEY")).defaultModel("claude-opus-5-5").build()));
-// …or GoogleProvider / SarvamChatProvider / OllamaProvider: nothing below changes
+LLMClient client = new DefaultLLMClient(new GoogleProvider(
+        LLMConfig.builder().apiKey(System.getenv("GEMINI_API_KEY")).defaultModel("gemini-2.5-flash").build()));
+// …or SarvamChatProvider / OllamaProvider / AnthropicProvider: nothing below changes
 
 AgentResult result = ReActAgent.builder().llmClient(client).addTool(new CalculatorTool()).build()
         .run("What is 1234 * 5678?");
@@ -88,8 +88,8 @@ new AnthropicProvider(LLMConfig.builder()
 - **Sampling settings.** `AnthropicModels.acceptsSampling(model)` decides whether `temperature`/`top_p`
   are sent. It's an allowlist of older models, so new models are safe by default.
 - **ReAct agents.** Claude Opus 5.5 refuses (`reasoning_extraction`) prompts that ask it to fill in a
-  `"thought"` field. That's why `ReActAgent` asks every model for a short `"plan"` note instead. Replies
-  that use `"thought"` are still accepted.
+  `"thought"` field. So `ReActAgent` asks every model for a short `"plan"` note; `"thought"` replies are
+  still accepted.
 - **In Loom**: `model: "anthropic/claude-opus-5-5"` (or just `"claude-opus-5-5"`), with
   `ANTHROPIC_API_KEY`, or `provider Team { use: anthropic api_key: env.KEY }`.
 
@@ -117,9 +117,9 @@ US$0.50.
 
 ### Status per provider
 
-| Provider | Conformance suite (mock) | Live |
+| Provider | Conformance suite (every build) | Verified against the real service |
 |---|---|---|
-| Anthropic | ✅ | ✅ full suite, L1–L11, on `claude-opus-5-5` and `claude-haiku-4-5` (2026-09-29) |
-| Gemini | ✅ | bad-key check ✅ (2026-09-29); full suite pending a key |
-| Sarvam | ✅ | pending a key |
-| Ollama | ✅ | pending a local server |
+| Gemini | ✅ | ✅ Verified by the maintainer with a real API key (every showcase app runs on Gemini); bad-key check through the live suite (2026-09-29) |
+| Sarvam | ✅ | ✅ Verified by the maintainer against the real Sarvam API |
+| Ollama | ✅ | ✅ Verified by the maintainer against a local Ollama server |
+| Anthropic | ✅ | ✅ Full live suite, L1–L11, on `claude-opus-5-5` and `claude-haiku-4-5` (2026-09-29) |

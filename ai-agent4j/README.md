@@ -49,7 +49,6 @@ Explore the full capabilities of the framework through our detailed guides:
 
 ### Integrations
 
-- [**🧠 Anthropic Claude**](wiki/Providers-and-the-Uniform-Contract.md#anthropic-claude) — Claude over plain HTTP, live-verified against the real API.
 - [**🇮🇳 Sarvam AI Guide**](docs/SARVAM.md) — Indian language voice agents (TTS, STT, Translation).
 - [**🏠 Ollama Integration**](docs/OLLAMA.md) — Running local models like Gemma and Llama with zero cost/internet.
 - [**🔌 MCP Integration**](wiki/MCP-Integration.md) — Connecting to Model Context Protocol servers.
@@ -59,11 +58,14 @@ Explore the full capabilities of the framework through our detailed guides:
 ## 🚀 Key Features
 
 - **🔁 One Contract, Any Provider**: Gemini, Claude, Sarvam and Ollama behave the same — requests, finish reasons, exceptions, token usage and streaming — checked by a shared conformance suite and a key-gated live suite. See [Providers and the Uniform Contract](wiki/Providers-and-the-Uniform-Contract.md).
-- **🤖 Google Gemini Native**: Gemini 2.x and later, with native system instructions, thinking-aware usage and server-sent-event streaming.
-- **🧠 Anthropic Claude**: `AnthropicProvider` over plain HTTP (no SDK): handles Claude's quirks (top-level system prompt, required `max_tokens`, models that reject `temperature`, refusals, 529 "overloaded") and streams.
+- **🔌 Four Native Providers, No SDKs**: each over plain HTTP, with its quirks handled inside the provider:
+  - **Google Gemini**: native system instructions, thinking-aware usage, a bad key reported as an auth error;
+  - **Anthropic Claude**: required `max_tokens`, models that reject `temperature`, refusals, 529 "overloaded";
+  - **Sarvam AI**: the leading `<think>` block removed, plus voice (STT, TTS) and translation;
+  - **Ollama**: local models with zero cost and no internet.
 - **🌊 Streaming Everywhere**: `chatStream` streams natively for every built-in provider (server-sent events for Gemini, Claude and Sarvam; NDJSON for Ollama): text chunks, then one final chunk with finish reason and usage. Custom providers that only implement `chat` still stream.
 - **🚨 Typed Errors**: `AuthenticationException`, `InvalidRequestException`, `RateLimitException`, `ServiceUnavailableException` and `ContentBlockedException` for every provider, with the provider's message and request id, and never your key.
-- **✅ Verified Live**: a key-gated live suite (`-Plive`) runs the same checks against the real APIs. Claude (`claude-opus-5-5`, `claude-haiku-4-5`) passes all of them, including one agent task run unchanged across providers.
+- **✅ Live Suite**: a key-gated suite (`-Plive`) runs the same checks against the real services for every provider you have credentials for, including one agent task run unchanged across all of them.
 - **🛠️ ReAct Agent Framework**: Built-in reasoning loops with self-correction. Add a tool by implementing `Tool` and registering it with `ReActAgent.builder().addTool(...)`.
 - **🧬 Autonomous Orchestration**: Manager-Worker patterns with agent delegation.
 - **⏰ Scheduled Tasks**: Native support for recurring autonomous background actions.
@@ -141,13 +143,13 @@ every tier is limited. Loom builds on this to pause workflows and resume them au
   reasons (raw value in `metadata.finish_reason_raw`), typed exceptions and native streaming. Additive
   only: no public signature changed. One conformance suite checks all four against recorded wire formats
   in every build.
-- **Anthropic provider**: `AnthropicProvider` talks to the Messages API over the library's own HTTP client:
-  no SDK, no new dependency. It supports effort, streaming, refusals and 529 retries.
+- **New provider, Anthropic**: `AnthropicProvider` joins Gemini, Sarvam and Ollama, built to the same
+  contract over the library's own HTTP client, with no SDK and no new dependency.
 - **Live suite**: `mvn -Plive test` with `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `SARVAM_API_KEY` or
   `OLLAMA_BASE_URL` runs the contract against the real APIs, under a token budget per provider. Default
   builds never run it.
-- **ReAct protocol**: agents now ask models for a short `"plan"` note instead of a `"thought"` field.
-  Claude Opus 5.5 refuses prompts that ask it to write out its reasoning; replies with `"thought"` are still
+- **ReAct protocol**: agents now ask models for a short `"plan"` note instead of a `"thought"` field, since
+  some models refuse prompts that ask them to write out their reasoning. Replies with `"thought"` are still
   accepted.
 - **Gemini**: native `systemInstruction`, long answers split across parts kept whole, thinking tokens
   counted, and a bad key reported as `AuthenticationException` (Gemini sends a 400).
@@ -293,9 +295,13 @@ public class GeminiExample {
 Only the provider line changes; requests, responses, streaming and exceptions stay the same:
 
 ```java
-LLMProvider provider = new AnthropicProvider(LLMConfig.builder()
-        .apiKey(System.getenv("ANTHROPIC_API_KEY")).defaultModel("claude-opus-5-5").build());
-// or new GoogleProvider(...), new SarvamChatProvider(...), new OllamaProvider(...)
+// config(key, model) = LLMConfig.builder().apiKey(System.getenv(key)).defaultModel(model).build()
+LLMProvider provider = switch (choice) {
+    case "gemini"    -> new GoogleProvider(config("GEMINI_API_KEY", "gemini-2.5-flash"));
+    case "sarvam"    -> new SarvamChatProvider(config("SARVAM_API_KEY", "sarvam-m"));
+    case "claude"    -> new AnthropicProvider(config("ANTHROPIC_API_KEY", "claude-haiku-4-5"));
+    default          -> new OllamaProvider(LLMConfig.builder().defaultModel("llama3.2").build());
+};
 
 LLMClient client = new DefaultLLMClient(provider);
 
