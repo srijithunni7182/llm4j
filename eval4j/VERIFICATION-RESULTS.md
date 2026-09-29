@@ -45,8 +45,49 @@ figures are optimistic.**
 | Pairwise agreement with label on decisive results ≥ 75% | 100% (12/12) | 100% (12/12) |
 | Cross-judge consistency (same clean/defective ordering) | yes | yes |
 
+### Round 2: harder dataset and prompt tightening
+
+Round-1 reasons (printed per case) showed two prompt problems, plus one dataset bug, and I fixed them:
+- *Completeness* over-penalized: the judge distrusted terse "Done, booked" replies because a
+  transcript can't verify actions. New criteria: judge each intention alone and take the assistant's
+  statements about actions it performed as true.
+- *Knowledge retention* penalized generic closers ("You're welcome!") for not using known facts.
+  New criteria: rate low only on contradiction, re-asking, or ignoring a fact that matters.
+- Dataset bug: the round-1 Spanish-only "clean" case ended in English, so the judge was right. Fixed.
+- Judge replies whose reasoning contained unescaped quotes broke JSON parsing (seen once the
+  longer criteria produced longer reasoning); the parser now salvages an unambiguous in-range rating.
+
+A fresh, harder dataset (`CalibrationDatasetV2`: near-miss distractors, zero/all-relevant contexts,
+paraphrased and numeric recall, subtle defects, clean cases with pleasantries and clarifying
+questions, equivalent-answer pairs) was measured on the old prompts first, then on the new ones
+(`calibration-round2-baseline-old-prompts.md`, `calibration-round2-tightened-prompts.md`):
+
+| Round-2 result | Old prompts (Haiku / Sonnet) | Tightened (Haiku / Sonnet) |
+|---|---|---|
+| Completeness clean mean | 0.75 / 0.92 | **1.00 / 1.00** |
+| Completeness defective mean (expected ~0.5) | 0.08 / 0.25 | **0.42 / 0.50** |
+| Knowledge retention clean mean | 0.92 / 1.00 | **1.00 / 1.00** |
+| Retention: clean > matched defective | 5/6 / 6/6 | **6/6 / 6/6** |
+| RAG per-chunk agreement (κ) | 98.1% (0.95) / same | unchanged (prompts not touched) |
+| Pairwise, better-answer pairs correct | 12/12 / 12/12 | unchanged |
+| Pairwise, equivalent pairs judged TIE | 3/4 / 4/4 | unchanged |
+| Order flips **without** the swap mitigation | **3/16 (19%)** / 0/16 | 3/16 / 1/16 |
+
+Reading it:
+- The prompt fixes worked on both judges: clean conversations now score 1.00 and the one-of-two-goals
+  defect lands near 0.5 instead of near zero.
+- **The swap mitigation earns its keep:** Haiku flipped its verdict when only the order changed on 3
+  of 16 pairs (Sonnet 1 of 16); with the mitigation those become ties, not wrong wins, and no
+  decisive-but-wrong verdicts occurred.
+- Caveats: this is still author-labelled data. The prompt changes were driven by the round-1
+  diagnosis, but the round-2 baseline was in view when I finalized them, so round 2 is not a pristine
+  hold-out. Haiku is lenient on partial-support recall (0.75 for cases labelled 0.5) and made one
+  false preference on an equivalent pair. `samples(3)` benefit and score stability remain unmeasured
+  at temperature 0. **The round-1 dataset was not re-run on the new prompts** (the API key ran out of
+  credit); its numbers above are old-prompt numbers.
+
 What this does and doesn't show:
-- **The RAG and pairwise datasets were too easy.** Perfect scores, zero order-flips without
+- **The round-1 RAG and pairwise datasets were too easy** (round 2 above is harder). Perfect scores, zero order-flips without
   mitigation, and zero score variance (temperature 0) mean they cannot demonstrate discrimination on
   hard cases, position-bias mitigation, or `samples(3)` benefit. Those claims remain **unproven**.
 - **Conversation metrics discriminate but are miscalibrated in places.** Haiku scored *clean*

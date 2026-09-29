@@ -104,4 +104,32 @@ class JudgeResponseParserTest {
         return String.format(
                 "```json%n{\"reasoning\": \"%s\", \"rating\": %d}%n```", reasoning, rating);
     }
+
+    @Test
+    void parse_recoversRatingWhenReasoningHasUnescapedQuotes() {
+        String output =
+                "```json\n{\"reasoning\": \"The reply says \"You're welcome\" which is fine\","
+                        + " \"rating\": 4}\n```";
+        JudgeVerdict verdict = JudgeResponseParser.parse(output);
+        org.assertj.core.api.Assertions.assertThat(verdict.score()).isEqualTo(0.75);
+        org.assertj.core.api.Assertions.assertThat(verdict.reason())
+                .startsWith("[4/5]")
+                .contains("You're welcome");
+    }
+
+    @Test
+    void parse_stillRejectsBrokenJsonWithoutAUsableRating() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () ->
+                                JudgeResponseParser.parse(
+                                        "```json\n{\"reasoning\": \"oops\" \"x\"\n```"))
+                .isInstanceOf(JudgeEvaluationException.class);
+        // two rating fields are ambiguous, and 9 is out of range: neither may be salvaged
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> JudgeResponseParser.parse("{\"rating\": 2 \"rating\": 5 bad"))
+                .isInstanceOf(JudgeEvaluationException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> JudgeResponseParser.parse("{\"rating\": 9 bad"))
+                .isInstanceOf(JudgeEvaluationException.class);
+    }
 }

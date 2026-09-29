@@ -44,6 +44,34 @@ public final class ConversationJudgeCondition extends Condition<Object> {
     private static final int REASON_SNIPPET = 200;
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    /**
+     * Retention is judged on whether the reply <em>violates</em> a known fact, not on whether it
+     * mentions one: replies that don't need the facts (pleasantries, closings) must not be
+     * penalized, or clean conversations score below 1.0.
+     */
+    static final String RETENTION_CRITERIA =
+            "Judge only whether the assistant reply respects the known user facts. Rate it low ONLY"
+                    + " if it contradicts a known fact, asks the user to repeat something they"
+                    + " already said, or ignores a fact that clearly matters to what is being"
+                    + " answered (for example a dietary restriction, allergy, location, budget,"
+                    + " schedule, or the language the user asked to be answered in). A reply that"
+                    + " does not mention the facts is fine when they are not needed; brief"
+                    + " pleasantries or closings such as \"You're welcome\" are fine.";
+
+    /**
+     * Completeness is judged per intention and takes the assistant's reports of actions at face
+     * value: a text transcript cannot prove a booking or email happened, and a judge that demands
+     * proof marks clean conversations down.
+     */
+    static final String COMPLETENESS_CRITERIA =
+            "Judge only this one user intention (ignore the user's other requests). By the end of the"
+                    + " conversation, possibly across several turns, the assistant has handled it."
+                    + " Treat the assistant's statements about actions it performed (booked,"
+                    + " sent, cancelled, set) as true: a transcript cannot verify them, so do not"
+                    + " penalize a lack of proof. Rate it low if the intention was ignored, only"
+                    + " acknowledged without being carried out or answered, or only partly"
+                    + " fulfilled.";
+
     private static final String EXTRACT_FACTS_SYSTEM =
             """
             You extract facts a USER states about themselves or their situation in a conversation.
@@ -249,9 +277,7 @@ public final class ConversationJudgeCondition extends Condition<Object> {
             JudgeVerdict v =
                     calls.rate(
                             Metric.KNOWLEDGE_RETENTION.displayName,
-                            "The assistant reply is consistent with the known user facts: it does"
-                                    + " not contradict them, ask for them again, or ignore them"
-                                    + " when they are relevant.",
+                            RETENTION_CRITERIA,
                             "turn:" + n,
                             sections);
             if (v.score() >= PASS_SCORE) {
@@ -301,8 +327,7 @@ public final class ConversationJudgeCondition extends Condition<Object> {
             JudgeVerdict v =
                     calls.rate(
                             Metric.COMPLETENESS.displayName,
-                            "By the end of the conversation the assistant has fully satisfied this"
-                                    + " user intention.",
+                            COMPLETENESS_CRITERIA,
                             "intention:" + g,
                             sections);
             if (v.score() >= PASS_SCORE) {
