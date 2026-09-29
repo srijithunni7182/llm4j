@@ -40,6 +40,58 @@ public final class LlmJudgePresets {
         return new LlmJudgePresets(Objects.requireNonNull(judge, "judge cannot be null"));
     }
 
+    /**
+     * Contextual precision: are the relevant retrieved chunks ranked above irrelevant ones. Needs
+     * the question, the known-good answer and the ranked chunks. One judge call per chunk.
+     */
+    public RagContextCondition contextualPrecision(
+            String input, String expectedOutput, List<String> retrievalContext) {
+        return contextualPrecision(input, expectedOutput, retrievalContext, DEFAULT_THRESHOLD);
+    }
+
+    public RagContextCondition contextualPrecision(
+            String input, String expectedOutput, List<String> retrievalContext, double threshold) {
+        return RagContextCondition.builder(RagContextCondition.Metric.PRECISION)
+                .input(input)
+                .expectedOutput(expectedOutput)
+                .retrievalContext(retrievalContext)
+                .threshold(threshold)
+                .calls(JudgeCalls.using(judge))
+                .build();
+    }
+
+    /** Contextual recall: does the retrieved context contain what the expected answer needs. */
+    public RagContextCondition contextualRecall(
+            String input, String expectedOutput, List<String> retrievalContext) {
+        return contextualRecall(input, expectedOutput, retrievalContext, DEFAULT_THRESHOLD);
+    }
+
+    public RagContextCondition contextualRecall(
+            String input, String expectedOutput, List<String> retrievalContext, double threshold) {
+        return RagContextCondition.builder(RagContextCondition.Metric.RECALL)
+                .input(input)
+                .expectedOutput(expectedOutput)
+                .retrievalContext(retrievalContext)
+                .threshold(threshold)
+                .calls(JudgeCalls.using(judge))
+                .build();
+    }
+
+    /** Contextual relevancy: the fraction of retrieved chunks relevant to the input. */
+    public RagContextCondition contextualRelevancy(String input, List<String> retrievalContext) {
+        return contextualRelevancy(input, retrievalContext, DEFAULT_THRESHOLD);
+    }
+
+    public RagContextCondition contextualRelevancy(
+            String input, List<String> retrievalContext, double threshold) {
+        return RagContextCondition.builder(RagContextCondition.Metric.RELEVANCY)
+                .input(input)
+                .retrievalContext(retrievalContext)
+                .threshold(threshold)
+                .calls(JudgeCalls.using(judge))
+                .build();
+    }
+
     /** Semantic match against a known-good answer, unlike a plain string-equality check. */
     public LlmJudgeCondition correctness(String expectedOutput) {
         return correctness(expectedOutput, DEFAULT_THRESHOLD);

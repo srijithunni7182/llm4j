@@ -99,6 +99,8 @@ public final class LlmJudgeCondition extends Condition<Object> {
                 new TextDescription(
                         "llm-judged \"%s\" (score=%.2f, threshold=%.2f): %s",
                         name, combined.score(), threshold, combined.reason()));
+        io.github.llm4j.eval.report.EvalRecorder.record(
+                name, combined.score(), threshold, combined.reason(), judgeIdentifier);
         return combined.score() >= threshold;
     }
 

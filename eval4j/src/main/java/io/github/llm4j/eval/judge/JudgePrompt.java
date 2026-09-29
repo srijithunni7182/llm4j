@@ -88,7 +88,7 @@ final class JudgePrompt {
         sb.append("What to check: ").append(criteria).append("\n\n");
 
         if (input != null && !input.isBlank()) {
-            sb.append("Input:\n").append(input).append("\n\n");
+            sb.append("Input:\n").append(sanitize(input)).append("\n\n");
         }
         if (context != null && !context.isEmpty()) {
             appendDelimited(sb, "CONTEXT", "- " + String.join("\n- ", context));
@@ -97,7 +97,7 @@ final class JudgePrompt {
             appendDelimited(sb, "RETRIEVED CONTEXT", "- " + String.join("\n- ", retrievalContext));
         }
         if (expectedOutput != null && !expectedOutput.isBlank()) {
-            sb.append("Expected Output:\n").append(expectedOutput).append("\n\n");
+            sb.append("Expected Output:\n").append(sanitize(expectedOutput)).append("\n\n");
         }
         if (trajectory != null && !trajectory.isBlank()) {
             appendDelimited(sb, "AGENT TRAJECTORY", trajectory);
@@ -106,11 +106,33 @@ final class JudgePrompt {
         return sb.toString();
     }
 
+    /**
+     * Neutralizes forged delimiter markers inside untrusted text: any {@code <<<} is replaced with a
+     * look-alike so embedded text can never open or close a BEGIN/END block.
+     */
+    static String sanitize(String text) {
+        return text == null ? "" : text.replace("<<<", "\u2039\u2039\u2039");
+    }
+
+    /**
+     * Builds a judge user message from named, delimited data sections (in insertion order). Used by
+     * the multi-call metrics (RAG chunks, conversation turns, statements) that don't fit the
+     * single-shot {@link #buildUserMessage} shape.
+     */
+    static String buildSectionsMessage(
+            String criterionName, String criteria, java.util.Map<String, String> sections) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Criterion: ").append(criterionName).append('\n');
+        sb.append("What to check: ").append(criteria).append("\n\n");
+        sections.forEach((label, content) -> appendDelimited(sb, label, content));
+        return sb.toString();
+    }
+
     private static void appendDelimited(StringBuilder sb, String label, String content) {
         sb.append("<<<BEGIN ")
                 .append(label)
                 .append(">>>\n")
-                .append(content)
+                .append(sanitize(content))
                 .append("\n<<<END ")
                 .append(label)
                 .append(">>>\n\n");
