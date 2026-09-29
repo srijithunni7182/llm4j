@@ -197,7 +197,7 @@ public final class JudgeCalls {
             }
             StringBuilder hex = new StringBuilder();
             for (byte b : digest.digest()) {
-                hex.append(String.format("%02x", b));
+                hex.append(String.format(java.util.Locale.ROOT, "%02x", b));
             }
             return hex.toString();
         } catch (java.security.NoSuchAlgorithmException e) {

@@ -204,7 +204,7 @@ public final class RagContextCondition extends Condition<Object> {
         for (int i = 0; i < chunks.size(); i++) {
             double sim = cosine(query, embeddings.embed(chunks.get(i)));
             relevant[i] = sim >= similarityThreshold;
-            reasons[i] = String.format("cosine similarity %.3f", sim);
+            reasons[i] = String.format(java.util.Locale.ROOT, "cosine similarity %.3f", sim);
         }
     }
 
