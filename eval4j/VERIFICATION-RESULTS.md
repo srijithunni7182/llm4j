@@ -20,11 +20,20 @@ implementation. **Not everything in the plan could be executed; the gaps are lis
 | Formula correctness | Precision known-answer + property tests; Wilson interval against reference values; gate boundary table incl. floating-point edge (0.85→0.80) |
 | Report safety | HTML has no external references; hostile strings escaped |
 
+## Live run (Claude judge)
+
+`Eval4jParityIntegrationTest` ran against `claude-haiku-4-5-20251001` (via `EVAL4J_ANTHROPIC_API_KEY`):
+5/5 passed in ~36 s — real judge output parsed for RAG relevancy/precision/recall, knowledge
+retention, pairwise comparison (with position swap) and dataset synthesis, and scores moved in the
+expected direction (good context > noisy context, attentive > forgetful assistant, better answer wins,
+generated scenarios well-formed). This is one small run with lenient direction-only assertions, not
+the calibration study.
+
 ## NOT executed (blocked or out of scope for this session)
 
 | Plan item | Why |
 |---|---|
-| Live-model checks (E3), `Eval4jParityIntegrationTest` | No Gemini/Google API key was available in the session environment, so the live suite is written and compiles but has **never been run**. It can also target a local Ollama judge (`EVAL4J_JUDGE=ollama`, optional `OLLAMA_MODEL`/`OLLAMA_BASE_URL`); Ollama could not be installed in this sandbox (ollama.com, its model registry and GitHub releases are unreachable), so that path is untested too. With no judge configured the suite skips cleanly. Score-direction claims are verified against stubs only. |
+| Live-model checks against Gemini/Ollama | No Gemini key was available and Ollama could not be installed, so those paths are untested. (The live suite did run against Claude — see the next section.) It can also target a local Ollama judge (`EVAL4J_JUDGE=ollama`, optional `OLLAMA_MODEL`/`OLLAMA_BASE_URL`); Ollama could not be installed in this sandbox (ollama.com, its model registry and GitHub releases are unreachable), so that path is untested too. With no judge configured the suite skips cleanly. Score-direction claims are verified against stubs only. |
 | Calibration study (§4): human-labeled agreement, discrimination margins, cross-judge consistency, noise measurement | Needs labeled datasets, human labelers and a live judge. Until it is run, the judged metrics should be treated as **unvalidated/experimental** per plan §4.2. |
 | Fresh-adopter trial (§10) | Needs a person unfamiliar with the code. |
 | Sample-app and CI-simulation scenarios (E4/E5, S1.x–S5.x walk-throughs) | Only their automated equivalents (component/TestKit tests) were run. |
