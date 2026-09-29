@@ -24,7 +24,7 @@ implementation. **Not everything in the plan could be executed; the gaps are lis
 
 | Plan item | Why |
 |---|---|
-| Live-model checks (E3), `Eval4jParityIntegrationTest` | No Gemini/Google API key was available in the session environment, so the live suite is written and compiles but has **never been run**. Score-direction claims are verified against stubs only. |
+| Live-model checks (E3), `Eval4jParityIntegrationTest` | No Gemini/Google API key was available in the session environment, so the live suite is written and compiles but has **never been run**. It can also target a local Ollama judge (`EVAL4J_JUDGE=ollama`, optional `OLLAMA_MODEL`/`OLLAMA_BASE_URL`); Ollama could not be installed in this sandbox (ollama.com, its model registry and GitHub releases are unreachable), so that path is untested too. With no judge configured the suite skips cleanly. Score-direction claims are verified against stubs only. |
 | Calibration study (§4): human-labeled agreement, discrimination margins, cross-judge consistency, noise measurement | Needs labeled datasets, human labelers and a live judge. Until it is run, the judged metrics should be treated as **unvalidated/experimental** per plan §4.2. |
 | Fresh-adopter trial (§10) | Needs a person unfamiliar with the code. |
 | Sample-app and CI-simulation scenarios (E4/E5, S1.x–S5.x walk-throughs) | Only their automated equivalents (component/TestKit tests) were run. |

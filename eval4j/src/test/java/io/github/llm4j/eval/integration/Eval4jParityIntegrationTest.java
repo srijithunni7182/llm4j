@@ -16,18 +16,20 @@ import io.github.llm4j.eval.judge.JudgeVerdict;
 import io.github.llm4j.eval.judge.LlmJudgePresets;
 import io.github.llm4j.eval.judge.Transcript;
 import io.github.llm4j.provider.google.GoogleProvider;
+import io.github.llm4j.provider.ollama.OllamaProvider;
 import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Live checks of the deepeval-parity features against a real Gemini judge: does real model output
- * parse, and do scores move in the right direction? Not run by {@code mvn test}; run with {@code
- * mvn -pl eval4j -am verify -P integration-tests} and {@code GEMINI_API_KEY} (or {@code
- * GOOGLE_API_KEY}) set. Skipped, not failed, without a key. Assertions check direction with lenient
- * margins, never exact scores. Judge calls are cached under {@code target/eval4j-live-cache} to
- * limit spend.
+ * Live checks of the deepeval-parity features against a real judge (Gemini, or a local Ollama
+ * server when {@code EVAL4J_JUDGE=ollama} / {@code OLLAMA_MODEL} / {@code OLLAMA_BASE_URL} is set —
+ * small local models are noisier, so prefer a 7B+ instruct model): does real model output parse,
+ * and do scores move in the right direction? Not run by {@code mvn test}; run with {@code mvn -pl
+ * eval4j -am verify -P integration-tests} and {@code GEMINI_API_KEY} (or {@code GOOGLE_API_KEY})
+ * set. Skipped, not failed, without a key. Assertions check direction with lenient margins, never
+ * exact scores. Judge calls are cached under {@code target/eval4j-live-cache} to limit spend.
  */
 class Eval4jParityIntegrationTest {
 
@@ -35,20 +37,60 @@ class Eval4jParityIntegrationTest {
 
     @BeforeAll
     static void setUp() {
+        String ollamaModel = System.getenv("OLLAMA_MODEL");
+        String ollamaUrl = System.getenv("OLLAMA_BASE_URL");
+        boolean useOllama =
+                "ollama".equalsIgnoreCase(System.getenv("EVAL4J_JUDGE"))
+                        || (ollamaModel != null && !ollamaModel.isBlank())
+                        || (ollamaUrl != null && !ollamaUrl.isBlank());
+        if (useOllama) {
+            judge = ollamaJudge(ollamaUrl, ollamaModel);
+        } else {
+            judge = geminiJudge();
+        }
+    }
+
+    /**
+     * Local (or remote) Ollama server; {@code OLLAMA_BASE_URL} like {@code http://host:11434/api}.
+     */
+    private static LLMClient ollamaJudge(String baseUrl, String model) {
+        LLMConfig.Builder discovery = LLMConfig.builder();
+        if (baseUrl != null && !baseUrl.isBlank()) {
+            discovery.baseUrl(baseUrl);
+        }
+        String resolved = model;
+        try {
+            if (resolved == null || resolved.isBlank()) {
+                resolved = new OllamaProvider(discovery.build()).getFirstAvailableModel();
+            }
+        } catch (RuntimeException e) {
+            resolved = null;
+        }
+        assumeTrue(
+                resolved != null && !resolved.isBlank(),
+                "No Ollama model available (start `ollama serve`, pull a model, or set"
+                        + " OLLAMA_MODEL/OLLAMA_BASE_URL) - skipping live parity checks");
+        LLMConfig.Builder config = LLMConfig.builder().defaultModel(resolved);
+        if (baseUrl != null && !baseUrl.isBlank()) {
+            config.baseUrl(baseUrl);
+        }
+        return new DefaultLLMClient(new OllamaProvider(config.build()));
+    }
+
+    private static LLMClient geminiJudge() {
         String apiKey = System.getenv("GEMINI_API_KEY");
         if (apiKey == null || apiKey.isBlank()) {
             apiKey = System.getenv("GOOGLE_API_KEY");
         }
         assumeTrue(
                 apiKey != null && !apiKey.isBlank(),
-                "GEMINI_API_KEY (or GOOGLE_API_KEY) not set - skipping live parity checks");
+                "No judge configured: set GEMINI_API_KEY/GOOGLE_API_KEY, or EVAL4J_JUDGE=ollama"
+                        + " (optionally OLLAMA_MODEL, OLLAMA_BASE_URL) - skipping live parity checks");
         String model =
                 new GoogleProvider(LLMConfig.builder().apiKey(apiKey).build())
                         .getFirstAvailableModel();
-        judge =
-                new DefaultLLMClient(
-                        new GoogleProvider(
-                                LLMConfig.builder().apiKey(apiKey).defaultModel(model).build()));
+        return new DefaultLLMClient(
+                new GoogleProvider(LLMConfig.builder().apiKey(apiKey).defaultModel(model).build()));
     }
 
     private static final String QUESTION =
