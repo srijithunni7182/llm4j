@@ -17,7 +17,7 @@ doesn't map cleanly onto how Java developers already test things, so it wasn't k
 | Structural checks | `EvalCase` object + `Metric` classes | AssertJ custom assertion methods on `AgentResult`/`LLMResponse` directly |
 | LLM-as-judge | `GEval`/preset `Metric` subclasses, passed as a list to `assert_test` | A real `org.assertj.core.api.Condition`, passed to the `.is(...)` every AssertJ user already knows |
 | Composing several checks | A Python list: `assert_test(case, [metric1, metric2, metric3])` | Fluent chaining (`.is(a).is(b).is(c)`), or AssertJ's own `allOf`/`SoftAssertions` |
-| Data-driven suites | A `Dataset`/`Synthesizer` abstraction and a separate `deepeval test run` CLI | Plain JUnit 5 `@ParameterizedTest` + `@MethodSource`, run by the same `mvn test` you already use |
+| Data-driven suites | A `Dataset`/`Synthesizer` abstraction and a separate `deepeval test run` CLI | Plain JUnit 5 `@ParameterizedTest` + `@MethodSource`, run by the same `mvn test` you already use; the optional `DatasetSynthesizer` just emits plain YAML |
 | Golden datasets | JSON/CSV loaded into `EvalCase`s | YAML loaded into a plain data record, still fed through `@MethodSource` — no config-driven runner |
 | IDE experience | Dict-shaped kwargs, duck-typed metrics | Typed builders, autocomplete, compile-time checking |
 
