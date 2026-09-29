@@ -111,8 +111,19 @@ public class HarnessExecutor implements LoomEngine {
     private String runId;
     private String scriptRef = "script";
     private boolean lenient;
+    private final io.github.llm4j.loom.tools.ToolFactory toolFactory = new io.github.llm4j.loom.tools.ToolFactory();
+    private Path baseDir = Path.of("").toAbsolutePath();
+    private io.github.llm4j.loom.knowledge.EmbeddingFactory embeddingFactory;
+    private final Map<String, io.github.llm4j.loom.knowledge.KnowledgeIndex> knowledge = new java.util.LinkedHashMap<>();
+    private final Map<String, io.github.llm4j.loom.knowledge.Retriever> retrievers = new HashMap<>();
+    private final Map<String, AgentMemory> memories = new HashMap<>();
+    private final Map<String, AgentGuard> guards = new HashMap<>();
+    private final Map<String, AgentVoice> voices = new HashMap<>();
+    /** Which memory session each running step belongs to (steps may run on other threads). */
+    private final Map<String, String> sessions = new java.util.concurrent.ConcurrentHashMap<>();
     private java.util.function.Function<String, String> envLookup = System::getenv;
     private final List<java.util.function.Consumer<RunSuspended>> suspensionListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final List<TraceListener> traceListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     
     @FunctionalInterface
     public interface DelegateSuccessHandler {
@@ -148,6 +159,18 @@ public class HarnessExecutor implements LoomEngine {
 
     public RunJournal getJournal() {
         return journal;
+    }
+
+    HumanInterface humanInterface() {
+        return humanInterface;
+    }
+
+    String maskPii(String text) {
+        return piiDetector.mask(text, io.github.llm4j.privacy.MaskingStrategy.PLACEHOLDER);
+    }
+
+    void audit(String event, Map<String, Object> data) {
+        auditLogger.logConversationEvent(sessionId, null, event, data);
     }
 
     /** The stable id of the step running on this thread (e.g. inside a tool or approval callback). */
@@ -188,6 +211,61 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     /** Told whenever the run pauses for a limit, before {@link RunSuspended} leaves {@code executeWorkflow}. */
+    /**
+     * Receives the run's events live (thoughts, tool calls, spend, …). Add listeners before
+     * {@link #initialize()}: agents are wired to report only when someone listens.
+     */
+    public void addTraceListener(TraceListener listener) {
+        traceListeners.add(listener);
+    }
+
+    boolean tracing() {
+        return !traceListeners.isEmpty();
+    }
+
+    /** Tells trace listeners; free when nobody listens. */
+    void trace(String type, String agent, String text, Map<String, Object> data) {
+        if (traceListeners.isEmpty()) return;
+        Map<String, Object> copy = new java.util.LinkedHashMap<>();
+        if (data != null) data.forEach((k, v) -> { if (k != null && v != null) copy.put(k, v); });
+        TraceEvent event = new TraceEvent(type, agent, step.get(), text == null ? "" : text,
+                java.util.Collections.unmodifiableMap(copy), clock.instant());
+        for (TraceListener l : traceListeners) {
+            try {
+                l.onEvent(event);
+            } catch (RuntimeException e) {
+                log.warning("Trace listener failed: " + e.getMessage());
+            }
+        }
+    }
+
+    /** Forwards one agent's own events (thoughts, tool calls, observations, spend) to the trace. */
+    private io.github.llm4j.agent.AgentEventListener traceAdapter(String agentName) {
+        return new io.github.llm4j.agent.AgentEventListener() {
+            @Override
+            public void onThought(String thought) {
+                trace(TraceEvent.THOUGHT, agentName, thought, null);
+            }
+
+            @Override
+            public void onAction(String toolName, String toolInput) {
+                trace(TraceEvent.ACTION, agentName, toolName + " " + (toolInput == null ? "" : toolInput),
+                        Map.of("tool", toolName));
+            }
+
+            @Override
+            public void onObservation(String observation) {
+                trace(TraceEvent.OBSERVATION, agentName, observation, null);
+            }
+
+            @Override
+            public void onBudget(io.github.llm4j.budget.BudgetEvent event) {
+                trace(TraceEvent.BUDGET, agentName, event.kind() + " " + event.budget() + ": spent " + event.spent()
+                        + " of " + event.limits(), Map.of("budget", event.budget(), "kind", String.valueOf(event.kind())));
+            }
+        };
+    }
+
     public void addSuspensionListener(java.util.function.Consumer<RunSuspended> listener) {
         suspensionListeners.add(listener);
     }
@@ -239,14 +317,325 @@ public class HarnessExecutor implements LoomEngine {
         this.envLookup = envLookup != null ? envLookup : System::getenv;
     }
 
+    /** How knowledge bases embed text (default: gemini/…, and onnx/… or djl/… with the addons module). */
+    public void setEmbeddingFactory(io.github.llm4j.loom.knowledge.EmbeddingFactory factory) {
+        this.embeddingFactory = factory;
+    }
+
+    private io.github.llm4j.loom.knowledge.EmbeddingFactory embeddings() {
+        if (embeddingFactory == null) embeddingFactory = new io.github.llm4j.loom.knowledge.DefaultEmbeddingFactory(envLookup);
+        return embeddingFactory;
+    }
+
+    /** A knowledge base's index, after {@code initialize()}. */
+    public io.github.llm4j.loom.knowledge.KnowledgeIndex getKnowledge(String name) {
+        return knowledge.get(name);
+    }
+
+    /** Adds a kind of tool scripts can declare with {@code use: <name>}. */
+    public void addToolKind(io.github.llm4j.loom.tools.ToolKind kind) {
+        toolFactory.register(kind);
+    }
+
+    /** Where relative paths in the script (OpenAPI specs, knowledge sources) are resolved. Default: working directory. */
+    public void setBaseDir(Path dir) {
+        this.baseDir = dir != null ? dir.toAbsolutePath() : Path.of("").toAbsolutePath();
+    }
+
     /** The load-time checks for this script, as {@code initialize()} runs them (see {@link ScriptValidator}). */
     public ScriptValidator.Context validationContext() {
         java.util.Set<String> tools = new java.util.HashSet<>(toolRegistry.names());
+        script.getTools().forEach(t -> tools.add(t.getName()));
+        tools.addAll(io.github.llm4j.loom.tools.ToolFactory.BUILT_INS.keySet());
         return new ScriptValidator.Context()
                 .registeredTools(tools)
                 .env(envLookup)
                 .lenient(lenient)
-                .humanInterface(humanInterface != null);
+                .humanInterface(humanInterface != null)
+                .baseDir(baseDir)
+                .templates(promptRegistry == null ? null : id -> promptRegistry.get(id).isPresent())
+                .check(this::checkAgentSettings)
+                .check(this::checkToolsAndApprovals)
+                .check(this::checkKnowledge)
+                .check(this::checkProviders);
+    }
+
+    // ── Model providers ─────────────────────────────────────────────────────────────────────
+
+    /** The declared provider a model name refers to ({@code Box/llama3} → Box), or null. */
+    private io.github.llm4j.loom.ast.ProviderDef declaredProvider(String model) {
+        int slash = model == null ? -1 : model.indexOf('/');
+        if (slash <= 0) return null;
+        String name = model.substring(0, slash);
+        return script.getProviders().stream().filter(p -> p.getName().equals(name)).findFirst().orElse(null);
+    }
+
+    /** A client for a model: at a provider the script declared, else from the client factory. */
+    io.github.llm4j.LLMClient clientFor(String model) {
+        io.github.llm4j.loom.ast.ProviderDef declared = declaredProvider(model);
+        if (declared == null) return llmClientFactory.createClient(model);
+        String baseUrl = option(declared, "base_url");
+        String key = option(declared, "api_key");
+        return llmClientFactory.createClient(new ProviderSpec(declared.getName(), declared.getKind(), baseUrl, key),
+                model.substring(declared.getName().length() + 1));
+    }
+
+    private String option(io.github.llm4j.loom.ast.ToolDef def, String name) {
+        io.github.llm4j.loom.ast.ToolDef.OptionValue v = def.getOptions().get(name);
+        if (v == null) return null;
+        return v.fromEnv() ? envLookup.apply(v.value()) : v.value();
+    }
+
+    private void checkProviders(ScriptValidator.Checker c) {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (io.github.llm4j.loom.ast.ProviderDef p : script.getProviders()) {
+            String who = "provider " + p.getName();
+            if (!seen.add(p.getName())) c.error(p.getLine(), who, "declared twice");
+            if (ProviderSpec.KINDS.contains(p.getName().toLowerCase(java.util.Locale.ROOT))) {
+                c.error(p.getLine(), who, "the name " + p.getName() + " is reserved for the built-in " + p.getName().toLowerCase(java.util.Locale.ROOT)
+                        + "/… models; pick another name");
+            }
+            if (!ProviderSpec.KINDS.contains(p.getKind())) {
+                c.error(p.getLine(), who, "unknown use: " + p.getKind() + "; use one of gemini, ollama, sarvam");
+                continue;
+            }
+            for (var e : p.getOptions().entrySet()) {
+                switch (e.getKey()) {
+                    case "base_url" -> { }
+                    case "api_key" -> {
+                        if (!e.getValue().fromEnv()) {
+                            c.error(p.getLine(), who, "api_key must come from the environment, e.g. api_key: env.MY_KEY");
+                        } else if (envLookup.apply(e.getValue().value()) == null || envLookup.apply(e.getValue().value()).isBlank()) {
+                            c.error(p.getLine(), who, "environment variable " + e.getValue().value() + " is not set");
+                        }
+                    }
+                    default -> c.error(p.getLine(), who, "unknown option " + e.getKey() + "; use base_url or api_key");
+                }
+            }
+            if (!p.getKind().equals("ollama") && !p.getOptions().containsKey("api_key")) {
+                c.error(p.getLine(), who, p.getKind() + " needs api_key: env.<NAME>");
+            }
+        }
+        for (AgentDef a : script.getAgents()) {
+            if (a.getRoutingPolicy() == null) {
+                if (a.getModel() == null) c.error(a.getLine(), "agent " + a.getName(), "needs model: \"…\" or routing: <policy>");
+                else checkModel(c, a.getLine(), "agent " + a.getName(), a.getModel());
+            }
+        }
+        for (RoutingPolicyDef r : script.getRoutingPolicies()) {
+            if (r.getPrimaryModel() != null) checkModel(c, r.getLine(), "routing " + r.getName(), r.getPrimaryModel());
+            for (String fb : r.getFallbackModels()) checkModel(c, r.getLine(), "routing " + r.getName(), fb);
+        }
+    }
+
+    private void checkModel(ScriptValidator.Checker c, int line, String who, String model) {
+        if (declaredProvider(model) != null) {
+            if (model.substring(model.indexOf('/') + 1).isBlank()) c.error(line, who, "model " + model + " names no model after the provider");
+            return;
+        }
+        String problem = llmClientFactory.problem(model);
+        if (problem != null) c.error(line, who, problem);
+    }
+
+    // ── Agent memory, voice and guard settings ──────────────────────────────────────────────
+
+    private static final java.util.Set<String> MEMORY_KEYS = java.util.Set.of(
+            "conversation", "limit", "session", "facts", "embedding", "recall", "min_similarity");
+    private static final java.util.Set<String> VOICE_KEYS = java.util.Set.of("listen", "speak", "language", "voice", "out");
+    private static final java.util.Set<String> GUARD_KEYS = java.util.Set.of("pii", "bias", "bias_model");
+
+    private void checkAgentSettings(ScriptValidator.Checker c) {
+        for (AgentDef a : script.getAgents()) {
+            String who = "agent " + a.getName();
+            if (a.getMemory() != null) checkMemory(c, who, a.getMemory());
+            if (a.getVoice() != null) checkVoice(c, who, a.getVoice());
+            if (a.getGuard() != null) checkGuard(c, who, a.getGuard());
+        }
+    }
+
+    /** Unknown keys and env references (these settings are written in the script, not secrets). */
+    private static void checkKeys(ScriptValidator.Checker c, String who, String block,
+                                  io.github.llm4j.loom.ast.Settings settings, java.util.Set<String> allowed) {
+        for (var e : settings.getValues().entrySet()) {
+            if (!allowed.contains(e.getKey())) {
+                if (block.equals("memory") && (e.getKey().equals("type") || e.getKey().equals("path"))) {
+                    c.error(settings.lineOf(e.getKey()), who, "memory " + e.getKey() + ": is no longer used; write "
+                            + "conversation: \"<directory>\" (or memory) for conversations, and facts: \"<file>\" with embedding: \"…\" for long-term facts");
+                } else {
+                    c.error(settings.lineOf(e.getKey()), who, "unknown " + block + " setting " + e.getKey()
+                            + "; use " + new java.util.TreeSet<>(allowed));
+                }
+            } else if (e.getValue().fromEnv()) {
+                c.error(settings.lineOf(e.getKey()), who, block + " " + e.getKey() + " is written in the script, not taken from the environment");
+            }
+        }
+    }
+
+    private void checkMemory(ScriptValidator.Checker c, String who, AgentDef.MemoryConfig m) {
+        checkKeys(c, who, "memory", m, MEMORY_KEYS);
+        if (!m.has("conversation") && !m.has("facts")) {
+            c.error(m.getLine(), who, "memory needs conversation: \"<directory>\" | memory, or facts: \"<file>\" | memory (or both)");
+        }
+        wholeNumber(c, who, m, "limit");
+        wholeNumber(c, who, m, "recall");
+        if (m.has("min_similarity")) {
+            double v = m.getDouble("min_similarity", -1);
+            if (v < 0 || v > 1) c.error(m.lineOf("min_similarity"), who, "memory min_similarity must be between 0 and 1");
+        }
+        String conversation = m.getConversation();
+        if (conversation != null && !AgentMemory.MEMORY.equals(conversation)
+                && java.nio.file.Files.isRegularFile(baseDir.resolve(conversation))) {
+            c.error(m.lineOf("conversation"), who, "memory conversation: " + conversation + " is a file; give a directory");
+        }
+        if (m.has("facts")) {
+            if (m.getEmbedding() == null) {
+                c.error(m.lineOf("facts"), who, "memory facts need embedding: \"<model>\" (e.g. gemini/text-embedding-004)");
+            } else {
+                String problem = embeddings().problem(m.getEmbedding());
+                if (problem != null) c.error(m.lineOf("embedding"), who, problem);
+            }
+            String facts = m.getFacts();
+            if (facts != null && !AgentMemory.MEMORY.equals(facts) && java.nio.file.Files.isDirectory(baseDir.resolve(facts))) {
+                c.error(m.lineOf("facts"), who, "memory facts: " + facts + " is a directory; give a file, e.g. memory/facts.json");
+            }
+        } else if (m.has("embedding") || m.has("recall") || m.has("min_similarity")) {
+            c.warn(m.getLine(), who, "memory embedding/recall/min_similarity only apply with facts:");
+        }
+    }
+
+    private static void wholeNumber(ScriptValidator.Checker c, String who, io.github.llm4j.loom.ast.Settings s, String key) {
+        if (!s.has(key)) return;
+        try {
+            double v = Double.parseDouble(s.get(key));
+            if (v < 1 || v != Math.floor(v)) throw new NumberFormatException();
+        } catch (RuntimeException e) {
+            c.error(s.lineOf(key), who, key + " must be a positive whole number, got " + s.getValues().get(key));
+        }
+    }
+
+    private void checkVoice(ScriptValidator.Checker c, String who, AgentDef.VoiceConfig v) {
+        checkKeys(c, who, "voice", v, VOICE_KEYS);
+        if (!v.has("listen") && !v.has("speak")) c.error(v.getLine(), who, "voice needs listen: \"sarvam/<model>\" or speak: \"sarvam/<model>\"");
+        for (String key : List.of("listen", "speak")) {
+            String model = v.get(key);
+            if (model == null) continue;
+            if (!model.startsWith(AgentVoice.PREFIX) || model.length() == AgentVoice.PREFIX.length()) {
+                c.error(v.lineOf(key), who, "voice " + key + ": " + model + " is not supported; use sarvam/<model>, e.g. "
+                        + (key.equals("speak") ? "sarvam/bulbul:v2" : "sarvam/saarika:v2.5"));
+            }
+        }
+        if ((v.has("listen") || v.has("speak")) && (envLookup.apply("SARVAM_API_KEY") == null || envLookup.apply("SARVAM_API_KEY").isBlank())) {
+            c.error(v.getLine(), who, "voice needs SARVAM_API_KEY in the environment");
+        }
+        try {
+            io.github.llm4j.loom.tools.SafePaths.inside(baseDir, v.getOut());
+        } catch (IllegalArgumentException e) {
+            c.error(v.lineOf("out"), who, "voice out: " + e.getMessage());
+        }
+    }
+
+    private void checkGuard(ScriptValidator.Checker c, String who, AgentDef.GuardConfig g) {
+        checkKeys(c, who, "guard", g, GUARD_KEYS);
+        if (!g.has("pii") && !g.has("bias")) c.error(g.getLine(), who, "guard needs pii: mask | block | warn, or bias: warn | block");
+        if (g.getPii() != null && !AgentGuard.PII_VALUES.contains(g.getPii())) {
+            c.error(g.lineOf("pii"), who, "guard pii: " + g.getPii() + " is not one of mask, block, warn");
+        }
+        if (g.getBias() != null && !AgentGuard.BIAS_VALUES.contains(g.getBias())) {
+            c.error(g.lineOf("bias"), who, "guard bias: " + g.getBias() + " is not one of warn, block");
+        }
+        if (g.has("bias_model")) {
+            if (!g.has("bias")) c.error(g.lineOf("bias_model"), who, "guard bias_model needs bias: warn | block");
+            else if (g.getBiasModel() != null) checkModel(c, g.lineOf("bias_model"), who, g.getBiasModel());
+        }
+    }
+
+    private void checkKnowledge(ScriptValidator.Checker c) {
+        for (KnowledgeDef kb : script.getKnowledgeBases()) {
+            String who = "knowledge " + kb.getName();
+            if (kb.getType() != null) {
+                c.warn(kb.getLine(), who, "type: is no longer used (every knowledge base is searched by meaning); remove it");
+            }
+            if (kb.getSource() == null) {
+                c.error(kb.getLine(), who, "needs source: \"<file or directory>\"");
+            } else {
+                Path src = io.github.llm4j.loom.knowledge.KnowledgeIndexer.source(kb, baseDir);
+                if (!java.nio.file.Files.exists(src)) {
+                    c.error(kb.getLine(), who, "source " + kb.getSource() + " does not exist (looked in " + src + ")");
+                } else if (!hasIndexableFile(src)) {
+                    c.warn(kb.getLine(), who, "source " + kb.getSource() + " has no text files to index ("
+                            + String.join(", ", new java.util.TreeSet<>(io.github.llm4j.loom.knowledge.KnowledgeIndexer.TEXT)) + ")");
+                }
+            }
+            String problem = embeddings().problem(kb.getEmbeddingProvider());
+            if (problem != null) c.error(kb.getLine(), who, problem);
+            if (kb.getChunkSize() < 1) c.error(kb.getLine(), who, "chunk_size must be positive");
+            else if (kb.getOverlap() >= kb.getChunkSize()) c.error(kb.getLine(), who, "overlap must be smaller than chunk_size");
+        }
+    }
+
+    private static boolean hasIndexableFile(Path src) {
+        try (java.util.stream.Stream<Path> all = java.nio.file.Files.walk(src)) {
+            return all.filter(java.nio.file.Files::isRegularFile).anyMatch(p -> {
+                String n = p.getFileName().toString();
+                int dot = n.lastIndexOf('.');
+                return dot > 0 && io.github.llm4j.loom.knowledge.KnowledgeIndexer.TEXT.contains(n.substring(dot + 1).toLowerCase());
+            });
+        } catch (java.io.IOException e) {
+            return false;
+        }
+    }
+
+    /** Builds (or brings up to date) every knowledge base's index. */
+    private void indexKnowledge() {
+        for (KnowledgeDef kb : script.getKnowledgeBases()) {
+            try {
+                io.github.llm4j.loom.knowledge.KnowledgeIndex index = io.github.llm4j.loom.knowledge.KnowledgeIndexer.index(
+                        kb, embeddings().create(kb.getEmbeddingProvider()), baseDir);
+                knowledge.put(kb.getName(), index);
+                log.info("📚 " + kb.getName() + ": " + index.stats());
+                Map<String, Object> data = new java.util.LinkedHashMap<>();
+                data.put("kb", kb.getName());
+                data.put("files", String.valueOf(index.stats().files()));
+                data.put("skipped", String.valueOf(index.stats().skipped()));
+                data.put("chunks", String.valueOf(index.stats().chunks()));
+                data.put("embedded", String.valueOf(index.stats().embedded()));
+                auditLogger.logConversationEvent(sessionId, null, "knowledge_indexed", data);
+            } catch (Exception e) {
+                throw new LoomLoadException(List.of(new ScriptValidator.Problem(kb.getLine(), "knowledge " + kb.getName(),
+                        "indexing failed: " + e.getMessage(), ScriptValidator.Severity.ERROR)));
+            }
+        }
+    }
+
+    private void checkToolsAndApprovals(ScriptValidator.Checker c) {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (io.github.llm4j.loom.ast.ToolDef t : script.getTools()) {
+            if (!seen.add(t.getName())) c.error(t.getLine(), "tool " + t.getName(), "declared twice");
+            for (String problem : toolFactory.problems(t, envLookup, baseDir)) c.error(t.getLine(), "tool " + t.getName(), problem);
+        }
+        // Built-in names an agent uses (not declared, not registered by the host): their keys must be set too
+        java.util.Set<String> declared = new java.util.HashSet<>();
+        script.getTools().forEach(t -> declared.add(t.getName()));
+        java.util.Set<String> checkedBuiltIns = new java.util.HashSet<>();
+        for (AgentDef a : script.getAgents()) {
+            for (String name : a.getTools()) {
+                if (declared.contains(name) || toolRegistry.getTool(name) != null || !checkedBuiltIns.add(name)) continue;
+                io.github.llm4j.loom.ast.ToolDef builtIn = io.github.llm4j.loom.tools.ToolFactory.builtIn(name);
+                if (builtIn == null) continue;
+                for (String problem : toolFactory.problems(builtIn, envLookup, baseDir)) c.error(a.getLine(), "tool " + name, problem);
+            }
+        }
+        for (AgentDef a : script.getAgents()) {
+            String who = "agent " + a.getName();
+            for (String name : a.getApprove()) {
+                if (!a.getTools().contains(name)) {
+                    c.error(a.getLine(), who, "approve: " + name + " is not one of its tools " + a.getTools());
+                }
+            }
+            if ((a.isApproveAll() || !a.getApprove().isEmpty()) && !c.context().hasHumanInterface()) {
+                c.error(a.getLine(), who, "approve needs someone to ask: set a HumanInterface (weave provides the console)");
+            }
+        }
     }
 
     /** How many times this run has been resumed after pausing for a limit. */
@@ -293,6 +682,37 @@ public class HarnessExecutor implements LoomEngine {
     private VariableContext view() {
         Map<String, Object> l = locals.get();
         return l.isEmpty() ? context : new ScopedContext(l, context);
+    }
+
+    private Tool resolveTool(String name) {
+        for (io.github.llm4j.loom.ast.ToolDef def : script.getTools()) {
+            if (def.getName().equals(name)) return createTool(def);
+        }
+        Tool registered = toolRegistry.getTool(name);
+        if (registered != null) return registered;
+        io.github.llm4j.loom.ast.ToolDef builtIn = io.github.llm4j.loom.tools.ToolFactory.builtIn(name);
+        if (builtIn != null) return createTool(builtIn);
+        throw new IllegalStateException("tool " + name + " is not defined"); // validated earlier
+    }
+
+    private final Map<String, Tool> createdTools = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private Tool createTool(io.github.llm4j.loom.ast.ToolDef def) {
+        return createdTools.computeIfAbsent(def.getName(), n -> {
+            try {
+                return toolFactory.create(def, envLookup, baseDir);
+            } catch (Exception e) {
+                throw new LoomLoadException(List.of(new ScriptValidator.Problem(def.getLine(), "tool " + def.getName(),
+                        "can't be created: " + e.getMessage(), ScriptValidator.Severity.ERROR)));
+            }
+        });
+    }
+
+    private ApprovalGate approvalGate;
+
+    private synchronized ApprovalGate approvals() {
+        if (approvalGate == null) approvalGate = new ApprovalGate(this);
+        return approvalGate;
     }
 
     /** Runs a block, giving each statement a stable step id under the current one. */
@@ -404,6 +824,9 @@ public class HarnessExecutor implements LoomEngine {
         // ── 1b. Budgets ───────────────────────────────────────────────────────
         setUpBudgets();
 
+        // ── 1c. Knowledge bases ───────────────────────────────────────────────
+        indexKnowledge();
+
         // ── 2. Build agents ───────────────────────────────────────────────────
         for (AgentDef agentDef : script.getAgents()) {
             String systemPrompt = resolveSystemPrompt(agentDef);
@@ -423,24 +846,49 @@ public class HarnessExecutor implements LoomEngine {
                             .strategy(fallback ? new io.github.llm4j.routing.FallbackRoutingStrategy() : new CostAwareRoutingStrategy());
                     // fallback: one tier, tried in the order written (primary first); cost-aware: primary is the strong tier
                     routingBuilder.addClient(fallback ? ProviderTier.FAST_CHEAP : ProviderTier.REASONING,
-                            metered(llmClientFactory.createClient(policy.getPrimaryModel()), agentDef, policy.getPrimaryModel()));
+                            metered(clientFor(policy.getPrimaryModel()), agentDef, policy.getPrimaryModel()));
                     for (String fb : policy.getFallbackModels()) {
                         routingBuilder.addClient(fallback ? ProviderTier.FAST_CHEAP : ProviderTier.BALANCED,
-                                metered(llmClientFactory.createClient(fb), agentDef, fb));
+                                metered(clientFor(fb), agentDef, fb));
                     }
                     llmClient = routingBuilder.build();
                 }
             }
             
             if (llmClient == null) {
-                llmClient = metered(llmClientFactory.createClient(agentDef.getModel()), agentDef, agentDef.getModel());
+                llmClient = metered(clientFor(agentDef.getModel()), agentDef, agentDef.getModel());
             }
+            if (agentDef.getGuard() != null) {
+                String judge = agentDef.getGuard().getBiasModel();
+                io.github.llm4j.fairness.BiasMonitor monitor = judge == null
+                        ? new io.github.llm4j.fairness.RuleBasedBiasMonitor()
+                        : new io.github.llm4j.fairness.LLMBiasMonitor(metered(clientFor(judge), agentDef, judge));
+                AgentGuard guard = new AgentGuard(agentDef.getName(), agentDef.getGuard(), monitor, this);
+                guards.put(agentDef.getName(), guard);
+                llmClient = guard.wrap(llmClient);
+            }
+            AgentMemory agentMemory = null;
+            if (agentDef.getMemory() != null) {
+                try {
+                    AgentDef.MemoryConfig mc = agentDef.getMemory();
+                    agentMemory = new AgentMemory(agentDef.getName(), mc, baseDir,
+                            mc.getFacts() == null ? null : embeddings().create(mc.getEmbedding()));
+                } catch (Exception e) {
+                    throw new LoomLoadException(List.of(new ScriptValidator.Problem(agentDef.getMemory().getLine(),
+                            "agent " + agentDef.getName(), "memory can't be opened: " + e.getMessage(), ScriptValidator.Severity.ERROR)));
+                }
+                memories.put(agentDef.getName(), agentMemory);
+            }
+            if (agentDef.getVoice() != null) voices.put(agentDef.getName(), new AgentVoice(agentDef.getVoice(), envLookup, baseDir));
 
             ReActAgent.Builder agentBuilder = ReActAgent.builder().llmClient(llmClient);
             if (agentDef.getTemperature() != null) {
                 agentBuilder.temperature(agentDef.getTemperature());
             }
-            if (agentDef.getTools().isEmpty() && agentDef.getMcpServers().isEmpty()) {
+            boolean searchesKnowledge = agentDef.getKnowledgeBases().stream()
+                    .anyMatch(kb -> knowledge.get(kb).def().getMode() == KnowledgeDef.Mode.TOOL);
+            boolean savesFacts = agentMemory != null && agentMemory.keepsFacts();
+            if (agentDef.getTools().isEmpty() && agentDef.getMcpServers().isEmpty() && !searchesKnowledge && !savesFacts) {
                 agentBuilder.systemPrompt(systemPrompt);
             } else {
                 // Tool-using agents keep the ReAct protocol (tool descriptions + JSON format);
@@ -448,15 +896,32 @@ public class HarnessExecutor implements LoomEngine {
                 agentBuilder.instructions(systemPrompt);
             }
 
-            // Reflection-based .loot tools
+            // Tools: script declarations, then host-registered (.loot or Java), then built-ins
             for (String toolName : agentDef.getTools()) {
-                Tool tool = toolRegistry.getTool(toolName);
-                if (tool != null) {
-                    agentBuilder.addTool(tool);
-                } else {
-                    log.warning("Tool not found in registry: " + toolName);
+                Tool tool = resolveTool(toolName);
+                if (agentDef.isApproveAll() || agentDef.getApprove().contains(toolName)) {
+                    tool = new io.github.llm4j.loom.tools.ApprovalTool(tool);
                 }
+                agentBuilder.addTool(tool);
             }
+            if (agentDef.isApproveAll() || !agentDef.getApprove().isEmpty()) {
+                String agentName = agentDef.getName();
+                agentBuilder.approvalCallback((tool, args, thought) -> approvals().approve(agentName, tool, args, thought));
+            }
+            if (agentDef.getMaxIterations() != null) agentBuilder.maxIterations(agentDef.getMaxIterations());
+            List<io.github.llm4j.loom.knowledge.KnowledgeIndex> inContext = new java.util.ArrayList<>();
+            for (String kbName : agentDef.getKnowledgeBases()) {
+                io.github.llm4j.loom.knowledge.KnowledgeIndex index = knowledge.get(kbName);
+                if (index.def().getMode() == KnowledgeDef.Mode.TOOL) agentBuilder.addTool(io.github.llm4j.loom.knowledge.Retriever.searchTool(index));
+                else inContext.add(index);
+            }
+            if (!inContext.isEmpty()) retrievers.put(agentDef.getName(), new io.github.llm4j.loom.knowledge.Retriever(inContext));
+            if (savesFacts) {
+                String agentName = agentDef.getName();
+                agentBuilder.addTool(agentMemory.factTool(() -> sessions.getOrDefault(step.get(), agentName)));
+            }
+            agentBuilder.auditLogger(auditLogger).sessionId(sessionId);
+            if (tracing()) agentBuilder.addListener(traceAdapter(agentDef.getName()));
 
             // MCP-sourced tools
             for (String serverName : agentDef.getMcpServers()) {
@@ -480,20 +945,6 @@ public class HarnessExecutor implements LoomEngine {
             ReActAgent agent = agentBuilder.build();
             activeAgents.put(agentDef.getName(), agent);
             
-            // Tier 2: Wrap with RAG if knowledge bases are defined
-            if (!agentDef.getKnowledgeBases().isEmpty()) {
-                // In a real implementation, we'd look up properties from KnowledgeDef.
-                // For now, we assume VectorStore and EmbeddingProvider are provided by the factory or environment.
-                // RAGAgent ragAgent = RAGAgent.builder().agent(agent).vectorStore(...).embeddingProvider(...).build();
-                // ragAgents.put(agentDef.getName(), ragAgent);
-                log.info("RAG enabled for agent: " + agentDef.getName() + " (Placeholder implementation)");
-            }
-            
-            // Tier 2: Setup memory
-            if (agentDef.getMemory() != null) {
-                log.info("Semantic memory enabled for agent: " + agentDef.getName() + " (Placeholder implementation)");
-            }
-
             log.info("Initialized Agent: " + agentDef.getName());
         }
 
@@ -828,25 +1279,35 @@ public class HarnessExecutor implements LoomEngine {
                 });
         }
 
-        // Priority 2: persona name → PersonaLibrary (reflective lookup)
+        // Persona (declared in the script, else PersonaLibrary), followed by the agent's own system prompt
         if (agentDef.getPersona() != null) {
-            try {
-                Method m = PersonaLibrary.class.getMethod(agentDef.getPersona());
-                AgentPersona persona = (AgentPersona) m.invoke(null);
-                log.info("Resolved persona '" + agentDef.getPersona() + "' for agent '" + agentDef.getName() + "'");
-                return persona.toSystemPromptAddition();
-            } catch (Exception e) {
-                log.warning("Persona '" + agentDef.getPersona() + "' not found in PersonaLibrary — falling back. Error: " + e.getMessage());
-            }
+            AgentPersona persona = persona(agentDef.getPersona());
+            if (persona == null) throw new IllegalStateException("persona " + agentDef.getPersona() + " is not defined"); // validated earlier
+            String system = fallbackSystemPrompt(agentDef);
+            return system.isBlank() ? persona.toSystemPromptAddition() : persona.toSystemPromptAddition() + "\n\n" + system;
         }
         return fallbackSystemPrompt(agentDef);
+    }
+
+    /** A persona declared in the script, else a {@code PersonaLibrary} one, else null. */
+    private AgentPersona persona(String name) {
+        for (io.github.llm4j.loom.ast.PersonaDef def : script.getPersonas()) {
+            if (!def.getName().equals(name)) continue;
+            AgentPersona.Builder b = AgentPersona.builder().name(def.getName()).role(def.getRole());
+            if (def.getExpertise() != null) b.expertise(def.getExpertise());
+            if (def.getTone() != null) b.tone(def.getTone());
+            if (def.getDescription() != null) b.description(def.getDescription());
+            def.getConstraints().forEach(b::addConstraint);
+            return b.build();
+        }
+        return ScriptValidator.libraryPersona(name);
     }
 
     private String resolveSkills(List<String> skillUris) {
         StringBuilder sb = new StringBuilder("## Skills\n");
         for (String uri : skillUris) {
             try {
-                AgentSkill skill = ScriptValidator.loadSkill(uri);
+                AgentSkill skill = ScriptValidator.loadSkill(uri, baseDir);
                 sb.append("\n").append(skill.toSystemPromptSection()).append("\n");
                 log.info("Loaded skill: " + skill.getName());
             } catch (Exception e) {
@@ -979,15 +1440,61 @@ public class HarnessExecutor implements LoomEngine {
                 handleExhausted(del, agentName, String.valueOf(entry.value()), null);
             } else {
                 context.setVariable(variableName, entry.value());
+                journal.get(stepId + "#audio").ifPresent(audio -> context.setVariable(variableName + "_audio", audio.value()));
                 onDelegateReplayed(del, agentDef, entry.value());
+                trace(TraceEvent.DELEGATE_REPLAYED, agentName, "reused the recorded result", null);
             }
             return;
         }
 
-        String resolvedPayload = resolvePayload(del.getPayload());
-        
+        String payload = resolvePayload(del.getPayload());
+        AgentVoice voice = voices.get(agentName);
+        Path heard = voice == null ? null : voice.audioTask(payload);
+        if (heard != null) {
+            try {
+                payload = voice.transcribe(heard);
+                trace(TraceEvent.VOICE, agentName, "heard " + baseDir.toAbsolutePath().normalize().relativize(heard.toAbsolutePath().normalize())
+                        + ": " + payload, null);
+            } catch (RuntimeException e) {
+                failStep(del, stepId, agentName, "voice: couldn't transcribe " + heard.getFileName() + ": " + e.getMessage(), e);
+                return;
+            }
+        }
+        final String resolvedPayload = payload;
+
         String contextBriefing = memoryEngine.assembleContext(agentDef, resolvedPayload, view());
+        io.github.llm4j.loom.knowledge.Retriever retriever = retrievers.get(agentName);
+        if (retriever != null) {
+            String found = io.github.llm4j.loom.knowledge.Retriever.format(retriever.search(resolvedPayload, retriever.topK()));
+            if (!found.isEmpty()) contextBriefing = found + "\n" + contextBriefing;
+        }
+        AgentMemory agentMemory = memories.get(agentName);
+        final String session = agentMemory == null ? null : agentMemory.session(this::resolvePayload);
+        if (agentMemory != null) {
+            sessions.put(stepId, session);
+            AgentMemory.Recall recall = agentMemory.recall(session, resolvedPayload);
+            Map<String, Object> data = new java.util.LinkedHashMap<>();
+            data.put("agent", agentName);
+            data.put("session", session);
+            data.put("messages", String.valueOf(recall.messages().size()));
+            data.put("facts", String.valueOf(recall.facts().size()));
+            auditLogger.logConversationEvent(sessionId, null, "memory_recalled", data);
+            trace(TraceEvent.MEMORY, agentName, "recalled " + recall.messages().size() + " messages and "
+                    + recall.facts().size() + " facts for " + session, data);
+            if (!recall.isEmpty()) contextBriefing = recall.format(session) + contextBriefing;
+        }
         contextBriefing = beforeDelegateExecution(del, agentDef, resolvedPayload, contextBriefing);
+        AgentGuard guard = guards.get(agentName);
+        if (guard != null) {
+            try {
+                guard.checkTask(contextBriefing);
+            } catch (StepFailure blocked) {
+                sessions.remove(stepId);
+                failStep(del, stepId, agentName, blocked.getMessage(), blocked);
+                return;
+            }
+        }
+        trace(TraceEvent.DELEGATE_START, agentName, resolvedPayload, Map.of("variable", variableName));
         
         // A step's own `expecting { ... }` schema wins over the agent's output_schema.
         io.github.llm4j.loom.ast.SchemaDef schema = del.getExpecting() != null ? del.getExpecting() : agentDef.getOutputSchema();
@@ -1028,13 +1535,37 @@ public class HarnessExecutor implements LoomEngine {
                     partial = result.getBudgetExceeded(); // ran out part-way: keep its best answer
                 }
 
-                Object finalValue = result.getFinalAnswer();
-                if (schema != null && partial == null) {
-                    finalValue = parseJsonResult(result.getFinalAnswer());
+                String answer = result.getFinalAnswer();
+                if (guard != null) {
+                    answer = guard.checkAnswer(answer);
+                    if (!answer.equals(result.getFinalAnswer())) result = result.toBuilder().finalAnswer(answer).build();
                 }
+                Object finalValue = answer;
+                if (schema != null && partial == null) {
+                    finalValue = parseJsonResult(answer);
+                }
+                String spoken = null;
+                if (voice != null && voice.speaks() && partial == null) {
+                    try {
+                        spoken = voice.speak(answer, variableName.replaceAll("[^A-Za-z0-9_-]", "_") + "-" + shortHash(stepId));
+                    } catch (Exception e) {
+                        throw new StepFailure("voice: couldn't speak the answer: " + e.getMessage(), e);
+                    }
+                    trace(TraceEvent.VOICE, agentName, "spoke the answer to " + spoken, null);
+                }
+                final String audio = spoken;
+                final String remembered = answer;
                 DelegateSuccessHandler successHandler = (agentResult, value) -> {
                     context.setVariable(variableName, value);
                     journal.put(stepId, new RunJournal.Entry("delegate", value));
+                    if (audio != null) {
+                        context.setVariable(variableName + "_audio", audio);
+                        journal.put(stepId + "#audio", new RunJournal.Entry("audio", audio));
+                    }
+                    if (agentMemory != null) {
+                        agentMemory.remember(session, guard != null ? guard.forStorage(resolvedPayload) : resolvedPayload, remembered);
+                    }
+                    trace(TraceEvent.DELEGATE_END, agentName, remembered, usageData(agentResult));
                     memoryEngine.storeOutcome(agentDef, resolvedPayload, agentResult, context);
                     auditLogger.logAgentDecision(AuditEvent.builder()
                             .sessionId(sessionId)
@@ -1059,6 +1590,10 @@ public class HarnessExecutor implements LoomEngine {
                     attempts = maxAttempts;
                     break;
                 }
+            } catch (StepFailure failure) {
+                lastError = failure; // a guard or voice failure: retrying wouldn't change it
+                attempts = maxAttempts;
+                break;
             } catch (io.github.llm4j.agent.AgentInterrupt interrupt) {
                 throw interrupt; // waiting for a human is not a failure — never retried
             } catch (InterruptedException e) {
@@ -1073,6 +1608,7 @@ public class HarnessExecutor implements LoomEngine {
         }
         } finally {
             scopes.set(outerScopes);
+            sessions.remove(stepId);
         }
 
         if (refused != null) {
@@ -1094,6 +1630,31 @@ public class HarnessExecutor implements LoomEngine {
         // retried when the run is resumed.
         if (!del.getOnFailure().isEmpty()) journal.put(stepId, new RunJournal.Entry("failed", message));
         handleExhausted(del, agentName, message, lastError);
+    }
+
+    /** A step that failed before its agent ran: recorded (when on_failure lets the run go on), then handled. */
+    private void failStep(DelegateStmt del, String stepId, String agentName, String message, Exception cause) {
+        log.warning("Step " + stepId + " failed: " + message);
+        if (!del.getOnFailure().isEmpty()) journal.put(stepId, new RunJournal.Entry("failed", message));
+        handleExhausted(del, agentName, message, cause);
+    }
+
+    private static String shortHash(String text) {
+        try {
+            byte[] h = java.security.MessageDigest.getInstance("SHA-256").digest(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(h, 0, 4);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static Map<String, Object> usageData(io.github.llm4j.agent.AgentResult r) {
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        if (r == null || r.getUsage() == null) return data;
+        data.put("calls", r.getUsage().getLlmCalls());
+        data.put("tokens", r.getUsage().getTotalTokens());
+        if (r.getUsage().getCost() != null) data.put("cost", r.getUsage().getCost().toPlainString());
+        return data;
     }
 
     /** Runs the on_failure block with {@code _error} in scope, or fails the workflow. */
@@ -1539,6 +2100,7 @@ public class HarnessExecutor implements LoomEngine {
         }
         log.warning("Run paused at " + paused.stepId() + " (" + rec.get("detail") + "); resumes at " + paused.resumeAt());
         auditLogger.logConversationEvent(sessionId, null, "run_suspended", new java.util.LinkedHashMap<>(rec));
+        trace(TraceEvent.SUSPENDED, null, "paused at " + paused.stepId() + " (" + rec.get("detail") + "); resumes at " + paused.resumeAt(), null);
         for (java.util.function.Consumer<RunSuspended> l : suspensionListeners) {
             try {
                 l.accept(paused);
@@ -1631,37 +2193,50 @@ public class HarnessExecutor implements LoomEngine {
             java.util.regex.Pattern.compile("\\{([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+)}");
 
     private String resolvePayload(String rawPayload) {
-        String resolved = rawPayload;
-
-        // Phase 0: {var.field.sub} paths into structured results (maps and lists), e.g. {report.verdict}
-        // or {plan.hooks.0}.
-        // Runs first so the bare-name phase below can't rewrite the variable name inside the braces.
-        java.util.regex.Matcher paths = PAYLOAD_PATH.matcher(resolved);
-        StringBuilder withPaths = new StringBuilder();
-        while (paths.find()) {
-            Object value = io.github.llm4j.loom.runtime.ConditionEvaluator.resolvePath(paths.group(1), view());
-            // Like conditions, a missing field reads as empty (e.g. a step that failed and set nothing).
-            String replacement = value != null ? String.valueOf(value) : "";
-            paths.appendReplacement(withPaths, java.util.regex.Matcher.quoteReplacement(replacement));
+        if (rawPayload == null) return null;
+        // {name} and {var.field.sub} are replaced by values; bare names (the legacy form) only in the text the
+        // script wrote — never inside a value just inserted, so one variable's text can't rewrite another's.
+        VariableContext scope = view();
+        Map<String, Object> vars = scope.getAll();
+        java.util.regex.Matcher m = PLACEHOLDER.matcher(rawPayload);
+        StringBuilder out = new StringBuilder();
+        int last = 0;
+        while (m.find()) {
+            out.append(bareNames(rawPayload.substring(last, m.start())));
+            String name = m.group(1);
+            if (PAYLOAD_PATH.matcher(m.group()).matches()) {
+                // Like conditions, a missing field reads as empty (e.g. a step that failed and set nothing).
+                Object value = io.github.llm4j.loom.runtime.ConditionEvaluator.resolvePath(name, scope);
+                out.append(value != null ? String.valueOf(value) : "");
+            } else if (vars.containsKey(name)) {
+                out.append(String.valueOf(vars.get(name)));
+            } else {
+                out.append(m.group()); // not a variable: left as written
+            }
+            last = m.end();
         }
-        paths.appendTail(withPaths);
-        resolved = withPaths.toString();
+        out.append(bareNames(rawPayload.substring(last)));
+        return out.toString();
+    }
 
-        // Phase 1: delimited {varName} substitution — collision-safe, preferred syntax.
-        for (Map.Entry<String, Object> entry : view().getAll().entrySet()) {
-            resolved = resolved.replace("{" + entry.getKey() + "}", String.valueOf(entry.getValue()));
-        }
+    private static final java.util.regex.Pattern PLACEHOLDER = java.util.regex.Pattern.compile("\\{([^{}\\s]+)}");
 
-        // Phase 2: bare-name substitution for backward compatibility with existing .loom scripts.
-        // Workflow variables only: block-local names (for each items, _error) are common words, so they
-        // must be written {like.this}.
-        java.util.List<Map.Entry<String, Object>> entries = new java.util.ArrayList<>(context.getAll().entrySet());
-        entries.sort((a, b) -> Integer.compare(b.getKey().length(), a.getKey().length()));
-        for (Map.Entry<String, Object> entry : entries) {
-            resolved = resolved.replace(entry.getKey(), String.valueOf(entry.getValue()));
-        }
-
-        return resolved;
+    /**
+     * Bare-name substitution, for backward compatibility with older scripts. Workflow variables only:
+     * block-local names (for each items, _error) are common words, so they must be written {like.this}.
+     */
+    private String bareNames(String text) {
+        if (text.isEmpty()) return text;
+        Map<String, Object> vars = context.getAll();
+        if (vars.isEmpty()) return text;
+        // One pass, longest names first: a value put in is never scanned again.
+        String alternatives = vars.keySet().stream().filter(k -> !k.isEmpty())
+                .sorted((x, y) -> Integer.compare(y.length(), x.length()))
+                .map(java.util.regex.Pattern::quote)
+                .collect(java.util.stream.Collectors.joining("|"));
+        if (alternatives.isEmpty()) return text;
+        return java.util.regex.Pattern.compile(alternatives).matcher(text)
+                .replaceAll(r -> java.util.regex.Matcher.quoteReplacement(String.valueOf(vars.get(r.group()))));
     }
 
     /**

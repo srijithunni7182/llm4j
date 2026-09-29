@@ -21,4 +21,20 @@ public final class CliProbe {
                 List.of("weave"), env);
         return WeaveCLI.check(script, null, lenient, e);
     }
+
+    /** {@code weave check} with a given client factory (to see which model names it accepts). */
+    public static int check(File script, PrintStream out, Function<String, String> env,
+                            io.github.llm4j.loom.execution.LLMClientFactory models) {
+        WeaveEnv e = new WeaveEnv(models, message -> "", out, out, Clock.systemUTC(), d -> { },
+                c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""), List.of("weave"), env);
+        return WeaveCLI.check(script, null, false, e);
+    }
+
+    /** {@code weave run [--trace[=json]]} with scripted models. */
+    public static int run(File script, String trace, PrintStream out, PrintStream err, Function<String, String> env,
+                          io.github.llm4j.loom.execution.LLMClientFactory models) {
+        WeaveEnv e = new WeaveEnv(models, message -> "yes", out, err, Clock.systemUTC(), d -> { },
+                c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""), List.of("weave"), env);
+        return WeaveCLI.run(script, null, "Main", java.util.Map.of(), null, null, null, null, null, null, false, false, trace, e);
+    }
 }

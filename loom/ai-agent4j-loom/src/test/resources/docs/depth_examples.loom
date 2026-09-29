@@ -1,0 +1,69 @@
+// The LOOM_GUIDE's memory, voice, provider, persona, graph, guard and skill-registry examples.
+// Parse-checked by DocumentedExamplesTest; load-checked by RepositoryScriptsTest.
+
+provider Box    { use: ollama  base_url: "http://gpu-box:11434" }
+provider Team   { use: sarvam  api_key: env.TEAM_SARVAM_KEY }
+
+persona Mentor {
+    role: "senior engineer who mentors juniors"
+    expertise: "Java, testing"
+    tone: "patient"
+    description: "Explains the why before the how."
+    constraints: ["Never write the code for them", "Ask one question at a time"]
+}
+
+tool Hindi  { use: translate  target: "hi-IN" }
+tool Say    { use: speak  language: "ta-IN"  voice: "anushka"  out: "replies" }
+tool Graph  { use: knowledge_graph  store: "graphs/customers.json" }
+tool Facts  { use: knowledge_graph  store: "graphs/customers.json"  read_only: true }
+tool Skills { use: skill_registry  url: "https://skills.example.com/api"  api_key: env.SKILLS_KEY }
+
+agent Concierge {
+    model: "gemini-2.5-flash"
+    memory {
+        conversation: "chats"
+        limit: 20
+        session: "{user_id}"
+        facts: "memory/facts.json"
+        embedding: "gemini/text-embedding-004"
+        recall: 5
+        min_similarity: 0.7
+    }
+}
+
+agent Helpline {
+    model: "gemini-2.5-flash"
+    voice {
+        listen: "sarvam/saarika:v2.5"
+        speak: "sarvam/bulbul:v2"
+        language: "hi-IN"
+        voice: "anushka"
+        out: "replies"
+    }
+}
+
+agent Local  { model: "Box/llama3" }
+agent Indic  { model: "Team/sarvam-m" }
+
+agent Coach  { model: "gemini-2.5-flash"  persona: Mentor  system: "Review the student's pull request." }
+
+agent Support {
+    model: "gemini-2.5-flash"
+    tools: [Hindi, Say, Graph, Facts, Skills, detect_language, transcribe]
+    guard {
+        pii: mask
+        bias: warn
+        bias_model: "gemini-2.5-flash"
+    }
+}
+
+routing HighReliability {
+    strategy: fallback
+    primary: "gemini-2.5-pro"
+    fallback: ["gemini-2.5-flash", "Box/gemma3"]
+}
+
+workflow Main(recording) {
+    delegate "{recording}" to Helpline -> answer
+    note "Spoken reply: {answer_audio}"
+}

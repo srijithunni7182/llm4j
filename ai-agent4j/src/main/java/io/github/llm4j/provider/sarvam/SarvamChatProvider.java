@@ -82,10 +82,8 @@ public class SarvamChatProvider implements LLMProvider {
     private String buildRequestJson(LLMRequest request) throws IOException {
         ObjectNode root = objectMapper.createObjectNode();
 
-        // Model (default to sarvam-2b-v0.5 or what user specifies, user doc mentioned
-        // sarvam-m?)
-        // Docs example said "sarvam-m".
-        String model = request.getModel() != null ? request.getModel() : "sarvam-30b";
+        String model = request.getModel() != null ? request.getModel()
+                : config.getDefaultModel() != null ? config.getDefaultModel() : "sarvam-m";
         root.put("model", model);
 
         ArrayNode messagesArray = root.putArray("messages");

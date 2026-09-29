@@ -54,6 +54,9 @@ True xAI compliance is built on four non-negotiable pillars. Each pillar address
 **In Practice**:
 - **Example**: A customer service agent handles a refund. The logs must show `Masked_Credit_Card: ****-****-****-4422` instead of the full number.
 - **ai-agent4j Implementation**: Integrated **RegexPIIDetector** that scans every agent output for Emails, SSNs, IP Addresses, and Credit Cards, applying `FULL`, `PARTIAL`, or `PLACEHOLDER` masking strategies dynamically.
+- **Keeping PII from the model**: `new MaskingLLMClient(client)` masks every message of every request
+  (tasks, context, tool results) before the model sees it, and reports what it masked. In Loom this is
+  `guard { pii: mask }`.
 
 ### 4. 🏳️ Fairness & Bias Monitoring
 
@@ -67,6 +70,13 @@ True xAI compliance is built on four non-negotiable pillars. Each pillar address
 **In Practice**:
 - **Example**: A hiring agent consistently ranks candidates from a specific geographic region lower. The system must have hooks to intercept and flag this linguistic or nationality bias.
 - **ai-agent4j Implementation**: Pluggable **Bias Monitor Hooks** that allow developers to define custom fairness policies. The `BiasMonitor` can intercept and flag an agent's response before it ever reaches the end-user.
+  There are two built-in monitors:
+  - `RuleBasedBiasMonitor`: deterministic and free. It flags sweeping statements about groups ("women
+    are bad at…", "immigrants can't…"), with a type and severity.
+  - `LLMBiasMonitor(client)`: a model judges the text, which lets it tell a stereotype from a quoted and
+    refuted one.
+
+  In Loom: `guard { bias: warn | block  bias_model: "…" }`.
 
 ---
 

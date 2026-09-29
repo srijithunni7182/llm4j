@@ -10,9 +10,9 @@ routing FastFallback {
 }
 
 knowledge WikiBase {
-    type: "local_dir"
-    path: "./src/test/resources/knowledge"
+    source: "knowledge"
     chunk_size: 500
+    embedding: "test/hash"
 }
 
 agent SmartAgent {

@@ -124,25 +124,8 @@ public class SarvamTextProvider
 
     @Override
     public LanguageDetectionResponse detectLanguage(String text) {
-        // Sarvam docs say /detect-language? Need to double check path.
-        // User searched for "Language Detection" which was part of "/detect-language"
-        // or similar?
-        // Actually earlier research showed `/detect-language` or just
-        // `/identify-language`?
-        // The read_url_content title was "Language Detection | Sarvam API Docs" and URL
-        // was `.../text/identify-language`.
-        // So endpoint is likely `/identify-language` or `/detect-language`.
-        // I'll assume `/detect-language` is typical but if I have to bet, I'll go with
-        // what I saw in task plan which was `/detect-language`.
-        // Wait, looking at my task boundary history: `read_url_content{Url:
-        // "https://docs.sarvam.ai/api-reference-docs/text/identify-language"}`
-        // So endpoint might be `/identify-language`. I should check the URL again...
-        // but for now I'll use `detect-language` and if it fails I'll fix it.
-        // Actually, Sarvam APIs are usually consistently named (e.g. speech-to-text).
-        // Let's assume standard REST naming convention.
-
-        String url = baseUrl + "/detect-language"; // Verify this?
-        // Actually, many providers use "detect-language".
+        // Sarvam's language identification endpoint
+        String url = baseUrl + "/text-lid";
 
         try {
             ObjectNode root = objectMapper.createObjectNode();
@@ -153,19 +136,23 @@ public class SarvamTextProvider
                     httpClient.post(url, objectMapper.writeValueAsString(root), buildHeaders());
 
             JsonNode responseRoot = objectMapper.readTree(responseJson);
-            // {"language_code": "hi-IN", "confidence": 0.99} (hypothetical)
+            // {"request_id": …, "language_code": "hi-IN", "script_code": "Deva"}
 
             if (responseRoot.has("error")) {
                 throw new ProviderException(getProviderName(), responseRoot.get("error").asText());
             }
 
             String languageCode = responseRoot.path("language_code").asText();
+            String script =
+                    responseRoot.hasNonNull("script_code")
+                            ? responseRoot.get("script_code").asText()
+                            : null;
             Double confidence =
                     responseRoot.has("confidence")
                             ? responseRoot.get("confidence").asDouble()
                             : null;
 
-            return new LanguageDetectionResponse(languageCode, null, confidence);
+            return new LanguageDetectionResponse(languageCode, script, confidence);
 
         } catch (io.github.llm4j.exception.RateLimitException e) {
             throw e;

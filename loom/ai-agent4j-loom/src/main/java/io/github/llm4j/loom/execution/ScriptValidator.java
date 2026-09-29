@@ -5,6 +5,7 @@ import io.github.llm4j.agent.skill.FileSystemSkillLoader;
 import io.github.llm4j.loom.ast.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -36,6 +37,8 @@ public class ScriptValidator {
         Function<String, String> env = System::getenv;
         boolean lenient;
         boolean humanInterface;
+        java.nio.file.Path baseDir = java.nio.file.Path.of("").toAbsolutePath();
+        java.util.function.Predicate<String> templates;
         final List<Consumer<Checker>> extraChecks = new ArrayList<>();
 
         public Context registeredTools(Set<String> names) {
@@ -62,6 +65,22 @@ public class ScriptValidator {
         public Context check(Consumer<Checker> check) {
             extraChecks.add(check);
             return this;
+        }
+
+        /** Where relative paths (fs:// skills) are resolved. */
+        public Context baseDir(java.nio.file.Path dir) {
+            this.baseDir = dir;
+            return this;
+        }
+
+        /** Which {@code system_template} ids exist; null when there is no prompt registry. */
+        public Context templates(java.util.function.Predicate<String> exists) {
+            this.templates = exists;
+            return this;
+        }
+
+        public boolean hasHumanInterface() {
+            return humanInterface;
         }
     }
 
@@ -108,7 +127,9 @@ public class ScriptValidator {
         checkRouting(c);
         checkStatements(c);
         for (Consumer<Checker> extra : context.extraChecks) extra.accept(c);
-        return c.problems;
+        List<Problem> sorted = new ArrayList<>(c.problems);
+        sorted.sort(java.util.Comparator.comparingInt(Problem::line)); // stable: same-line problems keep their order
+        return sorted;
     }
 
     /** Throws {@link LoomLoadException} if there are errors; returns the warnings. */
@@ -125,10 +146,18 @@ public class ScriptValidator {
         LoomScript s = c.script();
         for (AgentDef a : s.getAgents()) {
             String who = "agent " + a.getName();
-            if (a.getMemory() != null) {
-                c.unsupported(a.getMemory().getLine() > 0 ? a.getMemory().getLine() : a.getLine(), who,
-                        "agent memory is not supported yet (workflow context comes from Loom's memory engine); "
-                                + "remove the memory block, or run with --lenient to ignore it");
+            if (a.getPersona() != null && s.getPersonas().stream().noneMatch(p -> p.getName().equals(a.getPersona()))
+                    && libraryPersona(a.getPersona()) == null) {
+                c.error(a.getLine(), who, "persona " + a.getPersona() + " is not defined: declare it (persona "
+                        + a.getPersona() + " { role: \"…\" }) or use a built-in one " + LIBRARY_PERSONAS);
+            }
+            if (a.getSystemTemplate() != null) {
+                if (c.context().templates == null) {
+                    c.error(a.getLine(), who, "system_template " + a.getSystemTemplate()
+                            + " needs a prompt registry (HarnessExecutor.setPromptRegistry); use system: \"…\" in scripts");
+                } else if (!c.context().templates.test(a.getSystemTemplate())) {
+                    c.error(a.getLine(), who, "system_template " + a.getSystemTemplate() + " is not in the prompt registry");
+                }
             }
             for (String kb : a.getKnowledgeBases()) {
                 if (s.getKnowledgeBases().stream().noneMatch(k -> k.getName().equals(kb))) {
@@ -152,11 +181,33 @@ public class ScriptValidator {
             }
             for (String uri : a.getSkills()) {
                 try {
-                    loadSkill(uri);
+                    loadSkill(uri, c.context().baseDir);
                 } catch (Exception e) {
                     c.error(a.getLine(), who, "skill " + uri + " can't be loaded: " + e.getMessage());
                 }
             }
+        }
+    }
+
+    /** Names of {@code PersonaLibrary} personas usable as {@code persona: name}. */
+    public static final java.util.SortedSet<String> LIBRARY_PERSONAS = new java.util.TreeSet<>();
+
+    static {
+        for (java.lang.reflect.Method m : io.github.llm4j.agent.persona.PersonaLibrary.class.getMethods()) {
+            if (java.lang.reflect.Modifier.isStatic(m.getModifiers()) && m.getParameterCount() == 0
+                    && m.getReturnType() == io.github.llm4j.agent.persona.AgentPersona.class) {
+                LIBRARY_PERSONAS.add(m.getName());
+            }
+        }
+    }
+
+    /** A {@code PersonaLibrary} persona by method name, or null. */
+    public static io.github.llm4j.agent.persona.AgentPersona libraryPersona(String name) {
+        if (!LIBRARY_PERSONAS.contains(name)) return null;
+        try {
+            return (io.github.llm4j.agent.persona.AgentPersona) io.github.llm4j.agent.persona.PersonaLibrary.class.getMethod(name).invoke(null);
+        } catch (ReflectiveOperationException e) {
+            return null;
         }
     }
 
@@ -211,9 +262,37 @@ public class ScriptValidator {
         return s.equals("cost_aware") || s.equals("fallback") ? s : null;
     }
 
-    public static AgentSkill loadSkill(String uri) throws Exception {
+    private static final Map<String, AgentSkill> REMOTE_SKILLS = java.util.Collections.synchronizedMap(
+            new java.util.LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, AgentSkill> eldest) {
+                    return size() > 256;
+                }
+            });
+
+    /**
+     * {@code classpath://…}, {@code https://…} (or {@code http://} on localhost), or a file ({@code fs://…}
+     * or a plain path) relative to {@code baseDir}. Remote skills are fetched once per process.
+     */
+    public static AgentSkill loadSkill(String uri, java.nio.file.Path baseDir) throws Exception {
         if (uri.startsWith("classpath://")) return AgentSkill.fromClasspath(uri.substring(12));
-        String path = uri.startsWith("fs://") ? uri.substring(5) : uri;
-        return new FileSystemSkillLoader().load(path);
+        String lower = uri.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("http://") || lower.startsWith("https://")) {
+            java.net.URI parsed = java.net.URI.create(uri);
+            String host = parsed.getHost() == null ? "" : parsed.getHost();
+            if (lower.startsWith("http://") && !host.equals("localhost") && !host.equals("127.0.0.1")) {
+                throw new IllegalArgumentException("remote skills must use https:// (http:// only for localhost)");
+            }
+            AgentSkill cached = REMOTE_SKILLS.get(uri);
+            if (cached != null) return cached;
+            AgentSkill skill = new io.github.llm4j.agent.skill.RemoteSkillLoader(java.net.http.HttpClient.newBuilder()
+                    .connectTimeout(java.time.Duration.ofSeconds(10)).followRedirects(java.net.http.HttpClient.Redirect.NORMAL).build())
+                    .load(uri);
+            REMOTE_SKILLS.put(uri, skill);
+            return skill;
+        }
+        java.nio.file.Path path = java.nio.file.Path.of(uri.startsWith("fs://") ? uri.substring(5) : uri);
+        if (!path.isAbsolute()) path = baseDir.resolve(path);
+        return new FileSystemSkillLoader().load(path.toString());
     }
 }

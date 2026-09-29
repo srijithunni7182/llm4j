@@ -14,11 +14,16 @@ import java.util.Map;
  * later, can rebuild the run.
  */
 record RunSpec(String script, String loot, String workflow, Map<String, String> inputs, Long maxTokens,
-               Long maxCalls, String maxCost, String prices, String store, boolean lenient) {
+               Long maxCalls, String maxCost, String prices, String store, boolean lenient, String trace) {
+
+    RunSpec(String script, String loot, String workflow, Map<String, String> inputs, Long maxTokens,
+            Long maxCalls, String maxCost, String prices, String store, boolean lenient) {
+        this(script, loot, workflow, inputs, maxTokens, maxCalls, maxCost, prices, store, lenient, null);
+    }
 
     RunSpec(String script, String loot, String workflow, Map<String, String> inputs, Long maxTokens,
             Long maxCalls, String maxCost, String prices, String store) {
-        this(script, loot, workflow, inputs, maxTokens, maxCalls, maxCost, prices, store, false);
+        this(script, loot, workflow, inputs, maxTokens, maxCalls, maxCost, prices, store, false, null);
     }
 
     static final String FILE = "run.json";
@@ -42,6 +47,7 @@ record RunSpec(String script, String loot, String workflow, Map<String, String> 
             m.put("prices", prices);
             m.put("store", store);
             m.put("lenient", lenient);
+            m.put("trace", trace);
             Files.writeString(runDir.resolve(FILE), JSON.writerWithDefaultPrettyPrinter().writeValueAsString(m));
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot write " + runDir.resolve(FILE), e);
@@ -57,7 +63,7 @@ record RunSpec(String script, String loot, String workflow, Map<String, String> 
             return new RunSpec((String) m.get("script"), (String) m.get("loot"), (String) m.get("workflow"),
                     (Map<String, String>) m.get("inputs"), number(m.get("maxTokens")), number(m.get("maxCalls")),
                     (String) m.get("maxCost"), (String) m.get("prices"), (String) m.get("store"),
-                    Boolean.TRUE.equals(m.get("lenient")));
+                    Boolean.TRUE.equals(m.get("lenient")), (String) m.get("trace"));
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot read " + file, e);
         }

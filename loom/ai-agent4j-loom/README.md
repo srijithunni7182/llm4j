@@ -82,6 +82,14 @@ SqlQuery    = com.mycompany.tools.DatabaseTool
 | `for each` | Runs a block per list item (`parallel for each` for all at once); targets may come from the item |
 | `human_prompt` | Asks a person; with a run journal the run suspends (no thread held) and resumes on the answer |
 | `budget` | Caps a run, an agent or a step in tokens, calls or money; enforced before each LLM call. `per day` makes it refill |
+| `tool` | Declare and configure a tool in the script (`use: serpapi`, `openapi`, `duckduckgo`, …); secrets only from `env.NAME` |
+| `knowledge` | A knowledge base: source files, embedding model, index store; agents get the relevant passages |
+| `approve` | On an agent: which tool calls need a person's yes (durable, journaled per call) |
+| `memory` | On an agent: its conversations per session and long-term facts, kept across runs |
+| `voice` | On an agent: hear audio tasks and speak answers (Sarvam); `translate`, `speak`, `transcribe`, … are tools |
+| `guard` | On an agent: `pii: mask \| block \| warn`, `bias: warn \| block` |
+| `provider` | A model endpoint with its own key: `provider Box { use: ollama base_url: "…" }`, then `model: "Box/llama3"` |
+| `persona` | A persona declared in the script; an agent's `persona:` combines it with its `system:` prompt |
 | `rate_limits` | Pause a run when a provider limit or quota is hit, and resume it when the limit lifts |
 | `schedule` | Run a workflow or agent task on a cron or interval — stored, so it survives restarts |
 | `guardrail` | Wraps a block — intercepts output before it escapes (e.g. PII detection) |

@@ -106,6 +106,8 @@ public class ReActAgent {
     private final String systemPromptId;
     private final ConversationHistory conversationHistory;
     private final SemanticMemoryService semanticMemoryService;
+    private final int recallTopK;
+    private final float recallMinSimilarity;
     private final List<AgentEventListener> listeners;
     private final AuditLogger auditLogger;
     private final String sessionId;
@@ -139,6 +141,8 @@ public class ReActAgent {
         this.temperature = builder.temperature;
         this.conversationHistory = builder.conversationHistory;
         this.semanticMemoryService = builder.semanticMemoryService;
+        this.recallTopK = builder.recallTopK;
+        this.recallMinSimilarity = builder.recallMinSimilarity;
         this.listeners = new ArrayList<>(builder.listeners);
         if (budget != null && !listeners.isEmpty()) {
             budget.addListener(event -> listeners.forEach(l -> l.onBudget(event)));
@@ -209,7 +213,7 @@ public class ReActAgent {
                 // Only recall on the very first iteration to save embedding tokens/time
                 // Use a truncated version of the question to avoid massive embedding queries
                 String memoryQuery = question.length() > 500 ? question.substring(0, 500) : question;
-                List<String> facts = semanticMemoryService.recallRelevantFacts(memoryQuery, 5, 0.7f);
+                List<String> facts = semanticMemoryService.recallRelevantFacts(memoryQuery, recallTopK, recallMinSimilarity);
                 if (!facts.isEmpty()) {
                     context += "Relevant context from user's long-term memory:\n";
                     for (String fact : facts) {
@@ -474,6 +478,11 @@ public class ReActAgent {
 
             String observation = tool.execute(args);
             logger.info("Tool '{}' returned observation: {}", action, observation);
+            try {
+                auditLogger.logToolExecution(sessionId, action, String.valueOf(args), observation, java.time.Instant.now());
+            } catch (RuntimeException auditFailure) {
+                logger.warn("Audit logging of tool '{}' failed: {}", action, auditFailure.getMessage());
+            }
             notifyObservation(observation);
             return new ActionExecution(observation, AgentResult.StepOutcome.EXECUTED);
         } catch (AgentInterrupt interrupt) {
@@ -819,6 +828,8 @@ public class ReActAgent {
         private String systemPromptId;
         private ConversationHistory conversationHistory;
         private SemanticMemoryService semanticMemoryService;
+        private int recallTopK = 5;
+        private float recallMinSimilarity = 0.7f;
         private List<AgentEventListener> listeners = new ArrayList<>();
         private AuditLogger auditLogger;
         private String sessionId;
@@ -857,6 +868,8 @@ public class ReActAgent {
             this.systemPromptId = agent.systemPromptId;
             this.conversationHistory = agent.conversationHistory;
             this.semanticMemoryService = agent.semanticMemoryService;
+            this.recallTopK = agent.recallTopK;
+            this.recallMinSimilarity = agent.recallMinSimilarity;
             this.listeners = new ArrayList<>(agent.listeners);
             this.auditLogger = agent.auditLogger;
             this.sessionId = agent.sessionId;
@@ -867,6 +880,8 @@ public class ReActAgent {
             this.sttProvider = agent.sttProvider;
             this.audioPlayer = agent.audioPlayer;
             this.autoPlayAudio = agent.autoPlayAudio;
+            this.ttsLanguage = agent.ttsLanguage;
+            this.ttsModel = agent.ttsModel;
         }
 
         public Builder llmClient(LLMClient llmClient) {
@@ -949,6 +964,18 @@ public class ReActAgent {
 
         public Builder conversationHistory(ConversationHistory history) {
             this.conversationHistory = history;
+            return this;
+        }
+
+        /**
+         * How many long-term facts are recalled before a task, and how similar (0–1) a fact must be to
+         * the task to be included. Defaults: 5 and 0.7.
+         */
+        public Builder semanticRecall(int topK, float minSimilarity) {
+            if (topK < 1) throw new IllegalArgumentException("topK must be positive");
+            if (minSimilarity < 0 || minSimilarity > 1) throw new IllegalArgumentException("minSimilarity must be between 0 and 1");
+            this.recallTopK = topK;
+            this.recallMinSimilarity = minSimilarity;
             return this;
         }
 
