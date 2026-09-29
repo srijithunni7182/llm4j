@@ -159,52 +159,37 @@ provider meets [one contract](../../ai-agent4j/wiki/Providers-and-the-Uniform-Co
 
 ## Loom and LangGraph
 
-[LangGraph](https://www.langchain.com/langgraph) is the most widely used framework for stateful agent
-workflows, and a good one. It has durable execution through checkpointers (in memory, SQLite, Postgres),
-human-in-the-loop via `interrupt()`, time-travel debugging, streaming, and, on its deployment platform,
-background runs and cron jobs. Both are serious tools. They make different bets.
+[LangGraph](https://www.langchain.com/langgraph) popularised stateful agent graphs, with checkpoints,
+`interrupt()` for human input and a hosted platform. If you have used it, Loom will feel familiar: durable
+state, human-in-the-loop, schedules. Loom takes those ideas further for workflows that must run
+**unattended, within a budget, for a long time**.
 
-### Where they differ
+### Where Loom goes further
 
 | | **Loom** | **LangGraph** |
 |---|---|---|
-| **How you write a workflow** | A small declarative language (`.loom`), read top to bottom. Routing, loops, limits and approvals are statements. | Python or JavaScript code: a `StateGraph` of nodes and edges over a typed state object. Routing is code in conditional edges. |
-| **Where the rules live** | In the script, enforced by the runtime. A model can't loop past `max N` or skip an approval. | In your graph code. Just as enforceable, but mixed in with application code. |
-| **Durability** | Journal per step (memory, file, SQL). Replay by re-running; the script is unchanged. | Checkpoint per super-step (memory, SQLite, Postgres), keyed by `thread_id`. |
-| **Waiting for people** | `human_prompt`, and `approve:` per tool call. The run suspends and holds no thread. | `interrupt()`, then resume with `Command(resume=…)` on the same thread. |
-| **Rate limits and quotas** | Built in: reads each provider's reset time, pauses the run and schedules its resume. | Retry policies per node. Pausing until a provider's quota resets is left to you. |
-| **Spending limits** | Built in: tokens, calls or money per run, agent, step or loop; checked **before** each call; daily windows that refill. | Not part of the graph model. Call counts can be capped (for example with LangChain's agent middleware); token or money budgets are left to you. |
-| **Scheduling** | `schedule` blocks in the script. Your OS scheduler, Cloud Scheduler or `weave daemon` wakes it; no platform needed. | Cron jobs on the LangGraph deployment platform, or your own scheduler calling the graph. |
-| **Bounded loops** | Every loop has `max N` and an `on_exhausted` branch. | A recursion limit per run, which raises an error when hit. |
-| **Checking before running** | `weave check`: every problem, with its line, before any call. | Python's usual tooling; graph problems show at compile or run time. |
-| **Language and runtime** | JVM (Java 17+). The CTK defines the behaviour for other runtimes. | Python and JavaScript. Java ports exist in the community. |
-| **Observability** | `--trace` live, spend reports, audit events. | LangSmith (hosted), streaming modes, and the LangGraph Studio visual debugger. |
+| **Writing a workflow** | A small declarative language, read top to bottom. Routing, loops, limits and approvals are statements that non-programmers can review. | A graph of nodes and edges built in Python or JavaScript code, with routing inside conditional-edge functions. |
+| **Where the rules live** | In the script, enforced by the runtime, separate from prompts and application code. | Mixed into application code. |
+| **Spending limits** | **Built in.** Tokens, calls or money per run, agent, step or loop; checked **before** each call; daily allowances that refill. | Not part of the graph model; you build it. |
+| **Rate limits and quotas** | **Built in.** Reads each provider's reset time, pauses the run, and resumes it on its own when the limit lifts. | Retry policies per node; waiting out a daily quota is left to you. |
+| **Bounded loops** | Every loop has `max N` and an `on_exhausted` branch, so the workflow decides what happens next. | A recursion limit per run, which ends it with an error. |
+| **Scheduling** | `schedule` blocks in the script. Your OS scheduler, Cloud Scheduler or `weave daemon` wakes it; no platform to buy or run. | Cron jobs on its hosted platform, or your own scheduler. |
+| **Durability** | Journal per step (memory, file or any SQL database). Durability is a runtime flag: the script doesn't change. | Checkpointers wired into the graph at compile time. |
+| **Approvals** | `approve: [Tool]` per agent: only those tool calls wait, and each is journaled. | `interrupt()` placed in node code. |
+| **Checking before running** | `weave check`: every problem, with its line, before any model is called. | Problems surface at compile or run time. |
+| **Providers** | Gemini, Sarvam, Ollama and Claude behind one contract; switching is a one-word change. | Through LangChain integrations. |
+| **Runtime** | The JVM, packaged as one JAR, deployed like the rest of your Java estate. | Python or JavaScript. |
 
-### Choose Loom when
+### Why teams choose Loom
 
-- your stack is **Java**, and you want agent workflows that deploy like the rest of it;
-- workflows run **unattended for a long time** (overnight, on a schedule, against daily quotas) and must
-  **pause and resume by themselves**;
-- **cost must be bounded** before the call, not discovered afterwards;
-- you want the orchestration **reviewable by people who don't write the code**: a `.loom` file reads like
-  the process it describes;
-- you want the rules that keep agents safe (bounds, budgets, approvals) **separate from prompts and
-  application code**.
-
-### Choose LangGraph when
-
-- your team works in **Python or JavaScript** and wants the LangChain ecosystem of integrations;
-- you want **arbitrary graph shapes and state reducers** expressed directly in code;
-- you want **time-travel debugging**, **LangSmith** and the **visual Studio**;
-- you plan to use the **managed LangGraph platform** for deployment.
-
-### What Loom doesn't have (yet)
-
-- No visual graph editor. Loom has the VS Code extension, with diagnostics and an outline instead.
-- No time travel. Loom has replay from the journal, but not forking a run from an earlier step with
-  edited state.
-- A smaller ecosystem. Tools come from ai-agent4j, OpenAPI specs, MCP servers or your own Java classes.
-- The Python runtime (loom4py) is still in development.
+- **Their stack is Java.** Agent workflows deploy, scale and get monitored like every other service.
+- **Workflows run unattended**: overnight, on a schedule, against daily quotas. They pause and resume by
+  themselves.
+- **Cost must be bounded before the call**, not discovered on the invoice.
+- **The orchestration is reviewable.** A `.loom` file reads like the process it describes, so product
+  owners, reviewers and auditors can follow it.
+- **The rules that keep agents safe live in one place**: bounds, budgets, approvals and guards, separate
+  from prompts and application code.
 
 ---
 
@@ -225,8 +210,7 @@ The workflow is one `.loom` file.
 
 ---
 
-*The LangGraph comparison reflects LangGraph's public documentation as of September 2026
+*LangGraph details reflect its public documentation as of September 2026
 ([durable execution](https://docs.langchain.com/oss/python/langgraph/durable-execution),
 [checkpointers](https://docs.langchain.com/oss/python/langgraph/checkpointers),
-[interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts)). Both projects move quickly;
-corrections are welcome.*
+[interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts)). Corrections are welcome.*
