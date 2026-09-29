@@ -317,6 +317,96 @@ bespoke "runner" you call explicitly.
 
 ---
 
+## RAG, conversations, datasets, reports and comparisons
+
+### Contextual RAG judging
+
+Evaluate the retriever, not just the generator. Each metric judges per chunk (relevant = rating 4+):
+
+```java
+LlmJudgePresets presets = LlmJudgePresets.using(judgeClient);
+
+assertThat(ragResult)   // the object under test isn't consulted; the context is what's graded
+    .is(presets.contextualPrecision(question, expectedAnswer, retrievedChunks))  // ranking quality
+    .is(presets.contextualRecall(question, expectedAnswer, retrievedChunks))     // is the answer in the context?
+    .is(presets.contextualRelevancy(question, retrievedChunks));                 // share of useful chunks
+
+// No judge LLM: cosine similarity via any EmbeddingProvider (e.g. ai-agent4j-addons ONNX/DJL)
+.is(EmbeddingRelevance.using(embeddingProvider).contextualRelevancy(question, chunks, 0.6))
+```
+
+### Conversation-level metrics
+
+```java
+ConversationJudgePresets conv = ConversationJudgePresets.using(judgeClient);
+Transcript transcript = Transcript.fromResults(userInputs, agentResults);  // or Transcript.builder()
+
+assertThat(transcript)
+    .is(conv.knowledgeRetention())
+    .is(conv.roleAdherence("You are a polite banking assistant who never gives investment advice."))
+    .is(conv.conversationCompleteness(List.of("cancel the card", "confirm the address")))
+    .is(conv.conversationRelevancy());
+
+// or straight from ConversationAssert
+assertThat(results).conversation(userInputs).is(conv.knowledgeRetention());
+```
+
+Failure messages name the offending turns (`turn 4: asked for the user's name again`). Long transcripts
+are windowed and the reason says so.
+
+### Reports, baselines and regression gates
+
+```java
+@ExtendWith(EvalReportExtension.class)
+@EvalBaseline(file = "eval4j-baseline.json", maxRegression = 0.05)
+class AgentEvalTest { ... }
+```
+
+- Run with `-Deval4j.report.dir=target/eval4j` to get `eval4j-report.json` and a self-contained
+  `eval4j-report.html` (no external requests) once per run, plus a score history
+  (`eval4j-history.jsonl`, or `-Deval4j.history.file=...`) for trend charts.
+- Create/refresh the baseline with `-Deval4j.baseline.update=true` (never written otherwise). After that,
+  the class fails if any metric's **suite average** drops by more than `maxRegression`
+  (`granularity = CASE` compares each test individually, but judge scores are noisy — prefer `SUITE`
+  and `samples(3)` on gated metrics).
+- CI recipe: cache the history file, commit the baseline, run the tests.
+
+### Dataset synthesis
+
+```java
+DatasetSynthesizer synth = DatasetSynthesizer.using(generatorClient);
+
+SynthesisResult result = synth.fromDocuments(chunks, SynthesisOptions.defaults()
+        .scenariosPerDocument(2)
+        .evolutions(Evolution.REASONING, Evolution.MULTI_CONTEXT)
+        .seed(42));
+EvalScenarios.toYaml(result.scenarios(), Path.of("src/test/resources/generated.yaml"));
+// result.report(): generated / filtered / duplicates / failed + warnings
+```
+
+Also `fromDescription(...)` and `fromSeeds(...)` for agent goldens. Generate once, commit the YAML, then
+load it with `EvalScenarios.fromYamlResource(...)` like any hand-written dataset. Candidates pass a
+quality judge and de-duplication, so you may get fewer scenarios than requested — nothing is padded.
+
+### Comparing two prompts
+
+```java
+PromptComparison.Result result = PromptComparison.using(judgeClient)
+    .criteria("More helpful, accurate and concise for a customer-support answer")
+    .variantA("current", s -> agentA.run(s.input()))
+    .variantB("candidate", s -> agentB.run(s.input()))
+    .scenarios(EvalScenarios.fromYamlResource("scenarios.yaml"))
+    .run();
+
+PromptComparisonAssertions.assertThat(result).doesNotRegress(0.05).hasNoErrors();
+```
+
+Each pair is judged in both orders and only counts as a win if both agree (otherwise a flagged tie),
+which cancels position bias. Per-scenario scores feed the same reports and baselines
+(`Pairwise: current vs candidate`).
+
+---
+
 ## Why this isn't a Python port
 
 `eval4j` is not `deepeval` translated line-for-line into Java. The Python shape —
@@ -345,30 +435,28 @@ of why agentic Java apps specifically need evals.
 
 Built so far (this module): fluent assertions, LLM-as-judge conditions + the standard preset set,
 rubric-based (not raw-float) scoring, optional self-consistency sampling, pluggable judge-call
-caching (in-memory and file-system), pass-rate aggregation, YAML golden datasets, and JUnit-native
-reporting.
+caching (in-memory and file-system), pass-rate aggregation, YAML golden datasets, JUnit-native
+reporting, contextual RAG judging (precision/recall/relevancy, judge- or embedding-based),
+conversation-level metrics, JSON/HTML reports with baseline regression gates and score history,
+dataset synthesis, and pairwise prompt comparison.
 
 Tracked, not yet built:
-- **Contextual RAG judging** (`contextualPrecision`/`contextualRecall`/`contextualRelevancy`) —
-  needs per-chunk relevance judgments, either judge-LLM-only or embedding-based (via
-  `ai-agent4j-addons`'s local ONNX/DJL embeddings).
 - **True logprob-weighted G-Eval scoring** — the original paper's exact methodology computes a
   probability-weighted score from the judge model's own token log-probabilities, which is more
   rigorous than this module's rubric-based rating but needs logprobs support added to
   `LLMRequest`/`LLMResponse` in `ai-agent4j` itself first, and isn't available consistently across
   Gemini/Sarvam/Ollama. The rubric + self-consistency approach here gets most of the calibration
   benefit without that cross-module dependency.
-- **Dataset synthesis, JSON/HTML reporting, CI/regression-baseline tracking**, including
-  persisting historical scores from `FileSystemJudgeCache`-style CI caching into an actual trend
-  view (right now caching saves judge-call cost, but nothing tracks score trends over time).
 - **Evaluating whole [Loom](../loom/) multi-agent workflows**, not just single `ReActAgent` runs —
   needs its own `WorkflowResultAssert` once Loom's execution/result model is scoped out.
-- **Comparative prompt testing** (pairwise "which prompt variant wins" judging).
-- **Conversational semantic metrics** (knowledge retention, role adherence across a whole
-  conversation) — `ConversationAssert` currently only checks turn count/completion structurally,
-  not conversation-level judge-based criteria.
+- **Safety metrics** — PII leakage and red-teaming (bias and toxicity presets exist).
 - **Multimodal evaluation** — judging image/audio outputs, relevant given this ecosystem's own
   voice apps (e.g. Kingini's STT/TTS), not built or scoped yet.
+- **Judge-cost tracking** in reports (needs token usage exposed on `LLMResponse`).
+
+Design notes and verification: see [SPEC-deepeval-parity.md](SPEC-deepeval-parity.md),
+[TEST-STRATEGY-deepeval-parity.md](TEST-STRATEGY-deepeval-parity.md) and
+[VERIFICATION-PLAN-deepeval-parity.md](VERIFICATION-PLAN-deepeval-parity.md).
 
 ---
 

@@ -448,3 +448,41 @@ composes with `@ParameterizedTest` if a user prefers writing the loop.
    This spec assumes the extension is enough.
 4. Where should the `EmbeddingModel` SPI live long-term (eval4j vs `ai-agent4j`) so RAG judging and
    synthesis share it?
+
+---
+
+## Implementation notes (deviations from the draft above)
+
+Recorded after implementation so the spec matches the code.
+
+**General**
+- Shared machinery lives in `judge/JudgeCalls` (rubric-rated and raw calls with caching, sampling and
+  delimiter sanitizing). `JudgePrompt.sanitize` now replaces `<<<` in all untrusted text so embedded
+  text cannot forge `<<<BEGIN/END ...>>>` markers.
+- Locale-safety fixes found by the locale matrix run: judge failure descriptions and `PassRate`
+  messages now format numbers with `Locale.ROOT` (previously `0,50` under a Turkish locale).
+
+**1 · RAG judging** — `RagContextCondition` (+ `Metric` enum) lives in the `judge` package, not
+`judge.rag`. Presets are `LlmJudgePresets.contextual{Precision,Recall,Relevancy}`. Embedding mode
+reuses `ai-agent4j`'s existing `EmbeddingProvider` rather than a new SPI, so no addons adapter is
+needed. `expectedOutput` is required for recall, and for precision in judge mode only. The condition
+grades the supplied retrieval context and ignores the `actual` object.
+
+**2 · Reporting** — `EvalRecorder` records inside `matches(...)` of every judged condition and is
+activated by `EvalReportExtension`. `EvalRecord.timestamp` is an ISO-8601 string. The report/history
+are written when the JUnit root context closes (once per engine run). The HTML delta column compares
+against the baseline of any `@EvalBaseline` class that ran. History defaults to
+`<report dir>/eval4j-history.jsonl`.
+
+**3 · Synthesis** — `dataset.synthesis` package; methods return `SynthesisResult(scenarios, report)`.
+Generator/judge calls reuse `JudgeCache` (no separate `GenerationCache`). `EvalScenarios.toYaml`
+writes with nulls omitted, no document marker and literal block style; round-trip is tested with
+YAML look-alike strings.
+
+**4 · Conversations** — `Transcript` and `ConversationJudgeCondition` live in the `judge` package.
+Turn numbers in reasons are 1-based exchange numbers. A completeness run with no assistant turns
+scores 0.0; other metrics score 1.0 with "nothing to evaluate".
+
+**5 · Comparison** — `compare` package. A TIE from one ordering and a decisive result from the other
+resolves to a flagged TIE. `ERROR_BOTH` counts as a tie. Errors count as losses for the erroring
+variant in the win rates.
