@@ -1,6 +1,6 @@
 # AI Agent4J (Autonomous Foundations for Java)
 
-> **The ultra-lightweight, zero-magic ReAct Agent library for Google Gemini and Beyond.**
+> **The ultra-lightweight, zero-magic ReAct Agent library for Gemini, Claude, Sarvam and local models.**
 
 AI Agent4J is a high-performance, developer-first framework for building autonomous Java agents. It is designed to be the "Standard Library" for LLM reasoning in the Java ecosystem.
 
@@ -17,11 +17,13 @@ AI Agent4J is a high-performance, developer-first framework for building autonom
 ## 🏛️ Philosophy
 - **Zero Magic**: Pure Java, no heavy abstractions, under 200KB core size.
 - **Transparency**: Full visibility into the "Thought-Action-Observation" reasoning loop.
-- **Provider Agnostic**: Native support for Gemini, Sarvam, and easy integration for others.
+- **Provider Agnostic**: Gemini, Anthropic Claude, Sarvam and Ollama behind one contract: the same system-prompt
+  handling, finish reasons (raw value in `metadata.finish_reason_raw`), typed exceptions and native `chatStream`.
+  Switch models by changing the provider or model name. Guide: wiki/Providers-and-the-Uniform-Contract.md
 
 ## 🔧 Architecture
 The core reasoning engine is the `ReActAgent`. It operates in an iterative loop:
-1. **Thought**: LLM analyzes the current state and decides on a strategy.
+1. **Plan**: LLM notes its next step in one short sentence (the JSON `"plan"` field; `"thought"` is still read).
 2. **Action**: Agent invokes a `Tool` (calc, search, SQL, custom).
 3. **Observation**: Agent receives the tool's output and updates its reasoning.
 
@@ -31,6 +33,10 @@ The core reasoning engine is the `ReActAgent`. It operates in an iterative loop:
 - `ToolRegistry`: Manages sets of tools for delegation.
 - `RoutingLLMClient`: Intelligent, cost-aware routing (e.g., Gemini Flash for easy tasks, Pro for hard).
 - `AgentPersona`: Defines system prompts and behavior styles.
+- `AnthropicProvider`, `GoogleProvider`, `SarvamChatProvider`, `OllamaProvider`: `LLMProvider`s meeting one
+  contract; `chat` and streaming `chatStream`. No vendor SDKs.
+- Exceptions: `AuthenticationException`, `InvalidRequestException`, `RateLimitException`,
+  `ServiceUnavailableException`, `ContentBlockedException` (all `LLMException`).
 
 ## 🤝 Multi-Agent Orchestration
 Uses the `DelegateTaskTool` to implement the **Manager-Worker** pattern.
@@ -67,5 +73,6 @@ AI Agent4J is for developers who find LangChain4j too bloated or Spring AI too o
 ## 🔗 Documentation Links
 - [README](README.md)
 - [Wiki: Why AI Agent4J?](wiki/WHY_AI_AGENT4J.md)
+- [Wiki: Providers and the Uniform Contract](wiki/Providers-and-the-Uniform-Contract.md)
 - [Wiki: Semantic Memory](wiki/SEMANTIC_MEMORY.md)
 - [Wiki: Agent Delegation](wiki/DELEGATION.md)

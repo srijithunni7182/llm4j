@@ -102,10 +102,47 @@ Every provider is capped by its 60,000-token budget.
 
 ## Results (2026-09-29)
 
-### Status: mock-verified; live-verified only for bad keys
+### Status: Anthropic live-verified; Gemini, Sarvam and Ollama mock-verified
 
-The full live suite (L1–L8, L10, L11) is waiting for your key. This container can reach
-`api.anthropic.com` and `generativelanguage.googleapis.com`, so it runs the moment a key is set.
+**L: live, Anthropic, run 2026-09-29** with `claude-opus-5-5` and `claude-haiku-4-5`
+(`mvn -pl ai-agent4j,loom/ai-agent4j-loom -Plive test`):
+
+| # | `claude-opus-5-5` | `claude-haiku-4-5` |
+|---|---|---|
+| L1 answer | ✅ | ✅ |
+| L2 system prompt | ✅ | ✅ |
+| L3 multi-turn | ✅ | ✅ |
+| L4 truncation → `LENGTH` | ✅ | ✅ |
+| L5 streaming | ✅ | ✅ |
+| L6 ReAct + calculator, default temperature | ✅ (7006652) | ✅ (7006652) |
+| L7 JSON output schema | ✅ | ✅ |
+| L8 budget = reported usage (chat and stream) | ✅ | ✅ |
+| L9 bad key → `AuthenticationException` | ✅ | ✅ |
+| L10 switching, same unchanged task | ✅ → 1776 | ✅ → 1776 |
+| L11 Loom `weave run --trace` | ✅ | not run (one model is enough) |
+
+- **ai-agent4j live:** 18 of 18 passed.
+- **Loom L11:** the trace shows the plan, then `calculator {"expression":"48 * 37"}` → `1776`, then the
+  variable `{"boxes":48,"items_per_box":37,"total":1776}`.
+- **Not seen live:** 429, 529, 503 and refusals of normal requests (except the one below). C6, C8 and C9
+  still cover them.
+
+**What the live suite revealed** (all fixed and re-run):
+
+1. **Opus 5.5 refused the ReAct prompt.** It returned `stop_reason: refusal`, category
+   `reasoning_extraction`, whenever the prompt asked it to fill in a JSON field named `"thought"`.
+   - `ReActAgent` now asks for a short `"plan"` note instead, and replays it as `Plan:`.
+   - Replies that use `"thought"` or `Thought:` are still read, so other models and existing tests are
+     unaffected.
+   - A JSON answer that happens to contain a `"plan"` key (with no `action` or `final_answer`) is still
+     treated as a structured answer, not as the protocol. `ReActAgentPlanFieldTest` covers all three
+     cases.
+   - This is the one change outside the design's "no changes to `ReActAgent`" list. It is a prompt
+     wording change; the public API is unchanged.
+2. **Loom `note` statements didn't interpolate variables.** They printed `${total}` literally. This was
+   found reading the L11 trace; notes now resolve variables like `say`.
+3. **A zero-credit account** returns 400 `invalid_request_error` ("credit balance is too low"). It is
+   correctly an `InvalidRequestException` carrying Anthropic's message, so no change was needed.
 
 **C: conformance.** The same checks ran for all four providers. The one refusal check is marked not
 applicable for Ollama and Sarvam, which have no refusal signal.
@@ -121,7 +158,7 @@ applicable for Ollama and Sarvam, which have no refusal signal.
 | `AnthropicProviderTest` | 21 passed |
 | `ProviderEdgesTest` | 11 passed |
 
-**L: live, run in this session without any key.**
+**L: live, earlier, without any key.**
 
 - **L9, bad key: passed against both real APIs.**
   - Anthropic returned 401 `authentication_error: API key is invalid.`, reported as
@@ -129,14 +166,13 @@ applicable for Ollama and Sarvam, which have no refusal signal.
   - Gemini returned **400** `INVALID_ARGUMENT: API key not valid`. This is a real quirk: the contract
     says a bad key is an `AuthenticationException` for every provider, so `GoogleProvider` now maps it.
     It was found by accident, because an old test called the real Gemini API with a dummy key.
-- **The rest were skipped** for lack of credentials: L1–L8, L10 (switching) and L11 (Loom end to end).
 
 **K: compatibility.**
 
 | # | Result |
 |---|---|
 | K1 | No public signature changed or was removed. See the list of additions below. |
-| K2 | All suites green: ai-agent4j 638, addons 17, eval4j 125, Loom 355, Engram 9, Tantrik 22, GetViral 77. Two existing tests were changed; see below. |
+| K2 | All suites green after the live fixes: ai-agent4j 651, addons 17, eval4j 125, Loom 355, Engram 9, Tantrik 22, GetViral 77. Two existing tests were changed; see below. |
 | K3 | Loom, eval4j and GetViral needed no source changes. Loom's only change is the additive `anthropic` support in its factory and provider kinds, plus error-message wording. |
 | K4 | No new dependencies. The pom changes are surefire's live-group properties and a `live` profile. |
 | K5 | A default build runs **0** live tests. `-Plive` runs them, skipping those without credentials. |
@@ -181,10 +217,8 @@ applicable for Ollama and Sarvam, which have no refusal signal.
 3. **Live tests are named `*LiveTest` / `Live*Test`**, which keeps them away from the old
    `*IntegrationTest` exclusion. Those older tests remain as they were.
 
-### To finish
+### Still open
 
-- **Your key.** Add `ANTHROPIC_API_KEY` to the environment settings and start a new session, or run
-  `mvn -pl ai-agent4j,loom/ai-agent4j-loom -Plive test` locally. Record L1–L11 here per model, and fix
-  anything the live suite reveals.
 - **Other providers.** Gemini, Sarvam and Ollama stay *mock-verified* until their credentials or a
-  local server are available.
+  local server are available. Run the same command with `GEMINI_API_KEY`, `SARVAM_API_KEY` or
+  `OLLAMA_BASE_URL` set.

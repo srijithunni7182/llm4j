@@ -58,7 +58,7 @@ public class ReActAgent {
             Use the following format as a JSON object inside a ```json code block:
 
             {
-              "thought": "you should always think about what to do",
+              "plan": "one short sentence on the next step",
               "action": "the action to take, should be one of [{tool_names}]",
               "action_input": {
                 "parameter_name": "parameter_value"
@@ -67,7 +67,7 @@ public class ReActAgent {
 
             When you have the final answer, use this format:
             {
-              "thought": "I now know the final answer",
+              "plan": "I have the answer",
               "final_answer": "the final answer to the original input question"
             }
 
@@ -77,7 +77,7 @@ public class ReActAgent {
 
     // Legacy patterns for backward compatibility
     private static final Pattern THOUGHT_PATTERN =
-            Pattern.compile("Thought:\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
+            Pattern.compile("(?:Thought|Plan):\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
     private static final Pattern ACTION_PATTERN =
             Pattern.compile("Action:\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
     private static final Pattern ACTION_INPUT_PATTERN =
@@ -289,6 +289,7 @@ public class ReActAgent {
                 if (!responseJson.containsKey("final_answer")
                         && !responseJson.containsKey("action")
                         && !responseJson.containsKey("thought")) {
+                    // ("plan" alone is not the protocol: a structured answer may well have a "plan" field)
                     // A bare JSON payload (e.g. a structured-output reply) is the answer itself.
                     responseJson = new HashMap<>(Map.of(
                             "final_answer", objectMapper.writeValueAsString(responseJson)));
@@ -296,7 +297,7 @@ public class ReActAgent {
 
                 if (responseJson.containsKey("final_answer")) {
                     String finalAnswer = asAnswerText(responseJson.get("final_answer"));
-                    String thought = (String) responseJson.get("thought");
+                    String thought = noteOf(responseJson);
                     return processFinalAnswer(
                             question,
                             finalAnswer,
@@ -310,7 +311,7 @@ public class ReActAgent {
                             protocolFollowed);
                 }
 
-                String thought = (String) responseJson.get("thought");
+                String thought = noteOf(responseJson);
                 String action = (String) responseJson.get("action");
                 Object actionInputObj = responseJson.get("action_input");
 
@@ -345,7 +346,7 @@ public class ReActAgent {
                                 thought, action, actionInput, observation, execution.outcome());
                 steps.add(step);
 
-                scratchpad.append("Thought: ").append(thought != null ? thought : "").append("\n");
+                scratchpad.append("Plan: ").append(thought != null ? thought : "").append("\n");
                 scratchpad.append("Action: ").append(action).append("\n");
                 scratchpad
                         .append("Action Input: ")
@@ -381,6 +382,16 @@ public class ReActAgent {
         if (finalAnswer == null) return "";
         if (finalAnswer instanceof String text) return text;
         return objectMapper.writeValueAsString(finalAnswer);
+    }
+
+    /**
+     * The model's note on its next step. The prompt asks for {@code "plan"}: asking current Claude
+     * models (Opus 5.5 and later) to fill in a {@code "thought"} field is refused as reasoning
+     * extraction. {@code "thought"} is still read, for older prompts and models.
+     */
+    private static String noteOf(Map<String, Object> response) {
+        Object note = response.containsKey("plan") ? response.get("plan") : response.get("thought");
+        return note == null ? null : String.valueOf(note);
     }
 
     private Map<String, Object> parseResponse(String llmOutput) throws Exception {

@@ -87,6 +87,9 @@ new AnthropicProvider(LLMConfig.builder()
 - **Effort** can also be set per request with `LLMRequest.builder().addParameter("effort", "low")`.
 - **Sampling settings.** `AnthropicModels.acceptsSampling(model)` decides whether `temperature`/`top_p`
   are sent. It's an allowlist of older models, so new models are safe by default.
+- **ReAct agents.** Claude Opus 5.5 refuses (`reasoning_extraction`) prompts that ask it to fill in a
+  `"thought"` field. That's why `ReActAgent` asks every model for a short `"plan"` note instead. Replies
+  that use `"thought"` are still accepted.
 - **In Loom**: `model: "anthropic/claude-opus-5-5"` (or just `"claude-opus-5-5"`), with
   `ANTHROPIC_API_KEY`, or `provider Team { use: anthropic api_key: env.KEY }`.
 
@@ -116,7 +119,7 @@ US$0.50.
 
 | Provider | Conformance suite (mock) | Live |
 |---|---|---|
-| Anthropic | ✅ | bad-key check ✅ (2026-09-29); full suite pending a key |
+| Anthropic | ✅ | ✅ full suite, L1–L11, on `claude-opus-5-5` and `claude-haiku-4-5` (2026-09-29) |
 | Gemini | ✅ | bad-key check ✅ (2026-09-29); full suite pending a key |
 | Sarvam | ✅ | pending a key |
 | Ollama | ✅ | pending a local server |

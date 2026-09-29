@@ -133,7 +133,7 @@ in as the judge.
 ```java
 llmJudged("Conciseness")
     .criteria("The answer is three sentences or fewer and directly answers the question")
-    .judge(judgeClient)     // any LLMClient — Gemini, Sarvam, Ollama, a routing client, a test double
+    .judge(judgeClient)     // any LLMClient — Gemini, Claude, Sarvam, Ollama, a routing client, a test double
     .threshold(0.7)         // default 0.5 if omitted
     .input(originalQuestion)          // optional
     .expectedOutput(knownGoodAnswer)  // optional

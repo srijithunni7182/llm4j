@@ -32,5 +32,6 @@ Shared pieces come first, so the provider edits stay small.
   - README;
   - LOOM_GUIDE and LOOM_PROMPT (anthropic models).
 - [x] 10. **Full suites green**; results recorded (*mock-verified only*); commit and push.
-- [ ] 11. **You run the live suite with your keys**; results are recorded, and whatever it reveals is
-      fixed.
+- [x] 11. **You run the live suite with your keys**; results are recorded, and whatever it reveals is
+      fixed. Anthropic was run on 2026-09-29; the fixes were the ReAct `"plan"` field and Loom note
+      interpolation. Gemini, Sarvam and Ollama are waiting on credentials.

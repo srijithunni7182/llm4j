@@ -6,7 +6,7 @@
 
 **llm4j** is a monorepo dedicated to exploring the future of AI engineering in Java. Unlike Python-heavy ecosystems or heavy abstractions, this project proves that you can build sophisticated, production-ready AI solutions using pure, idiomatic Java.
 
-It provides a complete stack: from a low-level **Gemini 3.5 Flash** client to a high-level ReAct agent framework with **Human-in-the-Loop** approval gates, and fully fledged multi-agent applications.
+It provides a complete stack: from low-level clients for **Gemini, Claude, Sarvam and Ollama** that behave identically, to a high-level ReAct agent framework with **Human-in-the-Loop** approval gates, and fully fledged multi-agent applications.
 
 ---
 
@@ -14,13 +14,14 @@ It provides a complete stack: from a low-level **Gemini 3.5 Flash** client to a 
 
 The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java library for building LLM-powered applications.
 
-* **Multi-Provider**: Native support for **Google Gemini 3.5 Flash**, **Sarvam AI (Sarvam-30B / Sarvam-105B)**, and **Local models via Ollama (Gemma, Llama, Phi)**, with an extensible architecture for others.
+* **Multi-Provider**: Native support for **Google Gemini**, **Anthropic Claude (Opus 5.5, Haiku 4.5, …)**, **Sarvam AI (Sarvam-30B / Sarvam-105B)**, and **Local models via Ollama (Gemma, Llama, Phi)**, all over plain HTTP with no vendor SDKs.
+* **One Contract, Switch by Name**: every provider handles system prompts, finish reasons, token usage, errors and **streaming** the same way, so switching models means changing one name. A shared conformance suite checks it in every build, and a key-gated live suite checks it against the real APIs (Claude: all checks passing). 👉 [Providers and the Uniform Contract](ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md)
 * **Voice-Native**: First-class support for Speech-to-Text (STT via Saaras v3) and Text-to-Speech (TTS via Bulbul v3) pipelines.
 * **Zero Magic**: No confusing "magic" abstractions. Just clean, typed Java code.
 * **ReAct Agents**: Implements the **Re**asoning + **Act**ing paradigm, allowing agents to solve complex problems by thinking and using tools.
 * **Human-in-the-Loop (HITL)**: Built-in approval gates — any tool can declare `requiresApproval()` and the agent will block for an `ApprovalCallback` before executing sensitive actions (e.g. sending emails, running queries, making payments).
 * **Autonomous Foundations**: Built-in support for **Agent Delegation** (Manager/Worker patterns), **Background Task Scheduling**, and **Semantic Long-Term Memory**.
-* **Model Routing**: Cost-aware and fallback routing strategies with a tri-lane `HybridModelRegistry` that routes `gemini-*` → Gemini Cloud, `sarvam-*` → Sarvam Cloud, and `ollama/*` → Local Ollama.
+* **Model Routing**: Cost-aware and fallback routing strategies with a `HybridModelRegistry` that routes `gemini-*` → Gemini Cloud, `sarvam-*` → Sarvam Cloud, and `ollama/*` → Local Ollama; `RoutingLLMClient` mixes in any provider, Claude included.
 * **Tooling**: Includes ready-to-use tools (Calculator, Web Search) and an **OpenAPI Tool** that can turn any REST API into an AI function instantly.
 * **MCP Support**: Full support for the **Model Context Protocol (MCP)**, enabling connection to any external MCP server (Python, Node, etc.).
 * **Structured Output**: Native support for JSON modes and structured object mapping.
@@ -42,6 +43,7 @@ The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java 
 * **Data-Driven Routing**: `for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} -> {fix.output} }`: iterate over what an agent returned and route each item to the agent it names, in one line.
 * **Cost Budgets**: `budget { tokens: 200000 }` for a run, `budget { tokens: 20000 per_call: 2000 }` for an agent, `budget 5000 tokens` for a step or loop. Over-budget calls are refused before they reach the model; `weave run --max-tokens` caps any script, and every run reports where its tokens went.
 * **Pause and Resume on Limits**: a rate limit or daily quota no longer kills a long-running workflow. ai-agent4j reads when the limit resets; Loom pauses the run (no thread held) and resumes it then. `budget { tokens: 100000 per day when_exhausted: suspend }` gives background agents a daily allowance, and `schedule { cron: "0 7 * * *" run: Digest() }` runs workflows on a schedule, all kept in a trigger store that cron, systemd, launchd, Windows Task Scheduler or Cloud Scheduler can wake (`weave triggers install`).
+* **Any Model, One Line**: `model: "claude-opus-5-5"`, `"gemini-2.5-flash"`, `"ollama/llama3"` or `"sarvam/sarvam-m"`; the rest of the script doesn't change. Verified end to end against real Claude: a Loom agent calling a tool and returning schema-checked JSON.
 * **Bounded, Resilient Steps**: `loop until … max 5 … on_exhausted`, `retry 2 backoff 2s timeout 90s`, per-step `expecting { }` schemas and per-agent `temperature:`.
 
 👉 **[Master Loom Orchestration](loom/ai-agent4j-loom/LOOM_GUIDE.md)** · **[Budgets, Pausing and Scheduling](loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md)** · **[ai-agent4j Budgets and Rate Limits](ai-agent4j/wiki/Budgets-and-Rate-Limits.md)**
