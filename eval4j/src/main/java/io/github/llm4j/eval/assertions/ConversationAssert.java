@@ -38,8 +38,9 @@ public class ConversationAssert
     }
 
     /**
-     * Pairs the given user inputs with these results into a {@link Transcript} so conversation-level
-     * judge conditions apply: {@code assertThat(results).conversation(inputs).is(conv.roleAdherence(...))}.
+     * Pairs the given user inputs with these results into a {@link Transcript} so
+     * conversation-level judge conditions apply: {@code
+     * assertThat(results).conversation(inputs).is(conv.roleAdherence(...))}.
      */
     public ObjectAssert<Transcript> conversation(List<String> userInputs) {
         isNotNull();

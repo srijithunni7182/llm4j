@@ -18,7 +18,9 @@ public final class Transcript {
         ASSISTANT
     }
 
-    /** One message; {@code trajectory} is the agent's tool-use steps for an assistant turn, if any. */
+    /**
+     * One message; {@code trajectory} is the agent's tool-use steps for an assistant turn, if any.
+     */
     public record Turn(Role role, String content, String trajectory) {}
 
     /** A rendered slice of the conversation, and how many earlier turns were left out. */
@@ -52,7 +54,8 @@ public final class Transcript {
             AgentResult result = results.get(i);
             builder.user(userInputs.get(i));
             String answer = result.isCompleted() ? result.getFinalAnswer() : null;
-            builder.assistant(answer == null ? "" : answer, OutputExtractor.extractTrajectory(result));
+            builder.assistant(
+                    answer == null ? "" : answer, OutputExtractor.extractTrajectory(result));
         }
         return builder.build();
     }
@@ -76,7 +79,9 @@ public final class Transcript {
         return out;
     }
 
-    /** Number of user turns strictly before {@code turnIndex}'s exchange, i.e. its 1-based number. */
+    /**
+     * Number of user turns strictly before {@code turnIndex}'s exchange, i.e. its 1-based number.
+     */
     int exchangeNumber(int assistantTurnIndex) {
         int n = 0;
         for (int i = 0; i <= assistantTurnIndex; i++) {

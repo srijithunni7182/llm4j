@@ -17,7 +17,8 @@ import org.junit.jupiter.api.io.TempDir;
 class ScoreHistoryTest {
 
     private static HistoryEntry entry(int i) {
-        return new HistoryEntry("run" + i, "2026-01-01T00:00:0" + (i % 10) + "Z", null, Map.of("M", i / 10.0));
+        return new HistoryEntry(
+                "run" + i, "2026-01-01T00:00:0" + (i % 10) + "Z", null, Map.of("M", i / 10.0));
     }
 
     @Test
@@ -34,7 +35,9 @@ class ScoreHistoryTest {
         for (int i = 1; i <= 5; i++) {
             history.append(entry(i));
         }
-        assertThat(history.load()).extracting(HistoryEntry::runId).containsExactly("run3", "run4", "run5");
+        assertThat(history.load())
+                .extracting(HistoryEntry::runId)
+                .containsExactly("run3", "run4", "run5");
     }
 
     @Test
@@ -59,7 +62,8 @@ class ScoreHistoryTest {
         ExecutorService pool = Executors.newFixedThreadPool(8);
         try {
             List<Future<?>> futures = new java.util.ArrayList<>();
-            IntStream.range(0, 40).forEach(i -> futures.add(pool.submit(() -> history.append(entry(i)))));
+            IntStream.range(0, 40)
+                    .forEach(i -> futures.add(pool.submit(() -> history.append(entry(i)))));
             for (Future<?> f : futures) {
                 f.get();
             }
@@ -67,7 +71,8 @@ class ScoreHistoryTest {
             pool.shutdownNow();
         }
         assertThat(history.load()).hasSize(40);
-        assertThat(Files.readAllLines(file)).allSatisfy(line -> assertThat(line).startsWith("{").endsWith("}"));
+        assertThat(Files.readAllLines(file))
+                .allSatisfy(line -> assertThat(line).startsWith("{").endsWith("}"));
     }
 
     @Test

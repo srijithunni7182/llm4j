@@ -31,8 +31,8 @@ import java.util.Set;
  * <ul>
  *   <li>{@link #fromDocuments}: RAG goldens — a question and ground-truth answer grounded strictly
  *       in a source chunk, optionally evolved (reasoning, multi-context, ...).
- *   <li>{@link #fromDescription} / {@link #fromSeeds}: agent goldens — diverse inputs with key facts
- *       to look for in the answer.
+ *   <li>{@link #fromDescription} / {@link #fromSeeds}: agent goldens — diverse inputs with key
+ *       facts to look for in the answer.
  * </ul>
  *
  * <p>Every candidate goes through a quality judge and de-duplication; nothing is padded, so you may
@@ -110,7 +110,8 @@ public final class DatasetSynthesizer {
     }
 
     public static DatasetSynthesizer using(LLMClient generator) {
-        return new DatasetSynthesizer(Objects.requireNonNull(generator, "generator cannot be null"));
+        return new DatasetSynthesizer(
+                Objects.requireNonNull(generator, "generator cannot be null"));
     }
 
     /** A separate model for the quality filter; defaults to the generator. */
@@ -167,7 +168,8 @@ public final class DatasetSynthesizer {
                 Evolution evolution =
                         options.evolutions().isEmpty()
                                 ? null
-                                : options.evolutions().get(random.nextInt(options.evolutions().size()));
+                                : options.evolutions()
+                                        .get(random.nextInt(options.evolutions().size()));
                 List<String> sources = new ArrayList<>(List.of(doc));
                 if (evolution == Evolution.MULTI_CONTEXT && docs.size() > 1) {
                     sources.add(partnerFor(docIndex, docs));
@@ -196,7 +198,10 @@ public final class DatasetSynthesizer {
         int requested = docs.size() * options.scenariosPerDocument();
         if (kept.size() < requested) {
             tally.warnings.add(
-                    "requested " + requested + " scenarios but kept " + kept.size()
+                    "requested "
+                            + requested
+                            + " scenarios but kept "
+                            + kept.size()
                             + "; nothing was padded");
         }
         return new SynthesisResult(kept, tally.report());
@@ -217,10 +222,21 @@ public final class DatasetSynthesizer {
         user.append(sourceBlock);
         if (!previousQuestions.isEmpty()) {
             user.append("Do not repeat any of these questions:\n")
-                    .append(JudgeCalls.delimited("EXISTING QUESTIONS", String.join("\n", previousQuestions)));
+                    .append(
+                            JudgeCalls.delimited(
+                                    "EXISTING QUESTIONS", String.join("\n", previousQuestions)));
         }
         JsonNode base =
-                askJson(generator, tally, "Generate question", name, GENERATE_SYSTEM, user.toString(), options, "question", "answer");
+                askJson(
+                        generator,
+                        tally,
+                        "Generate question",
+                        name,
+                        GENERATE_SYSTEM,
+                        user.toString(),
+                        options,
+                        "question",
+                        "answer");
         if (base == null) {
             return null;
         }
@@ -230,19 +246,39 @@ public final class DatasetSynthesizer {
 
         if (evolution != null) {
             String evolveUser =
-                    evolution.instruction() + "\n\n" + sourceBlock
+                    evolution.instruction()
+                            + "\n\n"
+                            + sourceBlock
                             + JudgeCalls.delimited("QUESTION", question);
             JsonNode evolved =
-                    askJson(generator, tally, "Evolve question", name, EVOLVE_SYSTEM, evolveUser, options, "question");
+                    askJson(
+                            generator,
+                            tally,
+                            "Evolve question",
+                            name,
+                            EVOLVE_SYSTEM,
+                            evolveUser,
+                            options,
+                            "question");
             if (evolved == null) {
                 tally.generated--; // the candidate never became usable
                 return null;
             }
             question = evolved.get("question").asText().trim();
             String answerUser =
-                    "Answer the question.\n\n" + sourceBlock + JudgeCalls.delimited("QUESTION", question);
+                    "Answer the question.\n\n"
+                            + sourceBlock
+                            + JudgeCalls.delimited("QUESTION", question);
             JsonNode reanswered =
-                    askJson(generator, tally, "Answer evolved question", name, ANSWER_SYSTEM, answerUser, options, "answer");
+                    askJson(
+                            generator,
+                            tally,
+                            "Answer evolved question",
+                            name,
+                            ANSWER_SYSTEM,
+                            answerUser,
+                            options,
+                            "answer");
             if (reanswered == null) {
                 tally.generated--;
                 return null;
@@ -289,11 +325,16 @@ public final class DatasetSynthesizer {
 
     // --- description / seeds --------------------------------------------------------------
 
-    public SynthesisResult fromDescription(String description, int count, SynthesisOptions options) {
-        return fromExamples("Agent description:\n" + JudgeCalls.delimited("DESCRIPTION", description), count, options);
+    public SynthesisResult fromDescription(
+            String description, int count, SynthesisOptions options) {
+        return fromExamples(
+                "Agent description:\n" + JudgeCalls.delimited("DESCRIPTION", description),
+                count,
+                options);
     }
 
-    public SynthesisResult fromSeeds(List<EvalScenario> seeds, int count, SynthesisOptions options) {
+    public SynthesisResult fromSeeds(
+            List<EvalScenario> seeds, int count, SynthesisOptions options) {
         StringBuilder examples = new StringBuilder();
         for (EvalScenario s : seeds) {
             examples.append("- input: ").append(s.input());
@@ -302,7 +343,10 @@ public final class DatasetSynthesizer {
             }
             examples.append('\n');
         }
-        return fromExamples("Example scenarios:\n" + JudgeCalls.delimited("EXAMPLES", examples.toString()), count, options);
+        return fromExamples(
+                "Example scenarios:\n" + JudgeCalls.delimited("EXAMPLES", examples.toString()),
+                count,
+                options);
     }
 
     private SynthesisResult fromExamples(String context, int count, SynthesisOptions options) {
@@ -315,14 +359,30 @@ public final class DatasetSynthesizer {
             StringBuilder user = new StringBuilder(context);
             user.append("\nWrite ").append(need).append(" new, diverse scenarios.\n");
             if (!options.toolNames().isEmpty()) {
-                user.append("Allowed tools: ").append(String.join(", ", options.toolNames())).append('\n');
+                user.append("Allowed tools: ")
+                        .append(String.join(", ", options.toolNames()))
+                        .append('\n');
             }
             if (!kept.isEmpty()) {
                 user.append("Do not repeat these inputs:\n")
-                        .append(JudgeCalls.delimited("EXISTING INPUTS", kept.stream().map(EvalScenario::input).reduce((a, b) -> a + "\n" + b).orElse("")));
+                        .append(
+                                JudgeCalls.delimited(
+                                        "EXISTING INPUTS",
+                                        kept.stream()
+                                                .map(EvalScenario::input)
+                                                .reduce((a, b) -> a + "\n" + b)
+                                                .orElse("")));
             }
             JsonNode node =
-                    askJson(generator, tally, "Generate scenarios", "round:" + round, LIST_SYSTEM, user.toString(), options, "scenarios");
+                    askJson(
+                            generator,
+                            tally,
+                            "Generate scenarios",
+                            "round:" + round,
+                            LIST_SYSTEM,
+                            user.toString(),
+                            options,
+                            "scenarios");
             if (node == null || !node.get("scenarios").isArray()) {
                 continue;
             }
@@ -347,12 +407,28 @@ public final class DatasetSynthesizer {
                         tools.add(t.asText());
                     }
                 }
-                String contains = s.has("expectedOutputContains") ? s.get("expectedOutputContains").asText() : null;
-                kept.add(new EvalScenario("generated-" + (kept.size() + 1), input, contains, null, tools, null, null));
+                String contains =
+                        s.has("expectedOutputContains")
+                                ? s.get("expectedOutputContains").asText()
+                                : null;
+                kept.add(
+                        new EvalScenario(
+                                "generated-" + (kept.size() + 1),
+                                input,
+                                contains,
+                                null,
+                                tools,
+                                null,
+                                null));
             }
         }
         if (kept.size() < count) {
-            tally.warnings.add("requested " + count + " scenarios but produced " + kept.size() + "; nothing was padded");
+            tally.warnings.add(
+                    "requested "
+                            + count
+                            + " scenarios but produced "
+                            + kept.size()
+                            + "; nothing was padded");
         }
         return new SynthesisResult(kept, tally.report());
     }
@@ -391,12 +467,14 @@ public final class DatasetSynthesizer {
         }
         String repair =
                 "Your previous reply was not valid JSON in the required shape. Reply again with ONLY"
-                        + " the JSON code block.\n\n" + user;
+                        + " the JSON code block.\n\n"
+                        + user;
         raw = calls.ask(purpose + " (repair)", subject, system, repair, options.temperature());
         node = parse(raw, requiredFields);
         if (node == null) {
             tally.failed++;
-            tally.warnings.add(purpose + " for " + subject + ": generator returned unusable output twice");
+            tally.warnings.add(
+                    purpose + " for " + subject + ": generator returned unusable output twice");
         }
         return node;
     }
@@ -430,14 +508,18 @@ public final class DatasetSynthesizer {
     private static String sourceBlock(List<String> sources) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < sources.size(); i++) {
-            sb.append(JudgeCalls.delimited(sources.size() == 1 ? "SOURCE" : "SOURCE " + (i + 1), sources.get(i)));
+            sb.append(
+                    JudgeCalls.delimited(
+                            sources.size() == 1 ? "SOURCE" : "SOURCE " + (i + 1), sources.get(i)));
         }
         return sb.toString();
     }
 
     private static String shortHash(String text) {
         try {
-            byte[] hash = MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8));
+            byte[] hash =
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(text.getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder();
             for (int i = 0; i < 4; i++) {
                 hex.append(String.format(Locale.ROOT, "%02x", hash[i]));
@@ -471,7 +553,8 @@ public final class DatasetSynthesizer {
         }
 
         boolean isDuplicate(String text) {
-            String normalized = text.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]+", " ").trim();
+            String normalized =
+                    text.toLowerCase(Locale.ROOT).replaceAll("[^\\p{L}\\p{N}]+", " ").trim();
             if (!seen.add(normalized)) {
                 return true;
             }
@@ -496,7 +579,8 @@ public final class DatasetSynthesizer {
         final List<String> warnings = new ArrayList<>();
 
         SynthesisReport report() {
-            return new SynthesisReport(generated, filtered, duplicates, failed, List.copyOf(warnings));
+            return new SynthesisReport(
+                    generated, filtered, duplicates, failed, List.copyOf(warnings));
         }
     }
 }

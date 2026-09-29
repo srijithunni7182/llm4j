@@ -99,7 +99,8 @@ public final class JudgeCalls {
             String key = baseKey == null ? null : baseKey + "#" + i;
             JudgeVerdict verdict = key == null ? null : cache.get(key).orElse(null);
             if (verdict == null) {
-                String content = callLlm(JudgePrompt.SYSTEM_PROMPT, userMessage, temperature, metric);
+                String content =
+                        callLlm(JudgePrompt.SYSTEM_PROMPT, userMessage, temperature, metric);
                 verdict = JudgeResponseParser.parse(content);
                 if (key != null) {
                     cache.put(key, verdict);
@@ -189,8 +190,7 @@ public final class JudgeCalls {
                 reasons.append(' ');
             }
         }
-        return new JudgeVerdict(
-                avg, "Averaged over " + verdicts.size() + " samples. " + reasons);
+        return new JudgeVerdict(avg, "Averaged over " + verdicts.size() + " samples. " + reasons);
     }
 
     static String hash(String... parts) {

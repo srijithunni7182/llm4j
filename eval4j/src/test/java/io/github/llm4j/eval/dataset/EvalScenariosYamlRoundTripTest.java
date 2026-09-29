@@ -20,7 +20,13 @@ class EvalScenariosYamlRoundTripTest {
                         "null",
                         "123",
                         List.of("yes", "no", "~", "0x1F", "1e3"),
-                        List.of("a: b", "# not a comment", "- dash", "key: [x, y]", "'quoted'", "\"dq\""),
+                        List.of(
+                                "a: b",
+                                "# not a comment",
+                                "- dash",
+                                "key: [x, y]",
+                                "'quoted'",
+                                "\"dq\""),
                         List.of("")),
                 new EvalScenario(
                         "multi-line",
@@ -40,7 +46,8 @@ class EvalScenariosYamlRoundTripTest {
         List<EvalScenario> original = trickyScenarios();
         String yaml = EvalScenarios.toYaml(original);
         List<EvalScenario> back =
-                EvalScenarios.fromYaml(new java.io.ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8)));
+                EvalScenarios.fromYaml(
+                        new java.io.ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8)));
         assertThat(back).usingRecursiveComparison().isEqualTo(original);
     }
 
@@ -49,7 +56,9 @@ class EvalScenariosYamlRoundTripTest {
         String first = EvalScenarios.toYaml(trickyScenarios());
         String second = EvalScenarios.toYaml(trickyScenarios());
         assertThat(first).isEqualTo(second);
-        assertThat(EvalScenarios.toYaml(List.of(new EvalScenario("n", "in", null, null, null, null, null))))
+        assertThat(
+                        EvalScenarios.toYaml(
+                                List.of(new EvalScenario("n", "in", null, null, null, null, null))))
                 .doesNotContain("null")
                 .doesNotContain("expectedOutput")
                 .doesNotStartWith("---");
@@ -59,7 +68,9 @@ class EvalScenariosYamlRoundTripTest {
     void writesFileAtomicallyAndLoadsBack(@TempDir Path dir) throws Exception {
         Path file = dir.resolve("nested/dir/generated.yaml");
         EvalScenarios.toYaml(trickyScenarios(), file);
-        assertThat(EvalScenarios.fromYaml(file)).usingRecursiveComparison().isEqualTo(trickyScenarios());
+        assertThat(EvalScenarios.fromYaml(file))
+                .usingRecursiveComparison()
+                .isEqualTo(trickyScenarios());
         try (var files = Files.list(file.getParent())) {
             assertThat(files.count()).isEqualTo(1);
         }
@@ -68,7 +79,10 @@ class EvalScenariosYamlRoundTripTest {
     @Test
     void emptyListRoundTrips() {
         String yaml = EvalScenarios.toYaml(List.of());
-        assertThat(EvalScenarios.fromYaml(new java.io.ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8))))
+        assertThat(
+                        EvalScenarios.fromYaml(
+                                new java.io.ByteArrayInputStream(
+                                        yaml.getBytes(StandardCharsets.UTF_8))))
                 .isEmpty();
     }
 }

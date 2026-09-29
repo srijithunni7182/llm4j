@@ -5,9 +5,9 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Embedding-based contextual relevancy/precision: no judge LLM, one embedding per chunk. Accepts any
- * {@link EmbeddingProvider} — including {@code ai-agent4j-addons}' local ONNX/DJL providers. A chunk
- * counts as relevant when its cosine similarity to the input is at least {@code
+ * Embedding-based contextual relevancy/precision: no judge LLM, one embedding per chunk. Accepts
+ * any {@link EmbeddingProvider} — including {@code ai-agent4j-addons}' local ONNX/DJL providers. A
+ * chunk counts as relevant when its cosine similarity to the input is at least {@code
  * similarityThreshold}. Recall is judge-only and not offered here.
  *
  * <pre>{@code

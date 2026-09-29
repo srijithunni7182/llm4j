@@ -107,8 +107,14 @@ public final class RagContextCondition extends Condition<Object> {
         JudgeVerdict verdict = evaluate();
         perThreadDescription.set(
                 new TextDescription(
-                        "%s (score=%.2f, threshold=%.2f): %s",
-                        metric.displayName, verdict.score(), threshold, verdict.reason()));
+                        "%s",
+                        String.format(
+                                java.util.Locale.ROOT,
+                                "%s (score=%.2f, threshold=%.2f): %s",
+                                metric.displayName,
+                                verdict.score(),
+                                threshold,
+                                verdict.reason())));
         EvalRecorder.record(
                 metric.displayName,
                 verdict.score(),
@@ -233,7 +239,13 @@ public final class RagContextCondition extends Condition<Object> {
         String decomposeUser =
                 "Split this expected output into atomic statements.\n\n"
                         + JudgeCalls.delimited("EXPECTED OUTPUT", expectedOutput);
-        String raw = calls.ask("Recall statement decomposition", "decompose", DECOMPOSE_SYSTEM, decomposeUser, 0.0);
+        String raw =
+                calls.ask(
+                        "Recall statement decomposition",
+                        "decompose",
+                        DECOMPOSE_SYSTEM,
+                        decomposeUser,
+                        0.0);
         List<String> statements = parseStatements(raw);
         if (statements.isEmpty()) {
             return new JudgeVerdict(RagScoring.recall(0, 0), "expected output has no statements");
@@ -248,10 +260,7 @@ public final class RagContextCondition extends Condition<Object> {
                         sections.put("STATEMENT", statements.get(index));
                         sections.put("RETRIEVED CONTEXT", "- " + contextBlock);
                         return calls.rate(
-                                "Contextual Recall",
-                                STATEMENT_CRITERIA,
-                                "stmt:" + index,
-                                sections);
+                                "Contextual Recall", STATEMENT_CRITERIA, "stmt:" + index, sections);
                     });
         }
         List<JudgeVerdict> verdicts = runAll(tasks);
@@ -270,7 +279,11 @@ public final class RagContextCondition extends Condition<Object> {
         }
         return new JudgeVerdict(
                 RagScoring.recall(supported, statements.size()),
-                supported + "/" + statements.size() + " statements supported. " + reason.toString().trim());
+                supported
+                        + "/"
+                        + statements.size()
+                        + " statements supported. "
+                        + reason.toString().trim());
     }
 
     static List<String> parseStatements(String raw) {
@@ -411,7 +424,8 @@ public final class RagContextCondition extends Condition<Object> {
             }
             if (input == null || input.isBlank()) {
                 if (metric != Metric.RECALL) {
-                    throw new IllegalArgumentException("input is required for " + metric.displayName);
+                    throw new IllegalArgumentException(
+                            "input is required for " + metric.displayName);
                 }
             }
             boolean needsExpected =

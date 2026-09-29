@@ -14,19 +14,33 @@ import org.junit.jupiter.api.io.TempDir;
 class EvalReportWriterTest {
 
     private static EvalRecord rec(String test, String metric, double score, String reason) {
-        return new EvalRecord("Suite", test, metric, score, 0.5, score >= 0.5, reason, "judge-x", "2026-01-01T00:00:00Z");
+        return new EvalRecord(
+                "Suite",
+                test,
+                metric,
+                score,
+                0.5,
+                score >= 0.5,
+                reason,
+                "judge-x",
+                "2026-01-01T00:00:00Z");
     }
 
     private static EvalReportWriter.RunInfo run(List<EvalRecord> records) {
-        return new EvalReportWriter.RunInfo("run-1", "2026-01-01T00:00:00Z", "2026-01-01T00:01:00Z", "abc123", records);
+        return new EvalReportWriter.RunInfo(
+                "run-1", "2026-01-01T00:00:00Z", "2026-01-01T00:01:00Z", "abc123", records);
     }
 
     @Test
     void writesJsonThatRoundTripsIntoRecords(@TempDir Path dir) throws Exception {
-        var records = List.of(rec("t1", "Faithfulness", 0.75, "ok"), rec("t2", "Faithfulness", 0.25, "bad"));
+        var records =
+                List.of(
+                        rec("t1", "Faithfulness", 0.75, "ok"),
+                        rec("t2", "Faithfulness", 0.25, "bad"));
         EvalReportWriter.write(dir, run(records), List.of(), Map.of());
 
-        JsonNode root = new ObjectMapper().readTree(Files.readAllBytes(dir.resolve("eval4j-report.json")));
+        JsonNode root =
+                new ObjectMapper().readTree(Files.readAllBytes(dir.resolve("eval4j-report.json")));
         assertThat(root.get("runId").asText()).isEqualTo("run-1");
         assertThat(root.get("gitSha").asText()).isEqualTo("abc123");
         List<EvalRecord> back =
@@ -45,17 +59,24 @@ class EvalReportWriterTest {
     @Test
     void htmlEscapesHostileStrings(@TempDir Path dir) throws Exception {
         String payload = "<script>alert(1)</script> & \"quoted\" 'single'";
-        EvalReportWriter.write(dir, run(List.of(rec(payload, payload, 0.1, payload))), List.of(), Map.of());
+        EvalReportWriter.write(
+                dir, run(List.of(rec(payload, payload, 0.1, payload))), List.of(), Map.of());
         String html = Files.readString(dir.resolve("eval4j-report.html"));
         assertThat(html).doesNotContain("<script>alert(1)</script>");
-        assertThat(html).contains("&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;quoted&quot; &#39;single&#39;");
+        assertThat(html)
+                .contains(
+                        "&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;quoted&quot; &#39;single&#39;");
     }
 
     @Test
     void htmlShowsSummaryFailingReasonAndBaselineDelta() {
         var records = List.of(rec("t1", "M", 0.9, "great"), rec("t2", "M", 0.1, "wrong answer"));
         String html = EvalReportWriter.html(run(records), List.of(), Map.of("M", 0.9));
-        assertThat(html).contains("1 / 2").contains("50%").contains("wrong answer").contains("-0.400");
+        assertThat(html)
+                .contains("1 / 2")
+                .contains("50%")
+                .contains("wrong answer")
+                .contains("-0.400");
         assertThat(html).contains("class=\"reg\"");
     }
 
@@ -63,7 +84,8 @@ class EvalReportWriterTest {
     void sparklineOnlyWithAtLeastTwoRuns() {
         var records = List.of(rec("t", "M", 0.9, "r"));
         var one = List.of(new HistoryEntry("r0", "t", null, Map.of("M", 0.5)));
-        assertThat(EvalReportWriter.html(run(records), List.of(), Map.of())).doesNotContain("<polyline");
+        assertThat(EvalReportWriter.html(run(records), List.of(), Map.of()))
+                .doesNotContain("<polyline");
         assertThat(EvalReportWriter.html(run(records), one, Map.of())).contains("<polyline");
     }
 

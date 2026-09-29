@@ -97,8 +97,14 @@ public final class LlmJudgeCondition extends Condition<Object> {
         JudgeVerdict combined = evaluate(actual);
         perThreadDescription.set(
                 new TextDescription(
-                        "llm-judged \"%s\" (score=%.2f, threshold=%.2f): %s",
-                        name, combined.score(), threshold, combined.reason()));
+                        "%s",
+                        String.format(
+                                java.util.Locale.ROOT,
+                                "llm-judged \"%s\" (score=%.2f, threshold=%.2f): %s",
+                                name,
+                                combined.score(),
+                                threshold,
+                                combined.reason())));
         io.github.llm4j.eval.report.EvalRecorder.record(
                 name, combined.score(), threshold, combined.reason(), judgeIdentifier);
         return combined.score() >= threshold;
@@ -106,7 +112,8 @@ public final class LlmJudgeCondition extends Condition<Object> {
 
     /**
      * Runs the judge (honouring {@code samples} and {@code cache}) and returns the combined verdict
-     * without asserting. Use this outside tests, e.g. as a runtime quality gate that reports scores.
+     * without asserting. Use this outside tests, e.g. as a runtime quality gate that reports
+     * scores.
      *
      * @param actual an {@code AgentResult}, {@code LLMResponse}, or {@code String} to judge
      * @return the (averaged, if sampled) verdict

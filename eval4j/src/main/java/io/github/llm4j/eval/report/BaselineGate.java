@@ -43,7 +43,9 @@ public final class BaselineGate {
     public static Map<String, Double> aggregate(List<EvalRecord> records) {
         Map<String, double[]> sums = new TreeMap<>();
         for (EvalRecord r : records) {
-            double[] s = sums.computeIfAbsent(key(r.suite(), r.testName(), r.metric()), k -> new double[2]);
+            double[] s =
+                    sums.computeIfAbsent(
+                            key(r.suite(), r.testName(), r.metric()), k -> new double[2]);
             s[0] += r.score();
             s[1]++;
         }
@@ -61,7 +63,9 @@ public final class BaselineGate {
         }
     }
 
-    /** Writes {@code current} entries for {@code suite}, keeping other suites' entries as they were. */
+    /**
+     * Writes {@code current} entries for {@code suite}, keeping other suites' entries as they were.
+     */
     public static void update(Path file, String suite, Map<String, Double> current) {
         Map<String, Double> merged = new TreeMap<>();
         if (Files.exists(file)) {
@@ -106,13 +110,19 @@ public final class BaselineGate {
                                         java.util.Locale.ROOT,
                                         "%s: baseline %.3f -> current %.3f (delta %+.3f, allowed"
                                                 + " drop %.3f)",
-                                        display(k, granularity), old, score, delta, maxRegression));
+                                        display(k, granularity),
+                                        old,
+                                        score,
+                                        delta,
+                                        maxRegression));
                     }
                 });
         return new GateResult(regressions, noBaseline);
     }
 
-    /** Suite granularity collapses keys to {@code metric} averages; case keeps {@code test#metric}. */
+    /**
+     * Suite granularity collapses keys to {@code metric} averages; case keeps {@code test#metric}.
+     */
     private static Map<String, Double> restrict(
             Map<String, Double> all, String suite, EvalBaseline.Granularity granularity) {
         Map<String, double[]> acc = new LinkedHashMap<>();

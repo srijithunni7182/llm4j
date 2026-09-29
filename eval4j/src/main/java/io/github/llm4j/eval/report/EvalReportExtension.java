@@ -31,8 +31,8 @@ import org.junit.jupiter.api.extension.TestWatcher;
  *       appends the run's per-metric averages to a score history ({@code eval4j.history.file},
  *       default {@code <report dir>/eval4j-history.jsonl});
  *   <li>if the class is annotated with {@link EvalBaseline}, fails it when a metric regressed
- *       versus the checked-in baseline ({@code -Deval4j.baseline.update=true} rewrites the
- *       baseline instead).
+ *       versus the checked-in baseline ({@code -Deval4j.baseline.update=true} rewrites the baseline
+ *       instead).
  * </ul>
  *
  * <p>It depends only on the JUnit 5 extension API, so it works the same whether a test failed via
@@ -187,9 +187,7 @@ public class EvalReportExtension
         Map<String, Double> baseline = BaselineGate.load(file);
         runState(context)
                 .baselineAverages
-                .putAll(
-                        EvalReportWriter.metricAverages(
-                                baselineRecords(baseline, suite)));
+                .putAll(EvalReportWriter.metricAverages(baselineRecords(baseline, suite)));
         BaselineGate.GateResult result =
                 BaselineGate.compare(
                         baseline, current, suite, config.granularity(), config.maxRegression());
@@ -225,7 +223,8 @@ public class EvalReportExtension
         String key = context.getRequiredTestClass().getName();
         ExtensionContext.Store store = context.getRoot().getStore(NAMESPACE);
         return (List<Outcome>)
-                store.getOrComputeIfAbsent("outcomes:" + key, k -> new CopyOnWriteArrayList<Outcome>());
+                store.getOrComputeIfAbsent(
+                        "outcomes:" + key, k -> new CopyOnWriteArrayList<Outcome>());
     }
 
     private void printReport(String className, List<Outcome> outcomes, List<EvalRecord> records) {
@@ -244,8 +243,7 @@ public class EvalReportExtension
         if (!averages.isEmpty()) {
             System.out.println("metric averages:");
             averages.forEach(
-                    (metric, avg) ->
-                            System.out.printf(Locale.ROOT, "  %s: %.3f%n", metric, avg));
+                    (metric, avg) -> System.out.printf(Locale.ROOT, "  %s: %.3f%n", metric, avg));
         }
         System.out.println();
     }

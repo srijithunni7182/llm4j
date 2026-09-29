@@ -20,9 +20,10 @@ import org.junit.platform.testkit.engine.EngineTestKit;
 import org.junit.platform.testkit.engine.Events;
 
 /**
- * End-to-end tests for recorder → extension → report/baseline/history, running fixture test
- * classes through the real JUnit engine.
+ * End-to-end tests for recorder → extension → report/baseline/history, running fixture test classes
+ * through the real JUnit engine.
  */
+@org.junit.jupiter.api.parallel.ResourceLock("eval4j-recorder")
 class EvalReportPipelineTest {
 
     static final Path BASELINE = Path.of("target/eval4j-test/pipeline-baseline.json");
@@ -92,7 +93,12 @@ class EvalReportPipelineTest {
 
     private static List<String> containerFailures(Events events) {
         return events.failed().stream()
-                .map(e -> e.getRequiredPayload(TestExecutionResult.class).getThrowable().get().getMessage())
+                .map(
+                        e ->
+                                e.getRequiredPayload(TestExecutionResult.class)
+                                        .getThrowable()
+                                        .get()
+                                        .getMessage())
                 .toList();
     }
 
@@ -112,7 +118,8 @@ class EvalReportPipelineTest {
 
     @Test
     void judgedConditionsAreRecordedWithTestIdentity() {
-        System.setProperty(EvalReportExtension.REPORT_DIR_PROPERTY, "target/eval4j-test/report-judged");
+        System.setProperty(
+                EvalReportExtension.REPORT_DIR_PROPERTY, "target/eval4j-test/report-judged");
         run(JudgeFixture.class);
         // run state closed => recorder reset; the JSON report holds the evidence
         String json = read("target/eval4j-test/report-judged/eval4j-report.json");
@@ -151,7 +158,9 @@ class EvalReportPipelineTest {
     void missingBaselineFailsWithUpdateHint() {
         List<String> failures = containerFailures(run(GatedFixture.class));
         assertThat(failures).hasSize(1);
-        assertThat(failures.get(0)).contains("baseline file not found").contains("-Deval4j.baseline.update=true");
+        assertThat(failures.get(0))
+                .contains("baseline file not found")
+                .contains("-Deval4j.baseline.update=true");
     }
 
     @Test
@@ -198,7 +207,8 @@ class EvalReportPipelineTest {
     void recordedJudgeScoresFeedAggregation() {
         EvalRecorder.activate();
         EvalRecorder.record("M", 0.5, 0.5, "r", null);
-        assertThat(BaselineGate.aggregate(EvalRecorder.records())).containsEntry("null#null#M", 0.5);
+        assertThat(BaselineGate.aggregate(EvalRecorder.records()))
+                .containsEntry("null#null#M", 0.5);
         assertThat(Map.of()).isEmpty();
     }
 

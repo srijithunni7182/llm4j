@@ -20,8 +20,9 @@ final class RagScoring {
     }
 
     /**
-     * Weighted cumulative precision: {@code (1/R) * sum_k (relevantUpTo(k) / k) * rel_k}, with R the
-     * number of relevant chunks. Rewards ranking relevant chunks first; 0.0 when none are relevant.
+     * Weighted cumulative precision: {@code (1/R) * sum_k (relevantUpTo(k) / k) * rel_k}, with R
+     * the number of relevant chunks. Rewards ranking relevant chunks first; 0.0 when none are
+     * relevant.
      */
     static double precision(boolean[] relevant) {
         int totalRelevant = 0;

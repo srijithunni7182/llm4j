@@ -81,21 +81,30 @@ public final class EvalReportWriter {
                 .append(esc(run.runId()))
                 .append("</code> · ")
                 .append(esc(run.startedAt()))
-                .append(run.gitSha() == null ? "" : " · commit <code>" + esc(run.gitSha()) + "</code>")
+                .append(
+                        run.gitSha() == null
+                                ? ""
+                                : " · commit <code>" + esc(run.gitSha()) + "</code>")
                 .append("</p><div class=\"cards\">");
         card(sb, "Evaluations", String.valueOf(records.size()));
         card(sb, "Passed", passed + " / " + records.size());
         card(
                 sb,
                 "Pass rate",
-                records.isEmpty() ? "n/a" : String.format(java.util.Locale.ROOT, "%.0f%%", 100.0 * passed / records.size()));
+                records.isEmpty()
+                        ? "n/a"
+                        : String.format(
+                                java.util.Locale.ROOT, "%.0f%%", 100.0 * passed / records.size()));
         sb.append("</div>");
 
-        sb.append("<h2>Metrics</h2><table id=\"metrics\"><thead><tr><th>Metric</th><th>Average</th>")
-                .append("<th>Min</th><th>Pass rate</th><th>Baseline Δ</th><th>Trend</th></tr></thead><tbody>");
+        sb.append(
+                        "<h2>Metrics</h2><table id=\"metrics\"><thead><tr><th>Metric</th><th>Average</th>")
+                .append(
+                        "<th>Min</th><th>Pass rate</th><th>Baseline Δ</th><th>Trend</th></tr></thead><tbody>");
         Map<String, Double> averages = metricAverages(records);
         for (String metric : averages.keySet()) {
-            List<EvalRecord> mine = records.stream().filter(r -> r.metric().equals(metric)).toList();
+            List<EvalRecord> mine =
+                    records.stream().filter(r -> r.metric().equals(metric)).toList();
             double min = mine.stream().mapToDouble(EvalRecord::score).min().orElse(0);
             long ok = mine.stream().filter(EvalRecord::passed).count();
             Double base = baselineAverages.get(metric);
@@ -106,24 +115,45 @@ public final class EvalReportWriter {
                 delta = String.format(java.util.Locale.ROOT, "%+.3f", d);
                 cls = d < -0.05 ? " class=\"reg\"" : "";
             }
-            sb.append("<tr").append(cls).append("><td>").append(esc(metric)).append("</td><td>")
-                    .append(String.format(java.util.Locale.ROOT, "%.3f", averages.get(metric))).append("</td><td>")
-                    .append(String.format(java.util.Locale.ROOT, "%.3f", min)).append("</td><td>")
-                    .append(ok).append('/').append(mine.size()).append("</td><td>")
-                    .append(delta).append("</td><td>")
-                    .append(sparkline(metric, history, averages.get(metric))).append("</td></tr>");
+            sb.append("<tr")
+                    .append(cls)
+                    .append("><td>")
+                    .append(esc(metric))
+                    .append("</td><td>")
+                    .append(String.format(java.util.Locale.ROOT, "%.3f", averages.get(metric)))
+                    .append("</td><td>")
+                    .append(String.format(java.util.Locale.ROOT, "%.3f", min))
+                    .append("</td><td>")
+                    .append(ok)
+                    .append('/')
+                    .append(mine.size())
+                    .append("</td><td>")
+                    .append(delta)
+                    .append("</td><td>")
+                    .append(sparkline(metric, history, averages.get(metric)))
+                    .append("</td></tr>");
         }
         sb.append("</tbody></table>");
 
-        sb.append("<h2>Evaluations</h2><table id=\"records\"><thead><tr><th>Result</th><th>Suite</th>")
-                .append("<th>Test</th><th>Metric</th><th>Score</th><th>Threshold</th><th>Reason</th>")
+        sb.append(
+                        "<h2>Evaluations</h2><table id=\"records\"><thead><tr><th>Result</th><th>Suite</th>")
+                .append(
+                        "<th>Test</th><th>Metric</th><th>Score</th><th>Threshold</th><th>Reason</th>")
                 .append("</tr></thead><tbody>");
         for (EvalRecord r : records) {
-            sb.append("<tr><td class=\"").append(r.passed() ? "pass\">PASS" : "fail\">FAIL")
-                    .append("</td><td>").append(esc(r.suite())).append("</td><td>")
-                    .append(esc(r.testName())).append("</td><td>").append(esc(r.metric()))
-                    .append("</td><td>").append(String.format(java.util.Locale.ROOT, "%.3f", r.score())).append("</td><td>")
-                    .append(String.format(java.util.Locale.ROOT, "%.3f", r.threshold())).append("</td><td>");
+            sb.append("<tr><td class=\"")
+                    .append(r.passed() ? "pass\">PASS" : "fail\">FAIL")
+                    .append("</td><td>")
+                    .append(esc(r.suite()))
+                    .append("</td><td>")
+                    .append(esc(r.testName()))
+                    .append("</td><td>")
+                    .append(esc(r.metric()))
+                    .append("</td><td>")
+                    .append(String.format(java.util.Locale.ROOT, "%.3f", r.score()))
+                    .append("</td><td>")
+                    .append(String.format(java.util.Locale.ROOT, "%.3f", r.threshold()))
+                    .append("</td><td>");
             if (r.passed()) {
                 sb.append(esc(r.reason()));
             } else {
@@ -138,7 +168,8 @@ public final class EvalReportWriter {
                 .append("th.addEventListener('click',function(){var t=th.closest('table'),")
                 .append("b=t.tBodies[0],i=Array.prototype.indexOf.call(th.parentNode.children,th),")
                 .append("rows=Array.prototype.slice.call(b.rows),asc=th.dataset.asc!=='1';")
-                .append("th.dataset.asc=asc?'1':'0';rows.sort(function(x,y){var a=x.cells[i].textContent,")
+                .append(
+                        "th.dataset.asc=asc?'1':'0';rows.sort(function(x,y){var a=x.cells[i].textContent,")
                 .append("c=y.cells[i].textContent,n=parseFloat(a),m=parseFloat(c);")
                 .append("var r=(!isNaN(n)&&!isNaN(m))?n-m:a.localeCompare(c);return asc?r:-r;});")
                 .append("rows.forEach(function(r){b.appendChild(r);});});});</script>");
@@ -147,7 +178,10 @@ public final class EvalReportWriter {
     }
 
     private static void card(StringBuilder sb, String label, String value) {
-        sb.append("<div class=\"card\">").append(esc(label)).append("<b>").append(esc(value))
+        sb.append("<div class=\"card\">")
+                .append(esc(label))
+                .append("<b>")
+                .append(esc(value))
                 .append("</b></div>");
     }
 
@@ -169,8 +203,10 @@ public final class EvalReportWriter {
         double min = points.stream().mapToDouble(Double::doubleValue).min().orElse(0);
         double max = points.stream().mapToDouble(Double::doubleValue).max().orElse(1);
         double span = max - min == 0 ? 1 : max - min;
-        StringBuilder sb = new StringBuilder("<svg width=\"100\" height=\"24\" viewBox=\"0 0 100 24\">")
-                .append("<polyline fill=\"none\" stroke=\"#0969da\" stroke-width=\"1.5\" points=\"");
+        StringBuilder sb =
+                new StringBuilder("<svg width=\"100\" height=\"24\" viewBox=\"0 0 100 24\">")
+                        .append(
+                                "<polyline fill=\"none\" stroke=\"#0969da\" stroke-width=\"1.5\" points=\"");
         for (int i = 0; i < points.size(); i++) {
             double x = 100.0 * i / (points.size() - 1);
             double y = 22 - 20 * (points.get(i) - min) / span;

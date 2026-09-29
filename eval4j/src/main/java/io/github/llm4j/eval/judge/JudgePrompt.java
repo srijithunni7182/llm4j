@@ -107,8 +107,8 @@ final class JudgePrompt {
     }
 
     /**
-     * Neutralizes forged delimiter markers inside untrusted text: any {@code <<<} is replaced with a
-     * look-alike so embedded text can never open or close a BEGIN/END block.
+     * Neutralizes forged delimiter markers inside untrusted text: any {@code <<<} is replaced with
+     * a look-alike so embedded text can never open or close a BEGIN/END block.
      */
     static String sanitize(String text) {
         return text == null ? "" : text.replace("<<<", "\u2039\u2039\u2039");

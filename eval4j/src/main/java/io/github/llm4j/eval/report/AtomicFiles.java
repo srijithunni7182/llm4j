@@ -21,7 +21,11 @@ final class AtomicFiles {
         try {
             Files.write(temp, content);
             try {
-                Files.move(temp, absolute, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                Files.move(
+                        temp,
+                        absolute,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
             } catch (AtomicMoveNotSupportedException e) {
                 Files.move(temp, absolute, StandardCopyOption.REPLACE_EXISTING);
             }

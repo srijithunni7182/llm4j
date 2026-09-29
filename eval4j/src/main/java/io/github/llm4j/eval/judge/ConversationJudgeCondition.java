@@ -106,10 +106,20 @@ public final class ConversationJudgeCondition extends Condition<Object> {
         JudgeVerdict verdict = evaluate(actual);
         perThreadDescription.set(
                 new TextDescription(
-                        "%s (score=%.2f, threshold=%.2f): %s",
-                        metric.displayName, verdict.score(), threshold, verdict.reason()));
+                        "%s",
+                        String.format(
+                                java.util.Locale.ROOT,
+                                "%s (score=%.2f, threshold=%.2f): %s",
+                                metric.displayName,
+                                verdict.score(),
+                                threshold,
+                                verdict.reason())));
         EvalRecorder.record(
-                metric.displayName, verdict.score(), threshold, verdict.reason(), calls.judgeIdentifier());
+                metric.displayName,
+                verdict.score(),
+                threshold,
+                verdict.reason(),
+                calls.judgeIdentifier());
         return verdict.score() >= threshold;
     }
 
@@ -375,7 +385,9 @@ public final class ConversationJudgeCondition extends Condition<Object> {
             return this;
         }
 
-        /** Known user goals for {@code COMPLETENESS}; when omitted they're extracted by the judge. */
+        /**
+         * Known user goals for {@code COMPLETENESS}; when omitted they're extracted by the judge.
+         */
         public Builder intentions(List<String> intentions) {
             this.intentions = intentions == null ? null : List.copyOf(intentions);
             return this;
@@ -399,7 +411,9 @@ public final class ConversationJudgeCondition extends Condition<Object> {
             return this;
         }
 
-        /** Include each assistant turn's tool-use trajectory (role adherence only). Off by default. */
+        /**
+         * Include each assistant turn's tool-use trajectory (role adherence only). Off by default.
+         */
         public Builder includeTrajectory(boolean includeTrajectory) {
             this.includeTrajectory = includeTrajectory;
             return this;

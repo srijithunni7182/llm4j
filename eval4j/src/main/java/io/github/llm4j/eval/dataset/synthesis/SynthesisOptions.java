@@ -36,10 +36,17 @@ public final class SynthesisOptions {
 
     public SynthesisOptions scenariosPerDocument(int n) {
         if (n < 1) {
-            throw new IllegalArgumentException("scenariosPerDocument must be at least 1, got: " + n);
+            throw new IllegalArgumentException(
+                    "scenariosPerDocument must be at least 1, got: " + n);
         }
         return new SynthesisOptions(
-                n, evolutions, seed, temperature, qualityThreshold, similarityDedupThreshold, toolNames);
+                n,
+                evolutions,
+                seed,
+                temperature,
+                qualityThreshold,
+                similarityDedupThreshold,
+                toolNames);
     }
 
     /** Evolutions to apply; one is chosen (seeded) per scenario. Empty means none. */

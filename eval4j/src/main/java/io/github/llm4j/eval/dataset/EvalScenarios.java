@@ -6,8 +6,8 @@ import com.fasterxml.jackson.databind.type.CollectionType;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -60,7 +60,9 @@ public final class EvalScenarios {
         try {
             Path absolute = yamlFile.toAbsolutePath();
             Files.createDirectories(absolute.getParent());
-            Path temp = Files.createTempFile(absolute.getParent(), absolute.getFileName().toString(), ".tmp");
+            Path temp =
+                    Files.createTempFile(
+                            absolute.getParent(), absolute.getFileName().toString(), ".tmp");
             try {
                 Files.write(temp, content);
                 Files.move(temp, absolute, java.nio.file.StandardCopyOption.REPLACE_EXISTING);

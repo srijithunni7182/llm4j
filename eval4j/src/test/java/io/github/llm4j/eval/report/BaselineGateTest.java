@@ -32,8 +32,7 @@ class BaselineGateTest {
     void suiteGate_boundaryTable(double baseline, double current, boolean shouldPass) {
         Map<String, Double> base = Map.of(SUITE + "#t#Faithfulness", baseline);
         Map<String, Double> now = Map.of(SUITE + "#t#Faithfulness", current);
-        var result =
-                BaselineGate.compare(base, now, SUITE, EvalBaseline.Granularity.SUITE, 0.05);
+        var result = BaselineGate.compare(base, now, SUITE, EvalBaseline.Granularity.SUITE, 0.05);
         assertThat(result.passed()).isEqualTo(shouldPass);
     }
 
@@ -87,7 +86,8 @@ class BaselineGateTest {
     @Test
     void aggregateAveragesRepeatedRecordsPerTestAndMetric() {
         Map<String, Double> agg =
-                BaselineGate.aggregate(List.of(rec("t", "M", 0.5), rec("t", "M", 1.0), rec("u", "M", 0.2)));
+                BaselineGate.aggregate(
+                        List.of(rec("t", "M", 0.5), rec("t", "M", 1.0), rec("u", "M", 0.2)));
         assertThat(agg).containsEntry(SUITE + "#t#M", 0.75).containsEntry(SUITE + "#u#M", 0.2);
     }
 
