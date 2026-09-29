@@ -119,6 +119,24 @@ public final class AgentResult {
         return new Builder();
     }
 
+    /** A builder holding this result's values, e.g. to replace the answer with a redacted one. */
+    public Builder toBuilder() {
+        Builder b = new Builder();
+        b.finalAnswer = finalAnswer;
+        b.steps = new ArrayList<>(steps);
+        b.iterations = iterations;
+        b.completed = completed;
+        b.confidence = confidence;
+        b.uncertaintyDetected = uncertaintyDetected;
+        b.uncertaintyReason = uncertaintyReason;
+        b.usage = usage;
+        b.redundantActionCount = redundantActionCount;
+        b.protocolFollowed = protocolFollowed;
+        b.budgetExhausted = budgetExhausted;
+        b.budgetExceeded = budgetExceeded;
+        return b;
+    }
+
     @Override
     public String toString() {
         return "AgentResult{"

@@ -1,0 +1,43 @@
+// LOOM_GUIDE "Agent Definition Syntax", "Tools, Knowledge and Approvals", "Model Routing Policies"
+tool Search   { use: serpapi  api_key: env.SERPAPI_KEY }
+tool Web      { use: duckduckgo }
+tool Petstore { use: openapi  spec: "specs/petstore.json"  auth_header: "X-API-Key"  auth_value: env.PETSTORE_KEY }
+tool Invoices { use: class  class: "com.acme.tools.InvoiceTool" }     // any no-arg Tool on the classpath
+tool Instagram { use: class  class: "com.acme.tools.InstagramTool" }
+
+knowledge Handbook {
+    source: "docs/handbook/"             // a file or directory: md, txt, html, json, csv
+    embedding: "gemini/text-embedding-004"
+    chunk_size: 800                      // default 1000
+    overlap: 100                         // default 100
+    top_k: 4                             // passages per question (default 4)
+    store: "index/handbook.json"         // or memory (default)
+    mode: context                        // context (default) | tool
+}
+
+routing HighReliability {
+    strategy: "fallback"                 // fallback: in the order written | cost_aware (default)
+    primary: "gemini-2.5-pro"
+    fallback: ["gemini-2.5-flash", "ollama/gemma3"]
+}
+
+agent Analyst {
+    model: "gemini-2.5-flash"
+    persona: "technicalAnalyst"          // a PersonaLibrary persona (optional)
+    system: "You are an analyst specialising in {domain}."
+    temperature: 0.3                     // 0.0–2.0: creative roles high, checkers low
+    max_iterations: 8                    // how many reasoning steps it may take
+
+    skills: ["fs://skills/analyst_best_practices.md"]   // Markdown instructions, relative to the script
+    tools: [Search, calculator]          // declared tools, built-ins, or .loot / Java tools
+    knowledge: [Handbook]                // knowledge bases it draws on
+    approve: [Search]                    // tool calls that need a person's yes
+    routing: HighReliability             // a routing policy
+    budget { tokens: 20000  per_call: 2000 }
+}
+
+agent Publisher {
+    model: "gemini-2.5-flash"
+    tools: [Instagram, calculator]
+    approve: [Instagram]                 // or: approve: all
+}

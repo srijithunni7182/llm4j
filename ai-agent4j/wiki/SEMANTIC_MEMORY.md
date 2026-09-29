@@ -125,6 +125,10 @@ ReActAgent agent = ReActAgent.builder()
     .build();
 ```
 
+To keep facts across restarts without a database, use `FileMemoryVectorStore(Path)`, a JSON-file store
+that is rewritten atomically on each change. `.semanticRecall(topK, minSimilarity)` on the builder sets how
+many facts are recalled and how close they must be; the defaults are 5 and 0.7.
+
 ## How Facts Get Saved
 
 The `MemoryManagementTool` is automatically registered when you call `.semanticMemoryConfig()`.

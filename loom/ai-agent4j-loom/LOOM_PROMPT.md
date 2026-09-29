@@ -22,26 +22,20 @@ import "<file_path>.loom"
 ### Agent Declaration (Tier 2 & 3)
 ```loom
 agent <AgentName> {
-    model: "<model_id>"
-    persona: "<persona_name>" // Optional reflective persona
+    model: "<model_id>"        // gemini-…, claude-… (anthropic/<model>), ollama/<model>, sarvam/<model>, or <Provider>/<model>
+    persona: <PersonaName>     // Optional: a persona declared in the script, or a built-in one ("technicalAnalyst")
     system: "<system_prompt>"
-    skills: ["fs://skill.md"] // Optional skill URIs
-    
-    // Optional RAG capabilities
-    knowledge {
-        type: "RAG"
-        embedding: "model_id"
-    }
+    skills: ["fs://skill.md"]  // Optional skill files (or https:// URLs)
+    tools: [Tool1, Tool2]
+    knowledge: [Handbook]      // Optional: knowledge bases declared at top level
+    routing: <PolicyName>      // Optional instead of model:
 
-    // Optional Long-Term Memory
-    memory {
-        type: "SEMANTIC"
-        threshold: 0.8
-    }
-
-    // Optional cost/fallback routing
-    routing: <PolicyName>
-    tools: [Tool1, Tool2] 
+    // Optional: remembers each user's conversation and long-term facts across runs
+    memory { conversation: "chats"  session: "{user_id}"  facts: "memory/facts.json"  embedding: "gemini/text-embedding-004" }
+    // Optional: hears audio-file tasks and speaks answers (sets {<result>_audio})
+    voice { listen: "sarvam/saarika:v2.5"  speak: "sarvam/bulbul:v2"  language: "hi-IN" }
+    // Optional: keeps personal data from the model; checks answers for bias
+    guard { pii: mask  bias: warn }
 }
 ```
 
@@ -50,9 +44,9 @@ agent <AgentName> {
 *   **Routing Policies**:
     ```loom
     routing <PolicyName> {
-        strategy: "COST_AWARE"
-        primary: "gpt-4o"
-        fallback: ["claude-3-haiku"]
+        strategy: fallback             // fallback | cost_aware
+        primary: "gemini-2.5-pro"
+        fallback: ["gemini-2.5-flash", "ollama/gemma3"]
     }
     ```
 *   **Scheduled Tasks**: 
@@ -74,6 +68,20 @@ agent <AgentName> {
         overlap: skip            // or queue
     }
     ```
+*   **Tools** (declared in the script; secrets only from the environment; built-ins `web_search`, `calculator`, `datetime`, `current_time` need no declaration):
+    ```loom
+    tool Search { use: serpapi  api_key: env.SERPAPI_KEY }
+    tool Petstore { use: openapi  spec: "specs/petstore.json" }
+    ```
+*   **Knowledge Bases** (retrieval for agents that list them in `knowledge: [..]`):
+    ```loom
+    knowledge Handbook { source: "docs/"  embedding: "gemini/text-embedding-004"  top_k: 4  store: "index/handbook.json" }
+    ```
+*   **Agent extras**: `approve: [Tool]` (or `all`) makes those tool calls wait for a person; `max_iterations: 8` bounds reasoning; `knowledge: [Handbook]`; `memory { … }`, `voice { … }` and `guard { … }` as above. Never put API keys in a script: use `env.NAME`.
+*   **Language and voice tools** (Sarvam; `SARVAM_API_KEY`): `translate`, `transliterate`, `detect_language`, `speak`, `transcribe` work by name; declare one to set defaults: `tool Hindi { use: translate  target: "hi-IN" }`.
+*   **Knowledge graphs and skill discovery**: `tool Graph { use: knowledge_graph  store: "graphs/x.json" }`, `tool Skills { use: skill_registry  url: "https://…" }`.
+*   **Providers** (a specific endpoint or key): `provider Box { use: ollama  base_url: "http://gpu-box:11434" }`, then `model: "Box/llama3"`. `use:` is gemini, anthropic, ollama or sarvam.
+*   **Personas**: `persona Mentor { role: "…"  tone: "…"  constraints: ["…"] }`, then `persona: Mentor` on an agent.
 *   **Rate Limits** (pause and resume instead of failing):
     ```loom
     rate_limits { on_limit: suspend  max_wait: 24h  max_resumes: 50 }   // suspend | wait | fail

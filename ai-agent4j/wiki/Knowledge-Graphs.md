@@ -277,6 +277,18 @@ ReActAgent agent = ReActAgent.builder()
 - **Cons**: Data lost on restart, limited scalability
 - **Best For**: <10K entities, development, testing
 
+### File Graph Store
+
+`FileGraphStore` keeps a graph in a JSON file. It loads when constructed and saves, atomically, after
+every change:
+
+```java
+KnowledgeGraph graph = new FileGraphStore(Path.of("graphs/org.json"));
+```
+
+It suits the same sizes as the in-memory store and survives restarts. Loom scripts use it with
+`tool Graph { use: knowledge_graph  store: "graphs/org.json" }`.
+
 ### Future Integrations
 
 For production use, consider:

@@ -65,11 +65,7 @@ public class SarvamAudioProvider implements SpeechToTextProvider {
                 // For now, let's map languageCode if present.
                 parts.put("language_code", request.getLanguageCode().get());
             }
-            // "model" parameter - docs often say "saarika:v1" or similar.
-            // If request has model? request doesn't have model field in my simple
-            // TranscriptionRequest.
-            // I'll default to standard or let API decice.
-            parts.put("model", "saaras:v3"); // Explicitly setting model; v1 deprecated/removed.
+            parts.put("model", request.getModel().orElse("saaras:v3"));
 
             if (request.getPrompt().isPresent()) {
                 parts.put("prompt", request.getPrompt().get());
@@ -91,7 +87,7 @@ public class SarvamAudioProvider implements SpeechToTextProvider {
                         e) { // Catching Exception because postMultipart might throw runtime
             // exceptions or
             // checked if modified
-            throw new ProviderException(getProviderName(), "Failed to transcribe audio", e);
+            throw io.github.llm4j.provider.Providers.typed(getProviderName(), "Failed to transcribe audio", e);
         }
     }
 

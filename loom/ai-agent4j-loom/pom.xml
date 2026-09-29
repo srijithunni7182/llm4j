@@ -13,6 +13,9 @@
     <description>Lexer, Parser, and Compiler for the Loom Agent Orchestration DSL.</description>
 
     <properties>
+        <!-- Tests tagged "live" call real provider APIs: never in a default build (run with -Plive). -->
+        <live.groups></live.groups>
+        <live.excluded>live</live.excluded>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -89,6 +92,15 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <groups>${live.groups}</groups>
+                    <excludedGroups>${live.excluded}</excludedGroups>
+                </configuration>
+            </plugin>
             <!-- Compiler Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -153,4 +165,15 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <!-- mvn -Plive verify: the live suite against real APIs, for whichever keys are set -->
+            <id>live</id>
+            <properties>
+                <live.groups>live</live.groups>
+                <live.excluded></live.excluded>
+            </properties>
+        </profile>
+    </profiles>
 </project>

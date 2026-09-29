@@ -1,7 +1,9 @@
 # Gap Analysis: ai-agent4j Capabilities vs. What Loom Exposes
 
-*Status: analysis only. Nothing here is implemented yet. It is meant to become a spec (requirements,
-design, tasks, verification) once priorities are agreed.*
+*Status: P0 and P1 are implemented (spec in this folder); P2 and P3 are implemented (spec in
+[`../loom-capability-depth/`](../loom-capability-depth/)). The Anthropic provider exists now, with every provider
+meeting one contract (spec in [`../uniform-providers/`](../uniform-providers/)); an OpenAI provider is what
+remains of the "Library" row.*
 
 ## 1. Summary
 

@@ -10,4 +10,9 @@ public class InvalidRequestException extends LLMException {
     public InvalidRequestException(String message, Throwable cause) {
         super(message, cause, 400);
     }
+
+    /** From an HTTP 4xx, keeping the status and the provider's response body. */
+    public InvalidRequestException(String message, Integer statusCode, String responseBody) {
+        super(message, statusCode, responseBody);
+    }
 }

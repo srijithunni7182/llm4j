@@ -12,8 +12,10 @@ public class TranscriptionRequest {
     private final String prompt;
     private final Boolean withTimestamps;
     private final Boolean translateToEnglish;
+    private final String model;
 
     private TranscriptionRequest(Builder builder) {
+        this.model = builder.model;
         this.languageCode = builder.languageCode;
         this.prompt = builder.prompt;
         this.withTimestamps = builder.withTimestamps;
@@ -36,6 +38,11 @@ public class TranscriptionRequest {
         return Optional.ofNullable(translateToEnglish);
     }
 
+    /** The provider's model, e.g. {@code saarika:v2.5}; empty for the provider's default. */
+    public Optional<String> getModel() {
+        return Optional.ofNullable(model);
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -45,8 +52,14 @@ public class TranscriptionRequest {
         private String prompt;
         private Boolean withTimestamps;
         private Boolean translateToEnglish;
+        private String model;
 
         private Builder() {}
+
+        public Builder model(String model) {
+            this.model = model;
+            return this;
+        }
 
         public Builder languageCode(String languageCode) {
             this.languageCode = languageCode;

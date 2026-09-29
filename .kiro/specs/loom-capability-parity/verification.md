@@ -113,3 +113,58 @@ Fixture: `kb/` with `refunds.md` ("Refunds are issued within 14 days…"), `ship
 
 - **P0 done:** V1–V3, N1, N2; docs corrected.
 - **P1 done:** V4–V7, N1–N5.
+
+## 11. Results (2026-09-27)
+
+**Every suite passes:**
+
+| Suite | Tests |
+|---|---|
+| ai-agent4j | 496 |
+| addons | 17 |
+| eval4j | 125 |
+| Loom | 297, 1 skipped (was 251 after P0, 232 before) |
+| Engram | 9, 1 skipped |
+| GetViral | 77, 4 skipped |
+
+**Where each part of the plan is covered:**
+
+| Plan section | Test classes |
+|---|---|
+| V1–V2 | `validation/NothingIgnoredTest` |
+| V3 | `validation/WeaveCheckTest`, and in `parity/ToolsTest` for the environment parts |
+| V4 | `parity/ToolsTest` (MockWebServer for SerpApi, DuckDuckGo and OpenAPI) |
+| V5 | `parity/KnowledgeTest` (deterministic `HashingEmbeddingProvider`) |
+| V6–V7 | `parity/ApprovalsAndSettingsTest` |
+| Edges | `parity/ParityEdgeCasesTest` |
+| N2 | `parity/RepositoryScriptsTest`: every `.loom` in the repository |
+| N3 | `parser/DocumentedExamplesTest` |
+
+**N5 coverage** of the new classes (validator, approvals, tools, knowledge): 96.6% lines, 92.6% branches.
+
+**N4:** no new runtime dependencies. MockWebServer is test scope only.
+
+### Found and fixed along the way
+
+- **Tantrik-console scripts** referenced six skill files that didn't exist, so they had silently run
+  without skills (the point of P0). The skills were written, and `fs://` skills now resolve from the
+  script's directory. The default is still the working directory, so embedders see no change.
+- **`OpenAPITool.getDescription()`** (ai-agent4j) returned a stub, so models couldn't see the endpoints. It
+  now lists the method, path, summary and parameters.
+- **`ReActAgent` never audited tool executions.** It now calls `AuditLogger.logToolExecution`.
+- **An agent whose only tool was `search_<kb>`** was built as a tool-less agent. Fixed.
+- **`mode: tool` didn't parse**, because `tool` is a keyword. Fixed.
+
+### Deviations from the design
+
+1. **Knowledge sources resolve from the base directory**: the script's directory for `weave`, the
+   working directory by default when embedding. Skills, OpenAPI specs and index stores follow the same
+   rule.
+2. **The OpenAPI parser doesn't read request bodies**, so the description doesn't mention them. The
+   `body` argument still works.
+3. **`weave check` never creates tools.** An OpenAPI spec that can't be parsed is therefore reported by
+   `weave run` (at load time), not by `weave check`.
+
+### Open
+
+- **L1:** live Gemini-embedded knowledge base, which needs your key (task 12).

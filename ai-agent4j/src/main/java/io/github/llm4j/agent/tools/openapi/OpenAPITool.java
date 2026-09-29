@@ -42,8 +42,26 @@ public class OpenAPITool implements Tool {
 
     @Override
     public String getDescription() {
-        // ... (description logic remains the same)
-        return " ... ";
+        StringBuilder d = new StringBuilder();
+        d.append("Calls the ").append(spec.getTitle() != null ? spec.getTitle() : "HTTP").append(" API");
+        if (spec.getDescription() != null && !spec.getDescription().isBlank()) {
+            d.append(" (").append(spec.getDescription().strip()).append(")");
+        }
+        d.append(". Arguments: {\"endpoint\": \"<path>\", \"method\": \"GET|POST|…\", "
+                + "\"parameters\": {<name>: <value>}, \"body\": {…}}. Endpoints:");
+        for (OpenAPIEndpoint e : spec.getEndpoints()) {
+            d.append("\n- ").append(e.getMethod()).append(' ').append(e.getPath());
+            String what = e.getSummary() != null ? e.getSummary() : e.getDescription();
+            if (what != null && !what.isBlank()) d.append(": ").append(what.strip());
+            if (e.getParameters() != null && !e.getParameters().isEmpty()) {
+                d.append(" [params: ");
+                d.append(String.join(", ", e.getParameters().stream()
+                        .map(p -> p.getName() + " (" + p.getIn() + (p.getType() != null ? ", " + p.getType() : "") + ")")
+                        .toList()));
+                d.append("]");
+            }
+        }
+        return d.toString();
     }
 
     @Override

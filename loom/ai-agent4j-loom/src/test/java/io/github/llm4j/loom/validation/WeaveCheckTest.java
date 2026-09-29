@@ -42,13 +42,13 @@ class WeaveCheckTest {
         assertThat(check(NothingIgnoredTest.MEMORY + "agent C { model: \"m\" tools: [Nope] }\n"
                 + "workflow W() { guardrail (ODD) { note \"x\" } }\n", false, Map.of())).isEqualTo(2);
         assertThat(out.toString()).contains("✗ line 4: agent B").contains("✗ line 7: agent C").contains("✗ line 8: guardrail ODD")
-                .contains("3 problems in s.loom");
+                .contains("5 problems in s.loom");
     }
 
     @Test
     void v3_5_lenientWarnsButPasses() throws Exception {
-        assertThat(check(NothingIgnoredTest.MEMORY, true, Map.of())).isZero();
-        assertThat(out.toString()).contains("⚠ line 4").contains("(1 warning)");
+        assertThat(check(NothingIgnoredTest.GUARDRAIL, true, Map.of())).isZero();
+        assertThat(out.toString()).contains("⚠ line 3").contains("(1 warning)");
     }
 
     @Test

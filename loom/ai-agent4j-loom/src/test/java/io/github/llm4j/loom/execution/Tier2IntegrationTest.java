@@ -35,6 +35,8 @@ public class Tier2IntegrationTest {
         };
 
         HarnessExecutor executor = new HarnessExecutor(script, toolRegistry, clientFactory);
+        executor.setBaseDir(Path.of("src/test/resources"));
+        executor.setEmbeddingFactory(model -> new io.github.llm4j.loom.parity.HashingEmbeddingProvider());
         executor.initialize();
 
         // Test with clean data

@@ -26,6 +26,25 @@ public final class LLMResponse {
             return value;
         }
 
+        /** Provider-specific values, so the same stop reads the same whichever provider answered. */
+        private static final java.util.Map<String, FinishReason> SYNONYMS = synonyms();
+
+        private static java.util.Map<String, FinishReason> synonyms() {
+            java.util.Map<String, FinishReason> m = new java.util.HashMap<>();
+            for (String v : new String[] {"end_turn", "stop_sequence", "pause_turn", "finish_reason_stop", "eos"}) m.put(v, STOP);
+            for (String v : new String[] {"max_tokens", "model_context_window_exceeded"}) m.put(v, LENGTH);
+            for (String v : new String[] {"refusal", "safety", "recitation", "blocklist", "prohibited_content", "spii",
+                    "image_safety"}) m.put(v, CONTENT_FILTER);
+            for (String v : new String[] {"tool_use", "function_call"}) m.put(v, TOOL_CALLS);
+            for (String v : new String[] {"malformed_function_call"}) m.put(v, ERROR);
+            return java.util.Map.copyOf(m);
+        }
+
+        /**
+         * The reason for a value: this enum's own values, or a provider's name for the same thing
+         * (Gemini's {@code MAX_TOKENS}, Anthropic's {@code end_turn}, …), case-insensitive; else
+         * {@link #UNKNOWN}.
+         */
         public static FinishReason fromValue(String value) {
             if (value == null) {
                 return UNKNOWN;
@@ -35,7 +54,7 @@ public final class LLMResponse {
                     return reason;
                 }
             }
-            return UNKNOWN;
+            return SYNONYMS.getOrDefault(value.toLowerCase(java.util.Locale.ROOT), UNKNOWN);
         }
     }
 

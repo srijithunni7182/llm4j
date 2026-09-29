@@ -6,13 +6,13 @@
 
 <img src="docs/images/hero.png" width="50%" alt="AI Agent4J Hero">
 
-**Build autonomous agents, RAG pipelines, and specialized tools with Google Gemini, Sarvam AI, and local LLMs.**
+**Build autonomous agents, RAG pipelines, and specialized tools with Google Gemini, Anthropic Claude, Sarvam AI, and local LLMs.**
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.srijithunni7182/ai-agent4j.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.srijithunni7182/ai-agent4j)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-orange)](https://www.oracle.com/java/technologies/downloads/#java17)
 
-`ai-agent4j` is a high-performance, modular LLM library for Java that prioritizes simplicity and correctness. It provides a unified API for cloud providers (Gemini), regional specialists (Sarvam AI), and local models (Ollama).
+`ai-agent4j` is a high-performance, modular LLM library for Java that prioritizes simplicity and correctness. It provides a unified API for cloud providers (Gemini, Claude), regional specialists (Sarvam AI), and local models (Ollama). Every provider meets [one contract](wiki/Providers-and-the-Uniform-Contract.md): the same requests, finish reasons, exceptions and streaming, so you switch models by changing a name.
 
 ---
 
@@ -20,7 +20,7 @@
 
 | 📏 **Lines of Code** | 🧪 **Test Cases** | ⏱️ **Development Time** | 📦 **Commits** | 🧠 **Supported LLMs** | 🪶 **Library Size** |
 | :---: | :---: | :---: | :---: | :---: | :---: |
-| **13,700+** | **438+** | **1.5+ Months** | **36+** | **Gemini, Sarvam, Ollama** | **~308 KB** |
+| **17,000+** | **650+** | **1.5+ Months** | **100+** | **Gemini, Claude, Sarvam, Ollama** | **~440 KB** |
 
 ---
 
@@ -34,6 +34,7 @@ Explore the full capabilities of the framework through our detailed guides:
 - [**ReAct Agent Guide**](wiki/ReAct-Agent-Guide.md) — Reasoning, tool-use, and the Thought-Action-Observation loop.
 - [**Memory & Persistence**](wiki/Memory-and-Persistence.md) — Managing conversation history and long-term storage.
 - [**Real-time Streaming**](wiki/Thought-Streaming.md) — Capturing agent "thoughts" for responsive UIs via SSE/WebSockets.
+- [**Providers and the Uniform Contract**](wiki/Providers-and-the-Uniform-Contract.md) — Switch between Gemini, Claude, Sarvam and Ollama by changing a name; streaming, finish reasons and exceptions that mean the same everywhere.
 - [**Advanced Configuration**](wiki/Advanced-Configuration.md) — Retry policies, custom tools, and error handling.
 - [**Budgets and Rate Limits**](wiki/Budgets-and-Rate-Limits.md) — Cap tokens, calls or money; budgets that refill; reading 429s and pausing until the limit lifts.
 
@@ -48,6 +49,7 @@ Explore the full capabilities of the framework through our detailed guides:
 
 ### Integrations
 
+- [**🧠 Anthropic Claude**](wiki/Providers-and-the-Uniform-Contract.md#anthropic-claude) — Claude over plain HTTP, live-verified against the real API.
 - [**🇮🇳 Sarvam AI Guide**](docs/SARVAM.md) — Indian language voice agents (TTS, STT, Translation).
 - [**🏠 Ollama Integration**](docs/OLLAMA.md) — Running local models like Gemma and Llama with zero cost/internet.
 - [**🔌 MCP Integration**](wiki/MCP-Integration.md) — Connecting to Model Context Protocol servers.
@@ -56,14 +58,13 @@ Explore the full capabilities of the framework through our detailed guides:
 
 ## 🚀 Key Features
 
-- **🤖 Google Gemini Native**: Optimized support for Gemini 1.5 Flash, Pro, and 2.x.
-- **🛠️ ReAct Agent Framework**: Built-in reasoning loops with self-correction.
-
-### Steps to Create a Tool
-
-1. **Implement the `Tool` interface**: Define the tool's name, description, and execution logic.
-2. **Add to the Agent Builder**: Register your tool so the agent can discover it.
-
+- **🔁 One Contract, Any Provider**: Gemini, Claude, Sarvam and Ollama behave the same — requests, finish reasons, exceptions, token usage and streaming — checked by a shared conformance suite and a key-gated live suite. See [Providers and the Uniform Contract](wiki/Providers-and-the-Uniform-Contract.md).
+- **🤖 Google Gemini Native**: Gemini 2.x and later, with native system instructions, thinking-aware usage and server-sent-event streaming.
+- **🧠 Anthropic Claude**: `AnthropicProvider` over plain HTTP (no SDK): handles Claude's quirks (top-level system prompt, required `max_tokens`, models that reject `temperature`, refusals, 529 "overloaded") and streams.
+- **🌊 Streaming Everywhere**: `chatStream` streams natively for every built-in provider (server-sent events for Gemini, Claude and Sarvam; NDJSON for Ollama): text chunks, then one final chunk with finish reason and usage. Custom providers that only implement `chat` still stream.
+- **🚨 Typed Errors**: `AuthenticationException`, `InvalidRequestException`, `RateLimitException`, `ServiceUnavailableException` and `ContentBlockedException` for every provider, with the provider's message and request id, and never your key.
+- **✅ Verified Live**: a key-gated live suite (`-Plive`) runs the same checks against the real APIs. Claude (`claude-opus-5-5`, `claude-haiku-4-5`) passes all of them, including one agent task run unchanged across providers.
+- **🛠️ ReAct Agent Framework**: Built-in reasoning loops with self-correction. Add a tool by implementing `Tool` and registering it with `ReActAgent.builder().addTool(...)`.
 - **🧬 Autonomous Orchestration**: Manager-Worker patterns with agent delegation.
 - **⏰ Scheduled Tasks**: Native support for recurring autonomous background actions.
 - **🚦 Intelligent Provider Routing**: Cost-aware routing and automatic rate-limit failover.
@@ -135,15 +136,25 @@ every tier is limited. Loom builds on this to pause workflows and resume them au
 
 ## Recent Module Updates
 
-Additive notes describing recent functional work in the `ai-agent4j` module:
-
-- **ReAct agent & event handling**: Improved event hooks and tool invocation paths in `ReActAgent` and `AgentEventListener` to make tool execution more observable and reliable.
-- **Human-in-the-Loop (HITL)**: An `ApprovalCallback` pattern was formalized to make approvals explicit for sensitive operations. See the `HumanInTheLoopTest` for usage examples.
-- **Sarvam provider**: `SarvamChatProvider` now handles recent Sarvam API changes and improves response parsing and error handling.
-- **Loom runtime integration**: Small compatibility and harnessing improvements to better integrate `ai-agent4j` agents with the Loom orchestration runtime.
-- **Tests & Benchmarks**: Updated integration tests and benchmark artifacts to reflect storage and performance adjustments.
-
-These notes are intentionally additive — they summarize intent and guidance for maintainers. If you want me to expand any bullet into an exact code-level changelog (file + relevant method summaries), tell me which items to expand.
+- **Uniform provider contract**: Gemini, Claude, Sarvam and Ollama now share one set of request
+  semantics (native system prompts, merged turns, settings a model rejects left out), normalised finish
+  reasons (raw value in `metadata.finish_reason_raw`), typed exceptions and native streaming. Additive
+  only: no public signature changed. One conformance suite checks all four against recorded wire formats
+  in every build.
+- **Anthropic provider**: `AnthropicProvider` talks to the Messages API over the library's own HTTP client:
+  no SDK, no new dependency. It supports effort, streaming, refusals and 529 retries.
+- **Live suite**: `mvn -Plive test` with `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `SARVAM_API_KEY` or
+  `OLLAMA_BASE_URL` runs the contract against the real APIs, under a token budget per provider. Default
+  builds never run it.
+- **ReAct protocol**: agents now ask models for a short `"plan"` note instead of a `"thought"` field.
+  Claude Opus 5.5 refuses prompts that ask it to write out its reasoning; replies with `"thought"` are still
+  accepted.
+- **Gemini**: native `systemInstruction`, long answers split across parts kept whole, thinking tokens
+  counted, and a bad key reported as `AuthenticationException` (Gemini sends a 400).
+- **Budgets and rate limits**: token, call and money budgets, windows that refill, and 429 parsing with
+  exact reset times. See [Budgets and Rate Limits](wiki/Budgets-and-Rate-Limits.md).
+- **Human-in-the-Loop (HITL)**: an `ApprovalCallback` makes approvals explicit for sensitive tools. See
+  `HumanInTheLoopTest`.
 
 ## 🏗️ Architecture
 
@@ -177,12 +188,14 @@ flowchart TB
         GoogleP["Google Provider"]:::core
         SarvamP["Sarvam Provider"]:::core
         OllamaP["Ollama Provider"]:::core
+        AnthropicP["Anthropic Provider"]:::core
     end
 
     subgraph External ["External Services"]
         Gemini[("Google Gemini")]:::external
         Sarvam[("Sarvam AI")]:::external
         Ollama[("Local Ollama")]:::external
+        Claude[("Anthropic Claude")]:::external
         Web["Web / APIs / MCP"]:::external
     end
 
@@ -207,10 +220,12 @@ flowchart TB
     Router --> GoogleP
     Router --> SarvamP
     Router --> OllamaP
+    Router --> AnthropicP
 
     GoogleP --> Gemini
     SarvamP --> Sarvam
     OllamaP --> Ollama
+    AnthropicP --> Claude
     Builtin --> Web
     MCP --> Web
     OpenAPI --> Web
@@ -252,13 +267,14 @@ import io.github.llm4j.DefaultLLMClient;
 import io.github.llm4j.LLMClient;
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.model.LLMRequest;
+import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.provider.google.GoogleProvider;
 
 public class GeminiExample {
     public static void main(String[] args) {
         LLMConfig config = LLMConfig.builder()
                 .apiKey(System.getenv("GOOGLE_API_KEY"))
-                .defaultModel("gemini-1.5-flash")
+                .defaultModel("gemini-2.5-flash")
                 .build();
         
         LLMClient client = new DefaultLLMClient(new GoogleProvider(config));
@@ -271,6 +287,30 @@ public class GeminiExample {
     }
 }
 ```
+
+## Switching Providers
+
+Only the provider line changes; requests, responses, streaming and exceptions stay the same:
+
+```java
+LLMProvider provider = new AnthropicProvider(LLMConfig.builder()
+        .apiKey(System.getenv("ANTHROPIC_API_KEY")).defaultModel("claude-opus-5-5").build());
+// or new GoogleProvider(...), new SarvamChatProvider(...), new OllamaProvider(...)
+
+LLMClient client = new DefaultLLMClient(provider);
+
+try (Stream<LLMResponse> chunks = client.chatStream(LLMRequest.builder()
+        .addSystemMessage("Answer in one sentence.")
+        .addUserMessage("What is a ReAct agent?")
+        .build())) {
+    chunks.forEach(c -> System.out.print(c.getContent()));   // the last chunk carries finishReason and usage
+} catch (AuthenticationException | RateLimitException e) {   // the same types for every provider
+    System.err.println(e.getMessage());
+}
+```
+
+See [Providers and the Uniform Contract](wiki/Providers-and-the-Uniform-Contract.md) for the full contract
+and how to run the live suite with your own keys.
 
 ---
 

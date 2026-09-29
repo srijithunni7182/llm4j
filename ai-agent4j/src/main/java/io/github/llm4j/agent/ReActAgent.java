@@ -58,7 +58,7 @@ public class ReActAgent {
             Use the following format as a JSON object inside a ```json code block:
 
             {
-              "thought": "you should always think about what to do",
+              "plan": "one short sentence on the next step",
               "action": "the action to take, should be one of [{tool_names}]",
               "action_input": {
                 "parameter_name": "parameter_value"
@@ -67,7 +67,7 @@ public class ReActAgent {
 
             When you have the final answer, use this format:
             {
-              "thought": "I now know the final answer",
+              "plan": "I have the answer",
               "final_answer": "the final answer to the original input question"
             }
 
@@ -77,7 +77,7 @@ public class ReActAgent {
 
     // Legacy patterns for backward compatibility
     private static final Pattern THOUGHT_PATTERN =
-            Pattern.compile("Thought:\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
+            Pattern.compile("(?:Thought|Plan):\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
     private static final Pattern ACTION_PATTERN =
             Pattern.compile("Action:\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
     private static final Pattern ACTION_INPUT_PATTERN =
@@ -106,6 +106,8 @@ public class ReActAgent {
     private final String systemPromptId;
     private final ConversationHistory conversationHistory;
     private final SemanticMemoryService semanticMemoryService;
+    private final int recallTopK;
+    private final float recallMinSimilarity;
     private final List<AgentEventListener> listeners;
     private final AuditLogger auditLogger;
     private final String sessionId;
@@ -139,6 +141,8 @@ public class ReActAgent {
         this.temperature = builder.temperature;
         this.conversationHistory = builder.conversationHistory;
         this.semanticMemoryService = builder.semanticMemoryService;
+        this.recallTopK = builder.recallTopK;
+        this.recallMinSimilarity = builder.recallMinSimilarity;
         this.listeners = new ArrayList<>(builder.listeners);
         if (budget != null && !listeners.isEmpty()) {
             budget.addListener(event -> listeners.forEach(l -> l.onBudget(event)));
@@ -209,7 +213,7 @@ public class ReActAgent {
                 // Only recall on the very first iteration to save embedding tokens/time
                 // Use a truncated version of the question to avoid massive embedding queries
                 String memoryQuery = question.length() > 500 ? question.substring(0, 500) : question;
-                List<String> facts = semanticMemoryService.recallRelevantFacts(memoryQuery, 5, 0.7f);
+                List<String> facts = semanticMemoryService.recallRelevantFacts(memoryQuery, recallTopK, recallMinSimilarity);
                 if (!facts.isEmpty()) {
                     context += "Relevant context from user's long-term memory:\n";
                     for (String fact : facts) {
@@ -285,6 +289,7 @@ public class ReActAgent {
                 if (!responseJson.containsKey("final_answer")
                         && !responseJson.containsKey("action")
                         && !responseJson.containsKey("thought")) {
+                    // ("plan" alone is not the protocol: a structured answer may well have a "plan" field)
                     // A bare JSON payload (e.g. a structured-output reply) is the answer itself.
                     responseJson = new HashMap<>(Map.of(
                             "final_answer", objectMapper.writeValueAsString(responseJson)));
@@ -292,7 +297,7 @@ public class ReActAgent {
 
                 if (responseJson.containsKey("final_answer")) {
                     String finalAnswer = asAnswerText(responseJson.get("final_answer"));
-                    String thought = (String) responseJson.get("thought");
+                    String thought = noteOf(responseJson);
                     return processFinalAnswer(
                             question,
                             finalAnswer,
@@ -306,7 +311,7 @@ public class ReActAgent {
                             protocolFollowed);
                 }
 
-                String thought = (String) responseJson.get("thought");
+                String thought = noteOf(responseJson);
                 String action = (String) responseJson.get("action");
                 Object actionInputObj = responseJson.get("action_input");
 
@@ -341,7 +346,7 @@ public class ReActAgent {
                                 thought, action, actionInput, observation, execution.outcome());
                 steps.add(step);
 
-                scratchpad.append("Thought: ").append(thought != null ? thought : "").append("\n");
+                scratchpad.append("Plan: ").append(thought != null ? thought : "").append("\n");
                 scratchpad.append("Action: ").append(action).append("\n");
                 scratchpad
                         .append("Action Input: ")
@@ -377,6 +382,16 @@ public class ReActAgent {
         if (finalAnswer == null) return "";
         if (finalAnswer instanceof String text) return text;
         return objectMapper.writeValueAsString(finalAnswer);
+    }
+
+    /**
+     * The model's note on its next step. The prompt asks for {@code "plan"}: asking current Claude
+     * models (Opus 5.5 and later) to fill in a {@code "thought"} field is refused as reasoning
+     * extraction. {@code "thought"} is still read, for older prompts and models.
+     */
+    private static String noteOf(Map<String, Object> response) {
+        Object note = response.containsKey("plan") ? response.get("plan") : response.get("thought");
+        return note == null ? null : String.valueOf(note);
     }
 
     private Map<String, Object> parseResponse(String llmOutput) throws Exception {
@@ -474,6 +489,11 @@ public class ReActAgent {
 
             String observation = tool.execute(args);
             logger.info("Tool '{}' returned observation: {}", action, observation);
+            try {
+                auditLogger.logToolExecution(sessionId, action, String.valueOf(args), observation, java.time.Instant.now());
+            } catch (RuntimeException auditFailure) {
+                logger.warn("Audit logging of tool '{}' failed: {}", action, auditFailure.getMessage());
+            }
             notifyObservation(observation);
             return new ActionExecution(observation, AgentResult.StepOutcome.EXECUTED);
         } catch (AgentInterrupt interrupt) {
@@ -819,6 +839,8 @@ public class ReActAgent {
         private String systemPromptId;
         private ConversationHistory conversationHistory;
         private SemanticMemoryService semanticMemoryService;
+        private int recallTopK = 5;
+        private float recallMinSimilarity = 0.7f;
         private List<AgentEventListener> listeners = new ArrayList<>();
         private AuditLogger auditLogger;
         private String sessionId;
@@ -857,6 +879,8 @@ public class ReActAgent {
             this.systemPromptId = agent.systemPromptId;
             this.conversationHistory = agent.conversationHistory;
             this.semanticMemoryService = agent.semanticMemoryService;
+            this.recallTopK = agent.recallTopK;
+            this.recallMinSimilarity = agent.recallMinSimilarity;
             this.listeners = new ArrayList<>(agent.listeners);
             this.auditLogger = agent.auditLogger;
             this.sessionId = agent.sessionId;
@@ -867,6 +891,8 @@ public class ReActAgent {
             this.sttProvider = agent.sttProvider;
             this.audioPlayer = agent.audioPlayer;
             this.autoPlayAudio = agent.autoPlayAudio;
+            this.ttsLanguage = agent.ttsLanguage;
+            this.ttsModel = agent.ttsModel;
         }
 
         public Builder llmClient(LLMClient llmClient) {
@@ -949,6 +975,18 @@ public class ReActAgent {
 
         public Builder conversationHistory(ConversationHistory history) {
             this.conversationHistory = history;
+            return this;
+        }
+
+        /**
+         * How many long-term facts are recalled before a task, and how similar (0–1) a fact must be to
+         * the task to be included. Defaults: 5 and 0.7.
+         */
+        public Builder semanticRecall(int topK, float minSimilarity) {
+            if (topK < 1) throw new IllegalArgumentException("topK must be positive");
+            if (minSimilarity < 0 || minSimilarity > 1) throw new IllegalArgumentException("minSimilarity must be between 0 and 1");
+            this.recallTopK = topK;
+            this.recallMinSimilarity = minSimilarity;
             return this;
         }
 

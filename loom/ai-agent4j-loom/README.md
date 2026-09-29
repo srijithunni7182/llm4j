@@ -82,11 +82,22 @@ SqlQuery    = com.mycompany.tools.DatabaseTool
 | `for each` | Runs a block per list item (`parallel for each` for all at once); targets may come from the item |
 | `human_prompt` | Asks a person; with a run journal the run suspends (no thread held) and resumes on the answer |
 | `budget` | Caps a run, an agent or a step in tokens, calls or money; enforced before each LLM call. `per day` makes it refill |
+| `tool` | Declare and configure a tool in the script (`use: serpapi`, `openapi`, `duckduckgo`, …); secrets only from `env.NAME` |
+| `knowledge` | A knowledge base: source files, embedding model, index store; agents get the relevant passages |
+| `approve` | On an agent: which tool calls need a person's yes (durable, journaled per call) |
+| `memory` | On an agent: its conversations per session and long-term facts, kept across runs |
+| `voice` | On an agent: hear audio tasks and speak answers (Sarvam); `translate`, `speak`, `transcribe`, … are tools |
+| `guard` | On an agent: `pii: mask \| block \| warn`, `bias: warn \| block` |
+| `provider` | A model endpoint with its own key: `provider Box { use: ollama base_url: "…" }`, then `model: "Box/llama3"` |
+| `persona` | A persona declared in the script; an agent's `persona:` combines it with its `system:` prompt |
 | `rate_limits` | Pause a run when a provider limit or quota is hit, and resume it when the limit lifts |
 | `schedule` | Run a workflow or agent task on a cron or interval — stored, so it survives restarts |
 | `guardrail` | Wraps a block — intercepts output before it escapes (e.g. PII detection) |
 | `call` | Invoke a sub-workflow with isolated variable scope |
+| `note` | Log a line, with variables filled in (`note "Total: {total}"`); no effect on control flow |
 | `parallel { }` | Concurrent execution block — every statement runs on its own branch thread |
+| `graph` tools | `tool Graph { use: knowledge_graph store: "graphs/c.json" }`: agents record and query entities and relations |
+| `skills:` | Markdown skills from files or URLs; `use: skill_registry` lets an agent find skills itself |
 | `import` | Split large workflows across files — merged into a flat namespace at load time |
 
 ---
@@ -100,7 +111,7 @@ text, but symbolic conditions need typed values. Loom addresses this directly.
 
 ```text
 agent Auditor {
-    model: "gpt-4o"
+    model: "claude-opus-5-5"
     system: "Audit the code for security vulnerabilities."
     output_schema {
         status: enum["SECURE", "VULNERABLE"]
@@ -126,6 +137,31 @@ delegate "Analyze data" to AnalystAgent -> result
 ```text
 call ValidateAndApprove(draft) -> approved_draft
 ```
+
+---
+
+## Any model, one line
+
+Every agent picks its model by name, and every provider behaves the same underneath (ai-agent4j's
+[uniform provider contract](../../ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md)), so switching is a one-word change:
+
+```text
+agent Planner  { model: "claude-opus-5-5" }          // ANTHROPIC_API_KEY
+agent Writer   { model: "gemini-2.5-flash" }          // GEMINI_API_KEY
+agent Local    { model: "ollama/llama3" }             // OLLAMA_BASE_URL, default localhost
+agent Indic    { model: "sarvam/sarvam-m" }           // SARVAM_API_KEY
+
+provider Box   { use: ollama     base_url: "http://gpu-box:11434" }
+provider Team  { use: anthropic  api_key: env.TEAM_ANTHROPIC_KEY }
+agent Reviewer { model: "Team/claude-haiku-4-5" }
+```
+
+- **Checked before running**: `weave check app.loom` reports an unknown model, a missing key or any other
+  problem with its line, before any model is called.
+- **Watched while running**: `weave run app.loom --trace` streams every plan, tool call, observation and
+  token spent (`--trace=json` for machines).
+- **Verified live**: a Loom script with a Claude agent, the calculator tool and an `output_schema` runs in
+  the live suite against the real API (`mvn -Plive test` with `ANTHROPIC_API_KEY` set).
 
 ---
 

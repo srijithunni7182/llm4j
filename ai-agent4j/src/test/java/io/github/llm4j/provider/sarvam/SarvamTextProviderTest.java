@@ -100,7 +100,7 @@ class SarvamTextProviderTest {
     @Test
     void detectLanguage_withValidText_shouldReturnSuccessResponse() throws Exception {
         String text = "नमस्ते";
-        String url = DEFAULT_BASE_URL + "/detect-language";
+        String url = DEFAULT_BASE_URL + "/text-lid";
         String successResponse = "{\"language_code\": \"hi-IN\", \"confidence\": 0.99}";
         when(httpClient.post(eq(url), any(String.class), any(Headers.class)))
                 .thenReturn(successResponse);
@@ -116,7 +116,7 @@ class SarvamTextProviderTest {
     @Test
     void detectLanguage_whenHttpClientThrowsException_shouldThrowProviderException() {
         String text = "नमस्ते";
-        String url = DEFAULT_BASE_URL + "/detect-language";
+        String url = DEFAULT_BASE_URL + "/text-lid";
         when(httpClient.post(eq(url), any(String.class), any(Headers.class)))
                 .thenThrow(new LLMException("Network error", new IOException()));
 

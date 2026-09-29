@@ -35,6 +35,9 @@
     </scm>
 
     <properties>
+        <!-- Tests tagged "live" call real provider APIs: never in a default build (run with -Plive). -->
+        <live.groups></live.groups>
+        <live.excluded>live</live.excluded>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
@@ -174,6 +177,8 @@
                     <excludes>
                         <exclude>**/*IntegrationTest.java</exclude>
                     </excludes>
+                    <groups>${live.groups}</groups>
+                    <excludedGroups>${live.excluded}</excludedGroups>
                 </configuration>
             </plugin>
 
@@ -294,6 +299,14 @@
     </build>
 
     <profiles>
+        <profile>
+            <!-- mvn -Plive verify: the live suite against real APIs, for whichever keys are set -->
+            <id>live</id>
+            <properties>
+                <live.groups>live</live.groups>
+                <live.excluded></live.excluded>
+            </properties>
+        </profile>
         <profile>
             <id>integration-tests</id>
             <build>

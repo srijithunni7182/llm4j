@@ -66,6 +66,10 @@ public class WeaveCLI implements Callable<Integer> {
         @Option(names = "--lenient", description = "Treat features that aren't supported yet as warnings, not errors.")
         private boolean lenient;
 
+        @Option(names = "--trace", arity = "0..1", fallbackValue = "text", paramLabel = "text|json",
+                description = "Show what agents think and do, live, on stderr (--trace=json for JSON lines).")
+        private String trace;
+
         @Override
         public Integer call() throws Exception {
             if (!scriptFile.exists()) {
@@ -74,7 +78,7 @@ public class WeaveCLI implements Callable<Integer> {
             }
             return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, prices,
                     journal == null ? null : journal.toPath(), store == null ? null : store.toPath(), waitForResume,
-                    lenient, WeaveEnv.system());
+                    lenient, trace, WeaveEnv.system());
         }
     }
 
@@ -103,13 +107,24 @@ public class WeaveCLI implements Callable<Integer> {
     static int run(File scriptFile, File lootFile, String workflowName, Map<String, String> inputs, Long maxTokens,
                    Long maxCalls, String maxCost, File pricesFile, Path journal, Path store, boolean wait,
                    boolean lenient, WeaveEnv env) {
+        return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, pricesFile, journal, store,
+                wait, lenient, null, env);
+    }
+
+    static int run(File scriptFile, File lootFile, String workflowName, Map<String, String> inputs, Long maxTokens,
+                   Long maxCalls, String maxCost, File pricesFile, Path journal, Path store, boolean wait,
+                   boolean lenient, String trace, WeaveEnv env) {
+        if (trace != null && !trace.equals("text") && !trace.equals("json")) {
+            env.err().println("Error: --trace takes text or json, got " + trace);
+            return 2;
+        }
         Path runDir = journal == null ? null : journal.toAbsolutePath().normalize();
         Path storeDir = runDir == null ? null
                 : (store != null ? store.toAbsolutePath().normalize() : Runs.defaultStore(runDir));
         RunSpec spec = new RunSpec(scriptFile.getAbsolutePath(), lootFile == null ? null : lootFile.getAbsolutePath(),
                 workflowName, inputs, maxTokens, maxCalls, maxCost,
                 pricesFile == null ? null : pricesFile.getAbsolutePath(), storeDir == null ? null : storeDir.toString(),
-                lenient);
+                lenient, trace);
         if (runDir != null) spec.write(runDir);
         Runs.Result result = Runs.execute(spec, runDir, null, env);
         if (result.exit() == 4 && wait && runDir != null && result.resumeAt() != null) {
@@ -181,10 +196,20 @@ public class WeaveCLI implements Callable<Integer> {
         }
         ToolRegistry registry = new ToolRegistry();
         if (lootFile != null && lootFile.exists()) new LootLoader().loadIntoRegistry(lootFile.getAbsolutePath(), registry);
-        HarnessExecutor executor = new HarnessExecutor(script, registry, model -> {
-            throw new IllegalStateException("weave check never creates model clients");
+        LLMClientFactory models = env.models();
+        HarnessExecutor executor = new HarnessExecutor(script, registry, new LLMClientFactory() {
+            @Override
+            public io.github.llm4j.LLMClient createClient(String model) {
+                throw new IllegalStateException("weave check never creates model clients");
+            }
+
+            @Override
+            public String problem(String model) {
+                return models.problem(model); // names and keys are checked; nothing is contacted
+            }
         });
         executor.setLenient(lenient);
+        executor.setBaseDir(scriptFile.getAbsoluteFile().getParentFile().toPath());
         executor.setEnvLookup(env.env());
         executor.setHumanInterface(env.human()); // the CLI always has a console
         List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems =
