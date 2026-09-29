@@ -15,6 +15,7 @@ import io.github.llm4j.eval.judge.FileSystemJudgeCache;
 import io.github.llm4j.eval.judge.JudgeVerdict;
 import io.github.llm4j.eval.judge.LlmJudgePresets;
 import io.github.llm4j.eval.judge.Transcript;
+import io.github.llm4j.provider.anthropic.AnthropicProvider;
 import io.github.llm4j.provider.google.GoogleProvider;
 import io.github.llm4j.provider.ollama.OllamaProvider;
 import java.nio.file.Path;
@@ -43,11 +44,34 @@ class Eval4jParityIntegrationTest {
                 "ollama".equalsIgnoreCase(System.getenv("EVAL4J_JUDGE"))
                         || (ollamaModel != null && !ollamaModel.isBlank())
                         || (ollamaUrl != null && !ollamaUrl.isBlank());
-        if (useOllama) {
+        String anthropicKey = System.getenv("EVAL4J_ANTHROPIC_API_KEY");
+        boolean useAnthropic =
+                "anthropic".equalsIgnoreCase(System.getenv("EVAL4J_JUDGE"))
+                        || (anthropicKey != null && !anthropicKey.isBlank());
+        if (useAnthropic) {
+            judge = anthropicJudge(anthropicKey);
+        } else if (useOllama) {
             judge = ollamaJudge(ollamaUrl, ollamaModel);
         } else {
             judge = geminiJudge();
         }
+    }
+
+    /**
+     * Claude judge: key from {@code EVAL4J_ANTHROPIC_API_KEY}, model from {@code
+     * EVAL4J_ANTHROPIC_MODEL} (default Haiku 4.5).
+     */
+    private static LLMClient anthropicJudge(String apiKey) {
+        assumeTrue(
+                apiKey != null && !apiKey.isBlank(),
+                "EVAL4J_ANTHROPIC_API_KEY not set - skipping live parity checks");
+        String model = System.getenv("EVAL4J_ANTHROPIC_MODEL");
+        if (model == null || model.isBlank()) {
+            model = "claude-haiku-4-5-20251001";
+        }
+        return new DefaultLLMClient(
+                new AnthropicProvider(
+                        LLMConfig.builder().apiKey(apiKey).defaultModel(model).build()));
     }
 
     /**
