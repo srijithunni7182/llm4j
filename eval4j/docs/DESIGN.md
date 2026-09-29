@@ -6,6 +6,14 @@ Why eval4j is shaped the way it is, and where the design and verification notes 
 
 ---
 
+## Ease of use comes from reusing Java idioms
+
+Every design choice trades cleverness for familiarity: judges are `Condition`s (so `allOf`, `anyOf` and
+`SoftAssertions` just work), datasets feed `@ParameterizedTest`, reporting is a JUnit extension,
+configuration is a builder and a record, and failure is an `AssertionError`. Nothing needs a special
+runner, so IDE autocomplete, debugging, filtering and parallel execution behave exactly as they do for
+any other test. See the [README](../README.md#-if-you-can-write-a-junit-test-you-can-write-an-eval).
+
 ## Why this isn't a Python port
 
 `eval4j` is not `deepeval` translated line-for-line into Java. The Python shape —

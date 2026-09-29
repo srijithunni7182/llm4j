@@ -6,10 +6,12 @@
 
 **eval4j** is an evaluation framework for [ai-agent4j](../ai-agent4j/), built on **AssertJ** and
 **JUnit 5**. Assert on what an agent *did*, grade what it *said*, and fail the build when quality
-drops — all inside the `mvn test` you already run.
+drops — all inside the `mvn test` you already run, written in the Java idioms you already know.
+**If you can write a JUnit test, you can write an eval.**
 
 [**Why evaluate?**](#-why-evaluation-is-not-optional) ·
 [**Philosophy**](#-philosophy) ·
+[**Ease of use**](#-if-you-can-write-a-junit-test-you-can-write-an-eval) ·
 [**Quick start**](#-quick-start) ·
 [**Features**](#-features) ·
 [**Docs**](docs/README.md)
@@ -60,11 +62,64 @@ already use, on three ideas:
 
 | | |
 |---|---|
-| **🧩 Use the test stack you have** | Checks are AssertJ assertions and `Condition`s; suites are JUnit 5 tests; data-driven runs are `@ParameterizedTest`. No evaluation CLI, no config-driven runner, no new execution model to learn. |
+| **🧩 Use the test stack you have** | Checks are AssertJ assertions and `Condition`s; suites are JUnit 5 tests; data-driven runs are `@ParameterizedTest`. No evaluation CLI, no config-driven runner, no new execution model to learn — [it's just Java](#-if-you-can-write-a-junit-test-you-can-write-an-eval). |
 | **⚖️ Deterministic where you can, judged where you must** | Which tools ran, in what order, how many tokens — assert on those exactly and for free. Reserve LLM judges for what genuinely needs one (correctness, groundedness, tone), and give them rubrics, thresholds, caching and sampling so they behave like instruments, not oracles. |
 | **🔒 Untrusted by default** | The output you are grading may be wrong or adversarial. Everything sent to a judge is delimited and treated as data, never as instructions. |
 
 Read more in [Design philosophy](docs/DESIGN.md).
+
+---
+
+## 💻 If you can write a JUnit test, you can write an eval
+
+There is no new language, runner or config format to learn. Every eval4j concept is a Java idiom you
+already use, so your IDE, your build and your teammates already know how to work with it:
+
+| You already know… | …so in eval4j it is |
+|---|---|
+| **AssertJ** `assertThat(x).…` chaining | `assertThat(result).completedSuccessfully().usesTool("search")` — autocomplete lists every check |
+| AssertJ **`Condition`** and `.is(...)` | An LLM judge *is* a `Condition`: `.is(presets.correctness("36"))` |
+| `allOf` / `anyOf` / `not`, **`SoftAssertions`** | They work on judge conditions unchanged |
+| **JUnit 5** `@Test`, `@ParameterizedTest`, `@MethodSource` | Datasets are just parameter sources — one test method, many scenarios |
+| **JUnit extensions** (`@ExtendWith`) | Reports and regression gates are an extension and an annotation |
+| **Builders** and typed **records** | `llmJudged("…").criteria("…").threshold(0.7).build()`; scenarios are a plain `record` |
+| **Maven/Gradle** + `mvn test` | Evals run in the build you already have — same CI, same reports, no separate CLI |
+| `AssertionError` on failure | Failures are ordinary test failures with a readable message (and the judge's reasons) |
+
+So an eval suite is a test class:
+
+```java
+@ExtendWith(EvalReportExtension.class)                    // reports + optional regression gate
+class SupportAgentEvalTest {
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("scenarios")                            // golden scenarios from YAML
+    void answersGoldenScenarios(EvalScenario scenario) {
+        AgentResult result = agent.run(scenario.input());
+
+        assertThat(result)                                // AssertJ, as usual
+            .completedSuccessfully()                      // deterministic, free
+            .hasFinalAnswerContaining(scenario.expectedOutputContains())
+            .is(judge.answerRelevancy(scenario.input())); // LLM-judged, just a Condition
+    }
+
+    static Stream<EvalScenario> scenarios() {
+        return EvalScenarios.fromYamlResource("scenarios.yaml").stream();
+    }
+}
+```
+
+Combine checks the way you'd combine any AssertJ conditions:
+
+```java
+assertThat(result)
+    .is(allOf(judge.correctness("36"), judge.answerRelevancy(question)))
+    .is(anyOf(judge.hallucinationFree(context), judge.toxicity()));
+```
+
+> These snippets aren't just illustrative — they live in
+> [`JavaIdiomsExampleTest`](src/test/java/io/github/llm4j/eval/JavaIdiomsExampleTest.java), which
+> compiles and runs them on every build.
 
 ---
 
