@@ -92,7 +92,7 @@ text, but symbolic conditions need typed values. Loom addresses this directly.
 
 ```text
 agent Auditor {
-    model: "claude-opus-5-5"
+    model: "gemini-2.5-pro"
     system: "Audit the code for security vulnerabilities."
     output_schema {
         status: enum["SECURE", "VULNERABLE"]
@@ -127,22 +127,22 @@ Every agent picks its model by name, and every provider behaves the same underne
 [uniform provider contract](../ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md)), so switching is a one-word change:
 
 ```text
-agent Planner  { model: "claude-opus-5-5" }          // ANTHROPIC_API_KEY
 agent Writer   { model: "gemini-2.5-flash" }          // GEMINI_API_KEY
-agent Local    { model: "ollama/llama3" }             // OLLAMA_BASE_URL, default localhost
 agent Indic    { model: "sarvam/sarvam-m" }           // SARVAM_API_KEY
+agent Local    { model: "ollama/llama3" }             // OLLAMA_BASE_URL, default localhost
+agent Planner  { model: "claude-opus-5-5" }           // ANTHROPIC_API_KEY
 
-provider Box   { use: ollama     base_url: "http://gpu-box:11434" }
-provider Team  { use: anthropic  api_key: env.TEAM_ANTHROPIC_KEY }
-agent Reviewer { model: "Team/claude-haiku-4-5" }
+provider Box   { use: ollama  base_url: "http://gpu-box:11434" }
+provider Team  { use: sarvam  api_key: env.TEAM_SARVAM_KEY }
+agent Reviewer { model: "Team/sarvam-m" }
 ```
 
 - **Checked before running**: `weave check app.loom` reports an unknown model, a missing key or any other
   problem with its line, before any model is called.
 - **Watched while running**: `weave run app.loom --trace` streams every plan, tool call, observation and
   token spent (`--trace=json` for machines).
-- **Verified live**: a Loom script with a Claude agent, the calculator tool and an `output_schema` runs in
-  the live suite against the real API (`mvn -Plive test` with `ANTHROPIC_API_KEY` set).
+- **Checked against the real services**: the live suite (`mvn -Plive test`) runs a Loom script with a tool
+  and an `output_schema` on every provider you have credentials for.
 
 ---
 

@@ -8,8 +8,8 @@ There are three layers:
 | **L**: live | The real APIs agree. | Only with your keys, `-Plive` |
 | **K**: compatibility | Existing code didn't have to change. | Every build |
 
-A provider is **verified** only when its C and L rows pass. Until then it's recorded as *mock-verified
-only*.
+Results record, per provider, how it has been verified against the real service: through this live
+suite, or by the maintainer directly.
 
 ## C: Conformance suite
 
@@ -102,7 +102,14 @@ Every provider is capped by its 60,000-token budget.
 
 ## Results (2026-09-29)
 
-### Status: Anthropic live-verified; Gemini, Sarvam and Ollama mock-verified
+### Status
+
+| Provider | Conformance (C) | Real service |
+|---|---|---|
+| Gemini | ✅ | Verified by the maintainer with a real API key (every showcase app runs on Gemini), plus L9 (bad key) through the live suite |
+| Sarvam | ✅ | Verified by the maintainer against the real API, outside this suite |
+| Ollama | ✅ | Verified by the maintainer against a local server, outside this suite |
+| Anthropic | ✅ | Full live suite, L1–L11 |
 
 **L: live, Anthropic, run 2026-09-29** with `claude-opus-5-5` and `claude-haiku-4-5`
 (`mvn -pl ai-agent4j,loom/ai-agent4j-loom -Plive test`):
@@ -219,6 +226,5 @@ applicable for Ollama and Sarvam, which have no refusal signal.
 
 ### Still open
 
-- **Other providers.** Gemini, Sarvam and Ollama stay *mock-verified* until their credentials or a
-  local server are available. Run the same command with `GEMINI_API_KEY`, `SARVAM_API_KEY` or
-  `OLLAMA_BASE_URL` set.
+- **The new live suite for the other providers.** Run the same command with `GEMINI_API_KEY`,
+  `SARVAM_API_KEY` or `OLLAMA_BASE_URL` set to put them through L1–L11 as well. L11 covers all four.

@@ -36,6 +36,7 @@ class LoomLiveTest {
         }
         if (set("GEMINI_API_KEY")) models.add(System.getenv().getOrDefault("GEMINI_TEST_MODELS", "gemini-2.5-flash").split(",")[0].strip());
         if (set("SARVAM_API_KEY")) models.add("sarvam/" + System.getenv().getOrDefault("SARVAM_TEST_MODELS", "sarvam-m").split(",")[0].strip());
+        if (set("OLLAMA_BASE_URL")) models.add("ollama/" + System.getenv().getOrDefault("OLLAMA_TEST_MODELS", "llama3.2").split(",")[0].strip());
         return models.isEmpty() ? Stream.of("none") : models.stream();
     }
 

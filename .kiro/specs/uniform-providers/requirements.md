@@ -183,7 +183,7 @@ APIs, images and PDFs, batches, prompt caching, and cloud-platform variants (Bed
 3. **Switching test.** One test SHALL run the same `ReActAgent` task (a calculator question) across every
    available provider. It SHALL pass with no provider-specific code.
 4. **Honest status.** Results SHALL be recorded per provider, with models and date. A provider not yet
-   run live is marked *mock-verified only*.
+   run through the live suite says how it was verified instead.
 
 ### R7: Compatibility
 
