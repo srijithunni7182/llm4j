@@ -1,6 +1,6 @@
 # eval4j Optimizer — Design
 
-Companions: [SPEC](SPEC.md) · [TEST-STRATEGY](TEST-STRATEGY.md)
+Companions: [SPEC](SPEC.md) · [TEST-STRATEGY](TEST-STRATEGY.md) · [VERIFICATION-PLAN](VERIFICATION-PLAN.md)
 
 This document explains **how** the optimizer specified in [SPEC](SPEC.md) is built, and **why** it is
 shaped this way.

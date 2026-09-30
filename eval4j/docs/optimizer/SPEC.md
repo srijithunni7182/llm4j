@@ -1,7 +1,7 @@
 # eval4j Optimizer — Specification
 
 Status: Draft · Scope: new package `io.github.llm4j.eval.optimize` in `eval4j`
-Companions: [DESIGN](DESIGN.md) · [TEST-STRATEGY](TEST-STRATEGY.md)
+Companions: [DESIGN](DESIGN.md) · [TEST-STRATEGY](TEST-STRATEGY.md) · [VERIFICATION-PLAN](VERIFICATION-PLAN.md)
 
 An autonomous, budget-bounded loop that improves the **text parameters of an AI system** (first: an
 agent's system prompt) until eval4j's own metrics say it is good enough — and that hands the result

@@ -1,6 +1,6 @@
 # eval4j Optimizer — Test Strategy
 
-Companions: [SPEC](SPEC.md) · [DESIGN](DESIGN.md)
+Companions: [SPEC](SPEC.md) · [DESIGN](DESIGN.md) · [VERIFICATION-PLAN](VERIFICATION-PLAN.md)
 
 How the optimizer's behaviour — including its resistance to overfitting and judge-gaming — is
 verified. Conventions follow the existing eval4j suite: JUnit 5 + Mockito + AssertJ, package-mirrored

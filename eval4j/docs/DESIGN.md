@@ -40,7 +40,7 @@ of why agentic Java apps specifically need evals.
 
 | Document | What it is |
 |---|---|
-| [Optimizer spec](optimizer/SPEC.md) · [design](optimizer/DESIGN.md) · [test strategy](optimizer/TEST-STRATEGY.md) | Proposed autonomous prompt optimizer (GEPA-style): not built yet |
+| [Optimizer spec](optimizer/SPEC.md) · [design](optimizer/DESIGN.md) · [test strategy](optimizer/TEST-STRATEGY.md) · [verification plan](optimizer/VERIFICATION-PLAN.md) | Proposed autonomous prompt optimizer (GEPA-style): not built yet |
 | [SPEC](../SPEC-deepeval-parity.md) | The specification for RAG judging, reporting/baselines, conversation metrics, synthesis and comparison, with implementation notes |
 | [TEST-STRATEGY](../TEST-STRATEGY-deepeval-parity.md) | How the automated tests are structured |
 | [VERIFICATION-PLAN](../VERIFICATION-PLAN-deepeval-parity.md) | How behavior is verified end to end, including the calibration study |
