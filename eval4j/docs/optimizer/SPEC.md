@@ -305,3 +305,33 @@ exception message as feedback, and if the *seed* cannot be scored at all the run
 3. Can `PromptRegistry` (ai-agent4j) write new prompt versions? If so, `PromptPatch` could target it;
    otherwise files/diff only.
 4. Merge/crossover between candidates (GEPA's system-aware merge) — v1.1?
+
+---
+
+## Implementation notes (deviations from the draft above)
+
+Recorded after implementation so the spec matches the code.
+
+- **Names.** The budget class is `OptimizerBudget` (avoids clashing with `ai-agent4j`'s `Budget`); the
+  system interface is `SystemUnderTest`; scoring types live in `io.github.llm4j.eval.criteria`
+  (`Criterion`, `CriterionResult`, `CriterionOutcome`, `Scorecard`, `Criteria`, `Scoring`).
+- **`Scorecard`** carries `List<CriterionOutcome>` (criterion name, result, guardrail flag, error flag)
+  and an `infrastructureFailure` flag; a throwing criterion or system becomes an errored score-0 card.
+- **LLM-call budget.** `maxLlmCalls` counts rewriter calls plus calls through `LlmCallCounter`s passed
+  to `trackCalls(...)`. It is checked before each rollout, so it can be exceeded by the calls of one
+  in-flight rollout; rollout and duration caps are hard.
+- **Reserved budget.** `maxRollouts` includes a reserve for the confirmation run and the seed/best test
+  runs, so the final phase always fits. `build()` rejects a cap too small for one full round.
+- **Confirmation.** The best candidate is re-run on validation (fresh system outputs); the judge
+  cache only helps if an output is identical. There is no separate "judge cache disabled" switch.
+- **Test comparison.** Seed-vs-best on the test split is a paired comparison of per-scenario scores
+  with a Wilson interval (`Comparison`), not a pairwise LLM judgment: it needs no extra judge calls.
+- **Rewriter failures.** An unparseable reply is retried once; a failed call (exception) is not
+  retried, since the provider layer owns retries. Either way the round is `REWRITE_FAILED`.
+- **Resume.** Random draws are derived from `(randomSeed, round)`, so no RNG state is stored. The
+  fingerprint covers the seed text, split membership, criterion names, and key settings.
+- **`Split.explicit`** is rejected if any scenario appears in more than one split.
+- **`PromptPatch.applyTo(dir)`** writes `<parameter>.txt` files (unsafe characters become `_`;
+  colliding names are an error).
+- **No `OutputCache`** and no `PromptRegistry` integration in v1.
+- **Stop order.** `TARGET_REACHED` is checked first, then `CANCELLED`, budget stops, `NO_PROGRESS`.

@@ -202,6 +202,12 @@ Keep golden scenarios in YAML and run them through plain JUnit parameterized tes
 from your documents** with quality filtering and de-duplication.
 → [Datasets & synthesis](docs/DATASETS.md)
 
+### Let it fix the prompt for you
+An autonomous, budget-bounded optimizer rewrites a prompt from *why* it failed, keeps a diverse pool of
+candidates, and verifies the winner on a sealed test split — then hands you a reviewable patch.
+Deterministic guardrails stop it gaming the judge. **New: automated tests are complete; the live efficacy
+study is still in progress.** → [Prompt optimizer](docs/OPTIMIZER.md)
+
 ### A/B test prompts and models
 Pairwise judging over a dataset, run in both orders to cancel position bias, with win rates, a
 confidence interval and assertions.
@@ -234,6 +240,7 @@ proven. Details and gaps: [VERIFICATION-RESULTS.md](VERIFICATION-RESULTS.md).
 | [Datasets & synthesis](docs/DATASETS.md) | YAML goldens and generated scenarios |
 | [Reports, baselines & gates](docs/REPORTING-AND-BASELINES.md) | HTML/JSON reports, trends, CI gate |
 | [Comparing prompts](docs/PROMPT-COMPARISON.md) | Pairwise A/B testing |
+| [Prompt optimizer](docs/OPTIMIZER.md) | Autonomous prompt improvement with held-out verification |
 | [Design philosophy](docs/DESIGN.md) | Why it is shaped this way, spec, verification, roadmap |
 | [Testing eval4j itself](docs/TESTING.md) | Unit, live and calibration suites |
 
@@ -241,5 +248,5 @@ Related: [Why AI Agent4J?](../ai-agent4j/wiki/WHY_AI_AGENT4J.md) ·
 [Why eval4j? (long form)](../ai-agent4j/wiki/WHY_EVAL4J.md) ·
 [ReAct agent guide](../ai-agent4j/wiki/ReAct-Agent-Guide.md)
 
-**Roadmap:** logprob-weighted G-Eval, Loom workflow evaluation, safety metrics (PII, red-teaming),
+**Roadmap:** logprob-weighted G-Eval, optimizing Loom workflows, Loom workflow evaluation, safety metrics (PII, red-teaming),
 multimodal evaluation, judge-cost tracking — see [Design philosophy](docs/DESIGN.md#roadmap).
