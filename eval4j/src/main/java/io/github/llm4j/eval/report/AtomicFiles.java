@@ -7,11 +7,11 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
 /** Write-to-temp-then-move so a failure mid-write never leaves a truncated report or baseline. */
-final class AtomicFiles {
+public final class AtomicFiles {
 
     private AtomicFiles() {}
 
-    static void write(Path target, byte[] content) throws IOException {
+    public static void write(Path target, byte[] content) throws IOException {
         Path absolute = target.toAbsolutePath();
         Path dir = absolute.getParent();
         if (dir != null) {

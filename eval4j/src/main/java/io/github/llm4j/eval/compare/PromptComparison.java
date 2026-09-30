@@ -276,7 +276,7 @@ public final class PromptComparison {
         }
     }
 
-    static Interval wilson(int successes, int n) {
+    public static Interval wilson(int successes, int n) {
         double z = 1.96;
         double p = successes / (double) n;
         double denom = 1 + z * z / n;

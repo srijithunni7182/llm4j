@@ -14,7 +14,7 @@ import java.util.SplittableRandom;
 final class CandidatePool {
 
     /** A candidate with its validation scores, one per validation scenario, in split order. */
-    record Entry(Candidate candidate, double[] validationScores) {
+    record Entry(Candidate candidate, double[] validationScores, boolean guardrailViolation) {
         double mean() {
             double sum = 0;
             for (double s : validationScores) {
@@ -29,10 +29,14 @@ final class CandidatePool {
 
     /** Adds a candidate; returns false (adding nothing) if an equal one is already present. */
     boolean add(Candidate candidate, double[] validationScores) {
+        return add(candidate, validationScores, false);
+    }
+
+    boolean add(Candidate candidate, double[] validationScores, boolean guardrailViolation) {
         if (!known.add(candidate)) {
             return false;
         }
-        entries.add(new Entry(candidate, validationScores.clone()));
+        entries.add(new Entry(candidate, validationScores.clone(), guardrailViolation));
         return true;
     }
 

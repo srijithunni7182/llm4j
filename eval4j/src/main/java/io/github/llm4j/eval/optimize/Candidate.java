@@ -50,6 +50,12 @@ public final class Candidate {
         return new Candidate("c0", null, Origin.SEED, 0, parameters);
     }
 
+    /** Rebuilds a candidate from persisted state (checkpoints). */
+    static Candidate restore(
+            String id, String parentId, Origin origin, int round, Map<String, String> parameters) {
+        return new Candidate(id, parentId, origin, round, parameters);
+    }
+
     /** A child of this candidate with one parameter replaced. */
     Candidate derive(String childId, String parameter, String newText, int round) {
         if (!parameters.containsKey(parameter)) {

@@ -59,6 +59,10 @@ public final class Split {
         return this;
     }
 
+    boolean isExplicit() {
+        return explicit != null;
+    }
+
     /** Partitions {@code scenarios}, or validates the explicit split. */
     public DataSplit apply(List<EvalScenario> scenarios) {
         DataSplit split = explicit != null ? explicit : partition(scenarios);
