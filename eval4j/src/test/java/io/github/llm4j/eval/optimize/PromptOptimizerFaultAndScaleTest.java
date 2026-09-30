@@ -67,8 +67,8 @@ class PromptOptimizerFaultAndScaleTest {
                 .containsOnly(RoundAction.REWRITE_FAILED);
         assertThat(result.trace().get(0).note()).contains("provider down");
         assertThat(result.best()).isEqualTo(result.seed());
-        assertThat(result.cost().rewriterCalls())
-                .isEqualTo(6); // two attempts per round, three rounds
+        // a failed call is not retried (the provider layer owns retries): one call per round
+        assertThat(result.cost().rewriterCalls()).isEqualTo(3);
     }
 
     @Test
