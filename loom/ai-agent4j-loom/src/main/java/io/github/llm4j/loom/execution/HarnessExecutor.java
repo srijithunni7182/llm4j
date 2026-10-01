@@ -531,7 +531,7 @@ public class HarnessExecutor implements LoomEngine {
             c.error(v.getLine(), who, "voice needs SARVAM_API_KEY in the environment");
         }
         try {
-            io.github.llm4j.loom.tools.SafePaths.inside(baseDir, v.getOut());
+            io.github.llm4j.tools.SafePaths.inside(baseDir, v.getOut());
         } catch (IllegalArgumentException e) {
             c.error(v.lineOf("out"), who, "voice out: " + e.getMessage());
         }
@@ -719,10 +719,10 @@ public class HarnessExecutor implements LoomEngine {
         });
     }
 
-    private io.github.llm4j.loom.tools.generic.EffectContext effectContext;
+    private io.github.llm4j.tools.EffectContext effectContext;
 
     /** What generic tools need from this run: audit, trace, the journal, the current step, and files to keep out of reach. */
-    private synchronized io.github.llm4j.loom.tools.generic.EffectContext effectContext() {
+    private synchronized io.github.llm4j.tools.EffectContext effectContext() {
         if (effectContext == null) effectContext = new RunEffectContext(this);
         return effectContext;
     }

@@ -1,7 +1,7 @@
 package io.github.llm4j.loom.execution;
 
 import io.github.llm4j.loom.runtime.RunJournal;
-import io.github.llm4j.loom.tools.generic.CanonicalArgs;
+import io.github.llm4j.tools.CanonicalArgs;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;

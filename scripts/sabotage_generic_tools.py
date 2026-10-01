@@ -13,10 +13,10 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
-from loomgen import MODULE, REPORTS, ROOT, SPEC, tagged_methods
+from loomgen import MODULE, REPORT_DIRS, ROOT, SPEC, TOOLS, tagged_methods
 
-MAIN = "src/main/java/io/github/llm4j/loom/tools/"
-G = MAIN + "generic/"
+MAIN = "ai-agent4j-tools/src/main/java/io/github/llm4j/tools/"   # paths are relative to the repository root
+G = MAIN
 
 SABOTAGES = [
     ("S1", "NetPolicy: stop unwrapping IPv4-mapped IPv6 addresses",
@@ -32,7 +32,7 @@ SABOTAGES = [
       (G + "WebhookTool.java", 'throw new ToolRefusal("the webhook answered HTTP " + reply.status()', 'throw new ToolRefusal("the webhook answered HTTP " + reply.status() + " from " + config.url()')],
      "WebhookToolTest,HostileModelSuiteTest", ["V1.5"]),
     ("S6", "EffectTool: don't write 'pending' before acting",
-     [(G + "EffectTool.java", "            journal.put(key, new RunJournal.Entry(PENDING, \"\"));\n", "")], "EffectToolTest,EffectsEndToEndTest", ["V2.3", "V2.4"]),
+     [(G + "EffectTool.java", "            journal.put(key, new EffectJournal.Entry(PENDING, \"\"));\n", "")], "EffectToolTest,EffectsEndToEndTest", ["V2.3", "V2.4"]),
     ("S7", "EffectTool: treat a failed record as done",
      [(G + "EffectTool.java", "if (earlier != null && DONE.equals(earlier.kind())) {", "if (earlier != null && (DONE.equals(earlier.kind()) || FAILED.equals(earlier.kind()))) {")], "EffectToolTest", ["V2.7"]),
     ("S8", "PathGuard: allow hidden files",
@@ -72,7 +72,7 @@ SABOTAGES = [
 
 def failing_methods():
     out = set()
-    for xml in REPORTS.glob("TEST-*.xml"):
+    for xml in [x for d in REPORT_DIRS for x in d.glob("TEST-*.xml")]:
         for case in ET.parse(xml).getroot().iter("testcase"):
             if case.find("failure") is not None or case.find("error") is not None:
                 out.add((case.get("classname"), re.sub(r"\(.*$|\[.*$", "", case.get("name"))))
@@ -83,19 +83,29 @@ def run_one(sid, description, edits, classes, expected):
     originals = {}
     try:
         for path, old, new in edits:
-            f = MODULE / path
+            f = ROOT / path
             originals.setdefault(f, f.read_text())
             text = f.read_text()
             if text.count(old) != 1:
                 return "NOT APPLIED", f"expected exactly one match for {old[:60]!r} in {path}, found {text.count(old)}", []
             f.write_text(text.replace(old, new))
-        shutil.rmtree(REPORTS, ignore_errors=True)
-        proc = subprocess.run(["mvn", "-B", "-o", "-q", "test", f"-Dtest={classes}", "-DfailIfNoTests=false", "-Djacoco.skip=true"],
-                              cwd=MODULE, capture_output=True, text=True, timeout=900)
-        if "COMPILATION ERROR" in proc.stdout + proc.stderr:
-            return "COMPILE ERROR", "the sabotage doesn't compile: " + " ".join(l for l in (proc.stdout + proc.stderr).splitlines() if "ERROR" in l and ".java" in l)[:300], []
-        if not list(REPORTS.glob("TEST-*.xml")):
-            return "NO REPORT", (proc.stdout + proc.stderr)[-400:], []
+        for d in REPORT_DIRS:
+            shutil.rmtree(d, ignore_errors=True)
+        # The tools library is rebuilt first so the Loom tests see the sabotaged classes; each module then runs
+        # whichever of the named test classes it has.
+        out = ""
+        build = subprocess.run(["mvn", "-B", "-o", "-q", "install", "-DskipTests", "-Djacoco.skip=true", "-Dmaven.test.skip.exec=true"],
+                               cwd=TOOLS, capture_output=True, text=True, timeout=900)
+        out += build.stdout + build.stderr
+        if "COMPILATION ERROR" in out:
+            return "COMPILE ERROR", "the sabotage doesn't compile: " + " ".join(l for l in out.splitlines() if "ERROR" in l and ".java" in l)[:300], []
+        for module in (TOOLS, MODULE):
+            proc = subprocess.run(["mvn", "-B", "-o", "-q", "test", f"-Dtest={classes}", "-DfailIfNoTests=false",
+                                   "-Dsurefire.failIfNoSpecifiedTests=false", "-Djacoco.skip=true"],
+                                  cwd=module, capture_output=True, text=True, timeout=900)
+            out += proc.stdout + proc.stderr
+        if not [x for d in REPORT_DIRS for x in d.glob("TEST-*.xml")]:
+            return "NO REPORT", out[-400:], []
         tags = tagged_methods()
         failed = failing_methods()
         failed_tags = sorted({t for key in failed for t in tags.get(key, set())})
@@ -107,6 +117,8 @@ def run_one(sid, description, edits, classes, expected):
     finally:
         for f, text in originals.items():
             f.write_text(text)
+        if originals:
+            subprocess.run(["mvn", "-B", "-o", "-q", "install", "-DskipTests", "-Djacoco.skip=true"], cwd=TOOLS, capture_output=True, text=True, timeout=900)
 
 
 def main():

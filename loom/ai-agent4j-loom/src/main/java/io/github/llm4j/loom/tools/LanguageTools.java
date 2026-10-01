@@ -1,5 +1,6 @@
 package io.github.llm4j.loom.tools;
 
+import io.github.llm4j.tools.SafePaths;
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.loom.ast.ToolDef;

@@ -1,11 +1,14 @@
 package io.github.llm4j.loom.execution;
 
 import io.github.llm4j.loom.runtime.RunJournal;
-import io.github.llm4j.loom.tools.generic.EffectContext;
+import io.github.llm4j.tools.EffectContext;
+import io.github.llm4j.tools.EffectJournal;
 import io.github.llm4j.ratelimit.Sleeper;
 import java.nio.file.Path;
 import java.time.Clock;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /** The executor's view for generic tools: the run's audit log, trace, journal, clock and current step. */
@@ -27,9 +30,29 @@ final class RunEffectContext implements EffectContext {
         executor.trace(TraceEvent.TOOL, null, text, data);
     }
 
+    /** One object for the whole run, so the tools' lock on it is the same lock every time. */
+    private final EffectJournal journal = new EffectJournal() {
+        @Override
+        public Optional<Entry> get(String key) {
+            return executor.getJournal().get(key).map(e -> new Entry(e.kind(), e.value()));
+        }
+
+        @Override
+        public void put(String key, Entry entry) {
+            executor.getJournal().put(key, new RunJournal.Entry(entry.kind(), entry.value()));
+        }
+
+        @Override
+        public Map<String, Entry> all() {
+            Map<String, Entry> out = new LinkedHashMap<>();
+            executor.getJournal().all().forEach((k, e) -> out.put(k, new Entry(e.kind(), e.value())));
+            return out;
+        }
+    };
+
     @Override
-    public RunJournal journal() {
-        return executor.getJournal();
+    public EffectJournal journal() {
+        return journal;
     }
 
     @Override

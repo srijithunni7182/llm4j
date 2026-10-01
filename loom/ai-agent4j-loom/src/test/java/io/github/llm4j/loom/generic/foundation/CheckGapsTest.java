@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.loom.generic.support.Declared;
-import io.github.llm4j.loom.generic.support.RecordingEffects;
+import io.github.llm4j.tools.support.RecordingEffects;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;

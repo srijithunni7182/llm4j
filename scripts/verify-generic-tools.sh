@@ -8,7 +8,8 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 EVIDENCE="$ROOT/.kiro/specs/loom-generic-tools/evidence"
-MODULE=loom/ai-agent4j-loom
+MODULE=loom/ai-agent4j-loom        # the Loom runtime
+TOOLS=ai-agent4j-tools              # the tools library (the six tools and their guards)
 BASELINE=71f67cb   # the merged nifty-lovelace head, before the generic tools
 SHA=$(git rev-parse HEAD)
 mkdir -p "$EVIDENCE"
@@ -44,7 +45,7 @@ g1() {
     else
       echo "   BUILD FAILURE (see the log)" | tee -a "$out"; FAILED+=("G1 run $((i+1))"); tail -30 "$EVIDENCE/.g1-run$i.log" >> "$out"
     fi
-    counts[$i]=$(totals "$MODULE"); echo "   ${counts[$i]}" | tee -a "$out"
+    counts[$i]="tools: $(totals "$TOOLS"); loom: $(totals "$MODULE")"; echo "   ${counts[$i]}" | tee -a "$out"
   done
   [ "${counts[0]}" = "${counts[1]}" ] || { echo "   test counts differ between the two plain runs" | tee -a "$out"; FAILED+=("G1 counts"); }
   rm -f "$EVIDENCE"/.g1-run*.log
@@ -63,16 +64,18 @@ g4() {
   work=$(mktemp -d)
   git worktree add -q --detach "$work/baseline" "$BASELINE" || { FAILED+=("G4 worktree"); return; }
   ( cd "$work/baseline" && mvn -B -o -pl "$MODULE" test > "$work/baseline.log" 2>&1 )
-  mvn_module test > "$work/now.log" 2>&1
-  python3 - "$work/baseline/$MODULE" "$MODULE" "$SHA" "$BASELINE" > "$out" <<'PY'
+  mvn -B -o -pl "$TOOLS" install > "$work/now.log" 2>&1; mvn -B -o -pl "$MODULE" test >> "$work/now.log" 2>&1
+  python3 - "$work/baseline/$MODULE" "$TOOLS:$MODULE" "$SHA" "$BASELINE" > "$out" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 from pathlib import Path
-def cases(module):
+def cases(modules):
+    # keyed by the class's simple name, so a test class that moved to the tools library still counts as itself
     out = {}
-    for x in Path(module, "target/surefire-reports").glob("TEST-*.xml"):
-        for c in ET.parse(x).getroot().iter("testcase"):
-            bad = c.find("failure") is not None or c.find("error") is not None
-            out[(c.get("classname"), re.sub(r"\(.*$|\[.*$", "", c.get("name")))] = "failed" if bad else ("skipped" if c.find("skipped") is not None else "passed")
+    for module in modules.split(":"):
+        for x in Path(module, "target/surefire-reports").glob("TEST-*.xml"):
+            for c in ET.parse(x).getroot().iter("testcase"):
+                bad = c.find("failure") is not None or c.find("error") is not None
+                out[(c.get("classname").rsplit(".", 1)[-1], re.sub(r"\(.*$|\[.*$", "", c.get("name")))] = "failed" if bad else ("skipped" if c.find("skipped") is not None else "passed")
     return out
 base, now = cases(sys.argv[1]), cases(sys.argv[2])
 print(f"commit {sys.argv[3]}; baseline {sys.argv[4]}")
@@ -138,7 +141,7 @@ LOOM
 g8() {
   echo "== G8: coverage"
   local out="$EVIDENCE/G8-coverage.txt"
-  mvn_module test > /dev/null 2>&1
+  mvn -B -o -pl "$TOOLS" test > /dev/null 2>&1
   { echo "commit $SHA"; python3 scripts/coverage_report.py; } 2>&1 | tee "$out"
   [ "${PIPESTATUS[0]}" -eq 0 ] || FAILED+=("G8")
 }

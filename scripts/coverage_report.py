@@ -3,11 +3,11 @@
 import csv
 import sys
 
-from loomgen import MODULE
+from loomgen import TOOLS
 
-PACKAGE = "io.github.llm4j.loom.tools.generic"
+PACKAGE = "io.github.llm4j.tools"
 GUARDS = ["NetPolicy", "SqlGuard", "RequestPath", "Redactor", "EffectTool", "PathGuard", "MailAddress"]
-rows = [r for r in csv.DictReader(open(MODULE / "target/site/jacoco/jacoco.csv")) if r["PACKAGE"] == PACKAGE]
+rows = [r for r in csv.DictReader(open(TOOLS / "target/site/jacoco/jacoco.csv")) if r["PACKAGE"] == PACKAGE]
 
 
 def ratio(missed, covered):

@@ -65,7 +65,7 @@ class EffectsEndToEndTest {
                 yield () -> new FileRunJournal(file);
             }
             case JDBC -> {
-                DataSource db = io.github.llm4j.loom.generic.support.Databases.h2("effects" + System.nanoTime());
+                DataSource db = io.github.llm4j.tools.support.Databases.h2("effects" + System.nanoTime());
                 JdbcRunJournal.createTable(db);
                 yield () -> new JdbcRunJournal(db, "run-1");
             }

@@ -1,5 +1,6 @@
 package io.github.llm4j.loom.tools;
 
+import io.github.llm4j.tools.SafePaths;
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.agent.tools.CalculatorTool;
 import io.github.llm4j.agent.tools.CurrentTimeTool;
@@ -10,11 +11,11 @@ import io.github.llm4j.agent.tools.WebSearchTool;
 import io.github.llm4j.agent.tools.openapi.OpenAPIParser;
 import io.github.llm4j.agent.tools.openapi.OpenAPITool;
 import io.github.llm4j.loom.ast.ToolDef;
-import io.github.llm4j.loom.tools.generic.DescribedTool;
-import io.github.llm4j.loom.tools.generic.EffectContext;
-import io.github.llm4j.loom.tools.generic.EffectTool;
-import io.github.llm4j.loom.tools.generic.Effectful;
-import io.github.llm4j.loom.tools.generic.Options;
+import io.github.llm4j.tools.DescribedTool;
+import io.github.llm4j.tools.EffectContext;
+import io.github.llm4j.tools.EffectTool;
+import io.github.llm4j.tools.Effectful;
+import io.github.llm4j.tools.Options;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -110,12 +111,12 @@ public final class ToolFactory {
             return (Tool) c.getDeclaredConstructor().newInstance();
         }));
         LanguageTools.registerAll(this);
-        register(new io.github.llm4j.loom.tools.generic.WebhookKind());
-        register(new io.github.llm4j.loom.tools.generic.FileKind());
-        register(new io.github.llm4j.loom.tools.generic.HttpKind());
-        register(new io.github.llm4j.loom.tools.generic.EmailKind());
-        register(new io.github.llm4j.loom.tools.generic.ShellKind());
-        register(new io.github.llm4j.loom.tools.generic.SqlKind());
+        register(new GenericKindAdapter(new io.github.llm4j.tools.WebhookKind()));
+        register(new GenericKindAdapter(new io.github.llm4j.tools.FileKind()));
+        register(new GenericKindAdapter(new io.github.llm4j.tools.HttpKind()));
+        register(new GenericKindAdapter(new io.github.llm4j.tools.EmailKind()));
+        register(new GenericKindAdapter(new io.github.llm4j.tools.ShellKind()));
+        register(new GenericKindAdapter(new io.github.llm4j.tools.SqlKind()));
         register(new GraphKind());
         register(simple("skill_registry", Set.of("url"), Set.of("api_key"), Set.of("api_key"), (n, o, dir) -> {
             io.github.llm4j.agent.skill.RestSkillRegistry.Builder b = io.github.llm4j.agent.skill.RestSkillRegistry.builder().baseUrl(o.get("url"));

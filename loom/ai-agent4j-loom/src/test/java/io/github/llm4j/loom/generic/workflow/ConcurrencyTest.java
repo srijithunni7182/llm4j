@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.loom.execution.HarnessExecutor;
 import io.github.llm4j.loom.generic.support.Declared;
-import io.github.llm4j.loom.generic.support.RecordingEffects;
+import io.github.llm4j.tools.support.RecordingEffects;
 import io.github.llm4j.loom.generic.support.ScriptedRun;
 import io.github.llm4j.loom.runtime.RunJournal;
 import java.io.IOException;
@@ -80,7 +80,7 @@ class ConcurrencyTest {
 
         assertThat(server.getRequestCount()).isEqualTo(32);
         assertThat(bodies).doesNotHaveDuplicates();
-        assertThat(ctx.journal().all().values()).hasSize(32).extracting(RunJournal.Entry::kind).containsOnly("effect_done");
+        assertThat(ctx.journal().all().values()).hasSize(32).extracting(io.github.llm4j.tools.EffectJournal.Entry::kind).containsOnly("effect_done");
     }
 
     static final String SCRIPT = """

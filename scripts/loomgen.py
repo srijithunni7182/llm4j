@@ -5,9 +5,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = ROOT / ".kiro" / "specs" / "loom-generic-tools"
-MODULE = ROOT / "loom" / "ai-agent4j-loom"
+MODULE = ROOT / "loom" / "ai-agent4j-loom"          # the Loom runtime: scripts, executor, the CLI
+TOOLS = ROOT / "ai-agent4j-tools"                    # the tools library
 TEST_DIR = MODULE / "src" / "test" / "java" / "io" / "github" / "llm4j" / "loom" / "generic"
-REPORTS = MODULE / "target" / "surefire-reports"
+TOOLS_TEST_DIR = TOOLS / "src" / "test" / "java" / "io" / "github" / "llm4j" / "tools"
+REPORT_DIRS = [MODULE / "target" / "surefire-reports", TOOLS / "target" / "surefire-reports"]
+REPORTS = REPORT_DIRS[0]
 ID = r"(?:V\d+\.\d+|F\d+|H\d+|C\d+)"
 
 
@@ -18,8 +21,8 @@ def check_ids():
 
 
 def test_files():
-    return sorted(TEST_DIR.rglob("*.java")) + [MODULE / "src/test/java/io/github/llm4j/loom/tools/SafePathsTest.java",
-                                                    MODULE / "src/test/java/io/github/llm4j/loom/execution/ApprovalKeyCompatTest.java"]
+    return (sorted(TOOLS_TEST_DIR.rglob("*.java")) + sorted(TEST_DIR.rglob("*.java"))
+            + [MODULE / "src/test/java/io/github/llm4j/loom/execution/ApprovalKeyCompatTest.java"])
 
 
 def tagged_methods():
@@ -40,7 +43,7 @@ def tagged_methods():
 def results():
     """{(class, method): 'passed' | 'failed' | 'skipped'} from the surefire XML reports (parameter suffixes removed)."""
     out = {}
-    for xml in REPORTS.glob("TEST-*.xml"):
+    for xml in [x for d in REPORT_DIRS for x in d.glob("TEST-*.xml")]:
         for case in ET.parse(xml).getroot().iter("testcase"):
             name = re.sub(r"\(.*$|\[.*$", "", case.get("name"))
             status = "failed" if case.find("failure") is not None or case.find("error") is not None else (

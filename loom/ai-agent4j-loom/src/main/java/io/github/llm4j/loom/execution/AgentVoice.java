@@ -2,7 +2,7 @@ package io.github.llm4j.loom.execution;
 
 import io.github.llm4j.loom.ast.AgentDef;
 import io.github.llm4j.loom.tools.LanguageTools;
-import io.github.llm4j.loom.tools.SafePaths;
+import io.github.llm4j.tools.SafePaths;
 import io.github.llm4j.provider.sarvam.SarvamAudioProvider;
 import io.github.llm4j.provider.sarvam.SarvamTextToSpeechProvider;
 import java.io.IOException;
