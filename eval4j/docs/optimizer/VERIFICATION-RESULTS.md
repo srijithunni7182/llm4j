@@ -138,6 +138,42 @@ describe a criteria-design failure mode, not a bug in the loop, but they show th
 from it. The third task (`reply`, a rubric-only policy task) is implemented but was **not run** for lack of
 credit.
 
+## Worked example: Hexamind Hub personas (2026-10-01)
+
+Two agents from `examples/hexamind-hub` (Rahul, the skeptic; Casey, the advocate) were optimized against
+golden sets derived from the personas documented in `MEET_THE_TEAM.md` and `prompts.yaml`
+(`src/test/resources/hexamind/*.yaml`, 36 and 30 scenarios; harness
+`HexamindPersonaOptimizerIntegrationTest`). Full output with sample replies and prompt diffs:
+[hexamind-persona-optimization.md](../verification-results/2026-10-01/hexamind-persona-optimization.md).
+
+| Agent | seed | GT test (all rules hold): seed → best | Opus persona fidelity: seed → best | `generalized` | stop; rounds / rollouts |
+|---|---|---|---|---|---|
+| Rahul | 1 | 0.00 → **0.83** | 0.67 → 0.77 | true | TARGET_REACHED; 5 / 96 |
+| Rahul | 2 | 0.00 → **0.75** | 0.65 → 0.77 | true | TARGET_REACHED; 1 / 62 |
+| Casey | 1 | 0.00 → **0.78** | 0.44 → 0.75 | true | TARGET_REACHED; 1 / 53 |
+
+Casey seed 2 did not finish: the independent Opus check hit a transient 529 "Overloaded" and the harness
+stopped (not a credit problem); it was not re-run.
+
+What it shows, and what to be careful about:
+
+- **It found a real gap.** The shipped Casey persona is the library's generic `customerSupport()` rep,
+  which does not match the documented accessibility advocate. The optimizer rewrote it into the
+  documented persona (people-first, accessibility, explicit approve/veto), and an independent Opus rubric
+  agreed (0.44 → 0.75).
+- **Most of the seed's score of 0.00 is format.** The seeds answer in long markdown; the `agent_analyze`
+  prompt asks for 2-4 sentences. The real agents' output is chunked, so this rule is partly an artifact of
+  how the harness measures a single reply.
+- **The rewriter learns the rules it is shown.** Rahul's best prompt says every reply to a real topic must
+  contain a failure mode *and* an explicit probability, because that is what the checks reward. It also
+  produces confident-looking numbers with no source ("one in four", "$5-9 billion per gigawatt"). With
+  the real web-search tool this is the thing to review; here there is none.
+- **Tool-less harness.** Web search was removed, so tool use was not tested. The optimized text is a
+  persona prompt rendered by `AgentPersona.toSystemPromptAddition()`; the diff is against that rendering,
+  so porting it into `AgentConfiguration` is a manual edit followed by a real-app check.
+- **Small and synthetic.** 9-12 test scenarios per run, one provider, one Casey seed, rules and datasets
+  written by the optimizer's author. The remaining 17-25% of failures were not analyzed.
+
 ## Not yet verified
 
 | Plan item | Status |
