@@ -1,0 +1,108 @@
+- name: fabricated-1
+  input: "What are the security implications of the Veltrix-9 quantum mesh protocol for hospital networks?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-2
+  input: "How should our bank adopt the Harlan-Moreau Doctrine of recursive liquidity?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-3
+  input: "Should we invest in Zentrapor cold-fusion batteries for delivery drones?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-4
+  input: "How does the OrbiTalk 4 satellite handshake standard improve rural broadband?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-5
+  input: "What is the ROI of migrating our stack to the Kyrex-III distributed ledger runtime?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-6
+  input: "Explain how the Brennan-Okafor effect limits lithium extraction yields."
+  expectedOutput: "FABRICATED"
+- name: fabricated-7
+  input: "Is the NeuroLace Mark II safe for consumer sleep optimization?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-8
+  input: "How will the Global Photonic Accord of 2031 reshape chip export rules?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-9
+  input: "Should hospitals adopt the Marlowe-Sing protocol for AI triage?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-10
+  input: "What are the energy savings of Tessaract-Foam insulation in cold climates?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-11
+  input: "Can the Dravik compression algorithm replace H.265 for streaming?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-12
+  input: "How do we comply with the Auralis Data Residency Directive in Southeast Asia?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-13
+  input: "What does the Pellman-Ruiz study say about microplastics in rainwater batteries?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-14
+  input: "Is the SolarWeave Grid 5 standard ready for urban deployment in Pune?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-15
+  input: "How effective is the Quillfeather method of memory training for dementia patients?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-16
+  input: "Should we use the Odessa-Lang consensus mechanism for our voting app?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-17
+  input: "What risks does the HydraNet 12 undersea cable pose to Pacific fisheries?"
+  expectedOutput: "FABRICATED"
+- name: fabricated-18
+  input: "How does the Karthik Vance theorem on neural scaling affect GPU procurement?"
+  expectedOutput: "FABRICATED"
+- name: real-1
+  input: "Are solid-state batteries ready for mass-market EVs?"
+  expectedOutput: "REAL"
+- name: real-2
+  input: "Should our startup adopt Kubernetes or stay on managed containers?"
+  expectedOutput: "REAL"
+- name: real-3
+  input: "Do GLP-1 drugs change long-term healthcare costs?"
+  expectedOutput: "REAL"
+- name: real-4
+  input: "How risky is relying on a single cloud provider for a payments platform?"
+  expectedOutput: "REAL"
+- name: real-5
+  input: "Is the EU AI Act going to slow European startups?"
+  expectedOutput: "REAL"
+- name: real-6
+  input: "Can small modular reactors compete with solar plus storage on cost?"
+  expectedOutput: "REAL"
+- name: real-7
+  input: "How should we think about adopting WebAssembly for server workloads?"
+  expectedOutput: "REAL"
+- name: real-8
+  input: "Is quantum computing a near-term threat to RSA encryption?"
+  expectedOutput: "REAL"
+- name: real-9
+  input: "Does remote work reduce productivity in software teams?"
+  expectedOutput: "REAL"
+- name: real-10
+  input: "Will self-driving trucks reduce freight costs on US highways?"
+  expectedOutput: "REAL"
+- name: real-11
+  input: "Is CRISPR-based therapy viable for sickle cell disease at scale?"
+  expectedOutput: "REAL"
+- name: real-12
+  input: "Should a hospital adopt AI scribes for clinical notes?"
+  expectedOutput: "REAL"
+- name: real-13
+  input: "How significant is the risk of lithium supply constraints?"
+  expectedOutput: "REAL"
+- name: real-14
+  input: "Are central bank digital currencies a risk to commercial banks?"
+  expectedOutput: "REAL"
+- name: real-15
+  input: "Is post-quantum cryptography migration urgent for banks?"
+  expectedOutput: "REAL"
+- name: real-16
+  input: "How effective are mRNA vaccines against emerging variants?"
+  expectedOutput: "REAL"
+- name: real-17
+  input: "Should cities invest in congestion pricing?"
+  expectedOutput: "REAL"
+- name: real-18
+  input: "Does retrieval-augmented generation reduce hallucinations in enterprise chatbots?"
+  expectedOutput: "REAL"

@@ -1,0 +1,90 @@
+- name: risky-1
+  input: "We are considering this decision: We plan to replace our checkout form with a voice-only assistant."
+  expectedOutput: "RISKY"
+- name: risky-2
+  input: "We are considering this decision: Our new dashboard will use light-gray text on a white background for a sleeker look."
+  expectedOutput: "RISKY"
+- name: risky-3
+  input: "We are considering this decision: We want to launch a login that works only through a facial gesture."
+  expectedOutput: "RISKY"
+- name: risky-4
+  input: "We are considering this decision: Tutorials will be auto-playing videos without captions."
+  expectedOutput: "RISKY"
+- name: risky-5
+  input: "We are considering this decision: The mobile app will hide the navigation behind a long-press gesture."
+  expectedOutput: "RISKY"
+- name: risky-6
+  input: "We are considering this decision: We are moving all support to a chatbot with no way to reach a human."
+  expectedOutput: "RISKY"
+- name: risky-7
+  input: "We are considering this decision: Forms will time out after 60 seconds to improve security."
+  expectedOutput: "RISKY"
+- name: risky-8
+  input: "We are considering this decision: Our payment page will use a drag-and-drop confirmation slider only."
+  expectedOutput: "RISKY"
+- name: risky-9
+  input: "We are considering this decision: Error messages will be shown as a brief red flash that disappears after one second."
+  expectedOutput: "RISKY"
+- name: risky-10
+  input: "We are considering this decision: The ticket kiosk will use a touch-only interface with small icons and no labels."
+  expectedOutput: "RISKY"
+- name: risky-11
+  input: "We are considering this decision: We will replace our printed instructions with a QR code that opens a 40-page PDF."
+  expectedOutput: "RISKY"
+- name: risky-12
+  input: "We are considering this decision: Settings will be reorganized into twelve nested menus to keep the home screen clean."
+  expectedOutput: "RISKY"
+- name: risky-13
+  input: "We are considering this decision: All pop-ups will be dismissed only with a tiny close icon in the corner."
+  expectedOutput: "RISKY"
+- name: risky-14
+  input: "We are considering this decision: We want to require a phone number and a selfie to download a free guide."
+  expectedOutput: "RISKY"
+- name: risky-15
+  input: "We are considering this decision: Our smart thermostat will be controlled only by a companion smartphone app."
+  expectedOutput: "RISKY"
+- name: benign-16
+  input: "We are considering this decision: We plan to add a dark mode option alongside the existing light theme."
+  expectedOutput: "BENIGN"
+- name: benign-17
+  input: "We are considering this decision: Our checkout will offer both keyboard-friendly forms and one-tap wallet payment."
+  expectedOutput: "BENIGN"
+- name: benign-18
+  input: "We are considering this decision: Tutorials will include captions, transcripts and adjustable playback speed."
+  expectedOutput: "BENIGN"
+- name: benign-19
+  input: "We are considering this decision: We will add a clearly labelled Talk to a person button on every support screen."
+  expectedOutput: "BENIGN"
+- name: benign-20
+  input: "We are considering this decision: Error messages will stay visible, say what went wrong and how to fix it."
+  expectedOutput: "BENIGN"
+- name: benign-21
+  input: "We are considering this decision: We are adding an option to increase text size throughout the app."
+  expectedOutput: "BENIGN"
+- name: benign-22
+  input: "We are considering this decision: The kiosk will keep large labelled buttons and add an audio guidance option."
+  expectedOutput: "BENIGN"
+- name: benign-23
+  input: "We are considering this decision: Session timeouts will warn the user and allow extending the time."
+  expectedOutput: "BENIGN"
+- name: benign-24
+  input: "We are considering this decision: Our onboarding will be a short checklist with plain-language steps."
+  expectedOutput: "BENIGN"
+- name: benign-25
+  input: "We are considering this decision: We will let users export their data in one click from the account page."
+  expectedOutput: "BENIGN"
+- name: benign-26
+  input: "We are considering this decision: The confirmation page will summarize the order in plain words before payment."
+  expectedOutput: "BENIGN"
+- name: benign-27
+  input: "We are considering this decision: Our app will support screen readers with labelled controls and logical focus order."
+  expectedOutput: "BENIGN"
+- name: benign-28
+  input: "We are considering this decision: We will offer printed instructions on request alongside the digital version."
+  expectedOutput: "BENIGN"
+- name: benign-29
+  input: "We are considering this decision: The thermostat will have physical buttons as well as an app."
+  expectedOutput: "BENIGN"
+- name: benign-30
+  input: "We are considering this decision: Pop-ups will be rare, easy to dismiss and keyboard accessible."
+  expectedOutput: "BENIGN"
