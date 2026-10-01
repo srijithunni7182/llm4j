@@ -1,0 +1,101 @@
+commit aa06373f6f1ca7f0694257597b1494da9cbda76f
+Thu Oct  1 16:44:34 UTC 2026
+-- run 1: plain
+   BUILD FAILURE (see the log)
+[INFO] AI Agent4J                                                         [jar]
+[INFO] AI Agent4J - RAG Addons                                            [jar]
+[INFO] AI Agent4J Loom                                                    [jar]
+[INFO] 
+[INFO] ----------------< io.github.srijithunni7182:ai-agent4j >----------------
+[INFO] Building AI Agent4J 5.0                                            [1/3]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] The POM for org.apache.maven.plugins:maven-clean-plugin:jar:3.2.0 is missing, no dependency information available
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for AI Agent4J 5.0:
+[INFO] 
+[INFO] AI Agent4J ......................................... FAILURE [  0.071 s]
+[INFO] AI Agent4J - RAG Addons ............................ SKIPPED
+[INFO] AI Agent4J Loom .................................... SKIPPED
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  0.648 s
+[INFO] Finished at: 2026-10-01T16:44:35Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Plugin org.apache.maven.plugins:maven-clean-plugin:3.2.0 or one of its dependencies could not be resolved:
+[ERROR] 	Cannot access central (https://repo.maven.apache.org/maven2) in offline mode and the artifact org.apache.maven.plugins:maven-clean-plugin:jar:3.2.0 has not been downloaded from it before.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/PluginResolutionException
+   tests=55 failures=11 errors=0 skipped=0
+-- run 2: plain again
+   BUILD FAILURE (see the log)
+[INFO] AI Agent4J                                                         [jar]
+[INFO] AI Agent4J - RAG Addons                                            [jar]
+[INFO] AI Agent4J Loom                                                    [jar]
+[INFO] 
+[INFO] ----------------< io.github.srijithunni7182:ai-agent4j >----------------
+[INFO] Building AI Agent4J 5.0                                            [1/3]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] The POM for org.apache.maven.plugins:maven-clean-plugin:jar:3.2.0 is missing, no dependency information available
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for AI Agent4J 5.0:
+[INFO] 
+[INFO] AI Agent4J ......................................... FAILURE [  0.059 s]
+[INFO] AI Agent4J - RAG Addons ............................ SKIPPED
+[INFO] AI Agent4J Loom .................................... SKIPPED
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  0.619 s
+[INFO] Finished at: 2026-10-01T16:44:37Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Plugin org.apache.maven.plugins:maven-clean-plugin:3.2.0 or one of its dependencies could not be resolved:
+[ERROR] 	Cannot access central (https://repo.maven.apache.org/maven2) in offline mode and the artifact org.apache.maven.plugins:maven-clean-plugin:jar:3.2.0 has not been downloaded from it before.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/PluginResolutionException
+   tests=55 failures=11 errors=0 skipped=0
+-- run 3: random order and 20000 fuzz iterations
+   BUILD FAILURE (see the log)
+[INFO] AI Agent4J                                                         [jar]
+[INFO] AI Agent4J - RAG Addons                                            [jar]
+[INFO] AI Agent4J Loom                                                    [jar]
+[INFO] 
+[INFO] ----------------< io.github.srijithunni7182:ai-agent4j >----------------
+[INFO] Building AI Agent4J 5.0                                            [1/3]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] The POM for org.apache.maven.plugins:maven-clean-plugin:jar:3.2.0 is missing, no dependency information available
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for AI Agent4J 5.0:
+[INFO] 
+[INFO] AI Agent4J ......................................... FAILURE [  0.092 s]
+[INFO] AI Agent4J - RAG Addons ............................ SKIPPED
+[INFO] AI Agent4J Loom .................................... SKIPPED
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  0.799 s
+[INFO] Finished at: 2026-10-01T16:44:39Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Plugin org.apache.maven.plugins:maven-clean-plugin:3.2.0 or one of its dependencies could not be resolved:
+[ERROR] 	Cannot access central (https://repo.maven.apache.org/maven2) in offline mode and the artifact org.apache.maven.plugins:maven-clean-plugin:jar:3.2.0 has not been downloaded from it before.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/PluginResolutionException
+   tests=55 failures=11 errors=0 skipped=0

@@ -39,7 +39,7 @@ g1() {
   for i in 0 1 2; do
     echo "-- run $((i+1)): ${runs[$i]}" | tee -a "$out"
     # shellcheck disable=SC2086
-    if mvn -B -o -pl "$MODULE" -am clean install ${flags[$i]} > "$EVIDENCE/.g1-run$i.log" 2>&1; then
+    if mvn -B -pl "$MODULE" -am clean install ${flags[$i]} > "$EVIDENCE/.g1-run$i.log" 2>&1; then
       echo "   BUILD SUCCESS" | tee -a "$out"
     else
       echo "   BUILD FAILURE (see the log)" | tee -a "$out"; FAILED+=("G1 run $((i+1))"); tail -30 "$EVIDENCE/.g1-run$i.log" >> "$out"

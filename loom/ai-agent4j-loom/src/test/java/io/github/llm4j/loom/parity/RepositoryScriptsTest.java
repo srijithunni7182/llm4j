@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Verification plan N2: every .loom script in the repository passes the load-time checks. Tools a host
  * registers from Java can't be seen from here, so the names its agents use count as registered; secrets
- * count as set. Everything else — unsupported syntax, knowledge, routing, skills, guardrails — is checked.
+ * count as set (to a URL-shaped value). Everything else — unsupported syntax, knowledge, routing, skills, guardrails — is checked.
  */
 class RepositoryScriptsTest {
 
@@ -45,7 +45,8 @@ class RepositoryScriptsTest {
             // Hosts resolve their own model names (GetViral's "studio", test mocks): a host factory is trusted.
             HarnessExecutor e = new HarnessExecutor(parsed, hostTools, m -> { throw new IllegalStateException(); });
             e.setBaseDir(script.getParent());
-            e.setEnvLookup(name -> "set");
+            // A value that is also a well-formed URL, since env vars feed URL options of the generic tools.
+            e.setEnvLookup(name -> "https://example.invalid/set-" + name);
             e.setHumanInterface(message -> "");
             e.setEmbeddingFactory(model -> new HashingEmbeddingProvider());
             for (ScriptValidator.Problem p : new ScriptValidator().validate(parsed, e.validationContext())) {

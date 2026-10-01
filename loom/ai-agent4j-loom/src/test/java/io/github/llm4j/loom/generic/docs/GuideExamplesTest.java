@@ -85,6 +85,7 @@ class GuideExamplesTest {
     }
 
     @Test
+    @Tag("V10.5")
     @Tag("V10.7")
     void theDocumentedCommandsRunAsTheGuideShowsThem() throws Exception {
         Path samples = Path.of("samples/digest").toAbsolutePath();
