@@ -2,7 +2,9 @@
 
 The work is done when every check below passes, in automated tests unless marked *live*. How the checks are
 built, the layers they run at, the seams they need, and the done criteria are in
-[test-strategy.md](test-strategy.md), which also maps every requirement to its checks.
+[test-strategy.md](test-strategy.md), which also maps every requirement to its checks. The procedure for
+proving the work finished, with commands, evidence and sign-off, is
+[completion-verification.md](completion-verification.md).
 
 Unless a check says otherwise, it uses:
 

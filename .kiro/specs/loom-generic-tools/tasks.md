@@ -69,3 +69,9 @@ paths; nothing is "tested later". See [test-strategy.md](test-strategy.md).
 - [ ] 13. **Done criteria (strategy §8)**: L0–L3 and fuzz green twice in a row, coverage gates pass, the
       existing suites unchanged, results recorded in `verification.md`.
 - [ ] 14. *(optional, needs accounts)* Live checks L1–L4.
+- [ ] 15. **Completion verification ([completion-verification.md](completion-verification.md))**
+  - [ ] 15.1 Tag every test with its check ID (`@Tag`/`@DisplayName`), as the plan describes.
+  - [ ] 15.2 Write and review `scripts/verify-generic-tools.sh` (G1, G2, G4, G6, G8 and the reports for
+        G3, G7, G9); wire G1, G2 and G8 into the Jenkins "Unit Tests & Coverage" stage.
+  - [ ] 15.3 Run G0–G9 on a clean checkout, by someone other than the implementer where possible; commit the
+        `evidence/` folder and `SIGN-OFF.md`.
