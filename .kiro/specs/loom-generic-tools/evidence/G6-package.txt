@@ -1,6 +1,6 @@
-commit 159a19a58b5f59a88ecdcc55f198f3de8d11a1f5
-[INFO] Total time:  24.672 s
-[INFO] Finished at: 2026-10-01T17:32:59Z
+commit 0eb5f7f60c60c73f37576f39c2f9bfd31e55aad9
+[INFO] Total time:  24.175 s
+[INFO] Finished at: 2026-10-01T17:53:26Z
 [INFO] ------------------------------------------------------------------------
 jar: /home/user/llm4j/loom/ai-agent4j-loom/target/ai-agent4j-loom-5.0.jar (147M)
    contains org/eclipse/angus/mail/smtp/SMTPTransport.class
@@ -19,3 +19,5 @@ jar: /home/user/llm4j/loom/ai-agent4j-loom/target/ai-agent4j-loom-5.0.jar (147M)
 1 problem in db.loom
 --- sql with PostgreSQL (the packaged driver; no connection is made at load):
 ? db.loom: ready to run
+--- shell and sql declared together, checked from the jar (shell needs allow: and approval or unattended:):
+? both.loom: ready to run

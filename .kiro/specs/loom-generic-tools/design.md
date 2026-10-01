@@ -438,3 +438,7 @@ Where the code differs from the plan above, and why. The requirements are unchan
 | Per-run cap | counted from the journal | Counted under a lock together with writing `pending` | Otherwise parallel branches could all pass the check (C3) |
 | `file` writes | atomic | Atomic, serialised per file; the temporary file is hidden, so a listing never shows it | |
 | Trace | events named in §1.7 | Also a `tool` trace type shown by `weave run --trace` | |
+| Redirects and credentials | follow up to 3 hops, each checked | Also: on a redirect to a different origin, credential-looking headers are dropped before the next request | Found in the security review: a configured `Authorization` header would otherwise have been sent to whichever host the target redirected to |
+| Path characters | no control characters | Any character below U+0020, U+007F, U+0085, U+2028 and U+2029 is refused in a `file` path | Found in the security review: a name with a line break could be created and then reach logs and mail headers |
+| Sabotage list | S1–S21 | S1–S23 (S22 and S23 added after the review for the two rules above) | A rule with no sabotage row is not known to be tested |
+| Fuzz tests | default timeout | Fuzz tests that scale with `loom.fuzz.iterations` have a 20 minute timeout; the default per-test timeout stays at 60 s | The 20 000-iteration run in G1 legitimately takes minutes |

@@ -216,10 +216,15 @@ result, trace or audit.
 
 ## Results
 
-*To be recorded when the work is done:*
+Recorded at code SHA `0eb5f7f` (the code under test; later commits change only spec and evidence files). The full
+evidence is in [`evidence/`](evidence/), with the gate table in [`evidence/SIGN-OFF.md`](evidence/SIGN-OFF.md).
 
-- *test counts per layer, and the commands run;*
-- *JaCoCo line and branch figures for `tools.generic` and for each guard class;*
-- *the mutation list (strategy §5): for each guard, the rule that was broken and the test that failed;*
-- *every hostile-model attack and its outcome;*
-- *the outcome of each live check, or the reason it wasn't run.*
+- **Tests.** 769 in the Loom module, 0 failures, 0 errors, 1 skipped (a baseline test). 413 of them are in `generic/`. Three clean builds at
+  one SHA: two plain with identical counts, one in random order with 20 000 fuzz iterations (`G1-build.txt`). 232 test methods were added against the
+  baseline and none removed or newly failing (`G4-regression.txt`).
+- **Coverage.** `tools.generic` lines 95.9% (target 80%); every guard class at 92.5% branches or more (target 90%) (`G8-coverage.txt`).
+- **Mutations.** 23 deliberate bugs in the guard code, each caught by the named checks (`G3-sabotage.md`).
+- **Hostile-model attacks.** The V12 suite and the attacks chosen for the real runs: none had an effect; the secrets sweep found no secret value (`G9-safety.md`, `G5-runs.md`).
+- **Real runs.** R1–R6 with real `weave` processes and a stand-in model and services, including `kill -9` after the Slack post and a resume that sent nothing twice (`G5-runs.md`).
+- **Live checks (L1–L4).** Not run: no accounts, no model key. The Teams body shape stays unverified against a real Teams endpoint.
+- **Not run.** `triggers install --apply` (no crontab or systemd here) and the language server in an editor.
