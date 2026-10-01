@@ -40,6 +40,7 @@ class EmailFuzzTest {
 
     @Test
     @Tag("F3")
+    @org.junit.jupiter.api.Timeout(value = 20, unit = java.util.concurrent.TimeUnit.MINUTES)
     void generatedSubjectsNamesAndAddressesNeverAddHeadersOrRecipients() throws Exception {
         Declared declared = new Declared(Map.of(), dir);
         Tool t = declared.create("tool Mail { use: email  outbox: \"out/\"  from: \"Loom <digest@example.com>\"  allow_to: \"*@example.com\"  max_per_run: 10000  max_recipients: 5 }",

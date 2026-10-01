@@ -18,7 +18,8 @@ def check_ids():
 
 
 def test_files():
-    return sorted(TEST_DIR.rglob("*.java")) + [MODULE / "src/test/java/io/github/llm4j/loom/tools/SafePathsTest.java"]
+    return sorted(TEST_DIR.rglob("*.java")) + [MODULE / "src/test/java/io/github/llm4j/loom/tools/SafePathsTest.java",
+                                                    MODULE / "src/test/java/io/github/llm4j/loom/execution/ApprovalKeyCompatTest.java"]
 
 
 def tagged_methods():

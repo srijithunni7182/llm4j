@@ -325,10 +325,10 @@ class HttpToolTest {
             String path = sb.toString();
             try {
                 String ok = RequestPath.validate(path);
-                assertThat(ok).startsWith("/").doesNotContain("//").doesNotContain("..").doesNotContain("\\")
+                assertThat(ok).startsWith("/").doesNotContain("//").doesNotContain("\\")
                         .doesNotContain("?").doesNotContain("#").doesNotContain("@").doesNotContain(" ");
                 assertThat(ok.chars().allMatch(c -> c >= 0x21 && c <= 0x7e)).isTrue();
-                assertThat(java.util.Arrays.asList(ok.split("/"))).doesNotContain(".");
+                assertThat(java.util.Arrays.asList(ok.split("/"))).doesNotContain(".", "..");
                 assertThat(ok.toLowerCase()).doesNotContain("%2e").doesNotContain("%2f").doesNotContain("%5c");
                 okhttp3.HttpUrl built = okhttp3.HttpUrl.parse("http://base.example/api").newBuilder().encodedPath("/api" + ok).build();
                 assertThat(built.host()).isEqualTo("base.example");

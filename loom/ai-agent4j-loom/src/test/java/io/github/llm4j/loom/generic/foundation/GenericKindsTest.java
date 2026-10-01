@@ -90,6 +90,7 @@ class GenericKindsTest {
     @Test
     @Tag("V1.6")
     @Tag("F2")
+    @org.junit.jupiter.api.Timeout(value = 20, unit = java.util.concurrent.TimeUnit.MINUTES)
     void generatedArgumentsNeverMakeAToolThrow() throws Exception {
         int closedPort;
         try (ServerSocket s = new ServerSocket(0)) {
