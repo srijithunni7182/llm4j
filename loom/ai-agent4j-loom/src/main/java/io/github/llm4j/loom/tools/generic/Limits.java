@@ -55,7 +55,8 @@ public final class Limits {
         return "\n… [cut: first " + kept + " bytes shown, more follows]";
     }
 
-    private static String marker(long kept, long total) {
+    /** The marker for text that was cut at {@code kept} of {@code total} bytes. */
+    public static String marker(long kept, long total) {
         return "\n… [cut: " + kept + " of " + total + " bytes shown]";
     }
 

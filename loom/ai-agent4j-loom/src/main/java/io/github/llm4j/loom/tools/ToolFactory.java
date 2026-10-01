@@ -111,6 +111,8 @@ public final class ToolFactory {
         }));
         LanguageTools.registerAll(this);
         register(new io.github.llm4j.loom.tools.generic.WebhookKind());
+        register(new io.github.llm4j.loom.tools.generic.FileKind());
+        register(new io.github.llm4j.loom.tools.generic.HttpKind());
         register(new GraphKind());
         register(simple("skill_registry", Set.of("url"), Set.of("api_key"), Set.of("api_key"), (n, o, dir) -> {
             io.github.llm4j.agent.skill.RestSkillRegistry.Builder b = io.github.llm4j.agent.skill.RestSkillRegistry.builder().baseUrl(o.get("url"));

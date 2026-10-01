@@ -61,7 +61,24 @@ public final class NetPolicy {
             return "only https is allowed (http needs allow_http: true, or a localhost address)";
         }
         if (!hostAllowed(host)) return "host " + host + " is not in this tool's hosts: list";
+        InetAddress literal = literalAddress(host);
+        if (literal != null && !rules.allowPrivate()) {
+            String why = forbidden(unmap(literal), loopbackAllowedFor(host));
+            if (why != null) return "the address is " + why + " address (allow_private: true permits it)";
+        }
         return null;
+    }
+
+    /** The address if {@code host} is an IP literal (no lookup is made), else null. */
+    private static InetAddress literalAddress(String host) {
+        boolean v4 = host.matches("\\d{1,3}(\\.\\d{1,3}){3}");
+        boolean v6 = host.contains(":");
+        if (!v4 && !v6) return null;
+        try {
+            return InetAddress.getByName(host.startsWith("[") ? host.substring(1, host.length() - 1) : host);
+        } catch (UnknownHostException e) {
+            return null;
+        }
     }
 
     /**
