@@ -1,8 +1,9 @@
 # Gap Analysis: ai-agent4j Capabilities vs. What Loom Exposes
 
 *Status: P0 and P1 are implemented (spec in this folder); P2 and P3 are implemented (spec in
-[`../loom-capability-depth/`](../loom-capability-depth/)). What remains is the "Library" row: OpenAI and
-Anthropic chat providers in ai-agent4j.*
+[`../loom-capability-depth/`](../loom-capability-depth/)). The Anthropic provider exists now, with every provider
+meeting one contract (spec in [`../uniform-providers/`](../uniform-providers/)); an OpenAI provider is what
+remains of the "Library" row.*
 
 > **Update (generic tools):** the "tools that need configuration" gap in §3.2 is now closed for the common cases by six
 > script-declared tool kinds: `webhook`, `email`, `http`, `file`, `shell` and `sql` (see the

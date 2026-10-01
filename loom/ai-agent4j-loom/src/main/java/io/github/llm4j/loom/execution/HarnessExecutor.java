@@ -399,7 +399,7 @@ public class HarnessExecutor implements LoomEngine {
                         + "/… models; pick another name");
             }
             if (!ProviderSpec.KINDS.contains(p.getKind())) {
-                c.error(p.getLine(), who, "unknown use: " + p.getKind() + "; use one of gemini, ollama, sarvam");
+                c.error(p.getLine(), who, "unknown use: " + p.getKind() + "; use one of gemini, anthropic, ollama, sarvam");
                 continue;
             }
             for (var e : p.getOptions().entrySet()) {
@@ -1089,7 +1089,7 @@ public class HarnessExecutor implements LoomEngine {
 
     private void executeStatement(Statement stmt) {
         if (stmt instanceof NoteStmt note) {
-            log.info("NOTE: " + note.getMessage());
+            log.info("NOTE: " + resolvePayload(note.getMessage()));
         } else if (stmt instanceof DelegateStmt del) {
             executeDelegate(del);
         } else if (stmt instanceof CallStmt call) {

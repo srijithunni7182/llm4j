@@ -66,8 +66,13 @@ public final class PassRate {
         if (rate() < minRate) {
             throw new AssertionError(
                     String.format(
+                            java.util.Locale.ROOT,
                             "Expected pass rate >= %.2f but was %.2f (%d/%d passed)%s",
-                            minRate, rate(), passed, total, formatFailures()));
+                            minRate,
+                            rate(),
+                            passed,
+                            total,
+                            formatFailures()));
         }
     }
 

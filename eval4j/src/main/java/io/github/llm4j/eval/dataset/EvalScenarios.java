@@ -1,10 +1,13 @@
 package io.github.llm4j.eval.dataset;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.CollectionType;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -28,7 +31,48 @@ public final class EvalScenarios {
 
     private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
 
+    /** Writer-side mapper: omits nulls, no {@code ---} marker, block style for multi-line text. */
+    private static final ObjectMapper YAML_WRITER =
+            new ObjectMapper(
+                            new YAMLFactory()
+                                    .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+                                    .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
+                                    .enable(YAMLGenerator.Feature.LITERAL_BLOCK_STYLE))
+                    .setSerializationInclusion(JsonInclude.Include.NON_NULL);
+
     private EvalScenarios() {}
+
+    /**
+     * Serializes scenarios to the YAML shape {@link #fromYaml(Path)} reads, with a stable field
+     * order so committed datasets diff cleanly. Null fields are omitted.
+     */
+    public static String toYaml(List<EvalScenario> scenarios) {
+        try {
+            return YAML_WRITER.writeValueAsString(scenarios);
+        } catch (IOException e) {
+            throw new EvalDatasetException("Failed to serialize golden dataset to YAML", e);
+        }
+    }
+
+    /** Writes the dataset atomically (temp file then move), creating parent directories. */
+    public static void toYaml(List<EvalScenario> scenarios, Path yamlFile) {
+        byte[] content = toYaml(scenarios).getBytes(StandardCharsets.UTF_8);
+        try {
+            Path absolute = yamlFile.toAbsolutePath();
+            Files.createDirectories(absolute.getParent());
+            Path temp =
+                    Files.createTempFile(
+                            absolute.getParent(), absolute.getFileName().toString(), ".tmp");
+            try {
+                Files.write(temp, content);
+                Files.move(temp, absolute, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } finally {
+                Files.deleteIfExists(temp);
+            }
+        } catch (IOException e) {
+            throw new EvalDatasetException("Failed to write golden dataset to " + yamlFile, e);
+        }
+    }
 
     public static List<EvalScenario> fromYaml(Path yamlFile) {
         try {

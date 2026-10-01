@@ -1,5 +1,7 @@
 package io.github.llm4j.provider.google;
 
+import io.github.llm4j.provider.Providers;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -64,22 +66,93 @@ public class GoogleProvider implements DescribableProvider {
         } catch (io.github.llm4j.exception.RateLimitException e) {
             throw e;
         } catch (IOException | LLMException e) {
-            throw new ProviderException(getProviderName(), "Failed to process request", e);
+            throw typed("Failed to process request", e);
         }
     }
 
     /**
-     * Note: This method is not yet implemented for the Google provider. It will throw an {@link
-     * UnsupportedOperationException} if called.
-     *
-     * @param request The LLMRequest object.
-     * @return A stream of LLMResponse objects.
+     * Streams through {@code :streamGenerateContent?alt=sse}: each event is a partial response; its text
+     * parts become chunks, and the finish reason and usage (sent with the last event) the final chunk.
      */
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
-        logger.warn("chatStream is not yet implemented for the Google provider.");
-        throw new UnsupportedOperationException(
-                "Streaming is not yet implemented for Google provider");
+        String model = request.getModel() != null ? request.getModel() : config.getDefaultModel();
+        if (model == null) {
+            throw new InvalidRequestException("Model must be specified in request or config");
+        }
+        String url = baseUrl + String.format("/models/%s:streamGenerateContent?alt=sse", model);
+        io.github.llm4j.http.StreamingBody body;
+        try {
+            body = httpClient.stream(url, buildRequestJson(request), buildHeaders());
+        } catch (IOException | LLMException e) {
+            throw typed("Failed to start streaming", e);
+        }
+        String[] finish = {null};
+        Integer[] usage = {null, null};
+        java.util.List<LLMResponse> end = new java.util.ArrayList<>();
+        Stream<LLMResponse> text = body.events().flatMap(event -> {
+            JsonNode root;
+            try {
+                root = objectMapper.readTree(event.data());
+            } catch (IOException e) {
+                throw new ProviderException(getProviderName(), "Unreadable stream event: " + event.data(), e);
+            }
+            if (root.has("error")) throw streamError(root.get("error"));
+            JsonNode candidate = root.path("candidates").path(0);
+            String reason = candidate.path("finishReason").asText(null);
+            if (reason != null) finish[0] = reason;
+            if (isBlocked(reason)) {
+                throw new ContentBlockedException(getProviderName(), "Content blocked by safety filters (" + reason + ")");
+            }
+            JsonNode u = root.path("usageMetadata");
+            if (!u.isMissingNode()) {
+                usage[0] = u.path("promptTokenCount").asInt(0);
+                usage[1] = u.path("candidatesTokenCount").asInt(0) + u.path("thoughtsTokenCount").asInt(0);
+            }
+            String piece = answerText(candidate.path("content").path("parts"));
+            return piece.isEmpty() ? Stream.empty() : Stream.of(Providers.textChunk(piece, model));
+        });
+        return Stream.concat(text, Stream.of(0).map(x -> Providers.finalChunk(finish[0], usage[0], usage[1], model)))
+                .onClose(body::close);
+    }
+
+    /**
+     * As {@link Providers#typed}, plus one Gemini quirk: a bad API key comes back as 400
+     * INVALID_ARGUMENT (reason API_KEY_INVALID), not 401 — the contract calls it an authentication
+     * failure whichever provider it is.
+     */
+    private RuntimeException typed(String message, Exception e) {
+        if (e instanceof InvalidRequestException invalid && invalid.getResponseBody() != null
+                && (invalid.getResponseBody().contains("API_KEY_INVALID") || invalid.getResponseBody().contains("API key not valid"))) {
+            return new AuthenticationException(invalid.getMessage(), invalid.getStatusCode(), invalid.getResponseBody());
+        }
+        return Providers.typed(getProviderName(), message, e);
+    }
+
+    private static boolean isBlocked(String finishReason) {
+        return finishReason != null && LLMResponse.FinishReason.fromValue(finishReason) == LLMResponse.FinishReason.CONTENT_FILTER;
+    }
+
+    private RuntimeException streamError(JsonNode error) {
+        int code = error.path("code").asInt(500);
+        String message = error.path("status").asText("error") + ": " + error.path("message").asText("");
+        if (code == 401 || code == 403) return new AuthenticationException(message);
+        if (code == 400 || code == 404) return new InvalidRequestException(message);
+        if (code == 429) return new io.github.llm4j.exception.RateLimitException(message);
+        if (code >= 500) return new io.github.llm4j.exception.ServiceUnavailableException(getProviderName(), message, code, error.toString());
+        return new ProviderException(getProviderName(), message, code);
+    }
+
+    /** The answer's text: every text part except the model's thoughts. */
+    private static String answerText(JsonNode parts) {
+        StringBuilder sb = new StringBuilder();
+        if (parts.isArray()) {
+            for (JsonNode part : parts) {
+                if (part.path("thought").asBoolean(false)) continue;
+                if (part.has("text")) sb.append(part.get("text").asText());
+            }
+        }
+        return sb.toString();
     }
 
     @Override
@@ -111,7 +184,7 @@ public class GoogleProvider implements DescribableProvider {
             throw e;
         } catch (IOException | LLMException e) {
             logger.error("Failed to list models from Google API", e);
-            throw new ProviderException(getProviderName(), "Failed to list models", e);
+            throw typed("Failed to list models", e);
         }
     }
 
@@ -143,7 +216,7 @@ public class GoogleProvider implements DescribableProvider {
             throw e;
         } catch (IOException | LLMException e) {
             logger.error("Failed to get available models from Google API", e);
-            throw new ProviderException(getProviderName(), "Failed to get available models", e);
+            throw typed("Failed to get available models", e);
         }
     }
 
@@ -151,32 +224,32 @@ public class GoogleProvider implements DescribableProvider {
         ObjectNode root = objectMapper.createObjectNode();
         ArrayNode contentsArray = root.putArray("contents");
 
-        String systemMessage =
-                request.getMessages().stream()
-                        .filter(m -> m.getRole() == Message.Role.SYSTEM)
-                        .map(Message::getContent)
-                        .findFirst()
-                        .orElse(null);
+        // System messages go in Gemini's own systemInstruction, joined in order.
+        String system = request.getMessages().stream()
+                .filter(m -> m.getRole() == Message.Role.SYSTEM)
+                .map(Message::getContent)
+                .collect(java.util.stream.Collectors.joining("\n\n"));
+        if (!system.isEmpty()) {
+            root.putObject("systemInstruction").putArray("parts").addObject().put("text", system);
+        }
 
-        boolean firstUserMessage = true;
+        // Gemini expects user and model turns to alternate: consecutive turns of one role are merged.
+        String lastRole = null;
+        ArrayNode lastParts = null;
         for (Message message : request.getMessages()) {
             if (message.getRole() == Message.Role.SYSTEM) {
                 continue;
             }
-
-            ObjectNode contentNode = contentsArray.addObject();
             String role = message.getRole() == Message.Role.ASSISTANT ? "model" : "user";
-            contentNode.put("role", role);
-
-            ArrayNode partsArray = contentNode.putArray("parts");
-            ObjectNode partNode = partsArray.addObject();
-
-            String content = message.getContent();
-            if (role.equals("user") && firstUserMessage && systemMessage != null) {
-                content = systemMessage + "\n\n" + content;
-                firstUserMessage = false;
+            if (role.equals(lastRole)) {
+                lastParts.addObject().put("text", message.getContent());
+                continue;
             }
-            partNode.put("text", content);
+            ObjectNode contentNode = contentsArray.addObject();
+            contentNode.put("role", role);
+            lastParts = contentNode.putArray("parts");
+            lastParts.addObject().put("text", message.getContent());
+            lastRole = role;
         }
 
         ObjectNode generationConfig = root.putObject("generationConfig");
@@ -228,7 +301,7 @@ public class GoogleProvider implements DescribableProvider {
         JsonNode candidate = candidates.get(0);
         String finishReason = candidate.path("finishReason").asText(null);
 
-        if ("SAFETY".equals(finishReason)) {
+        if (isBlocked(finishReason)) {
             String safetyInfo =
                     candidate.has("safetyRatings")
                             ? " Safety ratings: " + candidate.get("safetyRatings")
@@ -245,6 +318,7 @@ public class GoogleProvider implements DescribableProvider {
                                 "[Response truncated: model hit token limit before generating output.]")
                         .model(model)
                         .finishReason(finishReason)
+                        .addMetadata(Providers.FINISH_REASON_RAW, finishReason)
                         .build();
             }
             throw new ProviderException(
@@ -252,7 +326,7 @@ public class GoogleProvider implements DescribableProvider {
                     "No parts in response content: " + candidate.path("content"));
         }
 
-        String textContent = parts.get(0).path("text").asText();
+        String textContent = answerText(parts);
 
         LLMResponse.TokenUsage tokenUsage = null;
         JsonNode usage = root.path("usageMetadata");
@@ -260,7 +334,8 @@ public class GoogleProvider implements DescribableProvider {
             tokenUsage =
                     new LLMResponse.TokenUsage(
                             usage.path("promptTokenCount").asInt(0),
-                            usage.path("candidatesTokenCount").asInt(0),
+                            // thinking tokens are billed as output
+                            usage.path("candidatesTokenCount").asInt(0) + usage.path("thoughtsTokenCount").asInt(0),
                             usage.path("totalTokenCount").asInt(0));
         }
 
@@ -269,6 +344,7 @@ public class GoogleProvider implements DescribableProvider {
                 .model(model)
                 .tokenUsage(tokenUsage)
                 .finishReason(finishReason)
+                .addMetadata(Providers.FINISH_REASON_RAW, finishReason)
                 .build();
     }
 }

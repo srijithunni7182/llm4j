@@ -144,6 +144,7 @@ public final class RetryPolicy {
                 .addRetryableStatusCode(502) // Bad gateway
                 .addRetryableStatusCode(503) // Service unavailable
                 .addRetryableStatusCode(504) // Gateway timeout
+                .addRetryableStatusCode(529) // Overloaded (Anthropic)
                 .build();
     }
 

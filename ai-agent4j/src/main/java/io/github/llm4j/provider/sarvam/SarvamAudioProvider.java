@@ -87,7 +87,7 @@ public class SarvamAudioProvider implements SpeechToTextProvider {
                         e) { // Catching Exception because postMultipart might throw runtime
             // exceptions or
             // checked if modified
-            throw new ProviderException(getProviderName(), "Failed to transcribe audio", e);
+            throw io.github.llm4j.provider.Providers.typed(getProviderName(), "Failed to transcribe audio", e);
         }
     }
 

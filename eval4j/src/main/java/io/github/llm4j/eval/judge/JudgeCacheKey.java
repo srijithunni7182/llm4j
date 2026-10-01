@@ -55,7 +55,7 @@ final class JudgeCacheKey {
             byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder(hash.length * 2);
             for (byte b : hash) {
-                hex.append(String.format("%02x", b));
+                hex.append(String.format(java.util.Locale.ROOT, "%02x", b));
             }
             return hex.toString();
         } catch (NoSuchAlgorithmException e) {

@@ -1,170 +1,309 @@
 ![LLM4J Ecosystem Hero](docs/images/hero_ecosystem.png)
 
-# llm4j: The Pure Java AI Stack
+<h1 align="center">llm4j</h1>
 
-> **Build intelligent, reasoning applications from the ground up.**
+<p align="center">
+  <b>AI agents, written the Java way.</b><br>
+  Typed, testable, observable: from a single tool call to autonomous workflows that run for days.
+</p>
 
-**llm4j** is a monorepo dedicated to exploring the future of AI engineering in Java. Unlike Python-heavy ecosystems or heavy abstractions, this project proves that you can build sophisticated, production-ready AI solutions using pure, idiomatic Java.
+<p align="center">
+  <a href="https://central.sonatype.com/artifact/io.github.srijithunni7182/ai-agent4j"><img alt="Maven Central" src="https://img.shields.io/maven-central/v/io.github.srijithunni7182/ai-agent4j.svg?label=Maven%20Central"></a>
+  <a href="https://www.oracle.com/java/technologies/downloads/#java17"><img alt="Java 17+" src="https://img.shields.io/badge/Java-17%2B-orange"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-yellow.svg"></a>
+  <img alt="Providers" src="https://img.shields.io/badge/LLMs-Gemini%20%7C%20Sarvam%20%7C%20Ollama%20%7C%20Claude-blueviolet">
+</p>
 
-It provides a complete stack: from a low-level **Gemini 3.5 Flash** client to a high-level ReAct agent framework with **Human-in-the-Loop** approval gates, and fully fledged multi-agent applications.
-
----
-
-## 🏗️ The Core: [AI Agent4J](ai-agent4j/)
-
-The heart of this repository is **ai-agent4j**, a lightweight yet powerful Java library for building LLM-powered applications.
-
-* **Multi-Provider**: Native support for **Google Gemini 3.5 Flash**, **Sarvam AI (Sarvam-30B / Sarvam-105B)**, and **Local models via Ollama (Gemma, Llama, Phi)**, with an extensible architecture for others.
-* **Voice-Native**: First-class support for Speech-to-Text (STT via Saaras v3) and Text-to-Speech (TTS via Bulbul v3) pipelines.
-* **Zero Magic**: No confusing "magic" abstractions. Just clean, typed Java code.
-* **ReAct Agents**: Implements the **Re**asoning + **Act**ing paradigm, allowing agents to solve complex problems by thinking and using tools.
-* **Human-in-the-Loop (HITL)**: Built-in approval gates — any tool can declare `requiresApproval()` and the agent will block for an `ApprovalCallback` before executing sensitive actions (e.g. sending emails, running queries, making payments).
-* **Autonomous Foundations**: Built-in support for **Agent Delegation** (Manager/Worker patterns), **Background Task Scheduling**, and **Semantic Long-Term Memory**.
-* **Model Routing**: Cost-aware and fallback routing strategies with a tri-lane `HybridModelRegistry` that routes `gemini-*` → Gemini Cloud, `sarvam-*` → Sarvam Cloud, and `ollama/*` → Local Ollama.
-* **Tooling**: Includes ready-to-use tools (Calculator, Web Search) and an **OpenAPI Tool** that can turn any REST API into an AI function instantly.
-* **MCP Support**: Full support for the **Model Context Protocol (MCP)**, enabling connection to any external MCP server (Python, Node, etc.).
-* **Structured Output**: Native support for JSON modes and structured object mapping.
-* **Skill Injection & Discovery**: Inject domain knowledge dynamically using **AgentSkill** (Markdown-based instructions) and automatically discover available skills.
-* **xAI Compliant**: Industry-leading **95% xAI compliance** with built-in PII masking, confidence scoring, and transparent reasoning audit trails.
-* **AI-Optimized**: Includes comprehensive `llms.txt` and specialized documentation optimized for AI scrapers and crawlers.
-
-## 🧵 The Orchestrator: [Loom](loom/ai-agent4j-loom/)
-
-**Loom** is the **Neuro-Symbolic** orchestration layer of the llm4j stack. It provides a specialized DSL (`.loom`) to manage complex, multi-agent workflows with deterministic precision.
-
-* **Neuro-Symbolic**: Combines the reasoning power of LLMs with the rigid reliability of symbolic logic.
-* **DSL-Driven**: Define agents and workflows in a human-readable script; boot systems without Java recompilation.
-* **Deterministic Routing**: Native support for `handoff`, `delegate`, `parallel` execution, and `loop until` patterns.
-* **Enterprise Governance**: PII guardrails, cost-aware and fallback routing, persistent scheduling, and **human approval gates**: `approve: [Publish]` on an agent makes those tool calls wait for a person (durably, holding no thread).
-* **Generic Tools, No Java**: `webhook` (Slack, Discord, Teams), `email` (SMTP), `http` (REST APIs), `file`, `shell` and read-only `sql`, each with allow-lists, size and time limits, secrets from the environment, and a journal so a crash never sends the same message twice. See [Generic Tools](loom/ai-agent4j-loom/LOOM_GUIDE.md#generic-tools) and the [daily digest sample](loom/ai-agent4j-loom/samples/digest/).
-* **Tools, Knowledge and Checks in the Script**: `tool Search { use: serpapi api_key: env.SERPAPI_KEY }`, built-in `web_search`/`calculator`, OpenAPI specs as tools, and `knowledge Handbook { source: "docs/" embedding: "gemini/text-embedding-004" }` for grounded answers. Nothing is silently ignored: `weave check` reports every problem with its line before anything runs.
-* **Memory, Voice, Guards and Providers in the Script**: agents that remember each user (`memory { conversation: "chats" session: "{user_id}" facts: "facts.json" }`), speak and listen in Indian languages (`voice { speak: "sarvam/bulbul:v2" }`, and `translate`, `transcribe` and friends as tools), keep personal data from the model (`guard { pii: mask bias: warn }`), use knowledge graphs, script-defined personas and remote skills, and reach any Gemini, Ollama or Sarvam endpoint (`provider Box { use: ollama base_url: "…" }`). `weave run --trace` shows every thought, tool call and cost live.
-* **Durable Runs**: Every step is journaled (memory, file or SQL). A run waiting on a person holds no thread, resumes on any server when the answer arrives, and a crashed run picks up after its last step. The script doesn't change.
-* **Data-Driven Routing**: `for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} -> {fix.output} }`: iterate over what an agent returned and route each item to the agent it names, in one line.
-* **Cost Budgets**: `budget { tokens: 200000 }` for a run, `budget { tokens: 20000 per_call: 2000 }` for an agent, `budget 5000 tokens` for a step or loop. Over-budget calls are refused before they reach the model; `weave run --max-tokens` caps any script, and every run reports where its tokens went.
-* **Pause and Resume on Limits**: a rate limit or daily quota no longer kills a long-running workflow. ai-agent4j reads when the limit resets; Loom pauses the run (no thread held) and resumes it then. `budget { tokens: 100000 per day when_exhausted: suspend }` gives background agents a daily allowance, and `schedule { cron: "0 7 * * *" run: Digest() }` runs workflows on a schedule, all kept in a trigger store that cron, systemd, launchd, Windows Task Scheduler or Cloud Scheduler can wake (`weave triggers install`).
-* **Bounded, Resilient Steps**: `loop until … max 5 … on_exhausted`, `retry 2 backoff 2s timeout 90s`, per-step `expecting { }` schemas and per-agent `temperature:`.
-
-👉 **[Master Loom Orchestration](loom/ai-agent4j-loom/LOOM_GUIDE.md)** · **[Budgets, Pausing and Scheduling](loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md)** · **[ai-agent4j Budgets and Rate Limits](ai-agent4j/wiki/Budgets-and-Rate-Limits.md)**
-
-## 🧠 The Memory: [Engram](engram/engram-core/)
-
-**Engram** is a **Neuro-Symbolic Memory Engine** that solves the "Context Bloat" problem. It replaces naive transcript accumulation with a smart, synthesized retrieval-synthesis loop.
-
-*   **Context Intelligence**: Automatically extracts key facts and synthesizes task-specific briefings.
-*   **Constant Context**: Maintains high-signal prompts regardless of conversation length.
-*   **Self-Correction**: Features an Introspection Loop that retroactively updates and shadows memories.
-
-👉 **[Building Agentic Workflows with Loom & Engram](docs/AGENTIC_WORKFLOWS_GUIDE.md)**
-
-## 🧪 The Judge: [eval4j](eval4j/)
-
-**eval4j** is a ground-up evaluation framework for testing agents built with `ai-agent4j` — the
-Java answer to what `deepeval` does for Python, built on AssertJ and JUnit 5 instead of ported
-line-for-line from Python.
-
-* **Fluent Assertions**: AssertJ-style custom assertions on `AgentResult` — `usesTool`,
-  `usesToolsExactly`, `hasFinalAnswerContaining`, `isConfidentAbove`, and more.
-* **LLM-as-Judge**: `LlmJudgeCondition` is a real AssertJ `Condition`, so judging correctness,
-  relevancy, or groundedness composes with `.is(...)` and every other AssertJ combinator.
-* **Standard Presets**: `correctness`, `answerRelevancy`, `faithfulness`/`groundedness`,
-  `hallucinationFree`, the agent-specific `taskCompletion`, `bias`, and `toxicity`.
-* **Golden Datasets**: author eval scenarios in YAML, still run through plain JUnit 5
-  `@ParameterizedTest` — no separate config-driven test runner.
-* **Pass-Rate Aggregation**: assert a dataset clears an overall pass-rate threshold instead of
-  requiring every single noisy judge call to agree.
-
-👉 **[Read the eval4j Documentation](eval4j/README.md)**
-
-### 🧩 The Extensions: [RAG Addons](ai-agent4j-addons/)
-
-For advanced use-cases, the **RAG Addons** module brings heavy-lifting capabilities while keeping the core light:
-
-* **Local Embeddings**: Run **ONNX** and **DJL** models locally (no API costs).
-* **Persistent Storage**: Store vectors in **PostgreSQL (pgvector)** or **Pinecone**.
-
-👉 **[Read the Documentation](ai-agent4j/README.md)**
+<p align="center">
+  <a href="ai-agent4j/wiki/Getting-Started.md">Get started</a> ·
+  <a href="#the-stack">The stack</a> ·
+  <a href="#see-it-built">Showcases</a> ·
+  <a href="#explore-the-docs">Docs</a> ·
+  <a href="ai-agent4j/wiki/WHY_AI_AGENT4J.md">Why ai-agent4j?</a> ·
+  <a href="loom/ai-agent4j-loom/WHY_LOOM.md">Why Loom?</a>
+</p>
 
 ---
 
-## ⚡ The Flagship: [GetViral](examples/getviral/)
+## Java deserves first-class AI
 
-**GetViral** is a creator studio that uses *every* module in this repo. Drop one idea and twelve AI agents turn it into a ready-to-post pack for **X**, **Instagram Reels** and **YouTube**. It runs as a multi-user website that deploys to Google Cloud Run, and still starts on a laptop with one command.
+For twenty-five years Java has run the systems that can't go down: banks, airlines, telecoms, the
+back offices of the world. Java developers have strong reasons to trust it:
 
-* **Loom** runs the workflow: PII guardrail, parallel specialists, a critic `loop until`, a bounded quality loop that routes each fix with one `for each`, and human hook-pick and publish gates that suspend the run instead of holding a thread.
-* **Prompts written live**: a Showrunner agent writes every specialist's system prompt per brief and rewrites them after critic feedback.
-* **Research before writing**: a Researcher agent searches the web (DuckDuckGo, Google Search via Gemini, GDELT news, Wikipedia), reads the best sources and hands the team a dossier where every fact carries its source.
-* **Live trends** from free public REST APIs (Wikipedia, Hacker News, Mastodon, Datamuse, Apple Music, Openverse, Nager.Date).
-* **RAG** over a viral playbook and your past posts (addons), plus **Engram** memory that makes every run sharper.
-* **Images and video**: an ArtDirector agent generates the thumbnail, cover and B-roll (Gemini, free Pollinations.ai, or a local render), and a VideoEditor agent renders the Reel into a real MP4.
-* **Not done until it's right**: the Showrunner reviews the finished build against the quality gate (files, platform limits, originality, eval4j judges) and sends every failing artifact back to its specialist until X, Instagram and YouTube all pass.
-* **Original over time**: every casting is remembered; the Showrunner is dealt lenses and visual styles the creator hasn't used, and an originality gate (Engram similarity) sends repeats back.
-* **Durable runs**: every step is journaled, so a pack waiting for its creator holds no thread, and a pack whose server restarts picks up where it left off. The Reel ships as an Instagram-ready MP4 (which doubles as the YouTube Short) plus a WebM copy so it plays in every browser, and a live build tracker shows every artifact being made and checked.
-* **eval4j** grades every pack at runtime and gates the test suite. Publishes to Instagram only with your approval.
-* **A real website**: Google sign-in, onboarding with connected Instagram/YouTube/X accounts, a library of everything you've made, quotas, Postgres and a Cloud Run deployment guide.
+- **Types** catch mistakes before the program runs.
+- **Interfaces** keep contracts honest.
+- **Objects** own their state and their behaviour.
+- **The compiler is the first reviewer**, the IDE refactors a thousand call sites safely, and the JVM
+  runs for months without a restart.
 
-👉 **[Get viral](examples/getviral/README.md)** (runs with no API key)
+Then AI arrived, and the ecosystem went mostly to Python: dictionaries passed between untyped
+functions, prompts in string templates, and agents you can't unit test.
 
----
-
-## 🚀 The Showcase: [Hexamind Hub](examples/hexamind-hub/)
-
-**Hexamind Hub** demonstrates what `ai-agent4j` can do. It is a "Digital Boardroom" where 6 specialized AI agents (including a Cynical Skeptic and a Creative Thinker) collaborate to solve your problems.
-
-* **Multi-Agent Orchestration**: See how different personas debate, critique, and build consensus.
-* **Real-Time**: Built with Spring Boot and WebSockets for a live, streaming experience.
-* **Visual**: A stunning, modern UI to watch the AI thought process unfold.
-
-👉 **[Launch Hexamind Hub](examples/hexamind-hub/README.md)**
+**llm4j is the other path.** It is a complete AI stack written from the ground up in idiomatic Java,
+with no vendor SDKs, where an agent is as ordinary as a `PaymentService`. It's no less capable; it's
+built the way Java developers already build everything else.
 
 ---
 
-## 🏭 The Factory: [Nirmaan Yantra](examples/nirmaan-yantra/)
+## An agent is just an object
 
-**Nirmaan Yantra** is an autonomous software factory where a team of AI agents builds entire applications from a single-line prompt.
+In llm4j, every part of an AI system maps onto something a Java developer already knows:
 
-* **Autonomous Workflow**: Spec -> Test -> Code -> QA -> Release.
-* **Self-Healing**: Automatically fixes compilation errors and missing dependencies.
-* **Loop Prevention**: Detects dead-ends and "reboots" the implementation process.
-* **Real-Time Dashboard**: Watch Vihaan (Dev), Dhruv (QA), and others collaborate live.
+| AI concept | In llm4j, it's… |
+|---|---|
+| A language model | An `LLMClient` interface. Gemini, Sarvam, Ollama and Claude sit behind [one contract](ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md), so switching is one line. |
+| A tool the model can use | A class that implements `Tool`, with a name, a description and an `execute` method. |
+| A prompt | A versioned resource in a [`PromptRegistry`](ai-agent4j/wiki/Prompt-Registry-Guide.md), or a Markdown [skill](ai-agent4j/wiki/Agent-Skills-Guide.md) on the classpath. Not a string buried in code. |
+| An agent | An immutable object built with a builder, from a client, tools, skills, memory and a budget. |
+| A risky action | `requiresApproval(args)` on the tool, and an `ApprovalCallback` that a person answers. |
+| A spending limit | A `Budget` value object, checked before every model call. |
+| Something going wrong | A typed exception: `AuthenticationException`, `RateLimitException` with the exact reset time, `ContentBlockedException`. |
+| A test | An AssertJ assertion, in JUnit, in your normal build. |
 
-👉 **[Enter the Factory](examples/nirmaan-yantra/README.md)**
+Here is what that looks like. A tool is a class:
+
+```java
+public class RefundTool implements Tool {
+    private final Payments payments;
+
+    public RefundTool(Payments payments) { this.payments = payments; }
+
+    @Override public String getName()        { return "refund"; }
+    @Override public String getDescription() { return "Refund an order. Args: orderId, amount"; }
+
+    @Override
+    public String execute(Map<String, Object> args) {
+        return payments.refund((String) args.get("orderId"), ((Number) args.get("amount")).doubleValue());
+    }
+
+    @Override
+    public boolean requiresApproval(Map<String, Object> args) {
+        return ((Number) args.get("amount")).doubleValue() > 100;     // big refunds need a person
+    }
+}
+```
+
+An agent is composed like any other object:
+
+```java
+ReActAgent support = ReActAgent.builder()
+        .llmClient(client)                                            // any provider
+        .addSkill(AgentSkill.fromClasspath("skills/refund-policy.md"))  // domain knowledge, in Markdown
+        .addTool(new RefundTool(payments))
+        .approvalCallback((tool, args, plan) -> supervisor.confirm(tool, args))
+        .budget(Budget.builder().tokens(20_000).build())              // it cannot overspend
+        .build();
+
+AgentResult result = support.run("Customer 42 was charged twice for order A-17.");
+```
+
+And it's tested like any other object, with [eval4j](eval4j/):
+
+```java
+assertThat(support.run(question))
+        .usesTool("refund")
+        .completedSuccessfully()
+        .is(presets.taskCompletion(question));    // an LLM judge, as an AssertJ Condition
+```
+
+No framework magic, no annotation processors, no hidden global state. Just classes, interfaces and a
+builder, and a compiler that has your back.
 
 ---
 
-## 🐈 The Companion: [Kingini](examples/kingini/)
+<a id="the-stack"></a>
 
-**Kingini** is a voice-first AI agent designed for children, featuring a wise and whimsical Kerala cat persona.
+## The stack: one agent to a whole organisation of them
 
-*   **Voice-First**: Talk naturally in Malayalam.
-*   **Persona**: A character-driven AI with a unique backstory and voice ("Ritu").
-*   **Tech**: Spring Boot + Sarvam AI (STT/LLM/TTS) + Web Audio API.
+Each module answers the question the previous one raises.
 
-👉 **[Meet Kingini](examples/kingini/README.md)**
+```mermaid
+flowchart LR
+    A["<b>ai-agent4j</b><br/>agents, tools, providers"] --> L["<b>Loom</b><br/>workflows that run for days"]
+    A --> E["<b>Engram</b><br/>memory that stays sharp"]
+    A --> X["<b>Addons</b><br/>local embeddings, vector stores"]
+    A --> V["<b>eval4j</b><br/>tests for agents"]
+    L --> G["<b>Your application</b>"]
+    E --> G
+    X --> G
+    V -.->|gates the build| G
+```
+
+### 🏗️ [ai-agent4j](ai-agent4j/): *"How do I build an agent?"*
+
+The core library, about 440 KB with no vendor SDKs.
+
+- **Reasoning and acting.** ReAct agents reason, call tools, and correct themselves.
+- **Where tools come from.**
+  - your own classes;
+  - built-ins such as a calculator and web search;
+  - any REST API, via its [OpenAPI spec](ai-agent4j/wiki/OpenAPI-Tool.md);
+  - any [MCP server](ai-agent4j/wiki/MCP-Integration.md).
+- **Building blocks.**
+  - Memory: [short-term and semantic](ai-agent4j/wiki/Memory-and-Persistence.md).
+  - Knowledge: [RAG](ai-agent4j/wiki/RAG-Support.md) and [knowledge graphs](ai-agent4j/wiki/Knowledge-Graphs.md).
+  - Behaviour: [personas](ai-agent4j/wiki/Agent-Personas.md), delegation between agents, and scheduling.
+- **Voice.** Speech-to-text and text-to-speech in Indian languages, through Sarvam.
+- **Built to see inside.** Every agent explains itself, with audit trails, PII masking and confidence
+  scores ([xAI](ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md)).
+- **Built for production.** [Budgets and rate limits](ai-agent4j/wiki/Budgets-and-Rate-Limits.md) keep
+  a runaway loop from becoming a runaway bill.
+
+### 🧵 [Loom](loom/ai-agent4j-loom/): *"How do many agents work together, reliably, for days?"*
+
+One agent is a function call. A business process is many agents, people and hours of waiting.
+Loom is a small language for exactly that. The agents reason; **the script governs**:
+
+```text
+budget { tokens: 100000 per day  when_exhausted: suspend }
+
+workflow Digest(topic) {
+    delegate "Find today's news on {topic}" to Researcher -> findings expecting { items: list }
+    for each item in findings.items { delegate "Summarise {item.url}" to Writer -> summary }
+    human_prompt "Publish today's digest? (yes/no)" -> go
+    alt (go == "yes") { handoff "Publish" to Publisher }
+}
+
+schedule Morning { cron: "0 7 * * *"  run: Digest(topic="AI agents") }
+```
+
+What the runtime does for you:
+
+- journals every step, so runs survive restarts;
+- waits for people without holding a thread;
+- pauses on rate limits and resumes when they lift;
+- enforces budgets before each call;
+- runs on schedules without a hosted platform;
+- ships six generic tools usable from the script with no Java: `webhook`, `email`, `http`, `file`, `shell` and read-only `sql`, with a journal so a crash never sends the same message twice ([Generic Tools](loom/ai-agent4j-loom/LOOM_GUIDE.md#generic-tools), [daily digest sample](loom/ai-agent4j-loom/samples/digest/));
+- finds problems with `weave check` before anything runs.
+
+👉 [Loom overview](loom/ai-agent4j-loom/README.md) · [**Why Loom?**](loom/ai-agent4j-loom/WHY_LOOM.md) ·
+[Language guide](loom/ai-agent4j-loom/LOOM_GUIDE.md)
+
+### 🧠 [Engram](engram/engram-core/): *"How does an agent remember without drowning in context?"*
+
+Long conversations bloat prompts and dilute attention. Engram replaces the growing transcript with a
+**retrieve-and-synthesise loop**:
+
+- it extracts the facts that matter;
+- it writes a short, task-specific briefing for each turn;
+- it corrects its own memories as new information arrives.
+
+The prompt stays small and sharp however long the relationship runs.
+👉 [Agentic workflows with Loom and Engram](docs/AGENTIC_WORKFLOWS_GUIDE.md)
+
+### 🧩 [Addons](ai-agent4j-addons/): *"How do I keep my data private and my costs at zero?"*
+
+The heavy-lifting pieces, kept out of the core so it stays light:
+
+- **Local embeddings**: ONNX and DJL models on your own machine, with no API calls and no per-token cost.
+- **Persistent vector stores**: PostgreSQL with pgvector, or Pinecone.
+
+### 🧪 [eval4j](eval4j/): *"How do I know it works, and keeps working?"*
+
+Agents are non-deterministic, which is no excuse for not testing them. eval4j is a testing framework
+built for Java, not ported from Python:
+
+- **AssertJ assertions on what agents did**: which tools they called, in what order, and how confident
+  they were.
+- **LLM-as-judge conditions**: correctness, relevancy, groundedness, hallucination, task completion,
+  bias and toxicity.
+- **YAML golden datasets**, run through plain JUnit 5.
+- **Pass-rate thresholds** for noisy judges.
+
+It runs in `mvn test`, next to the rest of your suite. 👉 [Why eval4j?](ai-agent4j/wiki/WHY_EVAL4J.md)
+
+### Together
+
+**Put together**, it is a complete alternative ecosystem:
+
+- ai-agent4j gives agents that are **objects**;
+- Loom arranges them into **processes** that survive the real world;
+- Engram and the addons give them **memory and knowledge**;
+- eval4j turns quality into a **build gate**.
+
+It's all Java, on the JVM you already operate, monitor and trust.
 
 ---
 
-## 📧 The Connector: [Gmail MCP App](examples/gmail-mcp-app/)
+<a id="see-it-built"></a>
 
-**Gmail MCP App** demonstrates the power of the **Model Context Protocol**. It connects your LLM directly to your Gmail inbox, allowing agents to read, draft, and send emails securely.
+## See it built
 
-*   **MCP Server**: Implements the Model Context Protocol for email.
-*   **Secure**: Uses OAuth2 for authentication.
-*   **HITL-Ready**: The Gmail send action is a perfect candidate for `requiresApproval()` — the agent will ask for human confirmation before sending any email.
-*   **Agent-Ready**: Plug-and-play with any MCP-compliant client (like Claude or `ai-agent4j` agents).
+The best argument for a stack is what people build with it. Every app below lives in this repo and runs.
+
+### ⚡ [GetViral](examples/getviral/): the flagship
+
+**One idea in; a ready-to-post pack for X, Instagram Reels and YouTube out.** Twelve agents, one Loom
+workflow, every module in the repo.
+
+- A Researcher cites every fact it finds.
+- A Showrunner writes each specialist's prompt, live.
+- An ArtDirector and a VideoEditor produce real images and a real MP4.
+- An eval4j quality gate sends failing work back until every platform passes.
+- Human approval comes before anything is published.
+
+It runs as a multi-user website on Cloud Run, and on a laptop with one command, **with no API key
+needed**.
+👉 [Get viral](examples/getviral/README.md)
+
+| | |
+|---|---|
+| 🚀 **[Hexamind Hub](examples/hexamind-hub/README.md)** | A digital boardroom. Six agents with distinct personalities, including a cynical skeptic and a creative thinker, debate your problem live over WebSockets and reach consensus. |
+| 🏭 **[Nirmaan Yantra](examples/nirmaan-yantra/README.md)** | An autonomous software factory: spec → tests → code → QA → release, from a one-line prompt. It fixes its own build errors and detects dead ends. |
+| 🐈 **[Kingini](examples/kingini/README.md)** | A voice-first companion for children: a whimsical Kerala cat who talks in Malayalam, built on Sarvam speech-to-text, LLM and text-to-speech. |
+| 📧 **[Gmail MCP App](examples/gmail-mcp-app/)** | Agents that read, draft and send email through the Model Context Protocol, with human approval before anything is sent. |
 
 ---
+
+## Get started in five minutes
+
+```xml
+<dependency>
+    <groupId>io.github.srijithunni7182</groupId>
+    <artifactId>ai-agent4j</artifactId>
+    <version>5.0</version>
+</dependency>
+```
+
+```java
+LLMClient client = new DefaultLLMClient(new GoogleProvider(LLMConfig.builder()
+        .apiKey(System.getenv("GEMINI_API_KEY")).defaultModel("gemini-2.5-flash").build()));
+
+AgentResult result = ReActAgent.builder().llmClient(client).addTool(new CalculatorTool()).build()
+        .run("What is 1234 * 5678?");
+```
+
+Add `ai-agent4j-loom` and `ai-agent4j-addons` in the same way (see the
+[Version Matrix](docs/VERSION_MATRIX.md)). The [Quick Start Guide](ai-agent4j/wiki/Getting-Started.md)
+takes it from there.
+
+---
+
+<a id="explore-the-docs"></a>
+
+## Explore the docs
+
+| Build agents | Orchestrate | Ship with confidence |
+|---|---|---|
+| [Quick Start](ai-agent4j/wiki/Getting-Started.md) | [Loom overview](loom/ai-agent4j-loom/README.md) | [eval4j guide](eval4j/README.md) |
+| [ReAct Agent Guide](ai-agent4j/wiki/ReAct-Agent-Guide.md) | [Why Loom?](loom/ai-agent4j-loom/WHY_LOOM.md) | [Budgets and Rate Limits](ai-agent4j/wiki/Budgets-and-Rate-Limits.md) |
+| [Providers and the Uniform Contract](ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md) | [Loom Language Guide](loom/ai-agent4j-loom/LOOM_GUIDE.md) | [xAI: Beyond Black Boxes](ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md) |
+| [Creating Custom Tools](ai-agent4j/wiki/Creating-Custom-Tools.md) | [Budgets, Pausing and Scheduling](loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md) | [Testing Strategy](docs/TESTING_STRATEGY.md) |
+| [Agent Skills](ai-agent4j/wiki/Agent-Skills-Guide.md) · [Personas](ai-agent4j/wiki/Agent-Personas.md) | [Agentic Workflows with Loom and Engram](docs/AGENTIC_WORKFLOWS_GUIDE.md) | [API Compatibility Policy](docs/API_COMPATIBILITY.md) |
+| [Memory](ai-agent4j/wiki/Memory-and-Persistence.md) · [Semantic Memory](ai-agent4j/wiki/SEMANTIC_MEMORY.md) | [Loom CTK (conformance)](loom/ctk/README.md) | [Version Matrix](docs/VERSION_MATRIX.md) |
+| [RAG](ai-agent4j/wiki/RAG-Support.md) · [Knowledge Graphs](ai-agent4j/wiki/Knowledge-Graphs.md) | [VS Code extension](loom/vscode-loom/README.md) | [Migration Guide 5.0](docs/MIGRATION_GUIDE_5_0.md) |
+| [MCP](ai-agent4j/wiki/MCP-Integration.md) · [OpenAPI Tool](ai-agent4j/wiki/OpenAPI-Tool.md) · [Prompt Registry](ai-agent4j/wiki/Prompt-Registry-Guide.md) | | |
+| [Sarvam](ai-agent4j/docs/SARVAM.md) · [Ollama](ai-agent4j/docs/OLLAMA.md) | | |
 
 > [!TIP]
-> **[Why AI Agent4J? Read our comparison against LangChain4j and Spring AI](ai-agent4j/wiki/WHY_AI_AGENT4J.md)**
+> **[Why AI Agent4J? Our comparison against LangChain4j and Spring AI](ai-agent4j/wiki/WHY_AI_AGENT4J.md)**
 >
-> **[xAI Beyond Black Boxes: Our 95% Compliance Guide](ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md)**
+> **[Why Loom? Long-running, autonomous workflows, and how Loom goes further than LangGraph](loom/ai-agent4j-loom/WHY_LOOM.md)**
 >
 > **[Why eval4j? Our comparison against deepeval](ai-agent4j/wiki/WHY_EVAL4J.md)**
 >
-> **[Version Matrix](docs/VERSION_MATRIX.md)** for canonical coordinates and compatibility.
->
-> **[Migration Guide 5.0](docs/MIGRATION_GUIDE_5_0.md)** for legacy coordinate upgrades.
+> **[xAI Beyond Black Boxes: Our 95% Compliance Guide](ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md)**
 
 ## 📐 Project Standards
 

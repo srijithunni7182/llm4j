@@ -25,7 +25,20 @@ public interface LLMProvider {
      * @param request the standardized LLM request
      * @return a stream of response chunks
      */
-    Stream<LLMResponse> chatStream(LLMRequest request);
+    /**
+     * Streams the answer: text chunks as they arrive, then one final chunk with no text, the finish
+     * reason and the token usage. Providers with native streaming override this; the default answers
+     * with {@link #chat} and returns it as one text chunk plus the final chunk, so every provider can
+     * be used the same way.
+     */
+    default Stream<LLMResponse> chatStream(LLMRequest request) {
+        LLMResponse whole = chat(request);
+        java.util.Map<String, Object> meta = whole.getMetadata() == null ? java.util.Map.of() : whole.getMetadata();
+        LLMResponse.Builder last = LLMResponse.builder().content("").model(whole.getModel())
+                .finishReason(whole.getFinishReason()).metadata(new java.util.HashMap<>(meta));
+        if (whole.getTokenUsage() != null) last.tokenUsage(whole.getTokenUsage());
+        return Stream.of(LLMResponse.builder().content(whole.getContent()).model(whole.getModel()).build(), last.build());
+    }
 
     /**
      * Returns the name of this provider (e.g., "openai", "anthropic", "google").
