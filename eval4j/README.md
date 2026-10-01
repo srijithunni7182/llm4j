@@ -205,8 +205,9 @@ from your documents** with quality filtering and de-duplication.
 ### Let it fix the prompt for you
 An autonomous, budget-bounded optimizer rewrites a prompt from *why* it failed, keeps a diverse pool of
 candidates, and verifies the winner on a sealed test split — then hands you a reviewable patch.
-Deterministic guardrails stop it gaming the judge. **New: automated tests are complete; the live efficacy
-study is still in progress.** → [Prompt optimizer](docs/OPTIMIZER.md)
+Deterministic guardrails stop it gaming the judge. **Experimental:** in live studies on three small
+synthetic tasks it raised ground-truth accuracy (e.g. extraction 0.00 → 1.00), but it only optimizes what
+your criteria actually check, so put hard rules in guardrails. → [Prompt optimizer](docs/OPTIMIZER.md)
 
 ### A/B test prompts and models
 Pairwise judging over a dataset, run in both orders to cancel position bias, with win rates, a

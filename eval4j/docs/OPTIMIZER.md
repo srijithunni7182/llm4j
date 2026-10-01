@@ -80,6 +80,14 @@ This example is compiled and run by
 
 ## Honest limits
 
+- **It optimizes what your criteria check, nothing else.** In our grounded-QA run, two different judges
+  scored the starting prompt 1.00 while a hard format rule (answer with a bare phrase or the literal
+  token `NOT_IN_CONTEXT`) was failing. Put hard rules in a deterministic `guardrail` or `assertion`, and
+  reserve rubric judges for qualities that need judgement. Two judges agreeing is not proof when both
+  read the same under-specified rubric.
+- **Evidence so far is small:** three synthetic tasks, 2-3 seeds each, on one provider
+  ([results](optimizer/VERIFICATION-RESULTS.md)). Treat the optimizer as experimental: use it to
+  *propose* prompt changes, and review the diff.
 - Optimizing against an LLM judge can raise the judge's score without improving real quality. The
   splits, guardrails, constraints and confirmation reduce this but cannot eliminate it. **Read the diff.**
 - Small datasets give noisy selection; the minimum split size (5) is a floor, not a recommendation.

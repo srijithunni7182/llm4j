@@ -68,10 +68,11 @@ noise. Cost per optimization run: 86-154 rollouts (172-311 LLM calls), well unde
    noise. Verdict recall on genuine improvements across runs 1-3 is 6 of 7; on neutral runs (two
    ceiling seeds, the random-edit control) specificity is 3 of 3. **Follow-up:** make the overfit-gap
    tolerance depend on the split sizes (for example, widen it by the binomial sampling error) and
-   re-verify; it has *not* been changed, to avoid tuning to this data.
+   re-verify; it has *not* been changed, to avoid tuning to this data. *(Done afterwards: see "Second study" below.)*
 3. **A validation-only target can stop an already-good-looking prompt too early.** In run 1 the seed hit
    0.95 on validation yet scored 0.75 on test. The optimizer correctly claimed no improvement, but users
-   should use larger validation sets (or a stricter target); see the guide.
+   should use larger validation sets (or a stricter target); see the guide. *(Addressed afterwards: a
+   run that stops on the target is no longer `generalized` unless the sealed test agrees.)*
 4. **Study design lesson:** random splits leaked near-duplicate tickets (run 2). Group related scenarios
    into the same split.
 
@@ -82,12 +83,67 @@ that the safeguards behaved as designed; it does not establish general effective
 validation (C3)** has only these few real runs behind it, and the **blind human review (C2/C6)** and
 **fresh-adopter trial (C7)** are still outstanding.
 
+## Second study: verdict changes and two more tasks (2026-10-01)
+
+After the first study, two changes were made to the verdict (both unit-tested, `PromptOptimizerVerdictTest`):
+the validation-to-test overfit tolerance now widens with small splits (`max(maxOverfitGap,
+0.5·sqrt(1/nVal + 1/nTest))`), and a run that stops because validation reached the target is not
+`generalized` unless the sealed test agrees. These were motivated by the ticket-routing runs, so the two
+new tasks below are the first data the changes were *not* tuned on. Models as before (system and J1 Haiku
+4.5, rewriter Sonnet 5.5, J2 Opus 5.5). Results:
+[extract](../verification-results/2026-10-01/optimizer-multitask-extract.md),
+[qa](../verification-results/2026-10-01/optimizer-multitask-qa.md). Budget was limited by remaining API
+credit (extract: 250 rollouts, qa: 200, qa with 2 seeds), so these are small.
+
+| Task (scenarios) | Criteria the optimizer saw | seed | GT test: seed → best | J1 → | J2 (Opus) → | `generalized` | stop; rounds / rollouts |
+|---|---|---|---|---|---|---|---|
+| **extract** (40; ISO date, integer cents, vendor w/o legal suffix) | deterministic field scorer, no judge | 1 | 0.00 → **1.00** | 0.29 → 1.00 | n/a | true | TARGET_REACHED; 1 / 60 |
+| | | 2 | 0.00 → **1.00** | 0.25 → 1.00 | n/a | true | TARGET_REACHED; 1 / 60 |
+| | | 3 | 0.00 → **1.00** | 0.25 → 1.00 | n/a | true | TARGET_REACHED; 1 / 60 |
+| **qa** (40; short answer or `NOT_IN_CONTEXT`) | Haiku correctness judge + ≤ 8-word guardrail | 1 | 0.00 → **0.38** | 0.13 → 0.97 | 1.00 → 1.00 | true | NO_PROGRESS; 6 / 80 |
+| | | 2 | 0.00 → **0.50** | 0.00 → 0.75 | 1.00 → 1.00 | **false** (2 test scenarios violate the guardrail) | NO_PROGRESS; 6 / 92 |
+
+### What this adds
+
+1. **Extraction: clean success, with a caveat.** All three seeds reached ground-truth 1.00 in a single
+   round, and the prompts the rewriter wrote state every normalization rule. The caveat is that the
+   deterministic scorer's feedback quotes the expected value ("date: expected 2024-03-03 but got March 3"),
+   which makes rules easy to infer. Judge feedback in real tasks is vaguer, so do not expect one round.
+2. **Judged QA: the judge was satisfied while the policy was not.** J1 rose from 0.0-0.13 to 0.75-0.97,
+   and Opus (J2) scored *both* the seed and the best prompt at 1.00, yet the exact-policy ground truth
+   (a bare short phrase; the literal token `NOT_IN_CONTEXT` when the fact is missing) only reached
+   0.38-0.50. The judges accept "Not stated in the passage" as correct, which is semantically true but
+   not the policy. The optimizer did exactly what it was asked: it improved what the criteria measured.
+   **Lesson: a prompt can only be optimized toward what the criteria and guardrails actually check.** If
+   a rule is a hard format rule, encode it as a deterministic guardrail or assertion, not a rubric; a
+   judge cannot tell you about a rule it was never told. Opus agreeing with Haiku here is *not*
+   independent confirmation, because both read the same under-specified criterion.
+3. **The tolerance fix held out of sample.** `generalized` was true on 4 of 5 runs, and the one false
+   result (qa seed 2) is a real guardrail violation on the test split, not noise.
+4. **Both QA runs ended `NO_PROGRESS`** after 6 rounds with a lower-than-target score: expected when the
+   criteria cannot distinguish the remaining failures.
+
+### Reading plan §4.3 again
+
+| Threshold | Result |
+|---|---|
+| Ground-truth test gain > 0 on ≥ 2 tasks in ≥ 2 of 3 seeds | **Met on 3 tasks** (tickets 3/3, extract 3/3, qa 2/2 with 2 seeds). QA's gain is partial (0.38-0.50). |
+| No run where J1 gain ≥ 0.10 but ground truth ≤ 0 is marked generalized | **Met** (no such run); but see finding 2: J1 gain was large and ground-truth gain small, which is the near-miss this threshold guards against. |
+| Independent judge and ground truth confirm J1 gains | **Met for tickets; not met for qa**, where the judges agreed with each other and not with the policy. |
+
+### Limits
+Three synthetic, author-made tasks; 2-3 seeds each; 8-12 scenarios in test splits; one provider; temperature 0.
+Datasets and ground-truth scorers were written by the optimizer's author. The judged-task findings
+describe a criteria-design failure mode, not a bug in the loop, but they show the loop cannot protect you
+from it. The third task (`reply`, a rubric-only policy task) is implemented but was **not run** for lack of
+credit.
+
 ## Not yet verified
 
 | Plan item | Status |
 |---|---|
-| **C1/C2/C9 efficacy study** on more tasks (extraction, grounded QA), more seeds, larger splits | Run once on a single task (see above); broader coverage still needed. |
-| **C3 verdict validation** at scale (recall/specificity of `generalized`) | Only 7 real optimized runs and 3 neutral runs so far; one false negative found (see finding 2). |
+| **C1/C2/C9 efficacy study** on more tasks, more seeds, larger splits | Three tasks now (tickets, extract, qa), 2-3 seeds each, small splits. The rubric-only `reply` task is implemented but unrun. Larger splits and other providers still needed. |
+| **C3 verdict validation** at scale (recall/specificity of `generalized`) | 12 real optimized runs and 3 neutral runs; one false negative found and fixed; the fix held on 5 later runs, but those are few. |
 | **C4 live faults** (real 429s, timeouts, mid-run kill) | Not run; simulated equivalents pass. (One real run hit no faults.) |
 | **C6/C2 blind human review**, **C7 fresh-adopter trial** | Need people. Not done. |
 | Independent security review; API-diff tool; JDK/OS matrix | Not done. |
