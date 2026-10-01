@@ -39,4 +39,24 @@ class SafePathsTest {
         assertThatThrownBy(() -> SafePaths.inside(base, "link/secret.wav")).hasMessageContaining("leads outside");
         assertThatThrownBy(() -> SafePaths.inside(base, "link/new/file.wav")).hasMessageContaining("leads outside");
     }
+
+    @Test
+    void aRootThatDoesNotExistYetIsFineAndStillConfines(@TempDir Path dir) throws Exception {
+        Path root = dir.resolve("out"); // created on the first write
+        assertThat(SafePaths.inside(root, "log.md")).isEqualTo(root.resolve("log.md"));
+        assertThat(SafePaths.inside(root, "a/b/c.md")).isEqualTo(root.resolve("a/b/c.md"));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> SafePaths.inside(root, "../x.md")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void aDanglingSymbolicLinkLeadingOutIsRefusedBecauseAWriteWouldFollowIt(@TempDir Path dir) throws Exception {
+        Path root = dir.resolve("notes");
+        java.nio.file.Files.createDirectories(root);
+        try {
+            java.nio.file.Files.createSymbolicLink(root.resolve("link.md"), dir.resolve("not-yet-created-outside.md"));
+        } catch (UnsupportedOperationException | java.io.IOException e) {
+            org.junit.jupiter.api.Assumptions.assumeTrue(false, "can't create symlinks here");
+        }
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> SafePaths.inside(root, "link.md")).isInstanceOf(IllegalArgumentException.class);
+    }
 }

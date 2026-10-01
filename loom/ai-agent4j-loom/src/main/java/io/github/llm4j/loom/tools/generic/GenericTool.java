@@ -110,16 +110,19 @@ public abstract class GenericTool implements Effectful {
 
     // ── Reading arguments ────────────────────────────────────────────────────────────────────
 
-    /** A required, non-blank string argument. */
+    /** A required, non-blank text argument. Numbers and booleans are read as text; lists and objects are not text. */
     protected static String text(Map<String, Object> args, String key) {
-        Object v = args.get(key);
-        if (v == null || String.valueOf(v).isBlank()) throw new ToolRefusal(key + " is required");
-        return String.valueOf(v);
+        String v = optionalText(args, key);
+        if (v == null) throw new ToolRefusal(key + " is required");
+        return v;
     }
 
-    /** An optional string argument, or null. */
+    /** An optional text argument, or null. */
     protected static String optionalText(Map<String, Object> args, String key) {
         Object v = args.get(key);
-        return v == null || String.valueOf(v).isBlank() ? null : String.valueOf(v);
+        if (v == null) return null;
+        if (!(v instanceof CharSequence || v instanceof Number || v instanceof Boolean)) throw new ToolRefusal(key + " must be text");
+        String s = String.valueOf(v);
+        return s.isBlank() ? null : s;
     }
 }

@@ -34,9 +34,19 @@ class NetPolicyTest {
             "https://user@example.com/|user name or password"})
     @Tag("V3.1")
     void schemeAndCredentialsAreCheckedOnTheUrl(String url, String problem) {
-        String result = policy(STRICT, new StubResolver(), null).checkUrl(HttpUrl.parse(url));
+        // A declaration's own URL is the configured host (that is what lets localhost through).
+        String result = policy(STRICT, new StubResolver(), HttpUrl.parse(url).host()).checkUrl(HttpUrl.parse(url));
         if (problem == null) assertThat(result).isNull();
         else assertThat(result).contains(problem);
+    }
+
+    @Test
+    @Tag("V3.2")
+    void aLoopbackAddressInAUrlIsOnlyAcceptedWhenItIsTheDeclaredHost() {
+        HttpUrl local = HttpUrl.parse("http://127.0.0.1:8080/x");
+        assertThat(policy(STRICT, new StubResolver(), "127.0.0.1").checkUrl(local)).isNull();
+        assertThat(policy(STRICT, new StubResolver(), "api.example.com").checkUrl(local)).contains("loopback");
+        assertThat(policy(STRICT, new StubResolver(), null).checkUrl(local)).contains("loopback");
     }
 
     @Test

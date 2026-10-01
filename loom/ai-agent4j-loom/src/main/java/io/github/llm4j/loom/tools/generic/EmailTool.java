@@ -148,14 +148,15 @@ final class EmailTool extends GenericTool {
 
     /** The recipients the agent chose, or the fixed list. */
     private List<MailAddress> chosenTo(Map<String, Object> args) {
+        Object given = args.get("to");
+        boolean none = given == null || (given instanceof String s && s.isBlank()) || (given instanceof List<?> l && l.isEmpty());
         if (!config.fixedTo().isEmpty()) {
-            if (optionalText(args, "to") != null) throw new ToolRefusal("this tool sends to a fixed list of recipients; don't give to");
+            if (!none) throw new ToolRefusal("this tool sends to a fixed list of recipients; don't give to");
             return config.fixedTo();
         }
-        String given = optionalText(args, "to");
-        if (given == null && !(args.get("to") instanceof List<?>)) throw new ToolRefusal("to is required");
+        if (none) throw new ToolRefusal("to is required");
         List<MailAddress> chosen = new ArrayList<>();
-        for (String entry : splitAddresses(args.get("to"))) {
+        for (String entry : splitAddresses(given)) {
             MailAddress a;
             try {
                 a = MailAddress.parse(entry);

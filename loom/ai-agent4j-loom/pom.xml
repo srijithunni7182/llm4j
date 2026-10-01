@@ -107,6 +107,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
                 <configuration>
                     <!-- A parent-process variable the shell tool's tests check does NOT reach a program -->
                     <environmentVariables>

@@ -38,6 +38,8 @@ public final class ScriptedRun {
     public final List<String> questions = Collections.synchronizedList(new ArrayList<>());
     public RunJournal journal;
     public Function<String, String> human = q -> "yes";
+    /** When set, decides each reply from the request instead of the fixed list (for runs with parallel agents). */
+    public Function<LLMRequest, String> responder;
     private final List<String> replies = new ArrayList<>();
     private final AtomicInteger answered = new AtomicInteger();
 
@@ -65,7 +67,7 @@ public final class ScriptedRun {
             public LLMResponse chat(LLMRequest request) {
                 requests.add(request);
                 int i = answered.getAndIncrement();
-                String content = i < replies.size() ? replies.get(i) : done("ok");
+                String content = responder != null ? responder.apply(request) : i < replies.size() ? replies.get(i) : done("ok");
                 return LLMResponse.builder().content(content).model("m").tokenUsage(10, 5, 15).build();
             }
 
@@ -95,6 +97,12 @@ public final class ScriptedRun {
         });
         e.addTraceListener(trace::add);
         return e;
+    }
+
+    /** The last message of a request: the task and, once tools have run, their observations. */
+    public static String lastMessage(LLMRequest request) {
+        List<io.github.llm4j.model.Message> m = request.getMessages();
+        return m.get(m.size() - 1).getContent();
     }
 
     /** Everything the run reported, as one string. */
