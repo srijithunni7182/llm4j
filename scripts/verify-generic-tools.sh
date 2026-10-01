@@ -7,7 +7,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
-EVIDENCE=.kiro/specs/loom-generic-tools/evidence
+EVIDENCE="$ROOT/.kiro/specs/loom-generic-tools/evidence"
 MODULE=loom/ai-agent4j-loom
 BASELINE=71f67cb   # the merged nifty-lovelace head, before the generic tools
 SHA=$(git rev-parse HEAD)
@@ -93,18 +93,38 @@ PY
 
 g6() {
   echo "== G6: the packaged app"
-  local out="$EVIDENCE/G6-package.txt"
+  local out="$EVIDENCE/G6-package.txt" dir listing
   { echo "commit $SHA"; mvn_module package -DskipTests 2>&1 | tail -3; } > "$out"
   local jar
-  jar=$(ls "$MODULE"/target/*.jar | grep -v -E 'original|sources|javadoc' | head -1)
-  echo "jar: $jar" | tee -a "$out"
-  for lib in angus-mail jakarta/mail postgresql; do
-    if unzip -l "$jar" | grep -q "$lib"; then echo "   contains $lib" | tee -a "$out"; else echo "   MISSING $lib" | tee -a "$out"; FAILED+=("G6 $lib"); fi
+  jar="$ROOT/$(ls "$MODULE"/target/*.jar | grep -v -E 'original|sources|javadoc' | head -1)"
+  echo "jar: $jar ($(du -h "$jar" | cut -f1))" | tee -a "$out"
+  dir=$(mktemp -d); listing="$dir/jar.lst"; unzip -l "$jar" > "$listing"   # a file, so grep -q can't SIGPIPE unzip
+  for entry in org/eclipse/angus/mail/smtp/SMTPTransport.class jakarta/mail/Session.class org/postgresql/Driver.class okhttp3/OkHttpClient.class; do
+    if grep -q "$entry" "$listing"; then echo "   contains $entry" | tee -a "$out"; else echo "   MISSING $entry" | tee -a "$out"; FAILED+=("G6 $entry"); fi
   done
-  local dir; dir=$(mktemp -d)
+  for banned in greenmail mockwebserver junit org/h2; do
+    if grep -q "$banned" "$listing"; then echo "   UNEXPECTED $banned (a test dependency) is in the jar" | tee -a "$out"; FAILED+=("G6 $banned"); else echo "   no $banned in the jar" | tee -a "$out"; fi
+  done
   cp "$ROOT/$MODULE"/samples/digest/*.loom "$dir"/
-  ( cd "$dir" && HN_URL=http://localhost:9 GEMINI_API_KEY=k java -jar "$ROOT/$jar" check digest.loom ) 2>&1 | grep -v "Picked up\|INFO\|LoomLoader" | tee -a "$out"
-  rm -rf "$dir"
+  cd "$dir" || return
+  echo "--- weave check from an empty directory, with only the jar:" | tee -a "$out"
+  HN_URL=http://localhost:9 GEMINI_API_KEY=k java -verbose:class -jar "$jar" check digest.loom > "$dir/check.out" 2>&1
+  grep -E "ready to run|problem" "$dir/check.out" | tee -a "$out"
+  grep -q "digest.loom: ready to run" "$dir/check.out" || FAILED+=("G6 check")
+  local mail
+  mail=$(grep -c -E "jakarta\.mail\.|org\.eclipse\.angus\.mail" "$dir/check.out")
+  echo "--- mail classes loaded while checking a script that declares an email tool (validation only): $mail" | tee -a "$out"
+  [ "$mail" -eq 0 ] || FAILED+=("G6 lazy mail")
+  cat > db.loom <<'LOOM'
+tool Db { use: sql  url: env.DB_URL }
+agent A { model: "gemini-2.5-flash"  tools: [Db] }
+workflow Main() { delegate "x" to A -> r }
+LOOM
+  echo "--- sql with a driver that isn't there (Oracle):" | tee -a "$out"
+  DB_URL="jdbc:oracle:thin:@secret-host:1521/svc" GEMINI_API_KEY=k java -jar "$jar" check db.loom 2>&1 | grep -E "driver|problem" | tee -a "$out"
+  echo "--- sql with PostgreSQL (the packaged driver; no connection is made at load):" | tee -a "$out"
+  DB_URL="jdbc:postgresql://db.example.com:5432/app" GEMINI_API_KEY=k java -jar "$jar" check db.loom 2>&1 | grep -E "ready to run|problem|driver" | tee -a "$out"
+  cd "$ROOT" && rm -rf "$dir"
 }
 
 g8() {

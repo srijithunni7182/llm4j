@@ -1,0 +1,36 @@
+$ weave run digest-slack.loom --workflow DailyDigestWithSlack ... --journal runs/s1   (the Pinger's model call will hang)
+Slack posts seen before the kill: 1
+weave killed with SIGKILL (pid 27526)
+journal after the kill:
+journal.json
+run.json
+runs/s1/journal.json {'DailyDigestWithSlack/s0>DailyDigest/s0#usage:Collector': 'usage', 'DailyDigestWithSlack/s0>DailyDigest/s0': 'delegate', 'DailyDigestWithSlack/s0>DailyDigest/s1#usage:Writer': 'usage', 'DailyDigestWithSlack/s0>DailyDigest/s1#effect:Notes:6a733e047bdd#0': 'effect_done', 'DailyDigestWithSlack/s0>DailyDigest/s1#effect:Notes:e1bf80d5f938#0': 'effect_done', 'DailyDigestWithSlack/s0>DailyDigest/s1': 'delegate', 'DailyDigestWithSlack/s0>DailyDigest/s2#usage:Notifier': 'usage', 'DailyDigestWithSlack/s0>DailyDigest/s2#effect:Outbox:487dd0df8658#0': 'effect_done', 'DailyDigestWithSlack/s0>DailyDigest/s2': 'delegate', 'DailyDigestWithSlack/s1#usage:Pinger': 'usage', 'DailyDigestWithSlack/s1#effect:Slack:179102304c51#0': 'effect_done', '#effect-run-uid': 'effect_run'}
+runs/s1/run.json {}
+
+$ the same command again (resume), model no longer hangs
+? Weaving workflow: digest-slack.loom
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+? Executing workflow: DailyDigestWithSlack...
+16:38:04 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? reused the recorded result
+16:38:04 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? reused the recorded result
+16:38:04 [DailyDigestWithSlack/s0>DailyDigest/s2] Notifier  ? reused the recorded result
+16:38:04 [DailyDigestWithSlack/s1] Pinger  ? Post the headline of this Digest: Alpha story, day 1: Digest: Alpha story, day 1
+16:38:04 [DailyDigestWithSlack/s1] Pinger  ? use Slack
+16:38:04 [DailyDigestWithSlack/s1] Pinger  ? Slack {"title":"Digest","text":"Alpha story, day 1"}
+16:38:04 [DailyDigestWithSlack/s1] ? tool effect: Slack 127.0.0.1 ? replayed
+16:38:04 [DailyDigestWithSlack/s1] Pinger  ? (already done in an earlier attempt) Sent to slack webhook (HTTP 200).
+16:38:04 [DailyDigestWithSlack/s1] Pinger  ? t
+16:38:04 [DailyDigestWithSlack/s1] Pinger  ? posted
+? Workflow completed successfully.
+
+? Spend
+agent                      calls     prompt   completion         cost
+Collector                      4         40           20           $0
+Pinger                         3         30           15           $0
+Notifier                       2         20           10           $0
+Writer                         3         30           15           $0
+total                         12        120           60           $0
+--- Slack posts: 1 before the kill + 0 after the resume = 1 in total (a duplicate would make this 2)
+--- outbox files: 1

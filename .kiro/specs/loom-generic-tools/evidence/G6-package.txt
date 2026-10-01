@@ -1,0 +1,13 @@
+commit 076f7ddf8615cbe6b7776fed63e00f472fd83916
+[INFO] Total time:  24.812 s
+[INFO] Finished at: 2026-10-01T16:39:59Z
+[INFO] ------------------------------------------------------------------------
+jar: /home/user/llm4j/loom/ai-agent4j-loom/target/ai-agent4j-loom-5.0.jar (147M)
+   contains org/eclipse/angus/mail/smtp/SMTPTransport.class
+   contains jakarta/mail/Session.class
+   contains org/postgresql/Driver.class
+   contains okhttp3/OkHttpClient.class
+   no greenmail in the jar
+   no mockwebserver in the jar
+   no junit in the jar
+   no org/h2 in the jar

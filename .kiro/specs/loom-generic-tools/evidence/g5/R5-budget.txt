@@ -1,0 +1,18 @@
+$ weave run digest.loom --workflow DailyDigest --input topic=x --max-tokens 1
+? Weaving workflow: digest.loom
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+WARNING: schedule Morning runs a workflow: give the executor a trigger store (setTriggerStore) to keep it ? it is not run in memory.
+? Executing workflow: DailyDigest...
+WARNING: budget_refused: run spent 0 tokens, 0 calls (limits: tokens 1)
+WARNING: Run paused at DailyDigest/s0 (budget:run token rate limit); resumes at 2026-10-02T00:00:00Z
+? Paused: budget:run token rate limit. Resumes at 2026-10-02 00:00 UTC (in 7h21m).
+   This run has no --journal, so it can't be resumed later: run it again with --journal <dir>.
+
+? Spend
+agent                      calls     prompt   completion         cost
+total                          0          0            0           $0
+exit status above is the last line of weave's output; model requests that reached the stand-in server:
+  chat requests: 0  news requests: 0
+files created:

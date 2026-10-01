@@ -1,0 +1,33 @@
+$ weave run email.loom --workflow Main --trace
+? Weaving workflow: email.loom
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+? Executing workflow: Main...
+16:38:18 [Main/s0] Mailer  ? go
+16:38:18 [Main/s0] Mailer  ? use Mail
+16:38:18 [Main/s0] Mailer  ? Mail {"to":"team@example.com","subject":"hello","body":"fine"}
+16:38:19 [Main/s0] ? tool effect: Mail 1 recipients ? ok
+16:38:19 [Main/s0] Mailer  ? Wrote the message for 1 recipient(s) to the outbox (nothing was sent).
+16:38:19 [Main/s0] Mailer  ? use Mail
+16:38:19 [Main/s0] Mailer  ? Mail {"to":"x@evil.example","subject":"s","body":"b"}
+16:38:19 [Main/s0] ? tool effect: Mail 1 recipients ? failed
+16:38:19 [Main/s0] Mailer  ? Error: that recipient is not allowed
+16:38:19 [Main/s0] Mailer  ? use Mail
+16:38:19 [Main/s0] Mailer  ? Mail {"to":"team@example.com","subject":"s\nBcc: evil@evil.example","body":"b"}
+16:38:19 [Main/s0] ? tool effect: Mail 1 recipients ? failed
+16:38:19 [Main/s0] Mailer  ? Error: subject must be a single line
+16:38:19 [Main/s0] Mailer  ? use Mail
+16:38:19 [Main/s0] Mailer  ? Mail {"to":"a@example.com, b@sub.example.com","subject":"s","body":"b"}
+16:38:19 [Main/s0] ? tool effect: Mail 2 recipients ? failed
+16:38:19 [Main/s0] Mailer  ? Error: that recipient is not allowed
+16:38:19 [Main/s0] Mailer  ? t
+16:38:19 [Main/s0] Mailer  ? finished
+? Workflow completed successfully.
+--- requests the stand-in server saw (paths):
+--- files:
+./canary.txt
+./notes/keep.md
+./outbox/1790872699083-1-5911e990.eml
+--- secret sweep (SECRETSECRET) over this directory's output files:
+   none
