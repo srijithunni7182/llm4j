@@ -54,6 +54,10 @@ class PromptOptimizerEfficacyIntegrationTest {
             "You route customer support tickets. Categories: billing, technical, account, shipping,"
                     + " other. Reply with exactly one category word and nothing else.";
 
+    /** A deliberately weak seed: it never names the categories, so the loop has real work to do. */
+    private static final String WEAK_SEED_PROMPT =
+            "You route customer support tickets to the right team. Reply with one word.";
+
     private static final String[][] TICKETS = {
         {"billing", "I was charged twice for my last order."},
         {"billing", "Please refund my purchase, the item arrived broken."},
@@ -191,6 +195,13 @@ class PromptOptimizerEfficacyIntegrationTest {
     void runEfficacyStudy() throws Exception {
         String key = System.getenv("EVAL4J_ANTHROPIC_API_KEY");
         assumeTrue(key != null && !key.isBlank(), "EVAL4J_ANTHROPIC_API_KEY not set");
+        boolean weak =
+                "weak"
+                        .equalsIgnoreCase(
+                                System.getenv().getOrDefault("EVAL4J_OPTIMIZER_SEED", "strong"));
+        String seedPrompt = weak ? WEAK_SEED_PROMPT : SEED_PROMPT;
+        String outFile =
+                weak ? "target/optimizer-efficacy-weak.md" : "target/optimizer-efficacy.md";
         int seeds = Integer.parseInt(System.getenv().getOrDefault("EVAL4J_OPTIMIZER_SEEDS", "3"));
         int maxRollouts =
                 Integer.parseInt(System.getenv().getOrDefault("EVAL4J_OPTIMIZER_ROLLOUTS", "500"));
@@ -247,7 +258,7 @@ class PromptOptimizerEfficacyIntegrationTest {
                             });
             OptimizationResult result =
                     PromptOptimizer.builder()
-                            .seed(Candidate.of("system-prompt", SEED_PROMPT))
+                            .seed(Candidate.of("system-prompt", seedPrompt))
                             .system(system(systemCounter))
                             .criteria(List.of(correctness, singleLabel))
                             .scenarios(all)
@@ -298,7 +309,7 @@ class PromptOptimizerEfficacyIntegrationTest {
 
         // control 1: noise only. Re-score the untouched seed twice on the same test split.
         var control = Split.ratios(0.5, 0.3, 0.2).seed(1).apply(all);
-        Candidate seed = Candidate.of("system-prompt", SEED_PROMPT);
+        Candidate seed = Candidate.of("system-prompt", seedPrompt);
         md.append("## Control: no optimization (noise)\n\n");
         md.append(
                 String.format(
@@ -343,7 +354,7 @@ class PromptOptimizerEfficacyIntegrationTest {
                         randomResult.generalized(),
                         randomResult.stopReason()));
 
-        Path out = Path.of("target/optimizer-efficacy.md");
+        Path out = Path.of(outFile);
         Files.createDirectories(out.toAbsolutePath().getParent());
         Files.writeString(out, md.toString());
         System.out.println(md);
