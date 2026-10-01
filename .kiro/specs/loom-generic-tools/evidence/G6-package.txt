@@ -1,6 +1,6 @@
-commit aa06373f6f1ca7f0694257597b1494da9cbda76f
-[INFO] Total time:  24.730 s
-[INFO] Finished at: 2026-10-01T16:46:08Z
+commit 159a19a58b5f59a88ecdcc55f198f3de8d11a1f5
+[INFO] Total time:  24.672 s
+[INFO] Finished at: 2026-10-01T17:32:59Z
 [INFO] ------------------------------------------------------------------------
 jar: /home/user/llm4j/loom/ai-agent4j-loom/target/ai-agent4j-loom-5.0.jar (147M)
    contains org/eclipse/angus/mail/smtp/SMTPTransport.class

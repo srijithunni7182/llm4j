@@ -1,5 +1,5 @@
-commit aa06373f6f1ca7f0694257597b1494da9cbda76f
-io.github.llm4j.loom.tools.generic: lines 1473/1536 = 95.9%  (target 80%)
+commit 159a19a58b5f59a88ecdcc55f198f3de8d11a1f5
+io.github.llm4j.loom.tools.generic: lines 1475/1536 = 96.0%  (target 80%)
 
 per class (lines | branches):
   BodyFormat                   lines   11/14   ( 78.6%)  branches   3/4   ( 75.0%)
@@ -19,7 +19,7 @@ per class (lines | branches):
   EmailMessage                 lines    5/5    (100.0%)  branches   0/0   (100.0%)
   EmailSender.EmailFailure     lines    4/4    (100.0%)  branches   0/0   (100.0%)
   EmailSender.Stage            lines    7/7    (100.0%)  branches   0/0   (100.0%)
-  EmailTool                    lines   83/85   ( 97.6%)  branches  70/76  ( 92.1%)
+  EmailTool                    lines   83/85   ( 97.6%)  branches  71/76  ( 93.4%)
   EmailTool.Config             lines   36/36   (100.0%)  branches  32/34  ( 94.1%)
   FileKind                     lines   12/12   (100.0%)  branches   4/4   (100.0%)
   FileTool                     lines  120/122  ( 98.4%)  branches 110/116 ( 94.8%)
@@ -27,9 +27,9 @@ per class (lines | branches):
   FileTool.Config              lines    7/7    (100.0%)  branches   4/4   (100.0%)
   FileTool.Mode                lines    1/1    (100.0%)  branches   0/0   (100.0%)
   GenericKind                  lines   16/17   ( 94.1%)  branches  11/12  ( 91.7%)
-  GenericTool                  lines   46/50   ( 92.0%)  branches  18/24  ( 75.0%)
+  GenericTool                  lines   48/50   ( 96.0%)  branches  18/24  ( 75.0%)
   HttpKind                     lines   15/15   (100.0%)  branches   0/0   (100.0%)
-  HttpSupport                  lines   87/95   ( 91.6%)  branches  64/84  ( 76.2%)
+  HttpSupport                  lines   87/95   ( 91.6%)  branches  67/84  ( 79.8%)
   HttpSupport.MaybeSentFailure lines    3/3    (100.0%)  branches   0/0   (100.0%)
   HttpSupport.Reply            lines    4/4    (100.0%)  branches   3/4   ( 75.0%)
   HttpSupport.Retry            lines    4/4    (100.0%)  branches   0/0   (100.0%)
@@ -62,7 +62,7 @@ per class (lines | branches):
   SqlGuard                     lines   75/75   (100.0%)  branches 121/126 ( 96.0%)  <- guard, branches 96.0% (target 90%)
   SqlGuard.Dialect             lines    1/1    (100.0%)  branches   0/0   (100.0%)
   SqlKind                      lines   22/22   (100.0%)  branches   4/6   ( 66.7%)
-  SqlTool                      lines   51/52   ( 98.1%)  branches  36/45  ( 80.0%)
+  SqlTool                      lines   51/52   ( 98.1%)  branches  38/45  ( 84.4%)
   SqlTool.Config               lines    6/6    (100.0%)  branches   2/2   (100.0%)
   ToolRefusal                  lines    2/4    ( 50.0%)  branches   0/0   (100.0%)
   UnknownOutcomeException      lines    2/4    ( 50.0%)  branches   0/0   (100.0%)

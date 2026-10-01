@@ -1,5 +1,4 @@
-commit aa06373f6f1ca7f0694257597b1494da9cbda76f; baseline 71f67cb
-baseline tests (methods): 299; now: 526; added: 227
+commit 159a19a58b5f59a88ecdcc55f198f3de8d11a1f5; baseline 71f67cb
+baseline tests (methods): 299; now: 531; added: 232
 tests that existed at the baseline and are gone: 0
-tests that passed at the baseline and don't now: 1
-    ('io.github.llm4j.loom.parity.RepositoryScriptsTest', 'n2_everyScriptInTheRepositoryPassesTheChecks')
+tests that passed at the baseline and don't now: 0

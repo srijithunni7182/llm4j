@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Gate G5: real `weave` processes against stand-in services. Writes transcripts to evidence/g5/.
 #   scripts/g5/run_g5.sh [R1 R2 R3 R4 R5]     (default: all)
-# Needs the classes built (mvn -pl loom/ai-agent4j-loom compile; dependency:copy-dependencies -> target/lib).
+# Needs the classes built (mvn -pl loom/ai-agent4j-loom compile); it copies the dependencies to target/lib itself.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 ROOT=$(pwd)
@@ -11,6 +11,7 @@ WORK=$(mktemp -d)
 PORT=${G5_PORT:-8765}
 CP="$MODULE/target/classes:$MODULE/target/lib/*"
 mkdir -p "$OUT"
+ls "$MODULE"/target/lib/h2-*.jar >/dev/null 2>&1 || mvn -B -q -f "$MODULE/pom.xml" dependency:copy-dependencies -DincludeScope=test -DoutputDirectory=target/lib >&2
 weave() { java -cp "$CP" io.github.llm4j.loom.cli.WeaveCLI "$@" 2>&1 | grep -v "Picked up\|^INFO\|LoomLoader\|^[A-Z][a-z][a-z] [0-9][0-9], 20"; }
 services_pid=
 start_services() { python3 "$ROOT/scripts/g5/fake_services.py" --port "$PORT" --log "$1" "${@:2}" > "$WORK/services.out" 2>&1 & services_pid=$!; for _ in $(seq 1 50); do grep -q "fake services" "$WORK/services.out" 2>/dev/null && return; sleep 0.1; done; }
