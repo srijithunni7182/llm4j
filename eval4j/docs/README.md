@@ -9,6 +9,7 @@
 | [Datasets & synthesis](DATASETS.md) | keep golden scenarios in YAML, or generate them from documents |
 | [Reports, baselines & gates](REPORTING-AND-BASELINES.md) | get HTML/JSON reports, trends, and a CI regression gate |
 | [Comparing prompts](PROMPT-COMPARISON.md) | A/B test two prompts, agents or models |
+| [Prompt optimizer](OPTIMIZER.md) | let eval4j rewrite a prompt until the evals pass, with held-out verification |
 | [Design philosophy](DESIGN.md) | understand why it is built on AssertJ/JUnit, and read the spec, test strategy and verification notes |
 | [Testing eval4j itself](TESTING.md) | run the unit, live and calibration suites |
 

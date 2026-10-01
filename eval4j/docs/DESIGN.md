@@ -40,6 +40,7 @@ of why agentic Java apps specifically need evals.
 
 | Document | What it is |
 |---|---|
+| [Optimizer spec](optimizer/SPEC.md) · [design](optimizer/DESIGN.md) · [test strategy](optimizer/TEST-STRATEGY.md) · [verification plan](optimizer/VERIFICATION-PLAN.md) | The autonomous prompt optimizer (GEPA-style): built; live efficacy verification pending, see the [results](optimizer/VERIFICATION-RESULTS.md) |
 | [SPEC](../SPEC-deepeval-parity.md) | The specification for RAG judging, reporting/baselines, conversation metrics, synthesis and comparison, with implementation notes |
 | [TEST-STRATEGY](../TEST-STRATEGY-deepeval-parity.md) | How the automated tests are structured |
 | [VERIFICATION-PLAN](../VERIFICATION-PLAN-deepeval-parity.md) | How behavior is verified end to end, including the calibration study |
@@ -48,6 +49,7 @@ of why agentic Java apps specifically need evals.
 ## Roadmap
 
 Not built yet:
+- **Optimizing Loom workflows and few-shot examples** — the [prompt optimizer](OPTIMIZER.md) covers text parameters only.
 - **Logprob-weighted G-Eval scoring** — needs logprobs on `LLMRequest`/`LLMResponse` in `ai-agent4j` first; the rubric + self-consistency approach covers most of the benefit.
 - **Evaluating whole [Loom](../../loom/) workflows** (a `WorkflowResultAssert`).
 - **Safety metrics** — PII leakage and red-teaming (bias/toxicity presets exist).
