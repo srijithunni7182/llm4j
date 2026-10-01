@@ -635,6 +635,14 @@ public class HarnessExecutor implements LoomEngine {
                     c.error(a.getLine(), who, "approve: " + name + " is not one of its tools " + a.getTools());
                 }
             }
+            for (String name : a.getTools()) {
+                for (io.github.llm4j.loom.ast.ToolDef def : script.getTools()) {
+                    if (!def.getName().equals(name)) continue;
+                    boolean approved = a.isApproveAll() || a.getApprove().contains(name);
+                    String problem = toolFactory.agentProblem(def, envLookup, a.getName(), approved);
+                    if (problem != null) c.error(a.getLine(), who, problem);
+                }
+            }
             if ((a.isApproveAll() || !a.getApprove().isEmpty()) && !c.context().hasHumanInterface()) {
                 c.error(a.getLine(), who, "approve needs someone to ask: set a HumanInterface (weave provides the console)");
             }

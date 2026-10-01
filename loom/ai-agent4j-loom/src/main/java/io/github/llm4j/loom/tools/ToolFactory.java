@@ -114,6 +114,8 @@ public final class ToolFactory {
         register(new io.github.llm4j.loom.tools.generic.FileKind());
         register(new io.github.llm4j.loom.tools.generic.HttpKind());
         register(new io.github.llm4j.loom.tools.generic.EmailKind());
+        register(new io.github.llm4j.loom.tools.generic.ShellKind());
+        register(new io.github.llm4j.loom.tools.generic.SqlKind());
         register(new GraphKind());
         register(simple("skill_registry", Set.of("url"), Set.of("api_key"), Set.of("api_key"), (n, o, dir) -> {
             io.github.llm4j.agent.skill.RestSkillRegistry.Builder b = io.github.llm4j.agent.skill.RestSkillRegistry.builder().baseUrl(o.get("url"));
@@ -232,6 +234,12 @@ public final class ToolFactory {
             if (extra != null) out.add(extra);
         }
         return out;
+    }
+
+    /** What is wrong with an agent using this declared tool, given whether the agent has it under {@code approve:}. */
+    public String agentProblem(ToolDef def, Function<String, String> env, String agentName, boolean approved) {
+        ToolKind kind = kinds.get(def.getKind());
+        return kind == null ? null : kind.agentProblem(resolve(kind, def, env), def.getName(), agentName, approved);
     }
 
     private static String prefixOf(ToolKind kind, String key) {
