@@ -1,0 +1,42 @@
+// The shared part of the daily digest: collect, remember, summarise, notify.
+//
+// Tools:
+//   Hn      the public Hacker News API (HN_URL), read-only, only the two paths the Collector needs
+//   Notes   the digest/ directory: last.json (what was reported last time) and digest.md (today's digest)
+//   Outbox  email written to outbox/ as .eml files; nothing is sent. Swap in host/username/password to send.
+
+tool Hn     { use: http   base_url: env.HN_URL  allow_paths: "/v0/topstories.json, /v0/item/*.json"  max_bytes: 128k }
+tool Notes  { use: file   root: "digest"  mode: readwrite  overwrite: true  allow: "*.md, *.json" }
+tool Outbox { use: email  outbox: "outbox"  from: "Loom Digest <digest@example.com>"  to: "team@example.com" }
+
+agent Collector {
+    model: "gemini-2.5-flash"
+    system: "You are Collector. First read last.json with the Notes tool (it lists the stories reported last time; it may not exist yet). Then fetch the top stories with the Hn tool (GET /v0/topstories.json, then /v0/item/<id>.json for the first few) and answer with a short list of the stories that are new, one line each."
+    tools: [Notes, Hn]
+    temperature: 0.2
+    max_iterations: 14
+}
+
+agent Writer {
+    model: "gemini-2.5-flash"
+    system: "You are Writer. Write a short digest for busy readers from the stories you are given. Save it with the Notes tool as digest.md, and save the list of stories as last.json so tomorrow's run knows what was reported. Answer with the digest text."
+    tools: [Notes]
+    max_iterations: 8
+}
+
+agent Notifier {
+    model: "gemini-2.5-flash"
+    system: "You are Notifier. Send the digest you are given with the Outbox tool: a short subject line, and the digest as the body."
+    tools: [Outbox]
+    max_iterations: 4
+}
+
+budget { tokens: 200000 per day  when_exhausted: suspend }
+rate_limits { on_limit: suspend }
+
+workflow DailyDigest(topic) {
+    delegate "Collect today's new stories about {topic}." to Collector -> stories
+    delegate "Write and save the digest from these stories: {stories}" to Writer -> result
+    delegate "Send this digest to the team: {result}" to Notifier -> sent
+    note "Digest sent: {sent}"
+}

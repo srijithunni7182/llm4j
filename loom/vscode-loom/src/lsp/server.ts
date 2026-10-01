@@ -109,7 +109,25 @@ const LOOM_KEYWORDS: Record<string, string> = {
     warn_at:
         '**warn_at** `: 80%`\n\nInside a `budget { }`: when to log a `budget_warning` (default 80%).',
     use:
-        '**use** `: serpapi | duckduckgo | google_search | openapi | calculator | datetime | current_time | class`\n\nIn a `tool Name { }` block: the kind of tool. Secret options (`api_key`, `auth_value`) must be `env.NAME`.',
+        '**use** `: webhook | email | http | file | shell | sql | serpapi | duckduckgo | google_search | openapi | calculator | datetime | current_time | class`\n\nIn a `tool Name { }` block: the kind of tool. `webhook` posts to Slack, Discord or Teams; `email` sends over SMTP; `http` calls a REST API; `file` reads and writes text files in one directory; `shell` runs named programs; `sql` runs read-only queries. Secret options (`url`, `password`, `api_key`, `auth_value`, and credential headers) must be `env.NAME`.',
+    on_unknown:
+        '**on_unknown** `: skip | retry`\n\nIn a `webhook`, `email`, `http`, `file` or `shell` tool: what to do after a crash when it is not known whether an earlier call happened. `skip` (default) does not repeat it.',
+    idempotency:
+        '**idempotency** `: true`\n\nIn a `webhook` or `http` tool: send an `Idempotency-Key` header, the same one on every attempt of a call, so a receiver that supports it removes duplicates.',
+    allow_to:
+        '**allow_to** `: "*@example.com, boss@partner.org"`\n\nIn an `email` tool: the addresses the agent may choose. Use `to:` instead for a fixed recipient list.',
+    allow_paths:
+        '**allow_paths** `: "/repos/*, /search/**"`\n\nIn an `http` tool: the paths below `base_url` the agent may call (`*` within a segment, `**` across).',
+    allow_private:
+        '**allow_private** `: true`\n\nIn a `webhook` or `http` tool: allow addresses on a private network. Off by default, which also blocks cloud metadata addresses.',
+    allow_interpreters:
+        '**allow_interpreters** `: true`\n\nIn a `shell` tool: allow shells and interpreters in `allow:`. Off by default, because allowing one allows any program.',
+    unattended:
+        '**unattended** `: true`\n\nIn a `shell` tool: acknowledges that no person approves its calls. Otherwise an agent must list the tool under `approve:`.',
+    env_pass:
+        '**env_pass** `: "LANG, TZ"`\n\nIn a `shell` tool: environment variables to pass to the program. Otherwise it gets only `PATH`, `LANG` and `TZ`.',
+    outbox:
+        '**outbox** `: "outbox"`\n\nIn an `email` tool: write each message to this directory as an `.eml` file instead of sending it. For development.',
     approve:
         '**approve** `: [Tool, …] | all`\n\nOn an agent: those tool calls wait for a person\'s yes. Journaled per call; a durable run pauses until someone answers.',
     max_iterations:

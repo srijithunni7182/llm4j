@@ -154,8 +154,20 @@ class GenericKindsTest {
         return sb.toString();
     }
 
-    @SuppressWarnings("unused")
-    private static Set<String> unused() throws IOException {
-        return Set.of();
+    @Test
+    @Tag("H1")
+    @Tag("V1.6")
+    void aListOrObjectIsNotTextSoItIsRefusedRatherThanSentAsJunk() throws Exception {
+        Files.createDirectories(dir.resolve("notes"));
+        Declared d = new Declared(Map.of("HOOK", "http://localhost:9/hook"), dir);
+        Tool file = d.create("tool T { use: file  root: \"notes\"  mode: readwrite }", new RecordingEffects());
+        assertThat(file.execute(Map.of("action", "write", "path", "x.md", "content", List.of("a", "b")))).startsWith("Error:").contains("content must be text");
+        assertThat(file.execute(Map.of("action", List.of("read"), "path", "x.md"))).startsWith("Error:");
+        assertThat(file.execute(Map.of("action", "write", "path", Map.of("k", "v"), "content", "x"))).startsWith("Error:").contains("path must be text");
+        assertThat(Files.list(dir.resolve("notes")).count()).isZero();
+        // Numbers and booleans are read as text, which is what a model that writes {"content": 42} means.
+        assertThat(file.execute(Map.of("action", "write", "path", "n.md", "content", 42))).startsWith("Wrote");
+        assertThat(Files.readString(dir.resolve("notes/n.md"))).isEqualTo("42");
     }
+
 }

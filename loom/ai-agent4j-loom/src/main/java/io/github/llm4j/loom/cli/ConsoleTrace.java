@@ -27,7 +27,8 @@ final class ConsoleTrace implements TraceListener {
             Map.entry(TraceEvent.MEMORY, "🧠"),
             Map.entry(TraceEvent.GUARD, "🛡"),
             Map.entry(TraceEvent.VOICE, "🔊"),
-            Map.entry(TraceEvent.SUSPENDED, "⏸"));
+            Map.entry(TraceEvent.SUSPENDED, "⏸"),
+            Map.entry(TraceEvent.TOOL, "🧰"));
 
     private final PrintStream out;
     private final boolean json;

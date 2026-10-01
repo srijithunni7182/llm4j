@@ -73,6 +73,16 @@ agent <AgentName> {
     tool Search { use: serpapi  api_key: env.SERPAPI_KEY }
     tool Petstore { use: openapi  spec: "specs/petstore.json" }
     ```
+*   **Generic tools** (no Java; every secret `env.NAME`; lists are comma-separated strings; mark side effects with `approve:` where a person should decide):
+    ```loom
+    tool Slack  { use: webhook  url: env.SLACK_WEBHOOK  format: slack }                  // slack | discord | teams | json
+    tool Mail   { use: email  host: "smtp.example.com"  username: env.U  password: env.P  from: "a@example.com"  to: "team@example.com" }   // or allow_to: "*@example.com"; outbox: "dir" writes .eml files
+    tool Api    { use: http  base_url: "https://api.example.com"  auth_header: "Authorization"  auth_value: env.TOKEN  allow_paths: "/v1/*"  methods: "GET, POST" }
+    tool Notes  { use: file  root: "notes"  mode: readwrite }                             // read | write | readwrite; never outside the script's directory
+    tool Ops    { use: shell  allow: "df, du"  unattended: true }                         // programs by name, no shell; the agent must approve it or the tool says unattended: true
+    tool Db     { use: sql  url: env.DB_URL  user: env.DB_USER  password: env.DB_PASSWORD }   // read-only: one SELECT per call
+    ```
+    Calls that change something (`webhook`, `email`, `shell`, `file` writes, `http` non-GET) are journaled, so a resumed run doesn't repeat them; `on_unknown: skip | retry` decides what to do when a crash left it unknown. `webhook` and `http` only reach https hosts that aren't on a private network.
 *   **Knowledge Bases** (retrieval for agents that list them in `knowledge: [..]`):
     ```loom
     knowledge Handbook { source: "docs/"  embedding: "gemini/text-embedding-004"  top_k: 4  store: "index/handbook.json" }

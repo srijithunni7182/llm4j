@@ -1,0 +1,10 @@
+// A daily digest that needs no accounts: stories from the public Hacker News API, the report and state in
+// digest/, the mail written to outbox/.
+//
+//   export HN_URL=https://hacker-news.firebaseio.com GEMINI_API_KEY=...
+//   weave run digest.loom --workflow DailyDigest --input topic="AI agents" --journal runs/today
+//
+// Every morning at 07:00 (see run.sh for the two commands that install the schedule):
+import "core.loom"
+
+schedule Morning { cron: "0 7 * * *"  timezone: "Asia/Kolkata"  run: DailyDigest(topic="AI agents") }

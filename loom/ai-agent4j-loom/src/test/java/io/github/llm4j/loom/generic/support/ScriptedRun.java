@@ -62,6 +62,11 @@ public final class ScriptedRun {
     }
 
     public HarnessExecutor executor(String source) {
+        return executor(new LoomParser(new Lexer(source).tokenize()).parseScript());
+    }
+
+    /** As {@link #executor(String)}, for a script already loaded (for example with its imports, by {@code LoomLoader}). */
+    public HarnessExecutor executor(io.github.llm4j.loom.ast.LoomScript script) {
         LLMClient model = new LLMClient() {
             @Override
             public LLMResponse chat(LLMRequest request) {
@@ -76,7 +81,7 @@ public final class ScriptedRun {
                 return Stream.of(chat(request));
             }
         };
-        HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer(source).tokenize()).parseScript(), new ToolRegistry(), x -> model);
+        HarnessExecutor e = new HarnessExecutor(script, new ToolRegistry(), x -> model);
         e.setBaseDir(dir);
         e.setEnvLookup(env::get);
         e.setHumanInterface(new HumanInterface() {
