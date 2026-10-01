@@ -415,3 +415,26 @@ allowance but an unknown one does (it may have been sent).
 | DNS rebinding | Custom `Dns` used for connect | Check, then connect | Closes the gap between check and use. |
 | SMTP library | Angus Mail | Hand-rolled SMTP | SMTP has too many corners (TLS, AUTH). |
 | Grammar | Quoted keys only | Nested `headers { }` blocks | Additive; one parser tweak. |
+
+## 9. Implementation notes
+
+Where the code differs from the plan above, and why. The requirements are unchanged except where noted in them.
+
+| Area | Planned | Built | Why |
+|---|---|---|---|
+| Side-effect detection | `ToolKind.sideEffect()` and a per-kind wrapper | A tool that implements `Effectful` (`isEffect(args)`, `policy()`, `target(args)`, `perform(args, key)`) is wrapped by `EffectTool` inside `ToolFactory.create` | The per-call answer (GET vs POST, read vs write) belongs with the tool that reads the arguments; no executor change is needed beyond passing the context |
+| `ToolKind` additions | `prefixes()`, `sideEffect()` | `prefixes()`, a four-argument `create` taking the `EffectContext`, and `agentProblem(...)` for rules about how an *agent* uses a tool (the shell approval rule) | The shell rule is generic: any kind can ask for it, so the executor has no `if kind == shell` |
+| `EffectContext` | audit, trace, journal, step, reserved paths, sleeper, clock | The same plus `attempt()`: a counter that changes each time a delegate starts on a thread, so a retried delegate numbers its calls afresh (a retry of a finished call is a replay, not a second send) | Needed for R2.2 across `retry` |
+| Option syntax | quoted keys | Quoted keys, and a number followed directly by a unit (`20s`, `64k`) is one value; a word that is itself a key is never taken for a unit | The lexer splits `20s` into a number and a word |
+| Egress DNS | A custom `Dns` that resolves once | Per hop: resolve and check through the resolver seam, then connect to exactly those addresses by giving OkHttp a `Dns` that answers only for that host (other names, such as a proxy, resolve normally) | Same guarantee, and a system proxy keeps working |
+| IP literals | checked at connect | Also checked when the script loads, with no lookup | `base_url: "https://10.0.0.5"` is a load error |
+| Email addresses | `InternetAddress.parse(strict)` | `MailAddress`, a small strict parser with no mail-library types | Validation happens at load, and scripts without an `email` tool must never load the mail library (checked by a test that starts a JVM and watches class loading) |
+| `email` host | required | Required unless `outbox` is given | The outbox mode needs no server |
+| Subject | refused if it has a line break | Trimmed first (surrounding whitespace is not significant in a header), then refused if it has a line break | Found by the generated test F3 |
+| `file` confinement | `SafePaths` + `permit` | `PathGuard` (root, hidden names, the run's own files), shared with `email` attachments; `SafePaths` now handles a root that doesn't exist yet and a dangling symbolic link | Both found by tests: a write that creates its root was wrongly refused, and a dangling link pointing out would have been followed |
+| `SqlGuard` | tokens outside quotes and comments | Also: a `Dialect` (dollar quoting is honoured only for PostgreSQL, CockroachDB and H2, so a database that doesn't know it can't be shown "code" as text); numbers are tokens (a statement can't start with one); `--` is a comment only when followed by whitespace; `/*! … */` is code | Wherever databases disagree, the guard reads the text as code, which can only refuse more |
+| `shell` | `ShellKind` | Plus a `PATH`-resolved absolute program, `env_pass` values scrubbed from results, output drained on daemon threads | Pipes can't block a program that writes more than the cap |
+| Text arguments | not specified | Lists and objects are refused where text is expected (R1.12) | Found by the hostile-model suite: a list given as a webhook's `text` was sent as `[a, b]` |
+| Per-run cap | counted from the journal | Counted under a lock together with writing `pending` | Otherwise parallel branches could all pass the check (C3) |
+| `file` writes | atomic | Atomic, serialised per file; the temporary file is hidden, so a listing never shows it | |
+| Trace | events named in §1.7 | Also a `tool` trace type shown by `weave run --trace` | |

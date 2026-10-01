@@ -103,6 +103,10 @@ secrets, limits and output, so that once I know one I know all six.
     address list. The `pii` guard's masking rules apply to anything that could hold personal data.
 11. **No local deletions in v1.** No kind SHALL delete or truncate local files, and `sql` SHALL NOT change
     data. (`http` can send a `DELETE` request to a remote service only when its `methods` lists it.)
+12. **Text arguments are text.** Where an argument is text (`text`, `title`, `subject`, `body`, `path`, `content`,
+    `action`, `program`, `sql`, …), a string, a number or a boolean SHALL be accepted (a number is read as its
+    text), and a list or an object SHALL be refused with "<name> must be text". A list or an object SHALL never
+    be turned into text such as `[a, b]` and sent.
 
 ---
 
@@ -232,7 +236,7 @@ able to email anyone else.
 
    | Option | Meaning |
    |---|---|
-   | `host` (required), `port` | SMTP server. Default port 587 (`starttls`), 465 for `ssl`. |
+   | `host`, `port` | SMTP server. `host` is required unless `outbox` is given. Default port 587 (`starttls`), 465 for `ssl`. |
    | `security` | `starttls` (default), `ssl`, or `none` (only for `localhost` or with `allow_insecure: true`) |
    | `username`, `password` | `password` is a **secret**. Both or neither. |
    | `from` | Required. |
@@ -469,16 +473,17 @@ use case working end to end.
 
 1. **Guide.** `LOOM_GUIDE.md` SHALL gain a "Generic Tools" section under Tools, with a table of the six
    kinds, each kind's options, the egress policy, the effect journal and a note on approvals.
-2. **Examples parse-checked.** Every code block in the new docs SHALL be in
-   `src/test/resources/docs/generic_tools_examples.loom`, and a test SHALL check that it parses and
-   validates (secrets from a fake environment), as for the earlier guides.
+2. **Examples checked.** A test SHALL read the "Generic Tools" section of `LOOM_GUIDE.md` itself, take every
+   `loom` code block in it, and check that each one parses and passes the load-time checks (secrets from a fake
+   environment). There is no separate copy of the examples to drift out of date.
 3. **Editor.** The VS Code grammar and language server SHALL know the six kinds, their options, and
    `header.*` keys, for completion and hover.
 4. **LLM prompt.** `LOOM_PROMPT.md` (the prompt for models that write Loom) SHALL list the six kinds.
 5. **Sample.** `samples/digest/` SHALL contain a runnable script for the periodic
-   collect → summarise → notify case, with a `run.sh`. It uses `http` to collect, `file` for state,
-   `email` in `outbox` mode and a `webhook` against a local stand-in server, so it runs with no accounts.
-   It SHALL include its `schedule` block and the `weave triggers install` commands.
+   collect → summarise → notify case: `core.loom` (the tools, agents and workflow), `digest.loom` (imports the
+   core and adds the `schedule`), `digest-slack.loom` (adds a `webhook` notifier) and `run.sh`. It uses `http`
+   to collect, `file` for state and `email` in `outbox` mode, so the first version runs with no accounts. The
+   `run.sh` output shows the `weave schedule sync` and `weave triggers install` commands.
 6. **READMEs.** The root and Loom READMEs SHALL mention the generic tools.
 7. **Gap analysis.** The capability gap analysis SHALL be updated to record the tool-kind coverage.
 

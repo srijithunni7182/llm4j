@@ -122,4 +122,13 @@ class RedactorTest {
         }
         return a.substring(end - best, end);
     }
+
+    @Test
+    @Tag("V1.5")
+    void nullsAndTooShortSecretsAreIgnoredWithoutHarm() {
+        Redactor r = new Redactor(java.util.Arrays.asList(null, "", "ab", "abcd"));
+        assertThat(r.scrub(null)).isNull();
+        assertThat(r.scrub("an abcd here, and ab")).isEqualTo("an *** here, and ab");
+        assertThat(new Redactor(java.util.Arrays.asList((String) null)).scrub("untouched")).isEqualTo("untouched");
+    }
 }

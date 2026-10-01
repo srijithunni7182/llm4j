@@ -124,4 +124,66 @@ class NetPolicyTest {
         assertThat(p.checkUrl(HttpUrl.parse("https://only.example.com/x"))).isNull();
         assertThat(p.checkUrl(HttpUrl.parse("https://third.example.net/x"))).isNotNull();
     }
+
+    @Test
+    @Tag("V3.2")
+    void anIpv4MappedIpv6AnswerIsJudgedAsTheIpv4AddressItWraps() throws Exception {
+        StubResolver dns = new StubResolver().mapped("m-private.test", 10, 0, 0, 5).mapped("m-loop.test", 127, 0, 0, 1)
+                .mapped("m-meta.test", 169, 254, 169, 254).mapped("m-public.test", 93, 184, 216, 34);
+        NetPolicy p = policy(STRICT, dns, null);
+        assertThatThrownBy(() -> p.resolveChecked("m-private.test")).isInstanceOf(ToolRefusal.class).hasMessageContaining("private");
+        assertThatThrownBy(() -> p.resolveChecked("m-loop.test")).isInstanceOf(ToolRefusal.class).hasMessageContaining("loopback");
+        assertThatThrownBy(() -> p.resolveChecked("m-meta.test")).isInstanceOf(ToolRefusal.class).hasMessageContaining("link-local");
+        assertThat(p.resolveChecked("m-public.test")).hasSize(1);
+    }
+
+    @Test
+    @Tag("V3.2")
+    void carrierGradeNatIsRefusedOnlyInsideItsRange() throws Exception {
+        StubResolver dns = new StubResolver().answer("a.test", "100.63.255.255").answer("b.test", "100.64.0.1").answer("c.test", "100.127.255.255")
+                .answer("d.test", "100.128.0.1").answer("v6.test", "2001:db8::1");
+        NetPolicy p = policy(STRICT, dns, null);
+        assertThat(p.resolveChecked("a.test")).hasSize(1);
+        assertThatThrownBy(() -> p.resolveChecked("b.test")).hasMessageContaining("shared");
+        assertThatThrownBy(() -> p.resolveChecked("c.test")).hasMessageContaining("shared");
+        assertThat(p.resolveChecked("d.test")).hasSize(1);
+        assertThat(p.resolveChecked("v6.test")).as("an ordinary public IPv6 address").hasSize(1);
+    }
+
+    @Test
+    @Tag("V3.2")
+    void anEmptyAnswerCountsAsAnUnknownHost() {
+        NetPolicy.Resolver empty = host -> java.util.List.of();
+        assertThatThrownBy(() -> new NetPolicy(STRICT, empty, null).resolveChecked("void.test")).isInstanceOf(UnknownHostException.class);
+    }
+
+    @Test
+    @Tag("V3.1")
+    void aUserNameOrPasswordAloneIsEnoughToRefuseTheUrl() {
+        NetPolicy p = policy(STRICT, new StubResolver(), null);
+        assertThat(p.checkUrl(HttpUrl.parse("https://user@example.com/"))).contains("user name or password");
+        assertThat(p.checkUrl(HttpUrl.parse("https://:secret@example.com/"))).contains("user name or password");
+    }
+
+    @Test
+    @Tag("V3.2")
+    void bracketedIpv6LiteralsAreJudgedWithoutALookup() {
+        NetPolicy p = policy(STRICT, new StubResolver(), "api.example.com");
+        assertThat(p.checkUrl(HttpUrl.parse("https://[fd00::1]/"))).contains("private");
+        assertThat(p.checkUrl(HttpUrl.parse("https://[::ffff:10.0.0.5]/"))).contains("private");
+        assertThat(p.checkUrl(HttpUrl.parse("https://[2001:db8::1]/"))).isNull();
+        assertThat(policy(STRICT, new StubResolver(), "::1").checkUrl(HttpUrl.parse("http://[::1]:8080/"))).as("the declared host, as HttpUrl names it").isNull();
+        assertThat(p.checkUrl(HttpUrl.parse("https://1.2.3.4/"))).isNull();
+        assertThat(p.checkUrl(HttpUrl.parse("https://0.1.2.3/"))).contains("unspecified");
+    }
+
+    @Test
+    @Tag("V3.4")
+    void aWildcardNeedsARealSubdomainLabel() {
+        NetPolicy p = policy(new NetPolicy.Rules(false, false, Set.of("*.example.com"), false), new StubResolver(), null);
+        assertThat(p.checkUrl(HttpUrl.parse("https://x.example.com/"))).isNull();
+        assertThat(p.checkUrl(HttpUrl.parse("https://a.b.example.com/"))).isNull();
+        assertThat(p.checkUrl(HttpUrl.parse("https://xexample.com/"))).isNotNull();
+        assertThat(p.checkUrl(HttpUrl.parse("https://example.com.cn/"))).isNotNull();
+    }
 }

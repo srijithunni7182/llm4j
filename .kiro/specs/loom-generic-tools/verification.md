@@ -35,6 +35,7 @@ Unless a check says otherwise, it uses:
 | V1.9 | The existing suites (parser, tools, approvals, budgets, resume) pass unchanged. Existing kinds accept `description:`. |
 | V1.10 | `pii: mask` on an agent masks personal data in a tool result from each read-only kind. |
 | V1.11 | `tool_call` and `tool_effect` audit events and trace events are recorded with target, outcome and millis, and contain no body, address list or query result. |
+| V1.13 | A list or an object given where text is expected is refused, not sent as `[a, b]`; a number is read as text (R1.12). |
 | V1.12 | No local deletion: `file` refuses `action: delete` and doesn't list it; no kind removes or truncates a local file; `sql` makes no change (also V9.4). `http` `DELETE` is refused unless `methods` lists it. |
 
 ## V2: Effect journal (R2)
@@ -158,7 +159,7 @@ Unless a check says otherwise, it uses:
 
 | # | Check |
 |---|---|
-| V10.1 | Every block in the new guide section is in `generic_tools_examples.loom`, which parses and validates with a fake environment. |
+| V10.1 | Every `loom` block in the "Generic Tools" section of the guide, read from `LOOM_GUIDE.md` itself, parses and passes the load-time checks with a fake environment; the section names all six kinds and the rules they share. |
 | V10.2 | The VS Code grammar and server list the six kinds and offer their options (checked by the extension's existing tests or a scripted completion request). |
 | V10.3 | `samples/digest/digest.loom` runs end to end in a test against MockWebServer with a scripted model: it collects over `http`, writes the report and state with `file`, and leaves an `.eml` in the outbox. A second run the next "day" reads the state file. |
 | V10.4 | `digest-slack.loom` sends one webhook to the mock. Resuming after a crash between the report and the notification sends it once. |
@@ -198,7 +199,7 @@ result, trace or audit.
 
 | # | Check |
 |---|---|
-| C1 | 32 threads call one `webhook` tool with distinct bodies: 32 requests and 32 effect records. With one identical body: 32 requests (`#n` differs), and a replay returns the 32 recorded results in order. |
+| C1 | 32 threads call one `webhook` tool with distinct bodies: 32 requests and 32 effect records. (Ordinals are counted per thread, because a step runs on one thread; identical calls in the *same* step are numbered in order, as V2.6 checks, and parallel branches have different steps, as C4 checks.) |
 | C2 | 8 threads × 200 appends to one file: 1,600 whole lines, none interleaved. |
 | C3 | 50 threads against `email` with `max_per_run: 20`: exactly 20 messages. |
 | C4 | `for each` and `parallel for each` over a list calling `file` and `webhook`: every item acted once, and a resume repeats none. |

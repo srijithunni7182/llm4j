@@ -105,6 +105,40 @@ class SqlGuardTest {
         assertThat(SqlGuard.dialectFor("jdbc:sqlserver://h")).isEqualTo(Dialect.STANDARD);
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"SELECT 1 --", "SELECT 1 --\n", "SELECT _x FROM t_1", "SELECT 1.5e3, 0x1F, 1_000", "SELECT $1 + $2", "SELECT $ 1", "SELECT 1 $",
+            "SELECT a$b FROM t", "SELECT $abc"})
+    @Tag("V9.2")
+    void oddButHarmlessFormsPassInEveryDialect(String sql) {
+        assertThatCode(() -> SqlGuard.check(sql, Dialect.STANDARD)).doesNotThrowAnyException();
+        assertThatCode(() -> SqlGuard.check(sql, Dialect.DOLLAR_QUOTES)).doesNotThrowAnyException();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"SELECT $$ never closed", "SELECT $tag$ never closed $other$"})
+    @Tag("V9.3")
+    void anUnclosedDollarQuoteIsRefusedWhereItIsRecognised(String sql) {
+        assertThatThrownBy(() -> SqlGuard.check(sql, Dialect.DOLLAR_QUOTES)).hasMessageContaining("unterminated $-quoted");
+    }
+
+    @Test
+    @Tag("V9.2")
+    void dialectsAreRecognisedFromTheUrlScheme() {
+        assertThat(SqlGuard.dialectFor("jdbc:cockroachdb://h/db")).isEqualTo(Dialect.DOLLAR_QUOTES);
+        assertThat(SqlGuard.dialectFor("JDBC:POSTGRESQL://h/db")).isEqualTo(Dialect.DOLLAR_QUOTES);
+        assertThat(SqlGuard.dialectFor("jdbc:oracle:thin:@h")).isEqualTo(Dialect.STANDARD);
+    }
+
+    @Test
+    @Tag("V9.3")
+    void aCommentThatIsReallyArithmeticOrExecutableStaysVisibleToTheGuard() {
+        // "--x" is not a comment to every database, and "/*! … */" runs as code in MySQL.
+        assertThatThrownBy(() -> SqlGuard.check("SELECT 1 --;DROP TABLE t", Dialect.STANDARD)).isInstanceOf(ToolRefusal.class);
+        assertThatThrownBy(() -> SqlGuard.check("SELECT 1 /*!50000 DROP TABLE t */", Dialect.STANDARD)).isInstanceOf(ToolRefusal.class);
+        assertThatCode(() -> SqlGuard.check("SELECT 1 /* DROP TABLE t */", Dialect.STANDARD)).doesNotThrowAnyException();
+        assertThatCode(() -> SqlGuard.check("SELECT 1 -- DROP TABLE t", Dialect.STANDARD)).doesNotThrowAnyException();
+    }
+
     // ── F1: the guard agrees with an oracle built by construction ────────────────────────────
 
     private static final Set<String> FORBIDDEN = Set.of("INSERT", "UPDATE", "DELETE", "MERGE", "DROP", "ALTER", "CREATE", "TRUNCATE",

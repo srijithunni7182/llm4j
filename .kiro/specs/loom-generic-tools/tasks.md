@@ -57,9 +57,9 @@ paths; nothing is "tested later". See [test-strategy.md](test-strategy.md).
   - [ ] 10.2 Packaging: PostgreSQL driver in the `weave` JAR; a clear load error when a driver is missing.
   - [ ] 10.3 V9, H6.
 - [ ] 11. **Docs, tooling, sample (R10)**
-  - [ ] 11.1 `LOOM_GUIDE.md` "Generic Tools"; `generic_tools_examples.loom` and its parse-and-validate test.
+  - [ ] 11.1 `LOOM_GUIDE.md` "Generic Tools"; a test that reads the section and validates every block in it.
   - [ ] 11.2 VS Code grammar and language server; `LOOM_PROMPT.md`; READMEs; gap-analysis status.
-  - [ ] 11.3 `samples/digest/` (`digest.loom`, `digest-slack.loom`, `run.sh`), its L3 test, and the test that
+  - [ ] 11.3 `samples/digest/` (`core.loom`, `digest.loom`, `digest-slack.loom`, `run.sh`), its L3 test, and the test that
         runs the documented CLI commands (V10.7).
 - [ ] 12. **Cross-cutting suites**
   - [ ] 12.1 Hostile-model suite completed for all six tools (V12), including the secrets assertion.

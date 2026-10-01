@@ -166,7 +166,7 @@ The tests run against classes. Users run the shaded JAR.
 
 | | |
 |---|---|
-| Do | (a) Run `generic_tools_examples.loom` through the parse-and-validate test (V10.1) and confirm every fenced `loom` block in the new `LOOM_GUIDE.md` section appears in it, by script: extract the blocks, normalise whitespace, compare. |
+| Do | (a) Run the guide-examples test (V10.1): it reads the "Generic Tools" section of `LOOM_GUIDE.md`, extracts every fenced `loom` block and validates each one, so the examples can't drift from the guide. |
 | | (b) Execute the documented commands (V10.7). |
 | | (c) In VS Code (or by a scripted LSP request): hover `use: webhook` and complete options in a `tool` block. |
 | | (d) Read the new guide section start to finish as a user: build the digest from it alone. |

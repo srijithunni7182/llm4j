@@ -220,6 +220,18 @@ class EffectToolTest {
     }
 
     @Test
+    @Tag("V5.12")
+    void anAttemptWhoseOutcomeIsUnknownUsesUpTheAllowanceBecauseItMayHaveBeenSent() {
+        fake.policy = new EffectPolicy(EffectPolicy.OnUnknown.SKIP, false, 1);
+        fake.next = () -> Outcome.unknown("the connection was lost");
+        tool().execute(args("a"));
+
+        fake.next = () -> Outcome.ok("ok");
+        assertThat(tool().execute(args("b"))).startsWith("Error:").contains("limited to 1 calls per run");
+        assertThat(fake.performed).hasSize(1);
+    }
+
+    @Test
     @Tag("V1.11")
     void auditAndTraceNameTheTargetAndOutcomeButNotTheArguments() {
         tool().execute(Map.of("text", "the confidential message body"));

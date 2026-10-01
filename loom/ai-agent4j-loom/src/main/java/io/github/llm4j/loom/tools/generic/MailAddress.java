@@ -13,7 +13,7 @@ public record MailAddress(String display, String address) {
     private static final String ATOM = "[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+";
     private static final Pattern LOCAL = Pattern.compile(ATOM + "(\\.(" + ATOM + "))*");
     private static final Pattern DOMAIN = Pattern.compile("[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*");
-    private static final Pattern NAMED = Pattern.compile("([^<>\"\\\\,;@]{1,100})<([^<>\\s]+)>");
+    private static final Pattern NAMED = Pattern.compile("([^<>\"\\\\,;@]{0,100})<([^<>\\s]+)>");
     private static final int MAX_LENGTH = 254;
 
     /** @throws IllegalArgumentException if the text isn't a single, plain address */

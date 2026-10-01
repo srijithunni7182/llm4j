@@ -24,6 +24,23 @@ public final class StubResolver implements NetPolicy.Resolver {
         return this;
     }
 
+    /** An IPv4-mapped IPv6 answer ({@code ::ffff:a.b.c.d}) that stays an {@link java.net.Inet6Address}, as a custom resolver could return. */
+    public StubResolver mapped(String host, int a, int b, int c, int d) {
+        byte[] bytes = new byte[16];
+        bytes[10] = (byte) 0xff;
+        bytes[11] = (byte) 0xff;
+        bytes[12] = (byte) a;
+        bytes[13] = (byte) b;
+        bytes[14] = (byte) c;
+        bytes[15] = (byte) d;
+        try {
+            answers.computeIfAbsent(host, h -> new ArrayDeque<>()).add(List.of(java.net.Inet6Address.getByAddress(host, bytes, 0)));
+        } catch (UnknownHostException e) {
+            throw new IllegalArgumentException(e);
+        }
+        return this;
+    }
+
     @Override
     public synchronized List<InetAddress> resolve(String host) throws UnknownHostException {
         lookups.merge(host, 1, Integer::sum);
