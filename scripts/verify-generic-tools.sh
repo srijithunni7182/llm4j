@@ -124,6 +124,14 @@ LOOM
   DB_URL="jdbc:oracle:thin:@secret-host:1521/svc" GEMINI_API_KEY=k java -jar "$jar" check db.loom 2>&1 | grep -E "driver|problem" | tee -a "$out"
   echo "--- sql with PostgreSQL (the packaged driver; no connection is made at load):" | tee -a "$out"
   DB_URL="jdbc:postgresql://db.example.com:5432/app" GEMINI_API_KEY=k java -jar "$jar" check db.loom 2>&1 | grep -E "ready to run|problem|driver" | tee -a "$out"
+  echo "--- shell and sql declared together, checked from the jar (shell needs allow: and approval or unattended:):" | tee -a "$out"
+  cat > both.loom <<'LOOM'
+tool Sh { use: shell  allow: "echo,date"  unattended: true }
+tool Db { use: sql  url: env.DB_URL }
+agent A { model: "ollama/x"  system: "x"  tools: [Sh, Db] }
+workflow Main { delegate "go" to A -> r }
+LOOM
+  DB_URL="jdbc:postgresql://db.example.com:5432/app" java -jar "$jar" check both.loom 2>&1 | grep -E "ready to run|problem" | tee -a "$out"
   cd "$ROOT" && rm -rf "$dir"
 }
 
