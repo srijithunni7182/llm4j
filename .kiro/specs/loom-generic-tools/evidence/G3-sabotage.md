@@ -17,7 +17,7 @@ Each row breaks one rule in the real source, runs the tests that should notice, 
 | S10 | ShellTool: run through sh -c | V8.1, H5 | **DETECTED** | failing checks ['H5', 'V8.1', 'V8.5', 'V8.7'] | ShellToolTest.aProgramThatRunsTooLongIsStoppedAndSoAreItsChildren, ShellToolTest.argumentsAreNeverInterpretedByAShell, ShellToolTest.theChildSeesOnlyAMinimalEnvironment |
 | S11 | ShellTool: don't clear the environment | V8.5 | **DETECTED** | failing checks ['V8.5'] | ShellToolTest.theChildSeesOnlyAMinimalEnvironment |
 | S12 | ShellKind: skip the interpreter deny-list | V8.3 | **DETECTED** | failing checks ['V8.3'] | ShellToolTest.interpretersAndWrappersAreLoadErrorsUnlessAllowed |
-| S13 | ShellKind: drop the approve-or-unattended rule | V8.10 | **DETECTED** | failing checks ['V8.10'] | ShellToolTest.anAgentMustApproveAShellToolOrTheToolMustSayItIsUnattended |
+| S13 | ShellKind: drop the approve-or-unattended rule | V8.10 | **DETECTED** | failing checks ['V8.10'] | ShellApprovalTest.anAgentMustApproveAShellToolOrTheToolMustSayItIsUnattended |
 | S14 | SqlGuard: stop forbidding INTO | V9.3, F1, H6 | **DETECTED** | failing checks ['F1', 'H6', 'V9.3'] | SqlGuardTest.aRefusalSaysWhichRule, SqlGuardTest.generatedStatementsAreClassifiedExactlyAsTheirConstructionSays, SqlGuardTest.statementsThatCouldChangeThingsOrAreNotOneSelectAreRefused |
 | S15 | SqlTool: don't open the connection read-only | V9.4 | **DETECTED** | failing checks ['V9.4'] | SqlToolTest.everyCallOpensAReadOnlyConnectionAndClosesIt |
 | S16 | SqlTool: put parameter values into the statement text | V9.1 | **DETECTED** | failing checks ['H6', 'V9.1'] | SqlToolTest.aSelectWithBoundParametersReturnsATable, SqlToolTest.jsonAndCsvFormats, SqlToolTest.valuesReachTheDatabaseOnlyAsBoundParameters |
