@@ -46,7 +46,7 @@ SABOTAGES = [
     ("S12", "ShellKind: skip the interpreter deny-list",
      [(G + "ShellKind.java", "if (!allowInterpreters && (WRAPPERS", "if (false && (WRAPPERS")], "ShellToolTest", ["V8.3"]),
     ("S13", "ShellKind: drop the approve-or-unattended rule",
-     [(G + "ShellKind.java", 'if (approved || "true".equals(options.get("unattended"))) return null;', "if (true) return null;")], "ShellToolTest", ["V8.10"]),
+     [(G + "ShellKind.java", 'if (approved || "true".equals(options.get("unattended"))) return null;', "if (true) return null;")], "ShellToolTest,ShellApprovalTest", ["V8.10"]),
     ("S14", "SqlGuard: stop forbidding INTO",
      [(G + "SqlGuard.java", '"EXECUTE", "INTO", "COPY"', '"EXECUTE", "COPY"')], "SqlGuardTest,SqlToolTest", ["V9.3", "F1", "H6"]),
     ("S15", "SqlTool: don't open the connection read-only",
