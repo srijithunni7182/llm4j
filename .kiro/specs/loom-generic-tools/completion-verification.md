@@ -1,5 +1,10 @@
 # Completion Verification Plan
 
+> **Layout update.** The tools were later moved out of Loom into the `ai-agent4j-tools` library (package
+> `io.github.llm4j.tools`; see design.md §9). Where this document says `io.github.llm4j.loom.tools.generic` or
+> `loom/ai-agent4j-loom/.../generic`, read the tools module for the tools, guards and their tests, and Loom for the
+> executor, parser, CLI and guide tests.
+
 [`verification.md`](verification.md) lists the checks the work must pass, and
 [`test-strategy.md`](test-strategy.md) says how they are built. This plan says **how we prove the work is
 finished**: a fixed sequence of gates, each with a command, the evidence it leaves, and a pass rule. It is

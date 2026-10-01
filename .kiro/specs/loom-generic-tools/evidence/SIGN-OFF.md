@@ -1,23 +1,23 @@
 # Sign-off
 
-Code under test: **0eb5f7f**. Gates were run by the implementer (no independent verifier was available) and the
-safety review was a separate `/security-review` pass. Commits after 0eb5f7f change only spec and evidence files.
+Code under test: **6e3de87**, after the tools moved into the `ai-agent4j-tools` library (tools: 372 tests, Loom: 402). Gates were run by the implementer (no independent verifier was available) and the
+safety review was a separate `/security-review` pass. Commits after 6e3de87 change only spec and evidence files.
 
 | Gate | Evidence | SHA | Result | Date |
 |---|---|---|---|---|
 | G0 Preconditions | G0-preconditions.txt | see file | Pass | 2026-10-01 |
-| G1 Clean build, three runs | G1-build.txt | 0eb5f7f | Pass | 2026-10-01 |
-| G2 Traceability | G2-traceability.txt | 0eb5f7f | Pass (113 of 113 checks) | 2026-10-01 |
-| G3 Sabotage | G3-sabotage.md | code identical to 0eb5f7f | Pass (23 of 23 detected) | 2026-10-01 |
-| G4 Regression | G4-regression.txt | 0eb5f7f | Pass | 2026-10-01 |
-| G5 Real runs | G5-runs.md | code identical to 0eb5f7f | Pass (stand-in model and services) | 2026-10-01 |
-| G6 Packaged app | G6-package.txt | 0eb5f7f | Pass | 2026-10-01 |
-| G7 Docs and tooling | G7-docs.md | 0eb5f7f | Pass, except the editor was only syntax-checked | 2026-10-01 |
-| G8 Coverage and evidence | G8-coverage.txt | 0eb5f7f | Pass | 2026-10-01 |
-| G9 Safety review | G9-safety.md | code identical to 0eb5f7f | Pass (two findings fixed) | 2026-10-01 |
+| G1 Clean build, three runs | G1-build.txt | 6e3de87 | Pass | 2026-10-01 |
+| G2 Traceability | G2-traceability.txt | 6e3de87 | Pass (113 of 113 checks) | 2026-10-01 |
+| G3 Sabotage | G3-sabotage.md | 6e3de87 (re-run after the move to ai-agent4j-tools) | Pass (23 of 23 detected) | 2026-10-01 |
+| G4 Regression | G4-regression.txt | 6e3de87 | Pass | 2026-10-01 |
+| G5 Real runs | G5-runs.md | 6e3de87 (re-run after the move to ai-agent4j-tools) | Pass (stand-in model and services) | 2026-10-01 |
+| G6 Packaged app | G6-package.txt | 6e3de87 | Pass | 2026-10-01 |
+| G7 Docs and tooling | G7-docs.md | 6e3de87 | Pass, except the editor was only syntax-checked | 2026-10-01 |
+| G8 Coverage and evidence | G8-coverage.txt | 6e3de87 | Pass | 2026-10-01 |
+| G9 Safety review | G9-safety.md | 6e3de87 (re-run after the move to ai-agent4j-tools) | Pass (two findings fixed) | 2026-10-01 |
 | G10 Live (optional) | | | **Not run**: no accounts | |
 
-"Code identical" means `git diff 159a19a 0eb5f7f -- loom` is empty and no `loom/` file has changed since the gate ran.
+G3 and G5 were re-run on the new layout (the sabotage driver now rebuilds the tools library before running the tests of both modules).
 
 **Per-tool completion**
 

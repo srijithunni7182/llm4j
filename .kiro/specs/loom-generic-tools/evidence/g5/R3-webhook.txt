@@ -4,25 +4,25 @@ SLF4J(W): No SLF4J providers were found.
 SLF4J(W): Defaulting to no-operation (NOP) logger implementation
 SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
 ? Executing workflow: Main...
-17:35:05 [Main/s0] Hooker  ? go
-17:35:05 [Main/s0] Hooker  ? use Hook
-17:35:05 [Main/s0] Hooker  ? Hook {"text":"a fine message"}
-17:35:05 [Main/s0] ? tool effect: Hook 127.0.0.1 ? ok
-17:35:05 [Main/s0] Hooker  ? Sent to json webhook (HTTP 200).
-17:35:05 [Main/s0] Hooker  ? use Hook
-17:35:05 [Main/s0] Hooker  ? Hook {"text":"x","title":"first line\nsecond line"}
-17:35:05 [Main/s0] ? tool effect: Hook 127.0.0.1 ? failed
-17:35:05 [Main/s0] Hooker  ? Error: title must be a single line
-17:35:05 [Main/s0] Hooker  ? use Hook
-17:35:05 [Main/s0] Hooker  ? Hook {"text":""}
-17:35:05 [Main/s0] ? tool effect: Hook 127.0.0.1 ? failed
-17:35:05 [Main/s0] Hooker  ? Error: text is required
-17:35:05 [Main/s0] Hooker  ? use Hook
-17:35:05 [Main/s0] Hooker  ? Hook {"text":"redirect attempt","url":"http://evil.example/steal"}
-17:35:05 [Main/s0] ? tool effect: Hook 127.0.0.1 ? ok
-17:35:05 [Main/s0] Hooker  ? Sent to json webhook (HTTP 200).
-17:35:05 [Main/s0] Hooker  ? t
-17:35:05 [Main/s0] Hooker  ? finished
+19:06:17 [Main/s0] Hooker  ? go
+19:06:18 [Main/s0] Hooker  ? use Hook
+19:06:18 [Main/s0] Hooker  ? Hook {"text":"a fine message"}
+19:06:18 [Main/s0] ? tool effect: Hook 127.0.0.1 ? ok
+19:06:18 [Main/s0] Hooker  ? Sent to json webhook (HTTP 200).
+19:06:18 [Main/s0] Hooker  ? use Hook
+19:06:18 [Main/s0] Hooker  ? Hook {"text":"x","title":"first line\nsecond line"}
+19:06:18 [Main/s0] ? tool effect: Hook 127.0.0.1 ? failed
+19:06:18 [Main/s0] Hooker  ? Error: title must be a single line
+19:06:18 [Main/s0] Hooker  ? use Hook
+19:06:18 [Main/s0] Hooker  ? Hook {"text":""}
+19:06:18 [Main/s0] ? tool effect: Hook 127.0.0.1 ? failed
+19:06:18 [Main/s0] Hooker  ? Error: text is required
+19:06:18 [Main/s0] Hooker  ? use Hook
+19:06:18 [Main/s0] Hooker  ? Hook {"text":"redirect attempt","url":"http://evil.example/steal"}
+19:06:18 [Main/s0] ? tool effect: Hook 127.0.0.1 ? ok
+19:06:18 [Main/s0] Hooker  ? Sent to json webhook (HTTP 200).
+19:06:18 [Main/s0] Hooker  ? t
+19:06:18 [Main/s0] Hooker  ? finished
 ? Workflow completed successfully.
 --- requests the stand-in server saw (paths):
    POST /hook/T000/B000/SECRETSECRET1234 {"text":"a fine message"}

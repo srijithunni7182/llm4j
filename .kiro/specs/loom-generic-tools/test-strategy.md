@@ -1,5 +1,10 @@
 # Test Strategy
 
+> **Layout update.** The tools were later moved out of Loom into the `ai-agent4j-tools` library (package
+> `io.github.llm4j.tools`; see design.md §9). Where this document says `io.github.llm4j.loom.tools.generic` or
+> `loom/ai-agent4j-loom/.../generic`, read the tools module for the tools, guards and their tests, and Loom for the
+> executor, parser, CLI and guide tests.
+
 [`verification.md`](verification.md) lists *what* must be checked. This document says *how* the checks are
 built, where they run, and how we know nothing is missed. It follows the habits of the existing Loom
 tests: JUnit 5, AssertJ, MockWebServer, `@TempDir`, opt-in switches such as `-Dloom.realCrontabTest=true`

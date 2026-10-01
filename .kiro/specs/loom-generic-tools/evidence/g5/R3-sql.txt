@@ -4,33 +4,33 @@ SLF4J(W): No SLF4J providers were found.
 SLF4J(W): Defaulting to no-operation (NOP) logger implementation
 SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
 ? Executing workflow: Main...
-17:35:17 [Main/s0] Analyst  ? go
-17:35:17 [Main/s0] Analyst  ? use Db
-17:35:17 [Main/s0] Analyst  ? Db {"sql":"SELECT name FROM people ORDER BY id"}
-17:35:17 [Main/s0] ? tool call: Db query ? ok
-17:35:17 [Main/s0] Analyst  ? NAME ---- Asha Ben
-17:35:17 [Main/s0] Analyst  ? use Db
-17:35:17 [Main/s0] Analyst  ? Db {"sql":"SELECT 1; DROP TABLE people"}
-17:35:17 [Main/s0] ? tool call: Db query ? failed
-17:35:17 [Main/s0] Analyst  ? Error: only one statement is allowed
-17:35:17 [Main/s0] Analyst  ? use Db
-17:35:17 [Main/s0] Analyst  ? Db {"sql":"DELETE FROM people WHERE id = 1"}
-17:35:17 [Main/s0] ? tool call: Db query ? failed
-17:35:17 [Main/s0] Analyst  ? Error: only SELECT, WITH or VALUES statements are allowed
-17:35:17 [Main/s0] Analyst  ? use Db
-17:35:17 [Main/s0] Analyst  ? Db {"sql":"SELECT * FROM people INTO OUTFILE 'x'"}
-17:35:17 [Main/s0] ? tool call: Db query ? failed
-17:35:17 [Main/s0] Analyst  ? Error: the statement uses INTO, which this tool doesn't allow (it only reads)
-17:35:17 [Main/s0] Analyst  ? use Db
-17:35:17 [Main/s0] Analyst  ? Db {"sql":"SELECT name FROM people WHERE name = ?","params":["x' OR '1'='1"]}
-17:35:17 [Main/s0] ? tool call: Db query ? ok
-17:35:17 [Main/s0] Analyst  ? NAME (no rows)
-17:35:17 [Main/s0] Analyst  ? use Db
-17:35:17 [Main/s0] Analyst  ? Db {"sql":"SELECT FILE_READ('/etc/hostname')"}
-17:35:17 [Main/s0] ? tool call: Db query ? failed
-17:35:17 [Main/s0] Analyst  ? Error: the statement calls FILE_READ, which this tool doesn't allow
-17:35:17 [Main/s0] Analyst  ? t
-17:35:17 [Main/s0] Analyst  ? finished
+19:06:29 [Main/s0] Analyst  ? go
+19:06:29 [Main/s0] Analyst  ? use Db
+19:06:29 [Main/s0] Analyst  ? Db {"sql":"SELECT name FROM people ORDER BY id"}
+19:06:29 [Main/s0] ? tool call: Db query ? ok
+19:06:29 [Main/s0] Analyst  ? NAME ---- Asha Ben
+19:06:29 [Main/s0] Analyst  ? use Db
+19:06:29 [Main/s0] Analyst  ? Db {"sql":"SELECT 1; DROP TABLE people"}
+19:06:29 [Main/s0] ? tool call: Db query ? failed
+19:06:29 [Main/s0] Analyst  ? Error: only one statement is allowed
+19:06:29 [Main/s0] Analyst  ? use Db
+19:06:29 [Main/s0] Analyst  ? Db {"sql":"DELETE FROM people WHERE id = 1"}
+19:06:29 [Main/s0] ? tool call: Db query ? failed
+19:06:29 [Main/s0] Analyst  ? Error: only SELECT, WITH or VALUES statements are allowed
+19:06:29 [Main/s0] Analyst  ? use Db
+19:06:29 [Main/s0] Analyst  ? Db {"sql":"SELECT * FROM people INTO OUTFILE 'x'"}
+19:06:29 [Main/s0] ? tool call: Db query ? failed
+19:06:29 [Main/s0] Analyst  ? Error: the statement uses INTO, which this tool doesn't allow (it only reads)
+19:06:29 [Main/s0] Analyst  ? use Db
+19:06:29 [Main/s0] Analyst  ? Db {"sql":"SELECT name FROM people WHERE name = ?","params":["x' OR '1'='1"]}
+19:06:29 [Main/s0] ? tool call: Db query ? ok
+19:06:29 [Main/s0] Analyst  ? NAME (no rows)
+19:06:29 [Main/s0] Analyst  ? use Db
+19:06:29 [Main/s0] Analyst  ? Db {"sql":"SELECT FILE_READ('/etc/hostname')"}
+19:06:29 [Main/s0] ? tool call: Db query ? failed
+19:06:29 [Main/s0] Analyst  ? Error: the statement calls FILE_READ, which this tool doesn't allow
+19:06:29 [Main/s0] Analyst  ? t
+19:06:29 [Main/s0] Analyst  ? finished
 ? Workflow completed successfully.
 --- requests the stand-in server saw (paths):
 --- files:
@@ -43,4 +43,4 @@ SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
 --- rows in the table after the sql run:
 COUNT(*)
 2
-(1 row, 18 ms)
+(1 row, 15 ms)

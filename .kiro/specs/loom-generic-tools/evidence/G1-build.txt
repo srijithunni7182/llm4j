@@ -1,11 +1,11 @@
-commit 6543cab887f7cd672d0bb563a9a79e5f820d8563
-Thu Oct  1 18:20:02 UTC 2026
+commit 6e3de8762003e1a760601944dc1cc40352810009
+Thu Oct  1 18:53:14 UTC 2026
 -- run 1: plain
    BUILD SUCCESS
-   tools: tests=369 failures=0 errors=0 skipped=0; loom: tests=402 failures=0 errors=0 skipped=1
+   tools: tests=372 failures=0 errors=0 skipped=0; loom: tests=402 failures=0 errors=0 skipped=1
 -- run 2: plain again
    BUILD SUCCESS
-   tools: tests=369 failures=0 errors=0 skipped=0; loom: tests=402 failures=0 errors=0 skipped=1
+   tools: tests=372 failures=0 errors=0 skipped=0; loom: tests=402 failures=0 errors=0 skipped=1
 -- run 3: random order and 20000 fuzz iterations
    BUILD SUCCESS
-   tools: tests=369 failures=0 errors=0 skipped=0; loom: tests=402 failures=0 errors=0 skipped=1
+   tools: tests=372 failures=0 errors=0 skipped=0; loom: tests=402 failures=0 errors=0 skipped=1

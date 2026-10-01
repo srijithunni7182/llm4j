@@ -1,6 +1,6 @@
 # G7: documentation and tooling match reality
 
-Code under test: 0eb5f7f (no file under `loom/` has changed since 159a19a).
+Code under test: 6e3de87.
 
 | Step | What was done | Result |
 |---|---|---|

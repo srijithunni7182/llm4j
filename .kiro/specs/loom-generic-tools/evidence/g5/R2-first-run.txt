@@ -1,76 +1,76 @@
 Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=46727 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
 ? Weaving workflow: digest-slack.loom
-Oct 01, 2026 5:34:58 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
-INFO: Loading Loom script: /tmp/tmp.Cygp4DnUtS/r2/digest-slack.loom
-Oct 01, 2026 5:34:58 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
-INFO: Loading Loom script: /tmp/tmp.Cygp4DnUtS/r2/core.loom
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /tmp/tmp.vca70N4Btj/r2/digest-slack.loom
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /tmp/tmp.vca70N4Btj/r2/core.loom
 SLF4J(W): No SLF4J providers were found.
 SLF4J(W): Defaulting to no-operation (NOP) logger implementation
 SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
-Oct 01, 2026 5:34:59 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
 INFO: Initialized Agent: Collector
-Oct 01, 2026 5:34:59 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
 INFO: Initialized Agent: Writer
-Oct 01, 2026 5:34:59 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
 INFO: Initialized Agent: Notifier
-Oct 01, 2026 5:34:59 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
 INFO: Initialized Agent: Pinger
-Oct 01, 2026 5:34:59 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
-INFO: Schedules stored as triggers: [schedule:/tmp/tmp.Cygp4DnUtS/r2/digest-slack.loom/MorningSlack]
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
+INFO: Schedules stored as triggers: [schedule:/tmp/tmp.vca70N4Btj/r2/digest-slack.loom/MorningSlack]
 ? Executing workflow: DailyDigestWithSlack...
-Oct 01, 2026 5:34:59 PM io.github.llm4j.loom.execution.HarnessExecutor executeWorkflow
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.HarnessExecutor executeWorkflow
 INFO: Starting workflow: DailyDigestWithSlack
-Oct 01, 2026 5:34:59 PM io.github.llm4j.loom.execution.HarnessExecutor executeCall
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.HarnessExecutor executeCall
 INFO: Calling sub-workflow: DailyDigest
-Oct 01, 2026 5:34:59 PM io.github.llm4j.loom.execution.HarnessExecutor executeWorkflow
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.HarnessExecutor executeWorkflow
 INFO: Starting workflow: DailyDigest
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? Collect today's new stories about AI agents.
-Oct 01, 2026 5:34:59 PM io.github.llm4j.loom.execution.HarnessExecutor executeDelegate
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? Collect today's new stories about AI agents.
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.HarnessExecutor executeDelegate
 INFO: Delegating to Collector (Attempt 1)
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? use Notes
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? Notes {"action":"read","path":"last.json"}
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] ? tool call: Notes read last.json ? failed
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? Error: last.json doesn't exist or isn't a file
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? use Hn
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? Hn {"path":"/v0/topstories.json"}
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] ? tool call: Hn GET 127.0.0.1/v0/topstories.json ? ok
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? HTTP 200 OK Content-Type: application/json  [101,102]
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? use Hn
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? Hn {"path":"/v0/item/101.json"}
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] ? tool call: Hn GET 127.0.0.1/v0/item/101.json ? ok
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? HTTP 200 OK Content-Type: application/json  {"id": 101, "title": "Alpha story, day 1"}
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? t
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? NEW: Alpha story, day 1
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? Write and save the digest from these NEW: Alpha story, day 1: NEW: Alpha story, day 1
-Oct 01, 2026 5:34:59 PM io.github.llm4j.loom.execution.HarnessExecutor executeDelegate
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? use Notes
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? Notes {"action":"read","path":"last.json"}
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] ? tool call: Notes read last.json ? failed
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? Error: last.json doesn't exist or isn't a file
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? use Hn
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? Hn {"path":"/v0/topstories.json"}
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] ? tool call: Hn GET 127.0.0.1/v0/topstories.json ? ok
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? HTTP 200 OK Content-Type: application/json  [101,102]
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? use Hn
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? Hn {"path":"/v0/item/101.json"}
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] ? tool call: Hn GET 127.0.0.1/v0/item/101.json ? ok
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? HTTP 200 OK Content-Type: application/json  {"id": 101, "title": "Alpha story, day 1"}
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? t
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s0] Collector  ? NEW: Alpha story, day 1
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? Write and save the digest from these NEW: Alpha story, day 1: NEW: Alpha story, day 1
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.HarnessExecutor executeDelegate
 INFO: Delegating to Writer (Attempt 1)
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? use Notes
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? Notes {"action":"write","path":"digest.md","content":"# Digest\nAlpha story, day 1"}
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s1] ? tool effect: Notes write digest.md ? ok
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? Wrote 27 bytes to digest.md.
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? use Notes
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? Notes {"action":"write","path":"last.json","content":"{\"reported\": [\"Alpha story, day 1\"]}"}
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s1] ? tool effect: Notes write last.json ? ok
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? Wrote 36 bytes to last.json.
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? t
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? Digest: Alpha story, day 1
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s2] Notifier  ? Send this digest to the team: Digest: Alpha story, day 1
-Oct 01, 2026 5:34:59 PM io.github.llm4j.loom.execution.HarnessExecutor executeDelegate
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? use Notes
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? Notes {"action":"write","path":"digest.md","content":"# Digest\nAlpha story, day 1"}
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s1] ? tool effect: Notes write digest.md ? ok
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? Wrote 27 bytes to digest.md.
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? use Notes
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? Notes {"action":"write","path":"last.json","content":"{\"reported\": [\"Alpha story, day 1\"]}"}
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s1] ? tool effect: Notes write last.json ? ok
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? Wrote 36 bytes to last.json.
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? t
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s1] Writer  ? Digest: Alpha story, day 1
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s2] Notifier  ? Send this digest to the team: Digest: Alpha story, day 1
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.HarnessExecutor executeDelegate
 INFO: Delegating to Notifier (Attempt 1)
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s2] Notifier  ? use Outbox
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s2] Notifier  ? Outbox {"subject":"Daily digest","body":"Alpha story, day 1"}
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s2] ? tool effect: Outbox 1 recipients ? ok
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s2] Notifier  ? Wrote the message for 1 recipient(s) to the outbox (nothing was sent).
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s2] Notifier  ? t
-17:34:59 [DailyDigestWithSlack/s0>DailyDigest/s2] Notifier  ? sent
-Oct 01, 2026 5:34:59 PM io.github.llm4j.loom.execution.HarnessExecutor executeStatement
-INFO: NOTE: Digest sent: {sent}
-Oct 01, 2026 5:34:59 PM io.github.llm4j.loom.execution.HarnessExecutor executeWorkflow
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s2] Notifier  ? use Outbox
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s2] Notifier  ? Outbox {"subject":"Daily digest","body":"Alpha story, day 1"}
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s2] ? tool effect: Outbox 1 recipients ? ok
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s2] Notifier  ? Wrote the message for 1 recipient(s) to the outbox (nothing was sent).
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s2] Notifier  ? t
+19:06:11 [DailyDigestWithSlack/s0>DailyDigest/s2] Notifier  ? sent
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.HarnessExecutor executeStatement
+INFO: NOTE: Digest sent: sent
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.HarnessExecutor executeWorkflow
 INFO: Workflow completed: DailyDigest
-17:34:59 [DailyDigestWithSlack/s1] Pinger  ? Post the headline of this Digest: Alpha story, day 1: Digest: Alpha story, day 1
-Oct 01, 2026 5:34:59 PM io.github.llm4j.loom.execution.HarnessExecutor executeDelegate
+19:06:11 [DailyDigestWithSlack/s1] Pinger  ? Post the headline of this Digest: Alpha story, day 1: Digest: Alpha story, day 1
+Oct 01, 2026 7:06:11 PM io.github.llm4j.loom.execution.HarnessExecutor executeDelegate
 INFO: Delegating to Pinger (Attempt 1)
-17:34:59 [DailyDigestWithSlack/s1] Pinger  ? use Slack
-17:34:59 [DailyDigestWithSlack/s1] Pinger  ? Slack {"title":"Digest","text":"Alpha story, day 1"}
-17:34:59 [DailyDigestWithSlack/s1] ? tool effect: Slack 127.0.0.1 ? ok
-17:34:59 [DailyDigestWithSlack/s1] Pinger  ? Sent to slack webhook (HTTP 200).
+19:06:11 [DailyDigestWithSlack/s1] Pinger  ? use Slack
+19:06:11 [DailyDigestWithSlack/s1] Pinger  ? Slack {"title":"Digest","text":"Alpha story, day 1"}
+19:06:11 [DailyDigestWithSlack/s1] ? tool effect: Slack 127.0.0.1 ? ok
+19:06:11 [DailyDigestWithSlack/s1] Pinger  ? Sent to slack webhook (HTTP 200).

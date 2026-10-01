@@ -1,5 +1,5 @@
-commit 6543cab887f7cd672d0bb563a9a79e5f820d8563
-io.github.llm4j.tools: lines 1490/1563 = 95.3%  (target 80%)
+commit 6e3de8762003e1a760601944dc1cc40352810009
+io.github.llm4j.tools: lines 1500/1563 = 96.0%  (target 80%)
 
 per class (lines | branches):
   BodyFormat                   lines   11/14   ( 78.6%)  branches   3/4   ( 75.0%)
@@ -9,8 +9,8 @@ per class (lines | branches):
   BodyFormat.new BodyFormat() {...} lines    5/5    (100.0%)  branches   2/2   (100.0%)
   CanonicalArgs                lines   10/14   ( 71.4%)  branches   5/6   ( 83.3%)
   DescribedTool                lines    5/8    ( 62.5%)  branches   0/0   (100.0%)
-  EffectContext                lines    0/1    (  0.0%)  branches   0/0   (100.0%)
-  EffectContext.new EffectContext() {...} lines    0/10   (  0.0%)  branches   0/0   (100.0%)
+  EffectContext                lines    1/1    (100.0%)  branches   0/0   (100.0%)
+  EffectContext.new EffectContext() {...} lines    8/10   ( 80.0%)  branches   0/0   (100.0%)
   EffectJournal                lines    1/1    (100.0%)  branches   0/0   (100.0%)
   EffectJournal.Entry          lines    1/1    (100.0%)  branches   0/0   (100.0%)
   EffectJournal.new EffectJournal() {...} lines    5/5    (100.0%)  branches   0/0   (100.0%)
@@ -29,7 +29,7 @@ per class (lines | branches):
   FileTool.Action              lines    3/3    (100.0%)  branches   4/4   (100.0%)
   FileTool.Config              lines    7/7    (100.0%)  branches   4/4   (100.0%)
   FileTool.Mode                lines    1/1    (100.0%)  branches   0/0   (100.0%)
-  GenericKind                  lines   19/23   ( 82.6%)  branches  12/14  ( 85.7%)
+  GenericKind                  lines   20/23   ( 87.0%)  branches  12/14  ( 85.7%)
   GenericTool                  lines   46/50   ( 92.0%)  branches  16/24  ( 66.7%)
   HttpKind                     lines   15/15   (100.0%)  branches   0/0   (100.0%)
   HttpSupport                  lines   87/95   ( 91.6%)  branches  67/84  ( 79.8%)
@@ -72,6 +72,6 @@ per class (lines | branches):
   UnknownOutcomeException      lines    2/4    ( 50.0%)  branches   0/0   (100.0%)
   WebhookKind                  lines   16/16   (100.0%)  branches   1/2   ( 50.0%)
   WebhookTool                  lines   26/26   (100.0%)  branches  19/22  ( 86.4%)
-  WebhookTool.Config           lines    9/9    (100.0%)  branches   3/4   ( 75.0%)
+  WebhookTool.Config           lines    9/9    (100.0%)  branches   4/4   (100.0%)
 
 G8 coverage: OK

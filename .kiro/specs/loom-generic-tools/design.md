@@ -1,5 +1,10 @@
 # Design Document
 
+> **Layout update.** The tools were later moved out of Loom into the `ai-agent4j-tools` library (package
+> `io.github.llm4j.tools`; see design.md §9). Where this document says `io.github.llm4j.loom.tools.generic` or
+> `loom/ai-agent4j-loom/.../generic`, read the tools module for the tools, guards and their tests, and Loom for the
+> executor, parser, CLI and guide tests.
+
 ## Overview
 
 Six new `ToolKind`s (`webhook`, `email`, `http`, `file`, `shell`, `sql`) registered in `ToolFactory`, plus
