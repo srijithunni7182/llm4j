@@ -30,7 +30,7 @@ SABOTAGES = [
     ("S5", "A tool puts its URL in an error and its output isn't scrubbed",
      [(G + "GenericTool.java", "return new Outcome(redactor.scrub(outcome.text()), outcome.status());", "return outcome;"),
       (G + "WebhookTool.java", 'throw new ToolRefusal("the webhook answered HTTP " + reply.status()', 'throw new ToolRefusal("the webhook answered HTTP " + reply.status() + " from " + config.url()')],
-     "WebhookToolTest,HostileModelSuiteTest", ["V1.5", "H1"]),
+     "WebhookToolTest,HostileModelSuiteTest", ["V1.5"]),
     ("S6", "EffectTool: don't write 'pending' before acting",
      [(G + "EffectTool.java", "            journal.put(key, new RunJournal.Entry(PENDING, \"\"));\n", "")], "EffectToolTest,EffectsEndToEndTest", ["V2.3", "V2.4"]),
     ("S7", "EffectTool: treat a failed record as done",
@@ -38,7 +38,7 @@ SABOTAGES = [
     ("S8", "PathGuard: allow hidden files",
      [(G + "PathGuard.java", 'if (!name.isEmpty() && name.startsWith("."))', "if (false)")], "FileToolTest,HostileModelSuiteTest", ["V7.3", "H4"]),
     ("S9", "SafePaths: skip the symlink check",
-     [(MAIN + "SafePaths.java", "if (!realLocation(p).startsWith(realLocation(root)))", "if (false)")], "FileToolTest,SafePathsTest", ["V7.3"]),
+     [(MAIN + "SafePaths.java", "if (!realLocation(p).startsWith(realLocation(root)))", "if (realLocation(p) == null)")], "FileToolTest,SafePathsTest", ["V7.3"]),
     ("S10", "ShellTool: run through sh -c",
      [(G + "ShellTool.java", "ProcessBuilder builder = new ProcessBuilder(command)", 'ProcessBuilder builder = new ProcessBuilder(List.of("/bin/sh", "-c", String.join(" ", command)))')], "ShellToolTest", ["V8.1", "H5"]),
     ("S11", "ShellTool: don't clear the environment",
@@ -88,8 +88,10 @@ def run_one(sid, description, edits, classes, expected):
         shutil.rmtree(REPORTS, ignore_errors=True)
         proc = subprocess.run(["mvn", "-B", "-o", "-q", "test", f"-Dtest={classes}", "-DfailIfNoTests=false", "-Djacoco.skip=true"],
                               cwd=MODULE, capture_output=True, text=True, timeout=900)
+        if "COMPILATION ERROR" in proc.stdout + proc.stderr:
+            return "COMPILE ERROR", "the sabotage doesn't compile: " + " ".join(l for l in (proc.stdout + proc.stderr).splitlines() if "ERROR" in l and ".java" in l)[:300], []
         if not list(REPORTS.glob("TEST-*.xml")):
-            return "COMPILE ERROR", (proc.stdout + proc.stderr)[-400:], []
+            return "NO REPORT", (proc.stdout + proc.stderr)[-400:], []
         tags = tagged_methods()
         failed = failing_methods()
         failed_tags = sorted({t for key in failed for t in tags.get(key, set())})

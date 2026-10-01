@@ -36,14 +36,22 @@ class LimitsTest {
     @Test
     @Tag("V3.7")
     void readCappedDoesNotReadTheWholeStream() throws IOException {
+        // A very large (here: 5 MB, so a failing reader fails the test rather than exhausting memory) stream.
         long[] produced = {0};
-        InputStream endless = new InputStream() {
-            @Override public int read() { produced[0]++; return 'x'; }
-            @Override public int read(byte[] b, int off, int len) { produced[0] += len; java.util.Arrays.fill(b, off, off + len, (byte) 'x'); return len; }
+        InputStream huge = new InputStream() {
+            @Override public int read() { return produced[0]++ < 5_000_000 ? 'x' : -1; }
+            @Override public int read(byte[] b, int off, int len) {
+                if (produced[0] >= 5_000_000) return -1;
+                int n = (int) Math.min(len, 5_000_000 - produced[0]);
+                java.util.Arrays.fill(b, off, off + n, (byte) 'x');
+                produced[0] += n;
+                return n;
+            }
         };
-        Limits.Capped c = Limits.readCapped(endless, 1000);
+        Limits.Capped c = Limits.readCapped(huge, 1000);
         assertThat(c.truncated()).isTrue();
-        assertThat(produced[0]).isLessThan(20_000);
+        assertThat(c.bytes()).hasSize(1000);
+        assertThat(produced[0]).as("bytes pulled from the stream").isLessThan(20_000);
     }
 
     @Test
