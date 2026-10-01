@@ -4,33 +4,33 @@ SLF4J(W): No SLF4J providers were found.
 SLF4J(W): Defaulting to no-operation (NOP) logger implementation
 SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
 ? Executing workflow: Main...
-19:06:22 [Main/s0] Clerk  ? go
-19:06:22 [Main/s0] Clerk  ? use Notes
-19:06:22 [Main/s0] Clerk  ? Notes {"action":"write","path":"made.md","content":"hello"}
-19:06:22 [Main/s0] ? tool effect: Notes write made.md ? ok
-19:06:22 [Main/s0] Clerk  ? Wrote 5 bytes to made.md.
-19:06:22 [Main/s0] Clerk  ? use Notes
-19:06:22 [Main/s0] Clerk  ? Notes {"action":"write","path":"../canary.txt","content":"PWNED"}
-19:06:22 [Main/s0] ? tool effect: Notes write ../canary.txt ? failed
-19:06:22 [Main/s0] Clerk  ? Error: refused: ../canary.txt is outside the script's directory
-19:06:22 [Main/s0] Clerk  ? use Notes
-19:06:22 [Main/s0] Clerk  ? Notes {"action":"read","path":"/etc/hostname"}
-19:06:22 [Main/s0] ? tool call: Notes read /etc/hostname ? failed
-19:06:22 [Main/s0] Clerk  ? Error: refused: /etc/hostname is outside the script's directory
-19:06:22 [Main/s0] Clerk  ? use Notes
-19:06:22 [Main/s0] Clerk  ? Notes {"action":"write","path":".hidden.md","content":"x"}
-19:06:22 [Main/s0] ? tool effect: Notes write .hidden.md ? failed
-19:06:22 [Main/s0] Clerk  ? Error: refused: hidden files are not available
-19:06:22 [Main/s0] Clerk  ? use Notes
-19:06:22 [Main/s0] Clerk  ? Notes {"action":"write","path":"sub/../../canary.md","content":"x"}
-19:06:22 [Main/s0] ? tool effect: Notes write sub/../../canary.md ? failed
-19:06:22 [Main/s0] Clerk  ? Error: refused: sub/../../canary.md is outside the script's directory
-19:06:22 [Main/s0] Clerk  ? use Notes
-19:06:22 [Main/s0] Clerk  ? Notes {"action":"append","path":"keep.md","content":"more"}
-19:06:22 [Main/s0] ? tool effect: Notes append keep.md ? ok
-19:06:22 [Main/s0] Clerk  ? Appended 5 bytes to keep.md.
-19:06:22 [Main/s0] Clerk  ? t
-19:06:22 [Main/s0] Clerk  ? finished
+19:36:26 [Main/s0] Clerk  ? go
+19:36:26 [Main/s0] Clerk  ? use Notes
+19:36:26 [Main/s0] Clerk  ? Notes {"action":"write","path":"made.md","content":"hello"}
+19:36:26 [Main/s0] ? tool effect: Notes write made.md ? ok
+19:36:26 [Main/s0] Clerk  ? Wrote 5 bytes to made.md.
+19:36:26 [Main/s0] Clerk  ? use Notes
+19:36:26 [Main/s0] Clerk  ? Notes {"action":"write","path":"../canary.txt","content":"PWNED"}
+19:36:26 [Main/s0] ? tool effect: Notes write ../canary.txt ? failed
+19:36:26 [Main/s0] Clerk  ? Error: refused: ../canary.txt is outside the script's directory
+19:36:26 [Main/s0] Clerk  ? use Notes
+19:36:26 [Main/s0] Clerk  ? Notes {"action":"read","path":"/etc/hostname"}
+19:36:26 [Main/s0] ? tool call: Notes read /etc/hostname ? failed
+19:36:26 [Main/s0] Clerk  ? Error: refused: /etc/hostname is outside the script's directory
+19:36:26 [Main/s0] Clerk  ? use Notes
+19:36:26 [Main/s0] Clerk  ? Notes {"action":"write","path":".hidden.md","content":"x"}
+19:36:26 [Main/s0] ? tool effect: Notes write .hidden.md ? failed
+19:36:26 [Main/s0] Clerk  ? Error: refused: hidden files are not available
+19:36:26 [Main/s0] Clerk  ? use Notes
+19:36:26 [Main/s0] Clerk  ? Notes {"action":"write","path":"sub/../../canary.md","content":"x"}
+19:36:26 [Main/s0] ? tool effect: Notes write sub/../../canary.md ? failed
+19:36:26 [Main/s0] Clerk  ? Error: refused: sub/../../canary.md is outside the script's directory
+19:36:26 [Main/s0] Clerk  ? use Notes
+19:36:26 [Main/s0] Clerk  ? Notes {"action":"append","path":"keep.md","content":"more"}
+19:36:26 [Main/s0] ? tool effect: Notes append keep.md ? ok
+19:36:26 [Main/s0] Clerk  ? Appended 5 bytes to keep.md.
+19:36:26 [Main/s0] Clerk  ? t
+19:36:26 [Main/s0] Clerk  ? finished
 ? Workflow completed successfully.
 --- requests the stand-in server saw (paths):
 --- files:

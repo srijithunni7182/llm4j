@@ -4,39 +4,39 @@ SLF4J(W): No SLF4J providers were found.
 SLF4J(W): Defaulting to no-operation (NOP) logger implementation
 SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
 ? Executing workflow: DailyDigest...
-19:06:07 [DailyDigest/s0] Collector  ? Collect today's new stories about AI agents.
-19:06:07 [DailyDigest/s0] Collector  ? use Notes
-19:06:07 [DailyDigest/s0] Collector  ? Notes {"action":"read","path":"last.json"}
-19:06:07 [DailyDigest/s0] ? tool call: Notes read last.json ? failed
-19:06:07 [DailyDigest/s0] Collector  ? Error: last.json doesn't exist or isn't a file
-19:06:07 [DailyDigest/s0] Collector  ? use Hn
-19:06:07 [DailyDigest/s0] Collector  ? Hn {"path":"/v0/topstories.json"}
-19:06:07 [DailyDigest/s0] ? tool call: Hn GET 127.0.0.1/v0/topstories.json ? ok
-19:06:07 [DailyDigest/s0] Collector  ? HTTP 200 OK Content-Type: application/json  [101,102]
-19:06:07 [DailyDigest/s0] Collector  ? use Hn
-19:06:07 [DailyDigest/s0] Collector  ? Hn {"path":"/v0/item/101.json"}
-19:06:07 [DailyDigest/s0] ? tool call: Hn GET 127.0.0.1/v0/item/101.json ? ok
-19:06:07 [DailyDigest/s0] Collector  ? HTTP 200 OK Content-Type: application/json  {"id": 101, "title": "Alpha story, day 1"}
-19:06:07 [DailyDigest/s0] Collector  ? t
-19:06:07 [DailyDigest/s0] Collector  ? NEW: Alpha story, day 1
-19:06:07 [DailyDigest/s1] Writer  ? Write and save the digest from these NEW: Alpha story, day 1: NEW: Alpha story, day 1
-19:06:07 [DailyDigest/s1] Writer  ? use Notes
-19:06:07 [DailyDigest/s1] Writer  ? Notes {"action":"write","path":"digest.md","content":"# Digest\nAlpha story, day 1"}
-19:06:07 [DailyDigest/s1] ? tool effect: Notes write digest.md ? ok
-19:06:07 [DailyDigest/s1] Writer  ? Wrote 27 bytes to digest.md.
-19:06:07 [DailyDigest/s1] Writer  ? use Notes
-19:06:07 [DailyDigest/s1] Writer  ? Notes {"action":"write","path":"last.json","content":"{\"reported\": [\"Alpha story, day 1\"]}"}
-19:06:07 [DailyDigest/s1] ? tool effect: Notes write last.json ? ok
-19:06:07 [DailyDigest/s1] Writer  ? Wrote 36 bytes to last.json.
-19:06:07 [DailyDigest/s1] Writer  ? t
-19:06:07 [DailyDigest/s1] Writer  ? Digest: Alpha story, day 1
-19:06:07 [DailyDigest/s2] Notifier  ? Send this digest to the team: Digest: Alpha story, day 1
-19:06:07 [DailyDigest/s2] Notifier  ? use Outbox
-19:06:07 [DailyDigest/s2] Notifier  ? Outbox {"subject":"Daily digest","body":"Alpha story, day 1"}
-19:06:07 [DailyDigest/s2] ? tool effect: Outbox 1 recipients ? ok
-19:06:07 [DailyDigest/s2] Notifier  ? Wrote the message for 1 recipient(s) to the outbox (nothing was sent).
-19:06:07 [DailyDigest/s2] Notifier  ? t
-19:06:07 [DailyDigest/s2] Notifier  ? sent
+19:36:12 [DailyDigest/s0] Collector  ? Collect today's new stories about AI agents.
+19:36:12 [DailyDigest/s0] Collector  ? use Notes
+19:36:12 [DailyDigest/s0] Collector  ? Notes {"action":"read","path":"last.json"}
+19:36:12 [DailyDigest/s0] ? tool call: Notes read last.json ? failed
+19:36:12 [DailyDigest/s0] Collector  ? Error: last.json doesn't exist or isn't a file
+19:36:12 [DailyDigest/s0] Collector  ? use Hn
+19:36:12 [DailyDigest/s0] Collector  ? Hn {"path":"/v0/topstories.json"}
+19:36:12 [DailyDigest/s0] ? tool call: Hn GET 127.0.0.1/v0/topstories.json ? ok
+19:36:12 [DailyDigest/s0] Collector  ? HTTP 200 OK Content-Type: application/json  [101,102]
+19:36:12 [DailyDigest/s0] Collector  ? use Hn
+19:36:12 [DailyDigest/s0] Collector  ? Hn {"path":"/v0/item/101.json"}
+19:36:12 [DailyDigest/s0] ? tool call: Hn GET 127.0.0.1/v0/item/101.json ? ok
+19:36:12 [DailyDigest/s0] Collector  ? HTTP 200 OK Content-Type: application/json  {"id": 101, "title": "Alpha story, day 1"}
+19:36:12 [DailyDigest/s0] Collector  ? t
+19:36:12 [DailyDigest/s0] Collector  ? NEW: Alpha story, day 1
+19:36:12 [DailyDigest/s1] Writer  ? Write and save the digest from these NEW: Alpha story, day 1: NEW: Alpha story, day 1
+19:36:12 [DailyDigest/s1] Writer  ? use Notes
+19:36:12 [DailyDigest/s1] Writer  ? Notes {"action":"write","path":"digest.md","content":"# Digest\nAlpha story, day 1"}
+19:36:12 [DailyDigest/s1] ? tool effect: Notes write digest.md ? ok
+19:36:12 [DailyDigest/s1] Writer  ? Wrote 27 bytes to digest.md.
+19:36:12 [DailyDigest/s1] Writer  ? use Notes
+19:36:12 [DailyDigest/s1] Writer  ? Notes {"action":"write","path":"last.json","content":"{\"reported\": [\"Alpha story, day 1\"]}"}
+19:36:12 [DailyDigest/s1] ? tool effect: Notes write last.json ? ok
+19:36:12 [DailyDigest/s1] Writer  ? Wrote 36 bytes to last.json.
+19:36:12 [DailyDigest/s1] Writer  ? t
+19:36:12 [DailyDigest/s1] Writer  ? Digest: Alpha story, day 1
+19:36:12 [DailyDigest/s2] Notifier  ? Send this digest to the team: Digest: Alpha story, day 1
+19:36:12 [DailyDigest/s2] Notifier  ? use Outbox
+19:36:12 [DailyDigest/s2] Notifier  ? Outbox {"subject":"Daily digest","body":"Alpha story, day 1"}
+19:36:12 [DailyDigest/s2] ? tool effect: Outbox 1 recipients ? ok
+19:36:12 [DailyDigest/s2] Notifier  ? Wrote the message for 1 recipient(s) to the outbox (nothing was sent).
+19:36:12 [DailyDigest/s2] Notifier  ? t
+19:36:12 [DailyDigest/s2] Notifier  ? sent
 ? Workflow completed successfully.
 
 ? Spend
@@ -51,12 +51,12 @@ Alpha story, day 1
 --- digest/last.json:
 {"reported": ["Alpha story, day 1"]}
 --- outbox:
-1790881567940-1-3f363cf5.eml
+1790883372579-1-1bb1fde8.eml
 --- first .eml headers:
-Date: Thu, 1 Oct 2026 19:06:07 +0000 (UTC)
+Date: Thu, 1 Oct 2026 19:36:12 +0000 (UTC)
 From: Loom Digest <digest@example.com>
 To: team@example.com
-Message-ID: <1995952705.0.1790881567939@localhost>
+Message-ID: <58890945.0.1790883372579@localhost>
 Subject: Daily digest
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -70,39 +70,39 @@ SLF4J(W): No SLF4J providers were found.
 SLF4J(W): Defaulting to no-operation (NOP) logger implementation
 SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
 ? Executing workflow: DailyDigest...
-19:06:08 [DailyDigest/s0] Collector  ? Collect today's new stories about AI agents.
-19:06:08 [DailyDigest/s0] Collector  ? use Notes
-19:06:08 [DailyDigest/s0] Collector  ? Notes {"action":"read","path":"last.json"}
-19:06:08 [DailyDigest/s0] ? tool call: Notes read last.json ? ok
-19:06:08 [DailyDigest/s0] Collector  ? {"reported": ["Alpha story, day 1"]}
-19:06:08 [DailyDigest/s0] Collector  ? use Hn
-19:06:08 [DailyDigest/s0] Collector  ? Hn {"path":"/v0/topstories.json"}
-19:06:09 [DailyDigest/s0] ? tool call: Hn GET 127.0.0.1/v0/topstories.json ? ok
-19:06:09 [DailyDigest/s0] Collector  ? HTTP 200 OK Content-Type: application/json  [101,102]
-19:06:09 [DailyDigest/s0] Collector  ? use Hn
-19:06:09 [DailyDigest/s0] Collector  ? Hn {"path":"/v0/item/101.json"}
-19:06:09 [DailyDigest/s0] ? tool call: Hn GET 127.0.0.1/v0/item/101.json ? ok
-19:06:09 [DailyDigest/s0] Collector  ? HTTP 200 OK Content-Type: application/json  {"id": 101, "title": "Alpha story, day 2"}
-19:06:09 [DailyDigest/s0] Collector  ? t
-19:06:09 [DailyDigest/s0] Collector  ? NEW: Alpha story, day 2
-19:06:09 [DailyDigest/s1] Writer  ? Write and save the digest from these NEW: Alpha story, day 2: NEW: Alpha story, day 2
-19:06:09 [DailyDigest/s1] Writer  ? use Notes
-19:06:09 [DailyDigest/s1] Writer  ? Notes {"action":"write","path":"digest.md","content":"# Digest\nAlpha story, day 2"}
-19:06:09 [DailyDigest/s1] ? tool effect: Notes write digest.md ? ok
-19:06:09 [DailyDigest/s1] Writer  ? Wrote 27 bytes to digest.md.
-19:06:09 [DailyDigest/s1] Writer  ? use Notes
-19:06:09 [DailyDigest/s1] Writer  ? Notes {"action":"write","path":"last.json","content":"{\"reported\": [\"Alpha story, day 2\"]}"}
-19:06:09 [DailyDigest/s1] ? tool effect: Notes write last.json ? ok
-19:06:09 [DailyDigest/s1] Writer  ? Wrote 36 bytes to last.json.
-19:06:09 [DailyDigest/s1] Writer  ? t
-19:06:09 [DailyDigest/s1] Writer  ? Digest: Alpha story, day 2
-19:06:09 [DailyDigest/s2] Notifier  ? Send this digest to the team: Digest: Alpha story, day 2
-19:06:09 [DailyDigest/s2] Notifier  ? use Outbox
-19:06:09 [DailyDigest/s2] Notifier  ? Outbox {"subject":"Daily digest","body":"Alpha story, day 2"}
-19:06:09 [DailyDigest/s2] ? tool effect: Outbox 1 recipients ? ok
-19:06:09 [DailyDigest/s2] Notifier  ? Wrote the message for 1 recipient(s) to the outbox (nothing was sent).
-19:06:09 [DailyDigest/s2] Notifier  ? t
-19:06:09 [DailyDigest/s2] Notifier  ? sent
+19:36:13 [DailyDigest/s0] Collector  ? Collect today's new stories about AI agents.
+19:36:13 [DailyDigest/s0] Collector  ? use Notes
+19:36:13 [DailyDigest/s0] Collector  ? Notes {"action":"read","path":"last.json"}
+19:36:13 [DailyDigest/s0] ? tool call: Notes read last.json ? ok
+19:36:13 [DailyDigest/s0] Collector  ? {"reported": ["Alpha story, day 1"]}
+19:36:13 [DailyDigest/s0] Collector  ? use Hn
+19:36:13 [DailyDigest/s0] Collector  ? Hn {"path":"/v0/topstories.json"}
+19:36:13 [DailyDigest/s0] ? tool call: Hn GET 127.0.0.1/v0/topstories.json ? ok
+19:36:13 [DailyDigest/s0] Collector  ? HTTP 200 OK Content-Type: application/json  [101,102]
+19:36:13 [DailyDigest/s0] Collector  ? use Hn
+19:36:13 [DailyDigest/s0] Collector  ? Hn {"path":"/v0/item/101.json"}
+19:36:13 [DailyDigest/s0] ? tool call: Hn GET 127.0.0.1/v0/item/101.json ? ok
+19:36:13 [DailyDigest/s0] Collector  ? HTTP 200 OK Content-Type: application/json  {"id": 101, "title": "Alpha story, day 2"}
+19:36:13 [DailyDigest/s0] Collector  ? t
+19:36:13 [DailyDigest/s0] Collector  ? NEW: Alpha story, day 2
+19:36:13 [DailyDigest/s1] Writer  ? Write and save the digest from these NEW: Alpha story, day 2: NEW: Alpha story, day 2
+19:36:13 [DailyDigest/s1] Writer  ? use Notes
+19:36:13 [DailyDigest/s1] Writer  ? Notes {"action":"write","path":"digest.md","content":"# Digest\nAlpha story, day 2"}
+19:36:13 [DailyDigest/s1] ? tool effect: Notes write digest.md ? ok
+19:36:13 [DailyDigest/s1] Writer  ? Wrote 27 bytes to digest.md.
+19:36:13 [DailyDigest/s1] Writer  ? use Notes
+19:36:13 [DailyDigest/s1] Writer  ? Notes {"action":"write","path":"last.json","content":"{\"reported\": [\"Alpha story, day 2\"]}"}
+19:36:13 [DailyDigest/s1] ? tool effect: Notes write last.json ? ok
+19:36:13 [DailyDigest/s1] Writer  ? Wrote 36 bytes to last.json.
+19:36:13 [DailyDigest/s1] Writer  ? t
+19:36:13 [DailyDigest/s1] Writer  ? Digest: Alpha story, day 2
+19:36:13 [DailyDigest/s2] Notifier  ? Send this digest to the team: Digest: Alpha story, day 2
+19:36:13 [DailyDigest/s2] Notifier  ? use Outbox
+19:36:13 [DailyDigest/s2] Notifier  ? Outbox {"subject":"Daily digest","body":"Alpha story, day 2"}
+19:36:13 [DailyDigest/s2] ? tool effect: Outbox 1 recipients ? ok
+19:36:13 [DailyDigest/s2] Notifier  ? Wrote the message for 1 recipient(s) to the outbox (nothing was sent).
+19:36:13 [DailyDigest/s2] Notifier  ? t
+19:36:13 [DailyDigest/s2] Notifier  ? sent
 ? Workflow completed successfully.
 
 ? Spend
@@ -117,7 +117,7 @@ Alpha story, day 2
 --- digest/last.json:
 {"reported": ["Alpha story, day 2"]}
 --- outbox:
-1790881567940-1-3f363cf5.eml
-1790881569122-1-2611b9a3.eml
+1790883372579-1-1bb1fde8.eml
+1790883373706-1-1433046b.eml
 --- model requests / news requests seen by the stand-in:
 chat requests: 18  news requests: 4

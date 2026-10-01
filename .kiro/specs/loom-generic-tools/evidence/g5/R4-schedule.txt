@@ -1,37 +1,37 @@
 $ weave schedule sync digest.loom --store store
-? schedule:/tmp/tmp.vca70N4Btj/r4/digest.loom/Morning  cron "0 7 * * *" Asia/Kolkata  next: 2026-10-02 01:30 UTC
+? schedule:/tmp/tmp.TCvpmpoDRD/r4/digest.loom/Morning  cron "0 7 * * *" Asia/Kolkata  next: 2026-10-02 01:30 UTC
 $ weave triggers list store
-? schedule:/tmp/tmp.vca70N4Btj/r4/digest.loom/Morning
+? schedule:/tmp/tmp.TCvpmpoDRD/r4/digest.loom/Morning
     cron "0 7 * * *" Asia/Kolkata  next: 2026-10-02 01:30 UTC
 No system trigger installed for this store.
 $ weave triggers install store --backend systemd --env-file env     (no --apply: a plan, nothing written)
 System trigger (systemd):
-  write  /root/.config/systemd/user/loom-95f68b56.service
+  write  /root/.config/systemd/user/loom-40e3040b.service
          | [Unit]
-         | Description=Loom triggers for /tmp/tmp.vca70N4Btj/r4/store
+         | Description=Loom triggers for /tmp/tmp.TCvpmpoDRD/r4/store
          | 
          | [Service]
          | Type=oneshot
          | EnvironmentFile=env
          | ExecStart=/usr/lib/jvm/java-21-openjdk-amd64/bin/java -cp /home/user/llm4j/loom/ai-agent4j-loom/target/classes:/home/user/llm4j/loom/ai-agent4j-loom/
-  write  /root/.config/systemd/user/loom-95f68b56.timer
+  write  /root/.config/systemd/user/loom-40e3040b.timer
          | [Unit]
-         | Description=Wake Loom every 5m for /tmp/tmp.vca70N4Btj/r4/store
+         | Description=Wake Loom every 5m for /tmp/tmp.TCvpmpoDRD/r4/store
          | 
          | [Timer]
          | OnCalendar=*:0/5
          | Persistent=true
-         | Unit=loom-95f68b56.service
+         | Unit=loom-40e3040b.service
          | 
          | [Install]
          | WantedBy=timers.target
   run    systemctl --user daemon-reload
-  run    systemctl --user enable --now loom-95f68b56.timer
+  run    systemctl --user enable --now loom-40e3040b.timer
 Nothing changed. Run again with --apply to install it.
 --- anything written under HOME?
 (end of listing)
 $ weave triggers install store --backend cloud-scheduler --url https://digest.example.com --service-account tick@p.iam.gserviceaccount.com
 System trigger (cloud-scheduler):
-  run    gcloud scheduler jobs delete loom-95f68b56 --location=us-central1 --quiet
-  run    gcloud scheduler jobs create http loom-95f68b56 --location=us-central1 '--schedule=*/5 * * * *' --uri=https://digest.example.com/loom/tick --http-method=POST --oidc-service-account-email=tick
+  run    gcloud scheduler jobs delete loom-40e3040b --location=us-central1 --quiet
+  run    gcloud scheduler jobs create http loom-40e3040b --location=us-central1 '--schedule=*/5 * * * *' --uri=https://digest.example.com/loom/tick --http-method=POST --oidc-service-account-email=tick
 Nothing changed. Run again with --apply to install it.

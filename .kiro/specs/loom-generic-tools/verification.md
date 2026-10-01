@@ -216,16 +216,16 @@ result, trace or audit.
 
 ## Results
 
-Recorded at code SHA `6e3de87` (the code under test; later commits change only spec and evidence files). The full
+Recorded at code SHA `fa18b98` (the code under test; later commits change only spec and evidence files). The full
 evidence is in [`evidence/`](evidence/), with the gate table in [`evidence/SIGN-OFF.md`](evidence/SIGN-OFF.md).
 
-- **Tests.** 774 in all: 372 in `ai-agent4j-tools` (the six tools and their guards) and 402 in the Loom module (scripts, executor, CLI, guide, end-to-end), 0 failures, 0 errors, 1 skipped (a baseline test). Three clean builds at
-  one SHA: two plain with identical counts, one in random order with 20 000 fuzz iterations (`G1-build.txt`). 237 test methods were added against the
+- **Tests.** 777 in all: 379 in `ai-agent4j-tools` (the six tools, their guards and the documentation examples) and 398 in the Loom module (scripts, executor, CLI, guide, end-to-end), 0 failures, 0 errors, 1 skipped (a baseline test). Three clean builds at
+  one SHA: two plain with identical counts, one in random order with 20 000 fuzz iterations (`G1-build.txt`). 240 test methods were added against the
   baseline and none removed or newly failing (`G4-regression.txt`).
 - **Coverage.** `io.github.llm4j.tools` lines 95.9% (target 80%); every guard class at 92.5% branches or more (target 90%) (`G8-coverage.txt`).
 - **Mutations.** 23 deliberate bugs in the guard code, each caught by the named checks (`G3-sabotage.md`).
 - **Hostile-model attacks.** The V12 suite and the attacks chosen for the real runs: none had an effect; the secrets sweep found no secret value (`G9-safety.md`, `G5-runs.md`).
 - **Real runs.** R1–R6 with real `weave` processes and a stand-in model and services, including `kill -9` after the Slack post and a resume that sent nothing twice (`G5-runs.md`).
 - **Live checks (L1–L4).** Not run: no accounts, no model key. The Teams body shape stays unverified against a real Teams endpoint.
-- **Layout.** The tools live in the `ai-agent4j-tools` library; Loom adapts them. The coverage gates run in that module (`mvn verify`).
+- **Layout.** The tools live in the `ai-agent4j-tools` library and the contracts they implement are in `ai-agent4j`; Loom adapts them. The coverage gates run in that module (`mvn verify`).
 - **Not run.** `triggers install --apply` (no crontab or systemd here) and the language server in an editor.

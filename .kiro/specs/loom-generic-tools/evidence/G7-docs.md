@@ -1,6 +1,6 @@
 # G7: documentation and tooling match reality
 
-Code under test: 6e3de87.
+Code under test: fa18b98.
 
 | Step | What was done | Result |
 |---|---|---|
