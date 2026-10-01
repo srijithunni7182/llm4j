@@ -121,6 +121,34 @@ class PromptOptimizerEfficacyIntegrationTest {
         return out;
     }
 
+    /**
+     * Splits by <em>base ticket</em>: both wordings of a ticket always land in the same split, so
+     * the rewriter can never see a near-duplicate of a test ticket. Ratios 50/30/20 of the base
+     * tickets.
+     */
+    static io.github.llm4j.eval.optimize.DataSplit leakFreeSplit(
+            List<EvalScenario> all, long seed) {
+        int baseCount = all.size() / WRAPS.length;
+        List<Integer> bases = new ArrayList<>();
+        for (int b = 0; b < baseCount; b++) {
+            bases.add(b);
+        }
+        java.util.Collections.shuffle(bases, new Random(seed));
+        int train = (int) Math.round(baseCount * 0.5);
+        int validation = (int) Math.round(baseCount * 0.3);
+        List<EvalScenario> trainSet = new ArrayList<>();
+        List<EvalScenario> validationSet = new ArrayList<>();
+        List<EvalScenario> testSet = new ArrayList<>();
+        for (int i = 0; i < bases.size(); i++) {
+            List<EvalScenario> target =
+                    i < train ? trainSet : i < train + validation ? validationSet : testSet;
+            for (int w = 0; w < WRAPS.length; w++) {
+                target.add(all.get(bases.get(i) * WRAPS.length + w));
+            }
+        }
+        return new io.github.llm4j.eval.optimize.DataSplit(trainSet, validationSet, testSet);
+    }
+
     private static LLMClient client(String key, String model) {
         return new DefaultLLMClient(
                 new AnthropicProvider(LLMConfig.builder().apiKey(key).defaultModel(model).build()));
@@ -230,10 +258,11 @@ class PromptOptimizerEfficacyIntegrationTest {
                 "_Synthetic ticket-routing task, author-made; one task and few seeds, so treat as indicative._\n\n");
         md.append("Scenarios: ")
                 .append(all.size())
-                .append(" (split 50/30/20 per seed). Budget: ")
+                .append(
+                        " (split 50/30/20 by base ticket per seed, so both wordings of a ticket stay together). Budget: ")
                 .append(maxRollouts)
                 .append(" rollouts. Seed prompt: `")
-                .append(SEED_PROMPT)
+                .append(seedPrompt)
                 .append("`\n\n");
         md.append(
                 "| run | seed GT | best GT | seed J1 | best J1 | seed J2 | best J2 | generalized | stop | rounds | rollouts | LLM calls |\n|---|---|---|---|---|---|---|---|---|---|---|---|\n");
@@ -262,7 +291,11 @@ class PromptOptimizerEfficacyIntegrationTest {
                             .system(system(systemCounter))
                             .criteria(List.of(correctness, singleLabel))
                             .scenarios(all)
-                            .split(Split.ratios(0.5, 0.3, 0.2).seed(s))
+                            .split(
+                                    Split.explicit(
+                                            leakFreeSplit(all, s).train(),
+                                            leakFreeSplit(all, s).validation(),
+                                            leakFreeSplit(all, s).test()))
                             .rewriter(rewriterModel)
                             .judge(j1)
                             .parameterDescription(
@@ -278,7 +311,7 @@ class PromptOptimizerEfficacyIntegrationTest {
                             .build()
                             .run();
 
-            var split = Split.ratios(0.5, 0.3, 0.2).seed(s).apply(all);
+            var split = leakFreeSplit(all, s);
             Candidate seed = result.seed();
             Candidate best = result.best();
             md.append(
@@ -308,7 +341,7 @@ class PromptOptimizerEfficacyIntegrationTest {
         }
 
         // control 1: noise only. Re-score the untouched seed twice on the same test split.
-        var control = Split.ratios(0.5, 0.3, 0.2).seed(1).apply(all);
+        var control = leakFreeSplit(all, 1);
         Candidate seed = Candidate.of("system-prompt", seedPrompt);
         md.append("## Control: no optimization (noise)\n\n");
         md.append(
@@ -337,7 +370,9 @@ class PromptOptimizerEfficacyIntegrationTest {
                                                                                 sc
                                                                                         .expectedOutput())))))
                         .scenarios(all)
-                        .split(Split.ratios(0.5, 0.3, 0.2).seed(1))
+                        .split(
+                                Split.explicit(
+                                        control.train(), control.validation(), control.test()))
                         .rewriter(randomRewriter)
                         .budget(OptimizerBudget.builder().maxRollouts(maxRollouts).build())
                         .targetValidationMean(0.95)
