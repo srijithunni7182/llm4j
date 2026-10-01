@@ -229,7 +229,12 @@ class PromptOptimizerEfficacyIntegrationTest {
                                 System.getenv().getOrDefault("EVAL4J_OPTIMIZER_SEED", "strong"));
         String seedPrompt = weak ? WEAK_SEED_PROMPT : SEED_PROMPT;
         String outFile =
-                weak ? "target/optimizer-efficacy-weak.md" : "target/optimizer-efficacy.md";
+                System.getenv()
+                        .getOrDefault(
+                                "EVAL4J_EFFICACY_OUT",
+                                weak
+                                        ? "target/optimizer-efficacy-weak.md"
+                                        : "target/optimizer-efficacy.md");
         int seeds = Integer.parseInt(System.getenv().getOrDefault("EVAL4J_OPTIMIZER_SEEDS", "3"));
         int maxRollouts =
                 Integer.parseInt(System.getenv().getOrDefault("EVAL4J_OPTIMIZER_ROLLOUTS", "500"));
