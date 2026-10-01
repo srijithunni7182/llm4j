@@ -71,11 +71,13 @@ public final class EffectTool implements Tool {
                         + "Check whether it happened before trying again.";
             }
         }
-        if (policy.maxPerRun() > 0 && callsSoFar(journal, tool) >= policy.maxPerRun() && earlier == null) {
-            return "Error: " + tool + " is limited to " + policy.maxPerRun() + " calls per run, and has used them.";
+        // Check the allowance and claim the call together, so parallel branches can't all slip under the limit.
+        synchronized (journal) {
+            if (policy.maxPerRun() > 0 && earlier == null && callsSoFar(journal, tool) >= policy.maxPerRun()) {
+                return "Error: " + tool + " is limited to " + policy.maxPerRun() + " calls per run, and has used them.";
+            }
+            journal.put(key, new RunJournal.Entry(PENDING, ""));
         }
-
-        journal.put(key, new RunJournal.Entry(PENDING, ""));
         Outcome outcome = delegate.perform(args, policy.idempotent() ? idempotencyKey(journal, key) : null);
         switch (outcome.status()) {
             case OK -> journal.put(key, new RunJournal.Entry(DONE, outcome.text()));

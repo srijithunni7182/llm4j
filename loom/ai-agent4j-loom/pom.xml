@@ -79,6 +79,20 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- SMTP for the `email` tool kind; only loaded when a script uses it -->
+        <dependency>
+            <groupId>org.eclipse.angus</groupId>
+            <artifactId>angus-mail</artifactId>
+            <version>2.0.3</version>
+        </dependency>
+        <!-- A real SMTP server for testing the `email` tool kind -->
+        <dependency>
+            <groupId>com.icegreen</groupId>
+            <artifactId>greenmail</artifactId>
+            <version>2.1.0</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- CLI Support -->
         <dependency>
             <groupId>info.picocli</groupId>

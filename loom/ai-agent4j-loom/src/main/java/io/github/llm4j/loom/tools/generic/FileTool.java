@@ -18,7 +18,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import io.github.llm4j.loom.tools.SafePaths;
 
 /** Reads, lists, writes and appends text files under a root directory. */
 final class FileTool extends GenericTool {
@@ -57,6 +56,7 @@ final class FileTool extends GenericTool {
     private final Config config;
     private final Path root;
     private final EffectContext context;
+    private final PathGuard guard;
     private final List<PathMatcher> allowed;
 
     FileTool(String name, Config config, Path root, EffectContext context) {
@@ -64,6 +64,7 @@ final class FileTool extends GenericTool {
         this.config = config;
         this.root = root;
         this.context = context;
+        this.guard = new PathGuard(root, context.reservedPaths());
         this.allowed = config.allow().stream().map(p -> FileSystems.getDefault().getPathMatcher("glob:" + p)).toList();
     }
 
@@ -115,7 +116,7 @@ final class FileTool extends GenericTool {
         String given = optionalText(args, "path");
         if (given == null && action == Action.LIST) given = ".";
         if (given == null) throw new ToolRefusal("path is required");
-        Path target = confine(given);
+        Path target = guard.resolve(given);
         return switch (action) {
             case READ -> read(target, given, args);
             case LIST -> list(target, args);
@@ -135,24 +136,6 @@ final class FileTool extends GenericTool {
     }
 
     // ── Confinement ──────────────────────────────────────────────────────────────────────────
-
-    /** Resolves a path inside the root, refusing hidden names, the run's own files and anything that escapes. */
-    private Path confine(String given) {
-        Path target;
-        try {
-            target = SafePaths.inside(root, given);
-        } catch (IllegalArgumentException e) {
-            throw new ToolRefusal("refused: " + e.getMessage());
-        }
-        Path relative = root.relativize(target);
-        for (Path segment : relative) {
-            if (segment.toString().startsWith(".") && !segment.toString().isEmpty()) throw new ToolRefusal("refused: hidden files are not available");
-        }
-        for (Path reserved : context.reservedPaths()) {
-            if (target.toAbsolutePath().normalize().startsWith(reserved)) throw new ToolRefusal("refused: that location belongs to the run itself");
-        }
-        return target;
-    }
 
     private void requireAllowedName(Path file, String given) {
         Path name = file.getFileName();
@@ -195,7 +178,7 @@ final class FileTool extends GenericTool {
         List<String> names;
         try (Stream<Path> entries = Files.list(dir)) {
             names = entries.filter(p -> !p.getFileName().toString().startsWith("."))
-                    .filter(p -> context.reservedPaths().stream().noneMatch(r -> p.toAbsolutePath().normalize().startsWith(r)))
+                    .filter(p -> !guard.isReserved(p))
                     .filter(p -> Files.isDirectory(p) || allowed.stream().anyMatch(m -> m.matches(p.getFileName())))
                     .filter(p -> filter == null || filter.matches(p.getFileName()))
                     .map(p -> p.getFileName() + (Files.isDirectory(p) ? "/" : ""))
