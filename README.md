@@ -199,6 +199,12 @@ The heavy-lifting pieces, kept out of the core so it stays light:
 - **Local embeddings**: ONNX and DJL models on your own machine, with no API calls and no per-token cost.
 - **Persistent vector stores**: PostgreSQL with pgvector, or Pinecone.
 
+### 🔧 [Tools](ai-agent4j-tools/): *"How do I let an agent act on the world safely?"*
+
+Ready-made tools built for the case where the model picks the arguments: `webhook` (Slack, Discord, Teams),
+`email`, `http`, `file`, `shell` and read-only `sql`. Each has allow-lists, size and time limits, secrets scrubbed from
+every result, and a journal so a crash never repeats a send. Use them from Java, or from a Loom script with no Java.
+
 ### 🧪 [eval4j](eval4j/): *"How do I know it works, and keeps working?"*
 
 Agents are non-deterministic, which is no excuse for not testing them. eval4j is a testing framework

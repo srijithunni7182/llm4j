@@ -1,4 +1,4 @@
-commit 0eb5f7f60c60c73f37576f39c2f9bfd31e55aad9; baseline 71f67cb
-baseline tests (methods): 299; now: 531; added: 232
+commit 6543cab887f7cd672d0bb563a9a79e5f820d8563; baseline 71f67cb
+baseline tests (methods): 299; now: 533; added: 234
 tests that existed at the baseline and are gone: 0
 tests that passed at the baseline and don't now: 0
