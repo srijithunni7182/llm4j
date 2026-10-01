@@ -149,8 +149,17 @@ public final class HttpSupport {
             if (target == null) throw new ToolRefusal("refused: a redirect to an address that can't be read");
             String refusal = redirectProblem(request.url(), target);
             if (refusal != null) throw new ToolRefusal("refused: " + refusal);
-            request = request.newBuilder().url(target).build();
+            Request.Builder next = request.newBuilder().url(target);
+            if (!sameOrigin(request.url(), target)) {
+                // Like a browser or OkHttp itself: a credential meant for one origin is not sent to another.
+                for (String name : request.headers().names()) if (Options.isSecretHeader(name)) next.removeHeader(name);
+            }
+            request = next.build();
         }
+    }
+
+    private static boolean sameOrigin(HttpUrl a, HttpUrl b) {
+        return a.scheme().equals(b.scheme()) && a.host().equalsIgnoreCase(b.host()) && a.port() == b.port();
     }
 
     /** Why a redirect from one URL to another must not be followed, or null. */

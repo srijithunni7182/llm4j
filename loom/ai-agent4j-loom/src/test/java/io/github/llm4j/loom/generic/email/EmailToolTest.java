@@ -216,6 +216,17 @@ class EmailToolTest {
         assertThat(plain.getDescription()).doesNotContain("attach");
     }
 
+    @Test
+    @Tag("V5.5")
+    @Tag("H3")
+    void anAttachmentWhoseNameCouldInjectAHeaderIsRefused() throws Exception {
+        Files.writeString(dir.resolve("fine.csv"), "a");
+        Tool t = tool("to: \"a@example.com\"  attachments: true");
+        assertThat(run(t, Map.of("subject", "s", "body", "b", "attach", "x\r\nBcc: evil@evil.example.csv"))).startsWith("Error:").contains("control or line-break");
+        assertThat(run(t, Map.of("subject", "s2", "body", "b", "attach", "fine.csv\nBcc: evil@evil.example"))).startsWith("Error:");
+        assertThat(received()).isEmpty();
+    }
+
     // ── V5.6 outbox ──────────────────────────────────────────────────────────────────────────
 
     @Test

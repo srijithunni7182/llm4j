@@ -61,6 +61,10 @@ SABOTAGES = [
      [(G + "SmtpSender.java", 'p.put("mail.smtp.sendpartial", "false");', 'p.put("mail.smtp.sendpartial", "true");')], "EmailToolTest", ["V5.11"]),
     ("S20", "EffectTool: count only finished calls against max_per_run",
      [(G + "EffectTool.java", ".filter(e -> PENDING.equals(e.getValue().kind()) || DONE.equals(e.getValue().kind()))", ".filter(e -> DONE.equals(e.getValue().kind()))")], "EffectToolTest,EmailToolTest", ["V5.12"]),
+    ("S22", "HttpSupport: send credential headers on a redirect to another origin",
+     [(G + "HttpSupport.java", "if (!sameOrigin(request.url(), target)) {", "if (false) {")], "HttpSupportTest", ["V3.5", "H2"]),
+    ("S23", "PathGuard: allow control and line-break characters in a path",
+     [(G + "PathGuard.java", "if (c < 0x20 || c == 0x7f || c == 0x85 || c == 0x2028 || c == 0x2029) {", "if (false) {")], "FileToolTest,EmailToolTest", ["V7.3", "H4"]),
     ("S21", "Limits: read the whole body",
      [(G + "Limits.java", "long room = maxBytes - total;", "long room = Long.MAX_VALUE;")], "HttpSupportTest,LimitsTest", ["V3.7"]),
 ]

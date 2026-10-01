@@ -84,6 +84,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, "[101,102]")
         if self.path == "/v0/item/101.json":
             return self.send(200, json.dumps({"id": 101, "title": f"Alpha story, day {DAY['n']}"}))
+        if self.path.startswith("/echo"):  # reflects the request headers, as a misbehaving API might
+            return self.send(200, json.dumps({"you_sent": dict(self.headers)}))
         if self.path == "/day/2":
             DAY["n"] = 2
             return self.send(200, "{}")
@@ -103,6 +105,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, json.dumps({"model": "fake", "message": {"role": "assistant", "content": reply}, "done": True,
                                               "prompt_eval_count": 10, "eval_count": 5}))
         self.record(body)  # the webhook
+        if "/error" in self.path:  # a failing webhook that echoes what it was sent, including the URL it was sent to
+            return self.send(500, f"failed for {self.path} with {dict(self.headers)} body {body}", "text/plain")
         self.send(200, "ok", "text/plain")
 
 

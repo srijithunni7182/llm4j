@@ -169,6 +169,21 @@ class FileToolTest {
         assertThat(Files.readString(root.resolve(".env"))).isEqualTo("HIDDEN-SECRET");
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"a\nb.md", "a\r\nBcc: evil@evil.example\r\nX-Injected: yes.md", "tab\there.md", "bell\u0007.md", "del\u007f.md",
+            "next\u0085line.md", "ls\u2028sep.md", "ps\u2029sep.md", "sub/a\nb.md"})
+    @Tag("V7.3")
+    @Tag("H4")
+    void aNameWithAControlOrLineBreakCharacterIsRefusedEverywhere(String path) throws Exception {
+        Tool t = tool("mode: readwrite  overwrite: true  allow: \"*\"");
+        for (String action : List.of("write", "append", "read", "exists")) {
+            assertThat(run(t, Map.of("action", action, "path", path, "content", "x"))).as(action).startsWith("Error:").contains("control or line-break");
+        }
+        try (Stream<Path> files = Files.walk(root)) {
+            assertThat(files.map(p -> p.getFileName().toString())).noneMatch(n -> n.chars().anyMatch(c -> c < 0x20 || c == 0x7f));
+        }
+    }
+
     @Test
     @Tag("V7.3")
     @Tag("H4")
@@ -321,6 +336,10 @@ class FileToolTest {
             run(t, Map.of("action", "write", "path", path, "content", "FUZZ-WRITE"));
             run(t, Map.of("action", "append", "path", path, "content", "FUZZ-APPEND"));
         });
+        try (Stream<Path> created = Files.walk(root)) {
+            assertThat(created.map(p -> p.getFileName().toString())).as("no generated name carries a control character")
+                    .noneMatch(n -> n.chars().anyMatch(c -> c < 0x20 || c == 0x7f || c == 0x85 || c == 0x2028 || c == 0x2029));
+        }
 
         assertThat(Files.readString(outsideBefore)).isEqualTo("OUTSIDE-SECRET");
         assertThat(Files.readString(root.resolve(".env"))).isEqualTo("HIDDEN-SECRET");

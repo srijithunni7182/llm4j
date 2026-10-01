@@ -415,6 +415,11 @@ standard output, then standard error. On a timeout the whole process tree is kil
 Because it runs code on this machine, **an agent must list a shell tool under `approve:`**, or the tool must say
 `unattended: true`; otherwise the script doesn't load. Supported on Linux and macOS; on Windows it is a load error.
 
+Allowing a program trusts it with **any arguments the agent chooses**. `df`, `du` and `ls` only read; but `git` can
+run hooks and aliases, and `tar`, `curl`, `rsync`, `cp` and `mv` can write anywhere the user can. Allow only programs
+that are safe whatever they are given, keep `approve:` on for the rest, and run unattended workflows as a user that
+can't harm anything it shouldn't.
+
 #### sql
 
 ```loom

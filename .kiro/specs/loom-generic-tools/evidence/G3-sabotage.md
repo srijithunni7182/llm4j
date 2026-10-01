@@ -3,7 +3,7 @@
 Each row breaks one rule in the real source, runs the tests that should notice, and restores the source
 (`scripts/sabotage_generic_tools.py`). **DETECTED** means every expected check failed.
 
-**Result: 21 of 21 detected.**
+**Result: 23 of 23 detected.**
 
 History (the first run found three problems with the *checks*, not the code):
 
@@ -13,6 +13,8 @@ History (the first run found three problems with the *checks*, not the code):
   to keep the call and change the comparison; it is detected by V7.3 and H4.
 - **S21** (read the whole body) made the test JVM run out of memory, because the test fed the reader an endless stream. That is a
   detection, but a crash can't be mapped to a check, so the test now feeds a finite 5 MB stream and fails cleanly (V3.7).
+
+- **S22** and **S23** were added after the security review (gate G9): they break the two fixes it produced (credential headers on a cross-origin redirect; control characters in a path).
 
 | # | Sabotage | Expected to fail | Result | Failing checks | Failing tests |
 |---|---|---|---|---|---|
@@ -37,3 +39,5 @@ History (the first run found three problems with the *checks*, not the code):
 | S19 | SmtpSender: deliver to the valid recipients when one is refused | V5.11 | **DETECTED** | failing checks ['V5.11'] | EmailToolTest.everyStageOfAFailedSendEndsAsFailedWithARedactedReason |
 | S20 | EffectTool: count only finished calls against max_per_run | V5.12 | **DETECTED** | failing checks ['C3', 'V5.12'] | EffectToolTest.anAttemptWhoseOutcomeIsUnknownUsesUpTheAllowanceBecauseItMayHaveBeenSent, EmailToolTest.fiftyThreadsAgainstALimitOfTwentySendExactlyTwenty |
 | S21 | Limits: read the whole body | V3.7 | **DETECTED** | failing checks ['V3.7'] | LimitsTest.readCappedDoesNotReadTheWholeStream, LimitsTest.readCappedReadsOnlyWhatItMayAndKnowsThereWasMore |
+| S22 | HttpSupport: send credential headers on a redirect to another origin | V3.5, H2 | **DETECTED** | failing checks ['H2', 'V3.5'] | HttpSupportTest.credentialsAreNotSentToAnotherOriginOnAFollowedRedirect |
+| S23 | PathGuard: allow control and line-break characters in a path | V7.3, H4 | **DETECTED** | failing checks ['F2', 'H3', 'H4', 'V5.5', 'V7.3'] | EmailToolTest.anAttachmentWhoseNameCouldInjectAHeaderIsRefused, FileToolTest.aNameWithAControlOrLineBreakCharacterIsRefusedEverywhere, FileToolTest.generatedPathsNeverReachOutsideTheRootOrHiddenFiles |

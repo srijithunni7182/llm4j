@@ -20,6 +20,13 @@ public final class PathGuard {
 
     /** @throws ToolRefusal if the path is not one the agent may use */
     public Path resolve(String given) {
+        for (int i = 0; i < given.length(); i++) {
+            char c = given.charAt(i);
+            // A name with a line break would end up inside log lines and mail headers.
+            if (c < 0x20 || c == 0x7f || c == 0x85 || c == 0x2028 || c == 0x2029) {
+                throw new ToolRefusal("refused: the path contains a control or line-break character");
+            }
+        }
         Path target;
         try {
             target = SafePaths.inside(root, given);

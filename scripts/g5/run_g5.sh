@@ -180,4 +180,44 @@ print('  chat requests:', sum(1 for r in rows if r['path'].endswith('/chat')), '
   stop_services; cd "$ROOT"
 fi
 
+# R6: a secrets sweep. Every secret option holds SECRETSECRET..., and the calls are chosen to provoke errors and echoes.
+if [[ " ${REQ[*]} " == *" R6 "* ]]; then
+  echo "== R6: secrets sweep"
+  D=$WORK/r6; mkdir -p "$D/notes" "$D/db"; cd "$D"
+  H2=$(ls "$MODULE"/target/lib/h2-*.jar | head -1)
+  echo "CREATE TABLE t(id INT);" > init.sql
+  java -cp "$H2" org.h2.tools.RunScript -url "jdbc:h2:file:$D/db/real" -user sa -password realpass -script init.sql 2>&1 | grep -v "Picked up"
+  cat > sweep.loom <<'LOOM'
+tool Hook { use: webhook  url: env.HOOK  allow_http: true  retries: 0 }
+tool Api  { use: http  base_url: env.HN_URL  auth_header: "Authorization"  auth_value: env.API_TOKEN  "header.X-Api-Key": env.API_KEY }
+tool Mail { use: email  host: "127.0.0.1"  port: 1  security: none  username: env.SMTP_USER  password: env.SMTP_PASSWORD  from: "a@example.com"  to: "b@example.com" }
+tool Db   { use: sql  url: env.DB_URL  user: "sa"  password: env.DB_PASSWORD }
+tool Ops  { use: shell  allow: "printenv"  env_pass: "SECRETSECRET_SHELLVAR"  unattended: true }
+agent Prober { model: "ollama/fake" system: "You are Prober." tools: [Hook, Api, Mail, Db, Ops] max_iterations: 20 }
+workflow Main() { delegate "probe" to Prober -> r }
+LOOM
+  cat > replies.json <<'JSON'
+{"Prober": [{"tool":"Hook","args":{"text":"hello"}}, {"tool":"Api","args":{"path":"/echo"}}, {"tool":"Mail","args":{"subject":"s","body":"b"}},
+            {"tool":"Db","args":{"sql":"SELECT 1"}}, {"tool":"Ops","args":{"program":"printenv","args":["SECRETSECRET_SHELLVAR"]}}]}
+JSON
+  start_services "$WORK/r6.log" --replies replies.json
+  {
+    echo "\$ weave run sweep.loom --workflow Main --journal runs/sweep --trace   (every secret option set to a recognisable value)"
+    HOOK="http://127.0.0.1:$PORT/hook/error/T000/B000/SECRETSECRETwebhook" API_TOKEN="Bearer SECRETSECRETtoken" API_KEY="SECRETSECRETapikey" \
+    SMTP_USER="SECRETSECRETuser" SMTP_PASSWORD="SECRETSECRETsmtp" DB_URL="jdbc:h2:file:$D/db/real;IFEXISTS=TRUE" DB_PASSWORD="SECRETSECRETdb" \
+    SECRETSECRET_SHELLVAR="SECRETSECRETshellvalue" weave run sweep.loom --workflow Main --journal runs/sweep --trace
+  } > "$D/weave-output.txt" 2>&1
+  cp "$D/weave-output.txt" "$OUT/R6-sweep-run.txt"
+  {
+    echo "--- what each probe came back as (from the trace):"; grep -E "Prober  .. (Error|HTTP|exit|Sent|Wrote)" "$D/weave-output.txt" | cut -c1-230
+    echo "--- journal and every file the run left:"; find . -type f ! -name init.sql ! -name sweep.loom ! -name replies.json | sort | head -20
+    VALUES='SECRETSECRET(webhook|token|apikey|user|smtp|db|shellvalue)'
+    echo "--- grep -rE '$VALUES' over the working directory (journal, outbox, notes, db files, weave's own stdout and stderr):"
+    grep -rlE "$VALUES" . 2>/dev/null | grep -v "^./sweep.loom\|^./replies.json" || echo "   NO FILE CONTAINS A SECRET VALUE"
+    echo "--- (the variable NAME SECRETSECRET_SHELLVAR appears in the trace because the stand-in model passed it to printenv; that is a name, not a value)"
+    echo "--- values the stand-in server received (a real server would also receive them): $(grep -cE "$VALUES" "$WORK/r6.log") request(s)"
+  } > "$OUT/R6-sweep.txt" 2>&1
+  stop_services; cd "$ROOT"
+fi
+
 echo "transcripts in $OUT"

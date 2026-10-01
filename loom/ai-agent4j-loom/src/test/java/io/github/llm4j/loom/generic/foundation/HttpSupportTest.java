@@ -128,6 +128,40 @@ class HttpSupportTest {
     }
 
     @Test
+    @Tag("V3.5")
+    @Tag("H2")
+    void credentialsAreNotSentToAnotherOriginOnAFollowedRedirect() throws Exception {
+        try (MockWebServer other = new MockWebServer()) {
+            other.start();
+            other.enqueue(new MockResponse().setBody("arrived"));
+            server.enqueue(new MockResponse().setResponseCode(302).setHeader("Location", other.url("/landing").toString()));
+            Request request = new Request.Builder().url(server.url("/start")).header("Authorization", "Bearer token-1234")
+                    .header("X-Api-Key", "key-5678").header("Cookie", "session=abc").header("Accept", "application/json").build();
+
+            assertThat(http(true, 0, 4096, Duration.ofSeconds(5)).send(request, HttpSupport.Retry.NONE).bodyText()).isEqualTo("arrived");
+
+            okhttp3.mockwebserver.RecordedRequest landed = other.takeRequest();
+            assertThat(landed.getHeader("Accept")).as("ordinary headers go along").isEqualTo("application/json");
+            assertThat(landed.getHeader("Authorization")).isNull();
+            assertThat(landed.getHeader("X-Api-Key")).isNull();
+            assertThat(landed.getHeader("Cookie")).isNull();
+        }
+    }
+
+    @Test
+    @Tag("V3.5")
+    void credentialsStayOnARedirectWithinTheSameOrigin() throws Exception {
+        server.enqueue(new MockResponse().setResponseCode(302).setHeader("Location", "/second"));
+        server.enqueue(new MockResponse().setBody("ok"));
+        Request request = new Request.Builder().url(server.url("/first")).header("Authorization", "Bearer token-1234").build();
+
+        http(true, 0, 4096, Duration.ofSeconds(5)).send(request, HttpSupport.Retry.NONE);
+
+        server.takeRequest();
+        assertThat(server.takeRequest().getHeader("Authorization")).isEqualTo("Bearer token-1234");
+    }
+
+    @Test
     @Tag("V4.8")
     void a429WithRetryAfterIsWaitedForThroughTheSleeper() {
         server.enqueue(new MockResponse().setResponseCode(429).setHeader("Retry-After", "7"));

@@ -11,6 +11,7 @@ import io.github.llm4j.loom.runtime.RunJournal;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import javax.sql.DataSource;
@@ -180,5 +181,33 @@ class EffectsEndToEndTest {
         executor.executeWorkflow("Main", Map.of());
 
         assertThat(run.seen()).doesNotContain("ann@example.com").doesNotContain("555-123-4567").contains("[EMAIL]");
+    }
+
+    @Test
+    @Tag("V7.3")
+    @Tag("H4")
+    void aFileToolRootedAtTheScriptDirectoryCannotReadOrChangeTheRunsOwnJournal() throws Exception {
+        Path journalFile = dir.resolve("runs/today/journal.json");
+        Files.createDirectories(journalFile.getParent());
+        String script = """
+                tool Files { use: file  root: "."  mode: readwrite  overwrite: true  allow: "*.json, *.md" }
+                agent Snoop { model: "m" tools: [Files]  max_iterations: 10 }
+                workflow Main() { delegate "look around" to Snoop -> r }
+                """;
+        ScriptedRun run = new ScriptedRun(dir).replies(
+                ScriptedRun.call("Files", "{\"action\": \"read\", \"path\": \"runs/today/journal.json\"}"),
+                ScriptedRun.call("Files", "{\"action\": \"write\", \"path\": \"runs/today/journal.json\", \"content\": \"{}\"}"),
+                ScriptedRun.call("Files", "{\"action\": \"list\", \"path\": \"runs/today\"}"),
+                ScriptedRun.done("done"));
+        run.journal = new FileRunJournal(journalFile);
+        HarnessExecutor executor = run.executor(script);
+        executor.initialize();
+        executor.executeWorkflow("Main", Map.of());
+
+        List<io.github.llm4j.model.Message> last = run.requests.get(run.requests.size() - 1).getMessages();
+        String scratchpad = last.get(last.size() - 1).getContent();
+        assertThat(scratchpad).contains("Observation: Error: refused: that location belongs to the run itself");
+        assertThat(scratchpad.split("Observation:", -1).length - 1).isEqualTo(3);
+        assertThat(Files.readString(journalFile)).as("the journal was not overwritten").isNotEqualTo("{}");
     }
 }

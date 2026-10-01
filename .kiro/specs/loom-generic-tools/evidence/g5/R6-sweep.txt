@@ -1,0 +1,11 @@
+--- what each probe came back as (from the trace):
+--- journal and every file the run left:
+./db/real.mv.db
+./db/real.trace.db
+./runs/sweep/journal.json
+./runs/sweep/run.json
+./weave-output.txt
+--- grep -rE 'SECRETSECRET(webhook|token|apikey|user|smtp|db|shellvalue)' over the working directory (journal, outbox, notes, db files, weave's own stdout and stderr):
+   NO FILE CONTAINS A SECRET VALUE
+--- (the variable NAME SECRETSECRET_SHELLVAR appears in the trace because the stand-in model passed it to printenv; that is a name, not a value)
+--- values the stand-in server received (a real server would also receive them): 2 request(s)

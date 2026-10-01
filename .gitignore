@@ -42,3 +42,4 @@ logs/
 
 # GetViral runtime data (Engram memories, voice samples, audit logs)
 getviral-data/
+__pycache__/
