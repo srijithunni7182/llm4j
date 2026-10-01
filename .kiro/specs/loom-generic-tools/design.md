@@ -205,7 +205,7 @@ off since retries are explicit) and does capped reads, retries with `Retry-After
 
 Retries are in `HttpSupport`. The idempotency key is the effect hash, so a resumed run sends the same
 value. Result: `Sent to slack webhook (HTTP 200).`. The `teams` shape is a documented assumption to check
-live (V-live).
+live (L1). What happens on each kind of failure, and when an attempt is retried, is in §7.2.
 
 ### 4.2 `email`
 
@@ -224,6 +224,9 @@ no email tool never loads the SMTP classes (NFR 4). `outbox` mode writes the sam
   loopback or `allow_insecure: true`.
 - **Error redaction.** `MessagingException` text is passed through `Redactor` (the password and the
   username). Authentication failures are reported as "authentication failed" without server text.
+- **Sender seam and failure stages.** `EmailKind` builds and checks the message; an `EmailSender` delivers
+  it (`SmtpSender`, or `OutboxSender` for `outbox:`). Partial recipient delivery is turned off. How each
+  SMTP stage fails, and which ones leave the outcome unknown, is in §7.3.
 
 ### 4.3 `http`
 
@@ -281,6 +284,7 @@ answer with the kind that knows the arguments.
   `Limits.readCapped` (so a chatty process can't block on a full pipe, and can't fill memory).
   `waitFor(timeout)`; on timeout, `ProcessHandle.descendants()` are destroyed, then the process
   (`destroyForcibly`).
+- **Platform.** `ShellKind.check` refuses Windows (R8.10, §7.4).
 - **Approval rule.** In `HarnessExecutor.checkToolsAndApprovals`, for each agent tool whose `ToolDef` kind
   is `shell` (declared tools only; a host-registered tool with the same name is not touched): if the tool
   isn't in `approve:` (and `approve` isn't `all`) and `unattended` isn't `true`, add a load error. The
@@ -332,7 +336,71 @@ answer with the kind that knows the arguments.
   Loom checks every declared tool's environment at load and so the webhook can't be made optional inside
   one script. Tests run the same script against MockWebServer instead of the public API.
 
-## 7. Key decisions
+## 7. Test seams, failure paths and platforms
+
+This section holds what the [test strategy](test-strategy.md) needs from the design.
+
+### 7.1 Seams
+
+| Seam | Definition | Default |
+|---|---|---|
+| `NetPolicy.Resolver` | `interface Resolver { List<InetAddress> resolve(String host) throws UnknownHostException; }`, passed to `NetPolicy` and to the `Dns` given to OkHttp | `InetAddress.getAllByName` |
+| `Sleeper`, `Clock` | The executor's existing `setSleeper`/`setClock`, handed to `HttpSupport` and `EffectTool` through `EffectContext`. Retry backoff and `Retry-After` waits go through the sleeper; elapsed-time checks through the clock. | real |
+| `EffectContext` | `audit(...)`, `trace(...)`, `journal()`, `currentStep()`, `reservedPaths()`, `sleeper()`, `clock()`. Static `noop()` and (test sources) `recording()`. | the executor |
+| `EmailSender` | `interface EmailSender { void send(EmailMessage m) throws EmailException; }` with `SmtpSender` (Angus Mail) and `OutboxSender` (.eml files). `EmailKind` builds the message and policy; the sender only delivers. | `SmtpSender`, or `OutboxSender` when `outbox:` is set |
+| `FaultJournal` | Test-only `RunJournal` wrapper that throws `SimulatedCrash` after N `put`s. | n/a |
+| Process launcher | `shell` calls `ProcessBuilder` directly; tests use real fixtures, so no seam. | n/a |
+
+`EffectTool` and the kinds take these through constructors, never statics, so two executors in one JVM (and
+parallel tests) don't share state.
+
+### 7.2 `webhook` failure paths
+
+| Situation | Behaviour |
+|---|---|
+| DNS failure, connection refused, TLS failure | `Error: couldn't reach the webhook (<class>)`, no URL. Counted as a failed attempt; **retried** like a 5xx up to `retries` (a connect failure means nothing was sent). |
+| Timeout while waiting for the response | **Not retried inside the call**: the request may have been delivered. Result `Error: no answer within <t>; the message may have been delivered`, and the effect record stays `pending` so a resume applies `on_unknown` (or, with `idempotency: true`, retries with the same key). |
+| Connection dropped after the body was sent | As a timeout. |
+| 429 | Wait `Retry-After` (seconds or HTTP date, capped at 30 s) through the sleeper, retry up to `retries`. Over the cap: `Error: rate limited, retry after <n>s`, record `effect_failed` (nothing was delivered), so the agent or a later run may try again. |
+| 5xx | Retry with backoff up to `retries`; a final failure is `effect_failed` with the status. |
+| 4xx other than 429 | No retry; `effect_failed` with status and a 200-character redacted excerpt. |
+| 2xx/3xx | Success (3xx is not followed unless `follow_redirects`; a redirect response without it is reported, not treated as sent). |
+| Response body too large | Read to `max_bytes` and ignore the rest; the call still succeeded. |
+
+The rule behind the table: an **attempt that provably didn't reach the server** (refused, DNS, 429, 5xx) may
+be retried and ends `effect_failed` if it never succeeds; an attempt that **may have reached it** (timeout,
+dropped after send) ends as `pending` so R2.3 decides.
+
+### 7.3 `email` failure paths
+
+SMTP is a conversation, so the stage at which it fails matters.
+
+| Stage | Behaviour |
+|---|---|
+| Connect / TLS / STARTTLS refused | `Error: couldn't connect to <host>:<port>` (or "server doesn't offer STARTTLS"); nothing was sent, record `effect_failed`. No retry in the call. |
+| AUTH rejected | `Error: authentication failed`; `effect_failed`. |
+| `MAIL FROM` or one `RCPT TO` rejected | The message is **not** sent to the others: Angus's partial-send behaviour is turned off (`mail.smtp.sendpartial=false`). `Error: the server refused a recipient`, naming the *index* not the address. `effect_failed`. |
+| `DATA` accepted, then the connection drops before the final `250` | The server may or may not have queued it. Record stays `pending`; the call returns `Error: connection lost after sending; delivery unknown`; R2.3 decides on resume (default `skip`). |
+| 4xx transient reply (greylisting) | Reported as failure, `effect_failed`, no retry inside the call. A later scheduled run is the retry. |
+| 5xx permanent reply after DATA | `effect_failed` with the (redacted) reply code. |
+| `outbox:` write fails (disk full, permissions) | `Error: couldn't write the message`; `effect_failed`. |
+
+`max_per_run` counts `done` and `pending` records, not `effect_failed`, so failed attempts don't use up the
+allowance but an unknown one does (it may have been sent).
+
+### 7.4 Platforms
+
+- **Linux and macOS** are supported for all kinds.
+- **`shell` on Windows is refused at load** (R8.10): program resolution, process-tree kill and the
+  interpreter list differ there, and a quietly different behaviour is worse than a clear error. The check
+  is `System.getProperty("os.name")` in `ShellKind.check`, and is the only OS-specific code in the six
+  kinds.
+- File name matching (`allow`, `allow_paths`) is case-sensitive everywhere. Paths in options use `/`.
+- `file` symlink protection needs real-path resolution, which `SafePaths` already performs; on a platform
+  where symlinks aren't creatable the protection is simply never exercised.
+
+
+## 8. Key decisions
 
 | Decision | Chosen | Instead of | Why |
 |---|---|---|---|

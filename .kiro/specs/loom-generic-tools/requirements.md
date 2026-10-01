@@ -101,8 +101,8 @@ secrets, limits and output, so that once I know one I know all six.
     `tool_call` (for the others), and a trace event, with the tool, kind, target and outcome. A target is
     a host, a path, a program name or a recipient *count*, never a body, a message, a query result or an
     address list. The `pii` guard's masking rules apply to anything that could hold personal data.
-11. **No deletions in v1.** No kind SHALL delete or truncate anything outside its own append-only or
-    write-once behaviour described below.
+11. **No local deletions in v1.** No kind SHALL delete or truncate local files, and `sql` SHALL NOT change
+    data. (`http` can send a `DELETE` request to a remote service only when its `methods` lists it.)
 
 ---
 
@@ -408,6 +408,8 @@ within a directory I chose.
      memory or the disk through it.
 8. **Result.** `exit <code>`, then stdout, then stderr, each labelled and possibly cut.
 9. **Side-effect kind.** Requirement 2 applies. The default `on_unknown` is `skip`.
+10. **Platforms.** `shell` supports Linux and macOS. On Windows, `use: shell` SHALL be a load error that
+    says so, rather than behaving differently.
 
 ---
 

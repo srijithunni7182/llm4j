@@ -1,6 +1,8 @@
 # Verification Plan
 
-The work is done when every check below passes, in automated tests unless marked *live*.
+The work is done when every check below passes, in automated tests unless marked *live*. How the checks are
+built, the layers they run at, the seams they need, and the done criteria are in
+[test-strategy.md](test-strategy.md), which also maps every requirement to its checks.
 
 Unless a check says otherwise, it uses:
 
@@ -12,7 +14,9 @@ Unless a check says otherwise, it uses:
 | Databases | H2 in PostgreSQL mode |
 | Files | JUnit `@TempDir` |
 | Processes | small, fixed programs from the JDK's `bin/` or `sh` scripts written to the temp dir |
-| Crashes | a journal that throws after the Nth `put`, or an executor abandoned mid-step |
+| Crashes | `FaultJournal`: a journal that throws after the Nth `put`, or an executor abandoned mid-step |
+| DNS and time | `StubResolver` and a recording `Sleeper`/`Clock` (test-strategy §3), so rebinding and `Retry-After` are tested without real lookups or waits |
+| SMTP failures | a scripted SMTP socket server that drops, rejects or stalls at a chosen stage |
 
 ## V1: Shared foundations (R1)
 
@@ -29,6 +33,7 @@ Unless a check says otherwise, it uses:
 | V1.9 | The existing suites (parser, tools, approvals, budgets, resume) pass unchanged. Existing kinds accept `description:`. |
 | V1.10 | `pii: mask` on an agent masks personal data in a tool result from each read-only kind. |
 | V1.11 | `tool_call` and `tool_effect` audit events and trace events are recorded with target, outcome and millis, and contain no body, address list or query result. |
+| V1.12 | No local deletion: `file` refuses `action: delete` and doesn't list it; no kind removes or truncates a local file; `sql` makes no change (also V9.4). `http` `DELETE` is refused unless `methods` lists it. |
 
 ## V2: Effect journal (R2)
 
@@ -68,6 +73,8 @@ Unless a check says otherwise, it uses:
 | V4.4 | 429 with `Retry-After: 1` then 200: sent after one retry. A 500 three times with `retries: 2` fails with the status and an excerpt. `Retry-After: 120` fails at once. A 404 is not retried. |
 | V4.5 | `url: "https://…"` literal is a load error (secret). |
 | V4.6 | `"header.X-Source": "loom"` reaches the mock. |
+| V4.7 | **Failure paths (design §7.2).** Connection refused and DNS failure are retried up to `retries`, then give `effect_failed` and no URL in the text. A response that never comes (`NO_RESPONSE`) is **not** retried inside the call; the record stays `pending` and a resume applies `on_unknown`. A connection dropped after the body was sent behaves the same. |
+| V4.8 | 429 with `Retry-After` is waited for through the test sleeper (the sleeper is asked for the stated duration; no real wait), 5xx backs off 1 s, 2 s, …; an HTTP-date `Retry-After` works; a 3xx without `follow_redirects` is reported and not counted as sent. A 429 that gives up is `effect_failed` and the identical call can run again. |
 
 ## V5: `email` (R5)
 
@@ -83,6 +90,8 @@ Unless a check says otherwise, it uses:
 | V5.8 | A wrong password gives "authentication failed" with no password or server text. |
 | V5.9 | A script with no `email` tool doesn't load any `jakarta.mail` class (checked with a class-loading probe). |
 | V5.10 | `to` and `allow_to` together, or neither, are load errors. `username` without `password` is a load error. |
+| V5.11 | **Failure stages (design §7.3).** Using a socket server that scripts the SMTP conversation: connect refused, STARTTLS not offered, AUTH rejected, one `RCPT TO` rejected (nobody receives the mail; the error names an index, not an address), 4xx after DATA and 5xx after DATA each end `effect_failed` with a redacted reason. |
+| V5.12 | The connection dropped after `DATA` and before the final reply leaves the record `pending`, the result says delivery is unknown, and a resume follows `on_unknown` (default `skip`: nothing re-sent; `retry`: sent again). `max_per_run` counts that unknown attempt but not `effect_failed` ones. |
 
 ## V6: `http` (R6)
 
@@ -97,6 +106,7 @@ Unless a check says otherwise, it uses:
 | V6.7 | GET retries on 500 and 429 (`Retry-After`), POST doesn't unless `idempotency: true`. |
 | V6.8 | GET writes no effect record; POST does, and is replayed per V2. |
 | V6.9 | The host of `base_url` is checked by `NetPolicy` at load (a literal private IP is a load error). |
+| V6.10 | Failure paths as for `webhook` (V4.7–V4.8): a stalled POST isn't retried and stays `pending`; a GET is retried on a dropped connection; `Retry-After` is honoured through the sleeper. |
 
 ## V7: `file` (R7)
 
@@ -126,6 +136,7 @@ Unless a check says otherwise, it uses:
 | V8.10 | **Approval rule.** An agent using a `shell` tool with neither `approve:` for it nor `unattended: true` on the tool fails at load with the two ways out. With either, it loads. `approve: all` counts. |
 | V8.11 | A call goes through the approval gate when the agent lists the tool in `approve:`: a rejection means the program doesn't run. |
 | V8.12 | Follows V2 (a resumed run doesn't run the program twice). |
+| V8.13 | On Windows, `use: shell` is a load error that says the kind isn't supported there (skipped, with the load check unit-tested through an injected OS name, on Linux and macOS). |
 
 ## V9: `sql` (R9)
 
@@ -151,6 +162,45 @@ Unless a check says otherwise, it uses:
 | V10.4 | `digest-slack.loom` sends one webhook to the mock. Resuming after a crash between the report and the notification sends it once. |
 | V10.5 | The digest's `schedule` block syncs (`weave schedule sync`) and `weave triggers install` prints the expected plan without `--apply`. |
 | V10.6 | READMEs, `LOOM_PROMPT.md` and the gap analysis are updated. |
+| V10.7 | The commands shown in the guide and the sample (`weave schedule sync`, `weave triggers install`, `weave run`) are executed through the CLI entry points in a test, with `--apply` omitted, and their flags and output match what the documents show. |
+
+## V11: Generated and negative tests (strategy §5)
+
+Deterministic: a fixed seed, printed on failure; 2,000 iterations by default and `-Dloom.fuzz.iterations=N`.
+
+| # | Check |
+|---|---|
+| F1 | `SqlGuard` agrees with a slow reference tokenizer on every generated statement: each forbidden keyword, in each context (bare, in a string, in a comment, in an identifier, after a `;`, in dollar-quoted text), is accepted or refused exactly as the rules say. |
+| F2 | For the `http` path validator and the `file` path checks: every accepted path, after normalisation, stays under its base, has no `..` segment, no scheme or host and no control character; a refused path causes no filesystem or network access (spy). Includes percent-encodings and Unicode look-alikes. |
+| F3 | For `email`: generated subjects, names and addresses containing CR, LF, U+2028/2029, NEL, `<>` and quotes either are refused or produce a message that, written and parsed back, has exactly the expected headers and the recipient set that was asked for. |
+| F4 | `Redactor`: a random secret, in plain, URL-encoded and Base64 forms and at a cut boundary, never survives; text without a secret is unchanged. |
+| F5 | `Options`: valid durations, sizes and lists give the expected values; invalid ones give a load error and never throw. |
+
+## V12: Hostile-model suite (strategy §6)
+
+For each tool, a scripted model runs its attack list through `HarnessExecutor`. For **every** attack: the
+result is an `Error:` or a load refusal, **and** the outside world is unchanged (zero requests on the mock,
+file hashes unchanged, no process started, database rows unchanged), **and** no secret appears in the
+result, trace or audit.
+
+| # | Tool | Attacks (the test's table is the full list) |
+|---|---|---|
+| H1 | `webhook` | a `url` argument; a 301 to `http://169.254.169.254/`; a host resolving to a private address; a 10 MB `text`; CRLF in `title` |
+| H2 | `http` | `path` of `https://evil.example/`, `//evil`, `/a/../../etc/passwd`, `/x?y=1#@evil`; a redirect to a private address; `DELETE` when unlisted; a `headers` argument |
+| H3 | `email` | `to` outside `allow_to`; CRLF `Bcc:` in the subject; 500 recipients; an attachment of `../../.env` |
+| H4 | `file` | `../x`, an absolute path, a symlink out, `.env`, `.loom-triggers/…`, the journal directory, a write through a `read` tool, an overwrite without `overwrite` |
+| H5 | `shell` | `program` of `/bin/sh`, `sh`, `../x`; args `["; rm -rf /"]`, `["$(id)"]`, `` ["`id`"] ``, `["a\nb"]`; an output flood; an endless loop |
+| H6 | `sql` | `INSERT`, `DROP`, `SELECT 1; DELETE …`, `SELECT … INTO`, a CTE containing `DELETE`, a Unicode-escaped keyword, `COPY … TO PROGRAM` |
+
+## V13: Concurrency (strategy §7)
+
+| # | Check |
+|---|---|
+| C1 | 32 threads call one `webhook` tool with distinct bodies: 32 requests and 32 effect records. With one identical body: 32 requests (`#n` differs), and a replay returns the 32 recorded results in order. |
+| C2 | 8 threads × 200 appends to one file: 1,600 whole lines, none interleaved. |
+| C3 | 50 threads against `email` with `max_per_run: 20`: exactly 20 messages. |
+| C4 | `for each` and `parallel for each` over a list calling `file` and `webhook`: every item acted once, and a resume repeats none. |
+| C5 | C1–C4 repeated 20 times under random test order. |
 
 ## Live checks (optional, need accounts)
 
@@ -163,5 +213,10 @@ Unless a check says otherwise, it uses:
 
 ## Results
 
-*To be recorded when the work is done: test counts per module, the commands run, and the outcome of each
-live check.*
+*To be recorded when the work is done:*
+
+- *test counts per layer, and the commands run;*
+- *JaCoCo line and branch figures for `tools.generic` and for each guard class;*
+- *the mutation list (strategy §5): for each guard, the rule that was broken and the test that failed;*
+- *every hostile-model attack and its outcome;*
+- *the outcome of each live check, or the reason it wasn't run.*
