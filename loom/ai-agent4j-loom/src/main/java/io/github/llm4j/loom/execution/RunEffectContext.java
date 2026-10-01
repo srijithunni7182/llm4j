@@ -1,8 +1,8 @@
 package io.github.llm4j.loom.execution;
 
 import io.github.llm4j.loom.runtime.RunJournal;
-import io.github.llm4j.tools.EffectContext;
-import io.github.llm4j.tools.EffectJournal;
+import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.agent.tool.EffectJournal;
 import io.github.llm4j.ratelimit.Sleeper;
 import java.nio.file.Path;
 import java.time.Clock;

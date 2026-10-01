@@ -1,4 +1,4 @@
-package io.github.llm4j.tools;
+package io.github.llm4j.agent.tool;
 
 import java.util.Map;
 import java.util.Optional;

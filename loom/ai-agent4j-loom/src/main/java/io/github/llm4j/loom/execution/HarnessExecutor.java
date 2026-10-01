@@ -719,10 +719,10 @@ public class HarnessExecutor implements LoomEngine {
         });
     }
 
-    private io.github.llm4j.tools.EffectContext effectContext;
+    private io.github.llm4j.agent.tool.EffectContext effectContext;
 
     /** What generic tools need from this run: audit, trace, the journal, the current step, and files to keep out of reach. */
-    private synchronized io.github.llm4j.tools.EffectContext effectContext() {
+    private synchronized io.github.llm4j.agent.tool.EffectContext effectContext() {
         if (effectContext == null) effectContext = new RunEffectContext(this);
         return effectContext;
     }

@@ -1,4 +1,9 @@
 package io.github.llm4j.tools;
+import io.github.llm4j.agent.tool.EffectJournal;
+import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.agent.tool.Effectful;
+import io.github.llm4j.agent.tool.EffectPolicy;
+import io.github.llm4j.agent.tool.Outcome;
 
 import io.github.llm4j.agent.Tool;
 

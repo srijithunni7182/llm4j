@@ -66,7 +66,7 @@ public interface ToolKind {
 
     /** As {@link #create(String, Map, Path)}, for kinds that report to the run they're in. */
     default Tool create(String name, Map<String, String> options, Path baseDir,
-                        io.github.llm4j.tools.EffectContext context) throws Exception {
+                        io.github.llm4j.agent.tool.EffectContext context) throws Exception {
         return create(name, options, baseDir);
     }
 }

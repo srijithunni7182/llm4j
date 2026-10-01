@@ -2,7 +2,7 @@ package io.github.llm4j.tools.support;
 
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.tools.DescribedTool;
-import io.github.llm4j.tools.EffectContext;
+import io.github.llm4j.agent.tool.EffectContext;
 import io.github.llm4j.tools.EmailKind;
 import io.github.llm4j.tools.FileKind;
 import io.github.llm4j.tools.GenericKind;

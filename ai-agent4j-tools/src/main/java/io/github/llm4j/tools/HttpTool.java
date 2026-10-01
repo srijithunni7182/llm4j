@@ -1,4 +1,6 @@
 package io.github.llm4j.tools;
+import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.agent.tool.EffectPolicy;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

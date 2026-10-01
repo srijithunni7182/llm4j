@@ -1,4 +1,5 @@
 package io.github.llm4j.tools;
+import io.github.llm4j.agent.tool.EffectContext;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;

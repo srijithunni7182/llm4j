@@ -5,7 +5,7 @@ import io.github.llm4j.loom.ast.ToolDef;
 import io.github.llm4j.loom.lexer.Lexer;
 import io.github.llm4j.loom.parser.LoomParser;
 import io.github.llm4j.loom.tools.ToolFactory;
-import io.github.llm4j.tools.EffectContext;
+import io.github.llm4j.agent.tool.EffectContext;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;

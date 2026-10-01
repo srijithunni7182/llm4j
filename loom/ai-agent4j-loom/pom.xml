@@ -128,6 +128,9 @@
                 <configuration>
                     <groups>${live.groups}</groups>
                     <excludedGroups>${live.excluded}</excludedGroups>
+                    <systemPropertyVariables>
+                        <user.language>en</user.language>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <!-- Compiler Plugin -->
@@ -146,20 +149,6 @@
                         <goals><goal>report</goal></goals>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.2.5</version>
-                <configuration>
-                    <!-- A parent-process variable the shell tool's tests check does NOT reach a program -->
-                    <environmentVariables>
-                        <LOOM_TEST_MARKER>marker-from-parent-9f3a</LOOM_TEST_MARKER>
-                    </environmentVariables>
-                    <systemPropertyVariables>
-                        <user.language>en</user.language>
-                    </systemPropertyVariables>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

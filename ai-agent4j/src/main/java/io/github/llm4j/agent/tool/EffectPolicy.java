@@ -1,4 +1,4 @@
-package io.github.llm4j.tools;
+package io.github.llm4j.agent.tool;
 
 /**
  * How the effect journal treats a side-effect tool.

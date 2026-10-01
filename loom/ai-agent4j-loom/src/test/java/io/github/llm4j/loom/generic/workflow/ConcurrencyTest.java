@@ -80,7 +80,7 @@ class ConcurrencyTest {
 
         assertThat(server.getRequestCount()).isEqualTo(32);
         assertThat(bodies).doesNotHaveDuplicates();
-        assertThat(ctx.journal().all().values()).hasSize(32).extracting(io.github.llm4j.tools.EffectJournal.Entry::kind).containsOnly("effect_done");
+        assertThat(ctx.journal().all().values()).hasSize(32).extracting(io.github.llm4j.agent.tool.EffectJournal.Entry::kind).containsOnly("effect_done");
     }
 
     static final String SCRIPT = """

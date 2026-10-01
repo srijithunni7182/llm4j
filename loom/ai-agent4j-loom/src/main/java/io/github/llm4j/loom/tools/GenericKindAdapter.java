@@ -1,21 +1,20 @@
 package io.github.llm4j.loom.tools;
 
 import io.github.llm4j.agent.Tool;
-import io.github.llm4j.tools.EffectContext;
-import io.github.llm4j.tools.GenericKind;
+import io.github.llm4j.agent.tool.EffectContext;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * Lets a script declare a tool from the ai-agent4j-tools library ({@code use: webhook}): the library knows
- * nothing of scripts, so this presents one of its kinds as a {@link ToolKind}.
+ * Lets a script declare a tool from ai-agent4j-tools ({@code use: webhook}): the library's kinds implement
+ * ai-agent4j's script-agnostic kind contract, and this presents one of them as a Loom {@link ToolKind}.
  */
 final class GenericKindAdapter implements ToolKind {
 
-    private final GenericKind kind;
+    private final io.github.llm4j.agent.tool.ToolKind kind;
 
-    GenericKindAdapter(GenericKind kind) {
+    GenericKindAdapter(io.github.llm4j.agent.tool.ToolKind kind) {
         this.kind = kind;
     }
 

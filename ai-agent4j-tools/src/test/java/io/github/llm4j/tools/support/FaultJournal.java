@@ -1,6 +1,6 @@
 package io.github.llm4j.tools.support;
 
-import io.github.llm4j.tools.EffectJournal;
+import io.github.llm4j.agent.tool.EffectJournal;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;

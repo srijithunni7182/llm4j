@@ -1,4 +1,4 @@
-package io.github.llm4j.tools;
+package io.github.llm4j.agent.tool;
 
 /**
  * What a call to a side-effect tool came to. The status, not the text, tells the effect journal whether the

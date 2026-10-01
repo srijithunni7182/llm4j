@@ -3,8 +3,8 @@ package io.github.llm4j.tools.standalone;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.llm4j.agent.Tool;
-import io.github.llm4j.tools.EffectContext;
-import io.github.llm4j.tools.EffectJournal;
+import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.agent.tool.EffectJournal;
 import io.github.llm4j.tools.WebhookKind;
 import io.github.llm4j.tools.support.RecordingEffects;
 import java.nio.file.Path;

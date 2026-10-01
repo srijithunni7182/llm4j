@@ -1,4 +1,6 @@
 package io.github.llm4j.tools;
+import io.github.llm4j.agent.tool.EffectContext;
+import io.github.llm4j.agent.tool.EffectPolicy;
 
 import java.time.Duration;
 import java.util.Map;

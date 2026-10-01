@@ -6,7 +6,7 @@ import io.github.llm4j.agent.Tool;
 import io.github.llm4j.tools.support.Declared;
 import io.github.llm4j.tools.support.Fuzz;
 import io.github.llm4j.tools.support.RecordingEffects;
-import io.github.llm4j.tools.EffectJournal;
+import io.github.llm4j.agent.tool.EffectJournal;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;

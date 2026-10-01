@@ -1,8 +1,8 @@
 package io.github.llm4j.tools.support;
 
-import io.github.llm4j.tools.EffectPolicy;
-import io.github.llm4j.tools.Effectful;
-import io.github.llm4j.tools.Outcome;
+import io.github.llm4j.agent.tool.EffectPolicy;
+import io.github.llm4j.agent.tool.Effectful;
+import io.github.llm4j.agent.tool.Outcome;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

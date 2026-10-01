@@ -8,7 +8,7 @@ import io.github.llm4j.agent.Tool;
 import io.github.llm4j.tools.support.Declared;
 import io.github.llm4j.tools.support.FakeSmtpServer;
 import io.github.llm4j.tools.support.RecordingEffects;
-import io.github.llm4j.tools.EffectJournal;
+import io.github.llm4j.agent.tool.EffectJournal;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;
 import java.io.IOException;
