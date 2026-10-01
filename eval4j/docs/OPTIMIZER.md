@@ -73,7 +73,7 @@ This example is compiled and run by
 | **Constraints** | Length limits and required/forbidden text, checked *before* any rollout is spent on a candidate. |
 | **Budget** | Hard caps on rollouts, rounds, LLM calls and time. Rollout and time caps are never exceeded; part of the rollout budget is reserved for the final confirmation and test runs. |
 | **Confirmation** | The winner is re-scored on validation with fresh outputs, so a lucky score during the search doesn't survive. |
-| **Verdict** | `generalized` is true only if the test split improved by a real margin, validation and test agree, no guardrail fails, and the seed doesn't beat the winner on more test scenarios. `verdict().reasons()` says why not. |
+| **Verdict** | `generalized` is true only if the test split improved by a real margin, validation and test agree (within a tolerance that grows on small splits, where a few scenarios are mostly noise), no guardrail fails, the seed doesn't beat the winner on more test scenarios, and — if the run stopped because validation hit the target — the sealed test agrees. `verdict().reasons()` says why not. |
 | **Resume** | With `checkpointDir`, state is saved atomically after every round; run again to resume. A checkpoint from a different configuration is refused, not ignored. |
 | **Redactor** | `redactor(...)` scrubs outputs and feedback before they reach the rewriter, traces and checkpoints. |
 | **Cost** | `estimate()` gives upper bounds before you run; `LlmCallCounter` wraps a client so judge and agent calls count toward `maxLlmCalls` and the reported cost. |

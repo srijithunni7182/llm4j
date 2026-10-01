@@ -211,9 +211,14 @@ After the loop:
    (fresh draws) to discount lucky noise. The score used from here on is the confirmation score.
 2. **Test.** Seed and best are scored on the sealed test split.
 3. `generalized = true` only if all hold: best test mean ≥ seed test mean + `minTestGain` (default
-   0.02); no guardrail violations on test; best validation confirmation is within `maxOverfitGap`
-   (default 0.10) of its test mean; and the head-to-head seed-vs-best comparison on test does not favor
-   the seed.
+   0.02); no guardrail violations on test; best validation confirmation is within the overfit
+   tolerance of its test mean; the head-to-head seed-vs-best comparison on test does not favor the
+   seed; and, if the run stopped because validation reached the target, the sealed test mean is not
+   below `target - tolerance` (a target met on a small validation set is not success until the test
+   agrees). The **overfit tolerance** is `max(maxOverfitGap, 0.5·sqrt(1/nValidation + 1/nTest))`:
+   `maxOverfitGap` (default 0.10) is the floor, and on small splits it widens to one standard error of
+   the difference of two proportions, so a few scenarios of noise cannot condemn a real improvement
+   (live finding F2/F3, see VERIFICATION-RESULTS). Large splits keep the strict 0.10.
 4. The result always includes the seed-vs-best comparison and both scores, so a reader can see
    overfitting directly.
 
