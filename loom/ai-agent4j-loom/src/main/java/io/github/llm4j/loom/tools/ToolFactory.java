@@ -10,6 +10,11 @@ import io.github.llm4j.agent.tools.WebSearchTool;
 import io.github.llm4j.agent.tools.openapi.OpenAPIParser;
 import io.github.llm4j.agent.tools.openapi.OpenAPITool;
 import io.github.llm4j.loom.ast.ToolDef;
+import io.github.llm4j.loom.tools.generic.DescribedTool;
+import io.github.llm4j.loom.tools.generic.EffectContext;
+import io.github.llm4j.loom.tools.generic.EffectTool;
+import io.github.llm4j.loom.tools.generic.Effectful;
+import io.github.llm4j.loom.tools.generic.Options;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,6 +42,9 @@ public final class ToolFactory {
             "detect_language", "detect_language",
             "speak", "speak",
             "transcribe", "transcribe");
+
+    /** The option every kind accepts: text added to what the model is told about the tool. */
+    static final String DESCRIPTION = "description";
 
     private final Map<String, ToolKind> kinds = new LinkedHashMap<>();
 
@@ -102,6 +110,7 @@ public final class ToolFactory {
             return (Tool) c.getDeclaredConstructor().newInstance();
         }));
         LanguageTools.registerAll(this);
+        register(new io.github.llm4j.loom.tools.generic.WebhookKind());
         register(new GraphKind());
         register(simple("skill_registry", Set.of("url"), Set.of("api_key"), Set.of("api_key"), (n, o, dir) -> {
             io.github.llm4j.agent.skill.RestSkillRegistry.Builder b = io.github.llm4j.agent.skill.RestSkillRegistry.builder().baseUrl(o.get("url"));
@@ -191,10 +200,18 @@ public final class ToolFactory {
         }
         for (Map.Entry<String, ToolDef.OptionValue> e : def.getOptions().entrySet()) {
             String key = e.getKey();
+            if (key.equals(DESCRIPTION)) continue;
+            String prefix = prefixOf(kind, key);
+            if (prefix != null) {
+                String problem = checkPrefixed(prefix, key, e.getValue(), env);
+                if (problem != null) out.add(problem);
+                continue;
+            }
             if (!kind.required().contains(key) && !kind.optional().contains(key)) {
                 out.add("unknown option " + key + " for use: " + kind.name()
                         + (kind.required().isEmpty() && kind.optional().isEmpty() ? " (it takes none)"
-                        : "; it takes " + new TreeSet<>(union(kind.required(), kind.optional()))));
+                        : "; it takes " + new TreeSet<>(union(kind.required(), kind.optional()))
+                        + (kind.prefixes().isEmpty() ? "" : " and " + kind.prefixes() + "<name>")));
                 continue;
             }
             if (kind.secrets().contains(key) && !e.getValue().fromEnv()) {
@@ -214,14 +231,43 @@ public final class ToolFactory {
         return out;
     }
 
+    private static String prefixOf(ToolKind kind, String key) {
+        for (String p : kind.prefixes()) if (key.startsWith(p) && key.length() > p.length()) return p;
+        return null;
+    }
+
+    /** A {@code header.<Name>} option: a credential-looking header must come from the environment. */
+    private static String checkPrefixed(String prefix, String key, ToolDef.OptionValue value, Function<String, String> env) {
+        if (prefix.equals(Options.HEADER_PREFIX) && Options.isSecretHeader(key.substring(prefix.length())) && !value.fromEnv()) {
+            return key + " must come from the environment, e.g. " + key + ": env."
+                    + key.substring(prefix.length()).toUpperCase(java.util.Locale.ROOT).replaceAll("[^A-Z0-9]+", "_");
+        }
+        if (value.fromEnv() && isUnset(env.apply(value.value()))) {
+            return "environment variable " + value.value() + " is not set (for " + key + ")";
+        }
+        return null;
+    }
+
     private static boolean isUnset(String value) {
         return value == null || value.isBlank();
     }
 
     /** Builds the tool, presented under its declared name. Call only when {@link #problems} is empty. */
     public Tool create(ToolDef def, Function<String, String> env, Path baseDir) throws Exception {
+        return create(def, env, baseDir, EffectContext.noop());
+    }
+
+    /**
+     * As {@link #create(ToolDef, Function, Path)}, for a tool that runs inside a run: side-effect tools are
+     * journaled through {@code context} so a resumed run doesn't repeat them.
+     */
+    public Tool create(ToolDef def, Function<String, String> env, Path baseDir, EffectContext context) throws Exception {
         ToolKind kind = kinds.get(def.getKind());
-        Tool tool = kind.create(def.getName(), resolve(kind, def, env), baseDir);
+        Map<String, String> options = resolve(kind, def, env);
+        String description = options.remove(DESCRIPTION);
+        Tool tool = kind.create(def.getName(), options, baseDir, context);
+        if (tool instanceof Effectful effectful) tool = new EffectTool(effectful, context);
+        if (description != null) tool = new DescribedTool(tool, description);
         return new NamedTool(def.getName(), tool);
     }
 

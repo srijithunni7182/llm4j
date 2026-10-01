@@ -29,6 +29,11 @@ public class FileRunJournal implements RunJournal {
         }
     }
 
+    /** The file the journal is kept in. */
+    public Path path() {
+        return file;
+    }
+
     @Override
     public synchronized Optional<Entry> get(String stepId) {
         return Optional.ofNullable(entries.get(stepId));
