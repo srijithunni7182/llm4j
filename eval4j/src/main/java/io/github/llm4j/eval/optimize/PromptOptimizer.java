@@ -231,7 +231,11 @@ public final class PromptOptimizer {
             return this;
         }
 
-        /** Largest tolerated drop from validation to test (or from selection to confirmation). */
+        /**
+         * Largest tolerated drop from validation to test (or from selection to confirmation). For
+         * the validation-to-test gap this is a floor: tiny splits are noisy, so the tolerance
+         * widens to one standard error of the difference when that is larger.
+         */
         public Builder maxOverfitGap(double maxOverfitGap) {
             this.maxOverfitGap = maxOverfitGap;
             return this;

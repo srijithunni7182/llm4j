@@ -470,6 +470,7 @@ final class OptimizationRun {
                         : null;
         judge(
                 problems,
+                stop,
                 bestIsSeed,
                 hasTest,
                 confirmed,
@@ -485,6 +486,7 @@ final class OptimizationRun {
     /** Fills {@code problems} with every reason the result cannot be trusted. */
     private void judge(
             List<String> problems,
+            StopReason stop,
             boolean bestIsSeed,
             boolean hasTest,
             boolean confirmed,
@@ -495,6 +497,7 @@ final class OptimizationRun {
             Comparison comparison) {
         if (bestIsSeed) {
             problems.add("no candidate improved on the seed");
+            targetNotConfirmed(problems, stop, bestScores);
             return;
         }
         if (!hasTest) {
@@ -528,16 +531,17 @@ final class OptimizationRun {
         if (violations > 0) {
             problems.add(violations + " test scenario(s) violate a guardrail");
         }
-        if (confirmed
-                && bestScores.validationMean() - bestScores.testMean() > cfg.maxOverfitGap()) {
+        double tolerance = overfitTolerance();
+        if (confirmed && bestScores.validationMean() - bestScores.testMean() > tolerance) {
             problems.add(
                     String.format(
                             Locale.ROOT,
                             "validation %.3f exceeds test %.3f by more than %.2f: a sign of overfitting",
                             bestScores.validationMean(),
                             bestScores.testMean(),
-                            cfg.maxOverfitGap()));
+                            tolerance));
         }
+        targetNotConfirmed(problems, stop, bestScores);
         if (comparison != null && comparison.seedWins() > comparison.bestWins()) {
             problems.add(
                     "the seed beats the best candidate on more test scenarios ("
@@ -545,6 +549,39 @@ final class OptimizationRun {
                             + " vs "
                             + comparison.bestWins()
                             + ")");
+        }
+    }
+
+    /**
+     * The validation-to-test gap that is still plausibly noise: never below {@code maxOverfitGap},
+     * but widened to one standard error of the difference of two proportions measured on splits
+     * this small, so a handful of scenarios cannot condemn a real improvement.
+     */
+    private double overfitTolerance() {
+        int validation = cfg.split().validation().size();
+        int test = cfg.split().test().size();
+        if (validation == 0 || test == 0) {
+            return cfg.maxOverfitGap();
+        }
+        double standardError = 0.5 * Math.sqrt(1.0 / validation + 1.0 / test);
+        return Math.max(cfg.maxOverfitGap(), standardError);
+    }
+
+    /** Stopping because validation hit the target is not success unless the sealed test agrees. */
+    private void targetNotConfirmed(
+            List<String> problems, StopReason stop, CandidateScores bestScores) {
+        if (stop != StopReason.TARGET_REACHED || bestScores.testMean() == null) {
+            return;
+        }
+        double floor = cfg.target() - overfitTolerance();
+        if (bestScores.testMean() < floor) {
+            problems.add(
+                    String.format(
+                            Locale.ROOT,
+                            "the validation target %.2f was reached, but the sealed test mean is only"
+                                    + " %.3f: the target was met on a validation set too small to trust",
+                            cfg.target(),
+                            bestScores.testMean()));
         }
     }
 
