@@ -13,6 +13,7 @@ public class LoomScript implements Node {
     private final List<ToolDef> tools = new ArrayList<>();
     private final List<ProviderDef> providers = new ArrayList<>();
     private final List<PersonaDef> personas = new ArrayList<>();
+    private final List<DecisionDef> decisions = new ArrayList<>();
     private final List<String> imports = new ArrayList<>();
     private AuditConfig auditConfig;
     private BudgetDef budget;
@@ -56,6 +57,10 @@ public class LoomScript implements Node {
     /** Personas declared with {@code persona Name { role: … }}. */
     public List<PersonaDef> getPersonas() { return personas; }
 
+    public void addDecision(DecisionDef decision) { this.decisions.add(decision); }
+    /** Decisions declared with {@code decision Name { … }}. */
+    public List<DecisionDef> getDecisions() { return decisions; }
+
     public void addImport(String path) { this.imports.add(path); }
     public List<String> getImports() { return imports; }
 
@@ -80,6 +85,7 @@ public class LoomScript implements Node {
         this.tools.addAll(other.tools);
         this.providers.addAll(other.providers);
         this.personas.addAll(other.personas);
+        this.decisions.addAll(other.decisions);
         if (this.auditConfig == null) {
             this.auditConfig = other.auditConfig;
         }

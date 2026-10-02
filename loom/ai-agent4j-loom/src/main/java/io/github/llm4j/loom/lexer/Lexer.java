@@ -190,7 +190,8 @@ public class Lexer {
     }
 
     private void identifier() {
-        while (isAlphaNumeric(peek())) advance();
+        // A name may be hyphenated (support-lead) or carry an apostrophe (doesn't): neither was valid before, so no script changes meaning.
+        while (isAlphaNumeric(peek()) || ((peek() == '-' || peek() == '\'') && isAlpha(peekNext()))) advance();
 
         // Dotted property paths (e.g. report.status) lex as a single identifier so that
         // alt/loop conditions can reference fields of output_schema results.
