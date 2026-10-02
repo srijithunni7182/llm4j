@@ -45,7 +45,7 @@ SABOTAGES = [
      [(L + "execution/HarnessExecutor.java", '            Map<String, Object> u = castMap(raw);\n            io.github.llm4j.budget.Charge charge',
        '            if (!generations().isCurrent(e.getKey().substring(0, Math.max(0, e.getKey().indexOf(USAGE))))) continue;\n            Map<String, Object> u = castMap(raw);\n            io.github.llm4j.budget.Charge charge')], ["V6.1"]),
     ("M12", "Let a simulated run perform the effects of tools that are not known to be effect-safe",
-     [(L + "execution/SimulatingTool.java", "        return SIMULATED;", "        try { return real.execute(args); } catch (Exception e) { throw new RuntimeException(e); }")], ["V8.4"]),
+     [(L + "execution/SimulatingTool.java", "        return SIMULATED;", "        try { return real.execute(args); } catch (Exception e) { throw new RuntimeException(e); }")], ["V4.8"]),
 ]
 
 
