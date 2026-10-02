@@ -1,0 +1,28 @@
+$ weave rewind runs/o --to collected --reason redo      (the report was already posted to Slack: held)
+Error: Going back would cross side effects that already happened: Slack at Report/s6 (done). Say what to do about them: --effects keep (identical ones are not repeated) or --effects repeat (all run again).
+
+$ weave rewind runs/o --to collected --effects keep --set feedback=fix2 --reason redo --resume
+06:24:51 [Report/s6~4] Publisher  ? use Slack
+06:24:51 [Report/s6~4] Publisher  ? Slack {"title":"Report","text":"Publish draft from analysis of data(fix2)"}
+06:24:51 [Report/s6~4] ? tool effect: Slack 127.0.0.1 ? replayed
+? Workflow completed successfully.
+   of which 210 tokens (0) went into attempts that were later replaced by a rewind
+--- timeline (rewinds):
+Rewinds:
+  generation 2 from Report/s1~2 (back to collected) by script: review.score<7; side effects: ask first; carrying {feedback=fix1}
+  generation 3 from Report/s1~3 (back to collected) by script: review.score<7; side effects: ask first; carrying {feedback=fix2}
+  generation 4 from Report/s1~4 (back to collected) by operator:root: redo; side effects: keep; carrying {feedback=fix2}
+
+Spend: kept 90 tokens / 0, discarded (replaced attempts) 210 tokens / 0
+--- Slack posts so far: 0 (expected 0: the identical post was found in the journal, not repeated)
+
+$ weave fork runs/a --to runs/f --at collected --effects simulate --reason "what if" --resume
+? Forked a into /tmp/tmp.iPqNOfwBRC/run/runs/f (31 journal entries copied, going back to collected: generation 4; simulated: nothing will be performed). The original is untouched.
+06:24:54 [Report/s6~4] Publisher  ? use Slack
+06:24:54 [Report/s6~4] Publisher  ? Slack {"title":"Report","text":"Publish draft from analysis of data(none)"}
+06:24:54 [Report/s6~4] ? tool effect: Slack 127.0.0.1 ? simulated
+06:24:54 [Report/s6~4] Publisher  ? (simulated: not performed)
+? Workflow completed successfully.
+--- Slack posts after the simulated fork: 0 (expected 0)
+--- the parent's timeline is unchanged (still two rewinds, not three):
+2

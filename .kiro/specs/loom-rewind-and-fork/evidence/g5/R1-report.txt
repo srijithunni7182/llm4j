@@ -1,0 +1,40 @@
+$ weave run report.loom --workflow Report --input topic=bees --trace --journal runs/a
+06:24:37 [Report/s4] Reviewer  ? {"score":3,"notes":"fix1"}
+06:24:37 [Report/s5] ? rewind to collected (generation 2): review.score<7
+06:24:37 [Report/s4~2] Reviewer  ? {"score":3,"notes":"fix2"}
+06:24:37 [Report/s5~2] ? rewind to collected (generation 3): review.score<7
+06:24:37 [Report/s4~3] Reviewer  ? {"score":9,"notes":"fix3"}
+06:24:37 [Report/s6~3] Publisher  ? Publish draft from analysis of data(fix2)
+06:24:37 [Report/s6~3] Publisher  ? use Slack
+06:24:37 [Report/s6~3] Publisher  ? Slack {"title":"Report","text":"Publish draft from analysis of data(fix2)"}
+06:24:37 [Report/s6~3] ? a different effect after a rewind: Slack 127.0.0.1
+06:24:37 [Report/s6~3] ? tool effect: Slack 127.0.0.1 ? ok
+06:24:37 [Report/s6~3] Publisher  ? Sent to slack webhook (HTTP 200).
+06:24:37 [Report/s6~3] Publisher  ? t
+06:24:37 [Report/s6~3] Publisher  ? published
+? Workflow completed successfully.
+   of which 120 tokens (0) went into attempts that were later replaced by a rewind
+--- weave timeline runs/a:
+STEP                         GEN  KIND       AGENT        STATE        TOKENS       COST
+Report/s1                    1    delegate   Collector    discarded        15          0
+Report/s1~2                  2    delegate   Collector    discarded        15          0
+Report/s1~3                  3    delegate   Collector    done             15          0
+Report/s2                    1    delegate   Analyst      discarded        15          0
+Report/s2~2                  2    delegate   Analyst      discarded        15          0
+Report/s2~3                  3    delegate   Analyst      done             15          0
+Report/s3                    1    delegate   Writer       discarded        15          0
+Report/s3~2                  2    delegate   Writer       discarded        15          0
+Report/s3~3                  3    delegate   Writer       done             15          0
+Report/s4                    1    delegate   Reviewer     discarded        15          0
+Report/s4~2                  2    delegate   Reviewer     discarded        15          0
+Report/s4~3                  3    delegate   Reviewer     done             15          0
+Report/s6~3                  3    delegate   Publisher    done             30          0
+
+Checkpoints reached: collected (Report/s0)
+
+Rewinds:
+  generation 2 from Report/s1~2 (back to collected) by script: review.score<7; side effects: ask first; carrying {feedback=fix1}
+  generation 3 from Report/s1~3 (back to collected) by script: review.score<7; side effects: ask first; carrying {feedback=fix2}
+
+Spend: kept 90 tokens / 0, discarded (replaced attempts) 120 tokens / 0
+--- Slack posts: 1 (expected 1); model calls: 14 (expected 3 attempts x 4 + the publisher's 2 = 14)

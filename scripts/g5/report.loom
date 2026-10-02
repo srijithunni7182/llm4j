@@ -1,0 +1,23 @@
+// The self-correcting report workflow the rewind G5 runs use (models are served by scripts/g5/rewind_services.py).
+budget { tokens: 100000 }
+tool Slack { use: webhook  url: env.SLACK_WEBHOOK  format: slack  idempotency: true }
+agent Collector { model: "ollama/fake" system: "You are Collector." }
+agent Analyst   { model: "ollama/fake" system: "You are Analyst." }
+agent Writer    { model: "ollama/fake" system: "You are Writer." }
+agent Reviewer  { model: "ollama/fake" system: "You are Reviewer." }
+agent Publisher { model: "ollama/fake" system: "You are Publisher. Post the headline of the report to Slack with the Slack tool." tools: [Slack] max_iterations: 4 }
+
+workflow Report(topic) {
+    checkpoint collected  starting with feedback = "none"
+    delegate "Collect sources on {topic}. Feedback so far: {feedback}" to Collector -> data
+    delegate "Analyse {data}" to Analyst -> analysis
+    delegate "Write the report from {analysis}" to Writer -> draft
+    delegate "Review {draft}" to Reviewer -> review expecting { score: number, notes: string }
+    rewind to collected
+        when (review.score < 7)
+        at most 2 times
+        carrying feedback = "{review.notes}"
+        side effects: ask first
+        if it still fails { note "gave up" }
+    delegate "Publish {draft}" to Publisher -> published
+}

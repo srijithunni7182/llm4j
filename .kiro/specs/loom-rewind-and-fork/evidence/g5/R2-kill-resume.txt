@@ -1,0 +1,26 @@
+$ weave run report.loom --workflow Report --input topic=bees --trace --journal runs/k   (the collector's call in generation 2 hangs)
+weave killed with SIGKILL while generation 2 was starting
+--- timeline after the kill:
+Rewinds:
+  generation 2 from Report/s1~2 (back to collected) by script: review.score<7; side effects: ask first; carrying {feedback=fix1}
+
+Spend: kept 0 tokens / 0, discarded (replaced attempts) 60 tokens / 0
+
+$ the same command again (resume)
+06:24:42 [Report/s5~2] ? rewind to collected (generation 3): review.score<7
+06:24:43 [Report/s6~3] Publisher  ? use Slack
+06:24:43 [Report/s6~3] Publisher  ? Slack {"title":"Report","text":"Publish draft from analysis of data(fix2)"}
+06:24:43 [Report/s6~3] ? a different effect after a rewind: Slack 127.0.0.1
+06:24:43 [Report/s6~3] ? tool effect: Slack 127.0.0.1 ? ok
+? Workflow completed successfully.
+   of which 120 tokens (0) went into attempts that were later replaced by a rewind
+--- timeline after the resume:
+Checkpoints reached: collected (Report/s0)
+
+Rewinds:
+  generation 2 from Report/s1~2 (back to collected) by script: review.score<7; side effects: ask first; carrying {feedback=fix1}
+  generation 3 from Report/s1~3 (back to collected) by script: review.score<7; side effects: ask first; carrying {feedback=fix2}
+
+Spend: kept 90 tokens / 0, discarded (replaced attempts) 120 tokens / 0
+--- rewinds recorded: 2 (expected 2: one before the kill, one after, none repeated)
+--- Slack posts: 0 before + 1 after (expected 0 + 1)

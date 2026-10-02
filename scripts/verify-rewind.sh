@@ -113,8 +113,9 @@ LOOM
   echo "--- weave check of a script with checkpoint and rewind, from an empty directory with only the jar:" | tee -a "$out"
   java -jar "$jar" check r.loom 2>&1 | grep -E "ready to run|problem|error" | tee -a "$out"
   grep -q "r.loom: ready to run" "$out" || FAILED+=("G6 check")
+  java -jar "$jar" --help > help.txt 2>&1
   for cmd in timeline rewind reset fork; do
-    if java -jar "$jar" "$cmd" --help 2>&1 | grep -q -i "usage"; then echo "   weave $cmd is in the jar" | tee -a "$out"; else echo "   MISSING weave $cmd" | tee -a "$out"; FAILED+=("G6 $cmd"); fi
+    if grep -q "^  $cmd " help.txt; then echo "   weave $cmd is in the jar" | tee -a "$out"; else echo "   MISSING weave $cmd" | tee -a "$out"; FAILED+=("G6 $cmd"); fi
   done
   cd "$ROOT" && rm -rf "$dir"
 }

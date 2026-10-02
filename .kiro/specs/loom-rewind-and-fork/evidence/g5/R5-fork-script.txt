@@ -1,0 +1,8 @@
+$ weave fork runs/a --to runs/g1 --script later.loom --at collected --effects simulate --reason t   (changed after the point: accepted)
+? Forked a into /tmp/tmp.iPqNOfwBRC/run/runs/g1 (31 journal entries copied, going back to collected: generation 4; simulated: nothing will be performed). The original is untouched.
+
+$ weave fork runs/a --to runs/g2 --script earlier.loom --at Report/s2 --effects simulate --reason t   (changed before the point: refused)
+Error: The scripts differ before the fork point, at statement 2 of the workflow: was DelegateStmt|Collector:Collect sources on {topic}. Feedback so far: {feedback}:[]/ollama/fake, now DelegateStmt|Collector:Gather sources on {topic}. Feedback so far: {feedback}:[]/ollama/fake. Pass --allow-drift to run the copy under this script anyway.
+
+$ ... --allow-drift
+? Forked a into /tmp/tmp.iPqNOfwBRC/run/runs/g3 (31 journal entries copied, going back to Report/s2: generation 4; simulated: nothing will be performed). The original is untouched.
