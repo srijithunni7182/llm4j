@@ -59,7 +59,7 @@ class ChannelSafetyTest {
         String expired = ask("A/s2", Hints.Kind.DECIDE, List.of("approve", "reject"));
         h.answers.expire(h.pending.get(expired).orElseThrow());
 
-        long[][] senders = {{ChannelHarness.ME, ChannelHarness.ME}, {999, 999}, {ChannelHarness.ME, 999}, {999, ChannelHarness.ME}, {0, 0}, {-1, ChannelHarness.ME}};
+        long[][] senders = {{999, 999}, {ChannelHarness.ME, 999}, {999, ChannelHarness.ME}, {0, 0}, {-1, ChannelHarness.ME}, {ChannelHarness.ME, ChannelHarness.ME}}; // the allowed sender comes last, so a stranger who got in would be first
         String[] codes = {open, answered, expired, "ZZZZZZ", "", "A/s0", open.toLowerCase()};
         int recordedFromAllowed = 0;
         for (long[] s : senders) {

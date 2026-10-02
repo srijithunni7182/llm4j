@@ -209,6 +209,26 @@
                                     <includes><include>io.github.llm4j.loom.autonomy</include></includes>
                                     <limits><limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit></limits>
                                 </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.channel.Answers</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.channel.Listener</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.channel.PendingStore</include></includes>
+                                    <limits><limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>PACKAGE</element>
+                                    <includes><include>io.github.llm4j.loom.channel</include></includes>
+                                    <limits><limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit></limits>
+                                </rule>
                             </rules>
                         </configuration>
                     </execution>

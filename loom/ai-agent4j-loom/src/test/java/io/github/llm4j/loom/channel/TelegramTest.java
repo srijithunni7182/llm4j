@@ -114,6 +114,15 @@ class TelegramTest {
         h.runtime.listener().pollOnce(Duration.ZERO);
         assertThat(h.pending.get(c).orElseThrow().answer().text()).as("the only open question").isEqualTo("escalate");
 
+        String first = ask("A/s5", false);
+        h.clock.advance(Duration.ofSeconds(1));
+        String second = ask("A/s6", false);
+        h.telegram.reply(ChannelHarness.ME, first.toLowerCase() + " approve");
+        h.runtime.listener().pollOnce(Duration.ZERO);
+        assertThat(h.pending.get(first).orElseThrow().answer().text()).as("a code names its own question, not another open one").isEqualTo("approve");
+        assertThat(h.pending.get(second).orElseThrow().state()).isEqualTo(Pending.State.OPEN);
+        h.answers.record(second, "reject", "test");
+
         String d = ask("A/s3", false);
         String e = ask("A/s4", false);
         h.telegram.reply(ChannelHarness.ME, "approve");

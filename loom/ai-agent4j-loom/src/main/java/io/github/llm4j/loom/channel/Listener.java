@@ -6,7 +6,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -159,9 +158,5 @@ public final class Listener {
                 log.warning("Could not send a note to " + channel.name() + ": " + e.getMessage());
             }
         }
-    }
-
-    Optional<Pending> openByCode(String code) {
-        return store.get(code).filter(Pending::open);
     }
 }
