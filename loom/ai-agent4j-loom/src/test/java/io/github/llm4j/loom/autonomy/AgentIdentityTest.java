@@ -112,4 +112,40 @@ class AgentIdentityTest {
         assertThat(AgentIdentity.shorten(first)).hasSize(10);
         assertThat(AgentIdentity.shorten(null)).isEmpty();
     }
+
+    @Test
+    @Tag("EA-V6.1")
+    void everyOtherSettingThatShapesTheAgentIsPartOfItToo() throws Exception {
+        String loaded = """
+                persona Mentor { role: "a mentor" }
+                knowledge Policy { type: "local" path: "https://example.com/policy" }
+                mcp Tools { transport: "stdio" cmd: "npx x" }
+                agent Triager {
+                    model: "m-1"
+                    system: "You are Triager."
+                    persona: Mentor
+                    skills: ["https://example.com/skill.md", "classpath://skills/x.md"]
+                    knowledge: [Policy]
+                    mcp_servers: [Tools]
+                    memory { conversation: "buffer" limit: 5 }
+                    approve: all
+                    max_iterations: 4
+                    tools: [Registered, Lookup]
+                    output_schema: { choice: enum["a", "b"], reasoning: string, extras: list<string>, nested: { x: number } }
+                }
+                tool Lookup { use: http  url: env.LOOKUP_URL  password: "p1"  mode: "get" }
+                decision D { proposed by: Triager choices: a, b ask: x task: "Decide {amount}" dangerous mistake: propose a, person decides b }
+                """;
+        String base = identity(loaded);
+        java.util.List<UnaryOperator<String>> edits = java.util.List.of(
+                s -> s.replace("limit: 5", "limit: 6"), s -> s.replace("approve: all", "approve: [Lookup]"), s -> s.replace("max_iterations: 4", "max_iterations: 5"),
+                s -> s.replace("mcp_servers: [Tools]", "mcp_servers: []"), s -> s.replace("extras: list<string>", "extras: list<number>"), s -> s.replace("nested: { x: number }", "nested: { y: number }"),
+                s -> s.replace("https://example.com/skill.md", "https://example.com/other.md"), s -> s.replace("mode: \"get\"", "mode: \"post\""),
+                s -> s.replace("tools: [Registered, Lookup]", "tools: [Lookup]"), s -> s.replace("https://example.com/policy", "https://example.com/policy2"));
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        seen.add(base);
+        for (UnaryOperator<String> edit : edits) assertThat(seen.add(identity(edit.apply(loaded)))).isTrue();
+        assertThat(identity(loaded.replace("password: \"p1\"", "password: \"p2\""))).as("a secret-looking option never enters it").isEqualTo(base);
+        assertThat(seen).hasSize(edits.size() + 1);
+    }
 }

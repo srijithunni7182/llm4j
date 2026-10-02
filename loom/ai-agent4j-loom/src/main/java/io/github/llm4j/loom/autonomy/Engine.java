@@ -25,7 +25,7 @@ public final class Engine {
         }
 
         private static String shown(String scope) {
-            return scope.isEmpty() ? "the decision" : "scope " + scope;
+            return scope.isEmpty() || scope.equals("all") ? "the decision" : "scope " + scope;
         }
     }
 

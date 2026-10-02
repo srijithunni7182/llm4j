@@ -144,11 +144,11 @@ Unless a check says otherwise it uses these stand-ins:
 
 | # | Check |
 |---|---|
-| V10.1 | The whole existing Loom, ai-agent4j and tools suites pass unchanged; no test that existed before is removed or edited except the additive `EffectContext` implementers. |
+| V10.1 | The whole existing Loom, ai-agent4j and tools suites pass unchanged; no test that existed before is removed or edited except the additive `EffectContext` implementers. *(gate-checked: G4)* |
 | V10.2 | Existing scripts and journals from before the change load and resume with the same results (a journal written by the previous build is resumed by this one). |
-| V10.3 | Coverage: the new package ≥ 85% lines; `AgreementStats`, `LadderEngine`, `AgentIdentity`, the replay tool wrapper, the blindness code path ≥ 90% branches; enforced by JaCoCo `check` in the Loom pom. |
+| V10.3 | Coverage: the new package ≥ 85% lines; `AgreementStats`, `LadderEngine`, `AgentIdentity`, the replay tool wrapper, the blindness code path ≥ 90% branches; enforced by JaCoCo `check` in the Loom pom. *(gate-checked: G8)* |
 | V10.4 | Property test of the ladder: for random sequences of cases, outcomes, freezes and changes, the level never exceeds the ceiling, never rises without an eligible record, never rises on non-blind evidence, and always falls on a satisfied demotion rule; 20 000 sequences on a seed, 100 000 in the long run. |
-| V10.5 | Mutation pass (sabotage list): break each of these and see a test fail: show the proposal in watch; count suggest cases as evidence; use the raw rate instead of the Wilson bound; skip the epoch change; let replay run an effect tool; let a replay write the ledger; ignore `ceiling`; drop the unsafe check; use the current level instead of the journaled one; promote without approval; make audit sampling depend on the model's output; let `freeze` apply to a case in progress. |
+| V10.5 | Mutation pass (sabotage list): break each of these and see a test fail: show the proposal in watch; count suggest cases as evidence; use the raw rate instead of the Wilson bound; skip the epoch change; let replay run an effect tool; let a replay write the ledger; ignore `ceiling`; drop the unsafe check; use the current level instead of the journaled one; promote without approval; make audit sampling depend on the model's output; let `freeze` apply to a case in progress. *(gate-checked: G3)* |
 
 ## Live checks (optional)
 

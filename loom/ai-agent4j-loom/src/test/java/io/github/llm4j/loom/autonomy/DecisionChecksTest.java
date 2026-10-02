@@ -33,9 +33,10 @@ class DecisionChecksTest {
 
     @Test
     @Tag("EA-V1.1")
-    void theExampleDeclarationLoadsWithNoProblemsExceptTheToolItTells() {
-        assertThat(errors(Scripts.REFUND)).containsExactly("line 6: decision Refund: tell Slack when trust changes: tool Slack is not declared (tool Slack { use: … })");
-        assertThat(errors(refund("tell Slack when trust changes", "") + "tool Slack { use: webhook url: \"http://localhost:1/x\" }")).isEmpty();
+    void theExampleDeclarationLoadsWithNoProblemsAndATellToolMustBeKnown() {
+        assertThat(errors(Scripts.REFUND)).isEmpty();
+        assertThat(errors(refund("tell Slack when trust changes", "tell Nobody when trust changes")))
+                .containsExactly("line 6: decision Refund: tell Nobody when trust changes: tool Nobody is not declared (tool Nobody { use: … })");
     }
 
     @Test
