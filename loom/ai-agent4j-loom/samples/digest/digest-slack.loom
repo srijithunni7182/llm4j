@@ -1,0 +1,20 @@
+// The same digest, with the headline also posted to Slack. Needs SLACK_WEBHOOK (a Slack incoming-webhook URL).
+//
+// The post is journaled: if the run is interrupted after Slack was told and resumed, Slack is not told twice.
+import "core.loom"
+
+tool Slack { use: webhook  url: env.SLACK_WEBHOOK  format: slack  idempotency: true }
+
+agent Pinger {
+    model: "gemini-2.5-flash"
+    system: "You are Pinger. Post the headline of the digest you are given to Slack with the Slack tool: a title, and one sentence."
+    tools: [Slack]
+    max_iterations: 4
+}
+
+workflow DailyDigestWithSlack(topic) {
+    call DailyDigest(topic="{topic}") -> digest
+    delegate "Post the headline of this digest: {digest}" to Pinger -> posted
+}
+
+schedule MorningSlack { cron: "0 7 * * *"  timezone: "Asia/Kolkata"  run: DailyDigestWithSlack(topic="AI agents") }

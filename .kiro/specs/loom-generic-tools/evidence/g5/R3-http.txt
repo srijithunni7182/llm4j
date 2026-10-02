@@ -1,0 +1,45 @@
+$ weave run http.loom --workflow Main --trace
+? Weaving workflow: http.loom
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+? Executing workflow: Main...
+19:36:24 [Main/s0] Reader  ? go
+19:36:24 [Main/s0] Reader  ? use Hn
+19:36:24 [Main/s0] Reader  ? Hn {"path":"/v0/item/101.json"}
+19:36:24 [Main/s0] ? tool call: Hn GET 127.0.0.1/v0/item/101.json ? ok
+19:36:24 [Main/s0] Reader  ? HTTP 200 OK Content-Type: application/json  {"id": 101, "title": "Alpha story, day 1"}
+19:36:24 [Main/s0] Reader  ? use Hn
+19:36:24 [Main/s0] Reader  ? Hn {"path":"/v0/item/101.json\t"}
+19:36:24 [Main/s0] ? tool call: Hn GET 127.0.0.1/v0/item/101.json ? failed
+19:36:24 [Main/s0] Reader  ? Error: path contains a control character
+19:36:24 [Main/s0] Reader  ? use Hn
+19:36:24 [Main/s0] Reader  ? Hn {"path":"/v0/item/..%2f..%2fetc"}
+19:36:24 [Main/s0] ? tool call: Hn GET 127.0.0.1/v0/item/..%2f..%2fetc ? failed
+19:36:24 [Main/s0] Reader  ? Error: path contains an encoded dot, slash or NUL
+19:36:24 [Main/s0] Reader  ? use Hn
+19:36:24 [Main/s0] Reader  ? Hn {"path":"/v0/item/1.json?admin=1"}
+19:36:24 [Main/s0] ? tool call: Hn GET 127.0.0.1/v0/item/1.json ? failed
+19:36:24 [Main/s0] Reader  ? Error: path contains '?' (use query for query parameters; paths can't carry a host or fragment)
+19:36:24 [Main/s0] Reader  ? use Hn
+19:36:24 [Main/s0] Reader  ? Hn {"path":"//v0/item/1.json"}
+19:36:24 [Main/s0] ? tool call: Hn GET 127.0.0.1//v0/item/1.json ? failed
+19:36:24 [Main/s0] Reader  ? Error: path contains an empty segment (//)
+19:36:24 [Main/s0] Reader  ? use Hn
+19:36:24 [Main/s0] Reader  ? Hn {"path":"/v0/item/1.json","method":"DELETE"}
+19:36:24 [Main/s0] ? tool effect: Hn DELETE 127.0.0.1/v0/item/1.json ? failed
+19:36:24 [Main/s0] Reader  ? Error: method DELETE is not allowed (this tool allows GET)
+19:36:24 [Main/s0] Reader  ? use Hn
+19:36:24 [Main/s0] Reader  ? Hn {"path":"/v0/topstories.json"}
+19:36:24 [Main/s0] ? tool call: Hn GET 127.0.0.1/v0/topstories.json ? failed
+19:36:24 [Main/s0] Reader  ? Error: path /v0/topstories.json is not one this tool may call
+19:36:24 [Main/s0] Reader  ? t
+19:36:24 [Main/s0] Reader  ? finished
+? Workflow completed successfully.
+--- requests the stand-in server saw (paths):
+   GET /v0/item/101.json 
+--- files:
+./canary.txt
+./notes/keep.md
+--- secret sweep (SECRETSECRET) over this directory's output files:
+   none

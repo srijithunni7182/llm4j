@@ -27,4 +27,5 @@ public record TraceEvent(String type, String agent, String step, String text, Ma
     public static final String GUARD = "guard";
     public static final String VOICE = "voice";
     public static final String SUSPENDED = "suspended";
+    public static final String TOOL = "tool";
 }

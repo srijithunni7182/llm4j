@@ -63,6 +63,9 @@ public class HarnessExecutor implements LoomEngine {
     private RunJournal journal = RunJournal.inMemory();
     /** The id of the step this thread is executing: its position in the script (stable across runs). */
     private final ThreadLocal<String> step = ThreadLocal.withInitial(() -> "");
+    /** Counts delegates started on this thread, so a retried delegate's tool calls are numbered afresh. */
+    private final java.util.concurrent.atomic.AtomicLong delegateAttempts = new java.util.concurrent.atomic.AtomicLong();
+    private final ThreadLocal<Long> attempt = ThreadLocal.withInitial(() -> 0L);
     /**
      * Threads for parallel branches and step timeouts. Model calls wait on the network, so branches
      * must not be limited by CPU count (the common pool has one worker on a 2-CPU container).
@@ -528,7 +531,7 @@ public class HarnessExecutor implements LoomEngine {
             c.error(v.getLine(), who, "voice needs SARVAM_API_KEY in the environment");
         }
         try {
-            io.github.llm4j.loom.tools.SafePaths.inside(baseDir, v.getOut());
+            io.github.llm4j.tools.SafePaths.inside(baseDir, v.getOut());
         } catch (IllegalArgumentException e) {
             c.error(v.lineOf("out"), who, "voice out: " + e.getMessage());
         }
@@ -632,6 +635,14 @@ public class HarnessExecutor implements LoomEngine {
                     c.error(a.getLine(), who, "approve: " + name + " is not one of its tools " + a.getTools());
                 }
             }
+            for (String name : a.getTools()) {
+                for (io.github.llm4j.loom.ast.ToolDef def : script.getTools()) {
+                    if (!def.getName().equals(name)) continue;
+                    boolean approved = a.isApproveAll() || a.getApprove().contains(name);
+                    String problem = toolFactory.agentProblem(def, envLookup, a.getName(), approved);
+                    if (problem != null) c.error(a.getLine(), who, problem);
+                }
+            }
             if ((a.isApproveAll() || !a.getApprove().isEmpty()) && !c.context().hasHumanInterface()) {
                 c.error(a.getLine(), who, "approve needs someone to ask: set a HumanInterface (weave provides the console)");
             }
@@ -700,12 +711,43 @@ public class HarnessExecutor implements LoomEngine {
     private Tool createTool(io.github.llm4j.loom.ast.ToolDef def) {
         return createdTools.computeIfAbsent(def.getName(), n -> {
             try {
-                return toolFactory.create(def, envLookup, baseDir);
+                return toolFactory.create(def, envLookup, baseDir, effectContext());
             } catch (Exception e) {
                 throw new LoomLoadException(List.of(new ScriptValidator.Problem(def.getLine(), "tool " + def.getName(),
                         "can't be created: " + e.getMessage(), ScriptValidator.Severity.ERROR)));
             }
         });
+    }
+
+    private io.github.llm4j.agent.tool.EffectContext effectContext;
+
+    /** What generic tools need from this run: audit, trace, the journal, the current step, and files to keep out of reach. */
+    private synchronized io.github.llm4j.agent.tool.EffectContext effectContext() {
+        if (effectContext == null) effectContext = new RunEffectContext(this);
+        return effectContext;
+    }
+
+    long currentAttempt() {
+        return attempt.get();
+    }
+
+    java.time.Clock clock() {
+        return clock;
+    }
+
+    io.github.llm4j.ratelimit.Sleeper sleeper() {
+        return sleeper;
+    }
+
+    /** The run journal's file and the trigger store's directory: tools that touch files must stay out of them. */
+    java.util.Set<Path> reservedPaths() {
+        java.util.Set<Path> out = new java.util.HashSet<>();
+        if (journal instanceof io.github.llm4j.loom.runtime.FileRunJournal f) {
+            out.add(f.path().toAbsolutePath().normalize());
+            if (f.path().toAbsolutePath().getParent() != null) out.add(f.path().toAbsolutePath().getParent().normalize());
+        }
+        if (triggerStore instanceof io.github.llm4j.loom.trigger.FileTriggerStore t) out.add(t.dir().toAbsolutePath().normalize());
+        return out;
     }
 
     private ApprovalGate approvalGate;
@@ -1423,6 +1465,7 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     private void executeDelegate(DelegateStmt del) {
+        attempt.set(delegateAttempts.incrementAndGet());
         String agentName = resolveName(del.getTargetAgent());
         String variableName = resolveName(del.getVariableName());
         AgentDef agentDef = script.getAgents().stream()

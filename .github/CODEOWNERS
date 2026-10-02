@@ -4,6 +4,7 @@
 # Core libraries
 /ai-agent4j/ @srijithunni7182
 /ai-agent4j-addons/ @srijithunni7182
+/ai-agent4j-tools/ @srijithunni7182
 /ai-agent4j-loom/ @srijithunni7182
 
 # Applications

@@ -122,10 +122,13 @@ flowchart LR
     A["<b>ai-agent4j</b><br/>agents, tools, providers"] --> L["<b>Loom</b><br/>workflows that run for days"]
     A --> E["<b>Engram</b><br/>memory that stays sharp"]
     A --> X["<b>Addons</b><br/>local embeddings, vector stores"]
+    A --> T["<b>Tools</b><br/>webhook, email, http, file, shell, sql"]
     A --> V["<b>eval4j</b><br/>tests for agents"]
     L --> G["<b>Your application</b>"]
     E --> G
     X --> G
+    T --> G
+    T --> L
     V -.->|gates the build| G
 ```
 
@@ -174,6 +177,7 @@ What the runtime does for you:
 - pauses on rate limits and resumes when they lift;
 - enforces budgets before each call;
 - runs on schedules without a hosted platform;
+- ships six generic tools usable from the script with no Java: `webhook`, `email`, `http`, `file`, `shell` and read-only `sql`, with a journal so a crash never sends the same message twice ([Generic Tools](loom/ai-agent4j-loom/LOOM_GUIDE.md#generic-tools), [daily digest sample](loom/ai-agent4j-loom/samples/digest/));
 - finds problems with `weave check` before anything runs.
 
 👉 [Loom overview](loom/ai-agent4j-loom/README.md) · [**Why Loom?**](loom/ai-agent4j-loom/WHY_LOOM.md) ·
@@ -197,6 +201,14 @@ The heavy-lifting pieces, kept out of the core so it stays light:
 
 - **Local embeddings**: ONNX and DJL models on your own machine, with no API calls and no per-token cost.
 - **Persistent vector stores**: PostgreSQL with pgvector, or Pinecone.
+
+### 🔧 [Tools](ai-agent4j-tools/): *"How do I let an agent act on the world safely?"*
+
+Ready-made tools built for the case where the model picks the arguments: `webhook` (Slack, Discord, Teams),
+`email`, `http`, `file`, `shell` and read-only `sql`. Each has allow-lists, size and time limits, secrets scrubbed from
+every result, and a journal so a crash never repeats a send. Use them from Java, or from a Loom script with no Java.
+The contracts they implement (`ToolKind`, `Effectful`, `EffectJournal`) live in the core `ai-agent4j`; this module is the
+implementations, with [its own documentation](ai-agent4j-tools/docs/README.md).
 
 ### 🧪 [eval4j](eval4j/): *"How do I know it works, and keeps working?"*
 
@@ -273,7 +285,7 @@ AgentResult result = ReActAgent.builder().llmClient(client).addTool(new Calculat
         .run("What is 1234 * 5678?");
 ```
 
-Add `ai-agent4j-loom` and `ai-agent4j-addons` in the same way (see the
+Add `ai-agent4j-tools`, `ai-agent4j-loom` and `ai-agent4j-addons` in the same way (see the
 [Version Matrix](docs/VERSION_MATRIX.md)). The [Quick Start Guide](ai-agent4j/wiki/Getting-Started.md)
 takes it from there.
 
@@ -288,7 +300,7 @@ takes it from there.
 | [Quick Start](ai-agent4j/wiki/Getting-Started.md) | [Loom overview](loom/ai-agent4j-loom/README.md) | [eval4j guide](eval4j/README.md) |
 | [ReAct Agent Guide](ai-agent4j/wiki/ReAct-Agent-Guide.md) | [Why Loom?](loom/ai-agent4j-loom/WHY_LOOM.md) | [Budgets and Rate Limits](ai-agent4j/wiki/Budgets-and-Rate-Limits.md) |
 | [Providers and the Uniform Contract](ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md) | [Loom Language Guide](loom/ai-agent4j-loom/LOOM_GUIDE.md) | [xAI: Beyond Black Boxes](ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md) |
-| [Creating Custom Tools](ai-agent4j/wiki/Creating-Custom-Tools.md) | [Budgets, Pausing and Scheduling](loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md) | [Testing Strategy](docs/TESTING_STRATEGY.md) |
+| [Creating Custom Tools](ai-agent4j/wiki/Creating-Custom-Tools.md) · [Ready-made tools](ai-agent4j-tools/docs/README.md) | [Budgets, Pausing and Scheduling](loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md) | [Testing Strategy](docs/TESTING_STRATEGY.md) |
 | [Agent Skills](ai-agent4j/wiki/Agent-Skills-Guide.md) · [Personas](ai-agent4j/wiki/Agent-Personas.md) | [Agentic Workflows with Loom and Engram](docs/AGENTIC_WORKFLOWS_GUIDE.md) | [API Compatibility Policy](docs/API_COMPATIBILITY.md) |
 | [Memory](ai-agent4j/wiki/Memory-and-Persistence.md) · [Semantic Memory](ai-agent4j/wiki/SEMANTIC_MEMORY.md) | [Loom CTK (conformance)](loom/ctk/README.md) | [Version Matrix](docs/VERSION_MATRIX.md) |
 | [RAG](ai-agent4j/wiki/RAG-Support.md) · [Knowledge Graphs](ai-agent4j/wiki/Knowledge-Graphs.md) | [VS Code extension](loom/vscode-loom/README.md) | [Migration Guide 5.0](docs/MIGRATION_GUIDE_5_0.md) |

@@ -42,6 +42,7 @@ logs/
 
 # GetViral runtime data (Engram memories, voice samples, audit logs)
 getviral-data/
+__pycache__/
 
 # GPG secret keys must never be committed
 secring.asc

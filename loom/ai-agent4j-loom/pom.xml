@@ -36,6 +36,21 @@
             <version>5.0</version>
         </dependency>
 
+        <!-- The tools a script can declare: webhook, email, http, file, shell, sql -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j-tools</artifactId>
+            <version>5.0</version>
+        </dependency>
+        <!-- Its test helpers (echo server, scripted SMTP server, recording context) -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j-tools</artifactId>
+            <version>5.0</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
         <!-- JSON Processing (Jackson) from Core -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -82,6 +97,20 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- SMTP for the `email` tool; optional in ai-agent4j-tools, so the CLI brings it. Only loaded when a script uses it. -->
+        <dependency>
+            <groupId>org.eclipse.angus</groupId>
+            <artifactId>angus-mail</artifactId>
+            <version>2.0.3</version>
+        </dependency>
+        <!-- A real SMTP server for testing the `email` tool kind -->
+        <dependency>
+            <groupId>com.icegreen</groupId>
+            <artifactId>greenmail</artifactId>
+            <version>2.1.0</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- CLI Support -->
         <dependency>
             <groupId>info.picocli</groupId>
@@ -99,9 +128,28 @@
                 <configuration>
                     <groups>${live.groups}</groups>
                     <excludedGroups>${live.excluded}</excludedGroups>
+                    <systemPropertyVariables>
+                        <user.language>en</user.language>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
             <!-- Compiler Plugin -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals><goal>report</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

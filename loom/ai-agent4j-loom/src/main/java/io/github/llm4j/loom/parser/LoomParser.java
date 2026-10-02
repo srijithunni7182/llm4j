@@ -1004,7 +1004,8 @@ public class LoomParser {
         tool.setLine(name.getLine());
         consume(TokenType.LBRACE, "Expect '{' after tool " + name.getValue() + ".");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
-            Token key = word("Expect a tool option, e.g. use: serpapi");
+            // A quoted key lets option names hold characters a bare word can't: "header.X-Trace-Id": "abc"
+            Token key = check(TokenType.STRING_LITERAL) ? advance() : word("Expect a tool option, e.g. use: serpapi");
             consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
             if (key.getValue().equals("use")) {
                 tool.setKind(word("Expect a tool kind after use:, e.g. use: duckduckgo").getValue());
@@ -1030,7 +1031,11 @@ public class LoomParser {
 
     /** A string, number, true/false, a word, or {@code env.NAME}. */
     private io.github.llm4j.loom.ast.ToolDef.OptionValue optionValue() {
-        if (check(TokenType.STRING_LITERAL) || check(TokenType.NUMBER_LITERAL)) {
+        if (check(TokenType.NUMBER_LITERAL)) {
+            Token number = advance();
+            return io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(number.getValue() + unitSuffix(number));
+        }
+        if (check(TokenType.STRING_LITERAL)) {
             return io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(advance().getValue());
         }
         Token w = word("Expect a value: a \"string\", a number, true/false, or env.NAME");
@@ -1040,6 +1045,22 @@ public class LoomParser {
             return io.github.llm4j.loom.ast.ToolDef.OptionValue.env(var);
         }
         return io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(w.getValue());
+    }
+
+    private static final java.util.Set<String> UNITS = java.util.Set.of("ms", "s", "m", "h", "k", "kb", "mb");
+
+    /**
+     * A unit written straight after a number ({@code 20s}, {@code 64k}) belongs to it. A word that is itself
+     * a key (followed by ':') is left alone.
+     */
+    private String unitSuffix(Token number) {
+        if (isAtEnd()) return "";
+        Token next = peek();
+        boolean adjacent = next.getType() == TokenType.IDENTIFIER && next.getLine() == number.getLine()
+                && next.getColumn() == number.getColumn() + number.getValue().length();
+        boolean isKey = tokens.size() > current + 1 && tokens.get(current + 1).getType() == TokenType.COLON;
+        if (adjacent && !isKey && UNITS.contains(next.getValue().toLowerCase(java.util.Locale.ROOT))) return advance().getValue();
+        return "";
     }
 
     // ── Budgets ──────────────────────────────────────────────────────────────────────────────

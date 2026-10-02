@@ -1,0 +1,23 @@
+commit fa18b985626e1dfd2e9c471f059ef2205f11a189
+[INFO] Total time:  24.384 s
+[INFO] Finished at: 2026-10-01T19:25:52Z
+[INFO] ------------------------------------------------------------------------
+jar: /home/user/llm4j/loom/ai-agent4j-loom/target/ai-agent4j-loom-5.0.jar (147M)
+   contains org/eclipse/angus/mail/smtp/SMTPTransport.class
+   contains jakarta/mail/Session.class
+   contains org/postgresql/Driver.class
+   contains okhttp3/OkHttpClient.class
+   no greenmail in the jar
+   no mockwebserver in the jar
+   no junit in the jar
+   no org/h2 in the jar
+--- weave check from an empty directory, with only the jar:
+? digest.loom: ready to run
+--- mail classes loaded while checking a script that declares an email tool (validation only): 0
+--- sql with a driver that isn't there (Oracle):
+? line 1: tool Db: url: no JDBC driver is installed for jdbc:oracle (add the driver to the classpath)
+1 problem in db.loom
+--- sql with PostgreSQL (the packaged driver; no connection is made at load):
+? db.loom: ready to run
+--- shell and sql declared together, checked from the jar (shell needs allow: and approval or unattended:):
+? both.loom: ready to run

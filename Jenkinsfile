@@ -42,6 +42,14 @@ pipeline {
             }
         }
 
+        stage('Build Tools') {
+            steps {
+                dir('ai-agent4j-tools') {
+                    sh 'mvn clean install -DskipTests'
+                }
+            }
+        }
+
         stage('Build eval4j') {
             steps {
                 dir('eval4j') {
@@ -61,6 +69,12 @@ pipeline {
                     "Addons Tests": {
                         dir('ai-agent4j-addons') {
                             sh 'mvn test jacoco:report'
+                        }
+                    },
+                    "Tools Tests": {
+                        dir('ai-agent4j-tools') {
+                            // verify, not test: the JaCoCo gates (80% lines, 90% branches on the guard classes) run here
+                            sh 'mvn verify'
                         }
                     },
                     "eval4j Tests": {

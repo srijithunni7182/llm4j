@@ -197,6 +197,263 @@ agent Publisher {
 - **Audited**: `approval_requested`, `approval_granted` and `approval_rejected` are logged, with personal
   data masked.
 
+### Generic Tools
+
+Six tool kinds cover what most long-running workflows need to touch the outside world, with no Java:
+
+| `use:` | For |
+|---|---|
+| [`webhook`](#webhook) | Post a message to Slack, Discord, Teams or any endpoint |
+| [`email`](#email) | Send mail over SMTP |
+| [`http`](#http) | Call a REST API that has no OpenAPI spec |
+| [`file`](#file) | Read, list, write and append text files in one directory |
+| [`shell`](#shell) | Run a few named programs on the machine |
+| [`sql`](#sql) | Run read-only queries on a database |
+
+They share these rules:
+
+- **Secrets come from the environment.** `url`, `password`, `auth_value` and any header that looks like a credential
+  (`Authorization`, `…-Key`, `…-Token`, `Cookie`, `…Secret`, `…Password`) must be written `env.NAME`. A literal is a
+  load error. A secret never appears in a result, an error, the trace, the audit log or the run journal.
+- **Everything is checked when the script loads.** A missing option, an unknown option, a value out of range or an
+  unset variable is an error that names the tool and the option. Nothing connects to a network at load.
+- **Options** are strings, numbers, `true`/`false` or `env.NAME`. Lists are comma-separated strings
+  (`hosts: "a.com, b.com"`). Durations are `500ms`, `20s`, `2m`; sizes are `64k`, `1m`. Fixed request headers are
+  written `header.Name`, quoted when the name has a hyphen: `"header.X-Trace-Id": "abc"`.
+- **`description:`** on any tool adds your own text to what the model is told. Each kind already tells the model its
+  arguments, so you rarely need it.
+- **A tool never throws at the agent.** A refused or failed call comes back as text starting `Error:`.
+- **Limits.** Every call has a timeout (default 15 s) and a cap on what it returns (default 64 KiB, cut with a
+  marker that says how much).
+- **Guards, approvals and budgets apply as for any tool**, and a result is content, so `guard { pii: mask }`
+  masks personal data in it.
+
+```loom
+tool Slack   { use: webhook  url: env.SLACK_WEBHOOK  format: slack }
+tool Mail    { use: email  host: "smtp.example.com"  username: env.SMTP_USER  password: env.SMTP_PASSWORD
+               from: "Loom Digest <digest@example.com>"  to: "team@example.com" }
+tool Github  { use: http  base_url: "https://api.github.com"  auth_header: "Authorization"  auth_value: env.GITHUB_TOKEN
+               "header.Accept": "application/vnd.github+json"  allow_paths: "/repos/*, /search/*" }
+tool Notes   { use: file  root: "notes"  mode: readwrite }
+tool Ops     { use: shell  allow: "df, du"  timeout: 30s }
+tool Db      { use: sql  url: env.DB_URL  user: env.DB_USER  password: env.DB_PASSWORD  max_rows: 200 }
+```
+
+#### What happens when a run is resumed
+
+A message sent twice is worse than most failures, so tools that change something (`webhook`, `email`, `shell`, `file`
+writes and appends, and `http` requests other than GET) are **journaled**. Each call is recorded before it happens and
+again after, in the run journal:
+
+- When a run is resumed (a crash, a restart, a pause for a rate limit), a call that already finished returns what it
+  returned and is **not made again**; the agent is told it was already done.
+- If the process died *between* acting and recording (the outcome is unknown), the call is not repeated by default
+  (`on_unknown: skip`): a missed notification shows up, a second one to the whole team can't be taken back.
+  `on_unknown: retry` repeats it. `webhook` and `http` with `idempotency: true` send an `Idempotency-Key` header, the
+  same one on every attempt, so a receiver that supports it removes the duplicate; they always retry.
+- Reads (`http` GET, `file` read and list, `sql`) are never journaled.
+- With the in-memory journal a duplicate is only prevented within one process. For a durable run use `--journal`.
+
+#### Where requests may go (`webhook` and `http`)
+
+An agent that has been talked into something should not be able to reach your internal network or send data
+anywhere. So:
+
+- **https only.** `http://` needs `allow_http: true`, except for `localhost`.
+- **No internal addresses.** The host is looked up and refused if it is loopback, private (`10.x`, `192.168.x`,
+  `172.16–31.x`), link-local (including the cloud metadata address `169.254.169.254`), or similar, and the connection
+  uses exactly the addresses that were checked. `allow_private: true` turns this off for a tool.
+- **The agent chooses no host.** A webhook's URL is fixed; an `http` tool lets the agent choose only a path below
+  `base_url`. `hosts: "a.example.com, *.example.org"` limits the tool further.
+- **Redirects are not followed** unless `follow_redirects: true` (`http` only), and then only to an allowed host,
+  at most three times, never from https to http.
+
+Behind an HTTP proxy, the proxy makes the final connection, so the address check can only cover what Loom resolves.
+
+#### webhook
+
+```loom
+tool Slack   { use: webhook  url: env.SLACK_WEBHOOK   format: slack }
+tool Alerts  { use: webhook  url: env.DISCORD_HOOK    format: discord  retries: 3 }
+tool Ingest  { use: webhook  url: env.INGEST_URL      format: json  "header.X-Source": "loom"  idempotency: true }
+```
+
+| Option | Meaning |
+|---|---|
+| `url` | **Secret** (`env.NAME`): webhook URLs carry tokens. Required. |
+| `format` | `slack` (default), `discord`, `teams` or `json` |
+| `retries` | Extra attempts on a 429, a 5xx or a failure that sent nothing (default 2, at most 5) |
+| `idempotency`, `on_unknown`, `timeout`, `hosts`, `allow_http`, `allow_private`, `header.*` | as above |
+
+The agent gives `text` (required, at most 20,000 characters) and `title` (one line). A 429 is waited out as long as
+the server asks (up to 30 s) and retried; a longer wait, or any other 4xx, ends the call with the status. A response
+that never arrives is *not* retried inside the call, because the message may have been delivered: the call is left
+as unknown for the resume rules above. The result is `Sent to slack webhook (HTTP 200).`; the URL is never shown.
+The `teams` format sends an Adaptive Card message envelope, the shape Teams Workflows webhooks accept.
+
+#### email
+
+```loom
+tool Mail {
+    use: email
+    host: "smtp.example.com"  port: 587  security: starttls
+    username: env.SMTP_USER   password: env.SMTP_PASSWORD
+    from: "Loom Digest <digest@example.com>"
+    to: "team@example.com"                     // fixed: the agent can't change it
+}
+tool Support {
+    use: email  host: "smtp.example.com"  username: env.SMTP_USER  password: env.SMTP_PASSWORD
+    from: "support@example.com"
+    allow_to: "*@example.com"                  // the agent chooses, within this list
+    max_per_run: 5
+}
+tool DryRun { use: email  outbox: "outbox"  from: "digest@example.com"  to: "team@example.com" }
+```
+
+| Option | Meaning |
+|---|---|
+| `host`, `port` | The SMTP server. Port 587 for `starttls`, 465 for `ssl`. `host` isn't needed with `outbox`. |
+| `security` | `starttls` (default, required: a server that doesn't offer it is refused), `ssl`, or `none` (only for `localhost`, or with `allow_insecure: true`) |
+| `username`, `password` | Both or neither; `password` is a **secret** |
+| `from` | Required |
+| `to` | Fixed recipients. Give exactly one of `to` or `allow_to`. |
+| `allow_to` | Addresses the agent may choose (`a@x.com`, `*@x.com`) |
+| `cc`, `bcc` | Fixed extra recipients |
+| `max_recipients` | Default 20 |
+| `max_per_run` | Messages per run, default 20; counted from the journal, so it holds across a resume |
+| `attachments` | `true` lets the agent attach files inside the script's directory (up to 10 MB in all) |
+| `outbox` | A directory: each message is written as an `.eml` file and **nothing is sent**. For development. |
+| `on_unknown`, `timeout` | as above |
+
+The agent gives `subject` (one line, at most 200 characters), `body` (plain text, at most 200 KB), and, with
+`allow_to`, `to`. `html: true` sends the body as HTML. Line breaks in an address or subject are refused, recipients
+are checked exactly as sent, and if one recipient is refused nobody gets the message. A connection lost after the
+message data was sent leaves the outcome unknown. Provider APIs and OAuth (Gmail API, Graph) are not covered; use
+an MCP server for those.
+
+#### http
+
+```loom
+tool Github {
+    use: http
+    base_url: "https://api.github.com"
+    auth_header: "Authorization"  auth_value: env.GITHUB_TOKEN
+    "header.Accept": "application/vnd.github+json"
+    allow_paths: "/repos/*, /search/*"
+}
+tool Status { use: http  base_url: "https://status.example.com"  methods: "GET, POST"  idempotency: true }
+```
+
+| Option | Meaning |
+|---|---|
+| `base_url` | Required. The agent can only choose a path below it. |
+| `methods` | Allowed methods: `GET` (default), `POST`, `PUT`, `PATCH`, `DELETE`. Anything else is refused. |
+| `allow_paths` | Path patterns (`*` within a segment, `**` across). Default: everything below `base_url`. |
+| `auth_header` or `auth_query`, with `auth_value` | Exactly one; `auth_value` is a **secret** |
+| `header.*` | Fixed request headers |
+| `max_bytes` | Response cap, default 64k |
+| `follow_redirects`, `retries`, `idempotency`, `on_unknown`, `timeout`, `hosts`, `allow_http`, `allow_private` | as above |
+
+The agent gives `path` (starts with `/`; no `..`, `//`, `@`, `?` or `#`), and optionally `method`, `query` (an
+object) and `body` (a string, or an object sent as JSON; not for GET). The agent can't set headers or the host. The
+result is the status line, the content type and the body; only text, JSON, XML and form responses are returned. A GET
+is retried on a 429, a 5xx or a dropped connection; other methods only with `idempotency: true`. Use `approve:` on
+the agent for any tool that allows a method other than GET.
+
+#### file
+
+```loom
+tool Notes   { use: file  root: "notes"  mode: readwrite }
+tool Reports { use: file  root: "reports"  mode: write  allow: "*.md, *.json" }
+tool Docs    { use: file  root: "docs"  mode: read }
+```
+
+| Option | Meaning |
+|---|---|
+| `root` | A directory inside the script's directory (default `.`), created on the first write |
+| `mode` | `read` (default), `write` (create files and append) or `readwrite` |
+| `allow` | File name patterns (default `*.md, *.txt, *.json, *.jsonl, *.csv, *.log`) |
+| `overwrite` | Whether `write` may replace an existing file (default false) |
+| `max_bytes` | Read cap, default 256k; a write is at most 1 MB |
+| `on_unknown` | as above |
+
+The agent gives `action`: `read` (with optional `from_line` and `lines`), `list` (optional `path`, `pattern`),
+`exists`, `write` or `append`, plus `path` (relative to `root`) and `content`. Writes are atomic (a temporary file,
+then a move) and appends are serialised, so parallel branches never interleave lines. Paths that climb out, symbolic
+links that lead out, hidden files and directories (`.env`, `.loom-triggers`), the run's own journal and trigger
+store, names outside `allow`, and binary files are all refused. There is no way to delete a file.
+
+#### shell
+
+```loom
+tool Ops {
+    use: shell
+    allow: "df, du, ls"
+    cwd: "work"
+    timeout: 30s
+}
+agent Operator { model: "gemini-2.5-flash"  tools: [Ops]  approve: [Ops] }
+```
+
+| Option | Meaning |
+|---|---|
+| `allow` | The program names the agent may run. Required. |
+| `cwd` | Working directory, inside the script's directory |
+| `env_pass` | Environment variables to pass on. The child gets only `PATH`, `LANG` and `TZ` otherwise, and their values are scrubbed from results. |
+| `max_output` | Cap on standard output and on standard error, each (default 64k) |
+| `unattended` | Acknowledges that nobody approves calls (below) |
+| `allow_interpreters` | Allows shells and interpreters in `allow` (below) |
+| `on_unknown`, `timeout` | as above |
+
+The agent gives `program` (a name from `allow`, never a path) and `args` (a list of strings). The program is
+started directly with those arguments and **no shell**, so quoting, `;`, `|`, `>`, `$( )` and wildcards mean
+nothing. Each name in `allow` is looked up on the `PATH` when the script loads. Shells and anything that runs other
+programs (`sh`, `bash`, `python`, `env`, `xargs`, `find`, `sed`, `awk`, `sudo`, `ssh`, `make`, …) are refused in
+`allow` unless `allow_interpreters: true`, because allowing one allows everything. The result is `exit <code>`, then
+standard output, then standard error. On a timeout the whole process tree is killed.
+
+Because it runs code on this machine, **an agent must list a shell tool under `approve:`**, or the tool must say
+`unattended: true`; otherwise the script doesn't load. Supported on Linux and macOS; on Windows it is a load error.
+
+Allowing a program trusts it with **any arguments the agent chooses**. `df`, `du` and `ls` only read; but `git` can
+run hooks and aliases, and `tar`, `curl`, `rsync`, `cp` and `mv` can write anywhere the user can. Allow only programs
+that are safe whatever they are given, keep `approve:` on for the rest, and run unattended workflows as a user that
+can't harm anything it shouldn't.
+
+#### sql
+
+```loom
+tool Db { use: sql  url: env.DB_URL  user: env.DB_USER  password: env.DB_PASSWORD  max_rows: 200  format: json }
+```
+
+| Option | Meaning |
+|---|---|
+| `url` | **Secret**: a JDBC URL (it may hold a password) |
+| `user`, `password` | `password` is a **secret** |
+| `max_rows` | Default 100, at most 1000 |
+| `max_bytes` | Result cap, default 64k |
+| `format` | `table` (default), `json` or `csv` |
+| `timeout` | Query timeout, default 15 s |
+
+The agent gives `action` (`query`, the default, or `schema`); for `query`, `sql` and `params` (values for the `?`
+placeholders, which are the only way a value reaches the database); for `schema`, an optional `table`. It only
+reads, in two layers: the connection is opened read-only, and each statement is checked: exactly one statement,
+starting with `SELECT`, `WITH` or `VALUES`, with no `INSERT`, `UPDATE`, `DELETE`, `DROP`, `INTO`, `CALL` and the like,
+and none of the functions that read files or change state from inside a query. **Give the tool a database user that
+is itself read-only**: the checks guard against a mistake, not against a determined attacker with a writable
+account. Loom bundles no JDBC driver in the library (the packaged `weave` JAR includes PostgreSQL); a URL whose
+driver isn't installed is a load error.
+
+#### A worked example
+
+[`samples/digest`](samples/digest/) is a daily digest that collects with `http`, keeps state with `file`, and
+notifies by `email` (and, in a second script, `webhook`), scheduled with `schedule`:
+
+```bash
+weave schedule sync digest.loom --store ~/.loom/triggers
+weave triggers install ~/.loom/triggers --env-file ~/.loom/env --apply
+```
+
 ### Memory, Voice and Languages
 
 **Agent memory** lets an agent remember conversations and facts across runs. It's separate from Loom's

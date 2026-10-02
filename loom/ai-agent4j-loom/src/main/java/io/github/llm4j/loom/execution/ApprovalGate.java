@@ -1,11 +1,7 @@
 package io.github.llm4j.loom.execution;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import io.github.llm4j.loom.runtime.RunJournal;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.HexFormat;
+import io.github.llm4j.tools.CanonicalArgs;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -17,9 +13,6 @@ import java.util.Map;
  * the run ({@link io.github.llm4j.loom.runtime.RunSuspended}), no thread waits for the answer.
  */
 final class ApprovalGate {
-
-    private static final ObjectMapper CANONICAL = new ObjectMapper()
-            .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true);
 
     private final HarnessExecutor executor;
 
@@ -51,24 +44,7 @@ final class ApprovalGate {
 
     /** {@code <step>#approve:<tool>:<12 hex of sha-256(tool + canonical json(args))>}. */
     static String key(String step, String tool, Map<String, Object> args) {
-        try {
-            String json = CANONICAL.writeValueAsString(sorted(args == null ? Map.of() : args));
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest((tool + json).getBytes(StandardCharsets.UTF_8));
-            return step + "#approve:" + tool + ":" + HexFormat.of().formatHex(digest).substring(0, 12);
-        } catch (Exception e) {
-            throw new IllegalStateException("Could not key the approval of " + tool, e);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Object sorted(Object value) {
-        if (value instanceof Map<?, ?> m) {
-            Map<String, Object> out = new java.util.TreeMap<>();
-            m.forEach((k, v) -> out.put(String.valueOf(k), sorted(v)));
-            return out;
-        }
-        if (value instanceof java.util.List<?> l) return l.stream().map(ApprovalGate::sorted).toList();
-        return value;
+        return step + "#approve:" + tool + ":" + CanonicalArgs.hash12(tool, args);
     }
 
     private void audit(String event, String agent, String tool, String maskedArgs) {

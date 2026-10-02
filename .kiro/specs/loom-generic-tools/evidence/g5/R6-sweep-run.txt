@@ -1,0 +1,30 @@
+$ weave run sweep.loom --workflow Main --journal runs/sweep --trace   (every secret option set to a recognisable value)
+? Weaving workflow: sweep.loom
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+? Executing workflow: Main...
+16:42:22 [Main/s0] Prober  ? probe
+16:42:22 [Main/s0] Prober  ? use Hook
+16:42:22 [Main/s0] Prober  ? Hook {"text":"hello"}
+16:42:22 [Main/s0] ? tool effect: Hook 127.0.0.1 ? failed
+16:42:22 [Main/s0] Prober  ? Error: the webhook answered HTTP 500 Internal Server Error: failed for *** with {'Content-Type': 'application/json; charset=utf-8', 'Content-Length': '16', 'Host': '127.0.0.1:8765', 'Connection': 'Keep-Alive', 'Accept-Enco?
+16:42:22 [Main/s0] Prober  ? use Api
+16:42:22 [Main/s0] Prober  ? Api {"path":"/echo"}
+16:42:22 [Main/s0] ? tool call: Api GET 127.0.0.1/echo ? ok
+16:42:22 [Main/s0] Prober  ? HTTP 200 OK Content-Type: application/json  {"you_sent": {"X-Api-Key": "***", "Authorization": "***", "Host": "127.0.0.1:8765", "Connection": "Keep-Alive", "Accept-Encoding": "gzip", "User-Agent": "okhttp/5.3.2"}}
+16:42:22 [Main/s0] Prober  ? use Mail
+16:42:22 [Main/s0] Prober  ? Mail {"subject":"s","body":"b"}
+16:42:23 [Main/s0] ? tool effect: Mail 1 recipients ? failed
+16:42:23 [Main/s0] Prober  ? Error: couldn't connect to the mail server
+16:42:23 [Main/s0] Prober  ? use Db
+16:42:23 [Main/s0] Prober  ? Db {"sql":"SELECT 1"}
+16:42:23 [Main/s0] ? tool call: Db query ? failed
+16:42:23 [Main/s0] Prober  ? Error: the database refused the query: Wrong user name or password [28000-224]
+16:42:23 [Main/s0] Prober  ? use Ops
+16:42:23 [Main/s0] Prober  ? Ops {"program":"printenv","args":["SECRETSECRET_SHELLVAR"]}
+16:42:23 [Main/s0] ? tool effect: Ops printenv ? ok
+16:42:23 [Main/s0] Prober  ? exit 0 stdout: *** stderr: (empty) 
+16:42:23 [Main/s0] Prober  ? t
+16:42:23 [Main/s0] Prober  ? finished
+? Workflow completed successfully.

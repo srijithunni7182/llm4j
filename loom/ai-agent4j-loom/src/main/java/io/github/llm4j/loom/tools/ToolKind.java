@@ -21,6 +21,19 @@ public interface ToolKind {
         return Set.of();
     }
 
+    /**
+     * A rule about how an agent may use a tool of this kind, checked at load: for example, a kind that runs
+     * programs requires the agent to have it approved. Returns a problem or null.
+     */
+    default String agentProblem(Map<String, String> options, String toolName, String agentName, boolean approved) {
+        return null;
+    }
+
+    /** Option-name prefixes the kind accepts in any spelling after them, e.g. {@code header.}. */
+    default Set<String> prefixes() {
+        return Set.of();
+    }
+
     /** Options that hold credentials: must be written {@code env.NAME}. */
     default Set<String> secrets() {
         return Set.of();
@@ -50,4 +63,10 @@ public interface ToolKind {
      * @param baseDir where relative paths are resolved (the script's directory)
      */
     Tool create(String name, Map<String, String> options, Path baseDir) throws Exception;
+
+    /** As {@link #create(String, Map, Path)}, for kinds that report to the run they're in. */
+    default Tool create(String name, Map<String, String> options, Path baseDir,
+                        io.github.llm4j.agent.tool.EffectContext context) throws Exception {
+        return create(name, options, baseDir);
+    }
 }

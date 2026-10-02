@@ -5,6 +5,10 @@
 meeting one contract (spec in [`../uniform-providers/`](../uniform-providers/)); an OpenAI provider is what
 remains of the "Library" row.*
 
+> **Update (generic tools):** the "tools that need configuration" gap in §3.2 is now closed for the common cases by six
+> script-declared tool kinds: `webhook`, `email`, `http`, `file`, `shell` and `sql` (see the
+> [loom-generic-tools spec](../loom-generic-tools/requirements.md) and the Generic Tools section of `LOOM_GUIDE.md`).
+
 ## 1. Summary
 
 Loom scripts can define agents with a model, a system prompt, tools, MCP servers, skills, a temperature,

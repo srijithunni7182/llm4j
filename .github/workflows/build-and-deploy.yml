@@ -43,6 +43,11 @@ jobs:
       env:
         NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
+    - name: Build and Test Tools (ai-agent4j-tools)
+      run: |
+        mvn -B clean install -DskipTests=false
+      working-directory: ai-agent4j-tools
+
     - name: Build and Test eval4j
       run: |
         mvn -B clean install -DskipTests=false
@@ -56,6 +61,7 @@ jobs:
         path: |
           ai-agent4j/target/surefire-reports/
           ai-agent4j-addons/target/surefire-reports/
+          ai-agent4j-tools/target/surefire-reports/
           eval4j/target/surefire-reports/
 
   app-smoke-builds:

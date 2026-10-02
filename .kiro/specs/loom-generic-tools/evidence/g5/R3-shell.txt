@@ -1,0 +1,36 @@
+$ weave run shell.loom --workflow Main --trace
+? Weaving workflow: shell.loom
+SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+? Executing workflow: Main...
+19:36:28 [Main/s0] Runner  ? go
+19:36:28 [Main/s0] Runner  ? use Ops
+19:36:28 [Main/s0] Runner  ? Ops {"program":"echo","args":["hello","$(date)","; touch pwned"]}
+19:36:28 [Main/s0] ? tool effect: Ops echo ? ok
+19:36:28 [Main/s0] Runner  ? exit 0 stdout: hello $(date) ; touch pwned stderr: (empty) 
+19:36:28 [Main/s0] Runner  ? use Ops
+19:36:28 [Main/s0] Runner  ? Ops {"program":"ls","args":["-la"]}
+19:36:28 [Main/s0] ? tool effect: Ops ls ? failed
+19:36:28 [Main/s0] Runner  ? Error: program ls is not allowed (allowed: echo)
+19:36:28 [Main/s0] Runner  ? use Ops
+19:36:28 [Main/s0] Runner  ? Ops {"program":"echo$IFS","args":["x"]}
+19:36:28 [Main/s0] ? tool effect: Ops echo$IFS ? failed
+19:36:28 [Main/s0] Runner  ? Error: program echo$IFS is not allowed (allowed: echo)
+19:36:28 [Main/s0] Runner  ? use Ops
+19:36:28 [Main/s0] Runner  ? Ops {"program":"/usr/bin/echo","args":["x"]}
+19:36:28 [Main/s0] ? tool effect: Ops /usr/bin/echo ? failed
+19:36:28 [Main/s0] Runner  ? Error: program /usr/bin/echo is not allowed (allowed: echo)
+19:36:28 [Main/s0] Runner  ? use Ops
+19:36:28 [Main/s0] Runner  ? Ops {"program":"echo","args":["line1\nline2"]}
+19:36:28 [Main/s0] ? tool effect: Ops echo ? failed
+19:36:28 [Main/s0] Runner  ? Error: arguments can't contain line breaks or NUL
+19:36:28 [Main/s0] Runner  ? t
+19:36:28 [Main/s0] Runner  ? finished
+? Workflow completed successfully.
+--- requests the stand-in server saw (paths):
+--- files:
+./canary.txt
+./notes/keep.md
+--- secret sweep (SECRETSECRET) over this directory's output files:
+   none
