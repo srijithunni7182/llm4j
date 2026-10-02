@@ -30,16 +30,18 @@ new method on `RunJournal`, and the JDBC, file and memory journals all work as t
 
 ```loom
 workflow Report(topic) {
-    checkpoint collected { feedback: "none" }
+    checkpoint collected  starting with feedback = "none"
     delegate "Collect sources on {topic}. Reviewer feedback so far: {feedback}" to Collector -> data
     delegate "Analyse {data}" to Analyst -> analysis
     delegate "Write the report from {analysis}" to Writer -> draft
     delegate "Review {draft}" to Reviewer -> review expecting { score: number, notes: string }
 
-    rewind to collected when review.score < 7  max 2
-        effects: hold
-        with { feedback: "{review.notes}" }
-        on_exhausted { human_prompt "Three drafts failed review. Publish the last one anyway? (yes/no)" -> go }
+    rewind to collected
+        when review.score < 7
+        at most 2 times
+        carrying feedback = "{review.notes}"
+        side effects: ask first
+        if it still fails { human_prompt "Three drafts failed review. Publish the last one anyway? (yes/no)" -> go }
     alt (go == "no") { handoff "Abandon" to Archivist }
     delegate "Publish {draft}" to Publisher
 }
@@ -49,15 +51,15 @@ workflow Report(topic) {
 
 ```loom
 delegate "Fetch the price list" to Fetcher -> prices
-    on_failure { rewind to start max 1 with { hint: "{_error}" } }
+    on_failure { rewind to start at most 1 time carrying hint = "{_error}" }
 ```
 
 ### 1.2 Parsing
 
 `checkpoint` and `rewind` are **contextual**: the parser treats them as statement keywords only when they start a statement
 and are followed by an identifier (`checkpoint Name`) or `to` (`rewind to`). Elsewhere they are identifiers, so existing
-scripts that use them as names keep working (R9.1). `with`, `max`, `effects`, `on_exhausted`, `on_blocked` are read inside the
-statement in the way `loop … max … on_exhausted` is read today. New AST nodes: `CheckpointStmt(name, initial)` and
+scripts that use them as names keep working (R9.1). `when`, `at most N times`, `carrying`, `side effects:`, `if it still fails` and `if blocked` are read inside the
+statement as fixed phrases, in the way `loop … max … on_exhausted` is read today. New AST nodes: `CheckpointStmt(name, initial)` and
 `RewindStmt(target, condition, max, effects, carried, onExhausted, onBlocked)`; `Statement` is a plain interface, so nothing
 else changes.
 
@@ -68,7 +70,7 @@ Each is a problem with a line (R1.3, R2.7, R2.9):
 - duplicate checkpoint name in a workflow; unknown target; target later than the `rewind`; target in a sibling or nested block; target outside the branch that contains the rewind (a `parallel` branch, a `for each` body);
 - `max` missing or not positive; `effects:` not one of the three; `with` entries that are not `name: value`;
 - the condition is one comparison or a bare boolean variable, as the existing evaluator accepts (no `and`/`or`); anything else is a load error pointing at that limit;
-- the **effect reach** of the region between the checkpoint and the rewind: the validator already knows which agents a statement uses and which tools each agent has; it takes the union of their tools and classifies each by the `ToolKind`/`Effectful` information the tool factory has (a built-in pure tool: none; a generic tool: its `isEffect` possibilities; a tool of a class it can't classify: unknown). Unknown and effectful, with no stated policy, is a warning; with `effects: redo` and not approved or `unattended`, an error; an agent with `memory` facts in the region is a warning (R4.7).
+- the **effect reach** of the region between the checkpoint and the rewind: the validator already knows which agents a statement uses and which tools each agent has; it takes the union of their tools and classifies each by the `ToolKind`/`Effectful` information the tool factory has (a built-in pure tool: none; a generic tool: its `isEffect` possibilities; a tool of a class it can't classify: unknown). Unknown and effectful, with no stated policy, is a warning; with `side effects: repeat` and not approved or `unattended`, an error; an agent with `memory` facts in the region is a warning (R4.7).
 
 ## 2. The generation model
 
@@ -167,15 +169,15 @@ Where each kind of record gets its key today, and what changes:
 |---|---|---|
 | Model call (delegate, handoff, broadcast) | `<step>` | `<step>` with its `~g` suffix: **new generation, new call** |
 | Human answer (`human_prompt`, approval answer) | `<step>` / `<step>#approve:<tool>:<hash>` | the **generation-free** step. For `human_prompt` the question's hash is stored beside the answer (`<step>#asked`, new), so the same question in the same place is not re-asked and a changed one is; approvals already include the arguments' hash |
-| Effect (`EffectTool`) | `<step>#effect:<tool>:<hash>#<n>` | the **generation-free** step, so an identical call finds its record: this is `effects: keep` |
+| Effect (`EffectTool`) | `<step>#effect:<tool>:<hash>#<n>` | the **generation-free** step, so an identical call finds its record: this is `side effects: keep` |
 | Usage and spend | `<step>#usage:<agent>` | with the suffix, so every generation's spend is its own and all are counted |
 
 `EffectContext.currentStep()` returns the step with its suffix; a new `EffectContext.identityStep()` (additive, default =
-`currentStep()`) returns it without. `EffectTool` builds keys from `identityStep()`, and its per-attempt call ordinal is counted against `identityStep()` too (today it is keyed by `currentStep()`, which would number a repeated call differently in generation 2). `max_per_run` counts effect records of every generation, which is correct (they happened) and means a `redo` spends the allowance again. Loom's `RunEffectContext` implements it by
-stripping `~<digits>` segments. With `effects: redo` the executor sets a per-statement flag that makes `identityStep()` keep the
+`currentStep()`) returns it without. `EffectTool` builds keys from `identityStep()`, and its per-attempt call ordinal is counted against `identityStep()` too (today it is keyed by `currentStep()`, which would number a repeated call differently in generation 2). `max_per_run` counts effect records of every generation, which is correct (they happened) and means a `repeat` spends the allowance again. Loom's `RunEffectContext` implements it by
+stripping `~<digits>` segments. With `side effects: repeat` the executor sets a per-statement flag that makes `identityStep()` keep the
 suffix for steps beneath that rewind, so all effects have new keys.
 
-### 3.2 Which effects block a rewind (`hold`)
+### 3.2 Which effects block a rewind (`ask first`)
 
 For the region of statement ids the rewind discards (the statements after the checkpoint in its block up to the `rewind`, in the
 current generation, and everything nested), the executor scans `journal.all()` for effect keys whose step part is in the
@@ -185,10 +187,10 @@ person and the trace.
 
 ### 3.3 Pausing instead of failing
 
-A held rewind with no `on_blocked` pauses through the same path as a tool approval:
+A held rewind with no `if blocked` pauses through the same path as a tool approval:
 `humanInterface.promptHuman(key, question)` with key `<rewind step>#rewind-blocked#<n>`, the question listing the blocking
-effects and offering `keep`, `redo`, `cancel`. The answer is journaled with the key, so a resume reads it and acts without asking
-again; `keep` and `redo` re-enter §2.4 with that policy for this one rewind, `cancel` records "no rewind" and the run continues
+effects and offering `keep`, `repeat`, `cancel`. The answer is journaled with the key, so a resume reads it and acts without asking
+again; `keep` and `repeat` re-enter §2.4 with that policy for this one rewind, `cancel` records "no rewind" and the run continues
 past the statement.
 
 ### 3.4 Simulate
@@ -274,8 +276,8 @@ which makes forking thousands of runs cheap (the parent is read, not copied). An
 | Decision | Alternative | Why |
 |---|---|---|
 | Generations in step ids, nothing deleted | delete the entries after the checkpoint | Deletion loses the history and the audit trail, needs a new journal method, and a crash halfway leaves a half-deleted run; appending is atomic per key and resumable |
-| Effects and answers keyed without the generation | key everything with the generation | The whole point of safe rewinding: an identical send is not repeated. It also makes `keep` the natural default behaviour of the keys, and `hold`/`redo` the explicit variations |
-| `hold` as the default policy | `keep` as the default | A rewind that sends a *different* message is a second message. The default must not do that silently; the author says `keep`, or fixes the placement |
+| Effects and answers keyed without the generation | key everything with the generation | The whole point of safe rewinding: an identical send is not repeated. It also makes `keep` the natural default behaviour of the keys, and `ask first`/`repeat` the explicit variations |
+| `ask first` as the default policy | `keep` as the default | A rewind that sends a *different* message is a second message. The default must not do that silently; the author says `keep`, or fixes the placement |
 | Statement-level rewind with carried values | a retry of the whole workflow | Carried values are what makes the second attempt different from the first |
 | A bounded `max` on every rewind plus a run cap | unbounded with a budget | Budgets are in tokens or money; a runaway rewind loop should stop on a count too, and be obvious in the script |
 | Operator rewind to any statement boundary | to checkpoints only | Operators need to go back to where the problem started, which the author may not have named |
@@ -288,6 +290,6 @@ which makes forking thousands of runs cheap (the parent is read, not copied). An
 - **Compound conditions.** The condition evaluator takes one comparison. `rewind … when score < 7 or empty(data)` needs either an evaluator extension (benefits `alt` and `loop until` too) or a computed flag; v1 uses the flag.
 
 - **Rewinding into a `for each` iteration** from outside is allowed as a whole; rewinding a *single* iteration's branch is a natural follow-up.
-- **Compensation.** Undoing an effect (delete the message, void the refund) could be declared next to the tool (`undo:`), so `redo` could first undo. Out of scope; the script can do it in `on_exhausted`/`on_blocked` today.
+- **Compensation.** Undoing an effect (delete the message, void the refund) could be declared next to the tool (`undo:`), so `repeat` could first undo. Out of scope; the script can do it in `on_exhausted`/`if blocked` today.
 - **Selective carry from agent memory.** Memory written in a discarded generation stays; a journaled memory mode would fix it.
 - **Merging forks** (take the better of two). Not in this version.

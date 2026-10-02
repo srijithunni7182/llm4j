@@ -17,7 +17,7 @@ operator commands and fork, so each step is testable alone. Tests are written wi
   - [ ] 5.2 `checkpoint`: journal entry, snapshot, initial values. V1.3–V1.5.
   - [ ] 5.3 `rewind`: decision, journaled "no rewind", counts, caps, carried values, variables restore, `RewindSignal`. V2.1–V2.5, V2.8, V2.10, V2.11, V3.4, V3.5.
   - [ ] 5.4 Identity rule for effects, approvals, human answers; usage keys with the generation; `restoreSpend`. V4.1, V4.2, V4.6, V4.7, V3.6, V6.1–V6.3.
-  - [ ] 5.5 Effects policies: `hold` scan, `on_blocked`, the pause-and-ask path, `keep`, `redo`. V4.3–V4.5, V4.9.
+  - [ ] 5.5 Effects policies: `ask first` scan, `if blocked`, the pause-and-ask path, `keep`, `repeat`. V4.3–V4.5, V4.9.
   - [ ] 5.6 `rewind` inside `on_failure` (`_error`). V2.7.
   - [ ] 5.7 `--stop-at`, `RunStopped`, exit code 5. V5.9.
   - [ ] 5.8 Trace, audit, console marks, `_generation`. V7.1–V7.3.

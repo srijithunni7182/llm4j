@@ -9,7 +9,7 @@ See [verification.md](verification.md).
 
 - [ ] 1. **Prerequisite check** — confirm `EffectContext.simulate()`, `identityStep()`, `OverlayJournal` and `weave fork` from the rewind work are in place; V7.6 passes against them. No new core contract is added here.
 - [ ] 2. **Pure pieces** (`io.github.llm4j.loom.autonomy`)
-  - [ ] 2.1 `AgreementStats` (Wilson bound, unsafe rate, coverage, malformed). V4.5.
+  - [ ] 2.1 `AgreementStats` (Wilson bound, dangerous-mistake rate, coverage, malformed). V4.5.
   - [ ] 2.2 `AgentIdentity` over the AST. V6.1.
   - [ ] 2.3 `Rule`, `DemoteRule` and a `LadderEngine` with injected `Clock`: evaluate, explain what is missing, demotions. V3.3–V3.8, V10.4.
 - [ ] 3. **Storage**
@@ -25,12 +25,12 @@ See [verification.md](verification.md).
 - [ ] 5. **Executor**
   - [ ] 5.1 `decide`: case id, level read and journaled, propose with evidence capture, branch on level, ask, bind, trace and audit. V1.4–V1.6, V2.1, V2.3, V2.5, V3.2, V3.10.
   - [ ] 5.2 Blindness: separate question builder, hidden journal key, redacted trace and audit. V4.1, V4.2.
-  - [ ] 5.3 Limits, audit sampling, freeze, ceiling. V3.5, V3.6, V3.8, V3.11.
+  - [ ] 5.3 Limits, audit sampling, freeze, the `never go above` cap. V3.5, V3.6, V3.8, V3.11.
   - [ ] 5.4 Malformed proposals and failure paths (design §8). V8.2, V8.4.
 - [ ] 6. **Ladder in operation**
   - [ ] 6.1 Promotion proposals through the durable approval path; `auto`. V3.9, V3.12.
   - [ ] 6.2 Demotion on every `Decided`/`Outcome`. V3.7, V5.5.
-  - [ ] 6.3 Epochs and `on_change` (shadow, keep; replay after task 7). V6.2, V6.4–V6.6.
+  - [ ] 6.3 Epochs and `when the agent changes` (start over, keep the trust; test on past cases after task 7). V6.2, V6.4–V6.6.
   - [ ] 6.4 Notification hook through the effect journal. V5.7.
 - [ ] 7. **Replay** (on the rewind work's ephemeral fork)
   - [ ] 7.1 Journal contents of a case: `#decide-task`, `#decide-evidence`, `#decide-proposal`, `#level`; the decide step as a nameable boundary. V2.5.
@@ -40,7 +40,7 @@ See [verification.md](verification.md).
   - [ ] 7.5 Report model, Markdown and JSON, masking. V7.12.
   - [ ] 7.6 Durable replay log, `--resume`, budgets. V7.10.
   - [ ] 7.7 `--policy`. V7.11. The by-hand equivalence check. V7.15.
-  - [ ] 7.8 `on_change: replay` wired into epochs. V6.3, V7.16.
+  - [ ] 7.8 `when the agent changes: test it on past cases` wired into epochs. V6.3, V7.16.
   - [ ] 7.9 Rewound cases: generation folding and `superseded`. V2.9.
   - [ ] 7.10 Scale and memory. V7.14.
 - [ ] 8. **Commands** — `weave autonomy status|history|promote|demote|freeze|unfreeze|outcome`, `weave replay`, JSON output, exit codes. V5.1–V5.8, V7.12.

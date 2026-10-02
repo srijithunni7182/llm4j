@@ -15,8 +15,8 @@ audit and the trigger store directory.
 ```
  script ──parse──▶ DecisionDef ─┐
                                 │ executor: decide
- case ──▶ DecideStep ──────────▶ LevelStore.read ─▶ level ─┬─ shadow: propose (hidden) + ask blind ─▶ verdict = human
-                                                          ├─ assist: propose + ask shown          ─▶ verdict = human
+ case ──▶ DecideStep ──────────▶ LevelStore.read ─▶ level ─┬─ watch: propose (hidden) + ask blind ─▶ verdict = human
+                                                          ├─ suggest: propose + ask shown          ─▶ verdict = human
                                                           └─ act:    propose (+ audit/limits)     ─▶ verdict = agent | human
                                 │
                                 ▼
@@ -40,30 +40,35 @@ untouched, which is what R1.7 and the regression gate check.
 
 ```loom
 decision Refund {
-    agent: Triager
-    labels: approve, reject, escalate
-    scope: tier                                   // variable; optional
-    fields: [amount, reason, customer_since]      // captured as the case's inputs
-    unsafe: [approve/reject]                      // proposal/decision pairs that cost the most
-    decider: "support-lead"                       // who is asked (the human interface decides how)
-    retain: 180 days
-    on_change: replay                             // shadow | replay | keep
+    proposed by:            Triager
+    choices:                approve, reject, escalate
+    group cases by:         tier
+    remember:               amount, reason, customer_since
+    dangerous mistake:      propose approve, person decides reject
+    ask:                    support-lead
+    keep records for:       180 days
+    when the agent changes: test it on past cases       // or: start over, keep the trust
+    tell Slack when trust changes
 
-    autonomy {
-        start: shadow
-        ceiling: act                              // default assist
-        promotion: approval                       // approval | auto
-        approver: "risk-owner"
+    trust {
+        start at watch                                  // propose quietly; people decide; nobody sees the proposal
+        never go above suggest                          // write "act" here on purpose, once the record supports it
 
-        shadow -> assist { cases: 100  days: 14  agreement: 0.90 }
-        assist -> act    { cases: 300  days: 30  agreement: 0.97  max_unsafe: 0 }
-        window: 300                               // most recent blind cases that count
-        audit: 5%                                 // at act: blind sampling
-        limit { where: amount > 200   per_day: 50 }   // sent to a person whatever the level
+        to suggest:  after 100 cases over 14 days, agreeing at least 90%
+        to act:      after 300 cases over 30 days, agreeing at least 97%, with no dangerous mistakes
+        judge on the latest 300 cases
 
-        demote { unsafe: 2 in 50   reversed: 2 in 100   agreement_below: 0.92   malformed: 5 in 50   to: assist }
+        check 5% of cases with a person who doesn't see the proposal
+        always ask a person when amount > 200
+        always ask a person after 50 cases a day
+
+        drop to suggest when 2 dangerous mistakes in 50 cases
+        drop to suggest when 2 reversals in 100 cases
+        drop to suggest when agreement falls below 92%
+        drop to suggest when 5 unusable proposals in 50 cases
+
+        moving up needs approval from: risk-owner       // or: moving up is automatic
     }
-    notify: Slack                                 // a tool, called on a level change or proposal
 }
 
 workflow Triage(ticket) {
@@ -72,14 +77,31 @@ workflow Triage(ticket) {
 }
 ```
 
-`decide` has no arguments: the decision declares its `fields` and `scope`, which are read from the workflow variables
+The three levels, in plain words: **watch** (the agent proposes quietly and people decide as always), **suggest** (people see the
+proposal and confirm or change it), **act** (the agent's proposal takes effect; a person still checks a sample).
+
+`decide` has no arguments: the decision declares what to `remember` and how to `group cases by`, which are read from the workflow variables
 in scope when it runs. `verdict`, `verdict_proposal` and `verdict_level` are bound as ordinary variables.
+
+### 1.4 Readable by design
+
+The point of the syntax is that a risk owner who has never seen Loom can read a `decision` block aloud and agree or disagree with it.
+
+- **Plain phrases, fixed order.** A setting is a phrase (`keep records for: 180 days`, `drop to suggest when 2 reversals in 100 cases`),
+  not an abbreviation or a symbol. The parser reads each as a fixed sequence of words; there are no free-form sentences and no
+  ambiguity, and a mistake is reported in the author's own words (`line 14: "to act" needs "after N cases"`).
+- **Units are words.** `14 days`, `5%`, `100 cases`, `180 days`; never `0.97` for 97%.
+- **Levels have names a person can say:** `watch`, `suggest`, `act`.
+- **No arrows between levels, no brackets for pairs.** `to suggest: …` and `dangerous mistake: propose approve, person decides reject`.
+- **Mistakes are named for what they are:** *dangerous mistake* (the costly disagreement), *reversal* (undone later), *unusable proposal*
+  (not one of the choices).
+- **The comments in the example are part of the documentation**: the guide shows blocks like this one with the same style.
 
 ### 1.2 Words
 
-`decision`, `decide` and `autonomy` are **contextual**: the parser treats them as keywords only at the start of a
+`decision`, `decide` and `trust` are **contextual**: the parser treats them as keywords only at the start of a
 top-level item (`decision`), at the start of a statement followed by an identifier and `->` (`decide`), and as the
-first word of a block inside a `decision` (`autonomy`). In any other position they are identifiers, so existing
+first word of a block inside a `decision` (`trust`). In any other position they are identifiers, so existing
 scripts keep parsing (R1.7). The lexer therefore gets no new keyword tokens; the parser looks at the identifier text.
 
 ### 1.3 Load-time checks (`ScriptValidator`)
@@ -88,7 +110,7 @@ Each of R1.3 and R1.4 is a problem with a line number. Two more are worth naming
 
 - **A decision reaches only what it declares.** `fields` must name variables that are certain to be set where the
   `decide` runs (the validator already tracks variables for `{x}` references; this reuses it).
-- **`act` and `unattended` effects.** A decision with `ceiling: act` whose `then` branch calls an effect tool that is not
+- **`act` and `unattended` effects.** A decision with `never go above act` whose `then` branch calls an effect tool that is not
   approved or marked `unattended` is reported: reaching `act` must not silently remove the last human check on a tool that
   needed one (the shell rule's logic, reused).
 
@@ -107,29 +129,29 @@ Steps, all inside one journaled step id `<step>#decide:<Name>` so a resume repea
 
    | Level | Who decides | Is the proposal shown | Written to the ledger |
    |---|---|---|---|
-   | `shadow` | the person | no | case, then verdict |
-   | `assist` | the person | yes (label, rationale, confidence) | case, then verdict (not counted as blind) |
+   | `watch` | the person | no | case, then verdict |
+   | `suggest` | the person | yes (choice, reasoning, confidence) | case, then verdict (not counted as blind) |
    | `act`, normal | the agent | n/a | case with `verdict = proposal`, decider `agent` |
-   | `act`, audit | the person | no | as shadow (blind evidence) |
-   | `act`, limit | the person | yes | as assist |
+   | `act`, audit | the person | no | as watch (blind evidence) |
+   | `act`, limit | the person | yes | as suggest |
 
 6. **Ask** through the existing `HumanInterface.promptHuman(key, question)`, keyed `<step>#decide-ask`, so it pauses
    durably and a resumed run reads the stored answer instead of asking again. The question is built from the fields only
-   (shadow, audit) or the fields plus the proposal (assist, limit). The answer is matched to a label (case-insensitive,
-   unique prefix); an answer that is not a label is asked again once, then fails the step.
+   (watch, audit) or the fields plus the proposal (suggest, limit). The answer is matched to a choice (case-insensitive,
+   unique prefix); an answer that is not a choice is asked again once, then fails the step.
 7. **Bind** `verdict`, `verdict_proposal`, `verdict_level`; **trace** and **audit** (`decision_proposed`,
-   `decision_decided`, never the proposal text in shadow before the verdict exists).
+   `decision_decided`, never the proposal text in watch before the verdict exists).
 
 ### 2.1 Blindness
 
 The proposal exists in two places before the person answers: the journal (needed for resume) and the trace. Both must
 not leak it. Design rules:
 
-- the proposal is journaled under a key the question builder never reads in shadow or audit mode;
-- the trace event for a shadow proposal says only "proposal recorded (hidden)" and the audit event carries no label until the
+- the proposal is journaled under a key the question builder never reads in watch or audit mode;
+- the trace event for a watch proposal says only "proposal recorded (hidden)" and the audit event carries no choice until the
   verdict is in;
 - a console or web human interface receives a `Question` that has only the fields, so it can't show what it wasn't given;
-- a test (V4.1) asserts the proposal's label and rationale appear in no string sent to the interface, the trace listener or
+- a test (V4.1) asserts the proposal's choice and reasoning appear in no string sent to the interface, the trace listener or
   the audit log before the answer.
 
 ### 2.2 What goes into the journal for a fork to find
@@ -141,7 +163,7 @@ sees them:
 |---|---|
 | `<step>#decide-task` | the task text as sent to the agent (after template expansion and masking) |
 | `<step>#decide-evidence:<n>` | one per read-tool call made while proposing: `{tool, argsHash, result}` |
-| `<step>#decide-proposal` | the proposal (hidden from the person in shadow, as §2.1) |
+| `<step>#decide-proposal` | the proposal (hidden from the person in watch, as §2.1) |
 | `<step>#level` | the level in force |
 
 A decorator on the agent's tools during propose records the evidence for calls whose tool is a read (an `Effectful` with
@@ -197,7 +219,7 @@ One class, `AgreementStats`, pure functions of a list of `(proposal, decision)` 
 - agreement = matches / n, over the most recent `window` blind cases of the current epoch and scope;
 - **lower bound** = Wilson score interval lower end at 95% (z = 1.959964):
   `(p + z²/2n − z·sqrt(p(1−p)/n + z²/4n²)) / (1 + z²/n)`, with n = 0 giving 0;
-- unsafe rate and count from the declared pairs; coverage = share of cases with a proposal other than `escalate`;
+- dangerous-mistake rate and count from the declared pairs; coverage = share of cases with a proposal other than `escalate`;
 - malformed count.
 
 The Wilson interval, not the raw rate: 20 of 20 is not 100% evidence. Its inputs and outputs are checked against
@@ -238,12 +260,12 @@ call (where available) is added to the case record, not the hash.
 ### 5.2 Epochs
 
 The level store keeps `(decision, scope) → {level, epoch, identity}`. On step 3 of `decide`, if the identity differs from
-the stored one, the engine starts a new epoch with the `on_change` policy:
+the stored one, the engine starts a new epoch with the `when the agent changes` policy (`start over`, `test it on past cases`, `keep the trust`):
 
-- `shadow`: `level = start`, evidence of the old epoch is not counted;
+- `watch`: `level = start`, evidence of the old epoch is not counted;
 - `replay`: run the replay engine (§7) over the old epoch's most recent blind, replayable cases under the new identity, using
   the new agent as the candidate; grade it with the same rules; set `level = min(old level, highest level whose rule it meets)`; record `LevelChanged(reason = replay, report id)`; if fewer than the rule's `cases` are replayable, `level = start`;
-- `keep`: level unchanged, a new epoch, a warning at load unless `ceiling <= assist`.
+- `keep`: level unchanged, a new epoch, a warning at load unless `ceiling <= suggest`.
 
 The first case of a new epoch pays for the replay inside its own step, so the change is a visible, journaled, budgeted part of
 the run (a rate limit pauses it and it resumes; the replay log is durable, §7.5).
@@ -292,7 +314,7 @@ for each selected case c:
     run; read fork[c.step~2 + "#decide-proposal"]                      // the candidate's proposal
 ```
 
-Stopping *before the ask* matters: at `assist` the question includes the proposal, and a different candidate proposal would make a different question, which the null human interface would refuse. The generation-2 boundary at the decide step is what makes the candidate's agent run again while everything before it (the
+Stopping *before the ask* matters: at `suggest` the question includes the proposal, and a different candidate proposal would make a different question, which the null human interface would refuse. The generation-2 boundary at the decide step is what makes the candidate's agent run again while everything before it (the
 upstream steps, with their results) is read from the journal at no cost. A candidate that changes only the decision's agent, its
 model, prompt, policy or tools after the decide point has an identical prefix, so no drift.
 
@@ -332,7 +354,7 @@ reference, the option is an error naming that.
 
 Markdown and JSON from one model object, `ReplayReport`. Sections in order: what was replayed and what was not; tools in replay
 (simulated, allowed, live); headline table (incumbent vs candidate: agreement, lower bound, unsafe, coverage, cost); the level the
-candidate would earn; flips, unsafe first; per-scope tables; repeat stability (with `--repeat`). Flips and rationales pass through
+candidate would earn; flips, unsafe first; per-scope tables; repeat stability (with `--repeat`). Flips and reasonings pass through
 the same masking as the ledger.
 
 ### 7.8 Scale
@@ -344,12 +366,12 @@ read, never copied. Cases are streamed, so memory is bounded by one case plus th
 
 | Situation | Behaviour |
 |---|---|
-| Ledger or level store unreadable | decision runs at `shadow` (or pauses if the decider is unreachable), audit `autonomy_degraded`; never higher |
+| Ledger or level store unreadable | decision runs at `watch` (or pauses if the decider is unreachable), audit `autonomy_degraded`; never higher |
 | Ledger append fails after the person answered | the verdict stands (it's in the run journal); the case is re-appended on resume; `status` flags journal-only cases |
 | Two runs reach `compareAndSet` | one wins; the other re-reads and re-evaluates against the new level |
 | Decider never answers | the run pauses as any human prompt does; `status` lists the case as stale after `stale_after` |
-| Agent returns an invalid label or no JSON | one retry through the existing `expecting` retry; then `escalate` + `malformed` |
-| Agent call fails (model error, budget stop) | the existing `retry`/`on_failure` rules; at `act`, a failed proposal is sent to a person as an `assist` case |
+| Agent returns an invalid choice or no JSON | one retry through the existing `expecting` retry; then `escalate` + `malformed` |
+| Agent call fails (model error, budget stop) | the existing `retry`/`on_failure` rules; at `act`, a failed proposal is sent to a person as an `suggest` case |
 | Budget stops a replay | partial report, marked partial |
 | Candidate script doesn't load | `weave replay` exits 2 with the load problems |
 | Torn last line in a file ledger | ignored on read, reported, repaired on next append |
@@ -359,7 +381,7 @@ read, never copied. Cases are streamed, so memory is bounded by one case plus th
 ## 9. Security
 
 The ledger and level store are written only by the runtime and the commands. The agent holds no tool that reaches them (R2.7)
-and its output is parsed, not interpreted, for the label; proposals can't carry instructions to the runtime. The decider sees
+and its output is parsed, not interpreted, for the choice; proposals can't carry instructions to the runtime. The decider sees
 fields as inert text (R8.3). Replay runs candidate code with simulated effects, and stubs everything not proven to be a read;
 the replay tool wrapper is class-based, so a new tool kind is stubbed by default until it opts in. A forced or hand-set level is
 marked until the evidence catches up (R8.5).
@@ -370,7 +392,7 @@ marked until the evidence catches up (R8.5).
 - `Ledger` and `LevelStore` fakes: memory, a fault-injecting wrapper (fail the Nth append, tear a line).
 - The rewind spec's test support (journal matrix, `FaultJournal`, recording effect tool), reused as it is.
 - A scripted human interface that answers per case id, records what it was asked, and can pause.
-- A scripted model that returns a label per case (the existing `ScriptedRun` approach), including malformed output.
+- A scripted model that returns a choice per case (the existing `ScriptedRun` approach), including malformed output.
 - A fixed seed for selection, audit sampling and `--repeat`.
 - Reference values for Wilson from a published table, and a brute-force reference implementation for property tests.
 
@@ -379,11 +401,11 @@ marked until the evidence catches up (R8.5).
 | Decision | Alternative | Why |
 |---|---|---|
 | A declaration plus a `decide` statement | a library function the author calls, or a flag on `delegate` | The rules (thresholds, ceiling, on_change) are policy and belong in the reviewable script; a statement gives `verdict` as a first-class variable |
-| Blind shadow | show the proposal and ask "agree?" | Agreement measured with the answer in view is inflated; the numbers would mean nothing |
+| Blind watch | show the proposal and ask "agree?" | Agreement measured with the answer in view is inflated; the numbers would mean nothing |
 | Wilson lower bound | raw agreement | A small run of agreement is not evidence; the bound makes "more cases" matter |
 | Per-scope ladders | one ladder per decision | A model can be good at small refunds and bad at large ones; autonomy should follow the evidence |
 | Promotion needs approval by default; demotion never does | symmetric | Moving up is a risk decision; moving down is a safety action and must be immediate |
-| Default ceiling `assist` | default `act` | Reaching `act` should be a sentence in the script that someone read |
+| Default ceiling `suggest` | default `act` | Reaching `act` should be a sentence in the script that someone read |
 | New epoch on any identity change, with replay to inherit | keep the level across versions | A new model has not earned the old one's record; replay lets it earn it from history before it runs live |
 | Replay stubs by class, default deny | an allow-list per tool of "dangerous" ones | New tools are safe in replay by default; a missed classification fails safe |
 | Evidence captured at propose time, in the journal | re-run reads live in replay | Live reads change with time, so replay would answer a different question; in the journal, a fork sees it with no extra mechanism |
@@ -398,7 +420,7 @@ marked until the evidence catches up (R8.5).
   their habits. A later version could add per-decider breakdowns to `status` (data is already recorded).
 - **Reversal sources.** v1 takes outcomes by command or statement. A pull-based `outcome_source:` tool (poll a payments API
   for chargebacks) is a natural follow-up using the generic tools.
-- **Non-categorical decisions.** A number (an amount to refund) or free text isn't a label. v1 is labels only; a numeric
+- **Non-categorical decisions.** A number (an amount to refund) or free text isn't a choice. v1 is choices only; a numeric
   tolerance rule is a follow-up.
 - **Drift of the cases themselves.** A ladder trained on last quarter's mix can be wrong this quarter. v1 offers the window
   and `days:`; a distribution-shift warning is a follow-up.

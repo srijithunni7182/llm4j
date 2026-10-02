@@ -34,10 +34,10 @@ Unless a check says otherwise it uses these stand-ins:
 | V2.3 | `max` is required and positive; exhaustion without `on_exhausted` fails the run naming the statement and count; with it, the handler runs once and execution continues after the statement. |
 | V2.4 | The run cap (`--max-rewinds 3`) stops a script whose three statements rewind four times in total, naming the cap and the three busiest statements. |
 | V2.5 | Variables set in the discarded generation are gone after the rewind (a variable set only by `s4` is unset when `s4`'s second run is read before it executes), and variables from before the checkpoint are intact. |
-| V2.6 | Target placement: errors for a target in a sibling block, in a nested block, later than the rewind, and (separately) outside the `parallel` branch or `for each` body containing the rewind; accepted for the same block, an enclosing block, and from `alt`, loop body, `on_failure`, `on_exhausted` and `on_blocked`. |
+| V2.6 | Target placement: errors for a target in a sibling block, in a nested block, later than the rewind, and (separately) outside the `parallel` branch or `for each` body containing the rewind; accepted for the same block, an enclosing block, and from `alt`, loop body, `on_failure`, `on_exhausted` and `if blocked`. |
 | V2.7 | `rewind` in `on_failure` with `_error` carried: a failing step sends the run back once and the second attempt succeeds. |
 | V2.8 | A condition that is false makes no rewind and no journal boundary; the decision "no rewind" is journaled so a resume takes it. |
-| V2.9 | The effect-reach warning appears for an effect tool in the region with no policy stated; an error for `effects: redo` with an unapproved effect tool; none for a pure region. |
+| V2.9 | The effect-reach warning appears for an effect tool in the region with no policy stated; an error for `side effects: repeat` with an unapproved effect tool; none for a pure region. |
 | V2.10 | The condition is evaluated on journaled variables only: a test with a model that would behave differently on a second evaluation proves the second evaluation (on resume) takes the journaled decision. |
 | V2.12 | `rewind … max 1` with no `when` always rewinds (in `on_failure`); a compound condition (`a < 1 or b > 2`) is a load error naming the limit. |
 | V2.11 | A rewind to an outer checkpoint from inside a loop discards the loop's later rounds and restarts it from round 1 in the new generation. |
@@ -59,12 +59,12 @@ Unless a check says otherwise it uses these stand-ins:
 
 | # | Check |
 |---|---|
-| V4.1 | **Identity rule.** After a rewind with `effects: keep`, a model call in generation 2 is made again, an identical effect call is not performed again (found, "already done"), an identical human question is not asked again. |
+| V4.1 | **Identity rule.** After a rewind with `side effects: keep`, a model call in generation 2 is made again, an identical effect call is not performed again (found, "already done"), an identical human question is not asked again. |
 | V4.2 | `keep` with a *different* effect argument performs it and the trace says "a different effect after a rewind" with tool and target; the first is still recorded as done. |
-| V4.3 | `hold` (default): a done effect in the discarded generation blocks the rewind and runs `on_blocked`; a `pending` effect blocks; a `failed` effect does not; a read does not. |
-| V4.4 | A held rewind with no `on_blocked` pauses with a question listing each blocking effect (tool, target, time, outcome) and offering keep/redo/cancel; answering `keep` rewinds under keep; `redo` under redo; `cancel` records no rewind and the run goes on; the answer is journaled and a resume doesn't ask again. |
-| V4.5 | `redo`: the same effect call is performed again in generation 2 (keyed with the generation) and recorded separately; an unapproved effect tool is a load error. |
-| V4.11 | An effect repeated identically within one step after a rewind gets the same ordinal as in generation 1 (counted against the generation-free step); `max_per_run` counts every generation, so a `redo` spends it again. |
+| V4.3 | `ask first` (default): a done effect in the discarded generation blocks the rewind and runs `if blocked`; a `pending` effect blocks; a `failed` effect does not; a read does not. |
+| V4.4 | A held rewind with no `if blocked` pauses with a question listing each blocking effect (tool, target, time, outcome) and offering keep/redo/cancel; answering `keep` rewinds under keep; `repeat` under redo; `cancel` records no rewind and the run goes on; the answer is journaled and a resume doesn't ask again. |
+| V4.5 | `repeat`: the same effect call is performed again in generation 2 (keyed with the generation) and recorded separately; an unapproved effect tool is a load error. |
+| V4.11 | An effect repeated identically within one step after a rewind gets the same ordinal as in generation 1 (counted against the generation-free step); `max_per_run` counts every generation, so a `repeat` spends it again. |
 | V4.6 | A person's answer is reused for an identical question and the question is re-asked when the resolved text differs; `--ask-again` forces it. |
 | V4.7 | Approved tool calls (`approve:`) with identical arguments are not re-asked after a rewind; changed arguments are. |
 | V4.8 | Simulate mode: no effect is performed in any generation, none is recorded as done; non-`Effectful` tools return the simulated text; a new tool class added by the test is simulated by default. |
@@ -112,7 +112,7 @@ Unless a check says otherwise it uses these stand-ins:
 | V8.2 | The `when` condition can't call a model or a tool (grammar and evaluator checks). |
 | V8.3 | Carried values shown to a person have control and line-break characters neutralised. |
 | V8.4 | A fork never writes to its parent (V5.5, V5.10 byte comparisons, including with a fault injected mid-fork). |
-| V8.5 | A tool of an unknown class in the region blocks under `hold` and is simulated in simulate mode. |
+| V8.5 | A tool of an unknown class in the region blocks under `ask first` and is simulated in simulate mode. |
 | V8.6 | The secrets sweep: run V2 and V5 scenarios with a recognisable fake secret in a tool option and in a carried value; `grep` the journal, `run.json`, trace, audit, timeline output and reports: no occurrence. |
 
 ## V9: Compatibility, quality, documentation (R9)
@@ -125,7 +125,7 @@ Unless a check says otherwise it uses these stand-ins:
 | V9.4 | The whole existing Loom, ai-agent4j and tools suites pass unchanged; none of their tests is removed or edited except the additive `EffectContext` implementers. |
 | V9.5 | Property test: for random scripts (a generator of nested blocks with checkpoints, rewinds, effects, human prompts) and random crash points, a run with crashes and resumes ends in the same state as the same run without crashes; 5 000 cases on a seed, 50 000 in the long run. |
 | V9.6 | Coverage: the generation code, `RunTravel`, `OverlayJournal` and the effects-blocking scan ≥ 90% branches; the new executor code ≥ 85% lines (JaCoCo `check`). |
-| V9.7 | Mutation pass (sabotage list), each must make a named test fail: key effects with the generation; key a model call without it; delete old entries on rewind; skip the boundary write; write the boundary after the first call of the new generation; ignore `hold`; let a fork write the parent; take `reset --failed` to start; let `max` default to unbounded; treat `effect_pending` as not blocking; drop discarded spend from the budget; let simulate perform effects of non-`Effectful` tools. |
+| V9.7 | Mutation pass (sabotage list), each must make a named test fail: key effects with the generation; key a model call without it; delete old entries on rewind; skip the boundary write; write the boundary after the first call of the new generation; ignore `ask first`; let a fork write the parent; take `reset --failed` to start; let `max` default to unbounded; treat `effect_pending` as not blocking; drop discarded spend from the budget; let simulate perform effects of non-`Effectful` tools. |
 
 # Completion
 
