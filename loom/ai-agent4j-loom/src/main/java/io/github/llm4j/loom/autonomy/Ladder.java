@@ -88,7 +88,7 @@ public final class Ladder {
             parts.add(new Part("days", span >= rule.days(), span + " days", rule.days() + " days"));
         }
         double bound = figures.lowerBound() * 100;
-        parts.add(new Part("agreement", bound >= rule.agreeingAtLeast(), String.format("%.1f%% (lower bound of %.1f%% over %d cases)", bound, figures.rate() * 100, figures.cases()),
+        parts.add(new Part("agreement", bound >= rule.agreeingAtLeast(), String.format("lower bound %.1f%% (raw %.1f%% over %d cases)", bound, figures.rate() * 100, figures.cases()),
                 String.format("%.0f%%", rule.agreeingAtLeast())));
         if (rule.noDangerous()) parts.add(new Part("dangerous mistakes", figures.dangerous() == 0, figures.dangerous() + " in the window", "none"));
         if (rule.dangerousAtMost() != null) {

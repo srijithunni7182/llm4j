@@ -211,13 +211,24 @@ public final class Engine {
     }
 
     public void freeze(String decision, String reason) {
-        levels.setFreeze(decision, new LevelStore.Freeze(reason, now()));
-        ledger.append(new Rec(def.getName() + "#freeze#" + now().toEpochMilli() + "#" + decision, def.getName(), Rec.FROZEN, now(), "", 1, Rec.map("frozen", true, "reason", reason, "scope", decision)));
+        freeze(ledger, levels, clock, def.getName(), decision, reason);
     }
 
     public void unfreeze(String decision, String reason) {
-        levels.clearFreeze(decision);
-        ledger.append(new Rec(def.getName() + "#unfreeze#" + now().toEpochMilli() + "#" + decision, def.getName(), Rec.FROZEN, now(), "", 1, Rec.map("frozen", false, "reason", reason, "scope", decision)));
+        unfreeze(ledger, levels, clock, def.getName(), decision, reason);
+    }
+
+    /** Stops {@code act} for {@code target} (a decision, or {@code *} for all), recording it in the ledger of the decision {@code recordIn}. */
+    public static void freeze(Ledger ledger, LevelStore levels, Clock clock, String recordIn, String target, String reason) {
+        Instant now = clock.instant();
+        levels.setFreeze(target, new LevelStore.Freeze(reason, now));
+        ledger.append(new Rec(recordIn + "#freeze#" + now.toEpochMilli() + "#" + target, recordIn, Rec.FROZEN, now, "", 1, Rec.map("frozen", true, "reason", reason, "scope", target)));
+    }
+
+    public static void unfreeze(Ledger ledger, LevelStore levels, Clock clock, String recordIn, String target, String reason) {
+        Instant now = clock.instant();
+        levels.clearFreeze(target);
+        ledger.append(new Rec(recordIn + "#unfreeze#" + now.toEpochMilli() + "#" + target, recordIn, Rec.FROZEN, now, "", 1, Rec.map("frozen", false, "reason", reason, "scope", target)));
     }
 
     /** Records a later fact about a case; a reversal of a verdict the agent made may demote. */

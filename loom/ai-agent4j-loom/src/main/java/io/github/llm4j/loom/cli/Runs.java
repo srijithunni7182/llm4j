@@ -102,6 +102,14 @@ final class Runs {
                 executor.setTriggerStore(new FileTriggerStore(Path.of(spec.store())));
                 executor.setRunId(runId != null ? runId : runDir.toAbsolutePath().normalize().toString());
                 executor.setScriptRef(scriptFile.getAbsolutePath());
+                if (!script.getDecisions().isEmpty()) {
+                    // decisions keep their ledger and levels in the run store, next to the triggers
+                    Path store = Path.of(spec.store());
+                    executor.setAutonomy(AutonomySupport.ledger(store), AutonomySupport.levels(store));
+                    AutonomySupport.rememberScript(store, script, scriptFile);
+                    Path scriptPath = scriptFile.toPath().toAbsolutePath();
+                    executor.setInheritance((def, scope, old, identity) -> AutonomySupport.inheritance(store, def.getName(), scriptPath, env).inherited(def, scope, old, identity));
+                }
             }
             executor.initialize();
         } catch (Exception e) {
