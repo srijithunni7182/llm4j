@@ -58,7 +58,7 @@ final class EvidenceTool implements Tool {
         String name = real.getName();
         if (replay.allows(name)) {
             replay.allowedRan(name);
-            return real.execute(args);
+            return ReadClass.runLive(real, args);
         }
         if (ReadClass.isPure(real)) return real.execute(args);
         if (ReadClass.isClock(real)) return replay.caseTime().toString();
@@ -67,7 +67,7 @@ final class EvidenceTool implements Tool {
             if (recorded != null) return recorded;
             if (replay.liveReads()) {
                 replay.live(name);
-                return real.execute(args);
+                return ReadClass.runLive(real, args);
             }
             replay.unrecorded(name);
             throw new Replay.Unreplayable("unrecorded_read", name + " was read with arguments the case had not recorded");

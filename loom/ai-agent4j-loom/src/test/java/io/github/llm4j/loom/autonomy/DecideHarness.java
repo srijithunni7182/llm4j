@@ -36,6 +36,8 @@ final class DecideHarness {
     final List<Map<String, Object>> auditData = Collections.synchronizedList(new ArrayList<>());
     final List<String> tasks = Collections.synchronizedList(new ArrayList<>());
     int modelCalls;
+    /** Environment variables the scripts read. */
+    final Map<String, String> env = new LinkedHashMap<>();
     /** Tools the host registers, by name. */
     final Map<String, io.github.llm4j.agent.Tool> tools = new LinkedHashMap<>();
 
@@ -75,8 +77,10 @@ final class DecideHarness {
     ScriptedRun newRun(RunJournal journal) {
         ScriptedRun run = new ScriptedRun(dir);
         run.journal = journal;
+        run.env.putAll(env);
         tools.forEach(run.tools::register);
         run.responder = r -> {
+            if (r.getMessages().get(0).getContent().contains("You are Summarizer")) return ScriptedRun.done("summary of " + task(r));
             String task = task(r);
             modelCalls++;
             tasks.add(task);
@@ -108,9 +112,17 @@ final class DecideHarness {
         return e;
     }
 
+    /** The journal of every case run through {@link #runCase}, by run id. */
+    final Map<String, RunJournal> journals = new LinkedHashMap<>();
+    /** What each of those runs was started with. */
+    final Map<String, Map<String, String>> startedWith = new LinkedHashMap<>();
+
     /** One case, as its own run. */
     Map<String, Object> runCase(String id, Map<String, String> inputs) {
-        ScriptedRun run = newRun(RunJournal.inMemory());
+        RunJournal journal = RunJournal.inMemory();
+        journals.put(id, journal);
+        startedWith.put(id, new LinkedHashMap<>(inputs));
+        ScriptedRun run = newRun(journal);
         HarnessExecutor e = executor(run, id);
         try {
             e.executeWorkflow("Triage", inputs);

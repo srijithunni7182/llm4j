@@ -264,13 +264,16 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     /** The level an agent that replaced another may start at: the replay of the old agent's cases under the new one (see {@link Decider}). */
-    io.github.llm4j.loom.autonomy.Level inheritedLevel(io.github.llm4j.loom.ast.DecisionDef def, String scope, io.github.llm4j.loom.autonomy.LevelState old, String identity) {
-        return inheritance != null ? inheritance.inherited(def, scope, old, identity) : def.getStartAt();
+    Inherited inheritedLevel(io.github.llm4j.loom.ast.DecisionDef def, String scope, io.github.llm4j.loom.autonomy.LevelState old, String identity) {
+        return inheritance != null ? inheritance.inherited(def, scope, old, identity) : new Inherited(def.getStartAt(), "no replay is available, so it starts over");
     }
+
+    /** The level a new agent inherits and why. */
+    public record Inherited(io.github.llm4j.loom.autonomy.Level level, String reason) { }
 
     /** What runs the replay when an agent changes with {@code test it on past cases}; without it a new agent starts over. */
     public interface Inheritance {
-        io.github.llm4j.loom.autonomy.Level inherited(io.github.llm4j.loom.ast.DecisionDef def, String scope, io.github.llm4j.loom.autonomy.LevelState old, String identity);
+        Inherited inherited(io.github.llm4j.loom.ast.DecisionDef def, String scope, io.github.llm4j.loom.autonomy.LevelState old, String identity);
     }
 
     private Inheritance inheritance;

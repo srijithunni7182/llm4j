@@ -16,6 +16,7 @@ public final class Replay {
     private final boolean noMemory;
     private final Set<String> allowed;
     private final Instant caseTime;
+    private final String evidenceStep;
 
     private final List<String> simulated = new ArrayList<>();
     private final Set<String> unrecorded = new LinkedHashSet<>();
@@ -28,13 +29,18 @@ public final class Replay {
      * @param noMemory  memory and knowledge reads are not run
      * @param allowed   tools declared {@code replay: allow}
      * @param caseTime  what the clock tool answers: when the case was decided
+     * @param evidenceStep the step id the original case's task and evidence were journaled under
      */
-    public Replay(boolean liveReads, boolean noMemory, Set<String> allowed, Instant caseTime) {
+    public Replay(boolean liveReads, boolean noMemory, Set<String> allowed, Instant caseTime, String evidenceStep) {
         this.liveReads = liveReads;
         this.noMemory = noMemory;
         this.allowed = allowed;
         this.caseTime = caseTime;
+        this.evidenceStep = evidenceStep;
     }
+
+    /** The step the original case's evidence is journaled under. */
+    public String evidenceStep() { return evidenceStep; }
 
     public boolean liveReads() { return liveReads; }
     public boolean noMemory() { return noMemory; }

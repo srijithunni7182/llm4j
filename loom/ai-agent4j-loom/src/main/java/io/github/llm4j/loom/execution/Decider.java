@@ -375,12 +375,18 @@ final class Decider {
     }
 
     private LevelState newEpoch(DecisionDef def, Engine engine, String scope, LevelState old, String identity) {
-        Level level = switch (def.getOnChange()) {
-            case START_OVER -> def.getStartAt();
-            case KEEP_TRUST -> old.level();
-            case TEST_ON_PAST -> run.inheritedLevel(def, scope, old, identity);
-        };
-        String why = "the agent behind " + def.getName() + " changed (" + AgentIdentity.shorten(old.identity()) + " to " + AgentIdentity.shorten(identity) + "): " + def.getOnChange().phrase();
+        String detail = "";
+        Level level;
+        switch (def.getOnChange()) {
+            case START_OVER -> level = def.getStartAt();
+            case KEEP_TRUST -> level = old.level();
+            default -> {
+                HarnessExecutor.Inherited inherited = run.inheritedLevel(def, scope, old, identity);
+                level = Level.min(inherited.level(), old.level());
+                detail = "; " + inherited.reason();
+            }
+        }
+        String why = "the agent behind " + def.getName() + " changed (" + AgentIdentity.shorten(old.identity()) + " to " + AgentIdentity.shorten(identity) + "): " + def.getOnChange().phrase() + detail;
         Engine.Change change = engine.newEpoch(scope, old, identity, level, why);
         if (change != null) announce(def, change);
         return engine.state(scope, identity).identity().equals(identity) ? engine.state(scope, identity) : old;
@@ -529,7 +535,7 @@ final class Decider {
 
     private void openCase(DecisionDef def, String caseId, String step, String free, String scope, Map<String, String> fields, Map<String, Object> pick) {
         Rec rec = new Rec(caseId + "#case#" + generationOf(step), def.getName(), Rec.CASE, run.clock().instant(), caseId, generationOf(step),
-                Rec.map("scope", scope, "locator", run.getRunId(), "step", free, "fields", fields, "level", pick.get("level"), "how", pick.get("how"),
+                Rec.map("scope", scope, "locator", run.getRunId(), "step", free, "journalStep", step, "fields", fields, "level", pick.get("level"), "how", pick.get("how"),
                         "identity", pick.get("identity"), "epoch", pick.get("epoch"), "forced", pick.get("forced")));
         write(def, rec);
     }
@@ -616,7 +622,7 @@ final class Decider {
 
     private void replayProposal(DecisionDef def, AgentDef agent, DecideStmt stmt, String step) {
         RunJournal journal = run.journal();
-        Proposing p = new Proposing(journal, run.identityStep(), false);
+        Proposing p = new Proposing(journal, run.replay().evidenceStep(), false);
         Map<String, String> fields = fields(def);
         Map<String, Object> proposal = propose(def, agent, step, fields, p, Level.WATCH);
         if (proposal.get("failed") != null) throw new Replay.Unreplayable("proposal_failed", "the candidate could not propose");

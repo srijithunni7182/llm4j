@@ -17,6 +17,12 @@ final class Scripts2 {
         return refund("").replace("system: \"You are Triager.\"", "system: \"You are Triager.\" tools: [" + toolList + "]");
     }
 
+    /** {@link #refund} with an upstream step: a summary is made before the decision, so a replay has something it must not pay for again. */
+    static String withUpstream(String trustExtra) {
+        return refund(trustExtra).replace("agent Triager {", "agent Summarizer { model: \"m\" system: \"You are Summarizer.\" }\nagent Triager {")
+                .replace("    decide Refund -> verdict", "    delegate \"Summarise {ticket}\" to Summarizer -> summary\n    decide Refund -> verdict");
+    }
+
     /** A small ladder: 5 blind cases at 80% to suggest, 8 at 90% to act, a 20-case window. */
     static String refund(String trustExtra) {
         return Scripts.AGENT + """

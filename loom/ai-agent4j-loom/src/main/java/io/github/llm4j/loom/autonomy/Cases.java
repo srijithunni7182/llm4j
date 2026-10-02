@@ -53,11 +53,13 @@ public final class Cases {
         if (opened != null && opened.body().get("fields") instanceof Map<?, ?> m) m.forEach((k, v) -> fields.put(String.valueOf(k), String.valueOf(v)));
         List<String> flags = new ArrayList<>();
         if (opened != null && opened.body().get("flags") instanceof List<?> l) l.forEach(f -> flags.add(String.valueOf(f)));
+        if (proposed != null && proposed.body().get("flags") instanceof List<?> l) l.forEach(f -> { if (!flags.contains(String.valueOf(f))) flags.add(String.valueOf(f)); });
+        if ((opened != null && opened.flag("purged")) || (proposed != null && proposed.flag("purged"))) flags.add("fields_masked");
         List<String> results = new ArrayList<>();
         for (Rec o : outcomes) results.add(o.str("result"));
         Instant decidedAt = decided == null ? null : decided.at();
         return new Case(id, head.decision(), opened == null ? "" : opened.str("scope") == null ? "" : opened.str("scope"),
-                opened == null ? null : opened.str("locator"), opened == null ? null : opened.str("step"), head.at(), fields,
+                opened == null ? null : opened.str("locator"), opened == null ? null : opened.str("step"), opened == null ? null : opened.str("journalStep"), head.at(), fields,
                 opened == null ? null : Level.of(opened.str("level")), opened == null ? null : opened.str("identity"),
                 opened == null || opened.num("epoch") == null ? 1 : opened.num("epoch").intValue(), generation, superseded, flags,
                 proposed == null ? null : proposed.str("choice"), proposed == null ? null : proposed.str("reasoning"),

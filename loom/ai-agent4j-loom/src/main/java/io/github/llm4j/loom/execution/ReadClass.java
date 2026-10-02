@@ -29,6 +29,21 @@ final class ReadClass {
         return t;
     }
 
+    /**
+     * Runs the call for real: under the stand-in a simulated run puts in front of tools that are not known to be harmless, and under the effect
+     * journal that stops a simulated run from performing anything. Used only for a read that was not recorded (when asked for) and for a tool the
+     * script declared {@code replay: allow}.
+     */
+    static String runLive(Tool tool, Map<String, Object> args) throws Exception {
+        Tool t = unwrap(tool);
+        Map<String, Object> a = args == null ? Map.of() : args;
+        if (t instanceof EffectTool e) {
+            Effectful f = e.effectful();
+            return f.isEffect(a) ? f.perform(a, null).text() : f.execute(a);
+        }
+        return t.execute(a);
+    }
+
     static boolean isRead(Tool tool, Map<String, Object> args) {
         Tool t = tool;
         for (int i = 0; i < 8; i++) {

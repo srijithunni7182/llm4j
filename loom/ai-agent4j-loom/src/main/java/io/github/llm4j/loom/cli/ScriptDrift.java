@@ -14,12 +14,12 @@ import java.util.List;
  * would have asked for something else before the fork point, the journal would hand it answers to questions it never asked. This finds
  * the first place the two scripts differ in the part that is already done.
  */
-final class ScriptDrift {
+public final class ScriptDrift {
 
     private ScriptDrift() { }
 
     /** A description of the first difference before the fork point, or null when the finished part is the same. */
-    static String between(Path original, Path candidate, RunJournal journal, String workflow, String at) {
+    public static String between(Path original, Path candidate, RunJournal journal, String workflow, String at) {
         LoomScript a;
         LoomScript b;
         try {
