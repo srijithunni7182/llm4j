@@ -1,0 +1,11 @@
+commit fa50f17f3734c2841ecee2f093cff0bac1b61cef
+Fri Oct  2 06:29:30 UTC 2026
+-- run 1: plain
+   BUILD SUCCESS
+   core: tests=657 failures=0 errors=0 skipped=2; tools: tests=381 failures=0 errors=0 skipped=0; loom: tests=492 failures=0 errors=0 skipped=1
+-- run 2: plain again
+   BUILD SUCCESS
+   core: tests=657 failures=0 errors=0 skipped=2; tools: tests=381 failures=0 errors=0 skipped=0; loom: tests=492 failures=0 errors=0 skipped=1
+-- run 3: random order, 2000 fuzz iterations, 1500 random workflows
+   BUILD SUCCESS
+   core: tests=657 failures=0 errors=0 skipped=2; tools: tests=381 failures=0 errors=0 skipped=0; loom: tests=492 failures=0 errors=0 skipped=1
