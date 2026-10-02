@@ -37,11 +37,11 @@ The standing rules from earlier Loom specs still apply:
 
 ## Glossary
 
-- **Question**: one request for a person's answer, identified by a short **code** (for example `K7F3Q`), bound to one run and one step.
+- **Question**: one request for a person's answer, identified by a short **code** (for example `K7F3QX`), bound to one run and one step.
 - **Channel**: where questions are sent and replies come from (`telegram`, `command`, `console`).
 - **Pending record**: the durable file in the run store that holds a question, whether it was sent, and its answer once given.
 - **Listener**: the part that reads replies from the channel and records them as answers.
-- **Allowlist**: the chat ids whose replies are accepted.
+- **Allowlist**: the chat ids, and the user ids within them, whose replies are accepted.
 
 ## Requirements
 
@@ -81,9 +81,9 @@ The standing rules from earlier Loom specs still apply:
 
 1. THE Telegram channel SHALL use the Bot API over HTTPS with the token from the environment variable named by the channel configuration (default `TELEGRAM_BOT_TOKEN`); the token SHALL never be written to a file, journal, ledger, audit line, trace or error message.
 2. A question SHALL be sent as plain text with no markup mode, so nothing in a case's data can be interpreted as formatting or links the person might tap; text longer than the message limit SHALL be cut with a visible "(cut)" marker, and the full text SHALL stay in the pending record.
-3. A reply SHALL be accepted only from a chat id on the allowlist (`TELEGRAM_CHAT_IDS`, comma separated, or the channel file); anything else SHALL be ignored, counted, and noted once in the log, never answered.
-4. A reply SHALL be matched to a question by, in order: the Telegram "reply to" link to the question message; a leading code (`K7F3Q approve`, `#K7F3Q approve`); the only open question, when there is exactly one. Anything else gets a short help message that lists the open questions, and changes nothing.
-5. THE listener SHALL confirm an accepted answer with a short message (`Recorded: approve for K7F3Q`) and say when a reply was not understood.
+3. A reply SHALL be accepted only when both the chat id and the sending user's id are on the allowlist (`TELEGRAM_CHAT_IDS`, comma separated, or the channel file; in a private chat the two are the same number); anything else SHALL be ignored, counted, and noted once in the log, never answered. A group chat is therefore safe only for the listed users, and the guide SHALL say that a private chat is the supported setup.
+4. A reply SHALL be matched to a question by, in order: the Telegram "reply to" link to the question message; a leading code (`K7F3QX approve`, `#K7F3QX approve`); the only open question, when there is exactly one. Anything else gets a short help message that lists the open questions, and changes nothing.
+5. THE listener SHALL confirm an accepted answer with a short message (`Recorded: approve for K7F3QX`) and say when a reply was not understood.
 6. THE listener SHALL remember how far it has read (the Telegram update offset) in the run store, so a restart neither re-applies old replies nor misses new ones.
 7. WHEN the network or the Bot API fails, THE listener SHALL retry with a growing delay and keep running; a send that fails SHALL leave the pending record `unsent`, retried on the next tick, and `weave questions` SHALL show it.
 

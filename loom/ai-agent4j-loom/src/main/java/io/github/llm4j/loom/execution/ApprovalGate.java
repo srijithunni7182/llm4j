@@ -29,7 +29,7 @@ final class ApprovalGate {
         if (answer == null) {
             String question = "Agent " + agent + " wants to call " + tool + " with " + args
                     + (thought == null || thought.isBlank() ? "" : ". Reason: " + thought.strip()) + ". Approve? yes/no";
-            answer = executor.humanInterface().promptHuman(key, question); // may pause the run
+            answer = executor.humanInterface().promptHuman(key, question, new io.github.llm4j.loom.runtime.HumanInterface.Hints(io.github.llm4j.loom.runtime.HumanInterface.Hints.Kind.APPROVAL, java.util.List.of("yes", "no"), null)); // may pause the run
             journal.put(key, new RunJournal.Entry("human", answer));
         }
         boolean yes = yes(answer);

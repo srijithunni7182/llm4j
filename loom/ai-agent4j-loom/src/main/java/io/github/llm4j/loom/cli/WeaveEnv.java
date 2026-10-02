@@ -17,11 +17,21 @@ import java.util.List;
  */
 record WeaveEnv(LLMClientFactory models, HumanInterface human, PrintStream out, PrintStream err, Clock clock,
                 Sleeper sleeper, CommandRunner commands, List<String> weave,
-                java.util.function.Function<String, String> env) {
+                java.util.function.Function<String, String> env, String askVia) {
 
     WeaveEnv(LLMClientFactory models, HumanInterface human, PrintStream out, PrintStream err, Clock clock,
              Sleeper sleeper, CommandRunner commands, List<String> weave) {
-        this(models, human, out, err, clock, sleeper, commands, weave, System::getenv);
+        this(models, human, out, err, clock, sleeper, commands, weave, System::getenv, null);
+    }
+
+    WeaveEnv(LLMClientFactory models, HumanInterface human, PrintStream out, PrintStream err, Clock clock,
+             Sleeper sleeper, CommandRunner commands, List<String> weave, java.util.function.Function<String, String> env) {
+        this(models, human, out, err, clock, sleeper, commands, weave, env, null);
+    }
+
+    /** The same, asking through a channel ({@code --ask-via}) whatever the store says. */
+    WeaveEnv withAskVia(String channel) {
+        return channel == null ? this : new WeaveEnv(models, human, out, err, clock, sleeper, commands, weave, env, channel);
     }
 
     static WeaveEnv system() {
@@ -30,7 +40,7 @@ record WeaveEnv(LLMClientFactory models, HumanInterface human, PrintStream out, 
     }
 
     WeaveEnv withWeave(List<String> command) {
-        return new WeaveEnv(models, human, out, err, clock, sleeper, commands, command, env);
+        return new WeaveEnv(models, human, out, err, clock, sleeper, commands, command, env, askVia);
     }
 
     /** {@code java -cp <this classpath> io.github.llm4j.loom.cli.WeaveCLI}: runs this weave again later. */

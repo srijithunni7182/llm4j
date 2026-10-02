@@ -44,9 +44,9 @@ Unless a check says otherwise it uses these stand-ins:
 |---|---|
 | V3.1 | The token appears in no file under the store, no audit line, no trace and no error text, including when the fake server returns an error that echoes the URL. |
 | V3.2 | The message is sent with no `parse_mode`; a case value containing `*bold*`, a link and `<b>` arrives as typed. A 5000-character question is cut with the marker and the record holds the whole. |
-| V3.3 | A reply from a chat id not on the allowlist is ignored, counted and not answered; an empty allowlist at start is an error, never "everyone". |
-| V3.4 | Matching: by reply-to; by `K7F3Q approve` and `#k7f3q approve`; by the only open question; with two open questions and no code the sender gets the list and nothing is recorded. |
-| V3.5 | An accepted answer is confirmed with `Recorded: approve for K7F3Q`; a reply not understood gets help. |
+| V3.3 | A reply from a chat id not on the allowlist is ignored, counted and not answered; so is a reply from a user id not on the allowlist inside an allowlisted group chat; an empty allowlist at start is an error, never "everyone". |
+| V3.4 | Matching: by reply-to; by `K7F3QX approve` and `#k7f3q approve`; by the only open question; with two open questions and no code the sender gets the list and nothing is recorded. |
+| V3.5 | An accepted answer is confirmed with `Recorded: approve for K7F3QX`; a reply not understood gets help. |
 | V3.6 | Restarting the listener neither re-applies old replies nor misses new ones (offset kept; fault injected between recording and saving the offset gives one application, not two). |
 | V3.7 | With the fake server failing, delayed or dropping the connection: the listener keeps running and backs off; a failed send leaves the record `unsent`, `questions` shows it, and the next tick sends it. |
 

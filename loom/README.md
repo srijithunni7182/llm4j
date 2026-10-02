@@ -48,6 +48,10 @@ only does what models are good at — reasoning about content.
 
 Loom is that layer, designed as a first-class language.
 
+### Away from your desk: answer from your phone
+
+A run that needs a person pauses and holds nothing, so it can wait for days. Point a store at a Telegram bot (`--ask-via telegram`, two environment variables) and each question arrives as a chat message with a short code; reply, and the run carries on at the next `weave tick`. Approvals and `decide` questions work the same way, so an agent in `watch` can be supervised from a phone while Loom runs on a small always-on machine. [Answering from Your Phone](./ai-agent4j-loom/LOOM_GUIDE.md#answering-from-your-phone)
+
 ### Earned autonomy: don't trust the agent, make it earn it
 
 Before an agent acts alone, someone has to be sure. Loom turns that from a meeting into a record. Declare a

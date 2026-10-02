@@ -167,7 +167,22 @@ meeting before launch. Loom makes it a record.
 
 See [Earned Autonomy](LOOM_GUIDE.md#earned-autonomy) in the language guide.
 
-### 11. Ships like any Java application
+### 11. A person in the loop who isn't at a desk
+
+A run that needs a person suspends and holds no thread, so waiting costs nothing. Loom adds the missing half:
+reaching the person and hearing back.
+
+- With a channel configured for the run store (`--ask-via telegram`), every question (`human_prompt`, a tool
+  approval, a held rewind, a promotion, a `decide`) arrives as a chat message with a short code; the reply
+  records the answer and the run carries on at the next tick.
+- Only people on an allowlist can answer; an approval needs the code in the reply; the message for a `watch`
+  case never carries the agent's proposal, so the measurement stays honest.
+- Nothing about it is in the script, so the same workflow asks at a console on a laptop and in a chat on a
+  small server.
+
+See [Answering from Your Phone](LOOM_GUIDE.md#answering-from-your-phone).
+
+### 12. Ships like any Java application
 
 - `weave package --fat` builds one runnable JAR.
 - Embedding Loom in a Spring Boot service takes three calls (parse, initialise, execute).

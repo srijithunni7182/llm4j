@@ -1425,7 +1425,7 @@ public class HarnessExecutor implements LoomEngine {
                 context.setVariable(hp.getVariableName(), recordedAnswer);
             } else if (humanInterface != null) {
                 // May return now, or throw RunSuspended to wait without holding this thread.
-                String result = humanInterface.promptHuman(stepId, resolvedMessage);
+                String result = humanInterface.promptHuman(stepId, resolvedMessage, HumanInterface.Hints.none());
                 rewinder.recordAnswer(resolvedMessage, result);
                 context.setVariable(hp.getVariableName(), result);
             } else {
@@ -2230,7 +2230,7 @@ public class HarnessExecutor implements LoomEngine {
             if (humanInterface == null) return false; // nobody to ask: stop as usual
             String question = "Budget " + be.budget() + " is used up (" + be.getMessage() + "). Allow "
                     + describe(original) + " more? yes/no";
-            answer = humanInterface.promptHuman(key, question);
+            answer = humanInterface.promptHuman(key, question, new HumanInterface.Hints(HumanInterface.Hints.Kind.APPROVAL, java.util.List.of("yes", "no"), null));
             journal.put(key, new RunJournal.Entry("human", answer));
         }
         String a = answer.trim().toLowerCase(java.util.Locale.ROOT);

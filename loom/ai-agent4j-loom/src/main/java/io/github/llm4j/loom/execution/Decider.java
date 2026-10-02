@@ -514,7 +514,7 @@ final class Decider {
             String answer = run.atStep(key, () -> {
                 String recorded = run.recordedAnswer(q);
                 if (recorded != null) return recorded;
-                String got = run.humanInterface().promptHuman(key, q);
+                String got = run.humanInterface().promptHuman(key, q, new io.github.llm4j.loom.runtime.HumanInterface.Hints(io.github.llm4j.loom.runtime.HumanInterface.Hints.Kind.DECIDE, def.getChoices(), def.getAsk()));
                 run.recordAnswer(q, got);
                 return got;
             });

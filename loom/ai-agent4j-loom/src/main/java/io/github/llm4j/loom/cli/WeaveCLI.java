@@ -72,6 +72,9 @@ public class WeaveCLI implements Callable<Integer> {
         @Option(names = "--max-rewinds", description = "The most times the run may go back in all (default 20).")
         private Integer maxRewinds;
 
+        @Option(names = "--ask-via", paramLabel = "telegram|command|console", description = "Where to ask a person (default: the store's channel.json, else the console).")
+        private String askVia;
+
         @Option(names = "--trace", arity = "0..1", fallbackValue = "text", paramLabel = "text|json",
                 description = "Show what agents think and do, live, on stderr (--trace=json for JSON lines).")
         private String trace;
@@ -84,7 +87,7 @@ public class WeaveCLI implements Callable<Integer> {
             }
             return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, prices,
                     journal == null ? null : journal.toPath(), store == null ? null : store.toPath(), waitForResume,
-                    lenient, trace, stopAt, maxRewinds, WeaveEnv.system());
+                    lenient, trace, stopAt, maxRewinds, WeaveEnv.system().withAskVia(askVia));
         }
     }
 
@@ -253,9 +256,12 @@ public class WeaveCLI implements Callable<Integer> {
         @Option(names = "--stop-at", description = "Stop cleanly once this step (or checkpoint) has completed.")
         private String stopAt;
 
+        @Option(names = "--ask-via", paramLabel = "telegram|command|console", description = "Where to ask a person (default: the store's channel.json, else the console).")
+        private String askVia;
+
         @Override
         public Integer call() {
-            return resume(runDir.toPath(), stopAt, WeaveEnv.system());
+            return resume(runDir.toPath(), stopAt, WeaveEnv.system().withAskVia(askVia));
         }
     }
 
@@ -284,15 +290,35 @@ public class WeaveCLI implements Callable<Integer> {
         @Parameters(index = "0", description = "The trigger store directory.")
         private File store;
 
+        @Option(names = "--ask-via", paramLabel = "telegram|command|console", description = "Where to ask a person (default: the store's channel.json, else the console).")
+        private String askVia;
+
         @Override
         public Integer call() {
-            return tick(store.toPath(), WeaveEnv.system());
+            return tick(store.toPath(), WeaveEnv.system().withAskVia(askVia));
         }
     }
 
     static int tick(Path storeDir, WeaveEnv env) {
         Path dir = storeDir.toAbsolutePath().normalize();
         io.github.llm4j.loom.trigger.FileTriggerStore store = new io.github.llm4j.loom.trigger.FileTriggerStore(dir);
+        java.util.Optional<io.github.llm4j.loom.channel.Channels.Runtime> channel;
+        try {
+            channel = io.github.llm4j.loom.channel.Channels.open(dir, env.askVia(), env.env(), env.clock());
+        } catch (IllegalArgumentException e) {
+            env.err().println("Error: " + e.getMessage());
+            return 2;
+        }
+        if (channel.isPresent()) {
+            // answers that arrived since the last tick are recorded first (each leaves a resume trigger), then what is unsent, due a reminder or expired is dealt with
+            try {
+                var summary = channel.get().listener().pollOnce(java.time.Duration.ZERO);
+                if (summary.recorded() > 0) env.out().println("💬 Recorded " + summary.recorded() + " answer(s)");
+                channel.get().listener().maintain();
+            } catch (java.io.IOException | RuntimeException e) {
+                env.err().println("⚠ The channel could not be read this time (" + e.getMessage() + "); questions already sent are still waiting.");
+            }
+        }
         int fired = new io.github.llm4j.loom.trigger.TriggerRunner(store, new WeaveTriggerTarget(dir, env), env.clock()).tick();
         if (fired > 0) env.out().println("🔔 Fired " + fired + " trigger(s)");
         Triggers.resyncExact(dir, store, env);
@@ -307,9 +333,12 @@ public class WeaveCLI implements Callable<Integer> {
         @Option(names = "--poll", description = "How often to look for due triggers, e.g. 5s.", defaultValue = "5s")
         private String poll;
 
+        @Option(names = "--ask-via", paramLabel = "telegram|command|console", description = "Where to ask a person (default: the store's channel.json, else the console).")
+        private String askVia;
+
         @Override
         public Integer call() throws Exception {
-            return daemon(store.toPath(), io.github.llm4j.loom.trigger.Schedules.parse(poll), null, WeaveEnv.system());
+            return daemon(store.toPath(), io.github.llm4j.loom.trigger.Schedules.parse(poll), null, WeaveEnv.system().withAskVia(askVia));
         }
     }
 
@@ -317,12 +346,30 @@ public class WeaveCLI implements Callable<Integer> {
         Path dir = storeDir.toAbsolutePath().normalize();
         io.github.llm4j.loom.trigger.TriggerRunner runner = new io.github.llm4j.loom.trigger.TriggerRunner(
                 new io.github.llm4j.loom.trigger.FileTriggerStore(dir), new WeaveTriggerTarget(dir, env), env.clock());
-        env.out().println("👂 Watching " + dir + " (every " + HarnessExecutor.human(poll) + "). Ctrl+C to stop.");
+        java.util.Optional<io.github.llm4j.loom.channel.Channels.Runtime> channel;
+        try {
+            channel = io.github.llm4j.loom.channel.Channels.open(dir, env.askVia(), env.env(), env.clock());
+        } catch (IllegalArgumentException e) {
+            env.err().println("Error: " + e.getMessage());
+            return 2;
+        }
+        env.out().println("👂 Watching " + dir + " (every " + HarnessExecutor.human(poll) + ")" + (channel.isPresent() ? " and listening on " + channel.get().channel().name() : "") + ". Ctrl+C to stop.");
+        java.util.concurrent.atomic.AtomicBoolean stopListening = new java.util.concurrent.atomic.AtomicBoolean();
+        Thread listener = null;
+        if (channel.isPresent()) {
+            var rt = channel.get();
+            listener = new Thread(() -> rt.listen(java.time.Duration.ofSeconds(runFor == null ? 30 : 1), stopListening,
+                    last -> last.isZero() ? java.time.Duration.ofSeconds(5) : last.multipliedBy(2).compareTo(java.time.Duration.ofMinutes(5)) > 0 ? java.time.Duration.ofMinutes(5) : last.multipliedBy(2)), "loom-channel");
+            listener.setDaemon(true);
+            listener.start();
+        }
         runner.start(poll);
         try {
             if (runFor == null) Thread.currentThread().join();
             else Thread.sleep(runFor.toMillis());
         } finally {
+            stopListening.set(true);
+            if (listener != null) listener.interrupt();
             runner.stop();
         }
         return 0;
@@ -529,8 +576,9 @@ public class WeaveCLI implements Callable<Integer> {
         }
     }
 
-    public static void main(String[] args) {
-        int exitCode = new CommandLine(new WeaveCLI())
+    /** The command line as {@code weave} runs it: every command registered. */
+    static CommandLine commandLine() {
+        return new CommandLine(new WeaveCLI())
                 .addSubcommand(new RunCommand())
                 .addSubcommand(new CheckCommand())
                 .addSubcommand(new ResumeCommand())
@@ -539,13 +587,17 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new TriggersCommand())
                 .addSubcommand(new ScheduleCommand())
                 .addSubcommand(new PackageCommand())
+                .addSubcommand(new AnswerCommands.Answer())
+                .addSubcommand(new AnswerCommands.Questions())
                 .addSubcommand(new TravelCommands.Timeline())
                 .addSubcommand(new TravelCommands.Rewind())
                 .addSubcommand(new TravelCommands.Reset())
                 .addSubcommand(new TravelCommands.Fork())
                 .addSubcommand(new AutonomyCommands())
-                .addSubcommand(new ReplayCommand())
-                .execute(args);
-        System.exit(exitCode);
+                .addSubcommand(new ReplayCommand());
+    }
+
+    public static void main(String[] args) {
+        System.exit(commandLine().execute(args));
     }
 }

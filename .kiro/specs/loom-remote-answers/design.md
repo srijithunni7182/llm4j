@@ -31,7 +31,7 @@ executor, the journal or the decide statement changes.
 `<store>/channel/questions/<code>.json`, written atomically (temp file then move; a lock file serialises `record`):
 
 ```json
-{ "code": "K7F3Q", "run": "/srv/runs/triage-42", "runId": "…", "step": "Triage/s0#decide-ask",
+{ "code": "K7F3QX", "run": "/srv/runs/triage-42", "runId": "…", "step": "Triage/s0#decide-ask",
   "question": "support-lead, please decide Refund (approve / reject / escalate)\namount = 50",
   "choices": ["approve", "reject", "escalate"], "kind": "decide|approval|prompt",
   "to": "support-lead", "state": "open|answered|expired",
@@ -44,7 +44,7 @@ one, so the record holds no proposal. Records are kept after answering (for `--a
 
 ### 1.2 Codes
 
-Five characters from a 32-letter alphabet without `I`, `L`, `O`, `0`, `1` (25 bits) from `SecureRandom`, checked against the store's records; a clash draws again. Replies are matched case-insensitively.
+Six characters from a 31-symbol alphabet without `I`, `L`, `O`, `0`, `1` (about 29.7 bits) from `SecureRandom`, checked against the store's records; a clash draws again. Replies are matched case-insensitively.
 
 ### 1.3 Channel configuration
 
@@ -74,7 +74,7 @@ public interface Channel {
 }
 ```
 
-`Question` (code, text, choices, to), `Sent` (chat, messageRef), `Reply` (chat, text, replyToRef). The runtime, `Answers` and the commands know only this; the Telegram class is the only
+`Question` (code, text, choices, to), `Sent` (chat, messageRef), `Reply` (chat, sender, text, replyToRef). The runtime, `Answers` and the commands know only this; the Telegram class is the only
 place that names Telegram.
 
 - **`TelegramChannel`**: `sendMessage`, `getUpdates` with `offset` and `timeout`. JDK `HttpClient`; no new dependency. The base URL is injectable so tests use a local fake. Plain text, no `parse_mode`. 4096-character limit: the sent text is cut with `…(cut)`.
@@ -121,8 +121,8 @@ a fork or replay of the run unaffected.
 
 `Listener.pollOnce(wait)`:
 
-1. `channel.poll(wait)`; for each reply: not on the allowlist → ignore and count; else match: `replyToRef` to a record's `sent.message`; else a leading code token; else the only open question (not for `approval` kinds); else tell the sender the open questions.
-2. `Answers.record(...)`; `tell("Recorded: approve for K7F3Q")` or the refusal reason.
+1. `channel.poll(wait)`; for each reply: chat or sender not on the allowlist → ignore and count; else match: `replyToRef` to a record's `sent.message`; else a leading code token; else the only open question (not for `approval` kinds); else tell the sender the open questions.
+2. `Answers.record(...)`; `tell("Recorded: approve for K7F3QX")` or the refusal reason.
 3. Reminders and expiry: records open longer than `remind.every` get the question re-sent (same code, `reminders+1`); older than `expire` are closed as `expired`, a ResumeRun trigger is left, and `ChannelHumanInterface` returns the end-of-input answer the console produces (an empty string), which the asking step already handles.
 4. Persist the offset.
 
