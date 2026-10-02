@@ -148,6 +148,40 @@
                         <phase>test</phase>
                         <goals><goal>report</goal></goals>
                     </execution>
+                    <execution>
+                        <id>rewind-coverage</id>
+                        <phase>verify</phase>
+                        <goals><goal>check</goal></goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.runtime.Generations</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.travel.RunTravel</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.travel.OverlayJournal</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.runtime.EffectScan</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.execution.Rewinder</include></includes>
+                                    <limits><limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit></limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
