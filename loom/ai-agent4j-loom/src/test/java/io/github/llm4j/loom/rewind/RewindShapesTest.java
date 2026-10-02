@@ -275,4 +275,40 @@ class RewindShapesTest {
         assertThatThrownBy(() -> executor.executeWorkflow("W", Map.of())).isInstanceOf(io.github.llm4j.budget.BudgetExceeded.class);
         assertThat(calls.size()).as("the first attempt's three calls count: only two were left for the second").isEqualTo(5);
     }
+
+    @Test
+    @Tag("RW-V2.4")
+    void withoutAnyCapOnTheCommandLineARunStillStopsAfterTwentyRewinds() {
+        ScriptedRun run = run(RunJournal.inMemory());
+        HarnessExecutor executor = start(run, AGENTS + """
+                workflow W() {
+                    checkpoint a
+                    delegate "Write" to Writer -> w
+                    rewind to a at most 50 times
+                }
+                """);
+        assertThatThrownBy(() -> executor.executeWorkflow("W", Map.of()))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("most it may (20)");
+    }
+
+    @Test
+    @Tag("RW-V6.1")
+    void aResumedRunCountsTheSpendOfReplacedAttemptsToo() {
+        RunJournal journal = RunJournal.inMemory();
+        String script = AGENTS + """
+                budget { tokens: 100000 }
+                workflow W() {
+                    checkpoint a  starting with feedback = "none"
+                    delegate "Write. Feedback: {feedback}" to Writer -> draft
+                    delegate "Review {draft}" to Reviewer -> review expecting { score: number, notes: string }
+                    rewind to a when (review.score < 7) at most 1 time carrying feedback = "{review.notes}"
+                }
+                """;
+        start(run(journal), script).executeWorkflow("W", Map.of());
+
+        HarnessExecutor resumed = start(run(journal), script);
+        resumed.executeWorkflow("W", Map.of());
+
+        assertThat(resumed.spend().total().calls()).isEqualTo(4); // writer and reviewer, in both attempts
+    }
 }
