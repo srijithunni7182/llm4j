@@ -1,0 +1,19 @@
+commit 004850281f0482854742b68771cd3372998aa1e5
+[INFO] Total time:  22.702 s
+[INFO] Finished at: 2026-10-02T14:13:16Z
+[INFO] ------------------------------------------------------------------------
+jar: /home/user/llm4j/loom/ai-agent4j-loom/target/ai-agent4j-loom-5.0.jar (148M)
+--- weave check of a script with a question, from an empty directory with only the jar:
+? r.loom: ready to run
+   weave answer is in the jar
+   weave questions is in the jar
+   weave tick is in the jar
+   weave daemon is in the jar
+   weave autonomy is in the jar
+--- weave questions on an empty store, and weave answer on a code that does not exist:
+Nothing is waiting for an answer.
+Error: No question has the code "ZZZZZZ".
+? Weaving workflow: r.loom
+Oct 02, 2026 2:13:20 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /tmp/tmp.Ee8jP3rEqv/r.loom
+? Could not start: --ask-via telegram needs --journal: a run that cannot be resumed cannot wait for an answer

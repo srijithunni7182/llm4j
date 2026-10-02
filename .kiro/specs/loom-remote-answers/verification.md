@@ -124,3 +124,15 @@ Same shape as the earlier specs' gates.
 | G8 | Coverage rules | met |
 | G9 | Safety: V5, the secrets sweep and a security review of the diff | no hostile case succeeds; findings fixed or explained |
 | G10 | Live L1–L2, optional | pass, or "not run: <reason>" |
+
+## Requirement to check
+
+| Requirement | Checks |
+|---|---|
+| R1 A question that waits | V1.1–V1.8, V4.1 |
+| R2 Answering | V2.1–V2.7 |
+| R3 The Telegram channel | V3.1–V3.8 |
+| R4 Running it where nobody sits | V4.1–V4.7 |
+| R5 Safety | V5.1–V5.7 |
+| R6 Any other channel | V6.1–V6.3 |
+| R7 Documentation and tooling | V7.1–V7.3 |
