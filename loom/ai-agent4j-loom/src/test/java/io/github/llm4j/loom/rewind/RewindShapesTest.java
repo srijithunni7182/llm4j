@@ -235,4 +235,44 @@ class RewindShapesTest {
         assertThat(usage).anyMatch(k -> k.startsWith("W/s1#usage:")).anyMatch(k -> k.startsWith("W/s1~2#usage:"));
         assertThat(usage).hasSize(4); // writer and reviewer, in both attempts
     }
+
+    @Test
+    @Tag("RW-V6.2")
+    void aRunThatHasNothingLeftToSpendDoesNotGoBack() {
+        ScriptedRun run = run(RunJournal.inMemory());
+        // three model calls are all the run may make: the first attempt uses them, so a rewind would only spend what isn't there
+        HarnessExecutor executor = start(run, AGENTS + """
+                budget { calls: 3 }
+                workflow W() {
+                    checkpoint a  starting with feedback = "none"
+                    delegate "Write. Feedback: {feedback}" to Writer -> draft
+                    delegate "Review {draft}" to Reviewer -> review expecting { score: number, notes: string }
+                    delegate "Check {draft}" to Writer -> check
+                    rewind to a when (review.score < 7) at most 2 times carrying feedback = "{review.notes}"
+                        if it still fails { note "out of budget, not going back" }
+                }
+                """);
+        executor.executeWorkflow("W", Map.of());
+
+        assertThat(calls("Writer")).isEqualTo(2); // write and check of the one attempt
+        assertThat(run.audit).contains("rewind_exhausted").doesNotContain("run_rewound");
+    }
+
+    @Test
+    @Tag("RW-V6.1")
+    void theSecondAttemptSpendsWhatTheFirstLeftNotAFreshBudget() {
+        ScriptedRun run = run(RunJournal.inMemory());
+        HarnessExecutor executor = start(run, AGENTS + """
+                budget { calls: 5 }
+                workflow W() {
+                    checkpoint a  starting with feedback = "none"
+                    delegate "Write. Feedback: {feedback}" to Writer -> draft
+                    delegate "Review {draft}" to Reviewer -> review expecting { score: number, notes: string }
+                    delegate "Check {draft}" to Writer -> check
+                    rewind to a when (review.score < 7) at most 1 time carrying feedback = "{review.notes}"
+                }
+                """);
+        assertThatThrownBy(() -> executor.executeWorkflow("W", Map.of())).isInstanceOf(io.github.llm4j.budget.BudgetExceeded.class);
+        assertThat(calls.size()).as("the first attempt's three calls count: only two were left for the second").isEqualTo(5);
+    }
 }

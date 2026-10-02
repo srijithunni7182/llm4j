@@ -131,6 +131,12 @@ final class Runs {
                 env.out().println();
                 env.out().println("💸 Spend");
                 env.out().print(executor.spend().table());
+                if (runDir != null) {
+                    var t = io.github.llm4j.loom.travel.RunTravel.timeline(executor.getJournal());
+                    if (t.discardedTokens() > 0) {
+                        env.out().println("   of which " + t.discardedTokens() + " tokens (" + t.discardedCost().toPlainString() + ") went into attempts that were later replaced by a rewind");
+                    }
+                }
             }
             executor.shutdown();
         }

@@ -123,7 +123,7 @@ final class Rewinder {
             decide(decisionKey, "none", null);
             return;
         }
-        if (generations.rewindsBy(free) >= r.getAtMost()) {
+        if (generations.rewindsBy(free) >= r.getAtMost() || run.overBudget()) {
             decide(decisionKey, "exhausted", null);
             audit("rewind_exhausted", r, free, null);
             stillFails(r, free);

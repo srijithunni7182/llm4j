@@ -196,6 +196,8 @@ public class HarnessExecutor implements LoomEngine {
     String resolve(String text) { return resolvePayload(text); }
     boolean rewindsUsed() { return rewindsUsed; }
     boolean simulating() { return simulate; }
+    /** True when a budget has refused a call or has nothing left: a rewind would only spend what isn't there. */
+    boolean overBudget() { return budgeting && (anyRefused(null) || (runBudget != null && runBudget.exhausted())); }
     private String stopAt;
     /** Ends the run cleanly, as {@link io.github.llm4j.loom.runtime.RunStopped}, once the named step or checkpoint has completed. */
     public void setStopAt(String point) { this.stopAt = point; }
