@@ -137,9 +137,16 @@ the model says.
 These controls are tested like features: hostile-input suites, secrets sweeps, and **sabotage runs** that break each
 guard on purpose to prove a test catches it.
 
-👉 **[Read the security guide](SECURITY.md)**. It covers the threat model, what each building block does, a
-step-by-step way to secure a Loom workflow, a worked example that survives a prompt injection, the patterns to avoid,
-and an honest account of what llm4j does *not* protect you from.
+**`weave audit`** reviews any Loom script before it runs. It maps each agent's reach, flags the "lethal trifecta" and
+unapproved effects, and reports every finding against the **[OWASP Top 10 for LLM Applications](https://genai.owasp.org/llm-top-10/)**.
+It exits non-zero on a high finding, so it can gate your CI.
+
+👉 **[Read the security guide](SECURITY.md)**. It covers:
+- the threat model, and what each building block does;
+- a step-by-step way to secure a Loom workflow;
+- a worked example that survives a prompt injection;
+- a risk-by-risk mapping to the OWASP Top 10 for LLM Applications, **with the gaps named**;
+- the patterns to avoid, and an honest account of what llm4j does *not* protect you from.
 
 ---
 

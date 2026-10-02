@@ -194,6 +194,7 @@ agent Reviewer { model: "Team/sarvam-m" }
 
 - **Checked before running**: `weave check app.loom` reports an unknown model, a missing key or any other
   problem with its line, before any model is called.
+- **Audited for security**: `weave audit app.loom` maps what each agent can reach, flags one agent holding untrusted content, private data and a way out, lists unapproved effects, and reports every finding against the OWASP Top 10 for LLM Applications. See [SECURITY.md](../SECURITY.md).
 - **Watched while running**: `weave run app.loom --trace` streams every plan, tool call, observation and
   token spent (`--trace=json` for machines).
 - **Checked against the real services**: the live suite (`mvn -Plive test`) runs a Loom script with a tool

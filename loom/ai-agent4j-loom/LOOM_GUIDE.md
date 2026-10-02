@@ -885,6 +885,17 @@ agent Support {
 
 URLs are not treated as personal data.
 
+### Security Audit
+
+`weave audit` reviews a script without running it. It shows what each agent can reach, flags any agent that reads untrusted content, reaches private data *and* can send or act (the "lethal trifecta"), lists effects nobody approves, risky tool settings, a missing budget and anything fetched from outside the repository. Each finding names the [OWASP Top 10 for LLM Applications](https://genai.owasp.org/llm-top-10/) risks it bears on and says what to change.
+
+```bash
+weave audit digest.loom                        # Markdown report; exit 1 on a high finding
+weave audit digest.loom --format json --out audit.json --fail-on medium
+```
+
+Run it in CI next to `weave check`. The rules, the OWASP mapping and the known gaps are in [SECURITY.md](../../SECURITY.md).
+
 ### PII Guardrails
 You can wrap statement blocks in guardrails to prevent sensitive data leakage.
 

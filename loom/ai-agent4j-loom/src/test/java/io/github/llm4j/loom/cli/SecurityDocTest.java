@@ -43,6 +43,19 @@ class SecurityDocTest {
     }
 
     @Test
+    void theWorkedExampleHasNoHighOrMediumFindingsInTheAudit() throws Exception {
+        String text = Files.readString(DOC);
+        int at = text.indexOf("## A worked example");
+        Matcher m = Pattern.compile("```loom\\n(.*?)```", Pattern.DOTALL).matcher(text.substring(at));
+        assertThat(m.find()).isTrue();
+        Path f = dir.resolve("weekly.loom");
+        Files.writeString(f, m.group(1));
+        var report = io.github.llm4j.loom.security.SecurityAudit.audit(new io.github.llm4j.loom.execution.LoomLoader().load(f.toString()), "weekly.loom");
+        assertThat(report.findings()).as(report.markdown()).noneMatch(x -> x.severity().atLeast(io.github.llm4j.loom.security.Severity.MEDIUM));
+        assertThat(report.agents()).noneMatch(io.github.llm4j.loom.security.SecurityAudit.AgentProfile::trifecta);
+    }
+
+    @Test
     void everyLocalLinkInTheSecurityGuidePointsAtAFileThatExists() throws Exception {
         String text = Files.readString(DOC);
         Matcher m = Pattern.compile("\\]\\(([^)#:]+)(#[^)]*)?\\)").matcher(text);
@@ -52,6 +65,8 @@ class SecurityDocTest {
             assertThat(DOC.getParent().resolve(m.group(1))).as(m.group(0)).exists();
         }
         assertThat(seen).isGreaterThan(0);
+        for (int i = 1; i <= 14; i++) assertThat(text).as("the guide lists rule LA%02d", i).contains(String.format("| LA%02d |", i));
+        for (var o : io.github.llm4j.loom.security.Owasp.values()) assertThat(text).contains("**" + o.name() + " " + o.title() + "**");
         assertThat(Files.readString(Path.of("../../README.md"))).contains("SECURITY.md");
     }
 }
