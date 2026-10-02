@@ -46,7 +46,7 @@ The standing rules from earlier Loom specs still apply:
 ## Glossary
 
 - **Checkpoint**: a named point between two statements of a workflow.
-- **Boundary**: a point at which a new generation starts. A checkpoint is a named boundary; an operator can also name any statement.
+- **Boundary**: a point at which a new generation starts: the named statement is the **first** one of the new generation. A checkpoint's boundary is the statement after it; an operator can name any statement.
 - **Generation**: the attempt number of the steps after a boundary. The first is 1.
 - **Rewind**: starting generation n+1 of the steps after a boundary, with the variables as they were at the boundary plus any carried values.
 - **Fork**: a new run that begins as a copy of another run's journal up to a point, and may then differ (a script, an input, an answer).
@@ -73,8 +73,8 @@ The standing rules from earlier Loom specs still apply:
 #### Acceptance Criteria
 
 1. THE grammar SHALL accept
-   `rewind to Name when <condition> max N [effects: hold|keep|redo] [with { var: value, … }] [on_exhausted { … }] [on_blocked { … }]`
-   as a statement, where the condition is the existing condition language over the run's variables, and `max` is required and positive.
+   `rewind to Name [when <condition>] max N [effects: hold|keep|redo] [with { var: value, … }] [on_exhausted { … }] [on_blocked { … }]`
+   as a statement, where the optional condition is the existing condition language over the run's variables (one comparison, or a bare true/false variable; a compound test is computed into a variable first, for example by an agent's `expecting` field), no `when` means always (used in `on_failure`), and `max` is required and positive.
 2. WHEN the condition is true and fewer than `max` rewinds of this statement have happened in this run, THE executor SHALL discard the effect of the statements after the checkpoint (R3), set the variables to those at the checkpoint plus the `with` values, increment the generation, and continue from the statement after the checkpoint.
 3. THE `with` values SHALL be resolved at the moment of the rewind from the variables of the discarded generation (so `feedback: "{review.notes}"` carries the reviewer's notes into the next attempt), and SHALL be bound as ordinary variables, together with `_rewind` (the number of rewinds so far for this statement), `_rewindReason` (the condition text) and `_rewindTo` (the checkpoint).
 4. WHEN the condition is true and `max` rewinds have been used, THE executor SHALL run `on_exhausted` once and continue after the `rewind` statement, as `loop … max` does; without `on_exhausted` the run SHALL fail with a message naming the statement and the count.
@@ -97,7 +97,7 @@ The standing rules from earlier Loom specs still apply:
 4. ON a resume, THE executor SHALL read the boundaries first, and on reaching a boundary SHALL continue directly in the latest generation recorded for it, so the discarded generations' steps are not run again and their variables are not set.
 5. A crash after any single journal write during a rewind, and a resume, SHALL end in the same state as an uninterrupted rewind: exactly one new generation, no duplicate model calls for steps already completed in it, no repeated effect.
 6. `RunJournal.all()` consumers (usage restore, spend report, audit) SHALL count every generation: a discarded generation's tokens and money were spent.
-7. A journal that records generations SHALL be readable by the previous build only up to the first rewind; a run directory SHALL carry a format marker so an older `weave` refuses a rewound run with a clear message instead of misreading it.
+7. A run directory SHALL carry a format marker once it has rewound, and this build and later ones SHALL refuse a marker they don't understand. Builds that predate this feature cannot know the marker: running one on a rewound run is unsupported and would silently continue past the rewound region, which the documentation SHALL say plainly (a run that never rewound is unaffected).
 
 ### Requirement 4: Side effects and people across a rewind
 
@@ -111,7 +111,7 @@ The standing rules from earlier Loom specs still apply:
    - `keep`: the rewind happens; an identical effect in the new generation is found in the journal and not repeated; a different one runs, and the trace SHALL say "a different effect after a rewind" with the tool and target;
    - `redo`: the rewind happens and effects are keyed with the generation, so all run again. Needs R2.9's condition on approval.
 3. WHEN a rewind is held and there is no `on_blocked`, THE run SHALL pause for a person through the existing durable approval path, with a question that lists each blocking effect (tool, target, time, outcome) and offers `keep`, `redo` or `cancel`; the answer is journaled, and the rewind then proceeds accordingly or is dropped.
-4. A PERSON'S answer in a discarded generation SHALL be reused when the same step in the new generation asks the same resolved question; a changed question SHALL be asked again. An operator MAY force asking again (`--ask-again`).
+4. A PERSON'S answer in a discarded generation SHALL be reused when the same step in the new generation asks the same resolved question (the runtime stores a hash of the question with the answer, as it does not today); a changed question SHALL be asked again. An operator MAY force asking again (`--ask-again`).
 5. A run in **simulate** mode (R5.6) SHALL perform no effect in any generation: the effect journal returns the simulated text and records nothing as done.
 6. WHEN a rewind discards a generation that contained an approved call that was run, THE trace SHALL list it, so the operator can see what was approved and not repeated.
 7. AGENT memory facts, knowledge indexes and anything else a tool writes outside the journal SHALL NOT be rewound; the loader SHALL warn (R2.9) and the documentation SHALL say so.
@@ -123,7 +123,7 @@ The standing rules from earlier Loom specs still apply:
 #### Acceptance Criteria
 
 1. `weave timeline <run-dir>` SHALL print, in order: each step with its id, generation, kind, agent, state (done, failed, replayed, discarded, pending), tokens and cost; the checkpoints reached; each rewind with its reason, who, carried values and policy; and the run's total spend split into kept and discarded generations. `--json` SHALL give the same as data.
-2. `weave rewind <run-dir> --to <checkpoint|step-id> [--set name=value]… [--effects hold|keep|redo] [--ask-again] --reason "…" [--resume]` SHALL append a rewind (an operator one) exactly as a scripted rewind would, subject to the same effects policy, and with `--resume` run the workflow on from there. A step id that is not a statement boundary, or one inside a `parallel` branch, SHALL be refused with the nearest valid ids.
+2. `weave rewind <run-dir> --to <checkpoint|step-id>  (a step id names the first step to run again) [--set name=value]… [--effects hold|keep|redo] [--ask-again] --reason "…" [--resume]` SHALL append a rewind (an operator one) exactly as a scripted rewind would, subject to the same effects policy, and with `--resume` run the workflow on from there. A step id that is not a statement boundary, or one inside a `parallel` branch, SHALL be refused with the nearest valid ids.
 3. `weave reset <run-dir> --reason "…" [--failed] [--resume]` SHALL: with no flag, rewind to `start` and clear any recorded suspension, so the run starts again under a new generation with its spend history kept; with `--failed`, give every step whose journal entry is a failure a new generation (so it is tried again, and its `on_failure` runs afresh) and leave the rest.
 4. `weave fork <run-dir> --to <new-run-dir> [--at <checkpoint|step>] [--script <file>] [--set name=value]… [--effects keep|simulate|redo] [--until <checkpoint|step>] [--allow-drift] --reason "…"` SHALL create a **materialized** fork: a new run directory whose journal holds every entry of the parent's, a rewind at `--at` if given, and a `run.json` that records the parent run, the point, the parent's journal size at that moment and the reason. The parent SHALL NOT be changed.
 5. `--script` SHALL run the fork under a different script. Before doing so, THE command SHALL compare a **prefix signature** of the two scripts (the statements before the fork point, by kind, agent, task text, tools) and refuse when it differs unless `--allow-drift`, saying where, because the journal would otherwise supply results the new script would not have asked for.
