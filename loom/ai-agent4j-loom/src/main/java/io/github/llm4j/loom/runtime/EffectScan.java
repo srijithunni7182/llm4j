@@ -25,6 +25,12 @@ public final class EffectScan {
         List<String> out = new ArrayList<>();
         for (Map.Entry<String, RunJournal.Entry> e : journal.all().entrySet()) {
             String key = e.getKey();
+            int unclassified = key.indexOf("#unclassified:");
+            if (unclassified >= 0) {
+                String step = Generations.strip(key.substring(0, unclassified));
+                if (inRegion(step, blockFree, from)) out.add(key.substring(unclassified + "#unclassified:".length()) + " at " + step + " (a tool that isn't known to change nothing)");
+                continue;
+            }
             int marker = key.indexOf("#effect:");
             if (marker < 0) continue;
             String kind = e.getValue().kind();

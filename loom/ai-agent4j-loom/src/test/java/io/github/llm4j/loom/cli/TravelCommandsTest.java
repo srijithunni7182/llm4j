@@ -313,4 +313,29 @@ class TravelCommandsTest {
         listener.onEvent(new io.github.llm4j.loom.execution.TraceEvent(io.github.llm4j.loom.execution.TraceEvent.CHECKPOINT, null, "Report/s0", "checkpoint collected", Map.of(), java.time.Instant.now()));
         assertThat(trace.toString()).contains("[Report/s1~2]").contains("⏪ rewind to collected").contains("📍 checkpoint collected");
     }
+
+    @Test
+    @Tag("RW-V5.11")
+    void everyCommandThatChangesARunNeedsAReasonAndTheOnesThatLookDoNot() {
+        picocli.CommandLine cli = new picocli.CommandLine(new WeaveCLI())
+                .addSubcommand(new TravelCommands.Timeline()).addSubcommand(new TravelCommands.Rewind())
+                .addSubcommand(new TravelCommands.Reset()).addSubcommand(new TravelCommands.Fork());
+        for (String changing : List.of("rewind", "reset", "fork")) {
+            var reason = cli.getSubcommands().get(changing).getCommandSpec().findOption("--reason");
+            assertThat(reason).as(changing + " has --reason").isNotNull();
+            assertThat(reason.required()).as(changing + " requires --reason").isTrue();
+        }
+        assertThat(cli.getSubcommands().get("timeline").getCommandSpec().findOption("--reason")).isNull();
+        for (String changing : List.of("rewind", "reset")) {
+            assertThat(cli.getSubcommands().get(changing).getCommandSpec().findOption("--force")).isNotNull();
+        }
+    }
+
+    @Test
+    @Tag("RW-V6.3")
+    void theSpendFooterOfARunSaysHowMuchWentIntoReplacedAttempts() throws Exception {
+        Files.writeString(script.toPath(), "budget { tokens: 1000000 }\n" + ReportScript.SCRIPT);
+        assertThat(start(null)).isZero();
+        assertThat(out()).contains("Spend").containsPattern("of which \\d+ tokens \\(.*\\) went into attempts that were later replaced by a rewind");
+    }
 }

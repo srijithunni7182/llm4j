@@ -148,9 +148,9 @@ public final class RunTravel {
             if (!boundaries.isEmpty()) {
                 b.append("\nRewinds:\n");
                 for (Generations.Boundary g : boundaries) {
-                    b.append("  generation ").append(g.generation()).append(" from ").append(g.fromStep()).append(" (back to ").append(g.name()).append(") by ").append(g.by())
-                            .append(": ").append(g.reason()).append("; side effects: ").append(g.effects());
-                    if (!g.carried().isEmpty()) b.append("; carrying ").append(g.carried());
+                    b.append("  generation ").append(g.generation()).append(" from ").append(g.fromStep()).append(" (back to ").append(neutralise(g.name())).append(") by ").append(neutralise(g.by()))
+                            .append(": ").append(neutralise(g.reason())).append("; side effects: ").append(g.effects());
+                    if (!g.carried().isEmpty()) b.append("; carrying ").append(neutralise(String.valueOf(g.carried())));
                     b.append('\n');
                 }
             }
@@ -228,6 +228,17 @@ public final class RunTravel {
         } catch (NumberFormatException e) {
             return BigDecimal.ZERO;
         }
+    }
+
+    /** Text that came from a run, made safe to show a person: control and line-break characters become a visible mark. */
+    public static String neutralise(String text) {
+        if (text == null) return "";
+        StringBuilder out = new StringBuilder(text.length());
+        text.codePoints().forEach(c -> {
+            boolean control = c < 0x20 || c == 0x7f || (c >= 0x80 && c < 0xa0) || c == 0x2028 || c == 0x2029;
+            out.appendCodePoint(control ? '?' : c);
+        });
+        return out.toString();
     }
 
     /** When an operator acted, for the audit log. */

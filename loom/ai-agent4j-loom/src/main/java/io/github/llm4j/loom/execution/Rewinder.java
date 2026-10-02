@@ -197,7 +197,7 @@ final class Rewinder {
         String answer = journal.get(key).map(e -> String.valueOf(e.value())).orElse(null);
         if (answer == null) {
             if (run.humanInterface() == null) throw new IllegalStateException("A rewind is held until a person says what to do about " + blockers + ", but no HumanInterface is set.");
-            String question = "Going back to " + r.getTarget() + " would cross these side effects that already happened: " + String.join("; ", blockers)
+            String question = "Going back to " + r.getTarget() + " would cross these side effects that already happened: " + io.github.llm4j.loom.travel.RunTravel.neutralise(String.join("; ", blockers))
                     + ". Answer: keep (don't repeat identical ones), repeat (do them all again) or cancel (don't go back).";
             answer = run.humanInterface().promptHuman(key, question); // may pause the run
             journal.put(key, new RunJournal.Entry("human", answer));

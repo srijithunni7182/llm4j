@@ -26,6 +26,9 @@ public final class RecordingEffects implements EffectContext {
     public final List<Duration> slept = Collections.synchronizedList(new ArrayList<>());
     public final Set<Path> reserved = new HashSet<>();
     public volatile String step = "main/s0";
+    /** When set, the step as effects identify it (a host that can run a step again); otherwise the step itself. */
+    public volatile String identity;
+    public volatile boolean simulating;
     public final AtomicLong attempt = new AtomicLong(1);
     private final EffectJournal journal;
     private final Clock clock = Clock.fixed(Instant.parse("2026-10-01T09:00:00Z"), ZoneOffset.UTC);
@@ -42,6 +45,8 @@ public final class RecordingEffects implements EffectContext {
     @Override public void trace(String text, Map<String, Object> data) { trace.add(text); }
     @Override public EffectJournal journal() { return journal; }
     @Override public String currentStep() { return step; }
+    @Override public String identityStep() { return identity != null ? identity : step; }
+    @Override public boolean simulate() { return simulating; }
     @Override public long attempt() { return attempt.get(); }
     @Override public Set<Path> reservedPaths() { return reserved; }
     @Override public Sleeper sleeper() { return slept::add; }

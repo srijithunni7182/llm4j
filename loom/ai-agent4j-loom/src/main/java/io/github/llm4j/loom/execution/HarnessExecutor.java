@@ -744,7 +744,8 @@ public class HarnessExecutor implements LoomEngine {
 
     private Tool resolveTool(String name) {
         Tool tool = resolveToolAsDeclared(name);
-        return simulate ? SimulatingTool.of(tool) : tool;
+        if (simulate) return SimulatingTool.of(tool);
+        return rewindsUsed && !SimulatingTool.runsAsItIs(tool) ? new RecordingTool(tool, this) : tool;
     }
 
     private Tool resolveToolAsDeclared(String name) {
