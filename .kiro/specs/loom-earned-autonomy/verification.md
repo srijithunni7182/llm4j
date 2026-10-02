@@ -4,6 +4,9 @@ The work is done when every check below passes in automated tests (unless marked
 and the evidence is committed. Each test carries its check id as `@Tag("V4.1")` so a script can prove every check has a passing test and
 no test has a made-up id (the approach used for the generic tools).
 
+This plan depends on the rewind spec's checks ([loom-rewind-and-fork](../loom-rewind-and-fork/verification.md)): forks, generations, simulate and
+the identity rule are verified there, and are used here, not re-verified. Where a check below says "fork", it means that mechanism running.
+
 Unless a check says otherwise it uses these stand-ins:
 
 | Stand-in for | What |
@@ -37,9 +40,10 @@ Unless a check says otherwise it uses these stand-ins:
 | V2.2 | Ledger contract, run against memory, file and JDBC: append-only (no operation edits a record); appending the same record twice leaves one; `cases` filters by scope, epoch, `since`, blind-only and limit; ordering is append order; a record for an unknown case is kept and folded as an orphan, not dropped. |
 | V2.3 | A run resumed after each journal write (crash at every put, using `FaultJournal`) ends with exactly one case, one proposal and one verdict per decide. |
 | V2.4 | Two threads appending 200 cases to a file ledger produce 200 whole lines; a torn last line is ignored on read, reported by `status`, and repaired by the next append. |
-| V2.5 | Evidence: read-tool calls and results made during proposing are captured; evidence over the cap sets `evidence_truncated`; an effect call during proposing sets `effects_during_proposal`. |
+| V2.5 | Journal contents: after a case, the run journal holds `#decide-task`, `#decide-evidence:<n>` for each read made while proposing, `#decide-proposal` and `#level`; evidence over the cap sets `evidence_truncated`; an effect call during proposing sets `effects_during_proposal`; the ledger's case record holds the journal locator and not the task text or evidence. |
 | V2.6 | PII masking from the agent's `guard` is applied to fields, task text, evidence and rationale before writing; nothing the redactor scrubs is in the ledger file or table (grep of the raw bytes). |
-| V2.7 | Retention: after `retain`, cases and evidence are gone, counts remain, `status` shows the window is smaller. |
+| V2.7 | Retention: after `retain`, case fields are gone and the finished runs' journals they point to are removed, counts remain, `status` shows the window is smaller; a run that is not finished is never removed. |
+| V2.9 | **Rewound cases.** A workflow that rewinds to before a `decide` and decides again records both generations; the earlier is `superseded` and counts in no statistic; the person is not asked twice (identical question reused); the case counts once in `status`. |
 | V2.8 | The ledger and level store paths are reserved: a `file` tool aimed at them is refused, and a `shell` tool allowed `cat` still can't be pointed at them by an unapproved agent in the hostile suite (H-checks). |
 
 ## V3: The ladder (R3)
@@ -99,19 +103,22 @@ Unless a check says otherwise it uses these stand-ins:
 
 | # | Check |
 |---|---|
-| V7.1 | Replay over a seeded ledger with a candidate that is identical to the incumbent reproduces the incumbent's labels on every replayable case (using a deterministic scripted model), flips 0, the same agreement and bound. |
-| V7.2 | Replay with a candidate that differs lists exactly the flipped cases, with both labels, the human's, and both rationales, unsafe first. |
-| V7.3 | **Nothing changes.** Before and after a replay, byte-compare: every ledger file or table, level store, trigger store, run journals, the report directory aside; the recording tools show 0 effect calls; the human interface was asked 0 questions. |
-| V7.4 | Tool handling: a recorded read is answered from evidence; an unrecorded read makes the case "not replayable" with reason `unrecorded_read`, or runs live with `--live-reads` and the case is flagged non-deterministic; an effect tool returns the stub text and is never run; a pure built-in runs; `current_time` answers the case's timestamp; an OpenAPI-style tool is stubbed unless the script says `replay: allow`, and then it is listed at the top of the report. |
-| V7.5 | A tool kind added later (a new `Effectful` that isn't a known read) is stubbed without any change to replay. |
-| V7.6 | `EffectContext.simulate()`: with a context that returns true, `EffectTool` performs no effect even when called directly (the safety net), and records nothing. |
-| V7.7 | Reasons for skipping: truncated evidence, effects during proposal, purged, masked fields; the report counts each and shows the replayable share. |
-| V7.8 | Same ledger, candidate and seed give the same selection and order (byte-identical JSON report except timestamps and durations); a different seed gives a different sample. `--repeat 5` reports label stability per case. |
-| V7.9 | `--max-cost` and `--max-tokens` stop cleanly with a partial, marked report; `weave replay --resume <id>` finishes and gives the same report as an uninterrupted run; a rate-limit pause does the same. |
-| V7.10 | `--policy file` replaces the referenced file's content for the candidate only and both hashes are in the report; with no such reference it is an error naming that. |
-| V7.11 | The report has every section of design §7.7 in order; flips and rationales are masked as the ledger is; Markdown and JSON agree (the Markdown is generated from the same object, checked by parsing the JSON and spot-checking the Markdown). |
-| V7.12 | A candidate that doesn't load exits 2 with the problems; a decision that doesn't exist, or has no cases, says so. |
-| V7.13 | A replay over 5 000 cases with a fast scripted model completes in under 30 s and memory stays bounded (cases are streamed, not all held). |
+| V7.1 | Replay over a seeded ledger of real (scripted) runs, with a candidate identical to the incumbent and a deterministic scripted model, reproduces the incumbent's label on every replayable case: flips 0, the same agreement and bound. |
+| V7.2 | Replay with a different candidate lists exactly the flipped cases, with both labels, the human's, and both rationales, unsafe first. |
+| V7.3 | **Nothing changes.** Before and after a replay, byte-compare: every ledger file or table, the level store, the trigger store, every run directory and JDBC journal row; the recording tools show 0 effect performed; the human interface was asked 0 questions; only the replay's own directory differs. |
+| V7.4 | **It is a fork.** The replay of a case runs on an `OverlayJournal` over the case's journal, in simulate mode, from a boundary at the decide step, stopping after it; the upstream steps are read from the journal and cost no model call (the scripted model's call count equals the number of replayed cases, plus tool-using loops, not the number of upstream steps). |
+| V7.5 | Tool handling: a recorded read is answered from `#decide-evidence`; an unrecorded read makes the case `unrecorded_read`, or runs live under `--live-reads` and the case is flagged non-deterministic; an effect tool returns the simulated text and is never run; a pure built-in runs; `current_time` answers the case's timestamp; an OpenAPI-style tool is simulated unless `replay: allow`, which is then listed at the top of the report; proposals made after a simulated call are counted separately. |
+| V7.6 | A tool kind added later (a new `Effectful` that isn't a known read) is simulated without any change to replay. |
+| V7.7 | Skip reasons: `journal_missing` (journal deleted), `evidence_truncated`, `effects_during_proposal`, `unrecorded_read`, `prefix_drift`, `fields_masked`; the report counts each and shows the replayable share of the selected cases. |
+| V7.8 | **Prefix drift.** A candidate whose script differs *before* the decide step is refused per case as `prefix_drift` naming the first differing statement; the same candidate under `--allow-drift` runs and is flagged; a candidate that changes only the decision agent's model, prompt, policy or tools has no drift. |
+| V7.9 | Same ledger, candidate and seed give the same selection and order (byte-identical JSON report except timestamps and durations); a different seed gives a different sample. `--repeat 5` reports label stability per case. |
+| V7.10 | `--max-cost` and `--max-tokens` stop cleanly with a partial, marked report; `weave replay --resume <id>` finishes and gives the same report as an uninterrupted run; a rate-limit pause does the same. |
+| V7.11 | `--policy file` replaces the referenced file's content for the candidate only and both hashes are in the report; with no such reference it is an error naming that. |
+| V7.12 | The report has every section of design §7.7 in order; flips and rationales are masked as the ledger is; Markdown and JSON agree. |
+| V7.13 | A candidate that doesn't load exits 2 with the problems; a decision that doesn't exist, or has no cases, says so. |
+| V7.14 | 5 000 replays of cases from 50 runs with a fast scripted model finish in under 30 s with bounded memory (cases are streamed; journals are read, not copied). |
+| V7.15 | **By hand.** `weave fork <run> --at <decide step> --script candidate.loom --effects simulate --until <decide step>` gives the same proposal the replay engine reports for that case. |
+| V7.16 | `on_change: replay` uses this engine (V6.3), and a case whose journal was removed is skipped, not guessed at. |
 
 ## V8: Safety of the feature (R8)
 
@@ -158,11 +165,12 @@ of each file, and a sign-off table. Evidence from a different commit than the fi
 | Gate | What | Pass rule |
 |---|---|---|
 | G0 | Clean tree, every task ticked except optional live ones | no unticked box |
+| G0a | The rewind-and-fork gates G0–G9 have passed at a commit this work builds on | its sign-off file exists and names that commit |
 | G1 | Clean build of `ai-agent4j`, `ai-agent4j-tools` and Loom, three times (plain, plain, random order with long property runs) | all succeed; the two plain runs have the same counts |
 | G2 | Traceability: every V-check has a passing tagged test; no test has an unknown id; every requirement appears in the matrix below | script output clean |
 | G3 | Sabotage: each V10.5 change is made in the real source and a named test fails | every one detected |
 | G4 | Regression against the commit before the work: nothing removed, nothing newly failing; journals from the old build resume | zero |
-| G5 | Real runs outside the test harness, with a stand-in model server: 60 cases through shadow, then assist, then act, with a scripted person; a `kill -9` mid-case and resume gives one case; a replay with a changed prompt; a freeze; a forced promotion marked as forced | transcripts as expected |
+| G5 | Real runs outside the test harness, with a stand-in model server: 60 cases through shadow, then assist, then act, with a scripted person; a `kill -9` mid-case and resume gives one case; a replay with a changed prompt (and the same replay by hand with `weave fork`); a freeze; a forced promotion marked as forced | transcripts as expected |
 | G6 | Packaged `weave` JAR runs `check`, `autonomy status`, `replay` | works with only the JAR |
 | G7 | Docs: guide blocks validated, documented commands run, hover text present | clean |
 | G8 | Coverage gates | met |
@@ -174,11 +182,11 @@ of each file, and a sign-off table. Evidence from a different commit than the fi
 | Requirement | Checks |
 |---|---|
 | R1 Declaring a decision | V1.1–V1.9 |
-| R2 Cases and the ledger | V2.1–V2.8, V1.5 |
+| R2 Cases and the ledger | V2.1–V2.9, V1.5 |
 | R3 The ladder | V3.1–V3.12, V10.4 |
 | R4 Honest measurement | V4.1–V4.7 |
 | R5 Operating it | V5.1–V5.8 |
 | R6 Identity of the incumbent | V6.1–V6.6, V7.1 |
-| R7 Replay | V7.1–V7.13 |
+| R7 Replay | V7.1–V7.16 |
 | R8 Safety of the feature | V8.1–V8.6, V2.8 |
 | R9 Documentation and tooling | V9.1–V9.4 |

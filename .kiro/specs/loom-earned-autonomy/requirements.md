@@ -15,6 +15,11 @@ of real cases**, with nothing sent and nothing changed, and graded against what 
 
 > *Don't trust the agent. Make it earn it, with your own history as the exam.*
 
+This spec is built on [loom-rewind-and-fork](../loom-rewind-and-fork/requirements.md), which must exist first. Replay is not a separate
+engine: a replay of a past case is an **ephemeral fork** of that case's run, taken just before the `decide` statement, run under a
+candidate script in **simulate** mode and stopped when the decision completes. What this spec adds is what to *do* with such forks:
+grade them against humans, and let the result decide how much freedom an agent has.
+
 The four ideas, and why each one needs the runtime rather than a prompt:
 
 | Idea | What it means |
@@ -47,6 +52,7 @@ The standing rules from earlier Loom specs still apply:
 - **Verdict**: the label that actually takes effect.
 - **Level**: `shadow`, `assist` or `act`, held per decision and scope.
 - **Ledger**: the append-only record of cases, proposals, verdicts and later outcomes.
+- **Fork, ephemeral fork, simulate, generation, boundary**: as defined in loom-rewind-and-fork.
 - **Incumbent / candidate**: the script as it ran when the cases were decided, and a changed script being tried against them.
 
 ## Requirements
@@ -71,12 +77,12 @@ The standing rules from earlier Loom specs still apply:
 
 #### Acceptance Criteria
 
-1. WHEN a `decide` statement runs, THE runtime SHALL append a **case record**: case id, decision, scope value, run id and step, timestamp, the captured `fields`, the agent's task text, the proposal (label, rationale, confidence), the level the case ran at, the incumbent's identity (R6.1), and, once known, the verdict, the decider's name, and how long the decision took.
+1. WHEN a `decide` statement runs, THE runtime SHALL append a **case record**: case id, decision, scope value, **the run and step that hold the case's inputs** (the journal locator: a run directory or a JDBC run id), timestamp, the captured `fields`, the proposal (label, rationale, confidence), the level the case ran at, the incumbent's identity (R6.1), and, once known, the verdict, the decider's name, and how long the decision took. The case's task text and the evidence (R2.5) SHALL be written to the **run journal** under the decide step (`…#decide-task`, `…#decide-evidence:<n>`), not duplicated in the ledger, because a fork of the run sees the journal.
 2. THE ledger SHALL be append-only: a later fact about a case (the verdict, an outcome) is a new record that refers to the case, never an edit. Reading a case folds its records in order.
 3. THE ledger SHALL have implementations for a file (one JSON-lines file per decision, in the run store) and for JDBC, behind one interface, plus one in memory for tests and unattended one-shot runs; all SHALL pass the same contract tests.
-4. A case id SHALL be derived from the run id, the step id and the loop position, so a run that is resumed or replayed from its journal appends nothing twice. Appending the same record twice SHALL leave one.
-5. THE ledger SHALL capture, for the decision's agent, every read-only tool call and result made while proposing (the **evidence**), up to a per-case size limit. A case whose evidence was cut off SHALL be marked so replay can say it can't be replayed faithfully (R7.4).
-6. THE ledger SHALL apply the agent's `guard` settings (PII masking) before writing, SHALL never store a value that the redactor would scrub, and SHALL support a `retain:` period after which cases and their evidence are removed, leaving only counts.
+4. A case id SHALL be derived from the run id and the **generation-free** step id (loop position included), so a run that is resumed appends nothing twice. Appending the same record twice SHALL leave one. WHEN a rewind causes a case to be decided again in a later generation, THE ledger SHALL keep both: the later generation is the case's current decision, the earlier ones are marked `superseded` and SHALL NOT count in any statistic; a person's blind verdict is reused for an identical question (rewind-and-fork R4.4), so a rewound case does not ask the person twice.
+5. THE runtime SHALL capture, for the decision's agent, every read-only tool call and result made while proposing (the **evidence**) into the run journal, up to a per-case size limit. A case whose evidence was cut off SHALL be marked so replay can say it can't be replayed faithfully (R7.4).
+6. THE ledger SHALL apply the agent's `guard` settings (PII masking) before writing, SHALL never store a value that the redactor would scrub, and SHALL support a `retain:` period after which the cases' fields are removed, leaving only counts, and the **journals of finished runs** they point to are removed too (a run that is not finished is never removed). A case whose journal is gone can no longer be replayed (R7.4).
 7. THE agent SHALL NOT be given any tool, argument or prompt text that lets it read or write the ledger or the level. The ledger and the level store are reserved paths for the `file` tool.
 
 ### Requirement 3: The ladder
@@ -142,14 +148,18 @@ The standing rules from earlier Loom specs still apply:
 
 #### Acceptance Criteria
 
-1. `weave replay <script> --decision Name [--candidate <script>] [--since <duration|date>] [--scope v] [--limit n] [--report <file>] [--format md|json]` SHALL re-run the decision's agent over recorded cases, using the case's captured fields and task text, under the candidate script (default: the script given), and write a report.
-2. REPLAY SHALL NOT cause any side effect outside the process: no tool call that changes anything SHALL be performed (R7.3), no run journal, trigger store, ledger case or level SHALL be changed by a replay (it writes its own report and its own replay log), and no human SHALL be asked anything.
-3. IN replay every tool SHALL be handled by its class. A tool whose call is a known read (`Effectful` with `isEffect` false, or the built-in calculator and date tools) SHALL be answered from the case's recorded evidence when the same call was recorded; a read not recorded SHALL be reported as *not replayable under this candidate* for that case (default) or SHALL run live when `--live-reads` is given, and the report SHALL then flag the result as non-deterministic. Any other tool SHALL be **stubbed**: it returns `(simulated: not performed in replay)` and is never run. A tool may be declared `replay: allow` in the script to be run in replay; that SHALL be reported at the top of the report.
-4. THE report SHALL give, overall and per scope: cases replayed, not replayable (with reasons: evidence cut off, new read, retained-out), the incumbent's agreement and lower bound against humans on the same cases, the candidate's, the **flips** (cases where candidate and incumbent differ, with both labels and the human's), the unsafe rate of each, coverage of each, token and money cost of the replay and the projected per-case cost of the candidate, and the level the candidate's replay would earn under the declared rules.
-5. THE report SHALL list individual flips, sorted by how much they matter (unsafe first), each with the case's fields and both rationales, subject to the same masking as the ledger.
-6. REPLAY SHALL be repeatable: the same ledger, candidate and `--seed` give the same selection and the same ordering; a model's own nondeterminism is reported by `--repeat n` (how often the candidate's label changes across n runs of the same case).
-7. REPLAY SHALL obey the run's budgets: `--max-cost` and `--max-tokens` stop it cleanly and the report says how far it got; a rate limit pauses and resumes it (the replay log is durable).
-8. A **policy replay** (`--policy <file>`) SHALL be supported for decisions whose rules are in a policy text referenced by the agent's prompt: the named file replaces the referenced one, so a rule change can be replayed without editing the script.
+1. `weave replay <script> --decision Name [--candidate <script>] [--since <duration|date>] [--scope v] [--limit n] [--report <file>] [--format md|json]` SHALL, for each selected case, take an **ephemeral fork** (rewind-and-fork R5.9) of the case's run journal at the case's `decide` step, run it under the candidate script (default: the script given) in **simulate** mode, stop when the decision has completed (`--until`), and read the candidate's proposal from the fork. It SHALL then write a report.
+2. REPLAY SHALL NOT cause any side effect outside the process: the fork's parent journal, the ledger, the level store, the trigger store and the run directories SHALL be byte-identical afterwards (only the replay's own directory is written, R7.5); no effect SHALL be performed (rewind-and-fork R4.5, R4.8); no human SHALL be asked anything (a null human interface that fails the case if asked).
+3. IN replay, tool calls made by the decision's agent SHALL be handled by class, on top of simulate: a call that is a known read (`Effectful` with `isEffect` false, or the built-in calculator and date tools) SHALL be answered from the case's recorded evidence when the same call was recorded; a read not recorded SHALL make the case *not replayable under this candidate* (default) or SHALL run live under `--live-reads`, flagged non-deterministic; every other tool SHALL be simulated (it returns `(simulated: not performed)`); a tool declared `replay: allow` in the script SHALL run, and SHALL be listed at the top of the report.
+4. A CASE SHALL be skipped, with a reason counted in the report, when: its journal is gone (`journal_missing`, including retention); its evidence was cut off; effects were performed while proposing; a read the candidate makes was not recorded; the candidate's script differs from the case's script **before** the decide step (`prefix_drift`, by rewind-and-fork R5.5; `--allow-drift` accepts it and the report flags the cases); its fields were masked beyond use. THE report SHALL give the replayable share of the selected cases, so a good figure over a small share can't hide.
+5. A REPLAY SHALL write only its own directory `<store>/autonomy/<decision>/replays/<id>/` (plan, log, report), never a ledger record, level or run journal.
+6. THE report SHALL give, overall and per scope: cases replayed, not replayable (with reasons), the incumbent's agreement and lower bound against humans on the same cases, the candidate's, the **flips** (cases where candidate and incumbent differ, with both labels and the human's), the unsafe rate and coverage of each, token and money cost of the replay and the projected per-case cost of the candidate, and the level the candidate's replay would earn under the declared rules.
+7. THE report SHALL list individual flips, sorted by how much they matter (unsafe first), each with the case's fields and both rationales, subject to the same masking as the ledger.
+8. REPLAY SHALL be repeatable: the same ledger, candidate and `--seed` give the same selection and ordering; a model's own nondeterminism is reported by `--repeat n` (how often the candidate's label changes across n runs of the same case).
+9. REPLAY SHALL obey budgets: `--max-cost` and `--max-tokens` stop it cleanly and the report says how far it got; a rate limit pauses it, and `weave replay --resume <id>` continues from the replay log.
+10. A **policy replay** (`--policy <file>`) SHALL replace the content of a file the candidate's agent references, for the candidate only, so a rule change can be replayed without editing the script; with no such reference it is an error naming that.
+11. THE operator MAY do the same for one case by hand with `weave fork <run> --at <decide step> --script candidate.loom --effects simulate --until <decide step>` (rewind-and-fork R5.4); replay is that, repeated and graded.
+12. WHEN a decision is replayed under `on_change: replay` (R6.3), THE same engine SHALL be used, over the old epoch's cases, with the new incumbent as the candidate.
 
 ### Requirement 8: Safety of the feature itself
 

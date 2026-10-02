@@ -2,6 +2,10 @@
 
 ## Overview
 
+> **Depends on [loom-rewind-and-fork](../loom-rewind-and-fork/design.md).** Replay is an ephemeral fork of the case's run in simulate
+> mode (§7); the generation model decides what happens to a case that is rewound (§3.1); evidence and the task text are
+> journaled so a fork sees them (§2.2). Nothing here re-implements forking, simulation or effect suppression.
+
 Earned autonomy adds one declaration (`decision`), one statement (`decide`), a ledger, a level store, a statistics
 function, a replay engine and two command groups (`weave autonomy`, `weave replay`) to Loom. It reuses what exists:
 the durable human prompt (a decider is asked without holding a thread), the run journal (a resumed run repeats
@@ -128,13 +132,25 @@ not leak it. Design rules:
 - a test (V4.1) asserts the proposal's label and rationale appear in no string sent to the interface, the trace listener or
   the audit log before the answer.
 
-### 2.2 Evidence
+### 2.2 What goes into the journal for a fork to find
 
-A decorator on the agent's tools during propose records `(tool, canonical args hash, result)` for calls whose tool is a
-read (an `Effectful` with `isEffect(args)` false, or one of the built-in pure tools). Effect calls made during a
-proposal are not expected (a proposing agent should not change anything); they are executed as normal, and the case is
-marked `effects_during_proposal` so replay can refuse to treat it as clean. Evidence is capped (default 64 KB per case,
-after masking); beyond the cap the case is marked `evidence_truncated`.
+Steps 1 to 4 of `decide` write, under the decide step id and through the ordinary `journal.put`, so that a fork of the run
+sees them:
+
+| Key | Value |
+|---|---|
+| `<step>#decide-task` | the task text as sent to the agent (after template expansion and masking) |
+| `<step>#decide-evidence:<n>` | one per read-tool call made while proposing: `{tool, argsHash, result}` |
+| `<step>#decide-proposal` | the proposal (hidden from the person in shadow, as §2.1) |
+| `<step>#level` | the level in force |
+
+A decorator on the agent's tools during propose records the evidence for calls whose tool is a read (an `Effectful` with
+`isEffect(args)` false, or one of the built-in pure tools). Effect calls made during a proposal are not expected (a proposing
+agent should not change anything); they run as normal, and the case is marked `effects_during_proposal` so replay can refuse to
+treat it as clean. Evidence is capped (default 64 KB per case, after masking); beyond the cap the case is marked
+`evidence_truncated`.
+
+The `decide` step is also a **boundary** the rewind machinery can name: its step id is what `weave replay` forks at.
 
 ## 3. Ledger
 
@@ -148,9 +164,13 @@ interface Ledger {
 }
 ```
 
-`LedgerRecord` is one of `CaseOpened`, `Proposed`, `Decided`, `Outcome`, `LevelChanged`, `Frozen`, `PromotionProposed`,
+A `CaseOpened` record holds the summary (scope, `fields`, the **journal locator**: run directory or JDBC run id, and the step id)
+and not the task text or the evidence, which live in the journal (§2.2). `LedgerRecord` is one of `CaseOpened`, `Proposed`, `Decided`, `Outcome`, `LevelChanged`, `Frozen`, `PromotionProposed`,
 `PromotionDecided`, each with `id` (derived, so a re-append is a no-op), `decision`, `at` and a typed body. A `Case` is the
-fold of the records for one case id, in append order. Implementations:
+fold of the records for one case id, in append order. The case id is `<runId>/<generation-free step id>`; each record carries the
+**generation**. Folding keeps the highest generation as the case's current decision and marks the earlier ones `superseded`, which
+statistics skip (a case that was rewound and decided again counts once, by its last decision; the person's blind verdict is
+reused when the question is identical, so this does not ask them twice). Implementations:
 
 | Impl | Storage | Notes |
 |---|---|---|
@@ -245,63 +265,80 @@ Exit codes follow the existing CLI (0 done, 2 bad options). Output is plain text
 
 ## 7. Replay
 
-### 7.1 Inputs
+Replay is the rewind spec's **ephemeral fork**, repeated over many cases and graded. Nothing in this section forks, simulates or
+suppresses effects by itself; it chooses cases, supplies evidence, and reads results.
 
-For each selected case: the captured fields, the task text, the recorded evidence, the human verdict and the incumbent's
-proposal. Selection: filters (`--since`, `--scope`, `--limit`), then a seeded shuffle, then take `limit` (default 500) so a
-large ledger is sampled the same way every time for a seed.
+### 7.1 Selecting
 
-### 7.2 Running a candidate
+Filters (`--since`, `--scope`, `--limit`), then a seeded shuffle, then take `limit` (default 500), so a large ledger is sampled
+the same way for a seed. Only current-generation, blind-decided cases are selected (the same cases that count towards promotion).
 
-The candidate script is loaded and validated like any script. For each case the engine builds an isolated executor with:
+### 7.2 One case
 
-- the candidate's agent for the decision (or the `--policy` text swapped in, §7.6);
-- a **replay tool registry** that wraps every tool by class (§7.3);
-- an in-memory run journal, a `ReplayEffectContext` whose `simulate()` is true (a default-false method added to
-  `EffectContext` in `ai-agent4j`, so `EffectTool` refuses to perform an effect even if a wrapper were missed), a null human
-  interface that throws if asked, and a null ledger and level store (it can't write them);
-- the same budgets, so `--max-cost` stops it.
+```
+for each selected case c:
+    parent  = open the journal named by c.locator                      // file, or JDBC run id; read-only
+    if gone: skip(journal_missing)
+    fork    = OverlayJournal(parent, memory overlay)                   // rewind spec §5.3
+    script  = candidate (or the given script)
+    check prefix signature of script vs the case's script up to c.step -> skip(prefix_drift) unless --allow-drift
+    executor = new HarnessExecutor(script, replayTools, …)  with
+                 journal       = fork
+                 effect ctx    = simulate = true                       // rewind spec §3.4
+                 human         = null interface that fails the case if asked
+                 ledger/levels = null (can't be written)
+                 stop_at       = c.step                                // RunStopped after the decision
+                 boundary      = a rewind at c.step                    // a new generation for the decide step only
+    run; read fork[c.step~2 + "#decide-proposal"]                      // the candidate's proposal
+```
 
-It then runs only the propose step (not the workflow around it) and compares the label.
+The generation-2 boundary at the decide step is what makes the candidate's agent run again while everything before it (the
+upstream steps, with their results) is read from the journal at no cost. A candidate that changes only the decision's agent, its
+model, prompt, policy or tools after the decide point has an identical prefix, so no drift.
 
-### 7.3 Tool handling
+### 7.3 Tools in replay
+
+The rewind spec's simulate mode already suppresses effects and simulates unknown tool classes. Replay adds one layer on top for
+the decision's agent, `ReplayTools`, wrapping each tool:
 
 | Tool | In replay |
 |---|---|
-| `Effectful` tool, call is a read (`isEffect` false) | answered from the case's evidence if the same `(tool, args hash)` was recorded; otherwise the case is *not replayable under this candidate* (unless `--live-reads`: run it, flag the case non-deterministic) |
-| `Effectful` tool, call is an effect | stubbed: `(simulated: not performed in replay)` |
-| built-in pure tools (`calculator`, `datetime`, `current_time`) | run (they depend on nothing external; `current_time` is answered from the case's timestamp so a replay isn't affected by today's date) |
-| anything else (OpenAPI, MCP, Java `class` tools, search) | stubbed, unless the script says `replay: allow` on the tool, which is listed at the top of the report |
-| memory and knowledge reads | run against the current store with the report flagged (they aren't versioned); `--no-memory` disables them |
+| a read (`Effectful`, `isEffect` false) | answered from `<step>#decide-evidence:<n>` when the same `(tool, argsHash)` was recorded; otherwise the case is *not replayable under this candidate* (`--live-reads`: run it, flag the case non-deterministic) |
+| a built-in pure tool | runs; `current_time` answers the case's timestamp |
+| an effect, or an unknown class | simulated (by the rewind spec's rule), returning `(simulated: not performed)` |
+| a tool with `replay: allow` | runs; listed at the top of the report |
+| memory and knowledge reads | run against the current store, flagged (not versioned); `--no-memory` disables them |
 
-"Stubbed" returns text, so the agent can carry on and propose a label; the report counts proposals made after a stubbed call
-separately, since they were made on less information.
+Proposals made after a simulated call are counted separately, since they were made on less information.
 
 ### 7.4 Not replayable
 
-A case is skipped with a reason: `evidence_truncated`, `effects_during_proposal`, `unrecorded_read`, `purged`, `fields_masked`
-(the masked fields no longer carry what the agent needs). The report shows the count per reason and the share of the ledger
-that was replayable, so a good-looking number over a small share can't hide.
+A case is skipped with a reason: `journal_missing`, `evidence_truncated`, `effects_during_proposal`, `unrecorded_read`,
+`prefix_drift`, `fields_masked`. The report shows the count per reason and the replayable share of the selected cases.
 
 ### 7.5 Durability
 
-A replay writes `<store>/autonomy/<decision>/replays/<id>/` with `plan.json` (selection, seed, candidate identity),
-`log.jsonl` (one result per case, appended as they finish) and the report. A rate limit or `--max-cost` ends the process
-cleanly; `weave replay --resume <id>` continues. This reuses the run-pause machinery's contract, not its journal.
+A replay writes `<store>/autonomy/<decision>/replays/<id>/` with `plan.json` (selection, seed, candidate identity), `log.jsonl` (one
+result per case, appended as they finish) and the report. A rate limit or `--max-cost` ends the process cleanly;
+`weave replay --resume <id>` continues from the log. The replay's own files are the only thing it writes (R7.5).
 
 ### 7.6 Policy replay
 
-An agent prompt may reference a file (`system: file("refund-policy.md")`, or the existing skill and knowledge files). `--policy
-<file>` replaces the content of the referenced file whose name matches, for the candidate only, and records both hashes. It
-supports "what if the refund limit were 150?" with no script edit. If the script has no such reference, the option is
-an error naming that.
+An agent prompt may reference a file (`system: file("refund-policy.md")`, or a skill or knowledge file). `--policy <file>` replaces
+the content of the referenced file whose name matches, for the candidate only, and records both hashes. If the script has no such
+reference, the option is an error naming that.
 
 ### 7.7 Report
 
-Markdown and JSON from one model object, `ReplayReport`. Sections in order: what was replayed and what was not; tools in
-replay (stubbed, allowed, live); headline table (incumbent vs candidate: agreement, lower bound, unsafe, coverage, cost); level
-the candidate would earn; flips, unsafe first; per-scope tables; repeat stability (if `--repeat`). Flips and rationales pass
-through the same masking as the ledger.
+Markdown and JSON from one model object, `ReplayReport`. Sections in order: what was replayed and what was not; tools in replay
+(simulated, allowed, live); headline table (incumbent vs candidate: agreement, lower bound, unsafe, coverage, cost); the level the
+candidate would earn; flips, unsafe first; per-scope tables; repeat stability (with `--repeat`). Flips and rationales pass through
+the same masking as the ledger.
+
+### 7.8 Scale
+
+Because forks are overlays, replaying N cases costs N small in-memory maps plus the candidate's model calls: the journals are
+read, never copied. Cases are streamed, so memory is bounded by one case plus the log.
 
 ## 8. Failure paths
 
@@ -316,6 +353,7 @@ through the same masking as the ledger.
 | Budget stops a replay | partial report, marked partial |
 | Candidate script doesn't load | `weave replay` exits 2 with the load problems |
 | Torn last line in a file ledger | ignored on read, reported, repaired on next append |
+| A case's run journal is gone (retention, deleted by hand) | the case still counts in statistics; replay skips it as `journal_missing` and the report says how many |
 | Retention purges cases a ladder's evidence needs | the window shrinks; `status` says cases are below the rule's minimum, nothing is promoted on counts alone |
 
 ## 9. Security
@@ -330,6 +368,7 @@ marked until the evidence catches up (R8.5).
 
 - `Clock` (days in rules, retention, stale cases), injected as in the trigger and effect code.
 - `Ledger` and `LevelStore` fakes: memory, a fault-injecting wrapper (fail the Nth append, tear a line).
+- The rewind spec's test support (journal matrix, `FaultJournal`, recording effect tool), reused as it is.
 - A scripted human interface that answers per case id, records what it was asked, and can pause.
 - A scripted model that returns a label per case (the existing `ScriptedRun` approach), including malformed output.
 - A fixed seed for selection, audit sampling and `--repeat`.
@@ -347,7 +386,9 @@ marked until the evidence catches up (R8.5).
 | Default ceiling `assist` | default `act` | Reaching `act` should be a sentence in the script that someone read |
 | New epoch on any identity change, with replay to inherit | keep the level across versions | A new model has not earned the old one's record; replay lets it earn it from history before it runs live |
 | Replay stubs by class, default deny | an allow-list per tool of "dangerous" ones | New tools are safe in replay by default; a missed classification fails safe |
-| Evidence captured at propose time | re-run reads live in replay | Live reads change with time, so replay would answer a different question |
+| Evidence captured at propose time, in the journal | re-run reads live in replay | Live reads change with time, so replay would answer a different question; in the journal, a fork sees it with no extra mechanism |
+| Replay as an ephemeral fork of the run | a separate replay engine with its own case snapshots | One mechanism to build and test; the inputs are the run's own journal, so nothing is duplicated and nothing drifts from what the run actually saw |
+| Rewound cases keep the last generation only | count every attempt | A case that was sent back and decided again is one case; counting both would let a rewind inflate the evidence |
 | Append-only ledger, folded on read | mutable case rows | Audit and replay need what was true then; later facts are new records |
 | Contextual keywords | reserved words | Existing scripts, including users', must keep loading |
 

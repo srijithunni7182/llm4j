@@ -1,11 +1,13 @@
 # Implementation Plan
 
+**Prerequisite:** the tasks of [loom-rewind-and-fork](../loom-rewind-and-fork/tasks.md) are done and signed off (forks, generations, simulate,
+the identity rule). Task 1 below is then only the `EffectContext` check it needs.
+
 Order: the pure pieces first (statistics, identity), then storage, then the language and the executor, then the
 ladder, replay and commands, so each step can be tested alone. Tests are written with each task, not after.
 See [verification.md](verification.md).
 
-- [ ] 1. **Core contract** — `EffectContext.simulate()` (default false) in `ai-agent4j`; `EffectTool` performs no effect and
-      records nothing when it is true. Tests V7.6; existing implementers unchanged.
+- [ ] 1. **Prerequisite check** — confirm `EffectContext.simulate()`, `identityStep()`, `OverlayJournal` and `weave fork` from the rewind work are in place; V7.6 passes against them. No new core contract is added here.
 - [ ] 2. **Pure pieces** (`io.github.llm4j.loom.autonomy`)
   - [ ] 2.1 `AgreementStats` (Wilson bound, unsafe rate, coverage, malformed). V4.5.
   - [ ] 2.2 `AgentIdentity` over the AST. V6.1.
@@ -30,14 +32,17 @@ See [verification.md](verification.md).
   - [ ] 6.2 Demotion on every `Decided`/`Outcome`. V3.7, V5.5.
   - [ ] 6.3 Epochs and `on_change` (shadow, keep; replay after task 7). V6.2, V6.4–V6.6.
   - [ ] 6.4 Notification hook through the effect journal. V5.7.
-- [ ] 7. **Replay**
-  - [ ] 7.1 Replay tool wrapper (by class), evidence-backed reads, stubs, `replay: allow`. V7.4, V7.5.
-  - [ ] 7.2 The engine: selection, isolated executors, null human interface/ledger/levels, budgets. V7.1–V7.3, V7.8, V7.9.
-  - [ ] 7.3 Not-replayable reasons, `--live-reads`, `--repeat`, `--policy`. V7.7, V7.10.
-  - [ ] 7.4 Report model, Markdown and JSON, masking. V7.11.
-  - [ ] 7.5 Durable replay log and `--resume`. V7.9.
-  - [ ] 7.6 `on_change: replay` wired into epochs. V6.3.
-  - [ ] 7.7 Scale and memory. V7.13.
+- [ ] 7. **Replay** (on the rewind work's ephemeral fork)
+  - [ ] 7.1 Journal contents of a case: `#decide-task`, `#decide-evidence`, `#decide-proposal`, `#level`; the decide step as a nameable boundary. V2.5.
+  - [ ] 7.2 `ReplayTools`: evidence-backed reads, `replay: allow`, `--live-reads`, `--no-memory`. V7.5, V7.6.
+  - [ ] 7.3 The per-case replay: overlay fork at the decide step, simulate, null human/ledger/levels, `stop_at`, read the proposal; prefix-drift check. V7.1–V7.4, V7.8.
+  - [ ] 7.4 Selection, seed, `--repeat`, skip reasons, retention-aware journal lookup. V7.7, V7.9, V2.7.
+  - [ ] 7.5 Report model, Markdown and JSON, masking. V7.12.
+  - [ ] 7.6 Durable replay log, `--resume`, budgets. V7.10.
+  - [ ] 7.7 `--policy`. V7.11. The by-hand equivalence check. V7.15.
+  - [ ] 7.8 `on_change: replay` wired into epochs. V6.3, V7.16.
+  - [ ] 7.9 Rewound cases: generation folding and `superseded`. V2.9.
+  - [ ] 7.10 Scale and memory. V7.14.
 - [ ] 8. **Commands** — `weave autonomy status|history|promote|demote|freeze|unfreeze|outcome`, `weave replay`, JSON output, exit codes. V5.1–V5.8, V7.12.
 - [ ] 9. **Safety suites** — hostile-model suite for decisions, fail-closed fault injection, secrets sweep. V8.1–V8.6.
 - [ ] 10. **Docs and tooling** — guide section, prompt, READMEs, VS Code grammar and hover; checks for them. V9.1–V9.4. No sample.
