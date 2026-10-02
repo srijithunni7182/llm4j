@@ -12,6 +12,11 @@ final class Scripts2 {
             }
             """;
 
+    /** The decision of {@link #refund}, with the proposing agent given tools. */
+    static String withTools(String toolList) {
+        return refund("").replace("system: \"You are Triager.\"", "system: \"You are Triager.\" tools: [" + toolList + "]");
+    }
+
     /** A small ladder: 5 blind cases at 80% to suggest, 8 at 90% to act, a 20-case window. */
     static String refund(String trustExtra) {
         return Scripts.AGENT + """

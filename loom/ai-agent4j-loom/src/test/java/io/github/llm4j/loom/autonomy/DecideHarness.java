@@ -36,12 +36,16 @@ final class DecideHarness {
     final List<Map<String, Object>> auditData = Collections.synchronizedList(new ArrayList<>());
     final List<String> tasks = Collections.synchronizedList(new ArrayList<>());
     int modelCalls;
+    /** Tools the host registers, by name. */
+    final Map<String, io.github.llm4j.agent.Tool> tools = new LinkedHashMap<>();
 
     /** What the agent proposes for a case, from the values it was given: {choice, reasoning[, confidence]}. */
     Function<Map<String, String>, String[]> agent = f -> new String[] {"approve", "looks fine", "0.9"};
     /** What the person decides, from the case's values. */
     Function<Map<String, String>, String> person = f -> "approve";
     String script;
+    /** Tool calls the agent makes, one per step, before it proposes: {tool, argsJson}. Empty: it proposes at once. */
+    List<String[]> toolCalls = new ArrayList<>();
     private int runs;
     ScriptedRun last;
     HarnessExecutor lastExecutor;
@@ -71,11 +75,17 @@ final class DecideHarness {
     ScriptedRun newRun(RunJournal journal) {
         ScriptedRun run = new ScriptedRun(dir);
         run.journal = journal;
+        tools.forEach(run.tools::register);
         run.responder = r -> {
             String task = task(r);
             modelCalls++;
             tasks.add(task);
             String[] says = agent.apply(fieldsOf(task));
+            if (!toolCalls.isEmpty()) {
+                int seen = ScriptedRun.lastMessage(r).split("Observation:", -1).length - 1;
+                if (seen < toolCalls.size()) return ScriptedRun.call(toolCalls.get(seen)[0], toolCalls.get(seen)[1]);
+                return ScriptedRun.done("{\"choice\": \"" + says[0] + "\", \"reasoning\": \"" + says[1] + "\"" + (says.length > 2 && says[2] != null ? ", \"confidence\": " + says[2] : "") + "}");
+            }
             return "```json\n{\"choice\": \"" + says[0] + "\", \"reasoning\": \"" + says[1] + "\""
                     + (says.length > 2 && says[2] != null ? ", \"confidence\": " + says[2] : "") + "}\n```";
         };

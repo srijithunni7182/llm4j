@@ -70,7 +70,7 @@ final class DecisionChecks {
         if (d.getKeepDays() < 0) c.error(line, who, "keep records for needs a number of days");
         if (d.getWindow() < 1) c.error(line, who, "judge on the latest N cases needs N of at least 1");
         if (d.getStaleDays() < 1) c.error(line, who, "flag cases with no verdict after N days needs N of at least 1");
-        if (d.getTellTool() != null && script.getTools().stream().noneMatch(t -> t.getName().equals(d.getTellTool()))) {
+        if (d.getTellTool() != null && !c.context().registeredTools().contains(d.getTellTool())) {
             c.error(line, who, "tell " + d.getTellTool() + " when trust changes: tool " + d.getTellTool() + " is not declared (tool " + d.getTellTool() + " { use: … })");
         }
         if (d.getOnChange() == DecisionDef.OnChange.KEEP_TRUST && d.getCeiling().compareTo(Level.SUGGEST) > 0) {

@@ -79,6 +79,11 @@ public class ScriptValidator {
             return this;
         }
 
+        /** The tool names the script can use: declared, built in, or registered by the host. */
+        public Set<String> registeredTools() {
+            return registeredTools;
+        }
+
         public boolean hasHumanInterface() {
             return humanInterface;
         }
