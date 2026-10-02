@@ -68,7 +68,7 @@ else changes.
 Each is a problem with a line (R1.3, R2.7, R2.9):
 
 - duplicate checkpoint name in a workflow; unknown target; target later than the `rewind`; target in a sibling or nested block; target outside the branch that contains the rewind (a `parallel` branch, a `for each` body);
-- `max` missing or not positive; `effects:` not one of the three; `with` entries that are not `name: value`;
+- `at most N times` missing or not positive; `side effects:` not one of the three; `carrying` entries that are not `name = value`;
 - the condition is one comparison or a bare boolean variable, as the existing evaluator accepts (no `and`/`or`); anything else is a load error pointing at that limit;
 - the **effect reach** of the region between the checkpoint and the rewind: the validator already knows which agents a statement uses and which tools each agent has; it takes the union of their tools and classifies each by the `ToolKind`/`Effectful` information the tool factory has (a built-in pure tool: none; a generic tool: its `isEffect` possibilities; a tool of a class it can't classify: unknown). Unknown and effectful, with no stated policy, is a warning; with `side effects: repeat` and not approved or `unattended`, an error; an agent with `memory` facts in the region is a warning (R4.7).
 
@@ -279,7 +279,7 @@ which makes forking thousands of runs cheap (the parent is read, not copied). An
 | Effects and answers keyed without the generation | key everything with the generation | The whole point of safe rewinding: an identical send is not repeated. It also makes `keep` the natural default behaviour of the keys, and `ask first`/`repeat` the explicit variations |
 | `ask first` as the default policy | `keep` as the default | A rewind that sends a *different* message is a second message. The default must not do that silently; the author says `keep`, or fixes the placement |
 | Statement-level rewind with carried values | a retry of the whole workflow | Carried values are what makes the second attempt different from the first |
-| A bounded `max` on every rewind plus a run cap | unbounded with a budget | Budgets are in tokens or money; a runaway rewind loop should stop on a count too, and be obvious in the script |
+| A bounded `at most N times` on every rewind plus a run cap | unbounded with a budget | Budgets are in tokens or money; a runaway rewind loop should stop on a count too, and be obvious in the script |
 | Operator rewind to any statement boundary | to checkpoints only | Operators need to go back to where the problem started, which the author may not have named |
 | Ephemeral forks as an overlay | copy the journal | Replay forks thousands of runs; an overlay costs nothing and can't touch the parent |
 | `--allow-drift` guarded by a prefix signature | silently run the new script on the old journal | The failure would be silent: the journal supplying results the new script never asked for |

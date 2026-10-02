@@ -10,7 +10,7 @@ This spec adds **time travel to the run**, in two layers on one mechanism:
 
 | Layer | Who decides | What it is |
 |---|---|---|
-| **Declared** | the workflow | `checkpoint` names a point; `rewind to <checkpoint> when <condition> max N with { … }` goes back to it, carrying forward what was learned. The script defines what "going bad" means and what to do about it |
+| **Declared** | the workflow | `checkpoint` names a point; `rewind to <checkpoint> when <condition> at most N times carrying …` goes back to it, taking what was learned along. The script defines what "going bad" means and what to do about it |
 | **Operated** | a person | `weave rewind`, `weave fork`, `weave reset`, `weave timeline`: go back, branch off to try something, clear a stuck run, see what happened |
 
 A workflow that can only fail forward has to be right the first time. One that can go back can check its own
@@ -37,7 +37,7 @@ The standing rules from earlier Loom specs still apply:
 
 **Out of scope** (each a follow-up, not a gap in this one):
 
-- Undoing a side effect that has already happened (un-sending a message). A rewind keeps, holds or repeats effects; it never reverses them. A compensation action is something the script can do itself in an `on_exhausted` handler.
+- Undoing a side effect that has already happened (un-sending a message). A rewind keeps, asks about or repeats effects; it never reverses them. A compensation action is something the script can do itself in an `on_exhausted` handler.
 - Rewinding into the middle of an agent's own reasoning loop. The unit is a workflow statement.
 - Rewinding across a `parallel` or `for each` branch boundary (R2.7).
 - Merging two forks back into one run.
@@ -60,7 +60,7 @@ The standing rules from earlier Loom specs still apply:
 
 #### Acceptance Criteria
 
-1. THE grammar SHALL accept `checkpoint Name` as a statement, and `checkpoint Name { var: value, … }`, where each entry gives a variable a value that holds at this point (and so a default for values that a later `rewind … with` replaces). Values are strings or `{variable}` templates, resolved as other payloads are.
+1. THE grammar SHALL accept `checkpoint Name` as a statement, and `checkpoint Name  starting with var = value, …`, where each entry gives a variable a value that holds at this point (and so a default for values that a later `rewind … carrying` replaces). Values are strings or `{variable}` templates, resolved as other payloads are.
 2. EVERY workflow SHALL have an implicit checkpoint named `start` before its first statement.
 3. WHEN a script is loaded, THE loader SHALL report, naming the line: a duplicate name in a workflow; a name that is not an identifier; a checkpoint inside a `parallel` branch or `for each` body that has a rewind outside it (R2.7).
 4. REACHING a checkpoint SHALL record it in the run journal with the time and the generation it belongs to, trace it, and audit it (`checkpoint_reached`). It SHALL cost nothing and call no model.
@@ -73,14 +73,14 @@ The standing rules from earlier Loom specs still apply:
 #### Acceptance Criteria
 
 1. THE grammar SHALL accept
-   `rewind to Name [when <condition>] max N [effects: hold|keep|redo] [with { var: value, … }] [on_exhausted { … }] [if blocked { … }]`
-   as a statement, where the optional condition is the existing condition language over the run's variables (one comparison, or a bare true/false variable; a compound test is computed into a variable first, for example by an agent's `expecting` field), no `when` means always (used in `on_failure`), and `max` is required and positive.
-2. WHEN the condition is true and fewer than `max` rewinds of this statement have happened in this run, THE executor SHALL discard the effect of the statements after the checkpoint (R3), set the variables to those at the checkpoint plus the `with` values, increment the generation, and continue from the statement after the checkpoint.
-3. THE `with` values SHALL be resolved at the moment of the rewind from the variables of the discarded generation (so `feedback: "{review.notes}"` carries the reviewer's notes into the next attempt), and SHALL be bound as ordinary variables, together with `_rewind` (the number of rewinds so far for this statement), `_rewindReason` (the condition text) and `_rewindTo` (the checkpoint).
-4. WHEN the condition is true and `max` rewinds have been used, THE executor SHALL run `on_exhausted` once and continue after the `rewind` statement, as `loop … max` does; without `on_exhausted` the run SHALL fail with a message naming the statement and the count.
+   `rewind to Name [when <condition>] at most N times [carrying var = value, …] [side effects: ask first|keep|repeat] [if it still fails { … }] [if blocked { … }]`
+   as a statement, where the optional condition is the existing condition language over the run's variables (one comparison, or a bare true/false variable; a compound test is computed into a variable first, for example by an agent's `expecting` field), no `when` means always (used in `on_failure`), and `at most N times` is required and positive.
+2. WHEN the condition is true and fewer than N rewinds (`at most N times`) of this statement have happened in this run, THE executor SHALL discard the effect of the statements after the checkpoint (R3), set the variables to those at the checkpoint plus the `with` values, increment the generation, and continue from the statement after the checkpoint.
+3. THE `carrying` values SHALL be resolved at the moment of the rewind from the variables of the discarded generation (so `carrying feedback = "{review.notes}"` carries the reviewer's notes into the next attempt), and SHALL be bound as ordinary variables, together with `_rewind` (the number of rewinds so far for this statement), `_rewindReason` (the condition text) and `_rewindTo` (the checkpoint).
+4. WHEN the condition is true and the N rewinds have been used, THE executor SHALL run `if it still fails` once and continue after the `rewind` statement, as `loop … max` does; without it the run SHALL fail with a message naming the statement and the count.
 5. WHEN the effects policy forbids the rewind (R4.2), THE executor SHALL run `if blocked`; without it the run SHALL pause for a person (R4.3) rather than fail.
 6. THE run SHALL also have a cap on all rewinds together (`--max-rewinds`, default 20, also settable in the script's run settings); exceeding it SHALL fail the run with a message naming the cap and the three statements that rewound most.
-7. A `rewind` MAY be written in the same block as its checkpoint (after it), or in a block nested inside that block (an `alt` branch, a loop body, an `on_failure`, `on_exhausted` or `if blocked` handler). It SHALL NOT target a checkpoint in a sibling or nested block, one that comes later, or one outside the `parallel` branch or `for each` body that contains the `rewind`. The loader SHALL report each, naming the line.
+7. A `rewind` MAY be written in the same block as its checkpoint (after it), or in a block nested inside that block (an `alt` branch, a loop body, an `on_failure`, `if it still fails` or `if blocked` handler). It SHALL NOT target a checkpoint in a sibling or nested block, one that comes later, or one outside the `parallel` branch or `for each` body that contains the `rewind`. The loader SHALL report each, naming the line.
 8. A `rewind` SHALL be usable inside `on_failure`, so a failed step can send the run back; the failure that caused it is available as `_error`.
 9. THE loader SHALL warn, naming the line, when the statements between the checkpoint and the `rewind` can reach an effect tool (an `Effectful` tool that is not a read, a tool whose class is unknown, an agent with `memory` facts) and the policy is not stated, and SHALL report an error when `side effects: repeat` is used with such a tool that is not approved or `unattended`.
 10. THE rewind decision SHALL be journaled (R3.4), so that a resume takes the same decision without re-evaluating the condition against data that could differ.
@@ -140,7 +140,7 @@ The standing rules from earlier Loom specs still apply:
 
 #### Acceptance Criteria
 
-1. EVERY `rewind` SHALL be bounded by its `max` and the run by its cap (R2.6); both SHALL be shown in `timeline`.
+1. EVERY `rewind` SHALL be bounded by its `at most N times` and the run by its cap (R2.6); both SHALL be shown in `timeline`.
 2. Budgets in force when a step runs (per run, per agent, per step) SHALL apply to later generations as to the first, and tokens and money spent in discarded generations SHALL stay counted against them (R3.6).
 3. WHEN a budget refuses a call in a later generation, THE existing budget behaviour SHALL apply unchanged (`on_failure`, `when_exhausted`, suspension), and a rewind SHALL NOT be taken by a run that is already over a budget it would spend again.
 4. `weave run --max-tokens/--max-cost` and the spend report SHALL include rewound spend, shown separately.
@@ -164,7 +164,7 @@ The standing rules from earlier Loom specs still apply:
 
 1. NO tool, agent output, case field or carried value SHALL be able to cause a rewind, a fork or a reset; the journal's boundary entries and the run's format marker are reserved paths for the `file` tool and unreachable from agents.
 2. THE condition of a `rewind` SHALL be evaluated by the existing condition language on journaled variables only; it SHALL NOT call a model or a tool.
-3. `with` values are untrusted text like any variable; they SHALL be shown to a person with control characters neutralised.
+3. `carrying` values are untrusted text like any variable; they SHALL be shown to a person with control characters neutralised.
 4. A FORK SHALL never write to its parent's journal, run directory, trigger store entry or ledger; an ephemeral fork SHALL never write any file other than its own log.
 5. `--force` on an operator command SHALL be recorded in the journal and audit, and shown by `timeline`.
 6. A rewind that would cross an effect it cannot classify (a tool of an unknown class) SHALL be treated as holding.

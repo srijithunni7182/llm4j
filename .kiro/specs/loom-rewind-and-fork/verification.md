@@ -29,12 +29,12 @@ Unless a check says otherwise it uses these stand-ins:
 
 | # | Check |
 |---|---|
-| V2.1 | The example in design §1.1 loads; with a scripted reviewer scoring 5, 6, 8, the run makes three collector/analyst/writer/reviewer passes and publishes the third draft; with scores 5, 5, 5 it runs `on_exhausted` after two rewinds. |
-| V2.2 | `with { feedback: "{review.notes}" }` carries the notes of the discarded generation into the next: the collector's second task text contains them, its first contains the checkpoint's default. `_rewind`, `_rewindReason`, `_rewindTo` are set. |
-| V2.3 | `max` is required and positive; exhaustion without `on_exhausted` fails the run naming the statement and count; with it, the handler runs once and execution continues after the statement. |
+| V2.1 | The example in design §1.1 loads; with a scripted reviewer scoring 5, 6, 8, the run makes three collector/analyst/writer/reviewer passes and publishes the third draft; with scores 5, 5, 5 it runs `if it still fails` after two rewinds. |
+| V2.2 | `carrying feedback = "{review.notes}"` carries the notes of the discarded generation into the next: the collector's second task text contains them, its first contains the checkpoint's default. `_rewind`, `_rewindReason`, `_rewindTo` are set. |
+| V2.3 | `at most N times` is required and positive; exhaustion without `if it still fails` fails the run naming the statement and count; with it, the handler runs once and execution continues after the statement. |
 | V2.4 | The run cap (`--max-rewinds 3`) stops a script whose three statements rewind four times in total, naming the cap and the three busiest statements. |
 | V2.5 | Variables set in the discarded generation are gone after the rewind (a variable set only by `s4` is unset when `s4`'s second run is read before it executes), and variables from before the checkpoint are intact. |
-| V2.6 | Target placement: errors for a target in a sibling block, in a nested block, later than the rewind, and (separately) outside the `parallel` branch or `for each` body containing the rewind; accepted for the same block, an enclosing block, and from `alt`, loop body, `on_failure`, `on_exhausted` and `if blocked`. |
+| V2.6 | Target placement: errors for a target in a sibling block, in a nested block, later than the rewind, and (separately) outside the `parallel` branch or `for each` body containing the rewind; accepted for the same block, an enclosing block, and from `alt`, loop body, `on_failure`, `if it still fails` and `if blocked`. |
 | V2.7 | `rewind` in `on_failure` with `_error` carried: a failing step sends the run back once and the second attempt succeeds. |
 | V2.8 | A condition that is false makes no rewind and no journal boundary; the decision "no rewind" is journaled so a resume takes it. |
 | V2.9 | The effect-reach warning appears for an effect tool in the region with no policy stated; an error for `side effects: repeat` with an unapproved effect tool; none for a pure region. |
