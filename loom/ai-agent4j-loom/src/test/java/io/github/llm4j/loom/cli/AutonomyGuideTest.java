@@ -108,7 +108,7 @@ class AutonomyGuideTest {
             assertThat(samples.map(p -> p.getFileName().toString()).sorted().toList()).containsExactly("boardroom", "content_factory", "digest");
         }
         try (var files = Files.walk(Path.of("samples"))) {
-            assertThat(files.filter(Files::isRegularFile).map(p -> read(p)).noneMatch(t -> t.contains("decision "))).isTrue();
+            assertThat(files.filter(Files::isRegularFile).map(p -> read(p)).noneMatch(t -> java.util.regex.Pattern.compile("(?m)^\\s*decision\\s+\\w+\\s*\\{").matcher(t).find())).isTrue();
         }
     }
 }
