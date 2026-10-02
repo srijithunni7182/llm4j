@@ -1,0 +1,14 @@
+commit 59f82ce876b988a851b32d4ee3b28158f02ceb17
+[INFO] Total time:  29.066 s
+[INFO] Finished at: 2026-10-02T07:53:59Z
+[INFO] ------------------------------------------------------------------------
+jar: /home/user/llm4j/loom/ai-agent4j-loom/target/ai-agent4j-loom-5.0.jar (148M)
+--- weave check of a script with a decision, from an empty directory with only the jar:
+? r.loom: ready to run
+   weave autonomy is in the jar
+   weave replay is in the jar
+   weave timeline is in the jar
+   weave rewind is in the jar
+   weave fork is in the jar
+--- weave autonomy status on an empty store:
+Error: no decision has run from /tmp/tmp.MzlTWaknK7/store yet (there is no autonomy directory).

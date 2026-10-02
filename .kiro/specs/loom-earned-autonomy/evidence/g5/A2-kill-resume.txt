@@ -1,0 +1,5 @@
+$ weave run ... ticket=T901 (the model's call hangs)
+weave killed with SIGKILL while the model was thinking
+$ the same command again (resume)
+? Workflow completed successfully.
+--- cases the ledger holds: 61  (60 from A1 + 1)

@@ -1,0 +1,30 @@
+// The refund decision the earned-autonomy G5 runs use (the model is served by scripts/g5/autonomy_services.py; the person is the shell).
+agent Triager {
+    model: "ollama/fake"
+    system: "You are Triager. Propose whether to approve this refund."
+    output_schema: { choice: string, reasoning: string, confidence: number }
+}
+
+decision Refund {
+    proposed by:       Triager
+    choices:           approve, reject, escalate
+    group cases by:    tier
+    remember:          amount
+    ask:               support-lead
+    when the agent changes: test it on past cases
+
+    trust {
+        start at watch
+        never go above act
+        to suggest: after 10 cases, agreeing at least 70%
+        to act:     after 20 cases, agreeing at least 70%
+        check 50% of cases with a person who doesn't see the proposal
+        judge on the latest 30 cases
+        moving up is automatic
+    }
+}
+
+workflow Triage(ticket, tier, amount) {
+    decide Refund -> verdict
+    note "ticket {ticket}: {verdict} (the agent proposed {verdict_proposal}, level {verdict_level})"
+}

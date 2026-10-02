@@ -1,0 +1,44 @@
+$ weave replay --decision Refund --store store --candidate changed.loom --limit 15 --seed 1 refund.loom
+# Replay of Refund (r1a0fba82044-3dea)
+
+## What was replayed
+
+15 cases selected, 15 replayed (100.0% of the selected cases).
+
+## Tools in replay
+
+- allowed to run (replay: allow): none
+- simulated (not performed): none
+- read live (not recorded; non-deterministic): none
+
+## Headline
+
+| | cases | agreement | lower bound | dangerous | coverage |
+|---|---|---|---|---|---|
+| incumbent | 15 | 93.3% | 70.2% | 0.0% | 100.0% |
+| candidate | 15 | 53.3% | 30.1% | 0.0% | 100.0% |
+
+Cost of this replay: 225 tokens, 0; about 0.0000 per case.
+
+## The level the candidate would earn
+
+watch: suggest needs 10 cases at a lower bound of 70%; the replay has 15 cases at 30.1%
+
+## Flips (7)
+
+- /tmp/tmp.X9c8vm9X3H/run/runs/c12/Triage/s0 [gold]: incumbent reject, candidate approve, person decided escalate
+    - values: {amount=500}
+    - candidate's reasoning: amount 500
+- /tmp/tmp.X9c8vm9X3H/run/runs/c16/Triage/s0 [gold]: incumbent reject, candidate approve, person decided reject
+    - values: {amount=500}
+    - candidate's reasoning: amount 500
+- /tmp/tmp.X9c8vm9X3H/run/runs/c18/Triage/s0 [gold]: incumbent reject, candidate approve, person decided reject
+    - values: {amount=500}
+    - candidate's reasoning: amount 500
+- /tmp/tmp.X9c8vm9X3H/run/runs/c2/Triage/s0 [gold]: incumbent reject, candidate approve, person decided reject
+    - values: {amount=500}
+    - candidate's reasoning: amount 500
+- /tmp/tmp.X9c8vm9X3H/run/runs/c22/Triage/s0 [gold]: incumbent reject, candidate approve, person decided reject
+--- the ledger is the same before and after the replay: unchanged
+--- the same by hand: weave fork of one of the sampled runs under the changed script, simulated
+? Forked c10 into /tmp/tmp.X9c8vm9X3H/run/runs/forked10 (7 journal entries copied, going back to Triage/s0: generation 2; simulated: nothing will be performed). The original is untouched.

@@ -1,0 +1,20 @@
+commit 59f82ce876b988a851b32d4ee3b28158f02ceb17
+INFO: NOTE: BUILDING CONSENSUS
+[WARNING] Tests run: 626, Failures: 0, Errors: 0, Skipped: 1
+[INFO] --- jacoco:0.8.12:report (report) @ ai-agent4j-loom ---
+[INFO] Loading execution data file /home/user/llm4j/loom/ai-agent4j-loom/target/jacoco.exec
+[INFO] --- jacoco:0.8.12:check (coverage-rules) @ ai-agent4j-loom ---
+[INFO] Loading execution data file /home/user/llm4j/loom/ai-agent4j-loom/target/jacoco.exec
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+Decider          branches  81.1%  lines  88.9%
+EvidenceTool     branches  90.0%  lines  92.3%
+AgreementStats   branches 100.0%  lines 100.0%
+Ladder           branches  88.1%  lines 100.0%
+LedgerCache      branches 100.0%  lines  97.3%
+AgentIdentity    branches  91.4%  lines  92.9%
+Engine           branches  82.5%  lines  96.4%
+FileLedger       branches  83.3%  lines  86.1%
+ReplayEngine     branches  79.0%  lines  95.3%
+AutonomyCommands branches  63.5%  lines  77.9%
+ReplayCommand    branches  72.4%  lines  91.7%

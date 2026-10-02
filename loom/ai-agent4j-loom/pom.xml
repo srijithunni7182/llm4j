@@ -149,7 +149,7 @@
                         <goals><goal>report</goal></goals>
                     </execution>
                     <execution>
-                        <id>rewind-coverage</id>
+                        <id>coverage-rules</id>
                         <phase>verify</phase>
                         <goals><goal>check</goal></goals>
                         <configuration>
@@ -177,6 +177,36 @@
                                 <rule>
                                     <element>CLASS</element>
                                     <includes><include>io.github.llm4j.loom.execution.Rewinder</include></includes>
+                                    <limits><limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.autonomy.AgreementStats</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.autonomy.Ladder</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.autonomy.AgentIdentity</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.execution.EvidenceTool</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.execution.Decider</include></includes>
+                                    <limits><limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>PACKAGE</element>
+                                    <includes><include>io.github.llm4j.loom.autonomy</include></includes>
                                     <limits><limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit></limits>
                                 </rule>
                             </rules>
