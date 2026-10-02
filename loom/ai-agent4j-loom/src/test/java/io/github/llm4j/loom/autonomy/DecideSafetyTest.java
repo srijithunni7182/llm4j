@@ -187,4 +187,24 @@ class DecideSafetyTest {
             server.stop(0);
         }
     }
+
+    @Test
+    @Tag("EA-V5.4")
+    void aFreezeThatArrivesWhileACaseIsBeingProposedDoesNotChangeThatCase() {
+        DecideHarness h = harness("");
+        h.levels.compareAndSet("Refund", "gold", null, new LevelState(Level.ACT, 1, h.hashOfRefund(), false, DecideHarness.T0, "earned", 1));
+        h.agent = f -> {
+            Engine.freeze(h.ledger, h.levels, h.clock, "Refund", "Refund", "incident, while this case is being proposed");
+            return new String[] {"approve", "ok", "0.9"};
+        };
+
+        Map<String, Object> inProgress = h.runCase("run-1", h.inputs("gold", 20));
+        assertThat(inProgress.get("verdict_level")).as("it began at act and finishes at act").isEqualTo("act");
+        assertThat(h.asked).isEmpty();
+
+        h.agent = f -> new String[] {"approve", "ok", "0.9"};
+        Map<String, Object> next = h.runCase("run-2", h.inputs("gold", 21));
+        assertThat(next.get("verdict_level")).as("the next case begins frozen").isEqualTo("suggest");
+        assertThat(h.asked).hasSize(1);
+    }
 }
