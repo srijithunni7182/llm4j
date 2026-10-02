@@ -276,8 +276,9 @@ final class Rewinder {
         String raw = run.currentStep();
         String identity = run.identityStep();
         if (!run.rewindsUsed() || journal.get(identity).isEmpty() || raw.equals(identity)) {
-            journal.put(raw, new RunJournal.Entry("human", answer));
+            // the question first, so an answer is never in the journal without the question it answered (a crash in between asks again)
             if (run.rewindsUsed() && raw.equals(identity)) journal.put(identity + "#asked", new RunJournal.Entry("asked", hash(resolvedQuestion)));
+            journal.put(raw, new RunJournal.Entry("human", answer));
         } else {
             journal.put(raw, new RunJournal.Entry("human", answer)); // a changed question: its own record; the earlier one stays
         }

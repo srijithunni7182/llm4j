@@ -348,12 +348,12 @@ public class LoomParser {
             Token side = advance();
             expectWord("effects", "Write: side effects: ask first | keep | repeat");
             consume(TokenType.COLON, "Expect ':' after 'side effects'.");
-            StringBuilder phrase = new StringBuilder();
-            while (check(TokenType.IDENTIFIER) && !isWord("if")) {
-                if (phrase.length() > 0) phrase.append(' ');
-                phrase.append(advance().getValue());
+            String phrase = check(TokenType.IDENTIFIER) ? advance().getValue() : "";
+            if (phrase.equals("ask") && isWord("first")) {
+                advance();
+                phrase = "ask first";
             }
-            RewindStmt.Effects effects = RewindStmt.Effects.of(phrase.toString());
+            RewindStmt.Effects effects = RewindStmt.Effects.of(phrase);
             if (effects == null) throw error(side, "Side effects can be: ask first, keep or repeat (not \"" + phrase + "\").");
             stmt.setEffects(effects);
         }
