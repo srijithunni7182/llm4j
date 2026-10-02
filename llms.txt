@@ -14,7 +14,8 @@ Key facts:
 
 - [README](https://github.com/srijithunni7182/llm4j/blob/main/README.md): the stack, an agent as an object, showcases, getting started
 - [Quick start](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Getting-Started.md): a first agent in five minutes
-- [Security guide](https://github.com/srijithunni7182/llm4j/blob/main/SECURITY.md): threat model, each building block's controls, securing a Loom workflow, OWASP Top 10 for LLM Applications mapping with known gaps, `weave audit`
+- [Security overview](https://github.com/srijithunni7182/llm4j/blob/main/SECURITY.md): threat model, principles, limits, how to report a vulnerability
+- [Security: building blocks](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/building-blocks.md), [securing a Loom workflow](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/securing-workflows.md), [`weave audit`](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/weave-audit.md), [OWASP Top 10 for LLM Applications and the gaps](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/owasp-llm-top-10.md)
 - [LOOM_PROMPT.md](https://github.com/srijithunni7182/llm4j/blob/main/loom/ai-agent4j-loom/LOOM_PROMPT.md): the Loom language for language models; how to write correct scripts
 
 ## ai-agent4j (core library, about 440 KB)

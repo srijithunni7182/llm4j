@@ -894,7 +894,7 @@ weave audit digest.loom                        # Markdown report; exit 1 on a hi
 weave audit digest.loom --format json --out audit.json --fail-on medium
 ```
 
-Run it in CI next to `weave check`. The rules, the OWASP mapping and the known gaps are in [SECURITY.md](../../SECURITY.md).
+Run it in CI next to `weave check`. The rules are in [Auditing a script](../../docs/security/weave-audit.md), and the OWASP mapping with the known gaps in [the OWASP page](../../docs/security/owasp-llm-top-10.md).
 
 ### PII Guardrails
 You can wrap statement blocks in guardrails to prevent sensitive data leakage.

@@ -289,8 +289,11 @@ class AutonomyCommandsTest {
         while (writer.isAlive() || reads < 3) {
             ByteArrayOutputStream sink = new ByteArrayOutputStream();
             try {
-                if (Files.exists(store.resolve("autonomy/Refund/script"))) AutonomyCommands.status(store, "Refund", null, true, clock, new PrintStream(sink, true), new PrintStream(sink, true));
-                if (Files.exists(store.resolve("autonomy/Refund/script"))) assertThat(sink.toString()).contains("\"decision\"");
+                // one look at the store per round: checking twice races the writer (the script can appear between the two looks)
+                if (Files.exists(store.resolve("autonomy/Refund/script"))) {
+                    AutonomyCommands.status(store, "Refund", null, true, clock, new PrintStream(sink, true), new PrintStream(sink, true));
+                    assertThat(sink.toString()).contains("\"decision\"");
+                }
             } catch (Throwable t) {
                 failures.add(t);
             }
