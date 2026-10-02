@@ -17,8 +17,21 @@ public interface Channel {
     /** Where a question went, so a reply to that message can be matched. */
     record Sent(String chat, String ref, Instant at) { }
 
-    /** A reply: where it came from, who sent it, what it says, and the message it answers (or null). */
-    record Reply(String chat, String sender, String text, String replyToRef) { }
+    /** A reply: where it came from, who sent it, what it says, the message it answers (or null) and when it was written (or null when the channel does not say). */
+    record Reply(String chat, String sender, String text, String replyToRef, Instant at, String ref) {
+        public Reply(String chat, String sender, String text, String replyToRef) {
+            this(chat, sender, text, replyToRef, null, null);
+        }
+
+        public Reply(String chat, String sender, String text, String replyToRef, Instant at) {
+            this(chat, sender, text, replyToRef, at, null);
+        }
+    }
+
+    /** Whether a message (by its reference) was written before a question that was sent (by its reference) in the same chat: where the channel numbers its messages, an exact answer that needs no clock. */
+    default boolean writtenBefore(String messageRef, String questionRef) {
+        return false;
+    }
 
     /** Replies read since the last acknowledgement; {@code cursor} says how far, so a restart neither repeats nor skips. */
     record Batch(List<Reply> replies, String cursor) {

@@ -18,7 +18,7 @@ public final class Listener {
     private static final Pattern LEADING_CODE = Pattern.compile("^#?([A-Za-z0-9]{" + Codes.LENGTH + "})(?:\\s+(.*))?$", Pattern.DOTALL);
 
     /** What one poll did. */
-    public record Summary(int recorded, int refused, int ignored) { }
+    public record Summary(int recorded, int refused, int ignored, int stale) { }
 
     private final Channel channel;
     private final ChannelConfig config;
@@ -26,7 +26,9 @@ public final class Listener {
     private final Answers answers;
     private final Dispatch dispatch;
     private final Clock clock;
+    private static final Duration SKEW = Duration.ofSeconds(60);
     private boolean noted;
+    private boolean notedStale;
     private int ignoredTotal;
 
     public Listener(Channel channel, ChannelConfig config, PendingStore store, Answers answers, Dispatch dispatch, Clock clock) {
@@ -48,6 +50,7 @@ public final class Listener {
         int recorded = 0;
         int refused = 0;
         int ignored = 0;
+        int stale = 0;
         for (Channel.Reply reply : batch.replies()) {
             if (!allowed(reply)) {
                 ignored++;
@@ -59,6 +62,10 @@ public final class Listener {
                 continue;
             }
             Handled h = handle(reply);
+            if (h.stale) {
+                stale++;
+                continue;
+            }
             if (h.recorded) recorded++;
             else refused++;
             try {
@@ -68,7 +75,7 @@ public final class Listener {
             }
         }
         channel.acknowledge(batch.cursor());
-        return new Summary(recorded, refused, ignored);
+        return new Summary(recorded, refused, ignored, stale);
     }
 
     private boolean allowed(Channel.Reply reply) {
@@ -80,7 +87,23 @@ public final class Listener {
         }
     }
 
-    private record Handled(boolean recorded, String message) { }
+    private record Handled(boolean recorded, String message, boolean stale) {
+        Handled(boolean recorded, String message) {
+            this(recorded, message, false);
+        }
+    }
+
+    /** A reply written before the question was asked is a leftover (a fresh store reading a chat's backlog), never an answer to it. */
+    private boolean olderThanQuestion(Channel.Reply reply, Pending target) {
+        if (reply.ref() != null) {
+            for (Pending.Delivery d : target.sent()) {
+                if (d.chat().equals(reply.chat()) && channel.writtenBefore(reply.ref(), d.ref())) return true;
+            }
+        }
+        if (reply.at() == null) return false;
+        Instant asked = target.sent().stream().map(Pending.Delivery::at).min(Instant::compareTo).orElse(target.createdAt());
+        return reply.at().isBefore(asked.minus(SKEW));
+    }
 
     private Handled handle(Channel.Reply reply) {
         String text = Text.safe(reply.text() == null ? "" : reply.text().strip(), false);
@@ -99,6 +122,13 @@ public final class Listener {
         if (target == null && codeToken != null) target = store.get(codeToken).orElse(null);
         if (target == null && codeToken == null && open.size() == 1) target = open.get(0);
         if (target == null) return new Handled(false, help(open, codeToken));
+        if (olderThanQuestion(reply, target)) {
+            if (!notedStale) {
+                notedStale = true;
+                log.warning("A reply older than the question it would answer was ignored (earlier messages in the chat are never answers; noted once)");
+            }
+            return new Handled(false, "", true);
+        }
         boolean codeGiven = codeToken != null && codeToken.equals(target.code());
         if (target.approval() && !codeGiven) {
             return new Handled(false, "This one needs the code in the reply, e.g. \"" + target.code() + " " + (target.choices().isEmpty() ? "yes" : target.choices().get(0)) + "\".");

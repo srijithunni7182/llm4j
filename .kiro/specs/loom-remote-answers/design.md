@@ -100,6 +100,8 @@ question, the approval gate and the rewind prompt pass hints (their choices and 
 
 At-least-once: a crash between `send` and `markSent` can send the question twice; both messages carry the same code, and an answer applies once.
 
+A store that has questions but no channel configured (an operator answers with `weave answer` on the host, or a run is resumed with `--ask-via console`) wraps the console in `ClosingHumanInterface`: the answer already recorded for the step is returned (an expired question gives the empty answer), and the console is asked only when there is none; an answer given at the console closes the record.
+
 ## 4. Recording an answer (`Answers`)
 
 ```
@@ -121,7 +123,7 @@ a fork or replay of the run unaffected.
 
 `Listener.pollOnce(wait)`:
 
-1. `channel.poll(wait)`; for each reply: chat or sender not on the allowlist → ignore and count; else match: `replyToRef` to a record's `sent.message`; else a leading code token; else the only open question (not for `approval` kinds); else tell the sender the open questions.
+1. `channel.poll(wait)`; a reply written before its question was sent (`Channel.writtenBefore` by message number, else by date with a minute's allowance) is dropped without a note; for each other reply: chat or sender not on the allowlist → ignore and count; else match: `replyToRef` to a record's `sent.message`; else a leading code token; else the only open question (not for `approval` kinds); else tell the sender the open questions.
 2. `Answers.record(...)`; `tell("Recorded: approve for K7F3QX")` or the refusal reason.
 3. Reminders and expiry: records open longer than `remind.every` get the question re-sent (same code, `reminders+1`); older than `expire` are closed as `expired`, a ResumeRun trigger is left, and `ChannelHumanInterface` returns the end-of-input answer the console produces (an empty string), which the asking step already handles.
 4. Persist the offset.

@@ -201,6 +201,7 @@ class ChannelRunTest {
         assertThat(out()).contains("answered").contains("answered \"yes\" by operator:me");
 
         assertThat(WeaveCLI.tick(store, bare)).isZero();
+        assertThat(consoleAsked).as("the answer given with weave answer is the answer: the console is not asked").isZero();
         assertThat(out()).contains("Workflow completed successfully");
         assertThat(Files.readString(dir.resolve("runs/d4/journal.json"))).contains("yes");
     }

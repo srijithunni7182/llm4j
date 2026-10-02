@@ -28,6 +28,7 @@ public final class ChannelHarness implements AutoCloseable {
 
     public ChannelHarness(Path store, String tokenEnv, Map<String, List<Long>> chats) throws IOException {
         this.telegram = new FakeTelegram();
+        this.telegram.dateSource = () -> clock.instant();
         this.store = store;
         this.pending = new PendingStore(store);
         this.audit = new Audit(pending, clock);

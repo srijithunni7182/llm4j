@@ -133,6 +133,25 @@ class TelegramTest {
     }
 
     @Test
+    @Tag("RA-V3.8")
+    void aReplyWrittenBeforeTheQuestionWasAskedIsNeverItsAnswerWhateverElseMatches() throws Exception {
+        h.telegram.reply(ChannelHarness.ME, "approve"); // written first, so Telegram numbered it before the question, though the clock says the same time
+        String code = ask("A/s0", false);
+        int sentBefore = h.telegram.sent.size();
+        h.telegram.reply(ChannelHarness.ME, ChannelHarness.ME, "approve", null, ChannelHarness.T0.minus(Duration.ofHours(2)));
+
+        Listener.Summary s = h.runtime.listener().pollOnce(Duration.ZERO);
+
+        assertThat(s.stale()).as("one by its number, one by its date").isEqualTo(2);
+        assertThat(s.recorded()).isZero();
+        assertThat(h.pending.get(code).orElseThrow().state()).as("a leftover from an earlier question is not an answer").isEqualTo(Pending.State.OPEN);
+        assertThat(h.telegram.sent).as("and a backlog is not answered with a flood of notes").hasSize(sentBefore);
+
+        h.telegram.reply(ChannelHarness.ME, "approve");
+        assertThat(h.runtime.listener().pollOnce(Duration.ZERO).recorded()).isEqualTo(1);
+    }
+
+    @Test
     @Tag("RA-V3.5")
     void anAcceptedAnswerIsConfirmedAndAReplyNotUnderstoodGetsHelp() throws Exception {
         String code = ask("A/s0", false);

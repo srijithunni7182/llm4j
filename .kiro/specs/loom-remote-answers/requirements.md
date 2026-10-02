@@ -71,7 +71,7 @@ The standing rules from earlier Loom specs still apply:
 4. WHERE the step has fixed choices, THE answer SHALL be matched to a choice the way the console already matches it (exactly, any case, or as the unique start of one). An answer that matches none is not recorded: the person is told the choices and the question stays open.
 5. EVERY recorded answer SHALL be written to the run's audit log with the code, the person (channel and chat id, or the operating-system user), the time, and the text, and SHALL appear in the run journal as the step's answer.
 6. AN answer to an unknown, expired or already-answered code SHALL change nothing and say why.
-7. THE console path (`ConsoleHumanInterface`) SHALL keep working, and a question answered at the console SHALL close any pending record for it.
+7. THE console path (`ConsoleHumanInterface`) SHALL keep working, and a question answered at the console SHALL close any pending record for it. WHERE a store has questions but no channel is configured, a run that is resumed SHALL take an answer already recorded for its step (with `weave answer`) as the answer, and ask at the console only when there is none.
 
 ### Requirement 3: The Telegram channel
 
@@ -85,7 +85,8 @@ The standing rules from earlier Loom specs still apply:
 4. A reply SHALL be matched to a question by, in order: the Telegram "reply to" link to the question message; a leading code (`K7F3QX approve`, `#K7F3QX approve`); the only open question, when there is exactly one. Anything else gets a short help message that lists the open questions, and changes nothing.
 5. THE listener SHALL confirm an accepted answer with a short message (`Recorded: approve for K7F3QX`) and say when a reply was not understood.
 6. THE listener SHALL remember how far it has read (the Telegram update offset) in the run store, so a restart neither re-applies old replies nor misses new ones.
-7. WHEN the network or the Bot API fails, THE listener SHALL retry with a growing delay and keep running; a send that fails SHALL leave the pending record `unsent`, retried on the next tick, and `weave questions` SHALL show it.
+7. A reply written before the question it would answer was first sent SHALL never answer it (a store that starts reading a chat sees that chat's earlier messages): it is ignored and counted, and not answered with a note, so a backlog causes no flood. Where the channel numbers its messages (Telegram does, per chat) the order of the numbers decides; otherwise the dates do, with a one-minute allowance for clock difference.
+8. WHEN the network or the Bot API fails, THE listener SHALL retry with a growing delay and keep running; a send that fails SHALL leave the pending record `unsent`, retried on the next tick, and `weave questions` SHALL show it.
 
 ### Requirement 4: Running it where nobody sits
 

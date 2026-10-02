@@ -43,9 +43,16 @@ public final class FakeTelegram implements AutoCloseable {
 
     /** A reply from {@code from} in {@code chat}, optionally to one of our messages. */
     public void reply(long chat, long from, String text, Integer replyTo) {
+        reply(chat, from, text, replyTo, dateSource.get());
+    }
+
+    /** Where a reply's date comes from (a test points it at its clock). */
+    public volatile java.util.function.Supplier<java.time.Instant> dateSource = java.time.Instant::now;
+
+    public void reply(long chat, long from, String text, Integer replyTo, java.time.Instant date) {
         String reply = replyTo == null ? "" : ",\"reply_to_message\":{\"message_id\":" + replyTo + "}";
         updates.add("{\"update_id\":" + updateIds.incrementAndGet() + ",\"message\":{\"message_id\":" + messageIds.incrementAndGet() + ",\"from\":{\"id\":" + from + "},\"chat\":{\"id\":" + chat
-                + "},\"text\":" + quote(text) + reply + "}}");
+                + "},\"date\":" + date.getEpochSecond() + ",\"text\":" + quote(text) + reply + "}}");
     }
 
     public void reply(long chat, String text) {

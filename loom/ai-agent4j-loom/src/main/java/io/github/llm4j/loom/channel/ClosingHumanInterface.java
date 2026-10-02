@@ -26,12 +26,21 @@ public final class ClosingHumanInterface implements HumanInterface {
 
     @Override
     public String promptHuman(String stepId, String message) {
-        return close(stepId, inner.promptHuman(stepId, message));
+        return recorded(stepId).orElseGet(() -> close(stepId, inner.promptHuman(stepId, message)));
     }
 
     @Override
     public String promptHuman(String stepId, String message, Hints hints) {
-        return close(stepId, inner.promptHuman(stepId, message, hints));
+        return recorded(stepId).orElseGet(() -> close(stepId, inner.promptHuman(stepId, message, hints)));
+    }
+
+    /** An answer already given (with {@code weave answer}, or in a chat) is the answer; the console is asked only when there is none. */
+    private java.util.Optional<String> recorded(String stepId) {
+        return pending.find(run, stepId).flatMap(p -> switch (p.state()) {
+            case ANSWERED -> java.util.Optional.of(p.answer().text());
+            case EXPIRED -> java.util.Optional.of("");
+            default -> java.util.Optional.empty();
+        });
     }
 
     private String close(String stepId, String answer) {

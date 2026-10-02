@@ -71,9 +71,19 @@ public final class TelegramChannel implements Channel {
             if (!m.hasNonNull("text")) continue;
             JsonNode reply = m.path("reply_to_message");
             replies.add(new Reply(m.path("chat").path("id").asText(), m.path("from").path("id").asText(), m.path("text").asText(),
-                    reply.hasNonNull("message_id") ? reply.path("message_id").asText() : null));
+                    reply.hasNonNull("message_id") ? reply.path("message_id").asText() : null, m.path("date").asLong(0) > 0 ? Instant.ofEpochSecond(m.path("date").asLong()) : null, m.path("message_id").asText(null)));
         }
         return new Batch(replies, max < 0 ? null : String.valueOf(max + 1));
+    }
+
+    /** Telegram numbers the messages of a chat in the order they are written. */
+    @Override
+    public boolean writtenBefore(String messageRef, String questionRef) {
+        try {
+            return Long.parseLong(messageRef) < Long.parseLong(questionRef);
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     @Override

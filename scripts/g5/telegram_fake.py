@@ -47,7 +47,7 @@ class Handler(BaseHTTPRequestHandler):
             with LOCK:
                 STATE["msg"] += 1
                 STATE["upd"] += 1
-                msg = {"message_id": STATE["msg"], "from": {"id": body.get("from", body["chat"])}, "chat": {"id": body["chat"]}, "text": body["text"]}
+                msg = {"message_id": STATE["msg"], "date": int(time.time()), "from": {"id": body.get("from", body["chat"])}, "chat": {"id": body["chat"]}, "text": body["text"]}
                 if body.get("reply_to"):
                     msg["reply_to_message"] = {"message_id": body["reply_to"]}
                 UPDATES.append({"update_id": STATE["upd"], "message": msg})

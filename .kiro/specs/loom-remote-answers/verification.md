@@ -36,7 +36,7 @@ Unless a check says otherwise it uses these stand-ins:
 | V2.4 | A text matching no choice is not recorded; the reply lists the choices; the question stays open. A unique prefix (`app`) matches `approve`. |
 | V2.5 | An accepted answer writes one audit line (code, who, time, text) and the step's journal entry holds the answer. |
 | V2.6 | An unknown, expired or answered code changes nothing and says why. |
-| V2.7 | A question answered at the console closes its pending record. |
+| V2.7 | A question answered at the console closes its pending record. With no channel configured, a run resumed after `weave answer` takes that answer and never asks the console. |
 
 ## V3: Telegram (R3)
 
@@ -48,6 +48,7 @@ Unless a check says otherwise it uses these stand-ins:
 | V3.4 | Matching: by reply-to; by `K7F3QX approve` and `#k7f3q approve`; by the only open question; with two open questions and no code the sender gets the list and nothing is recorded. |
 | V3.5 | An accepted answer is confirmed with `Recorded: approve for K7F3QX`; a reply not understood gets help. |
 | V3.6 | Restarting the listener neither re-applies old replies nor misses new ones (offset kept; fault injected between recording and saving the offset gives one application, not two). |
+| V3.8 | A reply dated before the question was asked is ignored and counted, answered with no note, and does not answer it even when it is the only open question; a reply dated after it does. |
 | V3.7 | With the fake server failing, delayed or dropping the connection: the listener keeps running and backs off; a failed send leaves the record `unsent`, `questions` shows it, and the next tick sends it. |
 
 ## V4: Where nobody sits (R4)

@@ -1,0 +1,23 @@
+$ weave run refund.loom -w Triage -i ticket=T1 -i tier=gold -i amount=50 --journal runs/c1 --store store --ask-via telegram   (no terminal, no stdin)
+? Waiting for a person at Triage/s0#decide-ask: support-lead, please decide Refund (approve / reject / escalate)
+--- the message that arrived on the phone:
+   | [c1] support-lead, please decide Refund (approve / reject / escalate)
+   | amount = 50
+   | 
+   | 
+   | Reply: M5FU2G approve | reject | escalate
+   | (or reply directly to this message)
+--- parse_mode on that message: [None]   (null = plain text)
+--- does it show the agent's proposal? 0 matches (expected 0)
+$ weave questions store
+M5FU2G  open  c1  1s  support-lead, please decide Refund (approve / reject / escalate)
+--- the person replies in the chat: "M5FU2G approve"
+$ weave tick store --ask-via telegram
+? Recorded 1 answer(s)
+? Workflow completed successfully.
+--- the confirmation on the phone: Recorded: approve for M5FU2G.
+--- messages sent in all: 2 (the question and the confirmation; nothing sent twice)
+--- ledger cases: 1, verdict approve recorded: 2
+$ weave questions store --all
+M5FU2G  answered  c1  3s  support-lead, please decide Refund (approve / reject / escalate)
+      answered "approve" by telegram:5550001

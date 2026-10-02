@@ -24,7 +24,8 @@ python3 "$ROOT/scripts/g5/telegram_fake.py" --port "$TG_PORT" --log "$WORK/tg.js
 python3 "$ROOT/scripts/g5/autonomy_services.py" --port "$LLM_PORT" --log "$WORK/llm.jsonl" > "$WORK/llm.out" 2>&1 & pids+=($!)
 for _ in $(seq 1 50); do grep -q "fake telegram" "$WORK/tg.out" 2>/dev/null && grep -q "fake services" "$WORK/llm.out" 2>/dev/null && break; sleep 0.1; done
 reply() { curl -s -X POST "http://127.0.0.1:$TG_PORT/_reply" -d "{\"chat\": ${2:-5550001}, \"from\": ${3:-${2:-5550001}}, \"text\": \"$1\"}" > /dev/null; }
-sent() { curl -s "http://127.0.0.1:$TG_PORT/_sent"; }
+sent() { curl -s "http://127.0.0.1:$TG_PORT/_sent"; echo; }
+nsent() { sent | grep -c .; }
 code_of() { weave questions "$1" --json | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d[0]["code"] if d else "")'; }
 D=$WORK/run; mkdir -p "$D"; cp "$ROOT/scripts/g5/digest.loom" "$ROOT/scripts/g5/refund.loom" "$D/"; cd "$D" || exit 1
 
@@ -42,7 +43,7 @@ echo "== B1: a decision asks on the phone, a reply comes back, one tick resumes 
   echo "\$ weave tick store --ask-via telegram"
   weave tick store --ask-via telegram | grep -E "Recorded|Workflow|rror"
   echo "--- the confirmation on the phone: $(sent | tail -1 | python3 -c 'import json,sys; print(json.loads(sys.stdin.read())["text"])')"
-  echo "--- messages sent in all: $(sent | wc -l) (the question and the confirmation; nothing sent twice)"
+  echo "--- messages sent in all: $(nsent) (the question and the confirmation; nothing sent twice)"
   echo "--- ledger cases: $(cat store/autonomy/Refund/ledger.jsonl | grep -c '"kind":"case"'), verdict approve recorded: $(grep -c 'approve' store/autonomy/Refund/ledger.jsonl)"
   echo "\$ weave questions store --all"; weave questions store --all
 } > "$OUT/B1-decision-on-phone.txt" 2>&1
@@ -51,11 +52,12 @@ echo "== B2: a stranger's reply is ignored; the daemon is killed with -9 and a s
 {
   weave run digest.loom -w Digest -i topic=bees --journal runs/d2 --store store2 --ask-via telegram < /dev/null | grep -E "Waiting|rror"
   CODE=$(code_of store2)
+  M0=$(nsent)
   echo "--- a stranger (chat 999) replies \"$CODE yes\""
   reply "$CODE yes" 999
   java -cp "$CP" io.github.llm4j.loom.cli.WeaveCLI daemon store2 --ask-via telegram --poll 1s > "$WORK/d1.out" 2>&1 & DPID=$!
   sleep 4
-  echo "--- after 4s of the daemon: question still open? $(weave questions store2 | grep -c "$CODE") (expected 1); a stranger is never answered: messages sent = $(sent | wc -l) (expected 3 incl. the first run's: question, + earlier B1 messages)"
+  echo "--- after 4s of the daemon: question still open? $(weave questions store2 | grep -c "$CODE") (expected 1); the stranger was not answered: $(( $(nsent) - M0 )) notes sent (expected 0)"
   kill -9 "$DPID" 2>/dev/null; wait "$DPID" 2>/dev/null
   echo "--- daemon killed with SIGKILL; the person now replies \"$CODE yes\""
   reply "$CODE yes"
