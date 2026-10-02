@@ -489,9 +489,8 @@ The evidence for each feature is in `.kiro/specs/<feature>/evidence/`:
 
 ## Reporting a vulnerability
 
-Please **do not open a public issue** for a security problem. Report it privately, through GitHub's
-**Security → Report a vulnerability** on this repository if it is enabled, or by contacting the maintainer
-[@srijithunni7182](https://github.com/srijithunni7182) directly. Include:
+Please **do not open a public issue** for a security problem. Contact the maintainer,
+[@srijithunni7182](https://github.com/srijithunni7182), privately. Include:
 - what you found;
 - how to reproduce it;
 - which module and version it affects.
