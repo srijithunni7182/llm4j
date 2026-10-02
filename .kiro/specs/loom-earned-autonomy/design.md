@@ -287,12 +287,12 @@ for each selected case c:
                  effect ctx    = simulate = true                       // rewind spec §3.4
                  human         = null interface that fails the case if asked
                  ledger/levels = null (can't be written)
-                 stop_at       = c.step                                // RunStopped after the decision
-                 boundary      = a rewind at c.step                    // a new generation for the decide step only
+                 stop_at       = c.step + "#decide-proposal"            // RunStopped right after the proposal is journaled, before anyone is asked
+                 boundary      = from c.step (inclusive)               // a new generation for the decide step and what follows it in its block
     run; read fork[c.step~2 + "#decide-proposal"]                      // the candidate's proposal
 ```
 
-The generation-2 boundary at the decide step is what makes the candidate's agent run again while everything before it (the
+Stopping *before the ask* matters: at `assist` the question includes the proposal, and a different candidate proposal would make a different question, which the null human interface would refuse. The generation-2 boundary at the decide step is what makes the candidate's agent run again while everything before it (the
 upstream steps, with their results) is read from the journal at no cost. A candidate that changes only the decision's agent, its
 model, prompt, policy or tools after the decide point has an identical prefix, so no drift.
 

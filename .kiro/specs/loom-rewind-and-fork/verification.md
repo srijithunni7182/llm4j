@@ -39,6 +39,7 @@ Unless a check says otherwise it uses these stand-ins:
 | V2.8 | A condition that is false makes no rewind and no journal boundary; the decision "no rewind" is journaled so a resume takes it. |
 | V2.9 | The effect-reach warning appears for an effect tool in the region with no policy stated; an error for `effects: redo` with an unapproved effect tool; none for a pure region. |
 | V2.10 | The condition is evaluated on journaled variables only: a test with a model that would behave differently on a second evaluation proves the second evaluation (on resume) takes the journaled decision. |
+| V2.12 | `rewind … max 1` with no `when` always rewinds (in `on_failure`); a compound condition (`a < 1 or b > 2`) is a load error naming the limit. |
 | V2.11 | A rewind to an outer checkpoint from inside a loop discards the loop's later rounds and restarts it from round 1 in the new generation. |
 
 ## V3: Generations in the journal (R3)
@@ -51,7 +52,7 @@ Unless a check says otherwise it uses these stand-ins:
 | V3.4 | **Crash at every write.** For the V2.1 script, crash after (and separately instead of) each single journal write during a rewind, resume, and compare to an uninterrupted run: same final variables, same journal keys, exactly one new generation, the scripted model made no call for a step already completed in generation 2, the recording effect tool performed no effect twice. All three journals. |
 | V3.5 | The variables at a boundary are the same in a live rewind and after a resume (compare maps). |
 | V3.6 | Usage, spend report and `--max-cost` count discarded generations: the sum of the report equals the sum of all `usage` entries. |
-| V3.7 | The run directory carries a format marker once it has rewound; a simulated "old build" (a reader that checks the marker) refuses it with a clear message; a run that never rewound carries none. |
+| V3.7 | The run directory carries a format marker once it has rewound; this build refuses a marker it doesn't understand; a run that never rewound carries none; the guide states that pre-feature builds can't read a rewound run. |
 | V3.8 | Resuming a journal written by the baseline build (a golden journal from the previous commit, including a paused run) gives the same results as before the change. |
 
 ## V4: Effects and people (R4)
@@ -63,6 +64,7 @@ Unless a check says otherwise it uses these stand-ins:
 | V4.3 | `hold` (default): a done effect in the discarded generation blocks the rewind and runs `on_blocked`; a `pending` effect blocks; a `failed` effect does not; a read does not. |
 | V4.4 | A held rewind with no `on_blocked` pauses with a question listing each blocking effect (tool, target, time, outcome) and offering keep/redo/cancel; answering `keep` rewinds under keep; `redo` under redo; `cancel` records no rewind and the run goes on; the answer is journaled and a resume doesn't ask again. |
 | V4.5 | `redo`: the same effect call is performed again in generation 2 (keyed with the generation) and recorded separately; an unapproved effect tool is a load error. |
+| V4.11 | An effect repeated identically within one step after a rewind gets the same ordinal as in generation 1 (counted against the generation-free step); `max_per_run` counts every generation, so a `redo` spends it again. |
 | V4.6 | A person's answer is reused for an identical question and the question is re-asked when the resolved text differs; `--ask-again` forces it. |
 | V4.7 | Approved tool calls (`approve:`) with identical arguments are not re-asked after a rewind; changed arguments are. |
 | V4.8 | Simulate mode: no effect is performed in any generation, none is recorded as done; non-`Effectful` tools return the simulated text; a new tool class added by the test is simulated by default. |
@@ -148,9 +150,9 @@ rule, as for the generic tools.
 | Requirement | Checks |
 |---|---|
 | R1 Checkpoints | V1.1–V1.5 |
-| R2 Declared rewind | V2.1–V2.11, V3.4 |
+| R2 Declared rewind | V2.1–V2.12, V3.4 |
 | R3 Generations in the journal | V3.1–V3.8, V9.5 |
-| R4 Side effects and people | V4.1–V4.10 |
+| R4 Side effects and people | V4.1–V4.11 |
 | R5 Operator commands | V5.1–V5.12 |
 | R6 Cost and bounds | V6.1–V6.3, V3.6 |
 | R7 Observability | V7.1–V7.3 |

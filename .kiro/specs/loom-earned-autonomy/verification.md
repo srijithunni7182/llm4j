@@ -106,7 +106,7 @@ Unless a check says otherwise it uses these stand-ins:
 | V7.1 | Replay over a seeded ledger of real (scripted) runs, with a candidate identical to the incumbent and a deterministic scripted model, reproduces the incumbent's label on every replayable case: flips 0, the same agreement and bound. |
 | V7.2 | Replay with a different candidate lists exactly the flipped cases, with both labels, the human's, and both rationales, unsafe first. |
 | V7.3 | **Nothing changes.** Before and after a replay, byte-compare: every ledger file or table, the level store, the trigger store, every run directory and JDBC journal row; the recording tools show 0 effect performed; the human interface was asked 0 questions; only the replay's own directory differs. |
-| V7.4 | **It is a fork.** The replay of a case runs on an `OverlayJournal` over the case's journal, in simulate mode, from a boundary at the decide step, stopping after it; the upstream steps are read from the journal and cost no model call (the scripted model's call count equals the number of replayed cases, plus tool-using loops, not the number of upstream steps). |
+| V7.4 | **It is a fork.** The replay of a case runs on an `OverlayJournal` over the case's journal, in simulate mode, from a boundary at the decide step (inclusive), stopping right after the proposal and before the ask; the upstream steps are read from the journal and cost no model call (the scripted model's call count equals the number of replayed cases, plus tool-using loops, not the number of upstream steps). |
 | V7.5 | Tool handling: a recorded read is answered from `#decide-evidence`; an unrecorded read makes the case `unrecorded_read`, or runs live under `--live-reads` and the case is flagged non-deterministic; an effect tool returns the simulated text and is never run; a pure built-in runs; `current_time` answers the case's timestamp; an OpenAPI-style tool is simulated unless `replay: allow`, which is then listed at the top of the report; proposals made after a simulated call are counted separately. |
 | V7.6 | A tool kind added later (a new `Effectful` that isn't a known read) is simulated without any change to replay. |
 | V7.7 | Skip reasons: `journal_missing` (journal deleted), `evidence_truncated`, `effects_during_proposal`, `unrecorded_read`, `prefix_drift`, `fields_masked`; the report counts each and shows the replayable share of the selected cases. |
@@ -117,7 +117,7 @@ Unless a check says otherwise it uses these stand-ins:
 | V7.12 | The report has every section of design §7.7 in order; flips and rationales are masked as the ledger is; Markdown and JSON agree. |
 | V7.13 | A candidate that doesn't load exits 2 with the problems; a decision that doesn't exist, or has no cases, says so. |
 | V7.14 | 5 000 replays of cases from 50 runs with a fast scripted model finish in under 30 s with bounded memory (cases are streamed; journals are read, not copied). |
-| V7.15 | **By hand.** `weave fork <run> --at <decide step> --script candidate.loom --effects simulate --until <decide step>` gives the same proposal the replay engine reports for that case. |
+| V7.15 | **By hand.** `weave fork <run> --at <decide step> --script candidate.loom --effects simulate --until <decide step>#decide-proposal` gives the same proposal the replay engine reports for that case. |
 | V7.16 | `on_change: replay` uses this engine (V6.3), and a case whose journal was removed is skipped, not guessed at. |
 
 ## V8: Safety of the feature (R8)

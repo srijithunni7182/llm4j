@@ -49,7 +49,7 @@ workflow Report(topic) {
 
 ```loom
 delegate "Fetch the price list" to Fetcher -> prices
-    on_failure { rewind to start when "true" max 1 with { hint: "{_error}" } }
+    on_failure { rewind to start max 1 with { hint: "{_error}" } }
 ```
 
 ### 1.2 Parsing
@@ -67,6 +67,7 @@ Each is a problem with a line (R1.3, R2.7, R2.9):
 
 - duplicate checkpoint name in a workflow; unknown target; target later than the `rewind`; target in a sibling or nested block; target outside the branch that contains the rewind (a `parallel` branch, a `for each` body);
 - `max` missing or not positive; `effects:` not one of the three; `with` entries that are not `name: value`;
+- the condition is one comparison or a bare boolean variable, as the existing evaluator accepts (no `and`/`or`); anything else is a load error pointing at that limit;
 - the **effect reach** of the region between the checkpoint and the rewind: the validator already knows which agents a statement uses and which tools each agent has; it takes the union of their tools and classifies each by the `ToolKind`/`Effectful` information the tool factory has (a built-in pure tool: none; a generic tool: its `isEffect` possibilities; a tool of a class it can't classify: unknown). Unknown and effectful, with no stated policy, is a warning; with `effects: redo` and not approved or `unattended`, an error; an agent with `memory` facts in the region is a warning (R4.7).
 
 ## 2. The generation model
@@ -94,16 +95,16 @@ executor thread that reaches a boundary, or an operator command with the run loc
 `FileRunJournal.put` is atomic per key, so appending means read, add, write. Each element:
 
 ```json
-{ "at": "Main/s2", "name": "collected", "generation": 2, "by": "script", "statement": "Main/s7",
+{ "from": "Main/s3", "name": "collected", "generation": 2, "by": "script", "statement": "Main/s7",
   "reason": "review.score < 7", "with": {"feedback": "…"}, "effects": "hold", "time": "…" }
 ```
 
-`at` is the step id of the statement *after* which the new generation begins, which for a checkpoint is the checkpoint's id.
+`from` is the id of the **first statement of the new generation** (inclusive): for a checkpoint, the statement after it; for an operator rewind, the statement named. `name` is the checkpoint's name when there is one. `statement` is the `rewind` statement's own id **without any generation suffix**, so the count of rewinds per statement is the same across generations.
 
 ### 2.3 What "current generation" means
 
-For a step id `P/k<i>` the generation is the highest `generation` among boundaries whose `at` is a **prefix-sibling** of the
-step: same parent block `P/k`, index ≤ i. A boundary's generation applies to every later statement of its block and everything
+For a step id `P/k<i>` the generation is the highest `generation` among boundaries whose `from` is a statement of the same
+block `P/k` with index ≤ i. A boundary's generation applies to every later statement of its block and everything
 nested in them, and to nothing in an enclosing block (a rewind to a checkpoint in an outer block increments the generation of
 the outer block's later statements, and nested statements inherit through their ids). That makes each id's generation a function of the boundary list and the id's position alone, so it is the same on every resume.
 
@@ -128,7 +129,7 @@ executeStatement(RewindStmt r):
     if blockers non-empty and policy == hold: run onBlocked or pause for a person (§3.3); return
     snapshot = checkpointVariables(r.target, generation)        // §2.5
     carried = resolve(r.carried, view())                        // from the generation being discarded
-    append boundary {at: target.id, generation: g+1, with: carried, …}  // ONE journal write; the decision
+    append boundary {from: statement after target, generation: g+1, with: carried, …}  // ONE journal write; the decision
     throw RewindSignal(target, generation g+1)
 ```
 
@@ -165,12 +166,12 @@ Where each kind of record gets its key today, and what changes:
 | Record | Key today | Under generations |
 |---|---|---|
 | Model call (delegate, handoff, broadcast) | `<step>` | `<step>` with its `~g` suffix: **new generation, new call** |
-| Human answer (`human_prompt`, approval answer) | `<step>` / `<step>#approve:<tool>:<hash>` | the **generation-free** step, plus the resolved question text, so the same question in the same place is not re-asked; a different question is |
+| Human answer (`human_prompt`, approval answer) | `<step>` / `<step>#approve:<tool>:<hash>` | the **generation-free** step. For `human_prompt` the question's hash is stored beside the answer (`<step>#asked`, new), so the same question in the same place is not re-asked and a changed one is; approvals already include the arguments' hash |
 | Effect (`EffectTool`) | `<step>#effect:<tool>:<hash>#<n>` | the **generation-free** step, so an identical call finds its record: this is `effects: keep` |
 | Usage and spend | `<step>#usage:<agent>` | with the suffix, so every generation's spend is its own and all are counted |
 
 `EffectContext.currentStep()` returns the step with its suffix; a new `EffectContext.identityStep()` (additive, default =
-`currentStep()`) returns it without. `EffectTool` builds keys from `identityStep()`. Loom's `RunEffectContext` implements it by
+`currentStep()`) returns it without. `EffectTool` builds keys from `identityStep()`, and its per-attempt call ordinal is counted against `identityStep()` too (today it is keyed by `currentStep()`, which would number a repeated call differently in generation 2). `max_per_run` counts effect records of every generation, which is correct (they happened) and means a `redo` spends the allowance again. Loom's `RunEffectContext` implements it by
 stripping `~<digits>` segments. With `effects: redo` the executor sets a per-statement flag that makes `identityStep()` keep the
 suffix for steps beneath that rewind, so all effects have new keys.
 
@@ -213,7 +214,8 @@ run lock, and the validator; the picocli commands in `cli/` are thin.
 All take the run lock (the existing per-run-directory lock used by `resume`) and refuse a held lock without `--force`.
 
 `--stop-at` is a run option: the executor checks after each statement completes whether `stepId == stopAt` (or the checkpoint's
-id), throws `RunStopped` (a sibling of `RunSuspended`), and `Runs.execute` maps it to exit code 5.
+id), and at the **named stop points a step publishes inside itself** (a step kind may register one: `decide` registers
+`<step>#decide-proposal`, right after the proposal is journaled and before anyone is asked), throws `RunStopped` (a sibling of `RunSuspended`), and `Runs.execute` maps it to exit code 5.
 
 ## 5. Fork
 
@@ -282,6 +284,8 @@ which makes forking thousands of runs cheap (the parent is read, not copied). An
 | Contextual keywords | reserved words | Existing scripts keep loading |
 
 ## 9. Open questions
+
+- **Compound conditions.** The condition evaluator takes one comparison. `rewind … when score < 7 or empty(data)` needs either an evaluator extension (benefits `alt` and `loop until` too) or a computed flag; v1 uses the flag.
 
 - **Rewinding into a `for each` iteration** from outside is allowed as a whole; rewinding a *single* iteration's branch is a natural follow-up.
 - **Compensation.** Undoing an effect (delete the message, void the refund) could be declared next to the tool (`undo:`), so `redo` could first undo. Out of scope; the script can do it in `on_exhausted`/`on_blocked` today.
