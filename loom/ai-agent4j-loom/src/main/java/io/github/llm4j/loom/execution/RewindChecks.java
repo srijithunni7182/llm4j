@@ -35,7 +35,7 @@ final class RewindChecks {
     private final LoomScript script;
     private final ScriptValidator.Checker checker;
 
-    private RewindChecks(LoomScript script, ScriptValidator.Checker checker) {
+    RewindChecks(LoomScript script, ScriptValidator.Checker checker) {
         this.script = script;
         this.checker = checker;
     }
@@ -158,12 +158,12 @@ final class RewindChecks {
         return null;
     }
 
-    private boolean unattended(String tool) {
+    boolean unattended(String tool) {
         ToolDef d = declaration(tool);
         return d != null && d.getOptions().containsKey("unattended") && "true".equals(d.getOptions().get("unattended").value());
     }
 
-    private Reach reach(String tool) {
+    Reach reach(String tool) {
         ToolDef d = declaration(tool);
         String kind = d == null ? tool : d.getKind();
         if (READ_ONLY_KINDS.contains(kind)) return Reach.NONE;

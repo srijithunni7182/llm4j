@@ -37,6 +37,11 @@ public class FileLedger implements Ledger {
         this.dir = dir;
     }
 
+    /** The directory the store keeps its files in. */
+    public Path dir() {
+        return dir;
+    }
+
     private Path file(String decision) {
         Names.check(decision);
         return dir.resolve(decision).resolve("ledger.jsonl");

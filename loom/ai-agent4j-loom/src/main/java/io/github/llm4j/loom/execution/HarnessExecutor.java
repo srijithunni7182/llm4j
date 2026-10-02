@@ -152,7 +152,7 @@ public class HarnessExecutor implements LoomEngine {
     public void setHumanInterface(HumanInterface humanInterface) { this.humanInterface = humanInterface; }
     public void setPromptRegistry(PromptRegistry promptRegistry) { this.promptRegistry = promptRegistry; }
     public void setAuditLogger(AuditLogger auditLogger) {
-        this.auditLogger = auditLogger != null ? auditLogger : new NoOpAuditLogger();
+        this.auditLogger = new HoldingAuditLogger(auditLogger != null ? auditLogger : new NoOpAuditLogger(), decider);
     }
     public void setMemoryEngine(MemoryEngine memoryEngine) {
         this.memoryEngine = memoryEngine != null ? memoryEngine : new TranscriptAccumulationEngine();
@@ -198,6 +198,96 @@ public class HarnessExecutor implements LoomEngine {
     boolean simulating() { return simulate; }
     /** True when a budget has refused a call or has nothing left: a rewind would only spend what isn't there. */
     boolean overBudget() { return budgeting && (anyRefused(null) || (runBudget != null && runBudget.exhausted())); }
+    // ---- what the Decider needs ---------------------------------------------------------------------------------------
+
+    LoomScript script() { return script; }
+    Path baseDir() { return baseDir; }
+    private final Decider decider = new Decider(this);
+    private io.github.llm4j.loom.autonomy.Ledger ledger;
+    private io.github.llm4j.loom.autonomy.LevelStore levelStore;
+    private Replay replay;
+
+    /** Where the ledger and the levels of decisions are kept; without them a decision runs at its start level and writes nothing. */
+    public void setAutonomy(io.github.llm4j.loom.autonomy.Ledger ledger, io.github.llm4j.loom.autonomy.LevelStore levels) {
+        this.ledger = ledger;
+        this.levelStore = levels;
+    }
+
+    io.github.llm4j.loom.autonomy.Ledger ledger() { return ledger; }
+    io.github.llm4j.loom.autonomy.LevelStore levelStore() { return levelStore; }
+    Replay replay() { return replay; }
+
+    /** Makes this run a replay of one case under a candidate: nobody is asked, nothing is written, reads come from what the case recorded. */
+    public void setReplay(Replay replay) { this.replay = replay; }
+
+    /** The reserved paths of the ledger and the levels, which tools that touch files must stay out of. */
+    java.util.Set<Path> autonomyPaths() {
+        java.util.Set<Path> out = new java.util.HashSet<>();
+        if (ledger instanceof io.github.llm4j.loom.autonomy.FileLedger f) out.add(f.dir().toAbsolutePath().normalize());
+        if (levelStore instanceof io.github.llm4j.loom.autonomy.FileLevelStore f) out.add(f.dir().toAbsolutePath().normalize());
+        return out;
+    }
+
+    /** Runs something as though it were at another step (a decision's proposal or question is its own journaled step under the decide statement). */
+    void atStep(String stepId, Runnable work) {
+        String before = step.get();
+        step.set(stepId);
+        try {
+            work.run();
+        } finally {
+            step.set(before);
+        }
+    }
+
+    <T> T atStep(String stepId, java.util.function.Supplier<T> work) {
+        String before = step.get();
+        step.set(stepId);
+        try {
+            return work.get();
+        } finally {
+            step.set(before);
+        }
+    }
+
+    /** Runs one delegate at the given step id: its result is journaled there and a resumed run reuses it. */
+    void delegateAt(String stepId, DelegateStmt del) {
+        atStep(stepId, () -> executeDelegate(del));
+    }
+
+    Decider decider() { return decider; }
+    String envValue(String name) {
+        try {
+            return envLookup.apply(name);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** The level an agent that replaced another may start at: the replay of the old agent's cases under the new one (see {@link Decider}). */
+    io.github.llm4j.loom.autonomy.Level inheritedLevel(io.github.llm4j.loom.ast.DecisionDef def, String scope, io.github.llm4j.loom.autonomy.LevelState old, String identity) {
+        return inheritance != null ? inheritance.inherited(def, scope, old, identity) : def.getStartAt();
+    }
+
+    /** What runs the replay when an agent changes with {@code test it on past cases}; without it a new agent starts over. */
+    public interface Inheritance {
+        io.github.llm4j.loom.autonomy.Level inherited(io.github.llm4j.loom.ast.DecisionDef def, String scope, io.github.llm4j.loom.autonomy.LevelState old, String identity);
+    }
+
+    private Inheritance inheritance;
+
+    public void setInheritance(Inheritance inheritance) { this.inheritance = inheritance; }
+
+    String recordedAnswer(String question) { return rewinder.recordedAnswer(question); }
+    void recordAnswer(String question, String answer) { rewinder.recordAnswer(question, answer); }
+
+    /** A tool by its declared name, as an agent would be given it (journaled effects and all). */
+    Tool toolNamed(String name) { return resolveTool(name); }
+
+    String forStorage(String agentName, String text) {
+        AgentGuard guard = guards.get(agentName);
+        return guard == null ? text : guard.forStorage(text);
+    }
+
     private String stopAt;
     /** Ends the run cleanly, as {@link io.github.llm4j.loom.runtime.RunStopped}, once the named step or checkpoint has completed. */
     public void setStopAt(String point) { this.stopAt = point; }
@@ -280,13 +370,16 @@ public class HarnessExecutor implements LoomEngine {
         if (data != null) data.forEach((k, v) -> { if (k != null && v != null) copy.put(k, v); });
         TraceEvent event = new TraceEvent(type, agent, step.get(), text == null ? "" : text,
                 java.util.Collections.unmodifiableMap(copy), clock.instant());
-        for (TraceListener l : traceListeners) {
-            try {
-                l.onEvent(event);
-            } catch (RuntimeException e) {
-                log.warning("Trace listener failed: " + e.getMessage());
+        Runnable deliver = () -> {
+            for (TraceListener l : traceListeners) {
+                try {
+                    l.onEvent(event);
+                } catch (RuntimeException e) {
+                    log.warning("Trace listener failed: " + e.getMessage());
+                }
             }
-        }
+        };
+        if (!decider.hold(deliver)) deliver.run();
     }
 
     /** Forwards one agent's own events (thoughts, tool calls, observations, spend) to the trace. */
@@ -800,6 +893,7 @@ public class HarnessExecutor implements LoomEngine {
             if (f.path().toAbsolutePath().getParent() != null) out.add(f.path().toAbsolutePath().getParent().normalize());
         }
         if (triggerStore instanceof io.github.llm4j.loom.trigger.FileTriggerStore t) out.add(t.dir().toAbsolutePath().normalize());
+        out.addAll(autonomyPaths());
         return out;
     }
 
@@ -1015,6 +1109,7 @@ public class HarnessExecutor implements LoomEngine {
             // Tools: script declarations, then host-registered (.loot or Java), then built-ins
             for (String toolName : agentDef.getTools()) {
                 Tool tool = resolveTool(toolName);
+                if (script.getDecisions().stream().anyMatch(d -> agentDef.getName().equals(d.getAgent()))) tool = new EvidenceTool(tool, this);
                 if (agentDef.isApproveAll() || agentDef.getApprove().contains(toolName)) {
                     tool = new io.github.llm4j.loom.tools.ApprovalTool(tool);
                 }
@@ -1169,6 +1264,8 @@ public class HarnessExecutor implements LoomEngine {
             if (stopAt != null) stopPoint(checkpoint.getName());
         } else if (stmt instanceof RewindStmt rewind) {
             rewinder.rewind(rewind, frames.get());
+        } else if (stmt instanceof io.github.llm4j.loom.ast.DecideStmt decide) {
+            decider.decide(decide);
         } else if (stmt instanceof NoteStmt note) {
             log.info("NOTE: " + resolvePayload(note.getMessage()));
         } else if (stmt instanceof DelegateStmt del) {

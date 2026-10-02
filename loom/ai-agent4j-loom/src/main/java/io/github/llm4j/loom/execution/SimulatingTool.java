@@ -41,6 +41,10 @@ final class SimulatingTool implements Tool {
                 || tool instanceof io.github.llm4j.agent.tools.FallbackSearchTool;
     }
 
+    Tool real() {
+        return real;
+    }
+
     @Override
     public String getName() {
         return real.getName();

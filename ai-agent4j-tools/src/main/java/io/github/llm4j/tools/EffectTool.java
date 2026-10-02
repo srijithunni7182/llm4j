@@ -37,6 +37,11 @@ public final class EffectTool implements Tool {
         this.context = context;
     }
 
+    /** The tool this one journals the effects of. */
+    public Effectful effectful() {
+        return delegate;
+    }
+
     @Override
     public String getName() {
         return delegate.getName();

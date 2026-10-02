@@ -67,12 +67,17 @@ public final class Ladder {
     /** How the scope stands against the rule for its next step up (judged on the latest window of blind evidence). */
     public Progress progress(String scope, LevelState state) {
         Level next = state.level() == Level.ACT ? null : Level.values()[state.level().ordinal() + 1];
-        List<Case> all = evidence(scope, state.epoch());
-        AgreementStats.Figures figures = AgreementStats.of(latest(all, def.getWindow()).stream().map(Ladder::sample).toList(), def.getDangerous());
-        if (next == null) return new Progress(null, false, List.of(), figures, "already at act");
-        if (!next.atLeast(Level.SUGGEST) || def.getCeiling().compareTo(next) < 0) {
-            return new Progress(next, false, List.of(), figures, "the script says never go above " + def.getCeiling().word());
+        if (next == null) return new Progress(null, false, List.of(), figures(scope, state.epoch()), "already at act");
+        if (def.getCeiling().compareTo(next) < 0) {
+            return new Progress(next, false, List.of(), figures(scope, state.epoch()), "the script says never go above " + def.getCeiling().word());
         }
+        return evaluate(scope, state.epoch(), next);
+    }
+
+    /** The rule for moving up to {@code next} applied to the scope's evidence, whatever the ceiling says (a forced level is judged this way). */
+    public Progress evaluate(String scope, int epoch, Level next) {
+        List<Case> all = evidence(scope, epoch);
+        AgreementStats.Figures figures = AgreementStats.of(latest(all, def.getWindow()).stream().map(Ladder::sample).toList(), def.getDangerous());
         DecisionDef.UpRule rule = def.getUpRules().get(next);
         if (rule == null) return new Progress(next, false, List.of(), figures, "the script has no rule for moving up to " + next.word());
 

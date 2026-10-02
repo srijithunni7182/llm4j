@@ -22,6 +22,10 @@ final class RecordingTool implements Tool {
         this.run = run;
     }
 
+    Tool real() {
+        return real;
+    }
+
     @Override
     public String getName() {
         return real.getName();

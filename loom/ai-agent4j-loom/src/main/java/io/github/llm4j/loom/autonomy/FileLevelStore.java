@@ -31,6 +31,11 @@ public class FileLevelStore implements LevelStore {
         this.dir = dir;
     }
 
+    /** The directory the store keeps its files in. */
+    public Path dir() {
+        return dir;
+    }
+
     private Path file(String decision) {
         return dir.resolve(decision.equals("*") ? "_all" : Names.check(decision)).resolve("levels.json");
     }
