@@ -1,3 +1,6 @@
 commit 2c76b6267cea8867b03f899ab8bc2f9bbd64ff6c
 Fri Oct  2 08:13:38 UTC 2026
 -- run 1: plain
+   BUILD SUCCESS
+   core: tests=657 failures=0 errors=0 skipped=2; tools: tests=381 failures=0 errors=0 skipped=0; loom: tests=626 failures=0 errors=0 skipped=1
+-- run 2: plain again

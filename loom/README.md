@@ -48,6 +48,20 @@ only does what models are good at — reasoning about content.
 
 Loom is that layer, designed as a first-class language.
 
+### Earned autonomy: don't trust the agent, make it earn it
+
+Before an agent acts alone, someone has to be sure. Loom turns that from a meeting into a record. Declare a
+`decision`; the agent proposes and a person decides. Nobody sees the proposal at first, so the agreement
+figure is honest. When the record is good enough, on a conservative statistical bound, the agent moves up
+(`watch`, `suggest`, `act`). When the record turns, it moves back down. A changed prompt or model is tested on
+your past cases with `weave replay`, with nothing sent and nothing changed, before it goes live.
+
+```
+to act: after 300 cases over 30 days, agreeing at least 95%, with no dangerous mistakes
+```
+
+👉 [Earned Autonomy in the language guide](./ai-agent4j-loom/LOOM_GUIDE.md#earned-autonomy)
+
 👉 **[Why Loom?](./ai-agent4j-loom/WHY_LOOM.md)** How Loom runs long-running, autonomous workflows, and how it compares with LangGraph.
 
 ---
