@@ -553,6 +553,100 @@ weave fork runs/today --to runs/what-if --at collected --effects simulate --reas
 
 A run directory that has been rewound carries a journal format that older `weave` builds, from before this feature, cannot read: they would carry on past the rewound region without knowing. Resume a rewound run with a build that has this feature.
 
+### Earned Autonomy
+
+Every organisation asks the same question before it lets an agent act on its own: *has this agent earned it?* Today that is a decision made by feel, once, before launch. **Earned autonomy** makes it a record. A workflow declares a *decision* (refund or not, grant access or not, escalate or not). The agent *proposes*, a person *decides*, and the runtime keeps a ledger of both. The agent starts by being **watched**, moves up a ladder as its record earns it, and moves back down when the record says it should. Because the ledger remembers what every case looked like, a changed prompt or model can be **replayed over past cases** before it goes live.
+
+> Don't trust the agent. Make it earn it, with your own history as the exam.
+
+```loom
+agent Triager {
+    model: "gemini-2.5-flash"
+    system: "You are Triager. Decide whether a refund request should be approved."
+    output_schema: { choice: enum["approve", "reject", "escalate"], reasoning: string, confidence: number }
+}
+
+decision Refund {
+    proposed by:            Triager
+    choices:                approve, reject, escalate
+    group cases by:         tier
+    remember:               amount, reason, customer_since
+    dangerous mistake:      propose approve, person decides reject
+    ask:                    support-lead
+    keep records for:       180 days
+    when the agent changes: test it on past cases
+
+    trust {
+        start at watch                          // propose quietly; people decide; nobody sees the proposal
+        never go above suggest                  // write "act" here on purpose, once the record supports it
+
+        to suggest:  after 100 cases over 14 days, agreeing at least 90%
+        to act:      after 300 cases over 30 days, agreeing at least 97%, with no dangerous mistakes
+        judge on the latest 300 cases
+
+        check 5% of cases with a person who doesn't see the proposal
+        always ask a person when amount > 200
+        always ask a person after 50 cases a day
+
+        drop to suggest when 2 dangerous mistakes in 50 cases
+        drop to suggest when 2 reversals in 100 cases
+        drop to suggest when agreement falls below 92%
+        drop to suggest when 5 unusable proposals in 50 cases
+
+        moving up needs approval from: risk-owner     // or: moving up is automatic
+    }
+}
+
+workflow Triage(ticket, tier, amount, reason, customer_since) {
+    decide Refund -> verdict
+    alt (verdict == "approve") { note "refund {ticket}" }
+}
+```
+
+The block reads aloud: it is plain phrases in a fixed order, with units as words (`14 days`, `97%`, `100 cases`). A mistake is reported in your own words, with the line.
+
+**The three levels.**
+
+| Level | Who decides | What the person sees | Counts as evidence |
+|---|---|---|---|
+| `watch` | the person | the case's values only: **not** the proposal | yes |
+| `suggest` | the person | the proposal and its reasoning, to confirm or override | no |
+| `act` | the agent | nobody is asked, except a checked sample (`check 5% of cases …`) and cases a limit sends to a person | the checked sample |
+
+`decide Refund -> verdict` binds `verdict` (what takes effect), `verdict_proposal` (what the agent proposed) and `verdict_level` (the level it ran at). Each case is its own record: its values, the proposal, the verdict, who decided and how long it took.
+
+**Blind measurement.** At `watch` the person is asked without the proposal, its reasoning or its confidence, and nothing the runtime prints, traces or audits shows it before they answer; those entries are held and released once the verdict is in. Only blind cases (`watch`, and the checked sample at the other levels) count towards a promotion, so a high agreement means something. An `escalate` proposal is its own choice: an agent that always escalates is right only when people escalate, and `status` shows its *coverage* beside its agreement.
+
+**Rules.** `to suggest: after 100 cases over 14 days, agreeing at least 90%` needs the cases, the days they span, and an agreement floor. Agreement is judged by the lower end of the 95% Wilson interval, not the raw rate: 20 of 20 is not 100% evidence. `with no dangerous mistakes` (or `with at most 1% dangerous mistakes`) uses the pairs you named. `drop to suggest when …` rules take effect from the next case; a promotion needs the named approver (`moving up needs approval from:`) unless you write `moving up is automatic`. Levels are held **per scope** (`group cases by: tier`): gold and basic earn separately. `never go above suggest` is the default, so reaching `act` is a sentence someone had to write.
+
+**When the agent changes.** Each case records the *identity* of the agent behind it: a hash of its model, prompt, persona, tools and their options (never their secrets), schema and guard settings, and the decision block, taken from the parsed script so a comment changes nothing. A different identity starts a new evidence epoch, and `when the agent changes:` says what happens: `start over`, `keep the trust` (only sensible with a ceiling of `suggest`), or `test it on past cases`, which replays the old agent's blind cases under the new one before its first case and lets it inherit the highest level that replay earns, never more than before.
+
+**Replay.** Try a change on history before it ships. A replay of one case is an ephemeral fork of that case's run at the `decide` step, run under your candidate script in simulate mode, and stopped when the candidate has proposed, before anyone is asked. Reads the agent made are answered from what the case recorded; everything else is simulated; nothing is written to the ledger, the levels or the runs.
+
+```text
+weave replay refund.loom --decision Refund --store runs/.loom-triggers --candidate refund-v2.loom --since 14d --limit 200
+weave replay refund.loom --decision Refund --store runs/.loom-triggers --policy new-refund-policy.md
+weave replay refund.loom --decision Refund --store runs/.loom-triggers --resume r18f3a2c-9b1
+```
+
+The report says what was replayed and what could not be (a run's journal is gone, a read the case never recorded, a script that differs before the decide step), the incumbent's and the candidate's agreement against the people on the same cases, every **flip** with both reasonings (unsafe ones first), what the replay cost, and the level the candidate would earn. `--max-cost` and `--max-tokens` stop it cleanly; `--resume` carries on from its log. By hand, one case is `weave fork <run> --to <dir> --at <decide step> --script candidate.loom --effects simulate --until <decide step>#decide-proposal`.
+
+**Operating it.**
+
+```text
+weave autonomy status   runs/.loom-triggers                                  # every ladder: level, evidence, what is missing for the next step, stale cases
+weave autonomy history  runs/.loom-triggers --decision Refund                # every change, with the reason and who approved
+weave autonomy approve  runs/.loom-triggers Refund --scope gold --by risk-owner --reason "numbers look right"
+weave autonomy promote  runs/.loom-triggers Refund --scope gold --to act --force --reason "incident"
+weave autonomy demote   runs/.loom-triggers Refund --scope gold --reason "model changed"
+weave autonomy freeze   runs/.loom-triggers Refund --reason "incident 42"    # act stops for cases that begin from now
+weave autonomy outcome  runs/.loom-triggers Refund <case-id> --result reversed --note chargeback
+```
+
+A hand-set level beyond what the evidence supports needs `--force`, is recorded as forced, and `status` shows it as forced until the evidence catches up. Every change is written to the audit log with the rule that fired and the figures it used. If the ledger or the level store cannot be read, a decision runs at `watch` and says why; it never runs at a higher level on a guess.
+
+**What it does not do.** It does not learn: the ledger *grades*, it never trains or rewrites a prompt. It does not weigh several deciders against each other (one named decider per case). It does not find out by itself that a verdict was wrong (record that with `weave autonomy outcome`). It does not certify compliance with anything: it produces evidence. The ledger and the levels are written only by the runtime and the commands; nothing an agent, a tool or a case's values say can change them.
+
 ### Memory, Voice and Languages
 
 **Agent memory** lets an agent remember conversations and facts across runs. It's separate from Loom's

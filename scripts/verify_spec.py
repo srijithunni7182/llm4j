@@ -64,13 +64,45 @@ for i in sorted(ids):
 unknown = sorted({i for found in tagged.values() for i in found} - ids)
 for i in unknown:
     problems.append(f"a test is tagged {prefix}-{i}, which is not a check in verification.md")
+def blanked(src):
+    """The source with the inside of string literals, text blocks and character literals replaced by spaces (same length), so braces in them are not counted."""
+    out, i, n = [], 0, len(src)
+    while i < n:
+        if src.startswith('"""', i):
+            j = src.find('"""', i + 3)
+            j = n if j < 0 else j + 3
+            out.append("".join(c if c == "\n" else " " for c in src[i:j]))
+            i = j
+        elif src.startswith("//", i):
+            j = src.find("\n", i)
+            j = n if j < 0 else j
+            out.append(" " * (j - i))
+            i = j
+        elif src.startswith("/*", i):
+            j = src.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            out.append("".join(c if c == "\n" else " " for c in src[i:j]))
+            i = j
+        elif src[i] == '"' or src[i] == "'":
+            q, j = src[i], i + 1
+            while j < n and src[j] != q:
+                j += 2 if src[j] == "\\" else 1
+            out.append(" " * (j + 1 - i))
+            i = j + 1
+        else:
+            out.append(src[i])
+            i += 1
+    return "".join(out)
+
+
 for f, src in sources:
+    clean = blanked(src)
     if "@Disabled" in src:
         problems.append(f"{f.name} has @Disabled")
     for m in re.finditer(r"@(?:Test|ParameterizedTest|RepeatedTest)[^\n]*\n(?:\s*@[^\n]*\n)*\s*(?:public |private )?void (\w+)\([^)]*\)[^{]*\{", src):
         depth, i = 1, m.end()
-        while depth and i < len(src):
-            depth += {"{": 1, "}": -1}.get(src[i], 0)
+        while depth and i < len(clean):
+            depth += {"{": 1, "}": -1}.get(clean[i], 0)
             i += 1
         if not any(h in src[m.end():i] for h in ("assert", "Fuzz.run", "fail(", "crashAtEveryWrite", "run(")):
             problems.append(f"{f.name}: {m.group(1)} contains no assertion")

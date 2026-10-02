@@ -114,6 +114,12 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**checkpoint** `Name [starting with name = "value", ...]`\n\nNames a point in a workflow that a later `rewind` can go back to. `start` is the point before the first statement.',
     rewind:
         '**rewind** `to Name [when (condition)] at most N times [carrying name = "value"] [side effects: ask first | keep | repeat] [if it still fails { ... }] [if blocked { ... }]`\n\nGoes back to a checkpoint and runs what came after it again, as a new attempt that keeps the old one as history. A model call runs again; an identical side effect or an identical answer from a person is not repeated.',
+    decision:
+        '**decision** `Name { proposed by: Agent  choices: a, b, escalate  group cases by: v  remember: x, y  dangerous mistake: propose a, person decides b  ask: who  keep records for: 180 days  when the agent changes: start over | test it on past cases | keep the trust  trust { ... } }`\n\nEarned autonomy: an agent proposes, a person decides, and a ledger of both decides how much freedom the agent has (`watch`, `suggest`, `act`). See `weave autonomy` and `weave replay`.',
+    decide:
+        '**decide** `Name -> verdict`\n\nOne case of a decision. Binds `verdict` (what takes effect), `verdict_proposal` (the agent\'s choice) and `verdict_level` (watch, suggest or act). At `watch` the person decides without seeing the proposal, so the agent\'s agreement is measured honestly.',
+    trust:
+        '**trust** `{ start at watch  never go above suggest  to suggest: after 100 cases over 14 days, agreeing at least 90%  to act: after 300 cases over 30 days, agreeing at least 97%, with no dangerous mistakes  judge on the latest 300 cases  check 5% of cases with a person who doesn\'t see the proposal  always ask a person when amount > 200  drop to suggest when 2 dangerous mistakes in 50 cases  moving up needs approval from: someone }`\n\nInside a `decision`: the rules for earning and losing freedom. Agreement is judged by the lower end of its 95% Wilson interval, over blind cases only. Reaching `act` is a sentence the script has to write (`never go above act`).',
     on_unknown:
         '**on_unknown** `: skip | retry`\n\nIn a `webhook`, `email`, `http`, `file` or `shell` tool: what to do after a crash when it is not known whether an earlier call happened. `skip` (default) does not repeat it.',
     idempotency:
