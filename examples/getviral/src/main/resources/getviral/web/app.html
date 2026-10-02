@@ -3,27 +3,24 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>GetViral Studio</title>
+  <title>GetViral</title>
   <meta name="description" content="One idea in. A ready-to-post pack for X, Instagram Reels and YouTube out. Built on llm4j.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="studio.css">
+  <link rel="stylesheet" href="modernist.css">
 </head>
 <body>
-  <div class="aurora" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-  <div class="grain" aria-hidden="true"></div>
-
   <header class="topbar">
-    <a class="brand" href="/studio" aria-label="GetViral studio">
-      <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 5 13.5h6L9.5 22 19 9.5h-6z"/></svg></span>
+    <a class="brand" href="/studio" aria-label="GetViral">
+      <span class="brand-mark"><i class="ic" data-ic="zap" style="color:var(--color-bg);width:18px;height:18px"></i></span>
       <span class="brand-name">GetViral</span>
-      <span class="brand-tag">studio</span>
     </a>
     <nav class="app-nav" aria-label="Main">
-      <a class="nav-link" id="navStudio" href="/studio">✦ <span>Studio</span></a>
-      <a class="nav-link" id="navLibrary" href="/library">▦ <span>Library</span></a>
+      <a class="nav-link" id="navStudio" href="/studio"><i class="ic" data-ic="sparkles"></i><span>Create</span></a>
+      <a class="nav-link" id="navLibrary" href="/library"><i class="ic" data-ic="layout-grid"></i><span>Library</span></a>
       <span class="quota-pill" id="quotaPill"></span>
       <div class="menu" id="menu">
         <button type="button" id="menuBtn" aria-haspopup="true" aria-expanded="false"></button>
@@ -32,7 +29,6 @@
           <a href="/welcome?step=PROFILE">Profile &amp; brief defaults</a>
           <a href="/welcome?step=CONNECT">Connected accounts</a>
           <a href="/welcome?step=VOICE">Your voice</a>
-          <a href="/welcome?step=TOUR">Take the tour</a>
           <hr>
           <button type="button" id="signOutBtn">Sign out</button>
           <button type="button" class="danger" id="deleteBtn">Delete my account…</button>
@@ -43,72 +39,62 @@
 
   <!-- ═══════════════════════════ COMPOSER ═══════════════════════════ -->
   <main id="composer" class="view view-composer">
-    <section class="hero">
-      <p class="eyebrow"><span class="spark">✦</span> original every time · remembers you · researched · checked</p>
-      <h1 class="display">One idea.<br><span class="grad-text">Every feed.</span></h1>
-      <p class="lede">Drop an idea. A Showrunner casts a team of AI specialists, writes their prompts on the fly, researches what's trending right now, generates the visuals, cuts the Reel, and ships a ready-to-post pack for <b>X</b>, <b>Instagram Reels</b> and <b>YouTube</b>.</p>
-    </section>
+    <div class="composer-layout">
+      <div class="composer-main">
+        <p class="eyebrow">New pack</p>
+        <form class="composer" id="briefForm" autocomplete="off">
+          <label class="idea-label" for="idea">What's the idea?</label>
+          <textarea id="idea" name="idea" rows="3" maxlength="500" required placeholder="a 2-minute morning routine for busy students"></textarea>
 
-    <form class="composer glass" id="briefForm" autocomplete="off">
-      <label class="idea-label" for="idea">What's the idea?</label>
-      <textarea id="idea" name="idea" rows="3" maxlength="500" required placeholder="a 2-minute morning routine for busy students"></textarea>
+          <div class="composer-grid">
+            <div class="field">
+              <span>Creating as</span>
+              <a class="handle-input as-link" href="/welcome?step=PROFILE" title="Edit your profile"><b>@</b><span id="handleLabel">you</span></a>
+            </div>
+            <label class="field">
+              <span>Niche</span>
+              <input id="niche" name="niche" placeholder="productivity" maxlength="40" list="niches">
+              <datalist id="niches">
+                <option value="productivity"><option value="fitness"><option value="food"><option value="tech"><option value="travel"><option value="personal finance"><option value="beauty"><option value="gaming"><option value="education"><option value="culture"><option value="books"><option value="cinema"><option value="comedy"><option value="sports">
+              </datalist>
+            </label>
+            <label class="field field-region">
+              <span>Region</span>
+              <input id="region" name="region" placeholder="US" maxlength="2">
+            </label>
+          </div>
 
-      <div class="composer-grid">
-        <div class="field">
-          <span>Creating as</span>
-          <a class="handle-input as-link" href="/welcome?step=PROFILE" title="Edit your profile"><b>@</b><span id="handleLabel">you</span></a>
-        </div>
-        <label class="field">
-          <span>Niche</span>
-          <input id="niche" name="niche" placeholder="productivity" maxlength="40" list="niches">
-          <datalist id="niches">
-            <option value="productivity"><option value="fitness"><option value="food"><option value="tech"><option value="travel"><option value="personal finance"><option value="beauty"><option value="gaming"><option value="education"><option value="culture"><option value="books"><option value="cinema"><option value="comedy"><option value="sports">
-          </datalist>
-        </label>
-        <label class="field field-region">
-          <span>Region</span>
-          <input id="region" name="region" placeholder="US" maxlength="2">
-        </label>
+          <div class="tone-row" role="radiogroup" aria-label="Tone">
+            <span class="tone-label">Tone</span>
+            <button type="button" class="chip is-on" data-tone="warm and witty">Witty</button>
+            <button type="button" class="chip" data-tone="bold and punchy">Bold</button>
+            <button type="button" class="chip" data-tone="calm and wise">Calm</button>
+            <button type="button" class="chip" data-tone="nerdy and precise">Nerdy</button>
+            <button type="button" class="chip" data-tone="high-energy hype">Hype</button>
+          </div>
+
+          <details class="voice" hidden><summary></summary><textarea id="voice" rows="2"></textarea></details>
+
+          <div class="composer-foot">
+            <button class="cta" type="submit" id="goBtn"><span>Make it viral</span><i class="ic" data-ic="zap"></i></button>
+            <span class="note">X thread · Instagram Reel · YouTube video + Short</span>
+          </div>
+          <p class="form-error" id="formError" role="alert"></p>
+        </form>
+        <div class="banner" id="setupBanner" hidden><span>Finish setting up — connect your accounts and teach GetViral your voice for sharper packs.</span><a class="btn small" href="/welcome"><span>Continue setup</span></a></div>
       </div>
 
-      <div class="tone-row" role="radiogroup" aria-label="Tone">
-        <span class="tone-label">Tone</span>
-        <button type="button" class="chip is-on" data-tone="warm and witty">😄 Witty</button>
-        <button type="button" class="chip" data-tone="bold and punchy">⚡ Bold</button>
-        <button type="button" class="chip" data-tone="calm and wise">🌿 Calm</button>
-        <button type="button" class="chip" data-tone="nerdy and precise">🤓 Nerdy</button>
-        <button type="button" class="chip" data-tone="high-energy hype">🔥 Hype</button>
-      </div>
-
-      <details class="voice">
-        <summary><span>Teach it your voice</span><em>optional · paste 1–3 past posts</em></summary>
-        <textarea id="voice" rows="4" placeholder="Paste past captions or tweets, one per line. GetViral embeds them locally and matches your voice (RAG)."></textarea>
-      </details>
-
-      <div class="composer-foot">
-        <div class="platforms"><span class="pf pf-x">𝕏</span><span class="pf pf-ig">Reels</span><span class="pf pf-yt">YouTube</span></div>
-        <button class="cta" type="submit" id="goBtn"><span>Make it viral</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 5 13.5h6L9.5 22 19 9.5h-6z"/></svg></button>
-      </div>
-      <p class="form-error" id="formError" role="alert"></p>
-    </form>
-
-    <section class="stack-strip" aria-label="Built with">
-      <span class="stack-title">Built on the llm4j stack</span>
-      <div class="stack-pills">
-        <span class="sp"><b>Loom</b> orchestration</span>
-        <span class="sp"><b>ai-agent4j</b> ReAct agents</span>
-        <span class="sp"><b>Engram</b> memory</span>
-        <span class="sp"><b>addons</b> local RAG</span>
-        <span class="sp"><b>eval4j</b> quality gate</span>
-      </div>
-    </section>
-
-    <div class="banner" id="setupBanner" hidden><span>Finish setting up — connect your accounts and teach GetViral your voice for sharper packs.</span><a class="btn small" href="/welcome">Continue setup</a></div>
-
-    <section class="memory-peek" id="memoryPeek" hidden>
-      <h3>🧠 GetViral remembers <span id="peekHandle"></span></h3>
-      <ul id="peekList"></ul>
-    </section>
+      <aside class="angle">
+        <h5>Your angle for this pack</h5>
+        <span class="meta-label">Lens</span><div class="big">Dealt when you start</div>
+        <span class="meta-label">Visual style</span><div class="big">Dealt when you start</div>
+        <p class="fresh"><i class="ic" data-ic="circle-check"></i><span>Never one you've used in your recent packs</span></p>
+        <section class="memory-peek" id="memoryPeek" hidden>
+          <h3>GetViral remembers <span id="peekHandle"></span></h3>
+          <ul id="peekList"></ul>
+        </section>
+      </aside>
+    </div>
   </main>
 
   <!-- ═══════════════════════════ LIBRARY ═══════════════════════════ -->
@@ -117,6 +103,7 @@
       <div><p class="eyebrow">Everything you've made</p><h1 class="display-sm">Your library</h1></div>
       <div class="tabs" role="tablist"><button type="button" class="is-on" data-tab="packs" role="tab">Packs</button><button type="button" data-tab="media" role="tab">Media</button></div>
     </div>
+    <div class="lib-stats" id="libStats"></div>
     <section id="libPacks" class="pack-grid"></section>
     <section id="libMedia" class="media-wall" hidden></section>
   </main>
@@ -125,58 +112,45 @@
   <main id="studio" class="view view-studio" hidden>
     <div class="studio-head">
       <div>
-        <p class="eyebrow" id="runTitle">Casting the team…</p>
+        <p class="eyebrow" id="runTitle">Pack in progress</p>
         <h2 class="studio-idea" id="studioIdea"></h2>
       </div>
-      <div class="clock"><span id="clock">0.0s</span><small>elapsed</small></div>
+      <div class="clock"><span id="clock">0.0s</span></div>
     </div>
 
     <ol class="rail" id="rail">
-      <li data-stage="cast"><i></i><span>Cast</span></li>
-      <li data-stage="scout"><i></i><span>Research</span></li>
-      <li data-stage="strategy"><i></i><span>Strategize</span></li>
-      <li data-stage="hook"><i></i><span>Your pick</span></li>
-      <li data-stage="create"><i></i><span>Create</span></li>
-      <li data-stage="critique"><i></i><span>Critique</span></li>
-      <li data-stage="visuals"><i></i><span>Visuals</span></li>
-      <li data-stage="verify"><i></i><span>Verify</span></li>
-      <li data-stage="ship"><i></i><span>Ship</span></li>
+      <li data-stage="research"><i></i><span>01 Research</span></li>
+      <li data-stage="pick"><i></i><span>02 Your pick</span></li>
+      <li data-stage="make"><i></i><span>03 Make</span></li>
+      <li data-stage="review"><i></i><span>04 Review</span></li>
     </ol>
 
     <div class="studio-grid">
-      <section class="room glass" aria-label="The team">
-        <header class="panel-head"><h3>The room</h3><span class="hint">tap an agent to see its live prompt</span></header>
+      <section class="room" aria-label="The team">
+        <header class="panel-head"><h3>The team</h3></header>
         <div class="agents" id="agents"></div>
       </section>
 
-      <section class="wire glass" aria-label="Live activity">
-        <header class="panel-head"><h3><span class="live-dot"></span>Live wire</h3><span class="hint" id="wireCount">0 events</span></header>
+      <section class="wire" aria-label="What's happening">
+        <header class="panel-head"><h3>What's happening</h3><span id="wireCount"></span></header>
+        <div class="now-banner" id="nowBanner"><i></i><span>Getting started…</span></div>
         <ol class="feed" id="feed"></ol>
       </section>
 
       <aside class="side">
-        <section class="glass stats">
-          <div class="stat"><b id="statLlm">0</b><span>LLM calls</span></div>
-          <div class="stat"><b id="statApi">0</b><span>API calls</span></div>
-          <div class="stat"><b id="statLive">–</b><span>live data</span></div>
-          <div class="stat"><b id="statPrompts">0</b><span>prompts written</span></div>
-          <div class="stat"><b id="statMedia">0</b><span>media made</span></div>
-          <div class="stat"><b id="statRounds">0</b><span>critic rounds</span></div>
-          <div class="stat"><b id="statMemory">0</b><span>memories used</span></div>
-          <div class="stat"><b id="statFixes">0</b><span>fixes before you</span></div>
-        </section>
-        <section class="glass engine">
-          <h4>Engine</h4>
-          <dl id="engineList"></dl>
-        </section>
-        <section class="glass memory">
-          <h4>🧠 Engram memory</h4>
+        <header class="panel-head"><h3>This pack</h3></header>
+        <div class="pack-lens" id="packLens"></div>
+        <header class="panel-head"><h3>Files</h3></header>
+        <div class="pack-lens" id="packFiles"></div>
+        <div class="stats"><b id="statLlm"></b><b id="statApi"></b><b id="statLive"></b><b id="statPrompts"></b><b id="statMedia"></b><b id="statRounds"></b><b id="statMemory"></b><b id="statFixes"></b></div>
+        <div class="engine"><dl id="engineList"></dl></div>
+        <section class="memory">
+          <h4>What it remembers</h4>
           <ul id="memoryList"><li class="muted">Memories about this creator appear here.</li></ul>
         </section>
       </aside>
     </div>
 
-    <!-- Critic moment -->
     <div class="critic-toast" id="criticToast" hidden>
       <div class="dial"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52"/><circle class="dial-fill" cx="60" cy="60" r="52"/></svg><b id="dialScore">0</b></div>
       <div><p class="eyebrow" id="criticVerdict">Critic</p><p id="criticHeadline"></p></div>
@@ -188,14 +162,15 @@
     <section class="reveal">
       <div class="score-ring" id="scoreRing"><svg viewBox="0 0 120 120"><defs><linearGradient id="ringGrad" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#ff2e88"/><stop offset=".5" stop-color="#ff9a3d"/><stop offset="1" stop-color="#8b5cff"/></linearGradient></defs><circle cx="60" cy="60" r="52"/><circle class="ring-fill" cx="60" cy="60" r="52"/></svg><div><b id="finalScore">–</b><small>/10</small></div></div>
       <div class="reveal-copy">
-        <p class="eyebrow" id="revealEyebrow">Your pack is ready</p>
+        <p class="eyebrow" id="revealEyebrow">Your pack is ready · every file checked</p>
         <h2 class="display-sm" id="revealHook"></h2>
         <p class="muted" id="revealHeadline"></p>
         <p class="reveal-meta" id="revealMeta"></p>
       </div>
       <div class="reveal-actions">
-        <a class="btn ghost" id="exportBtn" href="#" download>Export .md</a>
-        <button class="btn" id="againBtn" type="button">New idea ✦</button>
+        <button class="btn" id="postBtn" type="button"><span>Post to Instagram</span><i class="ic" data-ic="send"></i></button>
+        <a class="btn ghost" id="exportBtn" href="#" download><span>Export</span><i class="ic" data-ic="download"></i></a>
+        <button class="btn ghost" id="againBtn" type="button"><span>New idea</span><i class="ic" data-ic="plus"></i></button>
       </div>
     </section>
 
@@ -234,32 +209,26 @@
       <ul class="fixes" id="inspectionFixes"></ul>
     </section>
 
-    <section class="research glass" id="research" hidden>
-      <header class="panel-head"><h3>Research <em>Researcher · web search + page reads</em></h3><span class="hint" id="researchHint"></span></header>
-      <p class="research-summary" id="researchSummary"></p>
-      <ol class="findings" id="findings"></ol>
-      <div class="research-extra" id="researchExtra"></div>
-    </section>
 
-    <section class="visuals glass" id="visuals">
-      <header class="panel-head"><h3>Visuals <em>ArtDirector + VideoEditor</em></h3><span class="hint" id="visualsHint">generating…</span></header>
-      <div class="gallery" id="gallery"></div>
-    </section>
+
+
+
+    <nav class="res-tabs" id="resTabs" role="tablist"><button type="button" class="is-on" data-pf="pfX" role="tab"><i class="ic" data-ic="twitter"></i>X thread</button><button type="button" data-pf="pfReel" role="tab"><i class="ic" data-ic="clapperboard"></i>Instagram Reel</button><button type="button" data-pf="pfYt" role="tab"><i class="ic" data-ic="youtube"></i>YouTube</button></nav>
 
     <section class="platform-grid">
       <!-- X -->
       <article class="platform glass" id="pfX">
-        <header class="platform-head"><span class="pf pf-x">𝕏</span><h3>Thread</h3><div class="rate" data-platform="x"><button data-loved="true" aria-label="Love the X thread">🔥</button><button data-loved="false" aria-label="Dislike the X thread">👎</button></div></header>
+        <header class="platform-head"><h3>Thread</h3><div class="rate" data-platform="x"><button data-loved="true" aria-label="Love the X thread">🔥<span>Love it</span></button><button data-loved="false" aria-label="Dislike the X thread">👎<span>Not for me</span></button></div></header>
         <div class="xfeed" id="xThread"></div>
         <div class="xextra" id="xExtra"></div>
       </article>
 
       <!-- Reel -->
       <article class="platform glass" id="pfReel">
-        <header class="platform-head"><span class="pf pf-ig">Reels</span><h3 id="reelTitle">Reel</h3><div class="rate" data-platform="reel"><button data-loved="true" aria-label="Love the Reel">🔥</button><button data-loved="false" aria-label="Dislike the Reel">👎</button></div></header>
+        <header class="platform-head"><h3 id="reelTitle">Reel</h3><div class="rate" data-platform="reel"><button data-loved="true" aria-label="Love the Reel">🔥<span>Love it</span></button><button data-loved="false" aria-label="Dislike the Reel">👎<span>Not for me</span></button></div></header>
         <div class="reel-wrap">
           <div class="phone-col">
-          <div class="reel-toggle" id="reelToggle" hidden><button type="button" class="is-on" data-mode="video">▶ Rendered MP4</button><button type="button" data-mode="story">Storyboard</button></div>
+          <div class="reel-toggle" id="reelToggle" hidden><button type="button" class="is-on" data-mode="video">Rendered MP4</button><button type="button" data-mode="story">Storyboard</button></div>
           <div class="phone">
             <div class="phone-screen" id="reelScreen">
               <div class="story-bars" id="storyBars"></div>
@@ -269,7 +238,7 @@
                 <p class="reel-text" id="reelText"></p>
                 <p class="reel-vo" id="reelVo"></p>
               </div>
-              <div class="reel-side"><span>♥</span><span>💬</span><span>↗</span></div>
+              
               <div class="reel-foot"><b id="reelHandle">@you</b><p id="reelAudio">♫ original audio</p></div>
               <video id="reelVideo" class="reel-video" muted loop playsinline hidden></video>
             </div>
@@ -284,7 +253,7 @@
 
       <!-- YouTube -->
       <article class="platform glass" id="pfYt">
-        <header class="platform-head"><span class="pf pf-yt">YouTube</span><h3>Video + Short</h3><div class="rate" data-platform="youtube"><button data-loved="true" aria-label="Love the YouTube package">🔥</button><button data-loved="false" aria-label="Dislike the YouTube package">👎</button></div></header>
+        <header class="platform-head"><h3>Video + Short</h3><div class="rate" data-platform="youtube"><button data-loved="true" aria-label="Love the YouTube package">🔥<span>Love it</span></button><button data-loved="false" aria-label="Dislike the YouTube package">👎<span>Not for me</span></button></div></header>
         <div class="thumb" id="ytThumb"><span id="ytThumbText"></span><em>12:04</em></div>
         <ol class="titles" id="ytTitles"></ol>
         <p class="yt-concept" id="ytConcept"></p>
@@ -306,6 +275,18 @@
       </article>
     </section>
 
+    <section class="visuals glass" id="visuals">
+      <header class="panel-head"><h3>Visuals <em>ArtDirector + VideoEditor</em></h3><span class="hint" id="visualsHint">generating…</span></header>
+      <div class="gallery" id="gallery"></div>
+    </section>
+
+        <section class="research glass" id="research" hidden>
+      <header class="panel-head"><h3>Research <em>Researcher · web search + page reads</em></h3><span class="hint" id="researchHint"></span></header>
+      <p class="research-summary" id="researchSummary"></p>
+      <ol class="findings" id="findings"></ol>
+      <div class="research-extra" id="researchExtra"></div>
+    </section>
+
     <section class="publish glass" id="publishPanel" hidden>
       <div>
         <p class="eyebrow">Instagram Content Publishing API</p>
@@ -320,38 +301,29 @@
       <div class="publish-log" id="publishLog"></div>
     </section>
 
-    <section class="prompt-lab glass">
-      <header class="panel-head"><h3>Prompt lab <em>written live by the Showrunner</em></h3><span class="hint">every specialist ran on a prompt that didn't exist before this brief</span></header>
-      <div class="prompt-cards" id="promptCards"></div>
-    </section>
+
   </main>
 
   <!-- ═══════════════════════════ OVERLAYS ═══════════════════════════ -->
   <div class="modal" id="hookModal" hidden role="dialog" aria-modal="true" aria-labelledby="hookTitle">
     <div class="modal-card">
-      <p class="eyebrow">Human in the loop · your call</p>
-      <h2 class="display-sm" id="hookTitle">Pick the hook that stops <span class="grad-text">your</span> scroll</h2>
+      <p class="eyebrow">Your call</p>
+      <h2 class="display-sm" id="hookTitle">Pick the hook that stops your scroll</h2>
       <ol class="hooks" id="hookList"></ol>
-      <form class="own-hook" id="ownHook"><input id="ownHookInput" placeholder="…or write your own hook" maxlength="200"><button class="btn" type="submit">Use mine</button></form>
+      <form class="own-hook" id="ownHook"><input id="ownHookInput" placeholder="…or write your own" maxlength="200"><button class="btn" type="submit"><span>Use mine</span></button></form>
       <p class="hint">Press <kbd>1</kbd>–<kbd>5</kbd> to pick</p>
     </div>
   </div>
 
   <div class="modal" id="approvalModal" hidden role="dialog" aria-modal="true" aria-labelledby="approvalTitle">
     <div class="modal-card approval">
-      <p class="eyebrow warn">Approval required · ai-agent4j HITL gate</p>
-      <h2 class="display-sm" id="approvalTitle">Publish this to Instagram?</h2>
+      <p class="eyebrow warn">Approval needed</p>
+      <h2 class="display-sm" id="approvalTitle">Post this Reel to Instagram?</h2>
       <dl class="approval-args" id="approvalArgs"></dl>
-      <div class="approval-actions"><button class="btn danger ghost" id="rejectBtn" type="button">Reject</button><button class="btn" id="approveBtn" type="button">Approve &amp; publish</button></div>
+      <div class="approval-actions"><button class="btn ghost" id="rejectBtn" type="button"><span>Not now</span></button><button class="btn" id="approveBtn" type="button"><span>Approve and post</span><i class="ic" data-ic="send"></i></button></div>
     </div>
   </div>
 
-  <aside class="drawer" id="promptDrawer" hidden aria-label="Agent prompt">
-    <button class="drawer-close" id="drawerClose" aria-label="Close">✕</button>
-    <p class="eyebrow" id="drawerEyebrow">Live prompt</p>
-    <h3 id="drawerTitle"></h3>
-    <div id="drawerBody"></div>
-  </aside>
 
   <canvas id="confetti" aria-hidden="true"></canvas>
   <div class="toast" id="toast" role="status"></div>

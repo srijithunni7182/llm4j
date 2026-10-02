@@ -3,17 +3,18 @@
   "use strict";
 
   const AGENTS = [
-    { id: "Showrunner", icon: "🎬", role: "Casts the team & writes every prompt", c: "linear-gradient(135deg,#8b5cff,#ff2e88)", glow: "#8b5cff" },
-    { id: "TrendScout", icon: "📡", role: "Live trends from public APIs", c: "linear-gradient(135deg,#2ad4f2,#1e6bff)", glow: "#2ad4f2" },
-    { id: "Researcher", icon: "🔬", role: "Researches the web, reads sources", c: "linear-gradient(135deg,#6ee7b7,#2ad4f2)", glow: "#6ee7b7" },
-    { id: "Strategist", icon: "🧭", role: "Angle, hooks & verified facts", c: "linear-gradient(135deg,#ff9a3d,#ff2e88)", glow: "#ff9a3d" },
-    { id: "XWriter", icon: "𝕏", role: "Threads that get quoted", c: "linear-gradient(135deg,#3a3a44,#0b0b0f)", glow: "#9ca3af" },
-    { id: "ReelDirector", icon: "🎞️", role: "Beat-by-beat Reels", c: "linear-gradient(45deg,#f58529,#dd2a7b,#8134af)", glow: "#dd2a7b" },
-    { id: "YouTubeProducer", icon: "▶", role: "Titles, thumbnail & chapters", c: "linear-gradient(135deg,#ff3355,#b3001e)", glow: "#ff3355" },
-    { id: "ViralityCritic", icon: "🔥", role: "Scores. Sends back. Ships.", c: "linear-gradient(135deg,#ffd166,#ff6a3d)", glow: "#ffb13d" },
-    { id: "ArtDirector", icon: "🎨", role: "Generates thumbnail, cover & B-roll", c: "linear-gradient(135deg,#ffd166,#ff2e88)", glow: "#ffd166" },
-    { id: "VideoEditor", icon: "📹", role: "Renders the Reel to MP4", c: "linear-gradient(135deg,#2ad4f2,#8b5cff)", glow: "#2ad4f2" },
-    { id: "Publisher", icon: "🚀", role: "Posts to Instagram — with your OK", c: "linear-gradient(135deg,#b9f36c,#2bb673)", glow: "#b9f36c" },
+    { id: "Showrunner", icon: "🎬", role: "Casts the team, deals your angle" },
+    { id: "SafetyCoach", icon: "🛡️", role: "Keeps personal data out", onCall: true },
+    { id: "TrendScout", icon: "📡", role: "Reads what's rising today" },
+    { id: "Researcher", icon: "🔬", role: "Reads the web, keeps sources" },
+    { id: "Strategist", icon: "🧭", role: "Finds the angle, writes hooks" },
+    { id: "XWriter", icon: "𝕏", role: "Threads that get quoted" },
+    { id: "ReelDirector", icon: "🎞️", role: "Beat-by-beat Reels" },
+    { id: "YouTubeProducer", icon: "▶", role: "Titles, thumbnail, chapters" },
+    { id: "ArtDirector", icon: "🎨", role: "Paints every visual" },
+    { id: "VideoEditor", icon: "📹", role: "Cuts the Reel" },
+    { id: "ViralityCritic", icon: "🔥", role: "Sends weak work back" },
+    { id: "Publisher", icon: "🚀", role: "Posts only when you approve", onCall: true },
   ];
   const STAGE_OF = { Showrunner: "cast", TrendScout: "scout", Researcher: "scout", Strategist: "strategy", XWriter: "create", ReelDirector: "create", YouTubeProducer: "create", ViralityCritic: "critique", ArtDirector: "visuals", VideoEditor: "visuals", Publisher: "ship" };
   const STAGES = ["cast", "scout", "strategy", "hook", "create", "critique", "visuals", "verify", "ship"];
@@ -89,7 +90,6 @@
     renderAccount();
     bindComposer();
     $("#againBtn").addEventListener("click", () => { location.href = "/studio"; });
-    $("#drawerClose").addEventListener("click", () => ($("#promptDrawer").hidden = true));
     $("#ownHook").addEventListener("submit", (e) => { e.preventDefault(); const v = $("#ownHookInput").value.trim(); if (v) answerHook(v); });
     $("#approveBtn").addEventListener("click", () => answerApproval("approve"));
     $("#rejectBtn").addEventListener("click", () => answerApproval("reject"));
@@ -97,6 +97,13 @@
     $("#skipPublish").addEventListener("click", () => answerPublish("skip"));
     document.addEventListener("keydown", hookKeys);
     $$(".rate").forEach(bindRating);
+    $$("#resTabs button").forEach((b) => b.addEventListener("click", () => resultsTab(b.dataset.pf)));
+    resultsTab("pfX");
+    $("#postBtn").addEventListener("click", () => {
+      if (state.published) return toast("Already posted to @" + (state.me.handle || "you"));
+      if (!$("#publishPanel").hidden) $("#publishPanel").scrollIntoView({ behavior: "smooth" });
+      else toast("Your Reel is still being finished — posting opens when it's ready.");
+    });
     $$("[data-copy]").forEach((b) => b.addEventListener("click", () => copy($("#" + b.dataset.copy).innerText + "\n\n" + $("#reelTags").innerText)));
     $$(".tabs button").forEach((b) => b.addEventListener("click", () => libraryTab(b.dataset.tab)));
     window.addEventListener("popstate", () => location.reload());
@@ -122,7 +129,7 @@
     const me = state.me;
     $("#menuBtn").innerHTML = `${GV.avatar(me)}<span>${esc(me.handle ? "@" + me.handle : me.name || "")}</span>`;
     $("#menuEmail").textContent = me.email;
-    $("#quotaPill").textContent = `${me.quota.used}/${me.quota.limit} packs this month`;
+    $("#quotaPill").textContent = `${me.quota.used} of ${me.quota.limit} packs this month`;
     $("#menuBtn").addEventListener("click", (e) => {
       e.stopPropagation();
       const open = $("#menuList").hidden;
@@ -215,13 +222,12 @@
     $("#studio").hidden = false;
     $("#studioIdea").textContent = state.brief.idea;
     $("#agents").innerHTML = AGENTS.map((a) => `
-      <button class="agent" id="ag-${a.id}" style="--c:${a.c};--glow:${a.glow}" type="button" data-agent="${a.id}">
+      <div class="agent ${a.onCall ? "on-call" : ""}" id="ag-${a.id}" data-agent="${a.id}">
         <div class="av">${a.icon}</div><h4>${a.id}</h4><p>${a.role}</p>
-        <span class="state">idle</span><span class="pv" hidden></span>
-      </button>`).join("");
-    $$(".agent").forEach((el) => el.addEventListener("click", () => openPrompt(el.dataset.agent)));
+        <span class="state">${a.onCall ? "On call" : "Waiting"}</span><span class="pv" hidden></span>
+      </div>`).join("");
     state.started = performance.now();
-    state.timer = setInterval(() => ($("#clock").textContent = ((performance.now() - state.started) / 1000).toFixed(1) + "s"), 100);
+    
     window.scrollTo({ top: 0, behavior: "smooth" });
     loadMemory();
     if (new URLSearchParams(location.search).get("guided") || sessionStorageGet("gv.guided")) setTimeout(guideStudio, 1500);
@@ -237,15 +243,20 @@
     $("#results").hidden = true;
     $("#library").hidden = false;
     const runs = await GV.api("/api/runs?limit=100");
+    const done = runs.filter((r) => r.status === "DONE").length;
+    const month = new Date().getMonth();
+    $("#libStats").innerHTML = [
+      [runs.length, "packs made"], [done, "ready to post"], [runs.reduce((n, r) => n + (r.mediaCount || 0), 0), "media files"],
+      [runs.filter((r) => new Date(r.createdAt).getMonth() === month).length, "made this month"],
+    ].map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join("");
     $("#libPacks").innerHTML = runs.length ? runs.map((r, i) => `
       <button type="button" class="pack-card" data-run="${esc(r.id)}" style="animation-delay:${Math.min(i, 12) * 40}ms">
-        <div class="pack-cover" style="${r.cover ? `background-image:url('${esc(r.cover)}')` : ""}">
-          <span class="status">${esc(statusLabel(r.status))}</span>${r.score ? `<span class="score">${Number(r.score).toFixed(1)}</span>` : ""}
+        <div class="pack-cover">${r.cover ? `<img src="${esc(r.cover)}" alt="" loading="lazy">` : ""}
+          <span class="ptag">${new Date(r.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>${r.hook ? `<span class="cap">${esc(trim(r.hook, 70))}</span>` : ""}
         </div>
-        <div class="pack-body"><h3>${esc(r.idea)}</h3>${r.hook ? `<p>“${esc(r.hook)}”</p>` : ""}
-          <small>${new Date(r.createdAt).toLocaleString()}${r.mediaCount ? ` · ${r.mediaCount} media` : ""}</small></div>
+        <div class="pack-body"><h3>${esc(r.idea)}</h3><span class="tag ${r.status === "DONE" ? "tag-accent" : "tag-neutral"}">${esc(statusLabel(r.status))}</span></div>
       </button>`).join("")
-      : `<div class="empty"><h3>No packs yet</h3><p>Your packs — copy, images and Reels — will live here.</p><a class="cta" href="/studio"><span>Make your first pack</span></a></div>`;
+      : `<div class="empty"><h3>No packs yet</h3><p>Your packs — copy, images and Reels — will live here.</p><a class="btn" href="/studio"><span>Make your first pack</span><i class="ic" data-ic="arrow-right"></i></a></div>`;
     $$("#libPacks [data-run]").forEach((b) => b.addEventListener("click", () => { location.href = `/studio?run=${b.dataset.run}`; }));
   }
 
@@ -261,8 +272,7 @@
       <figure class="tile">${m.kind === "video"
         ? videoTag(m, media, `muted loop playsinline controls preload="metadata"`)
         : `<img src="${esc(m.url)}" alt="${esc(m.purpose)}" loading="lazy" width="${m.width}" height="${m.height}">`}
-        <span class="prov ${m.ai ? "ai" : "local"}">${m.ai ? "AI · " : ""}${esc(m.provider)}</span>
-        <figcaption><span>${esc(String(m.purpose).replace(/_/g, " "))} · ${esc(m.idea)}</span><a href="${esc(downloadUrl(m))}" download title="Download">↓</a></figcaption>
+        <figcaption><span>${esc(String(m.purpose).replace(/_/g, " "))}</span><a href="${esc(downloadUrl(m))}" download title="Download">↓</a></figcaption>
       </figure>`).join("")
       : `<div class="empty"><h3>No media yet</h3><p>Thumbnails, covers, B-roll and rendered Reels from every pack collect here.</p></div>`;
   }
@@ -324,7 +334,7 @@
           ["Instagram", String(d.instagram).startsWith("connected") ? d.instagram : "not connected — publishing is a dry run"],
         ].filter(([, v]) => v).map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
         state.info.instagram = d.instagram;
-        feed("✦", "GetViral", "Brief received — assembling the team", `${esc(d.model)}`, "", ev.t);
+        feed("✦", "GetViral", "Brief received — assembling the team", "", "", ev.t);
         break;
       case "agent_start": {
         agentState(d.agent, "working");
@@ -332,34 +342,34 @@
         else if (STAGE_OF[d.agent]) setStage(STAGE_OF[d.agent]);
         const task = String(d.task || "");
         const recast = task.startsWith("RECAST"), revise = task.startsWith("REVISE");
-        const label = d.review ? `is reviewing the whole build against the quality gate · round ${d.review}` : recast ? "is re-casting prompts from critic feedback" : revise ? "is revising" : d.agent === "ViralityCritic" ? `is reviewing the pack · round ${d.round}` : "started";
-        feed(icon(d.agent), d.agent, label, "", recast ? "prompt" : "", ev.t);
+        const label = d.review ? `is checking every file · round ${d.review}` : recast ? "is rethinking the approach after feedback" : revise ? "is revising" : d.agent === "ViralityCritic" ? `is reviewing the pack` : "started";
+        feed(icon(d.agent), d.agent, label, "", "", ev.t);
+        nowBanner(`${d.agent} ${label === "started" ? "is working…" : label}`);
         if (d.agent === "ViralityCritic") $("#criticToast").hidden = true;
         break;
       }
       case "prompt_injected":
-        feed("✎", d.agent, `running on Showrunner prompt v${d.version}`, "", "prompt", ev.t);
+        
         break;
       case "prompt": {
         (state.prompts[d.agent] ||= []).push(d);
         const pv = $(`#ag-${d.agent} .pv`);
         if (pv) { pv.hidden = false; pv.textContent = "prompt v" + d.version; $(`#ag-${d.agent}`).classList.remove("flash"); void pv.offsetWidth; $(`#ag-${d.agent}`).classList.add("flash"); }
         $("#statPrompts").textContent = Object.values(state.prompts).reduce((n, v) => n + v.length, 0);
-        feed("✍️", "Showrunner", `wrote ${d.agent}'s prompt · v${d.version}`, trim(d.prompt, 150), "prompt", ev.t);
+        
         break;
       }
       case "thought":
-        if (d.text && !/^I have everything/.test(d.text)) feed("💭", d.agent, "", esc(trim(d.text, 180)), "thought", ev.t);
+        if (d.text && !/^I have everything/.test(d.text)) 
         break;
       case "action":
-        feed(toolIcon(d.tool), d.agent, `→ <code>${esc(d.tool)}</code>`, esc(trim(d.input, 110)), "", ev.t);
+        feed(toolIcon(d.tool), d.agent, toolVerb(d.tool), esc(trim(d.input, 110)), "", ev.t);
         break;
       case "api":
         state.stats.api++;
         if (d.live) state.stats.live++;
         $("#statApi").textContent = state.stats.api;
         $("#statLive").textContent = Math.round((state.stats.live / state.stats.api) * 100) + "%";
-        feed("🌐", "", `<span class="api-pill ${d.live ? "live" : "sample"}"><span class="d"></span>${esc(d.host)} · ${d.live ? "live" : "sample"} · ${d.ms}ms</span>`, "", "", ev.t);
         break;
       case "build_review": {
         state.build = d;
@@ -380,8 +390,8 @@
       }
       case "creative_brief":
         state.originality = { past: d.pastCastings, checks: [] };
-        feed("🎲", "Showrunner", d.pastCastings ? `dealt fresh lenses & styles · ${d.pastCastings} past pack${d.pastCastings === 1 ? "" : "s"} on file to avoid` : "dealt lenses & styles for a first pack",
-          esc((d.lensOptions || []).join(" · ")), "prompt", ev.t);
+        feed("🎲", "Showrunner", d.pastCastings ? "dealt an angle you haven't used" : "dealt your first angle",
+          "", "", ev.t);
         break;
       case "originality": {
         (state.originality ||= { past: 0, checks: [] }).checks.push(d);
@@ -396,7 +406,7 @@
         break;
       }
       case "rag":
-        feed("📚", "RAG", `searched the ${esc(d.scope)} for “${esc(trim(d.query, 60))}”`, esc((d.sources || []).join(" · ")), "memory", ev.t);
+        feed("📚", "Memory", `looked up your ${esc(d.scope)}`, "", "", ev.t);
         break;
       case "llm":
         state.stats.llm++;
@@ -404,11 +414,11 @@
         break;
       case "memory_recall":
         if (d.recalled) { state.memory.recalled++; $("#statMemory").textContent = state.memory.recalled + state.memory.learned; }
-        if (d.recalled) feed("🧠", "Engram", `briefed ${esc(d.agent)} with what it remembers`, esc(trim(String(d.briefing).split("\n").filter((l) => l.includes("•")).join(" "), 180)), "memory", ev.t);
+        if (d.recalled) feed("🧠", "Memory", `reminded ${esc(d.agent)} what works for you`, "", "", ev.t);
         break;
       case "memory_store":
         if (d.learned > 0) { state.memory.learned += d.learned; $("#statMemory").textContent = state.memory.recalled + state.memory.learned; }
-        if (d.learned > 0) { feed("🧠", "Engram", `learned ${d.learned} new thing${d.learned > 1 ? "s" : ""} from ${esc(d.agent)}`, esc(d.content || ""), "memory", ev.t); loadMemory(); }
+        if (d.learned > 0) { feed("🧠", "Memory", `learned ${d.learned} new thing${d.learned > 1 ? "s" : ""} about you`, esc(d.content || ""), "", ev.t); loadMemory(); }
         break;
       case "agent_done":
         agentState(d.agent, "done");
@@ -417,7 +427,7 @@
         onAgentDone(d, ev.t);
         break;
       case "agent_error":
-        feed("⚠️", d.agent, `hit an error (attempt ${d.attempt}/${d.maxAttempts})`, esc(trim(d.error, 160)), "err", ev.t);
+        feed("⚠️", d.agent, "hit a snag — trying again", "", "err", ev.t);
         break;
       case "human":
         if (d.kind === "hook") showHooks(d);
@@ -436,8 +446,8 @@
         agentState("Publisher", "working");
         break;
       case "approval_answer":
-        feed(d.approved ? "✅" : "✋", "You", d.approved ? "approved publishing" : "rejected publishing", "", "", ev.t);
-        plog(d.approved ? "ok" : "dry", d.approved ? "APPROVED" : "REJECTED", d.approved ? "You approved the publish call." : "You rejected it — nothing was posted.");
+        feed(d.approved ? "✅" : "✋", "You", d.approved ? "approved posting" : "held the post back", "", "", ev.t);
+        plog(d.approved ? "ok" : "dry", d.approved ? "APPROVED" : "REJECTED", d.approved ? "You approved the post." : "Not posted.");
         break;
       case "publish":
         onPublish(d);
@@ -447,11 +457,11 @@
         if (d.purpose === "reel_webm") break;
         $("#statMedia").textContent = state.media.length;
         const portrait = d.height > d.width;
-        const label = d.kind === "video" ? `rendered the Reel · ${d.seconds}s · ${d.width}×${d.height}` : `generated ${esc(String(d.purpose).replace(/_/g, " "))}`;
+        const label = d.kind === "video" ? "cut the Reel" : `painted the ${esc(String(d.purpose).replace(/_/g, " "))}`;
         const body = d.kind === "video"
           ? videoTag(d, state.media, `class="shot portrait" muted autoplay loop playsinline`)
           : `<img class="shot ${portrait ? "portrait" : ""}" src="${esc(d.url)}" alt="${esc(d.purpose)}">`;
-        feed(d.kind === "video" ? "📹" : "🎨", d.kind === "video" ? "VideoEditor" : "ArtDirector", label, `${esc(d.provider)}${d.ai ? "" : " · not AI"}${body}`, "media", ev.t);
+        feed(d.kind === "video" ? "📹" : "🎨", d.kind === "video" ? "VideoEditor" : "ArtDirector", label, body, "media", ev.t);
         if (state.revealed) renderMedia();
         break;
       }
@@ -461,16 +471,15 @@
       case "pack":
         state.values.pack = d;
         if (!state.revealed) reveal();
-        renderPromptLab(d.prompts || {});
         break;
       case "blocked":
         setStage("cast");
-        feed("🛡️", "Guardrail", "Personal data detected — generation blocked", esc(d.notice), "err", ev.t);
-        toast("Loom's PII guardrail blocked this brief. Remove personal details and try again.");
-        setTimeout(() => { $("#studioIdea").insertAdjacentHTML("afterend", `<p class="muted" style="margin-top:10px">${esc(d.notice)} <a href="/" style="color:var(--hot)">Try again →</a></p>`); }, 50);
+        feed("🛡️", "SafetyCoach", "found personal details — nothing was made", esc(d.notice), "err", ev.t);
+        toast("Your idea has personal details in it. Remove them and try again.");
+        setTimeout(() => { $("#studioIdea").insertAdjacentHTML("afterend", `<p class="muted" style="margin-top:10px">${esc(d.notice)} <a href="/" style="color:var(--color-accent)">Try again →</a></p>`); }, 50);
         break;
       case "error":
-        feed("✗", "GetViral", "run failed", esc(d.message), "err", ev.t);
+        feed("✗", "GetViral", "hit a problem", esc(d.message), "err", ev.t);
         toast("Something went wrong: " + d.message);
         break;
       case "status":
@@ -479,7 +488,7 @@
           clearInterval(state.timer);
           state.es && state.es.close();
           if (state.revealed) renderMedia();
-          GV.api("/api/me").then((me) => { state.me = me; $("#quotaPill").textContent = `${me.quota.used}/${me.quota.limit} packs this month`; }).catch(() => {});
+          GV.api("/api/me").then((me) => { state.me = me; $("#quotaPill").textContent = `${me.quota.used} of ${me.quota.limit} packs this month`; }).catch(() => {});
           if (d.status === "DONE") { setStage("ship", true); agentState("Publisher", "done"); if (state.build) renderBuild(); else $("#qualityHint").textContent = "graded"; }
           if (d.status === "FAILED" && state.build && state.revealed) renderBuild();
         }
@@ -490,18 +499,19 @@
   function onAgentDone(d, t) {
     const v = d.value;
     if (d.agent === "Showrunner" && v && typeof v === "object") {
-      if (v.run_title) $("#runTitle").textContent = v.run_title;
-      feed("🎬", "Showrunner", "cast the team", esc(trim(v.creative_direction, 200)), "prompt", t);
+      
+      feed("🎬", "Showrunner", "cast the team", esc(trim(v.creative_direction, 200)), "", t);
+      updatePack();
     } else if (d.agent === "Researcher" && v && typeof v === "object") {
       const n = (v.findings || []).length;
       feed("🔬", "Researcher", `brought back ${n} sourced finding${n === 1 ? "" : "s"}`, esc(trim(v.summary, 200)), "", t);
     } else if (d.agent === "ViralityCritic" && v && typeof v === "object") {
       criticMoment(v);
       $("#statRounds").textContent = v.round || 1;
-      feed("🔥", "ViralityCritic", `scored ${v.score}/10 — ${v.verdict === "SHIP" ? "SHIP IT" : "back to the team"}`, esc(v.headline || ""), "critic", t);
+      feed("🔥", "ViralityCritic", v.verdict === "SHIP" ? "approved the pack" : "sent weak work back to the team", esc(v.headline || ""), "critic", t);
       if (v.verdict === "SHIP" && !state.revealed) setTimeout(reveal, 1600);
     } else {
-      feed("✓", d.agent, `done · ${d.iterations} step${d.iterations === 1 ? "" : "s"}${d.tools?.length ? " · " + [...new Set(d.tools)].join(", ") : ""}`, "", "", t);
+      feed("✓", d.agent, "finished", "", "", t);
     }
   }
 
@@ -510,17 +520,21 @@
     if (!el) return;
     el.classList.toggle("is-working", s === "working");
     el.classList.toggle("is-done", s === "done");
-    $(".state", el).textContent = s === "working" ? "● live" : s === "done" ? "✓ done" : "idle";
+    $(".state", el).textContent = s === "working" ? "Working" : s === "done" ? "Done" : el.classList.contains("on-call") ? "On call" : "Waiting";
+    if (s === "working") state.working = agent;
   }
 
+  const CHAPTER_OF = { cast: 0, scout: 0, strategy: 0, hook: 1, create: 2, visuals: 2, critique: 3, verify: 3, ship: 3 };
+  const CHAPTERS = ["Research", "Your pick", "Make", "Review"];
   function setStage(stage, finished = false) {
-    const idx = STAGES.indexOf(stage);
-    if (idx < STAGES.indexOf(state.stage || "cast") && !finished) return;
+    if (STAGES.indexOf(stage) < STAGES.indexOf(state.stage || "cast") && !finished) return;
     state.stage = stage;
+    const idx = CHAPTER_OF[stage] ?? 0;
     $$("#rail li").forEach((li, i) => {
-      li.classList.toggle("is-done", i < idx || (finished && i <= idx));
+      li.classList.toggle("is-done", i < idx || finished);
       li.classList.toggle("is-active", i === idx && !finished);
     });
+    $("#runTitle").textContent = finished ? "Your pack is ready" : "Pack in progress · " + CHAPTERS[idx];
   }
 
   function feed(ic, who, html, sub, cls, t) {
@@ -554,7 +568,7 @@
       const list = (data.memories || []).slice(-8).reverse();
       $("#memoryList").innerHTML = list.length
         ? list.map((m) => `<li class="${m.shadow ? "shadow" : ""}" title="${esc(m.tier)} · importance ${m.importance}">${esc(m.content)}</li>`).join("")
-        : `<li class="muted">First time with @${esc(handle)} — Engram will start remembering after this run.</li>`;
+        : `<li class="muted">First time with @${esc(handle)} — it will start remembering after this run.</li>`;
     } catch { /* ignore */ }
   }
 
@@ -596,7 +610,7 @@
     $("#publishPanel").hidden = false;
     $("#igMode").innerHTML = String(state.info.instagram || "").startsWith("connected")
       ? `Publishing to your ${esc(state.info.instagram.replace("connected as ", ""))} account.`
-      : `Instagram isn't connected, so this is an honest dry run showing the exact API calls. <a href="/welcome?step=CONNECT" style="color:var(--hot)">Connect Instagram</a>`;
+      : `Instagram isn't connected yet. <a href="/welcome?step=CONNECT" style="color:var(--color-accent-700)">Connect Instagram</a>`;
   }
 
   function publishSubmit(e) {
@@ -605,7 +619,7 @@
     if (!/^https:\/\//.test(url)) { toast("Paste a public https:// video URL"); return; }
     answerPublish(url);
     $("#publishLog").innerHTML = "";
-    plog("", "PUBLISHER", "Checking the Instagram quota and preparing the Reel…");
+    plog("", "PUBLISHER", "Getting your Reel ready to post…");
   }
 
   function answerPublish(value) {
@@ -619,7 +633,7 @@
   function showApproval(d) {
     state.approvalQuestion = d.id;
     const args = state.pendingApproval?.args || {};
-    const rows = [["Tool", state.pendingApproval?.tool || "instagram_publish"], ["Type", args.media_type], ["Media", args.media_url], ["Caption", args.caption]];
+    const rows = [["Account", state.me.handle ? "@" + state.me.handle : ""], ["Video", args.media_url], ["Caption", args.caption], ["Label", "Made with AI"]];
     $("#approvalArgs").innerHTML = rows.filter(([, v]) => v).map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
     $("#approvalModal").hidden = false;
   }
@@ -632,14 +646,16 @@
   function onPublish(d) {
     if (d.status === "dry_run") {
       const steps = Object.entries(d.plan || {}).filter(([k]) => k.startsWith("step")).map(([, v]) => trim(v, 150));
-      plog("dry", "DRY RUN", "No Instagram token is set, so nothing was posted. With IG_USER_ID + IG_ACCESS_TOKEN the Publisher makes exactly these Graph API calls:", steps.join("\n"));
+      plog("dry", "NOT POSTED", "Instagram isn't connected, so nothing was posted. Connect it and approve again to go live.");
     } else if (d.status === "published") {
-      plog("ok", "LIVE", `Published! <a href="${esc(d.permalink)}" target="_blank" rel="noopener" style="color:var(--hot)">${esc(d.permalink || d.media_id)}</a>`, "", true);
+      state.published = true; toast("Posted to @" + (state.me.handle || "you"));
+      const pb = $("#postBtn"); if (pb) pb.firstElementChild.textContent = "Posted to Instagram";
+      plog("ok", "POSTED", `Posted! <a href="${esc(d.permalink)}" target="_blank" rel="noopener" style="color:var(--hot)">${esc(d.permalink || d.media_id)}</a>`, "", true);
       confetti();
     } else if (d.status === "failed") {
-      plog("dry", "FAILED", `Instagram couldn't process the media (${esc(d.container_status)}). Nothing was published.`);
+      plog("dry", "FAILED", "Instagram couldn't process the video. Nothing was posted.");
     } else if (d.status === "processing") {
-      plog("", "PROCESSING", `Container status: ${esc(d.container_status)} · poll ${d.poll}`);
+      plog("", "PROCESSING", "Instagram is processing the video…");
     }
   }
 
@@ -685,7 +701,6 @@
     renderYt(v.youtubePack);
     renderMedia();
     $$("#reelToggle button").forEach((b) => b.addEventListener("click", () => setReelMode(b.dataset.mode)));
-    renderPromptLab(Object.fromEntries(Object.entries(state.prompts).map(([k, list]) => [k, list.map((p) => ({ version: p.version, prompt: p.prompt, reason: p.reason }))])));
     $("#studio").hidden = true;
     window.scrollTo({ top: 0, behavior: "smooth" });
     confetti();
@@ -864,6 +879,7 @@
 
   let trackerFrame = 0;
   function scheduleTracker() {
+    updatePack();
     if (!trackerFrame) trackerFrame = requestAnimationFrame(() => { trackerFrame = 0; renderTracker(); });
   }
 
@@ -930,7 +946,7 @@
     const b = state.build;
     const cards = [
       {
-        ic: "🧬", t: "Original", tone: cast && cast.novelty === "REPEAT" ? "warn" : "ok",
+        ic: "🧬", t: "Originality", tone: cast && cast.novelty === "REPEAT" ? "warn" : "ok",
         v: !o.past ? "Baseline set" : cast && cast.novelty === "REPEAT" ? "Close to past work" : "Fresh",
         d: !o.past ? "Your first pack. Every future pack is checked against it so you never post the same angle twice."
           : `Checked against ${o.past === 1 ? "your last pack" : `your last ${o.past} packs`}${cast && cast.closest_similarity != null ? ` — the closest is ${Math.round(cast.closest_similarity * 100)}% similar` : ""}.`
@@ -943,17 +959,17 @@
         d: "Dealt from creative lenses you haven't used lately" + (castingSheet.visual_style ? `, in a visual style picked the same way: ${trim(castingSheet.visual_style, 70)}.` : "."),
       },
       {
-        ic: "🧠", t: "Remembers you", tone: "ok",
-        v: `${state.memory.recalled} recalled · ${state.memory.learned} learned`,
-        d: "Engram briefs the Showrunner and Strategist with what worked for you, and every hook pick and 🔥/👎 teaches the next pack.",
+        ic: "🧠", t: "Remembered", tone: "ok",
+        v: `${state.memory.recalled + state.memory.learned} things about you`,
+        d: "GetViral starts each pack from what worked for you, and every hook pick and rating teaches the next one.",
       },
       {
-        ic: "🔎", t: "Sourced, not made up", tone: findings.length ? "ok" : "warn",
+        ic: "🔎", t: "Researched", tone: findings.length ? "ok" : "warn",
         v: findings.length ? `${plural(findings.length, "fact")} · ${plural(sources.size, "source")}` : "No web research",
         d: findings.length ? "The Researcher read the web before anyone wrote. Every fact in the dossier links to where it came from." : "Research wasn't available for this run, so the writers worked from trends and your brief.",
       },
       {
-        ic: "✅", t: "Fixed before you saw it", tone: b && !b.complete ? "warn" : "ok",
+        ic: "✅", t: "Checked first", tone: b && !b.complete ? "warn" : "ok",
         v: b ? plural(b.round, "review round") : "reviewing…",
         d: !b ? "The Showrunner is checking every file and post." : state.sentBack
           ? `${plural(state.sentBack, "artifact")} sent back to specialists and rebuilt until X, Instagram and YouTube all passed.`
@@ -1077,25 +1093,9 @@
     requestAnimationFrame(() => $$(".badge .bar i").forEach((i) => (i.style.width = i.dataset.w + "%")));
   }
 
-  function renderPromptLab(prompts) {
-    const entries = Object.entries(prompts || {});
-    if (!entries.length) return;
-    $("#promptCards").innerHTML = entries.map(([agent, versions]) => {
-      const last = versions[versions.length - 1];
-      return `<div class="prompt-card"><h4>${esc(agent)} <span>v${last.version}</span></h4><p>${esc(last.prompt)}</p><button class="copy" type="button" data-agent="${esc(agent)}">Open prompt history</button></div>`;
-    }).join("");
-    $$("#promptCards button").forEach((b) => b.addEventListener("click", () => openPrompt(b.dataset.agent, prompts)));
-  }
-
-  function openPrompt(agent, fromPack) {
-    const versions = (fromPack && fromPack[agent]) || state.prompts[agent] || [];
-    $("#drawerTitle").textContent = agent;
-    $("#drawerEyebrow").textContent = versions.length ? `${versions.length} version${versions.length > 1 ? "s" : ""} · written by the Showrunner` : "Live prompt";
-    $("#drawerBody").innerHTML = versions.length
-      ? versions.slice().reverse().map((v, i) => `<div class="version ${i === 0 ? "latest" : ""}"><h5><span>v${v.version}${i === 0 ? " · live" : ""}</span><span>${esc(v.reason || "")}</span></h5><p>${esc(v.prompt)}</p></div>`).join("") +
-        `<p class="house">+ fixed frame on every version:\n“You are ${esc(agent)} on the GetViral creator team.” … HOUSE RULES (no invented stats, no personal data, platform limits, exact format)</p>`
-      : `<p class="muted">${agent === "Showrunner" ? "The Showrunner is the orchestrator — its meta-prompt lives in getviral.loom. It writes everyone else's." : "No runtime prompt yet — this agent runs on its one-line fallback from getviral.loom until the Showrunner casts it."}</p>`;
-    $("#promptDrawer").hidden = false;
+  function resultsTab(id) {
+    $$("#resTabs button").forEach((b) => b.classList.toggle("is-on", b.dataset.pf === id));
+    ["pfX", "pfReel", "pfYt"].forEach((p) => ($("#" + p).hidden = p !== id));
   }
 
   function bindRating(el) {
@@ -1104,17 +1104,29 @@
       b.classList.add("is-on");
       const loved = b.dataset.loved === "true";
       await GV.api("/api/feedback", { method: "POST", body: { platform: el.dataset.platform, loved, detail: loved ? "hook: " + (state.values.hookChoice || "") : "" } });
-      toast(loved ? "🧠 Saved to Engram — next time GetViral leans into this." : "🧠 Noted in Engram — next time GetViral tries a different approach.");
+      toast(loved ? "Remembered for next time." : "Noted — next pack will differ.");
+      let lbl = $(".rate-note", el); if (!lbl) { lbl = document.createElement("span"); lbl.className = "rate-note hint"; el.prepend(lbl); }
+      lbl.textContent = loved ? "Remembered for next time" : "Noted — next pack will differ";
     }));
   }
 
   // ── Little helpers ──────────────────────────────────────────────────────
+  const TOOL_VERB = { web_search: "searched the web", read_page: "read a source", trending_now: "checked what's trending", hn_pulse: "checked tech chatter", trending_hashtags: "checked hashtags", moment_calendar: "checked the calendar", fact_check: "checked a fact", word_lab: "played with wording", trending_audio: "looked for trending audio", broll_finder: "looked for B-roll", viral_playbook: "opened the playbook", instagram_quota: "checked Instagram limits", instagram_publish: "got ready to post" };
+  const toolVerb = (t) => TOOL_VERB[t] || "did some work";
+  function nowBanner(text) { const b = $("#nowBanner"); if (b) $("span", b).textContent = text; }
+  function updatePack() {
+    const v = state.values, cast = v.castingSheet || {};
+    const row = (k, val) => `<div><span>${k}</span><b>${esc(val || "—")}</b></div>`;
+    $("#packLens").innerHTML = row("Lens", cast.lens) + row("Style", trim(cast.visual_style || "", 40)) + row("Hook", trim(v.hookChoice || "", 60));
+    const NAMES = { queued: "Queued", making: "Making", made: "Made", sent: "Sent back", fixing: "Fixed", checking: "Making", passed: "Passed" };
+    $("#packFiles").innerHTML = ARTS.map((a) => { const st = art(a.key).s; return `<div><span>${esc(a.label)}</span><b style="${st === "making" || st === "sent" ? "color:var(--color-accent-700)" : ""}">${NAMES[st] || st}</b></div>`; }).join("");
+  }
   function icon(agent) { return (AGENTS.find((a) => a.id === agent) || {}).icon || "•"; }
   function toolIcon(tool) {
     return ({ web_search: "🌍", read_page: "📖", trending_now: "📈", hn_pulse: "🗣️", trending_hashtags: "#️⃣", moment_calendar: "📅", fact_check: "🔎", word_lab: "🔤", trending_audio: "🎵", broll_finder: "🖼️", viral_playbook: "📚", instagram_quota: "📊", instagram_publish: "📤" })[tool] || "🛠️";
   }
   function trim(s, n) { s = String(s ?? "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
-  async function copy(text) { try { await navigator.clipboard.writeText(text); toast("Copied ✓"); } catch { toast("Copy failed — select the text manually"); } }
+  async function copy(text) { try { await navigator.clipboard.writeText(text); toast("Copied"); } catch { toast("Copy failed — select the text manually"); } }
   function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(state.tt); state.tt = setTimeout(() => t.classList.remove("show"), 2600); }
 
   function confetti() {

@@ -16,7 +16,7 @@
   if (!info.googleSignIn && !info.devLogin) {
     $("#signinNote").textContent = "Sign-in isn't configured on this server yet.";
   } else if (info.packsPerMonth) {
-    $("#signinNote").textContent = `Free: ${info.packsPerMonth} packs a month.`;
+    $("#signinNote").textContent = `Free for ${info.packsPerMonth} packs a month. Nothing posts without your approval.`;
   }
 
   $("#devLogin").addEventListener("submit", async (e) => {
