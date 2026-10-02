@@ -39,6 +39,8 @@ SABOTAGES = [
      [(L + "channel/TelegramChannel.java", 'if (!token.isEmpty()) t = t.replace(token, "<token>");', "")], ["V3.1"]),
     ("M9", "Treat an empty allowlist as everyone",
      [(L + "channel/ChannelConfig.java", 'if (allowedIds().isEmpty()) return "nobody is allowed', 'if (false) return "nobody is allowed')], ["V5.7"]),
+    ("M10", "Let a reply written before the question answer it",
+     [(L + "channel/Listener.java", "if (olderThanQuestion(reply, target)) {", "if (false) {")], ["V3.8"]),
 ]
 
 
