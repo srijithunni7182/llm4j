@@ -124,7 +124,10 @@ class LadderRunTest {
         int sampled = 0;
         for (int i = 0; i < 10_000; i++) if (io.github.llm4j.loom.execution.DeciderAccess.sampled("run-" + i + "/Triage/s0", "Refund", 5)) sampled++;
         assertThat(sampled).isBetween(450, 550);
-        assertThat(io.github.llm4j.loom.execution.DeciderAccess.sampled("run-42/Triage/s0", "Refund", 5)).isEqualTo(io.github.llm4j.loom.execution.DeciderAccess.sampled("run-42/Triage/s0", "Refund", 5));
+        for (int i = 0; i < 2_000; i++) {
+            String id = "run-" + i + "/Triage/s0";
+            assertThat(io.github.llm4j.loom.execution.DeciderAccess.sampled(id, "Refund", 5)).as(id).isEqualTo(io.github.llm4j.loom.execution.DeciderAccess.sampled(id, "Refund", 5));
+        }
         assertThat(io.github.llm4j.loom.execution.DeciderAccess.sampled("x", "Refund", 0)).isFalse();
         assertThat(io.github.llm4j.loom.execution.DeciderAccess.sampled("x", "Refund", 100)).isTrue();
     }
