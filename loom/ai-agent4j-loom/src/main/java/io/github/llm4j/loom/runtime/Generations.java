@@ -157,6 +157,8 @@ public final class Generations {
         return false;
     }
 
+    /** Step-id keys that name a branch (an item of a for each, a branch of a parallel), not a block of statements. */
+    private static final java.util.Set<String> BRANCH_KEYS = java.util.Set.of("e", "p");
     private static final Pattern SEGMENT = Pattern.compile("^([a-z]+(?:\\d+\\.)?)(\\d+)$");
 
     /** A statement named by its generation-free id ({@code Main/s3/a0}), located as the block it is in and its place there, with its live id. */
@@ -173,7 +175,7 @@ public final class Generations {
         Located result = null;
         for (int i = 1; i < parts.length; i++) {
             Matcher m = SEGMENT.matcher(parts[i]);
-            if (!m.matches()) return null;
+            if (!m.matches() || BRANCH_KEYS.contains(m.group(1))) return null; // a branch of a parallel or for each is not a statement of a block
             String block = current + "/" + m.group(1);
             int index = Integer.parseInt(m.group(2));
             int generation = current(block, index);
@@ -192,7 +194,7 @@ public final class Generations {
         String current = parts[0];
         for (int i = 1; i < parts.length; i++) {
             Matcher m = ANY_SEGMENT.matcher(parts[i]);
-            if (!m.matches()) return true; // not a statement segment (a branch of a parallel, say): nothing to compare
+            if (!m.matches() || BRANCH_KEYS.contains(m.group(1))) return true; // not a statement segment (a branch of a parallel, say): nothing to compare
             String block = current + "/" + m.group(1);
             int index = Integer.parseInt(m.group(2));
             int generation = m.group(3) == null ? 1 : Integer.parseInt(m.group(3));

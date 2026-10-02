@@ -28,6 +28,7 @@ final class SimulatingTool implements Tool {
     /** Pure tools and search; and the effect journal's wrapper, which simulates by itself and lets reads through. */
     static boolean runsAsItIs(Tool tool) {
         if (tool instanceof DescribedTool d) return runsAsItIs(d.delegate());
+        if (tool instanceof io.github.llm4j.loom.tools.NamedTool n) return runsAsItIs(n.delegate());
         return tool instanceof EffectTool
                 || tool instanceof io.github.llm4j.agent.tools.CalculatorTool
                 || tool instanceof io.github.llm4j.agent.tools.DateTimeTool

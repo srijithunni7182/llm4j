@@ -36,4 +36,20 @@ public final class EffectScan {
         }
         return out;
     }
+
+    /** The tool calls a person approved in those statements, in any attempt: what a rewind leaves behind and will not ask about again. */
+    public static List<String> approvalsIn(RunJournal journal, String block, int from) {
+        String blockFree = Generations.strip(block);
+        List<String> out = new ArrayList<>();
+        for (Map.Entry<String, RunJournal.Entry> e : journal.all().entrySet()) {
+            String key = e.getKey();
+            int marker = key.indexOf("#approve:");
+            if (marker < 0) continue;
+            String answer = String.valueOf(e.getValue().value()).trim().toLowerCase(java.util.Locale.ROOT);
+            if (!List.of("yes", "y", "ok", "approve", "true").contains(answer)) continue;
+            String step = Generations.strip(key.substring(0, marker));
+            if (inRegion(step, blockFree, from)) out.add(key.substring(marker + "#approve:".length()).split(":", 2)[0] + " at " + step);
+        }
+        return out;
+    }
 }

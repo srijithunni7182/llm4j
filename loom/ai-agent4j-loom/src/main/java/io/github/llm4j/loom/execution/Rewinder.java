@@ -163,7 +163,10 @@ final class Rewinder {
         String reason = r.getCondition() == null ? "always" : r.getCondition();
         Generations.Boundary b = generations.start(target.block, from, r.getTarget(), "script", free, reason, carried, policy.phrase(), false);
         audit("run_rewound", r, free, null);
-        run.trace(TraceEvent.REWIND, null, "rewind to " + r.getTarget() + " (generation " + b.generation() + "): " + reason, Map.of("generation", b.generation(), "checkpoint", r.getTarget()));
+        List<String> approved = io.github.llm4j.loom.runtime.EffectScan.approvalsIn(run.journal(), target.block, from);
+        run.trace(TraceEvent.REWIND, null, "rewind to " + r.getTarget() + " (generation " + b.generation() + "): " + reason
+                + (approved.isEmpty() ? "" : "; approved calls that ran and will not be asked again: " + String.join(", ", approved)),
+                Map.of("generation", b.generation(), "checkpoint", r.getTarget()));
         throw new RewindSignal(target.block, from, r.getTarget());
     }
 

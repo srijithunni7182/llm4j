@@ -37,6 +37,8 @@ public final class ScriptedRun {
     public final List<LLMRequest> requests = Collections.synchronizedList(new ArrayList<>());
     public final List<String> questions = Collections.synchronizedList(new ArrayList<>());
     public RunJournal journal;
+    /** Tools a host registers from Java, by name, for scripts that name them. */
+    public final ToolRegistry tools = new ToolRegistry();
     public Function<String, String> human = q -> "yes";
     /** When set, decides each reply from the request instead of the fixed list (for runs with parallel agents). */
     public Function<LLMRequest, String> responder;
@@ -81,7 +83,7 @@ public final class ScriptedRun {
                 return Stream.of(chat(request));
             }
         };
-        HarnessExecutor e = new HarnessExecutor(script, new ToolRegistry(), x -> model);
+        HarnessExecutor e = new HarnessExecutor(script, tools, x -> model);
         e.setBaseDir(dir);
         e.setEnvLookup(env::get);
         e.setHumanInterface(new HumanInterface() {
