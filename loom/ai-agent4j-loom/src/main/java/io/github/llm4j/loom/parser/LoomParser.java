@@ -250,9 +250,132 @@ public class LoomParser {
             return parseObserveStatement();
         } else if (match(TokenType.CALL)) {
             return parseCallStmt();
+        } else if (isWord("checkpoint") && peekAt(1).getType() == TokenType.IDENTIFIER) {
+            return parseCheckpoint();
+        } else if (isWord("rewind") && peekAt(1).getType() == TokenType.TO) {
+            return parseRewind();
         }
         
         throw error(peek(), "Expected statement, got " + peek().getType());
+    }
+
+    // -----------------------------------------------------------------------
+    // Checkpoints and rewinds: read as sentences, in a fixed order of phrases.
+    // -----------------------------------------------------------------------
+
+    /** True when the next token is the plain word {@code word} (these words are keywords only where a statement starts). */
+    private boolean isWord(String word) {
+        return check(TokenType.IDENTIFIER) && word.equals(peek().getValue());
+    }
+
+    private Token peekAt(int offset) {
+        int i = Math.min(current + offset, tokens.size() - 1);
+        return tokens.get(i);
+    }
+
+    private void expectWord(String word, String message) {
+        if (!isWord(word)) throw error(peek(), message);
+        advance();
+    }
+
+    /** {@code checkpoint Name [starting with name = "value", name = "value"]} */
+    private CheckpointStmt parseCheckpoint() {
+        Token keyword = advance();
+        CheckpointStmt stmt = new CheckpointStmt(consume(TokenType.IDENTIFIER, "Expect a name after checkpoint.").getValue());
+        stmt.setLine(keyword.getLine());
+        if (isWord("starting")) {
+            advance();
+            expectWord("with", "Write: checkpoint " + stmt.getName() + "  starting with name = \"value\"");
+            parseAssignments(stmt.getStartingWith(), "starting with");
+        }
+        return stmt;
+    }
+
+    /** name = "value" [, name = "value"]... */
+    private void parseAssignments(java.util.Map<String, String> into, String after) {
+        do {
+            Token name = consume(TokenType.IDENTIFIER, "Expect a variable name after '" + after + "'.");
+            consume(TokenType.ASSIGN, "Expect '=' after " + name.getValue() + ", as in " + name.getValue() + " = \"value\".");
+            if (match(TokenType.STRING_LITERAL, TokenType.NUMBER_LITERAL, TokenType.IDENTIFIER)) {
+                into.put(name.getValue(), previous().getValue());
+            } else {
+                throw error(peek(), "Expect a value (in quotes) for " + name.getValue() + ".");
+            }
+        } while (match(TokenType.COMMA));
+    }
+
+    /**
+     * {@code rewind to Name [when (condition)] at most N times [carrying a = "x", ...] [side effects: ask first|keep|repeat]
+     * [if it still fails { ... }] [if blocked { ... }]}
+     */
+    private RewindStmt parseRewind() {
+        Token keyword = advance();
+        consume(TokenType.TO, "Expect 'to' after rewind.");
+        Token target = consume(TokenType.IDENTIFIER, "Expect the name of a checkpoint after 'rewind to'.");
+
+        String condition = null;
+        if (isWord("when")) {
+            advance();
+            consume(TokenType.LPAREN, "Write the condition in brackets: rewind to " + target.getValue() + " when (score < 7)");
+            StringBuilder b = new StringBuilder();
+            while (!check(TokenType.RPAREN) && !isAtEnd()) {
+                if (isWord("and") || isWord("or")) {
+                    throw error(peek(), "a condition is one comparison, such as (score < 7), or one true/false variable; combine several tests into a variable first");
+                }
+                b.append(advance().getValue());
+            }
+            consume(TokenType.RPAREN, "Expect ')' after the rewind condition.");
+            condition = b.toString();
+        }
+
+        if (!isWord("at")) throw error(peek(), "A rewind needs a limit: add \"at most 2 times\" (or another number).");
+        advance();
+        expectWord("most", "Write the limit as: at most 2 times");
+        Token n = consume(TokenType.NUMBER_LITERAL, "Expect a number after 'at most', as in: at most 2 times");
+        int atMost = (int) Double.parseDouble(n.getValue());
+        if (atMost < 1) throw error(n, "\"at most\" must be at least 1 time");
+        if (isWord("times") || isWord("time")) advance();
+        else throw error(peek(), "Write the limit as: at most " + atMost + " times");
+
+        RewindStmt stmt = new RewindStmt(target.getValue(), condition, atMost);
+        stmt.setLine(keyword.getLine());
+
+        if (isWord("carrying")) {
+            advance();
+            parseAssignments(stmt.getCarrying(), "carrying");
+        }
+        if (isWord("side")) {
+            Token side = advance();
+            expectWord("effects", "Write: side effects: ask first | keep | repeat");
+            consume(TokenType.COLON, "Expect ':' after 'side effects'.");
+            StringBuilder phrase = new StringBuilder();
+            while (check(TokenType.IDENTIFIER) && !isWord("if")) {
+                if (phrase.length() > 0) phrase.append(' ');
+                phrase.append(advance().getValue());
+            }
+            RewindStmt.Effects effects = RewindStmt.Effects.of(phrase.toString());
+            if (effects == null) throw error(side, "Side effects can be: ask first, keep or repeat (not \"" + phrase + "\").");
+            stmt.setEffects(effects);
+        }
+        while (isWord("if")) {
+            Token ifToken = advance();
+            java.util.List<Statement> into;
+            if (isWord("blocked")) {
+                advance();
+                into = stmt.getIfBlocked();
+            } else if (isWord("it")) {
+                advance();
+                expectWord("still", "Write: if it still fails { ... }");
+                expectWord("fails", "Write: if it still fails { ... }");
+                into = stmt.getIfStillFails();
+            } else {
+                throw error(ifToken, "After a rewind, write either: if it still fails { ... } or: if blocked { ... }");
+            }
+            consume(TokenType.LBRACE, "Expect '{' before the handler.");
+            while (!check(TokenType.RBRACE) && !isAtEnd()) into.add(parseStatement());
+            consume(TokenType.RBRACE, "Expect '}' after the handler.");
+        }
+        return stmt;
     }
 
     private NoteStmt parseNoteStmt() {

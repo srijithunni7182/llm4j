@@ -29,4 +29,14 @@ public class TranscriptAccumulationEngine implements MemoryEngine {
         transcript.append("Agent [").append(agentDef.getName()).append("] Task: ").append(taskIntent).append("\n");
         transcript.append("Agent [").append(agentDef.getName()).append("] Response: ").append(result.getFinalAnswer()).append("\n\n");
     }
+
+    @Override
+    public Object mark() {
+        return transcript.length();
+    }
+
+    @Override
+    public void restore(Object mark) {
+        if (mark instanceof Integer length && length <= transcript.length()) transcript.setLength(length);
+    }
 }

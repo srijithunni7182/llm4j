@@ -61,6 +61,14 @@ public class HarnessExecutor implements LoomEngine {
 
     // ── Durable runs ─────────────────────────────────────────────────────
     private RunJournal journal = RunJournal.inMemory();
+    private Generations generations;
+    private RunJournal generationsOf;
+    private final Rewinder rewinder = new Rewinder(this);
+    private final ThreadLocal<java.util.ArrayDeque<Rewinder.Frame>> frames = ThreadLocal.withInitial(java.util.ArrayDeque::new);
+    private final ThreadLocal<Boolean> rootNext = ThreadLocal.withInitial(() -> false);
+    /** True when the script has a checkpoint or a rewind: only then does the run keep what it needs to go back (the question behind each answer). */
+    private boolean rewindsUsed;
+    private boolean simulate;
     /** The id of the step this thread is executing: its position in the script (stable across runs). */
     private final ThreadLocal<String> step = ThreadLocal.withInitial(() -> "");
     /** Counts delegates started on this thread, so a retried delegate's tool calls are numbered afresh. */
@@ -138,6 +146,7 @@ public class HarnessExecutor implements LoomEngine {
         this.toolRegistry = toolRegistry;
         this.llmClientFactory = llmClientFactory;
         this.context = new DefaultVariableContext();
+        this.rewindsUsed = io.github.llm4j.loom.ast.StatementWalker.any(script, st -> st instanceof CheckpointStmt || st instanceof RewindStmt);
     }
 
     public void setHumanInterface(HumanInterface humanInterface) { this.humanInterface = humanInterface; }
@@ -174,6 +183,35 @@ public class HarnessExecutor implements LoomEngine {
 
     void audit(String event, Map<String, Object> data) {
         auditLogger.logConversationEvent(sessionId, null, event, data);
+    }
+
+    // ---- what Rewinder needs ------------------------------------------------------------------------------
+
+    RunJournal journal() { return journal; }
+    io.github.llm4j.loom.memory.MemoryEngine memory() { return memoryEngine; }
+    java.time.Instant now() { return clock.instant(); }
+    void setVariable(String name, Object value) { context.setVariable(name, value); }
+    void removeVariable(String name) { context.removeVariable(name); }
+    Map<String, Object> variables() { return context.getAll(); }
+    String resolve(String text) { return resolvePayload(text); }
+    boolean rewindsUsed() { return rewindsUsed; }
+    boolean simulating() { return simulate; }
+    public void setSimulate(boolean simulate) { this.simulate = simulate; }
+    public void setMaxRewinds(int max) { rewinder.setMaxRewinds(max); }
+    void runHandler(List<Statement> handler, String key) { runBlock(handler, key); }
+
+    /** The attempts of this run, read from the journal's boundary list (read again when the journal is replaced). */
+    synchronized Generations generations() {
+        if (generations == null || generationsOf != journal) {
+            generations = new Generations(journal);
+            generationsOf = journal;
+        }
+        return generations;
+    }
+
+    /** The current step as an effect or a person's answer identifies it: the same place in the script, whichever attempt reached it. */
+    public String identityStep() {
+        return rewindsUsed ? generations().identity(step.get()) : step.get();
     }
 
     /** The stable id of the step running on this thread (e.g. inside a tool or approval callback). */
@@ -690,7 +728,7 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     /** Variables as the current block sees them: workflow variables plus block-local names. */
-    private VariableContext view() {
+    VariableContext view() {
         Map<String, Object> l = locals.get();
         return l.isEmpty() ? context : new ScopedContext(l, context);
     }
@@ -760,12 +798,32 @@ public class HarnessExecutor implements LoomEngine {
     /** Runs a block, giving each statement a stable step id under the current one. */
     private void runBlock(List<Statement> statements, String key) {
         String parent = step.get();
+        String block = parent + "/" + key;
+        boolean root = rootNext.get();
+        rootNext.set(false);
+        Rewinder.Frame frame = new Rewinder.Frame(block, root, root ? new java.util.HashMap<>(context.getAll()) : null, root ? memoryEngine.mark() : null);
+        java.util.ArrayDeque<Rewinder.Frame> stack = frames.get();
+        stack.push(frame);
         try {
             for (int i = 0; i < statements.size(); i++) {
-                step.set(parent + "/" + key + i);
-                executeStatement(statements.get(i));
+                Generations generations = generations();
+                int generation = generations.current(block, i);
+                step.set(block + i + (generation > 1 ? "~" + generation : ""));
+                frame.index = i;
+                if (rewindsUsed) {
+                    rewinder.begin(block, i);
+                    if (generation > 1) context.setVariable("_generation", String.valueOf(generation));
+                }
+                try {
+                    executeStatement(statements.get(i));
+                } catch (Rewinder.RewindSignal signal) {
+                    if (!signal.block.equals(block)) throw signal;
+                    rewinder.restore(frame, signal.checkpoint);
+                    i = signal.from - 1; // the loop's increment lands on the first statement of the new generation
+                }
             }
         } finally {
+            stack.pop();
             step.set(parent);
         }
     }
@@ -1062,6 +1120,7 @@ public class HarnessExecutor implements LoomEngine {
         if (topLevel) beginRun();
         step.set(topLevel ? workflowName : parent + ">" + workflowName);
         try {
+            rootNext.set(true);
             runBlock(targetWorkflow.getStatements(), "s");
             log.info("Workflow completed: " + workflowName);
         } catch (HandoffSignal hs) {
@@ -1088,7 +1147,12 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     private void executeStatement(Statement stmt) {
-        if (stmt instanceof NoteStmt note) {
+        if (stmt instanceof CheckpointStmt checkpoint) {
+            java.util.ArrayDeque<Rewinder.Frame> stack = frames.get();
+            rewinder.checkpoint(checkpoint, stack.peek(), stack.peek().index);
+        } else if (stmt instanceof RewindStmt rewind) {
+            rewinder.rewind(rewind, frames.get());
+        } else if (stmt instanceof NoteStmt note) {
             log.info("NOTE: " + resolvePayload(note.getMessage()));
         } else if (stmt instanceof DelegateStmt del) {
             executeDelegate(del);
@@ -1233,13 +1297,13 @@ public class HarnessExecutor implements LoomEngine {
             String resolvedMessage = resolvePayload(hp.getMessage());
             log.info("Human Prompt: " + resolvedMessage);
             String stepId = step.get();
-            var recorded = journal.get(stepId);
-            if (recorded.isPresent()) {
-                context.setVariable(hp.getVariableName(), String.valueOf(recorded.get().value()));
+            String recordedAnswer = rewinder.recordedAnswer(resolvedMessage);
+            if (recordedAnswer != null) {
+                context.setVariable(hp.getVariableName(), recordedAnswer);
             } else if (humanInterface != null) {
                 // May return now, or throw RunSuspended to wait without holding this thread.
                 String result = humanInterface.promptHuman(stepId, resolvedMessage);
-                journal.put(stepId, new RunJournal.Entry("human", result));
+                rewinder.recordAnswer(resolvedMessage, result);
                 context.setVariable(hp.getVariableName(), result);
             } else {
                 log.severe("HumanInterface not configured – human_prompt cannot be served. " +

@@ -226,6 +226,7 @@ public class ScriptValidator {
 
     private void checkStatements(Checker c) {
         for (WorkflowDef w : c.script().getWorkflows()) walk(w.getStatements(), c);
+        RewindChecks.run(c);
     }
 
     private void walk(List<Statement> statements, Checker c) {

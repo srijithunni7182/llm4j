@@ -30,4 +30,17 @@ public interface MemoryEngine {
      * @param context     The current Loom VariableContext.
      */
     void storeOutcome(AgentDef agentDef, String taskIntent, AgentResult result, VariableContext context);
+
+    /**
+     * A mark of what the engine remembers now, for a rewind to go back to; null when the engine keeps nothing a rewind should undo. A
+     * rewind discards the attempt after a checkpoint, so what the agents said in it must not shape the next attempt: carrying values is
+     * the way to pass on what was learned.
+     */
+    default Object mark() {
+        return null;
+    }
+
+    /** Goes back to what {@link #mark()} returned. */
+    default void restore(Object mark) {
+    }
 }

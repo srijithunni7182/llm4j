@@ -19,6 +19,23 @@ public interface EffectContext {
     /** The step running on this thread, or "" outside one. */
     String currentStep();
 
+    /**
+     * The step as it is identified for effects and people: the same place in the script whichever attempt reached it. A host that can
+     * run a step again (a rewind) returns the step without the attempt, so an identical call finds its earlier record and is not
+     * repeated; a host that cannot returns {@link #currentStep()}.
+     */
+    default String identityStep() {
+        return currentStep();
+    }
+
+    /**
+     * True when the run only pretends: an effect is described, never performed, and nothing is recorded as done. Used to try a change
+     * against a copy of the past.
+     */
+    default boolean simulate() {
+        return false;
+    }
+
     /** Changes each time a delegate starts on this thread, so a retried delegate numbers its calls afresh. */
     long attempt();
 
