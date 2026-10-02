@@ -15,12 +15,12 @@ import java.util.Map;
  */
 record RunSpec(String script, String loot, String workflow, Map<String, String> inputs, Long maxTokens,
                Long maxCalls, String maxCost, String prices, String store, boolean lenient, String trace,
-               boolean simulate, Map<String, Object> forkOf, String stopAt) {
+               boolean simulate, Map<String, Object> forkOf, String stopAt, Integer maxRewinds) {
 
     /** As a run that is real, not a fork, and runs to its end. */
     RunSpec(String script, String loot, String workflow, Map<String, String> inputs, Long maxTokens,
             Long maxCalls, String maxCost, String prices, String store, boolean lenient, String trace) {
-        this(script, loot, workflow, inputs, maxTokens, maxCalls, maxCost, prices, store, lenient, trace, false, null, null);
+        this(script, loot, workflow, inputs, maxTokens, maxCalls, maxCost, prices, store, lenient, trace, false, null, null, null);
     }
 
     RunSpec(String script, String loot, String workflow, Map<String, String> inputs, Long maxTokens,
@@ -34,7 +34,11 @@ record RunSpec(String script, String loot, String workflow, Map<String, String> 
     }
 
     RunSpec withStopAt(String point) {
-        return new RunSpec(script, loot, workflow, inputs, maxTokens, maxCalls, maxCost, prices, store, lenient, trace, simulate, forkOf, point);
+        return new RunSpec(script, loot, workflow, inputs, maxTokens, maxCalls, maxCost, prices, store, lenient, trace, simulate, forkOf, point, maxRewinds);
+    }
+
+    RunSpec withMaxRewinds(Integer max) {
+        return new RunSpec(script, loot, workflow, inputs, maxTokens, maxCalls, maxCost, prices, store, lenient, trace, simulate, forkOf, stopAt, max);
     }
 
     static final String FILE = "run.json";
@@ -61,6 +65,7 @@ record RunSpec(String script, String loot, String workflow, Map<String, String> 
             m.put("trace", trace);
             if (simulate) m.put("simulate", true);
             if (forkOf != null) m.put("forkOf", forkOf);
+            if (maxRewinds != null) m.put("maxRewinds", maxRewinds);
             Files.writeString(runDir.resolve(FILE), JSON.writerWithDefaultPrettyPrinter().writeValueAsString(m));
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot write " + runDir.resolve(FILE), e);
@@ -77,7 +82,7 @@ record RunSpec(String script, String loot, String workflow, Map<String, String> 
                     (Map<String, String>) m.get("inputs"), number(m.get("maxTokens")), number(m.get("maxCalls")),
                     (String) m.get("maxCost"), (String) m.get("prices"), (String) m.get("store"),
                     Boolean.TRUE.equals(m.get("lenient")), (String) m.get("trace"), Boolean.TRUE.equals(m.get("simulate")),
-                    (Map<String, Object>) m.get("forkOf"), null);
+                    (Map<String, Object>) m.get("forkOf"), null, m.get("maxRewinds") instanceof Number n ? n.intValue() : null);
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot read " + file, e);
         }

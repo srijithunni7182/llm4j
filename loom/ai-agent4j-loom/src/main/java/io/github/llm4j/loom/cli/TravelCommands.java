@@ -338,7 +338,7 @@ final class TravelCommands {
             if (allowDrift) forkOf.put("drift", "accepted");
         }
         RunSpec forked = new RunSpec(script != null ? script.getAbsolutePath() : spec.script(), spec.loot(), spec.workflow(), spec.inputs(), spec.maxTokens(), spec.maxCalls(),
-                spec.maxCost(), spec.prices(), Runs.defaultStore(child).toString(), spec.lenient(), spec.trace(), mode.equals("simulate") || spec.simulate(), forkOf, null);
+                spec.maxCost(), spec.prices(), Runs.defaultStore(child).toString(), spec.lenient(), spec.trace(), mode.equals("simulate") || spec.simulate(), forkOf, null, spec.maxRewinds());
         forked.write(child);
         audit(child, "run_forked", forkOf);
         env.out().println("🍴 Forked " + parent.getFileName() + " into " + child + " (" + entries + " journal entries copied" + (b != null ? ", going back to " + at + ": generation " + b.generation() : "")

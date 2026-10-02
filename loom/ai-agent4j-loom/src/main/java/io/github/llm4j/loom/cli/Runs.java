@@ -96,6 +96,7 @@ final class Runs {
             if (spec.trace() != null) executor.addTraceListener(new ConsoleTrace(env.err(), "json".equals(spec.trace())));
             executor.setSimulate(spec.simulate());
             executor.setStopAt(spec.stopAt());
+            if (spec.maxRewinds() != null) executor.setMaxRewinds(spec.maxRewinds());
             if (runDir != null) {
                 executor.setJournal(new FileRunJournal(runDir.resolve("journal.json")));
                 executor.setTriggerStore(new FileTriggerStore(Path.of(spec.store())));

@@ -454,6 +454,105 @@ weave schedule sync digest.loom --store ~/.loom/triggers
 weave triggers install ~/.loom/triggers --env-file ~/.loom/env --apply
 ```
 
+### Checkpoints, Rewind and Fork
+
+A run can stop and carry on, but only forward. If a late step shows that an early one was wrong, you would have to start over and pay for everything again. **Checkpoints and rewinds** let a workflow go back to a named point, keep what it learned, and try again: the script says what "going bad" means, and what to do about it.
+
+```loom
+agent Collector { model: "gemini-2.5-flash"  system: "Collect sources on the topic." }
+agent Writer    { model: "gemini-2.5-flash"  system: "Write the report." }
+agent Reviewer  { model: "gemini-2.5-flash"  system: "Score the draft from 1 to 10 and say what to fix." }
+agent Publisher { model: "gemini-2.5-flash"  system: "Publish the report." }
+
+workflow Report(topic) {
+    checkpoint collected  starting with feedback = "none"
+
+    delegate "Collect sources on {topic}. Feedback so far: {feedback}" to Collector -> data
+    delegate "Write the report from {data}" to Writer -> draft
+    delegate "Review {draft}" to Reviewer -> review expecting { score: number, notes: string }
+
+    rewind to collected
+        when (review.score < 7)
+        at most 2 times
+        carrying feedback = "{review.notes}"
+        side effects: ask first
+        if it still fails { human_prompt "Three drafts failed review. Publish the last one anyway? (yes/no)" -> go }
+
+    delegate "Publish {draft}" to Publisher -> published
+}
+```
+
+Read it aloud: *go back to the checkpoint `collected` when the review score is below 7, at most 2 times, carrying the reviewer's notes into the next attempt, asking first if anything was already sent; if it still fails after that, ask a person.*
+
+**`checkpoint Name`** names a point between two statements. `starting with feedback = "none"` gives variables a value from that point on, which a rewind can replace. Every workflow also has a point called `start`, before its first statement.
+
+**`rewind to Name`** goes back to a checkpoint that comes earlier, in the same block or one around it:
+
+| Phrase | Meaning |
+|---|---|
+| `when (condition)` | One comparison, such as `(score < 7)`, or one true/false variable. Leave it out to always go back (useful inside `on_failure`). To combine tests, put the combination in a variable first. |
+| `at most N times` | Required. A rewind that keeps failing must stop. Across the whole run there is also a cap (`weave run --max-rewinds`, 20 by default). |
+| `carrying name = "value"` | Values taken from the attempt being replaced and handed to the next one. Without them the second attempt starts from the same inputs as the first. Also set: `{_rewind}` (how many times so far), `{_rewindReason}` and `{_rewindTo}`. |
+| `side effects: ask first / keep / repeat` | What to do about things the replaced attempt already did outside the run (below). |
+| `if it still fails { ... }` | Runs once when the limit is used up. Without it the run fails and says which rewind gave up. |
+| `if blocked { ... }` | Runs instead of asking a person when `ask first` holds the rewind back. |
+
+A rewind can sit in a branch (`alt`), a loop body, or an `on_failure` block:
+
+```loom
+agent Fetcher { model: "gemini-2.5-flash"  system: "Fetch the price list." }
+
+workflow Prices() {
+    delegate "Fetch the price list. Hint: {hint}" to Fetcher -> prices
+        on_failure { rewind to start at most 1 time carrying hint = "{_error}" }
+    note "got {prices}"
+}
+```
+
+It cannot leave a `parallel` branch or a `for each` body, and it cannot point at a checkpoint that comes later. `weave check` says so, with the line.
+
+#### What a rewind does to the past
+
+A rewind never deletes anything. It starts a new **attempt** of the statements after the checkpoint (their step ids gain `~2`, `~3`), and the old attempt stays in the journal as history. The one rule to remember:
+
+> A model call is identified by where it is *and which attempt it belongs to*, so it runs again. A side effect, or a person's answer, is identified by where it is *and what it is*, so an identical one is never repeated.
+
+So after a rewind the agents think again, but a Slack message with the same text is not posted twice, and a person is not asked the same question twice (a changed question is asked again). Tokens spent in a replaced attempt stay counted against your budgets.
+
+`side effects:` decides what happens when the attempt being replaced already did something outside the run (sent a message, wrote a file, ran a program):
+
+| Policy | What happens |
+|---|---|
+| `ask first` (default) | The rewind is held. `if blocked { ... }` runs, or a person is asked to answer `keep`, `repeat` or `cancel`. |
+| `keep` | The rewind goes ahead. Identical calls are found again, not repeated; a different call (other text) runs, and the trace says "a different effect after a rewind". |
+| `repeat` | The rewind goes ahead and every effect runs again. Each tool involved must be approved (`approve:`) or `unattended`. |
+
+`weave check` warns when the steps a rewind goes back over can change things outside the run, and asks you to say which you mean. The simplest safe design is to put the checkpoint, and the check that triggers the rewind, *before* the steps with effects.
+
+What a rewind does **not** undo: facts an agent saved with `memory { facts }`, knowledge indexes, and anything else a tool wrote outside the run. `weave check` warns about agents with fact memory. Going back also never un-sends anything.
+
+#### From outside: `timeline`, `rewind`, `reset`, `fork`
+
+You do not need to have written a checkpoint to go back. These commands work on a run directory (`--journal`):
+
+```bash
+weave timeline runs/today                       # every step, its attempt, its cost, and every rewind so far
+weave rewind runs/today --to collected --reason "the sources were stale" \
+        --set feedback="use only 2026 sources" --effects keep --resume
+weave reset runs/today --failed --reason "the service is back" --resume    # only failed steps are tried again
+weave reset runs/today --reason "start over"                                # a new attempt from the top
+weave fork runs/today --to runs/what-if --at collected --effects simulate --reason "try another prompt" \
+        --script report-v2.loom --resume
+```
+
+- **`--to`** is a checkpoint name, `start`, or the id of a step (`Report/s3`), which is the first step to run again. `weave timeline` shows the ids.
+- **`--effects`** is `ask-first` (the default: refuse and list what would be crossed), `keep` or `repeat`. A fork also accepts `simulate`: nothing is ever performed in the copy, and it stays simulated when resumed later.
+- **`fork`** copies the run into a new directory. The original is only read. With `--script` the copy runs under another script; if that script differs from the original before the fork point, the fork is refused (the journal would answer questions the new script never asked), unless you pass `--allow-drift`.
+- **`--stop-at <step or checkpoint>`**, on `weave run` and `weave resume`, stops cleanly once that step has completed (exit code 5) so you can look, then resume.
+- Every command that changes something needs `--reason`, writes it down (`operator-audit.jsonl`, and in the journal), and refuses a run that another process is working on unless you pass `--force`. `--trigger` leaves a resume trigger for `weave tick` or `weave daemon` instead of running now.
+
+A run directory that has been rewound carries a journal format that older `weave` builds, from before this feature, cannot read: they would carry on past the rewound region without knowing. Resume a rewound run with a build that has this feature.
+
 ### Memory, Voice and Languages
 
 **Agent memory** lets an agent remember conversations and facts across runs. It's separate from Loom's

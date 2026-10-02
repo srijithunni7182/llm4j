@@ -84,6 +84,7 @@ SqlQuery    = com.mycompany.tools.DatabaseTool
 | `for each` | Runs a block per list item (`parallel for each` for all at once); targets may come from the item |
 | `human_prompt` | Asks a person; with a run journal the run suspends (no thread held) and resumes on the answer |
 | `budget` | Caps a run, an agent or a step in tokens, calls or money; enforced before each LLM call. `per day` makes it refill |
+| `checkpoint` / `rewind` | Name a point and go back to it when a late check fails, carrying what was learned and keeping the old attempt as history: `rewind to collected when (review.score < 7) at most 2 times carrying feedback = "{review.notes}"`. Identical side effects and answers are never repeated; `weave timeline`, `rewind`, `reset` and `fork` do the same from outside |
 | `tool` | Declare and configure a tool in the script (`use: webhook`, `email`, `http`, `file`, `shell`, `sql`, `serpapi`, `openapi`, `duckduckgo`, …); secrets only from `env.NAME`. The six generic kinds journal their side effects, so a resumed run never repeats a send |
 | `knowledge` | A knowledge base: source files, embedding model, index store; agents get the relevant passages |
 | `approve` | On an agent: which tool calls need a person's yes (durable, journaled per call) |
