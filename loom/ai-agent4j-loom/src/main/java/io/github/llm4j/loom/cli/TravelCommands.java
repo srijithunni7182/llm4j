@@ -128,13 +128,18 @@ final class TravelCommands {
         @Option(names = "--resume", description = "Carry on running the workflow from there.")
         boolean resume;
 
+        @Option(names = "--trigger", description = "Instead of running now, leave a resume trigger for `weave tick` or `weave daemon` to pick up.")
+        boolean trigger;
+
         @Option(names = "--force", description = "Change the run even if a process seems to be working on it.")
         boolean force;
 
         @Override
         public Integer call() {
             WeaveEnv env = WeaveEnv.system();
-            return rewind(runDir.toPath().toAbsolutePath().normalize(), to, carried, effects, askAgain, reason, resume, force, env);
+            Path dir = runDir.toPath().toAbsolutePath().normalize();
+            int code = rewind(dir, to, carried, effects, askAgain, reason, resume && !trigger, force, env);
+            return code == 0 && trigger ? scheduleResume(dir, env) : code;
         }
     }
 
@@ -170,6 +175,24 @@ final class TravelCommands {
         return resume ? WeaveCLI.resume(dir, env) : 0;
     }
 
+    /** Leaves a resume trigger, due now, in the run's trigger store, as a pause for a limit would, so a scheduler carries the run on. */
+    static int scheduleResume(Path dir, WeaveEnv env) {
+        RunSpec spec = spec(dir, env.err());
+        if (spec == null || spec.store() == null) {
+            env.err().println("Error: this run has no trigger store to leave a trigger in.");
+            return 2;
+        }
+        Path store = Path.of(spec.store());
+        if (dir.startsWith(store.resolve("runs"))) {
+            env.err().println("Error: this run belongs to a schedule; resume it with: weave resume " + Runs.quote(dir.toString()));
+            return 2;
+        }
+        new io.github.llm4j.loom.trigger.FileTriggerStore(store).upsert(
+                io.github.llm4j.loom.trigger.Trigger.resume(dir.toString(), env.clock().instant(), "an operator sent the run back", 0));
+        env.out().println("⏰ Left a resume trigger in " + store + ": `weave tick` or `weave daemon` will carry the run on.");
+        return 0;
+    }
+
     // ---- reset ----------------------------------------------------------------------------------------------
 
     @Command(name = "reset", description = "Starts a run again from the top as a new attempt (spend history kept), or with --failed tries only the failed steps again.")
@@ -189,12 +212,18 @@ final class TravelCommands {
         @Option(names = "--resume", description = "Carry on running the workflow afterwards.")
         boolean resume;
 
+        @Option(names = "--trigger", description = "Instead of running now, leave a resume trigger for `weave tick` or `weave daemon` to pick up.")
+        boolean trigger;
+
         @Option(names = "--force", description = "Change the run even if a process seems to be working on it.")
         boolean force;
 
         @Override
         public Integer call() {
-            return reset(runDir.toPath().toAbsolutePath().normalize(), failed, effects, reason, resume, force, WeaveEnv.system());
+            WeaveEnv env = WeaveEnv.system();
+            Path dir = runDir.toPath().toAbsolutePath().normalize();
+            int code = reset(dir, failed, effects, reason, resume && !trigger, force, env);
+            return code == 0 && trigger ? scheduleResume(dir, env) : code;
         }
     }
 
