@@ -126,12 +126,38 @@ class RewindTest {
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("still fails").hasMessageContaining("2 time");
     }
 
+    /** A way to make a fresh durable journal; the crash test runs once for each. */
+    private interface Journals {
+        RunJournal fresh(int n) throws Exception;
+    }
+
+    private Journals memory() {
+        return n -> RunJournal.inMemory();
+    }
+
+    private Journals file() {
+        return n -> new io.github.llm4j.loom.runtime.FileRunJournal(dir.resolve("journal-" + n + ".json"));
+    }
+
+    private Journals jdbc() {
+        return n -> {
+            org.h2.jdbcx.JdbcDataSource db = new org.h2.jdbcx.JdbcDataSource();
+            db.setURL("jdbc:h2:mem:rewind" + System.nanoTime() + ";DB_CLOSE_DELAY=-1");
+            io.github.llm4j.loom.runtime.JdbcRunJournal.createTable(db);
+            return new io.github.llm4j.loom.runtime.JdbcRunJournal(db, "run-" + n);
+        };
+    }
+
     @Test
     @Tag("RW-V3.4")
-    void aCrashAtAnyWriteDuringARewindResumesToTheSameStateWithoutRepeatingFinishedSteps() {
+    void aCrashAtAnyWriteDuringARewindResumesToTheSameStateOnEveryJournal() throws Exception {
+        for (Journals journals : new Journals[] {memory(), file(), jdbc()}) crashAtEveryWrite(journals);
+    }
+
+    private void crashAtEveryWrite(Journals journals) throws Exception {
         // The uninterrupted run is the reference: its journal and the number of model calls it needed.
         ReportScript reference = new ReportScript(5, 6, 8);
-        FaultRunJournal counting = new FaultRunJournal(RunJournal.inMemory(), 0, false);
+        FaultRunJournal counting = new FaultRunJournal(journals.fresh(0), 0, false);
         start(run(reference, counting), ReportScript.SCRIPT).executeWorkflow("Report", Map.of("topic", "bees"));
         Map<String, Object> expected = values(counting.all());
         int writes = counting.puts();
@@ -139,7 +165,7 @@ class RewindTest {
 
         for (boolean afterWrite : new boolean[] {false, true}) {
             for (int crashAt = 1; crashAt <= writes; crashAt++) {
-                RunJournal durable = RunJournal.inMemory();
+                RunJournal durable = journals.fresh(crashAt * 2 + (afterWrite ? 1 : 0));
                 ReportScript model = new ReportScript(5, 6, 8);
                 try {
                     start(run(model, new FaultRunJournal(durable, crashAt, afterWrite)), ReportScript.SCRIPT).executeWorkflow("Report", Map.of("topic", "bees"));
@@ -148,7 +174,7 @@ class RewindTest {
                 }
                 start(run(model, durable), ReportScript.SCRIPT).executeWorkflow("Report", Map.of("topic", "bees"));
 
-                String where = "crash " + (afterWrite ? "after" : "instead of") + " write " + crashAt;
+                String where = durable.getClass().getSimpleName() + ", crash " + (afterWrite ? "after" : "instead of") + " write " + crashAt;
                 assertThat(values(durable.all())).as(where).isEqualTo(expected);
                 // only the call that was in flight when the process died may be made twice
                 assertThat(model.calls.size()).as(where + ": model calls").isLessThanOrEqualTo(reference.calls.size() + 1);
