@@ -19,16 +19,21 @@ public final class Cases {
             byCase.computeIfAbsent(r.caseId(), k -> new LinkedHashMap<>()).computeIfAbsent(r.generation(), k -> new ArrayList<>()).add(r);
         }
         List<Case> out = new ArrayList<>();
-        for (Map.Entry<String, Map<Integer, List<Rec>>> e : byCase.entrySet()) {
-            int highest = e.getValue().keySet().stream().mapToInt(Integer::intValue).max().orElse(1);
-            List<Rec> outcomes = new ArrayList<>();
-            for (Map.Entry<Integer, List<Rec>> g : e.getValue().entrySet()) {
-                for (Rec r : g.getValue()) if (Rec.OUTCOME.equals(r.kind())) outcomes.add(r);
-            }
-            for (Map.Entry<Integer, List<Rec>> g : e.getValue().entrySet()) {
-                Case c = foldOne(e.getKey(), g.getKey(), g.getValue(), outcomes, g.getKey() < highest);
-                if (c != null) out.add(c);
-            }
+        for (Map.Entry<String, Map<Integer, List<Rec>>> e : byCase.entrySet()) out.addAll(foldCase(e.getKey(), e.getValue()));
+        return out;
+    }
+
+    /** One case, from its records grouped by the generation of the run that made them. */
+    static List<Case> foldCase(String id, Map<Integer, List<Rec>> byGeneration) {
+        List<Case> out = new ArrayList<>();
+        int highest = byGeneration.keySet().stream().mapToInt(Integer::intValue).max().orElse(1);
+        List<Rec> outcomes = new ArrayList<>();
+        for (Map.Entry<Integer, List<Rec>> g : byGeneration.entrySet()) {
+            for (Rec r : g.getValue()) if (Rec.OUTCOME.equals(r.kind())) outcomes.add(r);
+        }
+        for (Map.Entry<Integer, List<Rec>> g : byGeneration.entrySet()) {
+            Case c = foldOne(id, g.getKey(), g.getValue(), outcomes, g.getKey() < highest);
+            if (c != null) out.add(c);
         }
         return out;
     }

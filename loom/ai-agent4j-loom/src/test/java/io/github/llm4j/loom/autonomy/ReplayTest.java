@@ -119,7 +119,7 @@ class ReplayTest {
     }
 
     @Test
-    @Tag("EA-V7.8")
+    @Tag("EA-V7.9")
     void sameLedgerCandidateAndSeedGiveTheSameSelectionAndOrderADifferentSeedADifferentSample() throws Exception {
         ReplayHarness h = replayHarness(30);
         sameAsIncumbent(h);
@@ -138,7 +138,7 @@ class ReplayTest {
     }
 
     @Test
-    @Tag("EA-V7.8")
+    @Tag("EA-V7.9")
     void repeatShowsHowOftenTheCandidatesChoiceChangesAcrossRunsOfTheSameCase() throws Exception {
         ReplayHarness h = replayHarness(8);
         int[] n = {0};
@@ -202,7 +202,7 @@ class ReplayTest {
         Path broken = h.script("broken.loom", "decision Refund { frobnicate }");
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> h.engine.run("Refund", h.options(broken), null)).isInstanceOf(Exception.class);
         Path none = h.script("empty.loom", h.live.script);
-        ReplayReport empty = new ReplayEngine(new MemoryLedger(), dir.resolve("e"), locator -> java.util.Optional.empty(), h.engine == null ? null : (s, b, r, j) -> null, h.clock).run("Refund", h.options(none), null);
+        ReplayReport empty = new ReplayEngine(new MemoryLedger(), dir.resolve("e"), locator -> java.util.Optional.empty(), (l, s, b, r, j) -> null, h.clock).run("Refund", h.options(none), null);
         assertThat(empty.selected).isZero();
         assertThat(empty.markdown()).contains("0 cases selected");
     }

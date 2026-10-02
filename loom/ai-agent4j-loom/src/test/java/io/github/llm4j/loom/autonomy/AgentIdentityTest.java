@@ -80,6 +80,7 @@ class AgentIdentityTest {
             String id = changed(edits.get(i));
             assertThat(seen.add(id)).as("edit " + i + " must give a new identity").isTrue();
         }
+        assertThat(seen).hasSize(edits.size() + 1);
     }
 
     @Test

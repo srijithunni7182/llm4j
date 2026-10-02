@@ -102,6 +102,7 @@ final class Runs {
                 executor.setTriggerStore(new FileTriggerStore(Path.of(spec.store())));
                 executor.setRunId(runId != null ? runId : runDir.toAbsolutePath().normalize().toString());
                 executor.setScriptRef(scriptFile.getAbsolutePath());
+                executor.setRunLocator(runDir.toAbsolutePath().normalize().toString());
                 if (!script.getDecisions().isEmpty()) {
                     // decisions keep their ledger and levels in the run store, next to the triggers
                     Path store = Path.of(spec.store());

@@ -168,6 +168,7 @@ class ReplayToolsTest {
         } finally {
             server.stop(0);
         }
+        assertThat(posts).hasSize(3);
     }
 
     @Test

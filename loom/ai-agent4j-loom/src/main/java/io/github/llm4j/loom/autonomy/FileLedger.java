@@ -28,10 +28,18 @@ import java.util.Set;
 public class FileLedger implements Ledger {
 
     private static final ObjectMapper JSON = new ObjectMapper();
+    /** File locks keep processes apart; this keeps the threads of one process apart (a lock cannot be held twice in a JVM). */
     private static final Object JVM = new Object();
     private final Path dir;
-    private final Map<String, Set<String>> known = new HashMap<>();
-    private final Map<String, Integer> torn = new HashMap<>();
+
+    /** What this instance has read of one decision's file: the records so far and how far into the file they reach. */
+    private static final class State {
+        final LedgerCache cache = new LedgerCache();
+        long offset;
+        int unreadable;
+    }
+
+    private final Map<String, State> states = new java.util.HashMap<>();
 
     public FileLedger(Path dir) {
         this.dir = dir;
@@ -47,33 +55,57 @@ public class FileLedger implements Ledger {
         return dir.resolve(decision).resolve("ledger.jsonl");
     }
 
-    @Override
-    public void append(Rec record) {
-        synchronized (JVM) { appendLocked(record); }
+    private State state(String decision) {
+        return states.computeIfAbsent(decision, d -> new State());
     }
 
-    private void appendLocked(Rec record) {
-        Path file = file(record.decision());
-        try {
-            Files.createDirectories(file.getParent());
-            try (FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
-                 FileLock lock = channel.lock()) {
-                Set<String> ids = known.computeIfAbsent(record.decision(), d -> new HashSet<>());
-                if (ids.isEmpty() || !ids.contains(record.id())) {
-                    // another process may have written since: read what the file holds now
-                    ids.clear();
-                    for (Rec r : readAll(channel, record.decision(), false)) ids.add(r.id());
+    /** Reads what was appended since this instance last looked (by anyone), and nothing it has read before. */
+    private State refresh(FileChannel channel, String decision) throws IOException {
+        State st = state(decision);
+        long size = channel.size();
+        if (size < st.offset) {
+            st.cache.clear();
+            st.offset = 0;
+        }
+        if (size > st.offset) {
+            byte[] bytes = new byte[(int) (size - st.offset)];
+            channel.read(java.nio.ByteBuffer.wrap(bytes), st.offset);
+            int end = bytes.length;
+            while (end > 0 && bytes[end - 1] != '\n') end--;
+            String text = new String(bytes, 0, end, StandardCharsets.UTF_8);
+            for (String line : text.split("\n")) {
+                if (line.isBlank()) continue;
+                try {
+                    st.cache.add(fromMap(JSON.readValue(line, new TypeReference<Map<String, Object>>() { })));
+                } catch (JsonProcessingException | RuntimeException e) {
+                    st.unreadable++;
                 }
-                if (ids.contains(record.id())) return;
-                repairTail(channel);
-                byte[] line = (JSON.writeValueAsString(toMap(record)) + "\n").getBytes(StandardCharsets.UTF_8);
-                channel.position(channel.size());
-                channel.write(java.nio.ByteBuffer.wrap(line));
-                channel.force(false);
-                ids.add(record.id());
             }
-        } catch (IOException e) {
-            throw new UncheckedIOException("Cannot append to the ledger " + file, e);
+            st.offset += end;
+        }
+        return st;
+    }
+
+    @Override
+    public void append(Rec record) {
+        synchronized (JVM) {
+            Path file = file(record.decision());
+            try {
+                Files.createDirectories(file.getParent());
+                try (FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
+                     FileLock lock = channel.lock()) {
+                    State st = refresh(channel, record.decision());
+                    if (st.cache.has(record.id())) return;
+                    repairTail(channel);
+                    byte[] line = (JSON.writeValueAsString(toMap(record)) + "\n").getBytes(StandardCharsets.UTF_8);
+                    channel.position(channel.size());
+                    channel.write(java.nio.ByteBuffer.wrap(line));
+                    channel.force(false);
+                    refresh(channel, record.decision());
+                }
+            } catch (IOException e) {
+                throw new UncheckedIOException("Cannot append to the ledger " + file, e);
+            }
         }
     }
 
@@ -91,65 +123,71 @@ public class FileLedger implements Ledger {
         channel.truncate(cut);
     }
 
-    @Override
-    public List<Rec> records(String decision) {
-        synchronized (JVM) { return recordsLocked(decision); }
-    }
-
-    private List<Rec> recordsLocked(String decision) {
+    private State read(String decision) {
         Path file = file(decision);
-        if (!Files.exists(file)) return List.of();
+        State st = state(decision);
+        if (!Files.exists(file)) return st;
         try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ); FileLock lock = channel.lock(0, Long.MAX_VALUE, true)) {
-            return readAll(channel, decision, true);
+            State refreshed = refresh(channel, decision);
+            refreshed.unreadable = refreshed.unreadable; // lines that failed to parse stay counted
+            return refreshed;
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot read the ledger " + file, e);
         }
     }
 
-    private List<Rec> readAll(FileChannel channel, String decision, boolean count) throws IOException {
-        long size = channel.size();
-        byte[] bytes = new byte[(int) size];
-        channel.read(java.nio.ByteBuffer.wrap(bytes), 0);
-        String text = new String(bytes, StandardCharsets.UTF_8);
-        List<Rec> out = new ArrayList<>();
-        int bad = 0;
-        for (String line : text.split("\n")) {
-            if (line.isBlank()) continue;
-            try {
-                out.add(fromMap(JSON.readValue(line, new TypeReference<Map<String, Object>>() { })));
-            } catch (JsonProcessingException | RuntimeException e) {
-                bad++;
-            }
+    @Override
+    public List<Rec> records(String decision) {
+        synchronized (JVM) {
+            return read(decision).cache.records();
         }
-        if (count) torn.put(decision, bad);
-        return out;
+    }
+
+    @Override
+    public List<Rec> recordsOfKind(String decision, String... kinds) {
+        synchronized (JVM) {
+            return read(decision).cache.ofKinds(kinds);
+        }
+    }
+
+    @Override
+    public List<Case> cases(String decision) {
+        synchronized (JVM) {
+            return read(decision).cache.cases();
+        }
     }
 
     @Override
     public int unreadable(String decision) {
         synchronized (JVM) {
-        recordsLocked(decision);
-        return torn.getOrDefault(decision, 0);
+            State st = read(decision);
+            Path file = file(decision);
+            try {
+                // a trailing fragment with no newline is a torn write too, until the next append cuts it away
+                if (Files.exists(file) && Files.size(file) > st.offset) return st.unreadable + 1;
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            return st.unreadable;
         }
     }
 
     @Override
     public void purgeFields(String decision, Instant before) {
-        synchronized (JVM) { purgeLocked(decision, before); }
-    }
-
-    private void purgeLocked(String decision, Instant before) {
-        List<Rec> all = recordsLocked(decision);
-        if (all.isEmpty()) return;
-        Path file = file(decision);
-        Path tmp = file.resolveSibling("ledger.jsonl.tmp");
-        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ, StandardOpenOption.WRITE); FileLock lock = channel.lock()) {
-            StringBuilder out = new StringBuilder();
-            for (Rec r : all) out.append(JSON.writeValueAsString(toMap(Purge.apply(r, before)))).append('\n');
-            Files.writeString(tmp, out.toString());
-            Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Cannot purge the ledger " + file, e);
+        synchronized (JVM) {
+            List<Rec> all = records(decision);
+            if (all.isEmpty()) return;
+            Path file = file(decision);
+            Path tmp = file.resolveSibling("ledger.jsonl.tmp");
+            try (FileChannel channel = FileChannel.open(file, StandardOpenOption.READ, StandardOpenOption.WRITE); FileLock lock = channel.lock()) {
+                StringBuilder out = new StringBuilder();
+                for (Rec r : all) out.append(JSON.writeValueAsString(toMap(Purge.apply(r, before)))).append('\n');
+                Files.writeString(tmp, out.toString());
+                Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+                states.remove(decision); // read again from the rewritten file
+            } catch (IOException e) {
+                throw new UncheckedIOException("Cannot purge the ledger " + file, e);
+            }
         }
     }
 

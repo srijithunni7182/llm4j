@@ -138,7 +138,7 @@ public final class Ladder {
 
     /** The proposals of a scope, oldest first, each with its answer if it has one. */
     public List<Proposal> proposals(String scope) {
-        List<Rec> records = ledger.records(def.getName());
+        List<Rec> records = ledger.recordsOfKind(def.getName(), Rec.PROMOTION_PROPOSED, Rec.PROMOTION_DECIDED);
         List<Proposal> out = new ArrayList<>();
         for (Rec r : records) {
             if (!Rec.PROMOTION_PROPOSED.equals(r.kind()) || !scope.equals(r.str("scope"))) continue;

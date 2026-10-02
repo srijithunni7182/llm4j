@@ -189,7 +189,7 @@ public final class ReplayEngine {
                 why = "stopped after spending " + cost.subtract(startCost).toPlainString() + " (--max-cost " + budgetCost.toPlainString() + ")";
                 break;
             }
-            Object result = one(c, def, o, o.candidate(), baseDir, allowed);
+            Object result = one(c, def, o, script, o.candidate(), baseDir, allowed);
             if (result instanceof ReplayReport.Row row) {
                 rows.add(row);
                 tokens += row.tokens();
@@ -219,7 +219,7 @@ public final class ReplayEngine {
 
     // ---- one case --------------------------------------------------------------------------------------------------------
 
-    private Object one(Case c, DecisionDef def, ReplayOptions o, Path candidate, Path baseDir, Set<String> allowed) {
+    private Object one(Case c, DecisionDef def, ReplayOptions o, LoomScript loaded, Path candidate, Path baseDir, Set<String> allowed) {
         String scope = c.scope();
         for (String flag : c.flags()) {
             if (List.of("evidence_truncated", "effects_during_proposal", "fields_masked").contains(flag)) return new ReplayReport.Skip(c.id(), scope, flag, "the case is marked " + flag);
@@ -228,7 +228,7 @@ public final class ReplayEngine {
         if (opened.isEmpty()) return new ReplayReport.Skip(c.id(), scope, "journal_missing", "the run " + c.locator() + " is gone");
         CaseSource.OpenedRun run = opened.get();
         if (!o.allowDrift()) {
-            String drift = ScriptDrift.between(run.script(), candidate, run.journal(), run.workflow(), c.step());
+            String drift = drift(run, candidate, c.step());
             if (drift != null) return new ReplayReport.Skip(c.id(), scope, "prefix_drift", drift);
         }
         List<String> choices = new ArrayList<>();
@@ -251,7 +251,7 @@ public final class ReplayEngine {
             }
             HarnessExecutor executor = null;
             try {
-                executor = candidates.create(candidate, baseDir, run, overlay);
+                executor = candidates.create(loaded, candidate, baseDir, run, overlay);
                 executor.setJournal(overlay);
                 executor.setSimulate(true);
                 executor.setReplay(replay);
@@ -292,6 +292,18 @@ public final class ReplayEngine {
         }
         appendSimulated(simulated);
         return new ReplayReport.Row(c.id(), scope, c.verdict(), c.proposal(), c.malformed(), choices, reasoning, c.fields(), after, live, tokens, cost);
+    }
+
+    /** The same two scripts and the same statement give the same answer, so a replay of thousands of cases compares them once. */
+    private final Map<String, String> drifts = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private String drift(CaseSource.OpenedRun run, Path candidate, String step) {
+        String key = run.script() + "|" + candidate + "|" + run.workflow() + "|" + step;
+        String known = drifts.get(key);
+        if (known != null) return known.isEmpty() ? null : known;
+        String found = ScriptDrift.between(run.script(), candidate, run.journal(), run.workflow(), step);
+        drifts.put(key, found == null ? "" : found);
+        return found;
     }
 
     private final Set<String> simulatedTools = new java.util.concurrent.ConcurrentSkipListSet<>();

@@ -130,6 +130,8 @@ public final class Engine {
             }
             Ladder.Progress progress = ladder.progress(scope, state);
             if (!ladder.proposalDue(scope, progress, state)) return out;
+            // a step up that a demotion rule would undo at the very next case is not earned: it would only flap
+            if (ladder.demotion(scope, state.withLevel(progress.next(), false, now(), "")).isPresent()) return out;
             String why = String.format("%d cases, agreement lower bound %.1f%% (raw %.1f%%)", progress.figures().cases(), progress.figures().lowerBound() * 100, progress.figures().rate() * 100);
             if (def.isAutomatic()) {
                 LevelState next = state.withLevel(progress.next(), false, now(), why);

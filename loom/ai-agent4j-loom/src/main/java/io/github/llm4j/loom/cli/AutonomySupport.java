@@ -94,8 +94,7 @@ final class AutonomySupport {
 
     /** Builds the executor a replay runs a case in, the way {@code weave run} builds one (without a journal of its own, trace or budgets). */
     static Candidates candidates(WeaveEnv env) {
-        return (script, baseDir, run, journal) -> {
-            LoomScript loaded = new io.github.llm4j.loom.execution.LoomLoader().load(script.toAbsolutePath().toString());
+        return (loaded, script, baseDir, run, journal) -> {
             ToolRegistry registry = new ToolRegistry();
             HarnessExecutor executor = new HarnessExecutor(loaded, registry, env.models());
             executor.setBaseDir(baseDir);

@@ -25,6 +25,12 @@ public interface Ledger {
         return 0;
     }
 
+    /** The records of these kinds, in the order they were appended (promotion proposals and their answers, say). */
+    default List<Rec> recordsOfKind(String decision, String... kinds) {
+        java.util.Set<String> wanted = java.util.Set.of(kinds);
+        return records(decision).stream().filter(r -> wanted.contains(r.kind())).toList();
+    }
+
     default List<Case> cases(String decision) {
         return Cases.fold(records(decision));
     }

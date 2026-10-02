@@ -301,4 +301,28 @@ class AutonomyCommandsTest {
         assertThat(failures).isEmpty();
         assertThat(new io.github.llm4j.loom.autonomy.FileLedger(store.resolve("autonomy")).unreadable("Refund")).isZero();
     }
+
+    @Test
+    @Tag("EA-V4.6")
+    void theNumberStatusPrintsIsTheNumberThePromotionWasDecidedOn() throws Exception {
+        boolean[] agrees = {false, false, true, true, true, true, true, true, true, true, true, true};
+        double floor = 50;
+        int promotedAt = -1;
+        for (int i = 0; i < agrees.length; i++) {
+            boolean agree = agrees[i];
+            person = f -> agree ? "approve" : "escalate";
+            runCase("gold", 10 + i);
+            outBytes.reset();
+            AutonomyCommands.status(store, "Refund", null, true, clock, new PrintStream(outBytes, true), System.err);
+            Map<?, ?> scope = (Map<?, ?>) ((List<?>) ((Map<?, ?>) ((List<?>) new com.fasterxml.jackson.databind.ObjectMapper().readValue(out(), List.class)).get(0)).get("scopes")).get(0);
+            double lowerBound = ((Number) scope.get("lowerBound")).doubleValue() * 100;
+            int cases = ((Number) scope.get("cases")).intValue();
+            boolean promoted = "suggest".equals(scope.get("level"));
+            // the rule is: after 5 cases, a lower bound of 50% (the first levels' rule in the small ladder)
+            assertThat(promoted).as("after case " + (i + 1) + ": " + cases + " cases, lower bound " + lowerBound).isEqualTo(cases >= 5 && lowerBound >= floor);
+            if (promoted && promotedAt < 0) promotedAt = i;
+            if (promoted) break;
+        }
+        assertThat(promotedAt).as("it was promoted at some point, and not before the number crossed the floor").isGreaterThan(4);
+    }
 }

@@ -1,7 +1,6 @@
 package io.github.llm4j.loom.autonomy;
 
 import io.github.llm4j.loom.execution.HarnessExecutor;
-import io.github.llm4j.loom.execution.LoomLoader;
 import io.github.llm4j.loom.generic.support.ScriptedRun;
 import io.github.llm4j.loom.runtime.RunJournal;
 import io.github.llm4j.model.LLMRequest;
@@ -70,24 +69,31 @@ final class ReplayHarness {
 
     /** Every case ran under this script. */
     Path incumbent() throws IOException {
-        return script("incumbent.loom", live.script);
+        if (incumbentFile == null || !Files.readString(incumbentFile).equals(live.script)) incumbentFile = script("incumbent.loom", live.script);
+        return incumbentFile;
     }
+
+    private Path incumbentFile;
+    private Path incumbentCached;
 
     private CaseSource source() {
         return locator -> {
             if (gone.contains(locator)) return Optional.empty();
             RunJournal journal = live.journals.get(locator);
             if (journal == null) return Optional.empty();
-            try {
-                return Optional.of(new CaseSource.OpenedRun(journal, "Triage", live.startedWith.get(locator), incumbent()));
-            } catch (IOException e) {
-                throw new java.io.UncheckedIOException(e);
+            if (incumbentCached == null) {
+                try {
+                    incumbentCached = incumbent();
+                } catch (IOException e) {
+                    throw new java.io.UncheckedIOException(e);
+                }
             }
+            return Optional.of(new CaseSource.OpenedRun(journal, "Triage", live.startedWith.get(locator), incumbentCached));
         };
     }
 
     private Candidates candidates() {
-        return (script, baseDir, run, journal) -> {
+        return (loaded, script, baseDir, run, journal) -> {
             ScriptedRun scripted = new ScriptedRun(baseDir);
             scripted.journal = journal;
             candidateTools.forEach(scripted.tools::register);
@@ -97,7 +103,7 @@ final class ReplayHarness {
                 candidateQuestions.add(q);
                 return "approve";
             };
-            HarnessExecutor executor = scripted.executor(new LoomLoader().load(script.toString()));
+            HarnessExecutor executor = scripted.executor(loaded);
             executor.setRunId("replay");
             if (priced) {
                 Path prices = Files.writeString(dir.resolve("prices.txt"), "m = 10 / 10\n");

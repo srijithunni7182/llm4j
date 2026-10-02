@@ -173,7 +173,7 @@ class ReplayCommandTest {
     }
 
     @Test
-    @Tag("EA-V7.8")
+    @Tag("EA-V7.9")
     void sinceAcceptsADurationOrADate() {
         var now = new MutableClock(Instant.parse("2026-03-10T12:00:00Z"));
         assertThat(ReplayCommand.parseSince("14d", now)).isEqualTo(Instant.parse("2026-02-24T12:00:00Z"));

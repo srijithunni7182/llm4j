@@ -68,6 +68,7 @@ final class Decider {
         private final RunJournal journal;
         private final String step;
         private final boolean hide;
+        private java.util.function.UnaryOperator<String> scrub = t -> t;
         private final Map<String, String> recorded = new HashMap<>();
         private final List<Runnable> held = new ArrayList<>();
         private int count;
@@ -81,7 +82,8 @@ final class Decider {
             this.hide = hide;
         }
 
-        synchronized void record(String tool, String argsHash, String result) {
+        synchronized void record(String tool, String argsHash, String raw) {
+            String result = scrub.apply(raw);
             if (size + result.length() > EVIDENCE_LIMIT) {
                 truncated = true;
                 return;
@@ -256,6 +258,7 @@ final class Decider {
         Proposing p = null;
         if (proposal == null) {
             p = new Proposing(journal, step, blind);
+            p.scrub = text -> new io.github.llm4j.tools.Redactor(secrets()).scrub(text);
             proposal = propose(def, agent, step, fields, p, ranAt);
             if (ranAt == Level.ACT && Boolean.TRUE.equals(proposal.get("malformed"))) {
                 pick = new LinkedHashMap<>(pick);
@@ -535,7 +538,7 @@ final class Decider {
 
     private void openCase(DecisionDef def, String caseId, String step, String free, String scope, Map<String, String> fields, Map<String, Object> pick) {
         Rec rec = new Rec(caseId + "#case#" + generationOf(step), def.getName(), Rec.CASE, run.clock().instant(), caseId, generationOf(step),
-                Rec.map("scope", scope, "locator", run.getRunId(), "step", free, "journalStep", step, "fields", fields, "level", pick.get("level"), "how", pick.get("how"),
+                Rec.map("scope", scope, "locator", run.runLocator(), "step", free, "journalStep", step, "fields", fields, "level", pick.get("level"), "how", pick.get("how"),
                         "identity", pick.get("identity"), "epoch", pick.get("epoch"), "forced", pick.get("forced")));
         write(def, rec);
     }
@@ -622,6 +625,12 @@ final class Decider {
 
     private void replayProposal(DecisionDef def, AgentDef agent, DecideStmt stmt, String step) {
         RunJournal journal = run.journal();
+        // a decide that came before the one being replayed (an earlier round of a loop, say) already has its verdict in the journal: it is not replayed
+        var recorded = journal.get(step + "#decide-result");
+        if (recorded.isPresent() && recorded.get().value() instanceof Map<?, ?> m) {
+            bind(stmt, castMap(m));
+            return;
+        }
         Proposing p = new Proposing(journal, run.replay().evidenceStep(), false);
         Map<String, String> fields = fields(def);
         Map<String, Object> proposal = propose(def, agent, step, fields, p, Level.WATCH);

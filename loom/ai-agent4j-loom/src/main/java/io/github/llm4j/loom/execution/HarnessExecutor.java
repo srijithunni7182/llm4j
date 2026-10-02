@@ -206,6 +206,7 @@ public class HarnessExecutor implements LoomEngine {
     private io.github.llm4j.loom.autonomy.Ledger ledger;
     private io.github.llm4j.loom.autonomy.LevelStore levelStore;
     private Replay replay;
+    private String runLocator;
 
     /** Where the ledger and the levels of decisions are kept; without them a decision runs at its start level and writes nothing. */
     public void setAutonomy(io.github.llm4j.loom.autonomy.Ledger ledger, io.github.llm4j.loom.autonomy.LevelStore levels) {
@@ -216,6 +217,11 @@ public class HarnessExecutor implements LoomEngine {
     io.github.llm4j.loom.autonomy.Ledger ledger() { return ledger; }
     io.github.llm4j.loom.autonomy.LevelStore levelStore() { return levelStore; }
     Replay replay() { return replay; }
+
+    /** Where this run's journal can be found by someone else later (its run directory); a replay of a case opens the run from it. Defaults to the run id. */
+    public void setRunLocator(String locator) { this.runLocator = locator; }
+
+    String runLocator() { return runLocator != null ? runLocator : runId; }
 
     /** Makes this run a replay of one case under a candidate: nobody is asked, nothing is written, reads come from what the case recorded. */
     public void setReplay(Replay replay) { this.replay = replay; }
