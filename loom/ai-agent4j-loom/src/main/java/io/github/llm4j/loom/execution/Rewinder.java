@@ -161,7 +161,7 @@ final class Rewinder {
         Map<String, String> carried = new LinkedHashMap<>();
         r.getCarrying().forEach((name, value) -> carried.put(name, run.resolve(value)));
         String reason = r.getCondition() == null ? "always" : r.getCondition();
-        Generations.Boundary b = generations.start(target.block, from, r.getTarget(), "script", free, reason, carried, policy.phrase());
+        Generations.Boundary b = generations.start(target.block, from, r.getTarget(), "script", free, reason, carried, policy.phrase(), false);
         audit("run_rewound", r, free, null);
         run.trace(TraceEvent.REWIND, null, "rewind to " + r.getTarget() + " (generation " + b.generation() + "): " + reason, Map.of("generation", b.generation(), "checkpoint", r.getTarget()));
         throw new RewindSignal(target.block, from, r.getTarget());
@@ -207,28 +207,7 @@ final class Rewinder {
 
     /** The effects performed (or that may have been) in the statements from {@code from} on in a block, any attempt. */
     List<String> effectsIn(String block, int from) {
-        String blockFree = Generations.strip(block);
-        List<String> out = new ArrayList<>();
-        for (Map.Entry<String, RunJournal.Entry> e : run.journal().all().entrySet()) {
-            String key = e.getKey();
-            int marker = key.indexOf("#effect:");
-            if (marker < 0) continue;
-            String kind = e.getValue().kind();
-            if (!"effect_done".equals(kind) && !"effect_pending".equals(kind)) continue;
-            if (!inRegion(Generations.strip(key.substring(0, marker)), blockFree, from)) continue;
-            String[] parts = key.substring(marker + "#effect:".length()).split(":", 2);
-            out.add(parts[0] + " at " + Generations.strip(key.substring(0, marker)) + (kind.equals("effect_pending") ? " (outcome unknown)" : " (done)"));
-        }
-        return out;
-    }
-
-    static boolean inRegion(String step, String blockFree, int from) {
-        if (!step.startsWith(blockFree)) return false;
-        int i = blockFree.length();
-        int j = i;
-        while (j < step.length() && Character.isDigit(step.charAt(j))) j++;
-        if (j == i) return false;
-        return Integer.parseInt(step.substring(i, j)) >= from;
+        return io.github.llm4j.loom.runtime.EffectScan.effectsIn(run.journal(), block, from);
     }
 
     private static String busiest(Generations g) {
@@ -281,6 +260,7 @@ final class Rewinder {
         var own = journal.get(raw);
         if (own.isPresent()) return String.valueOf(own.get().value()); // this attempt asked it, or generation 1 did
         if (!run.rewindsUsed() || raw.equals(identity)) return null;
+        if (run.generations().asksAgain(raw)) return null; // an operator asked for the people to be asked again
         var earlier = journal.get(identity);
         if (earlier.isEmpty()) return null;
         var asked = journal.get(identity + "#asked");

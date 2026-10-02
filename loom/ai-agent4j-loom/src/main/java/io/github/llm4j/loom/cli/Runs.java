@@ -22,7 +22,7 @@ import java.util.Map;
 /** Runs a workflow the way the {@code weave} commands do, optionally as a durable run in a run directory. */
 final class Runs {
 
-    /** How a run ended: exit code 0 done, 1 failed, 2 bad options, 3 stopped by a budget, 4 paused. */
+    /** How a run ended: exit code 0 done, 1 failed, 2 bad options, 3 stopped by a budget, 4 paused, 5 stopped where it was told to. */
     record Result(int exit, Instant resumeAt, RunSuspended.Reason reason, String message) { }
 
     private static final DateTimeFormatter WHEN = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm z");
@@ -45,6 +45,22 @@ final class Runs {
      * @param runId  how resume triggers name this run (null: the run directory's path)
      */
     static Result execute(RunSpec spec, Path runDir, String runId, WeaveEnv env) {
+        java.util.Optional<RunLock> lock = java.util.Optional.empty();
+        if (runDir != null) {
+            lock = RunLock.tryAcquire(runDir);
+            if (lock.isEmpty()) {
+                env.err().println("Error: process " + RunLock.holder(runDir).orElse(-1L) + " is already working on " + runDir + ".");
+                return new Result(2, null, null, "run is locked");
+            }
+        }
+        try {
+            return executeLocked(spec, runDir, runId, env);
+        } finally {
+            lock.ifPresent(RunLock::close);
+        }
+    }
+
+    private static Result executeLocked(RunSpec spec, Path runDir, String runId, WeaveEnv env) {
         java.math.BigDecimal cost = null;
         if (spec.maxCost() != null) {
             if (spec.prices() == null) {
@@ -78,6 +94,8 @@ final class Runs {
             if (spec.prices() != null) executor.setPriceTable(io.github.llm4j.budget.PriceTable.load(Path.of(spec.prices())));
             executor.setBudgetOverrides(spec.maxTokens(), spec.maxCalls(), cost);
             if (spec.trace() != null) executor.addTraceListener(new ConsoleTrace(env.err(), "json".equals(spec.trace())));
+            executor.setSimulate(spec.simulate());
+            executor.setStopAt(spec.stopAt());
             if (runDir != null) {
                 executor.setJournal(new FileRunJournal(runDir.resolve("journal.json")));
                 executor.setTriggerStore(new FileTriggerStore(Path.of(spec.store())));
@@ -98,6 +116,9 @@ final class Runs {
         } catch (RunSuspended paused) {
             printPaused(paused, runDir, spec, env);
             return new Result(4, paused.resumeAt(), paused.reason(), paused.getMessage());
+        } catch (io.github.llm4j.loom.runtime.RunStopped stopped) {
+            env.out().println("⏹ Stopped at " + stopped.point() + " as asked. Nothing is lost: resume the run to carry on" + (runDir != null ? ": weave resume " + quote(runDir.toString()) : "") + ".");
+            return new Result(5, null, null, stopped.getMessage());
         } catch (io.github.llm4j.budget.BudgetExceeded stop) {
             env.out().println("⛔ Stopped: " + stop.getMessage() + ". Everything paid for so far is kept.");
             return new Result(3, null, null, stop.getMessage());

@@ -196,6 +196,13 @@ public class HarnessExecutor implements LoomEngine {
     String resolve(String text) { return resolvePayload(text); }
     boolean rewindsUsed() { return rewindsUsed; }
     boolean simulating() { return simulate; }
+    private String stopAt;
+    /** Ends the run cleanly, as {@link io.github.llm4j.loom.runtime.RunStopped}, once the named step or checkpoint has completed. */
+    public void setStopAt(String point) { this.stopAt = point; }
+    /** A place a run can be told to stop at: a step id (with or without its attempt) or a checkpoint's name. */
+    void stopPoint(String point) {
+        if (stopAt != null && (stopAt.equals(point) || stopAt.equals(Generations.strip(point)))) throw new io.github.llm4j.loom.runtime.RunStopped(point);
+    }
     public void setSimulate(boolean simulate) { this.simulate = simulate; }
     public void setMaxRewinds(int max) { rewinder.setMaxRewinds(max); }
     void runHandler(List<Statement> handler, String key) { runBlock(handler, key); }
@@ -734,6 +741,11 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     private Tool resolveTool(String name) {
+        Tool tool = resolveToolAsDeclared(name);
+        return simulate ? SimulatingTool.of(tool) : tool;
+    }
+
+    private Tool resolveToolAsDeclared(String name) {
         for (io.github.llm4j.loom.ast.ToolDef def : script.getTools()) {
             if (def.getName().equals(name)) return createTool(def);
         }
@@ -816,6 +828,7 @@ public class HarnessExecutor implements LoomEngine {
                 }
                 try {
                     executeStatement(statements.get(i));
+                    if (stopAt != null) stopPoint(step.get());
                 } catch (Rewinder.RewindSignal signal) {
                     if (!signal.block.equals(block)) throw signal;
                     rewinder.restore(frame, signal.checkpoint);
@@ -1150,6 +1163,7 @@ public class HarnessExecutor implements LoomEngine {
         if (stmt instanceof CheckpointStmt checkpoint) {
             java.util.ArrayDeque<Rewinder.Frame> stack = frames.get();
             rewinder.checkpoint(checkpoint, stack.peek(), stack.peek().index);
+            if (stopAt != null) stopPoint(checkpoint.getName());
         } else if (stmt instanceof RewindStmt rewind) {
             rewinder.rewind(rewind, frames.get());
         } else if (stmt instanceof NoteStmt note) {
@@ -1540,7 +1554,7 @@ public class HarnessExecutor implements LoomEngine {
 
         // A resumed run: this step already happened — reuse its recorded result, don't call the model.
         String stepId = step.get();
-        var recorded = journal.get(stepId);
+        var recorded = journal.get(stepId).filter(e -> !"retry".equals(e.kind())); // "retry": an operator asked for a failed step to be tried again
         if (recorded.isPresent()) {
             RunJournal.Entry entry = recorded.get();
             if ("failed".equals(entry.kind())) {

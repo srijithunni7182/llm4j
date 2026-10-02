@@ -14,7 +14,14 @@ import java.util.Map;
  * later, can rebuild the run.
  */
 record RunSpec(String script, String loot, String workflow, Map<String, String> inputs, Long maxTokens,
-               Long maxCalls, String maxCost, String prices, String store, boolean lenient, String trace) {
+               Long maxCalls, String maxCost, String prices, String store, boolean lenient, String trace,
+               boolean simulate, Map<String, Object> forkOf, String stopAt) {
+
+    /** As a run that is real, not a fork, and runs to its end. */
+    RunSpec(String script, String loot, String workflow, Map<String, String> inputs, Long maxTokens,
+            Long maxCalls, String maxCost, String prices, String store, boolean lenient, String trace) {
+        this(script, loot, workflow, inputs, maxTokens, maxCalls, maxCost, prices, store, lenient, trace, false, null, null);
+    }
 
     RunSpec(String script, String loot, String workflow, Map<String, String> inputs, Long maxTokens,
             Long maxCalls, String maxCost, String prices, String store, boolean lenient) {
@@ -24,6 +31,10 @@ record RunSpec(String script, String loot, String workflow, Map<String, String> 
     RunSpec(String script, String loot, String workflow, Map<String, String> inputs, Long maxTokens,
             Long maxCalls, String maxCost, String prices, String store) {
         this(script, loot, workflow, inputs, maxTokens, maxCalls, maxCost, prices, store, false, null);
+    }
+
+    RunSpec withStopAt(String point) {
+        return new RunSpec(script, loot, workflow, inputs, maxTokens, maxCalls, maxCost, prices, store, lenient, trace, simulate, forkOf, point);
     }
 
     static final String FILE = "run.json";
@@ -48,6 +59,8 @@ record RunSpec(String script, String loot, String workflow, Map<String, String> 
             m.put("store", store);
             m.put("lenient", lenient);
             m.put("trace", trace);
+            if (simulate) m.put("simulate", true);
+            if (forkOf != null) m.put("forkOf", forkOf);
             Files.writeString(runDir.resolve(FILE), JSON.writerWithDefaultPrettyPrinter().writeValueAsString(m));
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot write " + runDir.resolve(FILE), e);
@@ -63,7 +76,8 @@ record RunSpec(String script, String loot, String workflow, Map<String, String> 
             return new RunSpec((String) m.get("script"), (String) m.get("loot"), (String) m.get("workflow"),
                     (Map<String, String>) m.get("inputs"), number(m.get("maxTokens")), number(m.get("maxCalls")),
                     (String) m.get("maxCost"), (String) m.get("prices"), (String) m.get("store"),
-                    Boolean.TRUE.equals(m.get("lenient")), (String) m.get("trace"));
+                    Boolean.TRUE.equals(m.get("lenient")), (String) m.get("trace"), Boolean.TRUE.equals(m.get("simulate")),
+                    (Map<String, Object>) m.get("forkOf"), null);
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot read " + file, e);
         }

@@ -7,9 +7,9 @@ import java.util.Collections;
 import java.util.List;
 
 /** The self-correcting report workflow the rewind tests share, with a scripted model: a reviewer that scores each draft as told. */
-final class ReportScript {
+public final class ReportScript {
 
-    static final String SCRIPT = """
+    public static final String SCRIPT = """
             agent Collector { model: "m" system: "You are Collector." }
             agent Analyst   { model: "m" system: "You are Analyst." }
             agent Writer    { model: "m" system: "You are Writer." }
@@ -31,11 +31,11 @@ final class ReportScript {
             """;
 
     /** Calls made, by agent, in order. */
-    final List<String> calls = Collections.synchronizedList(new ArrayList<>());
-    final List<String> tasks = Collections.synchronizedList(new ArrayList<>());
+    public final List<String> calls = Collections.synchronizedList(new ArrayList<>());
+    public final List<String> tasks = Collections.synchronizedList(new ArrayList<>());
     private final int[] scores;
 
-    ReportScript(int... scores) {
+    public ReportScript(int... scores) {
         this.scores = scores;
     }
 
@@ -43,7 +43,7 @@ final class ReportScript {
      * The model is a pure function of what it is asked, so a run that crashes and resumes meets the same answers. Feedback travels in the
      * text: the collector echoes it, so the draft carries it, and the reviewer scores by how many rounds of feedback the draft shows.
      */
-    String reply(LLMRequest request) {
+    public String reply(LLMRequest request) {
         String system = request.getMessages().get(0).getContent();
         String message = ScriptedRun.lastMessage(request);
         int marker = message.lastIndexOf("Current Task:");
@@ -71,7 +71,7 @@ final class ReportScript {
         }
     }
 
-    long count(String agent) {
+    public long count(String agent) {
         return calls.stream().filter(agent::equals).count();
     }
 }

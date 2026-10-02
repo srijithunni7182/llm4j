@@ -22,11 +22,13 @@ public final class Generations {
 
     /** The journal key of the boundary list. */
     public static final String KEY = "#boundaries";
+    /** The format of the boundary list. A run that has rewound carries it; a build that does not know it refuses the run. */
+    public static final int FORMAT = 1;
     private static final Pattern SUFFIX = Pattern.compile("(\\d+)~(\\d+)");
 
     /** One new generation. {@code statement} is the rewind statement's own id without any generation suffix. */
     public record Boundary(String block, int from, int generation, String name, String by, String statement,
-                           String reason, Map<String, String> carried, String effects, String time) {
+                           String reason, Map<String, String> carried, String effects, boolean askAgain, String time) {
 
         Map<String, Object> toMap() {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -39,6 +41,7 @@ public final class Generations {
             m.put("reason", reason);
             m.put("with", carried);
             m.put("effects", effects);
+            if (askAgain) m.put("askAgain", true);
             m.put("time", time);
             return m;
         }
@@ -49,7 +52,7 @@ public final class Generations {
             Object with = m.get("with");
             if (with instanceof Map<?, ?> w) w.forEach((k, v) -> carried.put(String.valueOf(k), String.valueOf(v)));
             return new Boundary(String.valueOf(m.get("block")), ((Number) m.get("from")).intValue(), ((Number) m.get("generation")).intValue(),
-                    str(m.get("name")), str(m.get("by")), str(m.get("statement")), str(m.get("reason")), carried, str(m.get("effects")), str(m.get("time")));
+                    str(m.get("name")), str(m.get("by")), str(m.get("statement")), str(m.get("reason")), carried, str(m.get("effects")), Boolean.TRUE.equals(m.get("askAgain")), str(m.get("time")));
         }
 
         private static String str(Object o) {
@@ -74,9 +77,13 @@ public final class Generations {
     private void load() {
         boundaries.clear();
         journal.get(KEY).ifPresent(entry -> {
-            if (entry.value() instanceof List<?> list) {
-                for (Object o : list) boundaries.add(Boundary.of((Map<String, Object>) o));
+            if (!(entry.value() instanceof Map<?, ?> m)) throw new IllegalStateException("Unreadable run journal: " + KEY + " is not a boundary list");
+            Object version = m.get("version");
+            if (!(version instanceof Number n) || n.intValue() != FORMAT) {
+                throw new IllegalStateException("This run was rewound by a different version of weave (journal format " + version + ", this one reads "
+                        + FORMAT + "). Resume it with the weave that rewound it.");
             }
+            for (Object o : (List<?>) m.get("boundaries")) boundaries.add(Boundary.of((Map<String, Object>) o));
         });
     }
 
@@ -126,14 +133,73 @@ public final class Generations {
 
     /** Records a new generation. This single journal write is the point a rewind happens: before it nothing changed, after it the run is in the new generation. */
     public synchronized Boundary start(String block, int from, String name, String by, String statement, String reason,
-                                       Map<String, String> carried, String effects) {
-        Boundary b = new Boundary(block, from, next(block), name, by, statement, reason, new LinkedHashMap<>(carried), effects, Instant.now().toString());
+                                       Map<String, String> carried, String effects, boolean askAgain) {
+        Boundary b = new Boundary(block, from, next(block), name, by, statement, reason, new LinkedHashMap<>(carried), effects, askAgain, Instant.now().toString());
         List<Map<String, Object>> list = new ArrayList<>();
         for (Boundary old : boundaries) list.add(old.toMap());
         list.add(b.toMap());
-        journal.put(KEY, new RunJournal.Entry("boundaries", list));
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("version", FORMAT);
+        value.put("boundaries", list);
+        journal.put(KEY, new RunJournal.Entry("boundaries", value));
         boundaries.add(b);
         return b;
+    }
+
+    /** True when an operator asked that people be asked again in a generation the step belongs to. */
+    public synchronized boolean asksAgain(String step) {
+        Matcher m = SUFFIX.matcher(step);
+        while (m.find()) {
+            String block = step.substring(0, m.start(1));
+            int generation = Integer.parseInt(m.group(2));
+            if (boundaries.stream().anyMatch(b -> b.block().equals(block) && b.generation() == generation && b.askAgain())) return true;
+        }
+        return false;
+    }
+
+    private static final Pattern SEGMENT = Pattern.compile("^([a-z]+(?:\\d+\\.)?)(\\d+)$");
+
+    /** A statement named by its generation-free id ({@code Main/s3/a0}), located as the block it is in and its place there, with its live id. */
+    public record Located(String block, int index, String liveId) { }
+
+    /**
+     * Where a statement is now: its id as it reads in the current generation of every block around it, or null when the id isn't one a
+     * statement can have (a branch of a parallel or for each, a call into another workflow, or something that isn't an id).
+     */
+    public synchronized Located locate(String freeId) {
+        String[] parts = freeId.split("/");
+        if (parts.length < 2 || parts[0].contains(">")) return null;
+        String current = parts[0];
+        Located result = null;
+        for (int i = 1; i < parts.length; i++) {
+            Matcher m = SEGMENT.matcher(parts[i]);
+            if (!m.matches()) return null;
+            String block = current + "/" + m.group(1);
+            int index = Integer.parseInt(m.group(2));
+            int generation = current(block, index);
+            current = block + index + (generation > 1 ? "~" + generation : "");
+            result = new Located(block, index, current);
+        }
+        return result;
+    }
+
+    private static final Pattern ANY_SEGMENT = Pattern.compile("^([a-z]+(?:\\d+\\.)?)(\\d+)(?:~(\\d+))?$");
+
+    /** False when the step belongs to an attempt that a later one replaced: its block has gone on to a newer generation. */
+    public synchronized boolean isCurrent(String step) {
+        String[] parts = step.split("/");
+        if (parts.length < 2 || parts[0].contains(">")) return true;
+        String current = parts[0];
+        for (int i = 1; i < parts.length; i++) {
+            Matcher m = ANY_SEGMENT.matcher(parts[i]);
+            if (!m.matches()) return true; // not a statement segment (a branch of a parallel, say): nothing to compare
+            String block = current + "/" + m.group(1);
+            int index = Integer.parseInt(m.group(2));
+            int generation = m.group(3) == null ? 1 : Integer.parseInt(m.group(3));
+            if (current(block, index) != generation) return false;
+            current = block + index + (generation > 1 ? "~" + generation : "");
+        }
+        return true;
     }
 
     /** The step id as an effect or a person's answer identifies it: the same place in the script, whatever attempt reached it. */
