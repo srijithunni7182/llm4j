@@ -1,0 +1,5 @@
+? Waiting for a person at Digest/s0: Publish today's digest on wasps? (yes/no)
+$ weave tick store4   (after the question's 2 seconds are up)
+? Workflow completed successfully.
+--- the question: 88BEC9  expired  d4  5s  Publish today's digest on wasps? (yes/no)
+--- the phone was told: The question 88BEC9 expired without an answer; the run carried on.

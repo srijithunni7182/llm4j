@@ -119,7 +119,7 @@ agent <AgentName> {
 *   **Loops (Until):** `loop until (isDone == "true") { ... }`. Always bound loops that depend on a model: `loop until (review.verdict == "OK") max 5 { ... } on_exhausted { ... }`. `{_loopRound}` is the current round.
 *   **For Each:** `for each item in plan.items { delegate "Do {item.task}" to Worker -> {item.name} }`. Use `parallel for each` when items are independent. `{_index}` is the position.
 *   **Runtime Routing:** the target and output of a delegate can come from data: `delegate "{fix.task}" to {fix.owner} -> {fix.output}`. Prefer this over a chain of `alt` branches that only differ by agent.
-*   **Human Input:** `human_prompt "Question?" -> answer`. The runtime may suspend the run here and resume it later; write the script as if the answer simply arrives.
+*   **Human Input:** `human_prompt "Question?" -> answer`. The runtime may suspend the run here and resume it later; write the script as if the answer simply arrives. Where the person is reached is not the script's business: an operator points the run store at a chat channel (`--ask-via telegram`, or `channel.json`), the question arrives as a message with a short code, `weave answer <store> <code> <text>` or a reply records the answer, and `weave tick` resumes the run. Never write channel, token or chat details into a script.
 *   **Observability:** `observe "<label>" {<expression>}`
 
 ### Frontier Features (High-Priority)

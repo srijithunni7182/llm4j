@@ -1,0 +1,7 @@
+? Waiting for a person at Digest/s0: Publish today's digest on bees? (yes/no)
+--- a stranger (chat 999) replies "RWJKBK yes"
+--- after 4s of the daemon: question still open? 1 (expected 1); the stranger was not answered: 0 notes sent (expected 0)
+--- daemon killed with SIGKILL; the person now replies "RWJKBK yes"
+--- second daemon: INFO: Workflow completed: Digest ? Workflow completed successfully. 
+--- the answer was applied once: 1 audit line(s) for answers
+{"at":"2026-10-02T14:03:37.954405292Z","event":"answered","run":"/tmp/tmp.ZEzKVk8owg/run/runs/d2","code":"RWJKBK","answer":"yes","by":"telegram:5550001","step":"Digest/s0"}

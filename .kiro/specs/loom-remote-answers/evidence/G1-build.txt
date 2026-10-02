@@ -1,0 +1,11 @@
+commit 9cc586c2880761b29b20f50b9c7464ae64bd4ada
+Fri Oct  2 14:18:01 UTC 2026
+-- run 1: plain
+   BUILD SUCCESS
+   core: tests=657 failures=0 errors=0 skipped=2; tools: tests=381 failures=0 errors=0 skipped=0; loom: tests=686 failures=0 errors=0 skipped=1
+-- run 2: plain again
+   BUILD SUCCESS
+   core: tests=657 failures=0 errors=0 skipped=2; tools: tests=381 failures=0 errors=0 skipped=0; loom: tests=686 failures=0 errors=0 skipped=1
+-- run 3: random order
+   BUILD SUCCESS
+   core: tests=657 failures=0 errors=0 skipped=2; tools: tests=381 failures=0 errors=0 skipped=0; loom: tests=686 failures=0 errors=0 skipped=1

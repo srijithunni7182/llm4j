@@ -1,0 +1,7 @@
+? Waiting for a person at Digest/s0: Publish today's digest on ants? (yes/no)
+$ weave answer store3 URP79F yes
+Recorded: yes for URP79F. The run carries on at the next `weave tick` (or daemon).
+$ weave answer store3 URP79F no
+Error: URP79F was already answered by operator:root at 2026-10-02T14:03:41.968150273Z.
+$ weave tick store3     (no channel configured: the terminal answer is enough)
+? Workflow completed successfully.

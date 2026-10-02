@@ -97,12 +97,24 @@ final class Runs {
             executor.setSimulate(spec.simulate());
             executor.setStopAt(spec.stopAt());
             if (spec.maxRewinds() != null) executor.setMaxRewinds(spec.maxRewinds());
+            if (runDir == null && env.askVia() != null && !"console".equals(env.askVia())) {
+                throw new IllegalArgumentException("--ask-via " + env.askVia() + " needs --journal: a run that cannot be resumed cannot wait for an answer");
+            }
             if (runDir != null) {
                 executor.setJournal(new FileRunJournal(runDir.resolve("journal.json")));
                 executor.setTriggerStore(new FileTriggerStore(Path.of(spec.store())));
                 executor.setRunId(runId != null ? runId : runDir.toAbsolutePath().normalize().toString());
                 executor.setScriptRef(scriptFile.getAbsolutePath());
                 executor.setRunLocator(runDir.toAbsolutePath().normalize().toString());
+                // a channel (a chat, a bridge) means the person is not at this console: the run asks, suspends, and carries on when the answer is recorded
+                Path questionStore = Path.of(spec.store());
+                String askId = runId != null ? runId : runDir.toAbsolutePath().normalize().toString();
+                java.util.Optional<io.github.llm4j.loom.channel.Channels.Runtime> channel = io.github.llm4j.loom.channel.Channels.open(questionStore, env.askVia(), env.env(), env.clock());
+                if (channel.isPresent()) {
+                    executor.setHumanInterface(channel.get().humanFor(runDir, askId));
+                } else if (new io.github.llm4j.loom.channel.PendingStore(questionStore).exists()) {
+                    executor.setHumanInterface(new io.github.llm4j.loom.channel.ClosingHumanInterface(env.human(), questionStore, runDir.toAbsolutePath().normalize().toString(), env.clock()));
+                }
                 if (!script.getDecisions().isEmpty()) {
                     // decisions keep their ledger and levels in the run store, next to the triggers
                     Path store = Path.of(spec.store());

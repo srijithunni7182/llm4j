@@ -20,7 +20,8 @@
   <a href="#see-it-built">Showcases</a> ·
   <a href="#explore-the-docs">Docs</a> ·
   <a href="ai-agent4j/wiki/WHY_AI_AGENT4J.md">Why ai-agent4j?</a> ·
-  <a href="loom/ai-agent4j-loom/WHY_LOOM.md">Why Loom?</a>
+  <a href="loom/ai-agent4j-loom/WHY_LOOM.md">Why Loom?</a> ·
+  <a href="SECURITY.md"><b>Security</b></a>
 </p>
 
 ---
@@ -111,6 +112,44 @@ builder, and a compiler that has your back.
 
 ---
 
+<a id="security"></a>
+
+## Secure by construction
+
+An agent's next step is chosen by text, and some of that text comes from places you don't control: a web page, an
+email, a tool's output. Any of it can try to give the agent orders, and no prompt reliably stops that. So llm4j
+doesn't rely on the model to behave. **The model reasons; the code holds the authority.** What an agent may touch,
+spend, send and decide is declared in Java or in a Loom script and enforced by the runtime on every call, whatever
+the model says.
+
+| The risk | What llm4j does about it |
+|---|---|
+| A web page tells the agent to run a command | Tools are declared **per agent**. The agent that reads the web needn't have a shell, and a `shell` tool runs only allow-listed programs, with no shell syntax, behind an approval. |
+| The agent sends data somewhere it shouldn't | Webhooks have a fixed URL. `http` reaches only paths under one base URL and refuses internal and cloud-metadata addresses. `email` sends only to listed recipients. **Every way out can wait for a person's yes.** |
+| A loop runs away with your money | **Budgets are checked before each model call.** Every loop and reasoning chain has a bound, and the script decides what happens at the limit. |
+| A crash makes it send the same thing twice | Every effect is **journaled**. A resume, a retry or a rewind never repeats a send. |
+| A secret leaks into a prompt, a log or an error | Credentials come only from the environment. A literal in a script is a load error, and secrets are scrubbed from every result, trace and journal. |
+| Customer data reaches a hosted model | `guard { pii: mask }` masks emails, phone numbers, card numbers and more in everything the agent sends, including tool results. |
+| An agent is given too much freedom too soon | **Earned autonomy**: it starts by proposing while people decide, and moves up only when its measured record supports it. A ceiling, a freeze and fail-closed defaults stay in force. |
+| Someone else answers your agent's questions | Questions reach your phone; only allowlisted users can answer, approvals need the question's code, and nothing listens on a port. |
+| You can't tell what happened | `weave check` finds problems before anything runs. Audit logs and journals record every approval, refusal, level change and operator action, with the reason. |
+
+These controls are tested like features: hostile-input suites, secrets sweeps, and **sabotage runs** that break each
+guard on purpose to prove a test catches it.
+
+**`weave audit`** reviews any Loom script before it runs. It maps each agent's reach, flags the "lethal trifecta" and
+unapproved effects, and reports every finding against the **[OWASP Top 10 for LLM Applications](https://genai.owasp.org/llm-top-10/)**.
+It exits non-zero on a high finding, so it can gate your CI.
+
+👉 **[Read the security guide](SECURITY.md)**. It covers:
+- the threat model, and what each building block does;
+- a step-by-step way to secure a Loom workflow;
+- a worked example that survives a prompt injection;
+- a risk-by-risk mapping to the OWASP Top 10 for LLM Applications, **with the gaps named**;
+- the patterns to avoid, and an honest account of what llm4j does *not* protect you from.
+
+---
+
 <a id="the-stack"></a>
 
 ## The stack: one agent to a whole organisation of them
@@ -179,6 +218,7 @@ What the runtime does for you:
 - runs on schedules without a hosted platform;
 - ships six generic tools usable from the script with no Java: `webhook`, `email`, `http`, `file`, `shell` and read-only `sql`, with a journal so a crash never sends the same message twice ([Generic Tools](loom/ai-agent4j-loom/LOOM_GUIDE.md#generic-tools), [daily digest sample](loom/ai-agent4j-loom/samples/digest/));
 - lets an agent **earn its autonomy**: it proposes, a person decides, and a ledger of both moves it from `watch` to `suggest` to `act` (and back) on evidence, with a prompt change tested on your past cases before it goes live ([Earned Autonomy](loom/ai-agent4j-loom/LOOM_GUIDE.md#earned-autonomy));
+- asks you on Telegram when it needs a person, and carries on when you reply, so it can run on a machine nobody sits at ([Answering from Your Phone](loom/ai-agent4j-loom/LOOM_GUIDE.md#answering-from-your-phone));
 - finds problems with `weave check` before anything runs.
 
 👉 [Loom overview](loom/ai-agent4j-loom/README.md) · [**Why Loom?**](loom/ai-agent4j-loom/WHY_LOOM.md) ·
@@ -319,6 +359,7 @@ takes it from there.
 
 ## 📐 Project Standards
 
+- [Security guide](SECURITY.md): threat model, building blocks, securing a workflow, reporting a vulnerability
 - [Testing Strategy](docs/TESTING_STRATEGY.md)
 - [API Compatibility Policy](docs/API_COMPATIBILITY.md)
 - [Contributing Guide](CONTRIBUTING.md)
@@ -328,6 +369,7 @@ takes it from there.
 1. **Java First**: AI isn't just for Python. Java's strong typing, concurrency, and ecosystem make it perfect for building robust AI systems.
 2. **Ground Up**: We minimize dependencies. By building our own ReAct loop and provider clients, we gain full control and understanding of the LLM's behavior.
 3. **Transparency**: We believe in "glass-box" AI. You should be able to see exactly what your agent is thinking and why it made a decision.
+4. **Authority in code, not in prompts**: The model is treated as untrusted. What an agent may do is declared, checked before it runs, enforced on every call and recorded. See [Security](SECURITY.md).
 
 ---
 

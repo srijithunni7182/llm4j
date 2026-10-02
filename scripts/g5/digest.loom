@@ -1,0 +1,7 @@
+// A plain question to a person, used by the remote-answers G5 runs.
+agent Writer { model: "ollama/fake" system: "You are Writer." }
+
+workflow Digest(topic) {
+    human_prompt "Publish today's digest on {topic}? (yes/no)" -> go
+    alt (go == "yes") { note "published" } else { note "held back" }
+}

@@ -621,6 +621,8 @@ The block reads aloud: it is plain phrases in a fixed order, with units as words
 
 **When the agent changes.** Each case records the *identity* of the agent behind it: a hash of its model, prompt, persona, tools and their options (never their secrets), schema and guard settings, and the decision block, taken from the parsed script so a comment changes nothing. A different identity starts a new evidence epoch, and `when the agent changes:` says what happens: `start over`, `keep the trust` (only sensible with a ceiling of `suggest`), or `test it on past cases`, which replays the old agent's blind cases under the new one before its first case and lets it inherit the highest level that replay earns, never more than before.
 
+**From your phone.** `watch` is a person answering every case, so the person has to be reachable: with a channel configured, each question arrives as a chat message and the answer comes back as a reply ([Answering from Your Phone](#answering-from-your-phone)).
+
 **Replay.** Try a change on history before it ships. A replay of one case is an ephemeral fork of that case's run at the `decide` step, run under your candidate script in simulate mode, and stopped when the candidate has proposed, before anyone is asked. Reads the agent made are answered from what the case recorded; everything else is simulated; nothing is written to the ledger, the levels or the runs.
 
 ```text
@@ -882,6 +884,17 @@ agent Support {
   steps aren't checked again.
 
 URLs are not treated as personal data.
+
+### Security Audit
+
+`weave audit` reviews a script without running it. It shows what each agent can reach, flags any agent that reads untrusted content, reaches private data *and* can send or act (the "lethal trifecta"), lists effects nobody approves, risky tool settings, a missing budget and anything fetched from outside the repository. Each finding names the [OWASP Top 10 for LLM Applications](https://genai.owasp.org/llm-top-10/) risks it bears on and says what to change.
+
+```bash
+weave audit digest.loom                        # Markdown report; exit 1 on a high finding
+weave audit digest.loom --format json --out audit.json --fail-on medium
+```
+
+Run it in CI next to `weave check`. The rules, the OWASP mapping and the known gaps are in [SECURITY.md](../../SECURITY.md).
 
 ### PII Guardrails
 You can wrap statement blocks in guardrails to prevent sensitive data leakage.
@@ -1184,6 +1197,76 @@ TriggerRunner runner = new TriggerRunner(store, (trigger, id) -> {
 runner.start(Duration.ofSeconds(5));                              // embedded, or:
 TriggerEndpoint tick = TriggerEndpoint.fromEnvironment(runner, oidcVerifier); // POST /loom/tick
 ```
+
+### Answering from Your Phone
+
+A run that needs a person pauses and holds nothing: no thread, no process. On a machine nobody is sitting at, the question has to reach the person some other way. Point the run store at a **channel** and Loom sends the question to your phone, pauses, and carries on when you reply. It works for every kind of question: `human_prompt`, tool approvals, a rewind held by `ask first`, a promotion that needs approval, and the `decide` question of [earned autonomy](#earned-autonomy), so a decision can sit in `watch` for weeks with you answering from wherever you are.
+
+```loom
+agent Writer { model: "gemini-2.5-flash" system: "You are Writer." }
+
+workflow Digest(topic) {
+    delegate "Write today's digest on {topic}" to Writer -> draft
+    human_prompt "Publish today's digest? (yes/no)" -> go
+    alt (go == "yes") { note "published" }
+}
+```
+
+Nothing in the script says *how* the person is reached, so the same script runs at a console on your laptop and from a chat on a small server.
+
+Setup, once (Telegram; five minutes):
+
+1. In Telegram, message **@BotFather**, send `/newbot`, and keep the token it gives you.
+2. Open a chat with your new bot and press Start (a bot cannot message you first).
+3. Find your chat id: message **@userinfobot**, which replies with it.
+4. On the machine that runs Loom, set two environment variables: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_IDS` (your id; several are separated by commas).
+5. Install the heartbeat and run:
+
+```bash
+weave triggers install runs/.loom-triggers --apply
+weave run digest.loom -w Digest -i topic="AI agents" --journal runs/today --store runs/.loom-triggers --ask-via telegram
+```
+
+The question arrives as a message with a short code:
+
+```text
+[today] Publish today's digest? (yes/no)
+
+Reply: K7F3QX yes | no
+(or reply directly to this message)
+```
+
+Reply `yes` to that message, or `K7F3QX yes`. At the next heartbeat (`weave tick`, every five minutes by default) the answer is recorded and the run carries on. A `weave daemon` listening on the channel acts within seconds. An answer applies once, to the question it names.
+
+```bash
+weave questions runs/.loom-triggers
+weave answer runs/.loom-triggers K7F3QX yes
+weave tick runs/.loom-triggers --ask-via telegram
+weave daemon runs/.loom-triggers --ask-via telegram
+```
+
+`weave questions` lists what is waiting (`--all` adds answered and expired ones); `weave answer` answers from a terminal on the host, with or without a channel.
+
+To make it the default for a store, put a `channel.json` in it. The token is never in the file, only the name of the variable that holds it:
+
+```json
+{ "channel": "telegram",
+  "tokenEnv": "TELEGRAM_BOT_TOKEN",
+  "chats": { "default": [123456], "support-lead": [123456, 777888] },
+  "remind": { "every": "6h", "atMost": 3 },
+  "expire": "3d" }
+```
+
+`chats` routes the name a script asks (`ask: support-lead`) to its people; `remind` repeats a question under the same code; `expire` closes a question nobody answered, so the run carries on and the asking step gets an empty answer.
+
+**What keeps it safe.**
+
+- Only the chats and users on the allowlist can answer. An empty allowlist is an error, never "everyone". Use a private chat with the bot: in a group, every listed user can answer.
+- Approvals (a tool call, a promotion, a rewind that repeats an effect) need the code in the reply; a bare "yes" does not count.
+- A `watch` question is exactly the blind question the decision builds: the message never carries the agent's proposal, reasoning or confidence.
+- Messages are plain text, so nothing in a case can turn into formatting or a link. The token is read from the environment and appears in no file, log or error.
+
+**What to know.** Telegram is not end-to-end encrypted for bot chats, so what a question contains is visible to Telegram: don't send secrets or personal data this way (the agent's `guard { pii: mask }` setting masks it before it reaches the question). Replies are matched by the channel, so another service (Slack, WhatsApp, e-mail) can be added without touching a script; the `command` channel pipes each question to a program of your choice as one line of JSON.
 
 ### Workflow-Level Retry & Error Contracts
 Define resilience logic directly in the DSL. If an agent fails (API error, timeout, or malformed JSON), Loom handles retries and triggers the `on_failure` recovery block.
