@@ -1,0 +1,28 @@
+ladder before:   scope gold   level act   (epoch 1, agent 3f16605b27)
+at act, 6 more cases: the person was asked in 5 of them (only the 50% audit sample)
+$ weave autonomy freeze store Refund --reason incident
+Frozen Refund: act is stopped for cases that begin from now.
+frozen, 6 more cases: the person was asked in 6 of them (act is stopped: every case is asked)
+Refund   FROZEN (act is stopped: incident)
+  scope gold   level act (running at suggest)   (epoch 1, agent 3f16605b27)
+    evidence: 30 blind cases of the latest 30;  agreement 96.7% (lower bound 83.3%);  dangerous mistakes 0.0%;  coverage 100.0%;  unusable proposals 0
+Unfroze Refund.
+$ demote to watch, then promote to act with --force
+Moved gold from act to watch.
+Moved silver from watch to act (FORCED: shown as forced until the evidence supports it).
+Refund
+  scope gold   level watch   (epoch 1, agent 3f16605b27)
+    evidence: 30 blind cases of the latest 30;  agreement 96.7% (lower bound 83.3%);  dangerous mistakes 0.0%;  coverage 100.0%;  unusable proposals 0
+    towards suggest: every part is met
+    last change: 2026-10-02T08:08:38.932493702Z act -> watch (set, by operator:root): test
+  scope silver   level act   FORCED: set by hand, not yet supported by the evidence   (epoch 1, agent 3f16605b27)
+    evidence: 2 blind cases of the latest 30;  agreement 100.0% (lower bound 34.2%);  dangerous mistakes 0.0%;  coverage 100.0%;  unusable proposals 0
+    next step: already at act
+    last change: 2026-10-02T08:08:42.767194613Z watch -> act (set, forced, by operator:root): operator decision (no cases yet in this scope)
+
+  2026-10-02T08:06:14.054713411Z  scope gold  suggest -> act  [promoted]  by runtime: 20 cases, agreement lower bound 76.4% (raw 95.0%)
+  2026-10-02T08:08:27.627523595Z  FROZEN Refund: incident
+  2026-10-02T08:08:37.948219858Z  unfrozen Refund: all clear
+  2026-10-02T08:08:38.932493702Z  scope gold  act -> watch  [set]  by operator:root: test
+  2026-10-02T08:08:40.112898640Z  scope silver  (start) -> watch  [first]  by runtime: first case of this scope
+  2026-10-02T08:08:42.767194613Z  scope silver  watch -> act  [set, forced]  by operator:root: operator decision (no cases yet in this scope)

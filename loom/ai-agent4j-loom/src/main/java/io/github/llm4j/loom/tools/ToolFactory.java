@@ -46,6 +46,8 @@ public final class ToolFactory {
 
     /** The option every kind accepts: text added to what the model is told about the tool. */
     static final String DESCRIPTION = "description";
+    /** {@code replay: allow} lets a tool run when a past case is replayed; it is the runtime's option, not the tool's. */
+    static final String REPLAY = "replay";
 
     private final Map<String, ToolKind> kinds = new LinkedHashMap<>();
 
@@ -207,6 +209,10 @@ public final class ToolFactory {
         for (Map.Entry<String, ToolDef.OptionValue> e : def.getOptions().entrySet()) {
             String key = e.getKey();
             if (key.equals(DESCRIPTION)) continue;
+            if (key.equals(REPLAY)) {
+                if (!e.getValue().value().equals("allow") && !e.getValue().value().equals("simulate")) out.add("replay: must be allow or simulate, not " + e.getValue().value());
+                continue;
+            }
             String prefix = prefixOf(kind, key);
             if (prefix != null) {
                 String problem = checkPrefixed(prefix, key, e.getValue(), env);
@@ -277,6 +283,7 @@ public final class ToolFactory {
         ToolKind kind = kinds.get(def.getKind());
         Map<String, String> options = resolve(kind, def, env);
         String description = options.remove(DESCRIPTION);
+        options.remove(REPLAY);
         Tool tool = kind.create(def.getName(), options, baseDir, context);
         if (tool instanceof Effectful effectful) tool = new EffectTool(effectful, context);
         if (description != null) tool = new DescribedTool(tool, description);

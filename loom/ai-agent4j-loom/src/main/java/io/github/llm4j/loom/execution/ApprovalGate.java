@@ -21,7 +21,7 @@ final class ApprovalGate {
     }
 
     boolean approve(String agent, String tool, Map<String, Object> args, String thought) {
-        String key = key(executor.currentStep(), tool, args);
+        String key = key(executor.identityStep(), tool, args);
         RunJournal journal = executor.getJournal();
         String masked = executor.maskPii(String.valueOf(args));
         audit("approval_requested", agent, tool, masked);

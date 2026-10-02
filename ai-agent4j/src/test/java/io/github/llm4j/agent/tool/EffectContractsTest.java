@@ -37,6 +37,13 @@ class EffectContractsTest {
     }
 
     @Test
+    void aHostThatCannotRunAStepAgainIdentifiesItByItsCurrentStepAndIsNotSimulating() {
+        EffectContext context = EffectContext.noop();
+        assertThat(context.identityStep()).isEqualTo(context.currentStep());
+        assertThat(context.simulate()).isFalse();
+    }
+
+    @Test
     void outcomesCarryTheirStatusAndErrorsAreMarkedAsSuch() {
         assertThat(Outcome.ok("done")).isEqualTo(new Outcome("done", Outcome.Status.OK));
         assertThat(Outcome.failed("refused").text()).isEqualTo("Error: refused");

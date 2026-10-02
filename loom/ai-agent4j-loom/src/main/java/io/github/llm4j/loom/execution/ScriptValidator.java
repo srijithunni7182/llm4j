@@ -79,6 +79,11 @@ public class ScriptValidator {
             return this;
         }
 
+        /** The tool names the script can use: declared, built in, or registered by the host. */
+        public Set<String> registeredTools() {
+            return registeredTools;
+        }
+
         public boolean hasHumanInterface() {
             return humanInterface;
         }
@@ -226,6 +231,8 @@ public class ScriptValidator {
 
     private void checkStatements(Checker c) {
         for (WorkflowDef w : c.script().getWorkflows()) walk(w.getStatements(), c);
+        RewindChecks.run(c);
+        DecisionChecks.run(c);
     }
 
     private void walk(List<Statement> statements, Checker c) {

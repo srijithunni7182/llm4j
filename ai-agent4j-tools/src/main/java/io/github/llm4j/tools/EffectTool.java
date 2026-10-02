@@ -23,6 +23,8 @@ public final class EffectTool implements Tool {
     static final String PENDING = "effect_pending";
     static final String DONE = "effect_done";
     static final String FAILED = "effect_failed";
+    /** What a tool returns in a simulated run: the call was described, not made. */
+    public static final String SIMULATED = "(simulated: not performed)";
     static final String REPLAYED = "(already done in an earlier attempt) ";
     private static final String RUN_UID_KEY = "#effect-run-uid";
 
@@ -33,6 +35,11 @@ public final class EffectTool implements Tool {
     public EffectTool(Effectful delegate, EffectContext context) {
         this.delegate = delegate;
         this.context = context;
+    }
+
+    /** The tool this one journals the effects of. */
+    public Effectful effectful() {
+        return delegate;
     }
 
     @Override
@@ -59,7 +66,11 @@ public final class EffectTool implements Tool {
         String tool = delegate.getName();
         String hash = CanonicalArgs.hash12(tool, args);
         String callId = tool + hash;
-        String key = context.currentStep() + "#effect:" + tool + ":" + hash + "#" + nextOrdinal(callId);
+        if (context.simulate()) {
+            record("simulated", args, context.clock().millis());
+            return SIMULATED;
+        }
+        String key = context.identityStep() + "#effect:" + tool + ":" + hash + "#" + nextOrdinal(callId);
         EffectJournal.Entry earlier = journal.get(key).orElse(null);
         EffectPolicy policy = delegate.policy();
         long started = context.clock().millis();
@@ -75,6 +86,15 @@ public final class EffectTool implements Tool {
                 return "Error: an earlier attempt's outcome is unknown, so it was not repeated. "
                         + "Check whether it happened before trying again.";
             }
+        }
+        if (earlier == null && !context.currentStep().equals(context.identityStep())) {
+            // Not a repeat of anything done before the run went back: a call of its own, which runs.
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("tool", tool);
+            data.put("step", context.currentStep());
+            data.put("target", target(args));
+            context.audit("effect_after_rewind", data);
+            context.trace("a different effect after a rewind: " + tool + " " + target(args), data);
         }
         // Check the allowance and claim the call together, so parallel branches can't all slip under the limit.
         synchronized (journal) {
@@ -99,7 +119,7 @@ public final class EffectTool implements Tool {
     /** Counts calls with identical arguments within this attempt of this step: the first is 0. */
     private int nextOrdinal(String callId) {
         long current = context.attempt();
-        String step = context.currentStep();
+        String step = context.identityStep();
         Attempt a = attempt.get();
         if (a == null || a.attempt != current || !a.step.equals(step)) {
             a = new Attempt(step, current);

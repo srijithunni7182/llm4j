@@ -1,0 +1,9 @@
+$ weave run report.loom --workflow Report --input topic=bees --trace --journal runs/p   (the publisher's model hangs after the Slack call)
+Slack posts before the kill: 1; weave killed with SIGKILL
+$ resume
+06:24:49 [Report/s6~3] Publisher  ? use Slack
+06:24:49 [Report/s6~3] Publisher  ? Slack {"title":"Report","text":"Publish draft from analysis of data(fix2)"}
+06:24:49 [Report/s6~3] ? tool effect: Slack 127.0.0.1 ? replayed
+? Workflow completed successfully.
+   of which 120 tokens (0) went into attempts that were later replaced by a rewind
+--- Slack posts: 1 + 0 (expected 1 + 0)

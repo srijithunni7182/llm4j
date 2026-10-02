@@ -26,6 +26,11 @@ public class DefaultVariableContext implements VariableContext {
     }
 
     @Override
+    public void removeVariable(String name) {
+        variables.remove(name);
+    }
+
+    @Override
     public Object getVariable(String name) {
         Object val = variables.get(name);
         if (val == null && parent != null) {

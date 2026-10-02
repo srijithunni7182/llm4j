@@ -48,6 +48,20 @@ only does what models are good at — reasoning about content.
 
 Loom is that layer, designed as a first-class language.
 
+### Earned autonomy: don't trust the agent, make it earn it
+
+Before an agent acts alone, someone has to be sure. Loom turns that from a meeting into a record. Declare a
+`decision`; the agent proposes and a person decides. Nobody sees the proposal at first, so the agreement
+figure is honest. When the record is good enough, on a conservative statistical bound, the agent moves up
+(`watch`, `suggest`, `act`). When the record turns, it moves back down. A changed prompt or model is tested on
+your past cases with `weave replay`, with nothing sent and nothing changed, before it goes live.
+
+```
+to act: after 300 cases over 30 days, agreeing at least 95%, with no dangerous mistakes
+```
+
+👉 [Earned Autonomy in the language guide](./ai-agent4j-loom/LOOM_GUIDE.md#earned-autonomy)
+
 👉 **[Why Loom?](./ai-agent4j-loom/WHY_LOOM.md)** How Loom runs long-running, autonomous workflows, and how it compares with LangGraph.
 
 ---
@@ -64,6 +78,8 @@ Loom is that layer, designed as a first-class language.
 | `for each` | Runs a block per list item (`parallel for each` for all at once); targets may come from the item |
 | `human_prompt` | Asks a person; with a run journal the run suspends (no thread held) and resumes on the answer |
 | `budget` | Caps a run, an agent or a step in tokens, calls or money; enforced before each LLM call. `per day` makes it refill |
+| `checkpoint` / `rewind` | Name a point and go back to it when a late check fails, carrying what was learned and keeping the old attempt as history: `rewind to collected when (review.score < 7) at most 2 times carrying feedback = "{review.notes}"`. Identical side effects and answers are never repeated; `weave timeline`, `rewind`, `reset` and `fork` do the same from outside |
+| `decision` / `decide` | Earned autonomy: an agent proposes, a person decides, and the record of both moves the agent up a ladder (`watch`, `suggest`, `act`) or back down. Written in plain phrases (`to act: after 300 cases over 30 days, agreeing at least 97%, with no dangerous mistakes`); `weave autonomy` operates it and `weave replay` tries a changed prompt or model on past cases with nothing sent |
 | `tool` | Declare and configure a tool in the script (`use: webhook`, `email`, `http`, `file`, `shell`, `sql`, `serpapi`, `openapi`, …); secrets only from `env.NAME`; side effects are journaled so a resume never repeats a send |
 | `knowledge` | A knowledge base: source files, embedding model, index store; agents get the relevant passages |
 | `approve` | On an agent: which tool calls need a person's yes (durable, journaled per call) |

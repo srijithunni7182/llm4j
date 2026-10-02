@@ -1,0 +1,21 @@
+# G3: sabotage runs
+
+Each row breaks one rule in the real source, runs the autonomy tests, and restores the source.
+**DETECTED** means every expected check failed.
+
+| # | Sabotage | Expected to fail | Result | Failing checks | Failing tests |
+|---|---|---|---|---|---|
+| M1 | Show the proposal to the person in watch | V4.1 | **DETECTED** | failing checks ['V3.6', 'V4.1'] | DecideTest.theProposalIsInNoStringAPersonOrAListenerSeesBeforeTheyAnswer, LadderRunTest.anAuditedCaseAtActIsAskedBlindAndCountsAsEvidenceExactlyAsInWatch |
+| M2 | Count cases decided with the proposal in view as evidence | V4.2 | **DETECTED** | failing checks ['V3.2', 'V4.2', 'V5.1'] | AutonomyCommandsTest.statusPrintsEveryFieldForEveryScopeIncludingWhatIsMissingForTheNextStep, DecideTest.atSuggestThePersonSeesTheProposalAndTheirAnswerIsTheVerdictEvenWhenItOverridesIt, LadderTest.casesDecidedWithTheProposalInViewNeverCountTowardsAPromotion |
+| M3 | Judge agreement by the raw rate instead of the Wilson lower bound | V3.3 | **DETECTED** | failing checks ['V3.3', 'V4.6'] | AutonomyCommandsTest.theNumberStatusPrintsIsTheNumberThePromotionWasDecidedOn, LadderTest.theAgreementPartIsJudgedByTheLowerBoundNotTheRawRate |
+| M4 | Skip the epoch change when the agent's identity changes | V6.2 | **DETECTED** | failing checks ['V6.2'] | DecideSafetyTest.keepingTheTrustCarriesTheLevelIntoANewEpoch, DecideSafetyTest.whenTheAgentChangesStartOverReturnsToTheStartLevelWithNoEvidence |
+| M5 | Let a replay run a tool that is not known to be a read | V7.5 | **DETECTED** | failing checks ['V7.5', 'V7.6'] | ReplayToolsTest.aToolDeclaredReplayAllowRunsAndIsListedAtTheTopOfTheReport, ReplayToolsTest.anEffectAndAnUnknownKindAreSimulatedNeverRunAndTheProposalsAfterThemAreCountedSeparately |
+| M6 | Let a replay run on past the proposal instead of stopping there | V7.4 | **DETECTED** | failing checks ['V6.3', 'V7.1', 'V7.10', 'V7.11', 'V7.12', 'V7.15', 'V7.16', 'V7.2', 'V7.3', 'V7.4', 'V7.5', 'V7.6', 'V7.8', 'V7.9'] | ReplayCommandTest.doingOneCaseByHandWithForkGivesTheSameProposalAsTheReplayEngine, ReplayCommandTest.replayReadsTheRunsTheirDirectoriesNameGradesTheCandidateAndKeepsItsOwnDirectory, ReplayDurabilityTest.aCostBudgetStopsAReplayToo, ReplayDurabilityTest.aPolicyReplayReplacesTheFileTheAgentReadsForTheCandidateOnlyAndRecordsBothHashes, ReplayDurabilityTest.aTokenBudgetStopsCleanlyWithAPartialReportAndResumeFinishesWithTheSameReportAsAnUninterruptedRun, ReplayDurabilityTest.whenTheAgentChangesTestingOnPastCasesGivesTheNewAgentTheLevelItsReplayEarnsNeverMoreThanBefore (+12 more) |
+| M7 | Ignore the ceiling when judging a promotion | V3.8 | **DETECTED** | failing checks ['V3.8'] | LadderTest.theCeilingCapsPromotionWhateverTheEvidenceSays |
+| M8 | Drop the dangerous-mistake part of a rule | V3.4 | **DETECTED** | failing checks ['V3.4'] | LadderTest.noDangerousMistakesBlocksWhileOneIsInTheWindowAndAllowsOnceItHasLeft |
+| M9 | Use the level now in force instead of the journaled one on a resumed case | V3.10 | **DETECTED** | failing checks ['V3.10', 'V6.6'] | DecideSafetyTest.aChangeOfIdentityWhileACaseIsInProgressDoesNotAffectIt, LadderRunTest.theLevelInForceIsJournaledSoARunResumedAfterAChangeFinishesTheCaseAtTheLevelItBeganWith |
+| M10 | Promote without waiting for the approver | V3.9 | **DETECTED** | failing checks ['V3.9'] | EngineTest.approvingOrRejectingNeedsAnOpenProposalTheNamedApproverAndAScopeThatStillNeedsIt, LadderRunTest.approvalMakesOneProposalMovesNothingUntilApprovedAndRecordsTheApprover |
+| M11 | Make audit sampling depend on something other than the case id | V3.6 | **DETECTED** | failing checks ['V3.6'] | LadderRunTest.auditSamplingSendsAShareOfCasesBlindAndTheSameCasesEveryTime |
+| M12 | Let a freeze apply to a case already in progress | V5.4 | **DETECTED** | failing checks ['V5.4'] | DecideSafetyTest.aFreezeThatArrivesWhileACaseIsBeingProposedDoesNotChangeThatCase |
+
+M6 was first drafted as removing the replay branch of `decide`; that is behaviourally equivalent (the replay's own overlay stores isolate it anyway), so it was redefined as running on past the proposal. M6 and M11 were re-run after the V7.4 check and a stronger V3.6 repeatability loop were in place: 12/12 detected.

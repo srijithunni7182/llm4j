@@ -14,6 +14,11 @@ public final class DescribedTool implements Tool {
         this.extra = extra;
     }
 
+    /** The tool this one adds a description to. */
+    public Tool delegate() {
+        return delegate;
+    }
+
     @Override
     public String getName() {
         return delegate.getName();

@@ -12,6 +12,10 @@ public final class ApprovalTool implements Tool {
         this.delegate = delegate;
     }
 
+    public Tool delegate() {
+        return delegate;
+    }
+
     @Override
     public String getName() {
         return delegate.getName();

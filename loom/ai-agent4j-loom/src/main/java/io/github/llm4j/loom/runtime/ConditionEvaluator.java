@@ -125,6 +125,9 @@ public class ConditionEvaluator {
 
     private static boolean isNumeric(String value) {
         if (value == null || value.isBlank()) return false;
+        // a number starts with one of these: asking the parser about every word costs an exception each time
+        char first = value.stripLeading().charAt(0);
+        if (!(Character.isDigit(first) || first == '-' || first == '+' || first == '.' || first == 'N' || first == 'I')) return false;
         try {
             Double.parseDouble(value);
             return true;

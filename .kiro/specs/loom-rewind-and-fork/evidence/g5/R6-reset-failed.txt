@@ -1,0 +1,27 @@
+$ weave run report.loom --workflow Report --input topic=bees --trace --journal runs/x   (the analyst's model answers HTTP 500)
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+? Execution failed: Delegate to Analyst failed after 0 retries: [127.0.0.1] HTTP request failed with status 500: {}
+java.lang.RuntimeException: Delegate to Analyst failed after 0 retries: [127.0.0.1] HTTP request failed with status 500: {}
+Caused by: io.github.llm4j.exception.ServiceUnavailableException: [127.0.0.1] HTTP request failed with status 500: {}
+	at io.github.llm4j.http.HttpClientWrapper.failure(HttpClientWrapper.java:272)
+
+$ weave reset runs/x --failed --reason "model back" --resume
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+06:25:04 [Report/s6~3] Publisher  ? use Slack
+06:25:04 [Report/s6~3] Publisher  ? Slack {"title":"Report","text":"Publish draft from analysis of data(fix2)"}
+06:25:04 [Report/s6~3] ? a different effect after a rewind: Slack 127.0.0.1
+06:25:04 [Report/s6~3] ? tool effect: Slack 127.0.0.1 ? ok
+? Workflow completed successfully.
+--- timeline:
+STEP                         GEN  KIND       AGENT        STATE        TOKENS       COST
+Report/s1                    1    delegate   Collector    discarded        15          0
+Report/s1~2                  2    delegate   Collector    discarded        15          0
+Report/s1~3                  3    delegate   Collector    done             15          0
+Report/s2                    1    delegate   Analyst      discarded        69          0
+Report/s2~2                  2    delegate   Analyst      discarded        15          0
+Report/s2~3                  3    delegate   Analyst      done             15          0
+Report/s3                    1    delegate   Writer       discarded        15          0
+Report/s3~2                  2    delegate   Writer       discarded        15          0
+Report/s3~3                  3    delegate   Writer       done             15          0
+Report/s4                    1    delegate   Reviewer     discarded        15          0
+Report/s4~2                  2    delegate   Reviewer     discarded        15          0

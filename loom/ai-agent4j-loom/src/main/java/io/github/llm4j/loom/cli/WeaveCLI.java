@@ -66,6 +66,12 @@ public class WeaveCLI implements Callable<Integer> {
         @Option(names = "--lenient", description = "Treat features that aren't supported yet as warnings, not errors.")
         private boolean lenient;
 
+        @Option(names = "--stop-at", description = "Stop cleanly once this step (or checkpoint) has completed; resume the run to carry on.")
+        private String stopAt;
+
+        @Option(names = "--max-rewinds", description = "The most times the run may go back in all (default 20).")
+        private Integer maxRewinds;
+
         @Option(names = "--trace", arity = "0..1", fallbackValue = "text", paramLabel = "text|json",
                 description = "Show what agents think and do, live, on stderr (--trace=json for JSON lines).")
         private String trace;
@@ -78,7 +84,7 @@ public class WeaveCLI implements Callable<Integer> {
             }
             return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, prices,
                     journal == null ? null : journal.toPath(), store == null ? null : store.toPath(), waitForResume,
-                    lenient, trace, WeaveEnv.system());
+                    lenient, trace, stopAt, maxRewinds, WeaveEnv.system());
         }
     }
 
@@ -114,6 +120,18 @@ public class WeaveCLI implements Callable<Integer> {
     static int run(File scriptFile, File lootFile, String workflowName, Map<String, String> inputs, Long maxTokens,
                    Long maxCalls, String maxCost, File pricesFile, Path journal, Path store, boolean wait,
                    boolean lenient, String trace, WeaveEnv env) {
+        return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, pricesFile, journal, store, wait, lenient, trace, null, env);
+    }
+
+    static int run(File scriptFile, File lootFile, String workflowName, Map<String, String> inputs, Long maxTokens,
+                   Long maxCalls, String maxCost, File pricesFile, Path journal, Path store, boolean wait,
+                   boolean lenient, String trace, String stopAt, WeaveEnv env) {
+        return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, pricesFile, journal, store, wait, lenient, trace, stopAt, null, env);
+    }
+
+    static int run(File scriptFile, File lootFile, String workflowName, Map<String, String> inputs, Long maxTokens,
+                   Long maxCalls, String maxCost, File pricesFile, Path journal, Path store, boolean wait,
+                   boolean lenient, String trace, String stopAt, Integer maxRewinds, WeaveEnv env) {
         if (trace != null && !trace.equals("text") && !trace.equals("json")) {
             env.err().println("Error: --trace takes text or json, got " + trace);
             return 2;
@@ -126,7 +144,7 @@ public class WeaveCLI implements Callable<Integer> {
                 pricesFile == null ? null : pricesFile.getAbsolutePath(), storeDir == null ? null : storeDir.toString(),
                 lenient, trace);
         if (runDir != null) spec.write(runDir);
-        Runs.Result result = Runs.execute(spec, runDir, null, env);
+        Runs.Result result = Runs.execute(spec.withStopAt(stopAt).withMaxRewinds(maxRewinds), runDir, null, env);
         if (result.exit() == 4 && wait && runDir != null && result.resumeAt() != null) {
             return waitForRun(runDir, storeDir, env);
         }
@@ -232,13 +250,20 @@ public class WeaveCLI implements Callable<Integer> {
         @Parameters(index = "0", description = "The run directory (as given to run --journal).")
         private File runDir;
 
+        @Option(names = "--stop-at", description = "Stop cleanly once this step (or checkpoint) has completed.")
+        private String stopAt;
+
         @Override
         public Integer call() {
-            return resume(runDir.toPath(), WeaveEnv.system());
+            return resume(runDir.toPath(), stopAt, WeaveEnv.system());
         }
     }
 
     static int resume(Path runDir, WeaveEnv env) {
+        return resume(runDir, null, env);
+    }
+
+    static int resume(Path runDir, String stopAt, WeaveEnv env) {
         Path dir = runDir.toAbsolutePath().normalize();
         RunSpec spec;
         try {
@@ -247,7 +272,7 @@ public class WeaveCLI implements Callable<Integer> {
             env.err().println("Error: " + e.getMessage());
             return 2;
         }
-        Runs.Result r = Runs.execute(spec, dir, null, env);
+        Runs.Result r = Runs.execute(spec.withStopAt(stopAt), dir, null, env);
         if (r.exit() != 4 && spec.store() != null) {
             new io.github.llm4j.loom.trigger.FileTriggerStore(Path.of(spec.store())).remove(Runs.resumeTriggerId(dir));
         }
@@ -514,6 +539,12 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new TriggersCommand())
                 .addSubcommand(new ScheduleCommand())
                 .addSubcommand(new PackageCommand())
+                .addSubcommand(new TravelCommands.Timeline())
+                .addSubcommand(new TravelCommands.Rewind())
+                .addSubcommand(new TravelCommands.Reset())
+                .addSubcommand(new TravelCommands.Fork())
+                .addSubcommand(new AutonomyCommands())
+                .addSubcommand(new ReplayCommand())
                 .execute(args);
         System.exit(exitCode);
     }

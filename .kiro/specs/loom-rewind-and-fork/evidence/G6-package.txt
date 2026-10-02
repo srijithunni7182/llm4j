@@ -1,0 +1,11 @@
+commit f6b627904d36c576f2be6512683aedaffebd5a22
+[INFO] Total time:  28.354 s
+[INFO] Finished at: 2026-10-02T06:22:03Z
+[INFO] ------------------------------------------------------------------------
+jar: /home/user/llm4j/loom/ai-agent4j-loom/target/ai-agent4j-loom-5.0.jar (147M)
+--- weave check of a script with checkpoint and rewind, from an empty directory with only the jar:
+? r.loom: ready to run
+   weave timeline is in the jar
+   weave rewind is in the jar
+   weave reset is in the jar
+   weave fork is in the jar

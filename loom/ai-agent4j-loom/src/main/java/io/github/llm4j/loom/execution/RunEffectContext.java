@@ -61,6 +61,16 @@ final class RunEffectContext implements EffectContext {
     }
 
     @Override
+    public String identityStep() {
+        return executor.identityStep();
+    }
+
+    @Override
+    public boolean simulate() {
+        return executor.simulating();
+    }
+
+    @Override
     public long attempt() {
         return executor.currentAttempt();
     }

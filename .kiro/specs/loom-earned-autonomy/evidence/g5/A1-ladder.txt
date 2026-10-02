@@ -1,0 +1,19 @@
+$ weave run refund.loom -w Triage -i ticket=Tn -i tier=gold -i amount=... --journal runs/cn --store store    (n = 1..60; the shell answers the person's question)
+after case 1: the ladder stands at 'watch'
+after case 10: the ladder stands at 'suggest'
+after case 21: the ladder stands at 'act'
+--- the last case:
+? Workflow completed successfully.
+--- weave autonomy status store
+Refund
+  scope gold   level act   (epoch 1, agent 3f16605b27)
+    evidence: 30 blind cases of the latest 30;  agreement 93.3% (lower bound 78.7%);  dangerous mistakes 0.0%;  coverage 100.0%;  unusable proposals 0
+    next step: already at act
+    last change: 2026-10-02T08:06:14.054713411Z suggest -> act (promoted, by runtime): 20 cases, agreement lower bound 76.4% (raw 95.0%)
+
+--- weave autonomy history store
+Refund
+  2026-10-02T08:05:24.760060624Z  scope gold  (start) -> watch  [first]  by runtime: first case of this scope
+  2026-10-02T08:05:47.006612684Z  scope gold  watch -> suggest  [promoted]  by runtime: 10 cases, agreement lower bound 72.2% (raw 100.0%)
+  2026-10-02T08:06:14.054713411Z  scope gold  suggest -> act  [promoted]  by runtime: 20 cases, agreement lower bound 76.4% (raw 95.0%)
+--- model calls: 60

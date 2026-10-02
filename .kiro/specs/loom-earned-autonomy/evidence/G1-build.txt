@@ -1,0 +1,11 @@
+commit 185ded0d8d4121dd1d258e37496f6bd0db2674f7
+Fri Oct  2 09:15:44 UTC 2026
+-- run 1: plain
+   BUILD SUCCESS
+   core: tests=657 failures=0 errors=0 skipped=2; tools: tests=381 failures=0 errors=0 skipped=0; loom: tests=626 failures=0 errors=0 skipped=1
+-- run 2: plain again
+   BUILD SUCCESS
+   core: tests=657 failures=0 errors=0 skipped=2; tools: tests=381 failures=0 errors=0 skipped=0; loom: tests=626 failures=0 errors=0 skipped=1
+-- run 3: random order, 100000 random ladder sequences
+   BUILD SUCCESS
+   core: tests=657 failures=0 errors=0 skipped=2; tools: tests=381 failures=0 errors=0 skipped=0; loom: tests=626 failures=0 errors=0 skipped=1

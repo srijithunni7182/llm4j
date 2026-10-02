@@ -148,7 +148,26 @@ provider meets [one contract](../../ai-agent4j/wiki/Providers-and-the-Uniform-Co
 - Run results report tokens, calls and cost per agent. Exit codes say *done*, *failed*, *stopped by
   budget* or *paused*.
 
-### 10. Ships like any Java application
+### 10. Agents that earn their autonomy
+
+Every team asks the same question before an agent acts alone: *has it earned it?* Usually the answer is a
+meeting before launch. Loom makes it a record.
+
+- A **`decision`** is declared in the script: the agent *proposes*, a person *decides*, and Loom keeps a
+  ledger of both. The agent starts at `watch` (nobody sees its proposal, so the measurement is honest),
+  moves to `suggest`, and to `act` only when the record says so, on a conservative statistical bound (not a
+  lucky streak) and, if you want, only with a named person's approval.
+- It **falls back by itself** when the record turns: a dangerous mistake, a reversal or a drop in agreement
+  moves it down, and `weave autonomy freeze` stops `act` for every case that starts after the command.
+- A changed prompt, model or skill is a **new agent** and starts again, or is **tested on your past cases
+  first**: `weave replay` runs the candidate over the ledger with nothing sent and nothing changed, and
+  reports agreement, flips and the level it would earn.
+- The rules read aloud: `to act: after 300 cases over 30 days, agreeing at least 95%, with no dangerous
+  mistakes`. A reviewer, an auditor or a manager can sign that.
+
+See [Earned Autonomy](LOOM_GUIDE.md#earned-autonomy) in the language guide.
+
+### 11. Ships like any Java application
 
 - `weave package --fat` builds one runnable JAR.
 - Embedding Loom in a Spring Boot service takes three calls (parse, initialise, execute).
@@ -176,6 +195,7 @@ state, human-in-the-loop, schedules. Loom takes those ideas further for workflow
 | **Scheduling** | `schedule` blocks in the script. Your OS scheduler, Cloud Scheduler or `weave daemon` wakes it; no platform to buy or run. | Cron jobs on its hosted platform, or your own scheduler. |
 | **Durability** | Journal per step (memory, file or any SQL database). Durability is a runtime flag: the script doesn't change. | Checkpointers wired into the graph at compile time. |
 | **Approvals** | `approve: [Tool]` per agent: only those tool calls wait, and each is journaled. | `interrupt()` placed in node code. |
+| **Trusting the agent** | **Built in.** `decision` ledger, a `watch` → `suggest` → `act` ladder earned from your own cases, blind measurement, freeze, and replay of a change over past cases. | Build it yourself. |
 | **Checking before running** | `weave check`: every problem, with its line, before any model is called. | Problems surface at compile or run time. |
 | **Providers** | Gemini, Sarvam, Ollama and Claude behind one contract; switching is a one-word change. | Through LangChain integrations. |
 | **Runtime** | The JVM, packaged as one JAR, deployed like the rest of your Java estate. | Python or JavaScript. |
@@ -188,6 +208,8 @@ state, human-in-the-loop, schedules. Loom takes those ideas further for workflow
 - **Cost must be bounded before the call**, not discovered on the invoice.
 - **The orchestration is reviewable.** A `.loom` file reads like the process it describes, so product
   owners, reviewers and auditors can follow it.
+- **Autonomy has to be earned and provable.** Moving an agent from "a person decides" to "it acts" is a
+  recorded, reversible, auditable step.
 - **The rules that keep agents safe live in one place**: bounds, budgets, approvals and guards, separate
   from prompts and application code.
 

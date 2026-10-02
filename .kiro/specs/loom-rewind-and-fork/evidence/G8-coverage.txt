@@ -1,0 +1,18 @@
+commit f6b627904d36c576f2be6512683aedaffebd5a22
+INFO: NOTE: BUILDING CONSENSUS
+[WARNING] Tests run: 492, Failures: 0, Errors: 0, Skipped: 1
+[INFO] --- jacoco:0.8.12:report (report) @ ai-agent4j-loom ---
+[INFO] Loading execution data file /home/user/llm4j/loom/ai-agent4j-loom/target/jacoco.exec
+[INFO] --- jacoco:0.8.12:check (rewind-coverage) @ ai-agent4j-loom ---
+[INFO] Loading execution data file /home/user/llm4j/loom/ai-agent4j-loom/target/jacoco.exec
+[INFO] All coverage checks have been met.
+[INFO] BUILD SUCCESS
+TravelCommands   branches  72.0%  lines  80.6%
+RunLock          branches  75.0%  lines  76.9%
+ScriptDrift      branches  71.9%  lines  94.1%
+RunTravel        branches  94.2%  lines  99.1%
+OverlayJournal   branches 100.0%  lines 100.0%
+Rewinder         branches  84.4%  lines  96.7%
+RewindChecks     branches  76.2%  lines  96.1%
+EffectScan       branches  97.1%  lines 100.0%
+Generations      branches  96.6%  lines 100.0%

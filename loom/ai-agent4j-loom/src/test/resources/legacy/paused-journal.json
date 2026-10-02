@@ -1,0 +1,6 @@
+{
+  "W/s0": { "kind": "delegate", "value": "legacy-result" },
+  "W/s0#usage:A": { "kind": "usage", "value": { "agent": "A", "model": "m", "prompt": 10, "completion": 5, "calls": 1, "cost": "0", "estimated": false, "at": 1700000000000 } },
+  "W/s1": { "kind": "human", "value": "yes" },
+  "#suspension": { "kind": "suspension", "value": { "state": "suspended", "reason": "HUMAN", "step": "W/s2", "suspendedAt": "2026-09-28T07:00:00Z", "resumes": 0, "detail": "waiting" } }
+}

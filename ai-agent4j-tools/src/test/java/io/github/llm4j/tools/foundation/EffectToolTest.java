@@ -241,4 +241,51 @@ class EffectToolTest {
         });
         assertThat(ctx.everything()).doesNotContain("confidential");
     }
+
+    // ---- a host that can run a step again: an attempt is not part of an effect's identity ------------------
+
+    @Test
+    @org.junit.jupiter.api.Tag("RW-V4.1")
+    @org.junit.jupiter.api.Tag("RW-V4.11")
+    void anIdenticalCallInALaterAttemptOfTheSameStepIsFoundNotRepeatedAndOrdinalsHold() {
+        ctx.step = "W/s1";
+        ctx.identity = "W/s1";
+        EffectTool tool = tool();
+        assertThat(tool.execute(args("same"))).doesNotContain(REPLAYED);
+        assertThat(tool.execute(args("same"))).doesNotContain(REPLAYED); // a second identical call in one attempt is its own call (ordinal 1)
+        assertThat(fake.performed).hasSize(2);
+
+        ctx.attempt.incrementAndGet();
+        ctx.step = "W/s1~2"; // the same place, a later attempt; its identity is the place
+        assertThat(tool.execute(args("same"))).startsWith(REPLAYED);
+        assertThat(tool.execute(args("same"))).startsWith(REPLAYED);
+        assertThat(fake.performed).as("neither was performed again").hasSize(2);
+        assertThat(journal.all().keySet().stream().filter(k -> k.contains("#effect:")).toList()).containsExactlyInAnyOrder(
+                "W/s1#effect:Slack:" + hash("same") + "#0",
+                "W/s1#effect:Slack:" + hash("same") + "#1");
+
+        assertThat(tool.execute(args("different"))).doesNotContain(REPLAYED);
+        assertThat(fake.performed).hasSize(3);
+        assertThat(ctx.audited("effect_after_rewind")).hasSize(1);
+        assertThat(ctx.trace).anyMatch(t -> t.startsWith("a different effect after a rewind: Slack"));
+    }
+
+    private static String hash(String text) {
+        return io.github.llm4j.tools.CanonicalArgs.hash12("Slack", args(text));
+    }
+
+    @Test
+    @org.junit.jupiter.api.Tag("RW-V4.8")
+    void aSimulatedContextPerformsNoEffectAndRecordsNothingAsDoneButLetsReadsThrough() {
+        ctx.simulating = true;
+        EffectTool tool = tool();
+        assertThat(tool.execute(args("x"))).isEqualTo(EffectTool.SIMULATED);
+        assertThat(fake.performed).isEmpty();
+        assertThat(journal.all()).isEmpty();
+        assertThat(ctx.audited("tool_effect")).hasSize(1);
+
+        fake.effect = false;
+        assertThat(tool.execute(args("x"))).isEqualTo("done");
+        assertThat(fake.performed).hasSize(1);
+    }
 }

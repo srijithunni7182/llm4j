@@ -48,6 +48,8 @@ public class LoomParser {
                 Token keyword = advance();
                 if (script.getBudget() != null) throw error(keyword, "Only one top-level budget block is allowed.");
                 script.setBudget(parseBudgetBlock(false));
+            } else if (isDecisionStart()) {
+                script.addDecision(parseDecision());
             } else if (isBlockKeyword("rate_limits")) {
                 Token keyword = advance();
                 if (script.getRateLimits() != null) throw error(keyword, "Only one rate_limits block is allowed.");
@@ -250,9 +252,459 @@ public class LoomParser {
             return parseObserveStatement();
         } else if (match(TokenType.CALL)) {
             return parseCallStmt();
+        } else if (isWord("checkpoint") && peekAt(1).getType() == TokenType.IDENTIFIER) {
+            return parseCheckpoint();
+        } else if (isWord("rewind") && peekAt(1).getType() == TokenType.TO) {
+            return parseRewind();
+        } else if (isWord("decide") && peekAt(1).getType() == TokenType.IDENTIFIER) {
+            return parseDecide();
         }
         
         throw error(peek(), "Expected statement, got " + peek().getType());
+    }
+
+    // -----------------------------------------------------------------------
+    // Checkpoints and rewinds: read as sentences, in a fixed order of phrases.
+    // -----------------------------------------------------------------------
+
+    /** True when the next token is the plain word {@code word} (these words are keywords only where a statement starts). */
+    private boolean isWord(String word) {
+        return check(TokenType.IDENTIFIER) && word.equals(peek().getValue());
+    }
+
+    private Token peekAt(int offset) {
+        int i = Math.min(current + offset, tokens.size() - 1);
+        return tokens.get(i);
+    }
+
+    private void expectWord(String word, String message) {
+        if (!isWord(word)) throw error(peek(), message);
+        advance();
+    }
+
+    /** {@code checkpoint Name [starting with name = "value", name = "value"]} */
+    private CheckpointStmt parseCheckpoint() {
+        Token keyword = advance();
+        CheckpointStmt stmt = new CheckpointStmt(consume(TokenType.IDENTIFIER, "Expect a name after checkpoint.").getValue());
+        stmt.setLine(keyword.getLine());
+        if (isWord("starting")) {
+            advance();
+            expectWord("with", "Write: checkpoint " + stmt.getName() + "  starting with name = \"value\"");
+            parseAssignments(stmt.getStartingWith(), "starting with");
+        }
+        return stmt;
+    }
+
+    /** name = "value" [, name = "value"]... */
+    private void parseAssignments(java.util.Map<String, String> into, String after) {
+        do {
+            Token name = consume(TokenType.IDENTIFIER, "Expect a variable name after '" + after + "'.");
+            consume(TokenType.ASSIGN, "Expect '=' after " + name.getValue() + ", as in " + name.getValue() + " = \"value\".");
+            if (match(TokenType.STRING_LITERAL, TokenType.NUMBER_LITERAL, TokenType.IDENTIFIER)) {
+                into.put(name.getValue(), previous().getValue());
+            } else {
+                throw error(peek(), "Expect a value (in quotes) for " + name.getValue() + ".");
+            }
+        } while (match(TokenType.COMMA));
+    }
+
+    /**
+     * {@code rewind to Name [when (condition)] at most N times [carrying a = "x", ...] [side effects: ask first|keep|repeat]
+     * [if it still fails { ... }] [if blocked { ... }]}
+     */
+    private RewindStmt parseRewind() {
+        Token keyword = advance();
+        consume(TokenType.TO, "Expect 'to' after rewind.");
+        Token target = consume(TokenType.IDENTIFIER, "Expect the name of a checkpoint after 'rewind to'.");
+
+        String condition = null;
+        if (isWord("when")) {
+            advance();
+            consume(TokenType.LPAREN, "Write the condition in brackets: rewind to " + target.getValue() + " when (score < 7)");
+            StringBuilder b = new StringBuilder();
+            while (!check(TokenType.RPAREN) && !isAtEnd()) {
+                if (isWord("and") || isWord("or")) {
+                    throw error(peek(), "a condition is one comparison, such as (score < 7), or one true/false variable; combine several tests into a variable first");
+                }
+                b.append(advance().getValue());
+            }
+            consume(TokenType.RPAREN, "Expect ')' after the rewind condition.");
+            condition = b.toString();
+        }
+
+        if (!isWord("at")) throw error(peek(), "A rewind needs a limit: add \"at most 2 times\" (or another number).");
+        advance();
+        expectWord("most", "Write the limit as: at most 2 times");
+        Token n = consume(TokenType.NUMBER_LITERAL, "Expect a number after 'at most', as in: at most 2 times");
+        int atMost = (int) Double.parseDouble(n.getValue());
+        if (atMost < 1) throw error(n, "\"at most\" must be at least 1 time");
+        if (isWord("times") || isWord("time")) advance();
+        else throw error(peek(), "Write the limit as: at most " + atMost + " times");
+
+        RewindStmt stmt = new RewindStmt(target.getValue(), condition, atMost);
+        stmt.setLine(keyword.getLine());
+
+        if (isWord("carrying")) {
+            advance();
+            parseAssignments(stmt.getCarrying(), "carrying");
+        }
+        if (isWord("side")) {
+            Token side = advance();
+            expectWord("effects", "Write: side effects: ask first | keep | repeat");
+            consume(TokenType.COLON, "Expect ':' after 'side effects'.");
+            String phrase = check(TokenType.IDENTIFIER) ? advance().getValue() : "";
+            if (phrase.equals("ask") && isWord("first")) {
+                advance();
+                phrase = "ask first";
+            }
+            RewindStmt.Effects effects = RewindStmt.Effects.of(phrase);
+            if (effects == null) throw error(side, "Side effects can be: ask first, keep or repeat (not \"" + phrase + "\").");
+            stmt.setEffects(effects);
+        }
+        while (isWord("if")) {
+            Token ifToken = advance();
+            java.util.List<Statement> into;
+            if (isWord("blocked")) {
+                advance();
+                into = stmt.getIfBlocked();
+            } else if (isWord("it")) {
+                advance();
+                expectWord("still", "Write: if it still fails { ... }");
+                expectWord("fails", "Write: if it still fails { ... }");
+                into = stmt.getIfStillFails();
+            } else {
+                throw error(ifToken, "After a rewind, write either: if it still fails { ... } or: if blocked { ... }");
+            }
+            consume(TokenType.LBRACE, "Expect '{' before the handler.");
+            while (!check(TokenType.RBRACE) && !isAtEnd()) into.add(parseStatement());
+            consume(TokenType.RBRACE, "Expect '}' after the handler.");
+        }
+        return stmt;
+    }
+
+    // -----------------------------------------------------------------------
+    // Decisions and earned autonomy: plain phrases in a fixed order, read aloud.
+    // -----------------------------------------------------------------------
+
+    /** The next token is the plain word {@code word}, whatever kind of token the lexer made of it ("agent" and "to" are keywords elsewhere). */
+    private boolean wordIs(String word) {
+        return peek().getType() != TokenType.STRING_LITERAL && peek().getType() != TokenType.EOF && word.equals(peek().getValue());
+    }
+
+    private void word(String word, String hint) {
+        if (!wordIs(word)) throw error(peek(), hint);
+        advance();
+    }
+
+    private boolean isDecisionStart() {
+        return isWord("decision") && peekAt(1).getType() == TokenType.IDENTIFIER && peekAt(2).getType() == TokenType.LBRACE;
+    }
+
+    /** {@code decide Name -> variable} */
+    private io.github.llm4j.loom.ast.DecideStmt parseDecide() {
+        Token keyword = advance();
+        Token name = consume(TokenType.IDENTIFIER, "Expect the name of a decision after decide.");
+        consume(TokenType.ARROW, "Write: decide " + name.getValue() + " -> verdict (the name the answer is kept under)");
+        Token variable = consume(TokenType.IDENTIFIER, "Expect a variable name after '->'.");
+        io.github.llm4j.loom.ast.DecideStmt stmt = new io.github.llm4j.loom.ast.DecideStmt(name.getValue(), variable.getValue());
+        stmt.setLine(keyword.getLine());
+        return stmt;
+    }
+
+    private int whole(String what) {
+        Token n = consume(TokenType.NUMBER_LITERAL, "Expect a whole number for " + what + ".");
+        double d = Double.parseDouble(n.getValue());
+        if (d != Math.rint(d)) throw error(n, what + " must be a whole number, not " + n.getValue());
+        return (int) d;
+    }
+
+    private double percent(String what) {
+        Token n = consume(TokenType.NUMBER_LITERAL, "Expect a percentage for " + what + ", such as 90%.");
+        consume(TokenType.PERCENT, "Write " + what + " as a percentage, such as 90% (not " + n.getValue() + ").");
+        return Double.parseDouble(n.getValue());
+    }
+
+    private io.github.llm4j.loom.autonomy.Level level(String after) {
+        Token t = advance();
+        io.github.llm4j.loom.autonomy.Level l = io.github.llm4j.loom.autonomy.Level.of(t.getValue());
+        if (l == null || t.getType() == TokenType.STRING_LITERAL) throw error(t, "After \"" + after + "\" write watch, suggest or act (not \"" + t.getValue() + "\").");
+        return l;
+    }
+
+    private void days(String what) {
+        if (wordIs("days") || wordIs("day")) advance();
+        else throw error(peek(), "Write " + what + " in days, such as 14 days.");
+    }
+
+    private void cases() {
+        if (wordIs("cases") || wordIs("case")) advance();
+        else throw error(peek(), "Expect the word \"cases\" here.");
+    }
+
+    /** The rest of the line, as written (a condition such as {@code amount > 200}). */
+    private String restOfLine() {
+        int line = peek().getLine();
+        StringBuilder b = new StringBuilder();
+        while (!isAtEnd() && peek().getLine() == line && !check(TokenType.RBRACE)) {
+            Token t = advance();
+            if (b.length() > 0 && t.getType() != TokenType.PERCENT) b.append(' ');
+            b.append(t.getType() == TokenType.STRING_LITERAL ? "\"" + t.getValue() + "\"" : t.getValue());
+        }
+        return b.toString();
+    }
+
+    private io.github.llm4j.loom.ast.DecisionDef parseDecision() {
+        Token keyword = advance();
+        Token name = consume(TokenType.IDENTIFIER, "Expect a decision name.");
+        io.github.llm4j.loom.ast.DecisionDef d = new io.github.llm4j.loom.ast.DecisionDef(name.getValue());
+        d.setLine(keyword.getLine());
+        consume(TokenType.LBRACE, "Expect '{' before the decision body.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token first = peek();
+            if (wordIs("proposed")) {
+                advance();
+                word("by", "Write: proposed by: AgentName");
+                consume(TokenType.COLON, "Expect ':' after \"proposed by\".");
+                d.setAgent(consume(TokenType.IDENTIFIER, "Expect the name of the agent that proposes.").getValue());
+            } else if (wordIs("choices")) {
+                advance();
+                consume(TokenType.COLON, "Expect ':' after \"choices\".");
+                do d.getChoices().add(consume(TokenType.IDENTIFIER, "Expect a choice name, such as approve.").getValue()); while (match(TokenType.COMMA));
+            } else if (wordIs("group")) {
+                advance();
+                word("cases", "Write: group cases by: variable");
+                word("by", "Write: group cases by: variable");
+                consume(TokenType.COLON, "Expect ':' after \"group cases by\".");
+                d.setGroupBy(consume(TokenType.IDENTIFIER, "Expect a variable name after \"group cases by:\".").getValue());
+            } else if (wordIs("remember")) {
+                advance();
+                consume(TokenType.COLON, "Expect ':' after \"remember\".");
+                do d.getRemember().add(consume(TokenType.IDENTIFIER, "Expect a variable name to remember.").getValue()); while (match(TokenType.COMMA));
+            } else if (wordIs("dangerous")) {
+                advance();
+                word("mistake", "Write: dangerous mistake: propose approve, person decides reject");
+                consume(TokenType.COLON, "Expect ':' after \"dangerous mistake\".");
+                word("propose", "Write: dangerous mistake: propose approve, person decides reject");
+                String proposed = consume(TokenType.IDENTIFIER, "Expect the choice the agent proposes.").getValue();
+                consume(TokenType.COMMA, "Write: dangerous mistake: propose " + proposed + ", person decides reject");
+                word("person", "Write: dangerous mistake: propose " + proposed + ", person decides reject");
+                word("decides", "Write: dangerous mistake: propose " + proposed + ", person decides reject");
+                d.getDangerous().add(new io.github.llm4j.loom.ast.DecisionDef.Mistake(proposed, consume(TokenType.IDENTIFIER, "Expect the choice the person makes.").getValue()));
+            } else if (wordIs("ask")) {
+                advance();
+                consume(TokenType.COLON, "Expect ':' after \"ask\" (who decides), as in: ask: support-lead");
+                d.setAsk(consume(TokenType.IDENTIFIER, "Expect the name of who decides.").getValue());
+            } else if (wordIs("keep")) {
+                advance();
+                word("records", "Write: keep records for: 180 days");
+                word("for", "Write: keep records for: 180 days");
+                consume(TokenType.COLON, "Expect ':' after \"keep records for\".");
+                d.setKeepDays(whole("the days to keep records"));
+                days("how long to keep records");
+            } else if (wordIs("when")) {
+                advance();
+                word("the", "Write: when the agent changes: start over | test it on past cases | keep the trust");
+                word("agent", "Write: when the agent changes: start over | test it on past cases | keep the trust");
+                word("changes", "Write: when the agent changes: start over | test it on past cases | keep the trust");
+                consume(TokenType.COLON, "Expect ':' after \"when the agent changes\".");
+                if (wordIs("start")) {
+                    advance();
+                    word("over", "Write: start over");
+                    d.setOnChange(io.github.llm4j.loom.ast.DecisionDef.OnChange.START_OVER);
+                } else if (wordIs("test")) {
+                    advance();
+                    word("it", "Write: test it on past cases");
+                    word("on", "Write: test it on past cases");
+                    word("past", "Write: test it on past cases");
+                    cases();
+                    d.setOnChange(io.github.llm4j.loom.ast.DecisionDef.OnChange.TEST_ON_PAST);
+                } else if (wordIs("keep")) {
+                    advance();
+                    word("the", "Write: keep the trust");
+                    word("trust", "Write: keep the trust");
+                    d.setOnChange(io.github.llm4j.loom.ast.DecisionDef.OnChange.KEEP_TRUST);
+                } else {
+                    throw error(peek(), "After \"when the agent changes:\" write start over, test it on past cases or keep the trust.");
+                }
+            } else if (wordIs("tell")) {
+                advance();
+                d.setTellTool(consume(TokenType.IDENTIFIER, "Expect the name of a tool to tell, as in: tell Slack when trust changes").getValue());
+                word("when", "Write: tell " + d.getTellTool() + " when trust changes");
+                word("trust", "Write: tell " + d.getTellTool() + " when trust changes");
+                word("changes", "Write: tell " + d.getTellTool() + " when trust changes");
+            } else if (wordIs("task")) {
+                advance();
+                consume(TokenType.COLON, "Expect ':' after \"task\".");
+                d.setTask(consume(TokenType.STRING_LITERAL, "Expect the task text in quotes.").getValue());
+            } else if (wordIs("flag")) {
+                advance();
+                word("cases", "Write: flag cases with no verdict after 7 days");
+                word("with", "Write: flag cases with no verdict after 7 days");
+                word("no", "Write: flag cases with no verdict after 7 days");
+                word("verdict", "Write: flag cases with no verdict after 7 days");
+                word("after", "Write: flag cases with no verdict after 7 days");
+                d.setStaleDays(whole("the days before a case is flagged"));
+                days("how long before a case is flagged");
+            } else if (wordIs("trust") && peekAt(1).getType() == TokenType.LBRACE) {
+                advance();
+                parseTrust(d);
+            } else {
+                throw error(first, "Unexpected \"" + first.getValue() + "\" in decision " + d.getName() + ". A decision holds: proposed by, choices, group cases by, remember, "
+                        + "dangerous mistake, ask, keep records for, when the agent changes, tell, task, flag cases, and a trust { } block.");
+            }
+        }
+        consume(TokenType.RBRACE, "Expect '}' after the decision body.");
+        return d;
+    }
+
+    private void parseTrust(io.github.llm4j.loom.ast.DecisionDef d) {
+        d.setTrustGiven(true);
+        consume(TokenType.LBRACE, "Expect '{' after trust.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token first = peek();
+            if (wordIs("start")) {
+                advance();
+                word("at", "Write: start at watch");
+                d.setStartAt(level("start at"));
+            } else if (wordIs("never")) {
+                advance();
+                word("go", "Write: never go above suggest");
+                word("above", "Write: never go above suggest");
+                d.setCeiling(level("never go above"));
+            } else if (first.getType() == TokenType.TO) {
+                advance();
+                io.github.llm4j.loom.autonomy.Level to = level("to");
+                consume(TokenType.COLON, "Expect ':' after \"to " + to.word() + "\".");
+                if (!wordIs("after")) throw error(peek(), "\"to " + to.word() + "\" needs \"after N cases\", as in: to " + to.word() + ": after 100 cases over 14 days, agreeing at least 90%");
+                advance();
+                int cases = whole("the number of cases");
+                cases();
+                int days = 0;
+                if (wordIs("over")) {
+                    advance();
+                    days = whole("the number of days");
+                    days("the time the cases must span");
+                }
+                consume(TokenType.COMMA, "Write: to " + to.word() + ": after " + cases + " cases over 14 days, agreeing at least 90%");
+                word("agreeing", "\"to " + to.word() + "\" needs \"agreeing at least P%\"");
+                word("at", "Write: agreeing at least 90%");
+                word("least", "Write: agreeing at least 90%");
+                double agree = percent("how much the agent must agree");
+                boolean none = false;
+                Double atMost = null;
+                if (match(TokenType.COMMA)) {
+                    word("with", "Write: with no dangerous mistakes, or: with at most 1% dangerous mistakes");
+                    if (wordIs("no")) {
+                        advance();
+                        none = true;
+                    } else {
+                        word("at", "Write: with no dangerous mistakes, or: with at most 1% dangerous mistakes");
+                        word("most", "Write: with at most 1% dangerous mistakes");
+                        atMost = percent("the dangerous mistakes allowed");
+                    }
+                    word("dangerous", "Write: dangerous mistakes");
+                    word("mistakes", "Write: dangerous mistakes");
+                }
+                if (d.getUpRules().put(to, new io.github.llm4j.loom.ast.DecisionDef.UpRule(to, cases, days, agree, none, atMost, first.getLine())) != null) {
+                    throw error(first, "There are two rules for moving up to " + to.word() + ".");
+                }
+            } else if (wordIs("judge")) {
+                advance();
+                word("on", "Write: judge on the latest 300 cases");
+                word("the", "Write: judge on the latest 300 cases");
+                word("latest", "Write: judge on the latest 300 cases");
+                d.setWindow(whole("the number of cases to judge on"));
+                cases();
+            } else if (wordIs("check")) {
+                advance();
+                d.setAuditPercent(percent("the share of cases to check"));
+                word("of", "Write: check 5% of cases with a person who doesn't see the proposal");
+                cases();
+                word("with", "Write: check 5% of cases with a person who doesn't see the proposal");
+                word("a", "Write: check 5% of cases with a person who doesn't see the proposal");
+                word("person", "Write: check 5% of cases with a person who doesn't see the proposal");
+                word("who", "Write: check 5% of cases with a person who doesn't see the proposal");
+                word("doesn't", "Write: check 5% of cases with a person who doesn't see the proposal");
+                word("see", "Write: check 5% of cases with a person who doesn't see the proposal");
+                word("the", "Write: check 5% of cases with a person who doesn't see the proposal");
+                word("proposal", "Write: check 5% of cases with a person who doesn't see the proposal");
+            } else if (wordIs("always")) {
+                advance();
+                word("ask", "Write: always ask a person when amount > 200");
+                word("a", "Write: always ask a person when amount > 200");
+                word("person", "Write: always ask a person when amount > 200");
+                if (wordIs("when")) {
+                    advance();
+                    String condition = restOfLine();
+                    if (condition.isBlank()) throw error(first, "Say when: always ask a person when amount > 200");
+                    d.getAskWhen().add(condition);
+                } else if (wordIs("after")) {
+                    advance();
+                    d.setAskAfterPerDay(whole("the cases a day"));
+                    cases();
+                    word("a", "Write: always ask a person after 50 cases a day");
+                    word("day", "Write: always ask a person after 50 cases a day");
+                } else {
+                    throw error(peek(), "Write: always ask a person when amount > 200, or: always ask a person after 50 cases a day");
+                }
+            } else if (wordIs("drop")) {
+                advance();
+                if (!check(TokenType.TO)) throw error(peek(), "Write: drop to suggest when 2 dangerous mistakes in 50 cases");
+                advance();
+                io.github.llm4j.loom.autonomy.Level to = level("drop to");
+                word("when", "Write: drop to " + to.word() + " when 2 dangerous mistakes in 50 cases");
+                io.github.llm4j.loom.ast.DecisionDef.DropRule rule;
+                if (wordIs("agreement")) {
+                    advance();
+                    word("falls", "Write: drop to " + to.word() + " when agreement falls below 92%");
+                    word("below", "Write: drop to " + to.word() + " when agreement falls below 92%");
+                    rule = new io.github.llm4j.loom.ast.DecisionDef.DropRule(to, io.github.llm4j.loom.ast.DecisionDef.Count.AGREEMENT_BELOW, 0, 0, percent("the floor"), first.getLine());
+                } else {
+                    int n = whole("how many");
+                    io.github.llm4j.loom.ast.DecisionDef.Count count;
+                    if (wordIs("dangerous")) {
+                        advance();
+                        word("mistakes", "Write: dangerous mistakes");
+                        count = io.github.llm4j.loom.ast.DecisionDef.Count.DANGEROUS_MISTAKES;
+                    } else if (wordIs("reversals") || wordIs("reversal")) {
+                        advance();
+                        count = io.github.llm4j.loom.ast.DecisionDef.Count.REVERSALS;
+                    } else if (wordIs("unusable")) {
+                        advance();
+                        if (wordIs("proposals") || wordIs("proposal")) advance();
+                        else throw error(peek(), "Write: unusable proposals");
+                        count = io.github.llm4j.loom.ast.DecisionDef.Count.UNUSABLE_PROPOSALS;
+                    } else {
+                        throw error(peek(), "After a number write dangerous mistakes, reversals or unusable proposals, as in: drop to suggest when 2 reversals in 100 cases");
+                    }
+                    word("in", "Write: " + n + " ... in 50 cases");
+                    int in = whole("the number of cases to look at");
+                    cases();
+                    rule = new io.github.llm4j.loom.ast.DecisionDef.DropRule(to, count, n, in, 0, first.getLine());
+                }
+                d.getDropRules().add(rule);
+            } else if (wordIs("moving")) {
+                advance();
+                word("up", "Write: moving up needs approval from: someone, or: moving up is automatic");
+                if (wordIs("needs")) {
+                    advance();
+                    word("approval", "Write: moving up needs approval from: risk-owner");
+                    word("from", "Write: moving up needs approval from: risk-owner");
+                    consume(TokenType.COLON, "Expect ':' after \"approval from\".");
+                    d.setApprover(consume(TokenType.IDENTIFIER, "Expect the name of who approves.").getValue());
+                } else if (wordIs("is")) {
+                    advance();
+                    word("automatic", "Write: moving up is automatic");
+                    d.setAutomatic(true);
+                } else {
+                    throw error(peek(), "Write: moving up needs approval from: risk-owner, or: moving up is automatic");
+                }
+            } else {
+                throw error(first, "Unexpected \"" + first.getValue() + "\" in trust. Write one of: start at, never go above, to <level>:, judge on the latest, check N% of cases, "
+                        + "always ask a person, drop to <level> when, moving up.");
+            }
+        }
+        consume(TokenType.RBRACE, "Expect '}' after the trust block.");
     }
 
     private NoteStmt parseNoteStmt() {

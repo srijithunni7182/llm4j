@@ -28,7 +28,7 @@
     },
     "keywords": {
       "name": "keyword.control.loom",
-      "match": "\\b(agent|workflow|delegate|handoff|broadcast|parallel|loop|alt|call|guardrail|observe|schedule|routing|import|mcp|audit|note|retry|on_failure|for|each|in|max|on_exhausted|expecting|backoff|timeout|human_prompt|else|until|to|temperature|budget|per_call|warn_at|rate_limits|on_limit|max_wait|max_resumes|when_exhausted|per|cron|every|timezone|run|misfire|overlap|use|approve|max_iterations|source|top_k|store|mode|env|provider|persona|memory|voice|guard|conversation|session|facts|recall|min_similarity|listen|speak|pii|bias|bias_model)\\b"
+      "match": "\\b(agent|workflow|delegate|handoff|broadcast|parallel|loop|alt|call|guardrail|observe|schedule|routing|import|mcp|audit|note|retry|on_failure|for|each|in|max|on_exhausted|expecting|backoff|timeout|human_prompt|else|until|to|temperature|budget|per_call|warn_at|rate_limits|on_limit|max_wait|max_resumes|when_exhausted|per|cron|every|timezone|run|misfire|overlap|use|approve|max_iterations|source|top_k|store|mode|env|provider|persona|memory|voice|guard|conversation|session|facts|recall|min_similarity|listen|speak|pii|bias|bias_model|checkpoint|rewind|decision|decide|trust)\\b"
     },
     "numbers": {
       "name": "constant.numeric.loom",
