@@ -9,32 +9,6 @@
 drops — all inside the `mvn test` you already run, written in the Java idioms you already know.
 **If you can write a JUnit test, you can write an eval.**
 
-<p align="center">
-  <a href="../eval4j-report/docs/USER-GUIDE.md"><img alt="The eval4j dashboard" src="../eval4j-report/docs/images/overview.png" width="860"></a>
-</p>
-
-> [!TIP]
-> ## ✨ New: a premium dashboard, free and local
-> Add **[eval4j-report](../eval4j-report/README.md)** and every `mvn test` run produces a dashboard you would
-> normally need a hosted platform for. One self-contained HTML file: **no account, no server, no telemetry,
-> no network request.** MIT-licensed, in the build you already run.
->
-> - **Quality dimensions from your golden dataset**, each with a goal and a trend. Declared but never evaluated? It stays visible as *No results*.
-> - **Informs the release decision, doesn't make it.** No pass/fail banner; set priorities and presets for what your stakeholders care about.
-> - **Run comparison that knows judges are noisy**, against the previous run on the same branch, answers diffed word by word.
-> - **Built for LLM cost**: `FAST` / `BUILD` / `SAMPLE` / `FULL` profiles, cache reuse, a spend budget, carried-over results, always labelled.
-> - **Agent traces and [Loom](../loom/ai-agent4j-loom/README.md) workflow trajectories**: path taken vs expected, timeline, event log, spend.
-> - A **Jenkins-safe static edition**, `summary.md` for pull requests, JUnit XML, CSV and a 3 MB CLI.
->
-> ```xml
-> <dependency>
->   <groupId>io.github.srijithunni7182</groupId><artifactId>eval4j-report</artifactId>
->   <version>5.0</version><scope>test</scope>
-> </dependency>
-> ```
-> 👉 [**Tour of every view**](../eval4j-report/docs/USER-GUIDE.md) · [Open the sample report](../eval4j-report/docs/sample/report/index.html)
-
-
 [**Why evaluate?**](#-why-evaluation-is-not-optional) ·
 [**Philosophy**](#-philosophy) ·
 [**Ease of use**](#-if-you-can-write-a-junit-test-you-can-write-an-eval) ·
@@ -92,6 +66,20 @@ already use, on three ideas:
 | **🧩 Use the test stack you have** | Checks are AssertJ assertions and `Condition`s; suites are JUnit 5 tests; data-driven runs are `@ParameterizedTest`. No evaluation CLI, no config-driven runner, no new execution model to learn — [it's just Java](#-if-you-can-write-a-junit-test-you-can-write-an-eval). |
 | **⚖️ Deterministic where you can, judged where you must** | Which tools ran, in what order, how many tokens — assert on those exactly and for free. Reserve LLM judges for what genuinely needs one (correctness, groundedness, tone), and give them rubrics, thresholds, caching and sampling so they behave like instruments, not oracles. |
 | **🔒 Untrusted by default** | The output you are grading may be wrong or adversarial. Everything sent to a judge is delimited and treated as data, never as instructions. |
+| **👁️ Make quality visible** | A score in a log is easy to ignore; a picture is not. See [why a dashboard matters](#why-a-dashboard-matters) below. |
+
+### Why a dashboard matters
+
+Evaluation produces hundreds of numbers per run, and the decision they feed (ship, hold, fix) is made by
+people who will not read a log. A dashboard is part of the method, not decoration:
+
+- **Quality has dimensions, and they trade off.** A single pass rate hides that grounding fell while latency improved. Seeing every dimension against its goal, with its trend, shows where you actually stand.
+- **Judges are noisy.** A drop of a few points may be the instrument, not the agent. Showing the noise band next to a change keeps teams from chasing ghosts, or from dismissing a real regression.
+- **Cost shapes what you can know.** Judging everything on every build is expensive, so some results are fresh, some reused, some carried over. A report that doesn't say which is quietly misleading.
+- **What isn't measured must be visible.** A dimension your dataset declares but nothing evaluated should show as *No results*, not vanish.
+- **The audience is wider than the author.** Product owners and release managers decide on priorities and risk. They need a view that informs the decision without making it for them.
+
+That is why eval4j ships [a dashboard](../eval4j-report/docs/USER-GUIDE.md), built to the same rule as the rest of it: honest about what it knows and doesn't.
 
 Read more in [Design philosophy](docs/DESIGN.md).
 
@@ -182,6 +170,33 @@ assertThat(result)
 > [!TIP]
 > Use a **different, ideally stronger, model as the judge** than the one under test — otherwise the
 > model is partly grading its own work. See [choosing a judge](docs/LLM-AS-JUDGE.md#choosing-a-judge-model).
+
+---
+
+> [!TIP]
+> ## ✨ New: a premium dashboard, free and local
+> Add **[eval4j-report](../eval4j-report/README.md)** and every `mvn test` run produces a dashboard you would
+> normally need a hosted platform for. One self-contained HTML file: **no account, no server, no telemetry,
+> no network request.** MIT-licensed, in the build you already run.
+>
+> - **Quality dimensions from your golden dataset**, each with a goal and a trend. Declared but never evaluated? It stays visible as *No results*.
+> - **Informs the release decision, doesn't make it.** No pass/fail banner; set priorities and presets for what your stakeholders care about.
+> - **Run comparison that knows judges are noisy**, against the previous run on the same branch, answers diffed word by word.
+> - **Built for LLM cost**: `FAST` / `BUILD` / `SAMPLE` / `FULL` profiles, cache reuse, a spend budget, carried-over results, always labelled.
+> - **Agent traces and [Loom](../loom/ai-agent4j-loom/README.md) workflow trajectories**: path taken vs expected, timeline, event log, spend.
+> - A **Jenkins-safe static edition**, `summary.md` for pull requests, JUnit XML, CSV and a 3 MB CLI.
+>
+> ```xml
+> <dependency>
+>   <groupId>io.github.srijithunni7182</groupId><artifactId>eval4j-report</artifactId>
+>   <version>5.0</version><scope>test</scope>
+> </dependency>
+> ```
+> 👉 [**Tour of every view**](../eval4j-report/docs/USER-GUIDE.md) · [Open the sample report](../eval4j-report/docs/sample/report/index.html)
+
+<p align="center">
+  <a href="../eval4j-report/docs/USER-GUIDE.md"><img alt="The eval4j dashboard" src="../eval4j-report/docs/images/montage.png" width="100%"></a>
+</p>
 
 ---
 
