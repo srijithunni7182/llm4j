@@ -73,7 +73,7 @@ This is the engineering specification for the dashboard described in the product
 
 ## 5. Conventions
 
-- Java 17, Jackson aligned with the repo (`2.21.x`), MIT licence, group id `io.github.srijithunni7182`, version aligned with the other modules (`5.x`).
+- Java 17, Jackson aligned with the repo (`2.21.x`), Apache 2.0 licence, group id `io.github.srijithunni7182`, version aligned with the other modules (`5.x`).
 - Formatting with the repo's Spotless setup; tests with JUnit and AssertJ like the rest of the repo.
 - Requirement ids (`FMT-`, `EXP-`, `RPT-`, `UI-`, `CLI-`, `LOOM-`, `TST-`) are stable. A pull request names the ids it satisfies; a test names the id it proves.
 - **MUST / SHOULD / MAY** are used as in RFC 2119.

@@ -3,7 +3,7 @@
 > AI agents written the Java way: typed, testable and observable. A complete stack in idiomatic Java 17 with no vendor SDKs. It goes from a single tool call (ai-agent4j), through tools built for a hostile caller (ai-agent4j-tools), to autonomous workflows that run for days (Loom). It also covers memory (Engram), local embeddings (addons) and testing (eval4j). The model is treated as untrusted: what an agent may touch, spend, send and decide is declared in code or in a Loom script and enforced by the runtime.
 
 Key facts:
-- **License, Java and build:** MIT; Java 17+; Maven.
+- **License, Java and build:** Apache 2.0; Java 17+; Maven.
 - **Coordinates:** group `io.github.srijithunni7182`, version `5.0`; artifacts `ai-agent4j`, `ai-agent4j-tools`, `ai-agent4j-loom`, `eval4j`, `eval4j-report`, `ai-agent4j-addons`.
 - **Providers:** Gemini, Anthropic Claude, Sarvam and Ollama behind one `LLMClient` contract. The system prompt, finish reasons, streaming and typed exceptions (`AuthenticationException`, `RateLimitException` with the reset time, `ContentBlockedException`) behave the same everywhere.
 - **An agent is an object:** `ReActAgent.builder()` with a client, tools, skills, memory, an approval callback and a `Budget`. A tool is a class implementing `Tool`, and `requiresApproval(args)` makes a call wait for a person.

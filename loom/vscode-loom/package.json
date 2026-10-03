@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "publisher": "srijithunni7182",
   "repository": {"url": "https://github.com/srijithunni7182/llm4j"},
-  "license": "MIT",
+  "license": "Apache-2.0",
   "engines": {
     "vscode": "^1.85.0"
   },

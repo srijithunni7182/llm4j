@@ -43,3 +43,7 @@ See `docs/TESTING_STRATEGY.md` for execution model and CI mapping.
 
 - Reviews are guided by `.github/CODEOWNERS`.
 - Changes in core library, CI, and release files should include maintainer review.
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the Apache License 2.0.
