@@ -38,6 +38,10 @@ the [Loom workflow](../../examples/hexamind-hub/eval/hexamind.loom) and `run-all
 - A model for the agents and a **different, ideally stronger,** model for the judge.
 - Keys in environment variables only, never in a file or the repository.
 
+## Use it as a Claude skill
+
+The same path is available as a skill, so Claude can walk you through it stage by stage and check each gate: in this repo it is `.claude/skills/llm4j-workflow-guide/`, and `scripts/package-skill.sh` builds a standalone bundle (`dist/llm4j-workflow-guide.zip`) from these chapters for distribution.
+
 ## Be honest about the edges
 
 llm4j gives you a lot, and a few things you do by hand. The chapters say so where it matters: there is no

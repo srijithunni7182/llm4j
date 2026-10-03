@@ -48,3 +48,6 @@ __pycache__/
 secring.asc
 *.asc.secret
 secret-keys*.asc
+
+# generated skill bundle (scripts/package-skill.sh)
+dist/
