@@ -104,7 +104,9 @@ public final class RagContextCondition extends Condition<Object> {
 
     @Override
     public boolean matches(Object ignoredActual) {
+        long startedNanos = System.nanoTime();
         JudgeVerdict verdict = evaluate();
+        long elapsedMs = (System.nanoTime() - startedNanos) / 1_000_000;
         perThreadDescription.set(
                 new TextDescription(
                         "%s",
@@ -120,7 +122,9 @@ public final class RagContextCondition extends Condition<Object> {
                 verdict.score(),
                 threshold,
                 verdict.reason(),
-                calls == null ? null : calls.judgeIdentifier());
+                calls == null ? null : calls.judgeIdentifier(),
+                new io.github.llm4j.eval.report.EvalDetails(
+                        input, null, expectedOutput, chunks, elapsedMs));
         return verdict.score() >= threshold;
     }
 

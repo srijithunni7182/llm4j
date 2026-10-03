@@ -36,7 +36,9 @@ public final class PairwiseCondition extends Condition<Object> {
                     "Expected a ComparisonPair but got: "
                             + (actual == null ? "null" : actual.getClass().getName()));
         }
+        long startedNanos = System.nanoTime();
         PairwiseJudge.PairResult result = judge.judge(pair.input(), pair.a(), pair.b());
+        long elapsedMs = (System.nanoTime() - startedNanos) / 1_000_000;
         double score =
                 switch (result.winner()) {
                     case B -> 1.0;
@@ -46,7 +48,18 @@ public final class PairwiseCondition extends Condition<Object> {
         perThreadDescription.set(
                 new TextDescription(
                         "%s: winner=%s. %s", metricName, result.winner(), result.reason()));
-        EvalRecorder.record(metricName, score, 0.5, result.reason(), null);
+        EvalRecorder.record(
+                metricName,
+                score,
+                0.5,
+                result.reason(),
+                null,
+                new io.github.llm4j.eval.report.EvalDetails(
+                        pair.input(),
+                        "A: " + pair.a() + "\n\nB: " + pair.b(),
+                        null,
+                        null,
+                        elapsedMs));
         return result.winner() != PairwiseJudge.Winner.A;
     }
 }

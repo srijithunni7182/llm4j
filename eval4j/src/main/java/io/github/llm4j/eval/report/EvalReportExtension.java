@@ -58,6 +58,7 @@ public class EvalReportExtension
         final String runId = UUID.randomUUID().toString();
         final Instant startedAt = Instant.now();
         final Map<String, Double> baselineAverages = new TreeMap<>();
+        final List<TestOutcome> tests = new CopyOnWriteArrayList<>();
 
         @Override
         public void close() {
@@ -85,15 +86,15 @@ public class EvalReportExtension
             String sha = gitSha();
             EvalReportWriter.RunInfo info =
                     new EvalReportWriter.RunInfo(
-                            runId, startedAt.toString(), Instant.now().toString(), sha, records);
+                            runId,
+                            startedAt.toString(),
+                            Instant.now().toString(),
+                            sha,
+                            records,
+                            List.copyOf(tests));
             EvalReportWriter.write(reportDir, info, prior, baselineAverages);
             if (!records.isEmpty()) {
-                history.append(
-                        new HistoryEntry(
-                                runId,
-                                info.endedAt(),
-                                sha,
-                                EvalReportWriter.metricAverages(records)));
+                history.append(EvalReportWriter.historyEntry(info));
             }
         }
     }
@@ -120,6 +121,7 @@ public class EvalReportExtension
 
     @Override
     public void beforeEach(ExtensionContext context) {
+        context.getStore(NAMESPACE).put("startNanos", System.nanoTime());
         EvalRecorder.setCurrentTest(
                 context.getRequiredTestClass().getName(), context.getDisplayName());
     }
@@ -132,21 +134,34 @@ public class EvalReportExtension
     @Override
     public void testSuccessful(ExtensionContext context) {
         outcomesFor(context).add(new Outcome(context.getDisplayName(), true, null));
+        recordTest(context, "PASSED", null);
     }
 
     @Override
     public void testFailed(ExtensionContext context, Throwable cause) {
         outcomesFor(context).add(new Outcome(context.getDisplayName(), false, cause.getMessage()));
+        recordTest(context, "FAILED", cause.getMessage());
     }
 
     @Override
     public void testAborted(ExtensionContext context, Throwable cause) {
-        outcomesFor(context)
+        String message = "aborted: " + (cause == null ? "" : cause.getMessage());
+        outcomesFor(context).add(new Outcome(context.getDisplayName(), false, message));
+        recordTest(context, "ABORTED", message);
+    }
+
+    private void recordTest(ExtensionContext context, String status, String message) {
+        Long start = context.getStore(NAMESPACE).get("startNanos", Long.class);
+        long ms = start == null ? 0 : (System.nanoTime() - start) / 1_000_000;
+        runState(context)
+                .tests
                 .add(
-                        new Outcome(
+                        new TestOutcome(
+                                context.getRequiredTestClass().getName(),
                                 context.getDisplayName(),
-                                false,
-                                "aborted: " + (cause == null ? "" : cause.getMessage())));
+                                status,
+                                ms,
+                                message));
     }
 
     @Override

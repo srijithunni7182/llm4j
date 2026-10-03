@@ -94,7 +94,9 @@ public final class LlmJudgeCondition extends Condition<Object> {
 
     @Override
     public boolean matches(Object actual) {
+        long startedNanos = System.nanoTime();
         JudgeVerdict combined = evaluate(actual);
+        long elapsedMs = (System.nanoTime() - startedNanos) / 1_000_000;
         perThreadDescription.set(
                 new TextDescription(
                         "%s",
@@ -106,7 +108,17 @@ public final class LlmJudgeCondition extends Condition<Object> {
                                 threshold,
                                 combined.reason())));
         io.github.llm4j.eval.report.EvalRecorder.record(
-                name, combined.score(), threshold, combined.reason(), judgeIdentifier);
+                name,
+                combined.score(),
+                threshold,
+                combined.reason(),
+                judgeIdentifier,
+                new io.github.llm4j.eval.report.EvalDetails(
+                        input,
+                        OutputExtractor.extract(actual),
+                        expectedOutput,
+                        retrievalContext,
+                        elapsedMs));
         return combined.score() >= threshold;
     }
 

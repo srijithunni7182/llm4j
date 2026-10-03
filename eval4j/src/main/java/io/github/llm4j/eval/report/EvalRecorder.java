@@ -60,9 +60,24 @@ public final class EvalRecorder {
     /** Records one evaluation; no-op when the recorder is not active. */
     public static void record(
             String metric, double score, double threshold, String reason, String judgeIdentifier) {
+        record(metric, score, threshold, reason, judgeIdentifier, EvalDetails.NONE);
+    }
+
+    /**
+     * Records one evaluation together with the case behind it (input, output, retrieved context);
+     * no-op when the recorder is not active.
+     */
+    public static void record(
+            String metric,
+            double score,
+            double threshold,
+            String reason,
+            String judgeIdentifier,
+            EvalDetails details) {
         if (!active) {
             return;
         }
+        EvalDetails d = details == null ? EvalDetails.NONE : details.bounded();
         String[] test = CURRENT_TEST.get();
         RECORDS.add(
                 new EvalRecord(
@@ -74,7 +89,12 @@ public final class EvalRecorder {
                         score >= threshold,
                         reason,
                         judgeIdentifier,
-                        clock.get().toString()));
+                        clock.get().toString(),
+                        d.input(),
+                        d.actualOutput(),
+                        d.expectedOutput(),
+                        d.retrievalContext(),
+                        d.durationMs()));
     }
 
     /** A snapshot of everything recorded so far, in recording order. */
