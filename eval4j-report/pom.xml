@@ -78,6 +78,15 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- The Loom bridge (io.github.llm4j.evalreport.loom). Optional: the report library and CLI
+             never need Loom; add ai-agent4j-loom yourself to use the bridge. -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j-loom</artifactId>
+            <version>${ai-agent4j.version}</version>
+            <optional>true</optional>
+        </dependency>
+
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -88,6 +97,19 @@
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
             <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Contract tests: bundles are validated against the published JSON Schemas -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>1.5.6</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
+            <version>2.0.16</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

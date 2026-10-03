@@ -143,6 +143,7 @@ public final class EvalRun {
             r.judges.clear();
             r.datasets.clear();
             r.scenariosWritten.clear();
+            r.scenarioByTest.clear();
             r.evaluated.set(0);
             r.passed.set(0);
             r.failed.set(0);
@@ -156,6 +157,7 @@ public final class EvalRun {
             r.override.remove();
             r.currentTrace.remove();
             r.traceCount.set(0);
+            r.workflowTraceIds.clear();
             r.pricing = new Pricing();
         }
     }
@@ -249,13 +251,15 @@ public final class EvalRun {
                 caseKey,
                 k -> {
                     Map<String, Object> line = new LinkedHashMap<>();
+                    line.put("id", k);
                     line.put("caseId", CaseKey.caseId(k));
-                    line.put("scenarioId", k);
-                    line.put("dataset", datasetId);
+                    line.put("datasetId", datasetId == null ? "default" : datasetId);
                     putIfPresent(line, "name", s.name());
                     putIfPresent(line, "input", s.input());
                     putIfPresent(line, "expectedOutput", s.expectedOutput());
                     putIfPresent(line, "expectedTools", s.expectedTools());
+                    putIfPresent(line, "dimensions", s.dimensions());
+                    putIfPresent(line, "tags", s.tags());
                     writer.append("scenarios.jsonl", line);
                     return line;
                 });
@@ -269,7 +273,13 @@ public final class EvalRun {
 
     public void bindScenario(EvalScenario scenario) {
         currentScenario.set(scenario);
+        String[] test = currentTest.get();
+        if (scenario != null && test != null) {
+            scenarioByTest.put(CaseKey.ofTest(test[0], test[1]), CaseKey.of(scenario));
+        }
     }
+
+    private final Map<String, String> scenarioByTest = new ConcurrentHashMap<>();
 
     public void unbind() {
         currentTest.remove();
@@ -384,6 +394,99 @@ public final class EvalRun {
         currentTrace.set(traceId);
     }
 
+    /**
+     * Records a workflow trace (once per instance) and links later evaluations of this case to it.
+     */
+    public void recordWorkflowTrace(WorkflowTrace wt) {
+        if (wt == null || !ensureStarted() || currentTest.get() == null) {
+            return;
+        }
+        String existing = workflowTraceIds.get(wt);
+        if (existing != null) {
+            currentTrace.set(existing);
+            return;
+        }
+        EvalScenario sc = currentScenario.get();
+        String[] test = currentTest.get();
+        String caseKey = sc != null ? CaseKey.of(sc) : CaseKey.ofTest(test[0], test[1]);
+        String traceId =
+                "t_"
+                        + Hashes.hex16(
+                                "trace\u0000" + caseKey + "\u0000" + traceCount.incrementAndGet());
+        Map<String, Object> t = new LinkedHashMap<>();
+        t.put("traceId", traceId);
+        t.put("caseId", CaseKey.caseId(caseKey));
+        t.put("type", "WORKFLOW");
+        Map<String, Object> w = new LinkedHashMap<>();
+        w.put("name", wt.name());
+        if (!wt.nodes().isEmpty()) {
+            Map<String, Object> g = new LinkedHashMap<>();
+            List<Map<String, Object>> nodes = new ArrayList<>();
+            for (WorkflowTrace.Node n : wt.nodes()) {
+                Map<String, Object> o = new LinkedHashMap<>();
+                o.put("id", n.id());
+                o.put("kind", n.kind());
+                putIfPresent(o, "label", n.label());
+                putIfPresent(o, "agent", n.agent());
+                putIfPresent(o, "bound", n.bound());
+                nodes.add(o);
+            }
+            List<Map<String, Object>> edges = new ArrayList<>();
+            for (WorkflowTrace.Edge e : wt.edges()) {
+                Map<String, Object> o = new LinkedHashMap<>();
+                o.put("from", e.from());
+                o.put("to", e.to());
+                putIfPresent(o, "label", e.label());
+                edges.add(o);
+            }
+            g.put("nodes", nodes);
+            g.put("edges", edges);
+            w.put("graph", g);
+        }
+        w.put("expectedPath", wt.expectedPath());
+        w.put("actualPath", wt.actualPath());
+        List<Map<String, Object>> events = new ArrayList<>();
+        for (WorkflowTrace.Event e : wt.events()) {
+            if (events.size() >= 20_000) {
+                break;
+            }
+            Map<String, Object> o = new LinkedHashMap<>();
+            o.put("t", e.t());
+            o.put("type", e.type());
+            putIfPresent(o, "agent", e.agent());
+            putIfPresent(o, "step", e.step());
+            putIfPresent(o, "node", e.node());
+            putIfPresent(o, "text", e.text());
+            putIfPresent(o, "data", e.data());
+            events.add(o);
+        }
+        w.put("events", events);
+        List<Map<String, Object>> spend = new ArrayList<>();
+        for (WorkflowTrace.SpendLine l : wt.spend()) {
+            Map<String, Object> o = new LinkedHashMap<>();
+            putIfPresent(o, "step", l.step());
+            o.put("agent", l.agent() == null ? "(unknown)" : l.agent());
+            putIfPresent(o, "model", l.model());
+            o.put("promptTokens", l.promptTokens());
+            o.put("completionTokens", l.completionTokens());
+            o.put("calls", l.calls());
+            putIfPresent(o, "costUsd", l.costUsd());
+            o.put("estimated", l.estimated());
+            spend.add(o);
+        }
+        w.put("spend", spend);
+        putIfPresent(w, "budgetUsd", wt.budgetUsd());
+        w.put("rewinds", wt.rewinds());
+        putIfPresent(w, "rewindCap", wt.rewindCap());
+        t.put("workflow", w);
+        writer.append("traces.jsonl", t);
+        workflowTraceIds.put(wt, traceId);
+        currentTrace.set(traceId);
+    }
+
+    private final Map<WorkflowTrace, String> workflowTraceIds =
+            java.util.Collections.synchronizedMap(new java.util.IdentityHashMap<>());
+
     private final AtomicInteger traceCount = new AtomicInteger();
 
     private static String cut(String s) {
@@ -464,9 +567,13 @@ public final class EvalRun {
             return;
         }
         Map<String, Object> line = new LinkedHashMap<>();
-        line.put("testId", CaseKey.ofTest(suite, testName));
+        String testId = CaseKey.ofTest(suite, testName);
+        line.put("testId", testId);
         line.put("suite", suite);
         line.put("name", testName);
+        String scenarioKey = scenarioByTest.get(testId);
+        line.put("caseId", CaseKey.caseId(scenarioKey != null ? scenarioKey : testId));
+        putIfPresent(line, "scenarioId", scenarioKey);
         line.put("status", status);
         line.put("durationMs", durationMs);
         putIfPresent(line, "message", message);
