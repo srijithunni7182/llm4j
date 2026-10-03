@@ -1,5 +1,7 @@
 # Offline and budgeted runs
 
+See the [quick start](QUICKSTART.md) for where these fit in the workflow.
+
 Evaluating an agent means calling real models many times. These helpers (package `io.github.llm4j.eval.testing`)
 let you build and check the whole evaluation for free first, then run it for real with a hard cap on spend.
 

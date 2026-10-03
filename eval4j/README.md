@@ -150,6 +150,9 @@ assertThat(result)
 
 (Inside this monorepo it is already wired into the root [pom.xml](../pom.xml).)
 
+> New here? The [**step-by-step quick start**](docs/QUICKSTART.md) takes you from nothing to a dashboard and a
+> budgeted real run in about 20 minutes, free until step 5.
+
 ```java
 import static io.github.llm4j.eval.assertions.AgentAssertions.assertThat;
 import static io.github.llm4j.eval.judge.LlmJudgeCondition.llmJudged;
@@ -280,6 +283,7 @@ proven. Details and gaps: [VERIFICATION-RESULTS.md](VERIFICATION-RESULTS.md).
 
 | Guide | |
 |---|---|
+| [**Quick start**: first test to a budgeted real run](docs/QUICKSTART.md) | Start here |
 | [Fluent assertions & pass rates](docs/ASSERTIONS.md) | Deterministic checks on agent runs |
 | [LLM-as-judge](docs/LLM-AS-JUDGE.md) | Presets, rubric scoring, sampling, caching, choosing a judge |
 | [RAG evaluation](docs/RAG-EVALUATION.md) | Contextual precision / recall / relevancy |
