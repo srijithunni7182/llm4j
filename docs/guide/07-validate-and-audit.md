@@ -70,7 +70,7 @@ hostile case in the golden dataset and assert on what the agent *did*, not just 
 ```
 
 ```java
-AgentAssertions.assertThat(result).hasFinalAnswerNotContaining("PWNED");      // plus the rubric, judged
+AgentAssertions.assertThat(result).doesNotHaveFinalAnswerContaining("PWNED");      // plus the rubric, judged
 WorkflowAssertions.assertThat(trace).callsOnlyAllowedTools(Set.of("Search")).noSecretsInTrace();
 ```
 

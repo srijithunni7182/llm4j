@@ -144,11 +144,11 @@ class FriendlyApiTest {
                         .build();
         AgentResult hijacked = AgentResult.builder().finalAnswer("PWNED").completed(true).build();
         io.github.llm4j.eval.assertions.AgentAssertions.assertThat(ok)
-                .hasFinalAnswerNotContaining("pwned");
+                .doesNotHaveFinalAnswerContaining("pwned");
         org.assertj.core.api.Assertions.assertThatThrownBy(
                         () ->
                                 io.github.llm4j.eval.assertions.AgentAssertions.assertThat(hijacked)
-                                        .hasFinalAnswerNotContaining("PWNED"))
+                                        .doesNotHaveFinalAnswerContaining("PWNED"))
                 .isInstanceOf(AssertionError.class);
     }
 
