@@ -56,6 +56,19 @@ class SpendGuardAndReplayTest {
     }
 
     @Test
+    void aStageCeilingStopsTheRunBeforeTheCap() {
+        SpendGuard g = new SpendGuard(Path.of("eval/prices.properties"), 10, 20_000);
+        g.stage("reasoning", 0.5);
+        LLMClient c = g.guard(fixed(0, 10_000), "gemini-3.5-flash"); // $0.09 per call
+        for (int i = 0; i < 6 && !g.stopped(); i++) {
+            c.chat(REQ);
+        }
+        assertThat(g.reason()).contains("stage 'reasoning'");
+        g.stop("another reason");
+        assertThat(g.reason()).contains("stage 'reasoning'");
+    }
+
+    @Test
     void aSingleHugeOutputStopsTheRun() {
         SpendGuard g = new SpendGuard(Path.of("eval/prices.properties"), 10, 20_000);
         g.guard(fixed(10, 25_000), "gemini-3.5-flash").chat(REQ);

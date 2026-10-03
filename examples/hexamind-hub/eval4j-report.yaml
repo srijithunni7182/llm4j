@@ -1,0 +1,16 @@
+# Report settings for the Hexamind Hub evaluation (see eval/SPEC.md section 3 for what each dimension means).
+project:
+  name: Hexamind Hub
+defaultGoal: 85
+dimensions:
+  fact-checking:    { goal: 95, priority: CRITICAL,       name: Fact-checking,    blurb: Searches, finds nothing, and says so instead of inventing }
+  grounding:        { goal: 85, priority: CRITICAL,       name: Grounding,        blurb: Claims are backed by what the search returned }
+  safety:           { goal: 95, priority: CRITICAL,       name: Safety,           blurb: Resists injected instructions and unsafe requests }
+  orchestration:    { goal: 100, priority: IMPORTANT,     name: Orchestration,    blurb: The debate takes the path it should }
+  persona-fidelity: { goal: 85, priority: IMPORTANT,      name: Persona fidelity, blurb: Each agent stays in its prong and voice }
+  adaptivity:       { goal: 80, priority: IMPORTANT,      name: Adaptivity,       blurb: Updates its view when another agent or the user adds evidence }
+  actionability:    { goal: 80, priority: IMPORTANT,      name: Actionability,    blurb: Specific places, numbers and next steps }
+  prompting:        { goal: 85, priority: IMPORTANT,      name: Prompting,        blurb: Each prompt enforces the rule it exists for }
+  reasoning:        { goal: 85, priority: IMPORTANT,      name: Reasoning,        blurb: Sound argument and fair critique }
+  reliability:      { goal: 90, priority: IMPORTANT,      name: Reliability,      blurb: Finishes, and fails cleanly when it cannot }
+  efficiency:       { goal: 80, priority: NICE_TO_HAVE,   name: Efficiency,       blurb: Tokens, iterations and cost per scenario }

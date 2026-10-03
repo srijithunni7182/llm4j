@@ -38,6 +38,8 @@ public final class SpendGuard {
     private final AtomicLong tokensIn = new AtomicLong();
     private final AtomicLong tokensOut = new AtomicLong();
     private volatile String stopped;
+    private volatile String stageName;
+    private volatile double stageCeiling = Double.MAX_VALUE;
 
     public SpendGuard(Path prices, double capUsd, int maxOutputTokens) {
         this.capUsd = capUsd;
@@ -97,8 +99,26 @@ public final class SpendGuard {
         }
         if (out > maxOutputTokens) {
             stopped = "a single call to " + model + " produced " + out + " output tokens (limit " + maxOutputTokens + ")";
+        } else if (spentUsd() >= stageCeiling) {
+            stopped = String.format(Locale.ROOT, "stage '%s' passed its ceiling ($%.2f spent in total)", stageName, spentUsd());
         } else if (spentUsd() >= capUsd) {
             stopped = String.format(Locale.ROOT, "spend $%.2f reached the cap of $%.2f", spentUsd(), capUsd);
+        }
+    }
+
+    /**
+     * Gives the next stage its own ceiling: when total spend passes {@code spent now + budgetUsd} the whole
+     * run stops, because a stage that costs well over its estimate means the plan's numbers are wrong.
+     */
+    public void stage(String name, double budgetUsd) {
+        stageName = name;
+        stageCeiling = spentUsd() + budgetUsd;
+    }
+
+    /** Stops the whole run: every later guarded call fails at once. */
+    public void stop(String reason) {
+        if (stopped == null) {
+            stopped = reason;
         }
     }
 

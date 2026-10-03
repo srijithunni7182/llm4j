@@ -1,7 +1,5 @@
 package io.github.llm4j.hexamind.eval.live;
 
-import static io.github.llm4j.eval.judge.LlmJudgeCondition.llmJudged;
-
 import io.github.llm4j.agent.AgentResult;
 import io.github.llm4j.eval.assertions.AgentAssertions;
 import io.github.llm4j.eval.dataset.EvalScenario;
@@ -28,6 +26,7 @@ class AgentReasoningEvalTest {
     @BeforeAll
     static void declare() {
         EvalSupport.declare();
+        EvalSupport.GUARD.stage("agent reasoning", 3.60); // estimate $2.40, stop at 1.5x
     }
 
     static Stream<EvalScenario> scenarios() {
@@ -54,18 +53,8 @@ class AgentReasoningEvalTest {
             soft.check(() -> AgentAssertions.assertThat(result).usesTool(t));
         }
         soft.assertThat(result.getFinalAnswer()).as("answer").isNotBlank();
-        soft.assertThat(result)
-                .as("rubric")
-                .is(
-                        llmJudged("Rubric adherence")
-                                .criteria(String.join("\n", GoldenDataset.rubric(s)))
-                                .input(s.input())
-                                .retrievalContext(EvalSupport.fixture(s))
-                                .judge(EvalSupport.judgeClient())
-                                .cache(EvalSupport.judgeCache())
-                                .judgeIdentifier(EvalSupport.JUDGE_ID)
-                                .threshold(0.7)
-                                .build());
+        var v = EvalSupport.judgeRubric("Rubric adherence", s, result, true, EvalSupport.judgeCache(), EvalSupport.JUDGE_ID, 1);
+        soft.assertThat(v.score()).as("rubric: " + v.reason()).isGreaterThanOrEqualTo(EvalSupport.JUDGE_THRESHOLD);
         soft.assertAll();
     }
 }

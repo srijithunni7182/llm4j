@@ -34,9 +34,11 @@ import java.util.Map;
 public final class EvalSupport {
 
     public static final boolean FAKE = Boolean.getBoolean("eval.fake");
+    public static final double JUDGE_THRESHOLD = 0.7;
     public static final String AGENT_MODEL = "gemini-3.5-flash";
     public static final String JUDGE_MODEL = "claude-sonnet-5-5";
     public static final String JUDGE_ID = "judge-main";
+    public static final String CALIBRATION_JUDGE_ID = "judge-calibration";
     public static final Path OUT = Path.of("target", "eval");
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -53,6 +55,31 @@ public final class EvalSupport {
     private static Holder holder;
     private static List<AgentParticipant> swarm;
     private static boolean declared;
+
+    static {
+        // the shell script reads this to print what the run really cost and whether the guard stopped it
+        Runtime.getRuntime()
+                .addShutdownHook(
+                        new Thread(
+                                () -> {
+                                    try {
+                                        java.nio.file.Files.createDirectories(OUT);
+                                        java.nio.file.Files.writeString(
+                                                OUT.resolve("spend.json"),
+                                                String.format(
+                                                        java.util.Locale.ROOT,
+                                                        "{\"fake\":%b,\"calls\":%d,\"tokensIn\":%d,\"tokensOut\":%d,\"usd\":%.4f,\"stopped\":%s}%n",
+                                                        FAKE,
+                                                        GUARD.calls(),
+                                                        GUARD.tokensIn(),
+                                                        GUARD.tokensOut(),
+                                                        GUARD.spentUsd(),
+                                                        GUARD.reason() == null ? "null" : JSON.writeValueAsString(GUARD.reason())));
+                                    } catch (java.io.IOException ignored) {
+                                        // best effort
+                                    }
+                                }));
+    }
 
     private EvalSupport() {}
 
@@ -129,6 +156,11 @@ public final class EvalSupport {
         return judgeClient;
     }
 
+    /** A separate cache for the calibration pass, so its three samples per case are never served from stage 2. */
+    public static JudgeCache calibrationCache() {
+        return FileSystemJudgeCache.at(OUT.resolve(FAKE ? "judge-cache-calibration-fake" : "judge-cache-calibration"));
+    }
+
     public static JudgeCache judgeCache() {
         return FileSystemJudgeCache.at(OUT.resolve(FAKE ? "judge-cache-fake" : "judge-cache"));
     }
@@ -171,12 +203,65 @@ public final class EvalSupport {
         declared = true;
         EvalRun run = EvalRun.get();
         run.declareJudge(JUDGE_ID, FAKE ? "fake" : "anthropic", JUDGE_MODEL, 0.0, 1, "MEAN");
+        run.declareJudge(CALIBRATION_JUDGE_ID, FAKE ? "fake" : "anthropic", JUDGE_MODEL, 0.7, 3, "MEAN");
         for (String a : GoldenDataset.AGENTS) {
             run.declareAgent(a, FAKE ? "fake" : "google", AGENT_MODEL, "agent_analyze", "v1", List.of("WebSearch", "CurrentDateTime"));
             run.declareDataset("golden-" + a, a + ".yaml", "eval/golden/" + a + ".yaml", GoldenDataset.agent(a));
         }
         run.declareDataset("golden-prompts", "prompts.yaml", "eval/golden/prompts.yaml", GoldenDataset.prompts());
         run.declareDataset("golden-workflow", "workflow.yaml", "eval/golden/workflow.yaml", GoldenDataset.workflow());
+    }
+
+    /**
+     * Judges {@code output} once against the scenario's rubric, then files that single verdict under each
+     * quality dimension the scenario lists, so the report's dimensions are populated from the dataset.
+     * {@code withFixture} gives the judge the recorded search snippets as retrieval context.
+     */
+    public static io.github.llm4j.eval.judge.JudgeVerdict judgeRubric(
+            String metricName,
+            EvalScenario s,
+            Object output,
+            boolean withFixture,
+            JudgeCache cache,
+            String judgeId,
+            int samples) {
+        var b =
+                io.github.llm4j.eval.judge.LlmJudgeCondition.llmJudged(metricName)
+                        .criteria(String.join("\n", GoldenDataset.rubric(s)))
+                        .input(s.input())
+                        .judge(judgeClient())
+                        .samples(samples)
+                        .cache(cache)
+                        .judgeIdentifier(judgeId)
+                        .threshold(JUDGE_THRESHOLD);
+        if (withFixture) {
+            b.retrievalContext(fixture(s));
+        }
+        var verdict = b.build().evaluate(output);
+        var details =
+                new io.github.llm4j.eval.report.EvalDetails(
+                        s.input(),
+                        output instanceof AgentResult r ? r.getFinalAnswer() : String.valueOf(output),
+                        null,
+                        withFixture ? fixture(s) : null,
+                        0L);
+        List<String> dims = s.dimensions() == null || s.dimensions().isEmpty() ? java.util.Collections.singletonList(null) : s.dimensions();
+        for (String dim : dims) {
+            io.github.llm4j.eval.export.MetricRef ref =
+                    new io.github.llm4j.eval.export.MetricRef(
+                            dim == null ? "rubric" : "rubric-" + dim,
+                            metricName,
+                            io.github.llm4j.eval.export.Kind.JUDGE,
+                            "agents",
+                            "answers",
+                            dim,
+                            null,
+                            null,
+                            null);
+            io.github.llm4j.eval.report.EvalRecorder.record(
+                    ref, verdict.score(), JUDGE_THRESHOLD, verdict.reason(), judgeId, details);
+        }
+        return verdict;
     }
 
     /** The recorded search snippets of a scenario (its {@code retrievalContext}). */

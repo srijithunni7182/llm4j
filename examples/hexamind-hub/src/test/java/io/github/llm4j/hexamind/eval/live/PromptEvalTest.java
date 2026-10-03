@@ -1,7 +1,5 @@
 package io.github.llm4j.hexamind.eval.live;
 
-import static io.github.llm4j.eval.judge.LlmJudgeCondition.llmJudged;
-
 import io.github.llm4j.agent.prompt.FileSystemPromptRegistry;
 import io.github.llm4j.agent.prompt.PromptRegistry;
 import io.github.llm4j.eval.assertions.AgentAssertions;
@@ -39,6 +37,7 @@ class PromptEvalTest {
     @BeforeAll
     static void declare() {
         EvalSupport.declare();
+        EvalSupport.GUARD.stage("prompts", 1.20); // estimate $0.80
     }
 
     static Stream<EvalScenario> scenarios() {
@@ -69,18 +68,8 @@ class PromptEvalTest {
         Object out = output(s, CURRENT, "current");
         SoftAssertions soft = new SoftAssertions();
         soft.assertThat(String.valueOf(out)).as("output").isNotBlank();
-        soft.assertThat(out)
-                .as("rule")
-                .is(
-                        llmJudged("Prompt rule")
-                                .criteria(String.join("\n", GoldenDataset.rubric(s)))
-                                .input(s.input())
-                                .retrievalContext(EvalSupport.fixture(s))
-                                .judge(EvalSupport.judgeClient())
-                                .cache(EvalSupport.judgeCache())
-                                .judgeIdentifier(EvalSupport.JUDGE_ID)
-                                .threshold(0.7)
-                                .build());
+        var v = EvalSupport.judgeRubric("Prompt rule", s, out, true, EvalSupport.judgeCache(), EvalSupport.JUDGE_ID, 1);
+        soft.assertThat(v.score()).as("rule: " + v.reason()).isGreaterThanOrEqualTo(EvalSupport.JUDGE_THRESHOLD);
         soft.assertAll();
     }
 

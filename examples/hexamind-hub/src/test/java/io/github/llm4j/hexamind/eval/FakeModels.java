@@ -58,9 +58,10 @@ public final class FakeModels {
                         return "```json\n{\"thought\": \"check the date\", \"action\": \"CurrentDateTime\","
                                 + " \"action_input\": {}}\n```";
                     }
-                    return ScriptedModel.done(
+                    String answer =
                             "[Whitepaper] I could not verify one term, so I challenge the premise. Specific"
-                                    + " figures and next steps follow in two or three sentences.");
+                                    + " figures and next steps follow in two or three sentences.";
+                    return agentTask ? ScriptedModel.done(answer) : answer;
                 },
                 "fake-agent");
     }
