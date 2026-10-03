@@ -45,7 +45,9 @@ class RunBundleTest {
 
     @Test
     void writesAnAppendOnlyBundleWithStableKeys() throws Exception {
-        EvalScenario s = new EvalScenario("refund-inside-window", "Can I return?", null, null, null, null, null);
+        EvalScenario s =
+                new EvalScenario(
+                        "refund-inside-window", "Can I return?", null, null, null, null, null);
         EvalRun.get().bindScenario(s);
         EvalRecorder.record("Answer Correctness", 0.35, 0.7, "wrong window", "gemini-2.5-pro");
         EvalRecorder.record("Faithfulness", 0.9, 0.7, "ok", "gemini-2.5-pro");
@@ -60,7 +62,8 @@ class RunBundleTest {
         assertThat(evals.get(1).get("key").asText()).isEqualTo("k_aba47f539957399a");
         assertThat(evals.get(1).get("seq").asInt()).isEqualTo(1);
 
-        JsonNode run = RunWriter.MAPPER.readTree(root.resolve("runs/RUN-TEST-0001/run.json").toFile());
+        JsonNode run =
+                RunWriter.MAPPER.readTree(root.resolve("runs/RUN-TEST-0001/run.json").toFile());
         assertThat(run.get("status").asText()).isEqualTo("COMPLETE");
         assertThat(run.get("summary").get("passed").asInt()).isEqualTo(1);
         assertThat(run.get("summary").get("failed").asInt()).isEqualTo(1);
@@ -83,10 +86,18 @@ class RunBundleTest {
     @Test
     void checksRecordPassAndFailAndRethrowUnchanged() throws Exception {
         EvalRun.get().bindTest("com.acme.T", "tools()");
-        MetricRef m = MetricRef.assertion("tool-order", "Tool order", "agents", "tools", "reasoning");
+        MetricRef m =
+                MetricRef.assertion("tool-order", "Tool order", "agents", "tools", "reasoning");
         EvalChecks.check(m, () -> {});
         AssertionError boom = new AssertionError("boom");
-        assertThatThrownBy(() -> EvalChecks.check(m, () -> { throw boom; })).isSameAs(boom);
+        assertThatThrownBy(
+                        () ->
+                                EvalChecks.check(
+                                        m,
+                                        () -> {
+                                            throw boom;
+                                        }))
+                .isSameAs(boom);
         EvalChecks.named("custom-id").dimension("safety").run(() -> EvalChecks.check(m, () -> {}));
         EvalRun.get().finish();
         List<JsonNode> evals = lines("evaluations.jsonl");

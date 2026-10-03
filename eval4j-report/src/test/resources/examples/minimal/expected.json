@@ -1,0 +1,134 @@
+{
+  "candidate": {
+    "overall": {
+      "counted": 9,
+      "passed": 5,
+      "failed": 4,
+      "notEvaluated": 1,
+      "rate": 55.5556,
+      "bySource": {
+        "FRESH": 7,
+        "REUSED": 1,
+        "CARRIED": 1
+      }
+    },
+    "dimensions": {
+      "correctness": {
+        "rate": 66.6667,
+        "counted": 3
+      },
+      "efficiency": {
+        "rate": 100.0,
+        "counted": 2
+      },
+      "grounding": {
+        "rate": 0.0,
+        "counted": 2
+      },
+      "orchestration": {
+        "rate": 0.0,
+        "counted": 1
+      },
+      "reasoning": {
+        "rate": 100.0,
+        "counted": 1
+      }
+    },
+    "families": {
+      "agents": {
+        "rate": 62.5,
+        "counted": 8
+      },
+      "workflows": {
+        "rate": 0.0,
+        "counted": 1
+      }
+    },
+    "coverage": {
+      "compliance": {
+        "declared": 1,
+        "evaluated": 0,
+        "state": "NOT_EVALUATED"
+      },
+      "correctness": {
+        "declared": 3,
+        "evaluated": 3,
+        "state": "COVERED"
+      },
+      "efficiency": {
+        "declared": 2,
+        "evaluated": 2,
+        "state": "COVERED"
+      },
+      "grounding": {
+        "declared": 2,
+        "evaluated": 2,
+        "state": "COVERED"
+      },
+      "orchestration": {
+        "declared": 1,
+        "evaluated": 1,
+        "state": "COVERED"
+      },
+      "reasoning": {
+        "declared": 1,
+        "evaluated": 1,
+        "state": "COVERED"
+      }
+    }
+  },
+  "compare": {
+    "baselineRun": "01JAFXV9H3PREVIOUS000147",
+    "candidateRun": "01JAGXW2K7CANDIDATE000148",
+    "noiseBand": 0.07,
+    "matched": 8,
+    "worse": 4,
+    "better": 0,
+    "same": 4,
+    "withinNoise": 1,
+    "new": 1,
+    "removed": 0,
+    "notComparable": 0,
+    "worseKeys": [
+      "k_5a90597a59c100c7",
+      "k_79440134b8628ead",
+      "k_aba47f539957399a",
+      "k_e80a100a2103750c"
+    ],
+    "withinNoiseKeys": [
+      "k_79440134b8628ead"
+    ],
+    "byDimensionMatched": {
+      "correctness": {
+        "baseRate": 100.0,
+        "candRate": 50.0,
+        "worse": 1,
+        "better": 0
+      },
+      "efficiency": {
+        "baseRate": 100.0,
+        "candRate": 100.0,
+        "worse": 0,
+        "better": 0
+      },
+      "grounding": {
+        "baseRate": 100.0,
+        "candRate": 0.0,
+        "worse": 2,
+        "better": 0
+      },
+      "orchestration": {
+        "baseRate": 100.0,
+        "candRate": 0.0,
+        "worse": 1,
+        "better": 0
+      },
+      "reasoning": {
+        "baseRate": 100.0,
+        "candRate": 100.0,
+        "worse": 0,
+        "better": 0
+      }
+    }
+  }
+}

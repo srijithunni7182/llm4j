@@ -1,6 +1,7 @@
 package io.github.llm4j.eval.judge;
 
 import io.github.llm4j.LLMClient;
+import io.github.llm4j.eval.export.JudgeTelemetry;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import java.nio.charset.StandardCharsets;
@@ -63,6 +64,11 @@ public final class JudgeCalls {
         return new JudgeCalls(client, cache, samples, judgeIdentifier, llmCallCount);
     }
 
+    private String judgeId() {
+        return io.github.llm4j.eval.export.MetricRef.slug(
+                judgeIdentifier == null ? "judge" : judgeIdentifier);
+    }
+
     public String judgeIdentifier() {
         return judgeIdentifier;
     }
@@ -98,6 +104,9 @@ public final class JudgeCalls {
         for (int i = 0; i < samples; i++) {
             String key = baseKey == null ? null : baseKey + "#" + i;
             JudgeVerdict verdict = key == null ? null : cache.get(key).orElse(null);
+            if (verdict != null) {
+                JudgeTelemetry.cacheHit(judgeId());
+            }
             if (verdict == null) {
                 String content =
                         callLlm(JudgePrompt.SYSTEM_PROMPT, userMessage, temperature, metric);
@@ -131,6 +140,7 @@ public final class JudgeCalls {
         if (key != null) {
             JudgeVerdict hit = cache.get(key).orElse(null);
             if (hit != null) {
+                JudgeTelemetry.cacheHit(judgeId());
                 return hit.reason();
             }
         }
@@ -167,13 +177,24 @@ public final class JudgeCalls {
                         .addUserMessage(user)
                         .temperature(temperature)
                         .build();
+        String id = judgeId();
+        long start = System.nanoTime();
         try {
             llmCallCount.incrementAndGet();
             LLMResponse response = client.chat(request);
+            LLMResponse.TokenUsage usage = response.getTokenUsage();
+            JudgeTelemetry.callMade(
+                    id,
+                    (System.nanoTime() - start) / 1_000_000,
+                    usage == null ? 0 : usage.getPromptTokens(),
+                    usage == null ? 0 : usage.getCompletionTokens(),
+                    false);
             return response.getContent();
         } catch (JudgeEvaluationException e) {
+            JudgeTelemetry.callMade(id, (System.nanoTime() - start) / 1_000_000, 0, 0, true);
             throw e;
         } catch (Exception e) {
+            JudgeTelemetry.callMade(id, (System.nanoTime() - start) / 1_000_000, 0, 0, true);
             throw new JudgeEvaluationException("Judge call failed for \"" + what + "\"", e);
         }
     }

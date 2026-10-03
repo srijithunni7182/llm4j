@@ -2,7 +2,9 @@ package io.github.llm4j.eval.report;
 
 import io.github.llm4j.eval.export.EvalRun;
 import io.github.llm4j.eval.export.Evaluation;
+import io.github.llm4j.eval.export.JudgeTelemetry;
 import io.github.llm4j.eval.export.MetricRef;
+import io.github.llm4j.eval.export.Source;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +57,7 @@ public final class EvalRecorder {
     static void setCurrentTest(String suite, String testName) {
         CURRENT_TEST.set(new String[] {suite, testName});
         EvalRun.get().bindTest(suite, testName);
+        JudgeTelemetry.drain();
     }
 
     static void clearCurrentTest() {
@@ -130,10 +133,18 @@ public final class EvalRecorder {
                                 d.expectedOutput(),
                                 d.retrievalContext())
                         .durationMs(d.durationMs());
+        JudgeTelemetry.Usage usage = JudgeTelemetry.drain();
         if (judgeIdentifier != null && !judgeIdentifier.isBlank()) {
             String judgeId = MetricRef.slug(judgeIdentifier);
             run.noteJudge(judgeId, judgeIdentifier);
             b.judgeId(judgeId);
+            b.usage(usage.calls(), usage.tokensIn(), usage.tokensOut(), null);
+            if (usage.servedFromCache()) {
+                b.source(Source.REUSED);
+            }
+            if (b.durationMsUnset() && usage.latencyMs() > 0) {
+                b.durationMs(usage.latencyMs());
+            }
         }
         run.record(b);
     }

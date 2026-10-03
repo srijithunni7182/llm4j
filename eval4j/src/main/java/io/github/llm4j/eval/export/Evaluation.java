@@ -164,6 +164,10 @@ public record Evaluation(
             return this;
         }
 
+        public boolean durationMsUnset() {
+            return durationMs == null;
+        }
+
         MetricRef metric() {
             return metric;
         }

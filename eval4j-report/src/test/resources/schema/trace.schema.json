@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/srijithunni7182/llm4j/eval4j-report/spec/schema/trace.schema.json",
+  "title": "eval4j trace (one line of traces.jsonl)",
+  "description": "What an agent or a workflow did to produce a result: single-agent steps, or a whole workflow run (graph, events, spend).",
+  "type": "object",
+  "required": ["traceId", "type"],
+  "properties": {
+    "traceId": { "type": "string", "maxLength": 128 },
+    "caseId": { "type": ["string", "null"], "pattern": "^c_[0-9a-f]{16}$" },
+    "type": { "enum": ["AGENT_STEPS", "WORKFLOW"] },
+    "steps": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "required": ["index", "action", "outcome"],
+        "properties": {
+          "index": { "type": "integer", "minimum": 1 },
+          "thought": { "type": ["string", "null"], "maxLength": 5000 },
+          "action": { "type": "string", "maxLength": 200 },
+          "input": { "type": ["string", "null"], "maxLength": 5000 },
+          "observation": { "type": ["string", "null"], "maxLength": 5000 },
+          "outcome": { "enum": ["EXECUTED", "UNKNOWN_TOOL", "DUPLICATE_BLOCKED", "APPROVAL_UNAVAILABLE", "REJECTED_BY_HUMAN", "EXECUTION_ERROR", "BUDGET_EXHAUSTED"] },
+          "startedAt": { "type": ["string", "null"], "format": "date-time" },
+          "durationMs": { "type": ["integer", "null"], "minimum": 0 }
+        },
+        "additionalProperties": true
+      }
+    },
+    "stepBudget": { "type": ["integer", "null"], "minimum": 1 },
+    "workflow": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "maxLength": 200 },
+        "graph": {
+          "type": "object",
+          "properties": {
+            "nodes": {
+              "type": "array",
+              "maxItems": 500,
+              "items": {
+                "type": "object",
+                "required": ["id", "kind"],
+                "properties": {
+                  "id": { "type": "string", "maxLength": 64 },
+                  "kind": { "enum": ["start", "end", "delegate", "alt", "loop", "handoff", "human_prompt", "parallel", "checkpoint"] },
+                  "label": { "type": "string", "maxLength": 200 },
+                  "agent": { "type": ["string", "null"], "maxLength": 128 },
+                  "bound": { "type": ["integer", "null"], "minimum": 1, "description": "For loops: the declared maximum iterations." }
+                },
+                "additionalProperties": true
+              }
+            },
+            "edges": {
+              "type": "array",
+              "maxItems": 2000,
+              "items": {
+                "type": "object",
+                "required": ["from", "to"],
+                "properties": { "from": { "type": "string" }, "to": { "type": "string" }, "label": { "type": ["string", "null"] } },
+                "additionalProperties": true
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "expectedPath": { "type": "array", "items": { "type": "string" }, "description": "Node ids in the order the workflow should visit them." },
+        "actualPath": { "type": "array", "items": { "type": "string" }, "description": "Node ids in the order they were visited. Optional; the report can derive it from events." },
+        "events": {
+          "type": "array",
+          "maxItems": 20000,
+          "items": {
+            "type": "object",
+            "required": ["t", "type"],
+            "properties": {
+              "t": { "type": "number", "minimum": 0, "description": "Seconds since the run started." },
+              "type": { "enum": ["delegate_start", "delegate_end", "delegate_replayed", "thought", "action", "observation", "budget", "approval", "memory", "guard", "voice", "suspended", "tool", "checkpoint", "rewind", "decision"] },
+              "agent": { "type": ["string", "null"], "maxLength": 128 },
+              "step": { "type": ["string", "null"], "maxLength": 128, "description": "Hierarchical step id, for example main/s0/f1." },
+              "node": { "type": ["string", "null"], "description": "Graph node this event belongs to, if known." },
+              "text": { "type": ["string", "null"], "maxLength": 2000 },
+              "data": { "type": ["object", "null"] }
+            },
+            "additionalProperties": true
+          }
+        },
+        "spend": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["agent"],
+            "properties": {
+              "step": { "type": ["string", "null"] },
+              "agent": { "type": "string" },
+              "model": { "type": ["string", "null"] },
+              "promptTokens": { "type": "integer", "minimum": 0 },
+              "completionTokens": { "type": "integer", "minimum": 0 },
+              "calls": { "type": "integer", "minimum": 0 },
+              "costUsd": { "type": ["number", "null"], "minimum": 0 },
+              "estimated": { "type": "boolean" }
+            },
+            "additionalProperties": true
+          }
+        },
+        "budgetUsd": { "type": ["number", "null"], "minimum": 0 },
+        "rewinds": { "type": "integer", "minimum": 0 },
+        "rewindCap": { "type": ["integer", "null"], "minimum": 0 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    { "if": { "properties": { "type": { "const": "AGENT_STEPS" } } }, "then": { "required": ["steps"] } },
+    { "if": { "properties": { "type": { "const": "WORKFLOW" } } }, "then": { "required": ["workflow"] } }
+  ],
+  "additionalProperties": true
+}
