@@ -28,7 +28,8 @@ public final class WorkflowGraph {
     record Slot(
             WorkflowTrace.Node node,
             List<String> ancestors,
-            java.util.Map<String, String> branches) {}
+            java.util.Map<String, String> branches,
+            java.util.Set<String> agents) {}
 
     final List<WorkflowTrace.Node> nodes = new ArrayList<>();
     final List<WorkflowTrace.Edge> edges = new ArrayList<>();
@@ -68,7 +69,7 @@ public final class WorkflowGraph {
             String id = "n" + (++counter);
             WorkflowTrace.Node node = nodeFor(id, st);
             nodes.add(node);
-            slots.add(new Slot(node, ancestors, branches));
+            slots.add(new Slot(node, ancestors, branches, agentsOf(st)));
             for (String from : current) {
                 edges.add(new WorkflowTrace.Edge(from, id, label));
             }
@@ -107,6 +108,19 @@ public final class WorkflowGraph {
         return current;
     }
 
+    /** The agents a parallel block delegates to: its node stands for the whole round. */
+    private static java.util.Set<String> agentsOf(Statement st) {
+        java.util.Set<String> out = new java.util.LinkedHashSet<>();
+        if (st instanceof ParallelStmt p) {
+            for (Statement c : p.getBody()) {
+                if (c instanceof DelegateStmt d) {
+                    out.add(d.getTargetAgent());
+                }
+            }
+        }
+        return out;
+    }
+
     private static WorkflowTrace.Node nodeFor(String id, Statement st) {
         if (st instanceof DelegateStmt d) {
             return new WorkflowTrace.Node(
@@ -135,7 +149,8 @@ public final class WorkflowGraph {
                     id, "checkpoint", "checkpoint " + c.getName(), null, null);
         }
         if (st instanceof ParallelStmt) {
-            return new WorkflowTrace.Node(id, "parallel", "in parallel", null, null);
+            return new WorkflowTrace.Node(
+                    id, "parallel", "in parallel: " + String.join(", ", agentsOf(st)), null, null);
         }
         return new WorkflowTrace.Node(
                 id,

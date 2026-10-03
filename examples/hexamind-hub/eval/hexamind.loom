@@ -98,6 +98,12 @@ agent Coordinator {
     temperature: 0.3
 }
 
+agent Debunker {
+    model: "gemini-3.5-flash"
+    system: "You explain, briefly and specifically, why a premise could not be verified and what a reader should do instead."
+    temperature: 0.3
+}
+
 workflow Collaborate(problem) {
     observe "Problem received" {problem}
 
@@ -117,7 +123,7 @@ workflow Collaborate(problem) {
     alt (premise.fabricated == "YES") {
         // Debunk branch: skip the debate about something that does not exist and go straight to opinions
         note "Fabricated premise flagged; shortening the debate"
-        delegate "Round 1 findings:\nAlex: {a1}\nRahul: {h1}\nAris: {r1}\nState the debunk and what a reader should do instead." to Coordinator -> consensus
+        delegate "Round 1 findings:\nAlex: {a1}\nRahul: {h1}\nAris: {r1}\nState the debunk and what a reader should do instead." to Debunker -> consensus
     } else {
         // Round 2: arguments
         parallel {
