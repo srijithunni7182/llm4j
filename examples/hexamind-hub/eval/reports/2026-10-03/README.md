@@ -6,6 +6,8 @@ The first real evaluation of Hexamind Hub with eval4j, all layers, one report.
 CI viewers is in [`static/`](static/index.html); [`summary.md`](summary.md) is the pull-request summary; [`evaluations.csv`](evaluations.csv) has every
 evaluation as a row.
 
+**Which agent scored what:** on the *Agents* page (and in `summary.md`) an agents × dimensions matrix shows each agent's pass rate on each dimension against its goal; select an agent in the left panel for its own page with its scores, failed scenarios and every case.
+
 ## What ran
 
 | | |
