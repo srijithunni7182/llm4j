@@ -41,7 +41,9 @@ public final class EvalReportWriter {
             List<EvalRecord> records,
             List<TestOutcome> tests) {
 
-        /** A run without JUnit test outcomes (also the shape of reports from before the dashboard). */
+        /**
+         * A run without JUnit test outcomes (also the shape of reports from before the dashboard).
+         */
         public RunInfo(
                 String runId,
                 String startedAt,
@@ -71,7 +73,8 @@ public final class EvalReportWriter {
             ReportAnalysis analysis = new ReportAnalysis(run, history, baselineAverages);
             AtomicFiles.write(dir.resolve(JSON_FILE), MAPPER.writeValueAsBytes(run));
             AtomicFiles.write(dir.resolve(HTML_FILE), utf8(HtmlDashboard.render(analysis)));
-            AtomicFiles.write(dir.resolve(JUNIT_FILE), utf8(JUnitXmlWriter.render(analysis.records)));
+            AtomicFiles.write(
+                    dir.resolve(JUNIT_FILE), utf8(JUnitXmlWriter.render(analysis.records)));
             AtomicFiles.write(dir.resolve(MARKDOWN_FILE), utf8(MarkdownSummary.render(analysis)));
             AtomicFiles.write(dir.resolve(CSV_FILE), utf8(CsvWriter.render(analysis.records)));
         } catch (IOException e) {

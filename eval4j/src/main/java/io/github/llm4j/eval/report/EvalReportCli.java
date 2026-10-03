@@ -48,7 +48,8 @@ public final class EvalReportCli {
         }
         EvalReportWriter.RunInfo run = merge(read(inputs));
         Path dir = out != null ? out : parent(inputs.get(0));
-        List<HistoryEntry> prior = history == null ? List.of() : new FileSystemScoreHistory(history).load();
+        List<HistoryEntry> prior =
+                history == null ? List.of() : new FileSystemScoreHistory(history).load();
         EvalReportWriter.write(dir, run, prior, Map.of());
         System.out.println("eval4j: wrote dashboard to " + dir.resolve(EvalReportWriter.HTML_FILE));
     }
@@ -76,8 +77,14 @@ public final class EvalReportCli {
         for (EvalReportWriter.RunInfo r : runs) {
             records.addAll(r.records() == null ? List.of() : r.records());
             tests.addAll(r.tests() == null ? List.of() : r.tests());
-            start = start == null || (r.startedAt() != null && r.startedAt().compareTo(start) < 0) ? r.startedAt() : start;
-            end = end == null || (r.endedAt() != null && r.endedAt().compareTo(end) > 0) ? r.endedAt() : end;
+            start =
+                    start == null || (r.startedAt() != null && r.startedAt().compareTo(start) < 0)
+                            ? r.startedAt()
+                            : start;
+            end =
+                    end == null || (r.endedAt() != null && r.endedAt().compareTo(end) > 0)
+                            ? r.endedAt()
+                            : end;
             sha = sha == null ? r.gitSha() : sha;
         }
         return new EvalReportWriter.RunInfo(

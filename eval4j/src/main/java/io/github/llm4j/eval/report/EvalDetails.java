@@ -16,23 +16,24 @@ public record EvalDetails(
     /** No case information. */
     public static final EvalDetails NONE = new EvalDetails(null, null, null, null, null);
 
-    /** Longest text kept per field; longer values are cut so one huge answer cannot bloat a report. */
+    /**
+     * Longest text kept per field; longer values are cut so one huge answer cannot bloat a report.
+     */
     static final int MAX_TEXT = 20_000;
 
     /** At most this many retrieval chunks are kept. */
     static final int MAX_CHUNKS = 50;
 
-    /** A copy with over-long text truncated and an empty context list normalised to {@code null}. */
+    /**
+     * A copy with over-long text truncated and an empty context list normalised to {@code null}.
+     */
     EvalDetails bounded() {
         List<String> chunks = null;
         if (retrievalContext != null && !retrievalContext.isEmpty()) {
-            chunks =
-                    retrievalContext.stream()
-                            .limit(MAX_CHUNKS)
-                            .map(EvalDetails::cut)
-                            .toList();
+            chunks = retrievalContext.stream().limit(MAX_CHUNKS).map(EvalDetails::cut).toList();
         }
-        return new EvalDetails(cut(input), cut(actualOutput), cut(expectedOutput), chunks, durationMs);
+        return new EvalDetails(
+                cut(input), cut(actualOutput), cut(expectedOutput), chunks, durationMs);
     }
 
     private static String cut(String s) {

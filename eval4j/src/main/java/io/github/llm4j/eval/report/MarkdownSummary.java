@@ -15,9 +15,10 @@ final class MarkdownSummary {
 
     static String render(ReportAnalysis a) {
         StringBuilder sb = new StringBuilder();
-        String icon = a.total > 0 && a.passed == a.total && a.failedTests() == 0
-                ? (a.hasRegression() ? "⚠️" : "✅")
-                : "❌";
+        String icon =
+                a.total > 0 && a.passed == a.total && a.failedTests() == 0
+                        ? (a.hasRegression() ? "⚠️" : "✅")
+                        : "❌";
         sb.append("## ").append(icon).append(" eval4j report\n\n");
         sb.append(
                 String.format(
@@ -47,7 +48,14 @@ final class MarkdownSummary {
                 sb.append("| ")
                         .append(cell(m.metric()))
                         .append(m.regressed() ? " ⚠️" : "")
-                        .append(String.format(Locale.ROOT, " | %.3f | %.3f | %d/%d | ", m.average(), m.min(), m.passed(), m.count()))
+                        .append(
+                                String.format(
+                                        Locale.ROOT,
+                                        " | %.3f | %.3f | %d/%d | ",
+                                        m.average(),
+                                        m.min(),
+                                        m.passed(),
+                                        m.count()))
                         .append(delta(m.baselineDelta()))
                         .append(" | ")
                         .append(delta(m.previousDelta()))
@@ -68,21 +76,34 @@ final class MarkdownSummary {
         }
         List<EvalRecord> failures = a.records.stream().filter(r -> !r.passed()).toList();
         if (!failures.isEmpty()) {
-            sb.append("<details><summary>").append(failures.size()).append(" failing evaluation(s)</summary>\n\n");
+            sb.append("<details><summary>")
+                    .append(failures.size())
+                    .append(" failing evaluation(s)</summary>\n\n");
             sb.append("| Test | Metric | Score | Threshold | Reason |\n|---|---|---:|---:|---|\n");
             failures.stream()
                     .limit(MAX_FAILURES)
                     .forEach(
                             r ->
                                     sb.append("| ")
-                                            .append(cell(HtmlDashboard.simpleName(r.suite()) + " · " + r.testName()))
+                                            .append(
+                                                    cell(
+                                                            HtmlDashboard.simpleName(r.suite())
+                                                                    + " · "
+                                                                    + r.testName()))
                                             .append(" | ")
                                             .append(cell(r.metric()))
-                                            .append(String.format(Locale.ROOT, " | %.3f | %.2f | ", r.score(), r.threshold()))
+                                            .append(
+                                                    String.format(
+                                                            Locale.ROOT,
+                                                            " | %.3f | %.2f | ",
+                                                            r.score(),
+                                                            r.threshold()))
                                             .append(cell(truncate(r.reason(), 240)))
                                             .append(" |\n"));
             if (failures.size() > MAX_FAILURES) {
-                sb.append("\n_… and ").append(failures.size() - MAX_FAILURES).append(" more in the full report._\n");
+                sb.append("\n_… and ")
+                        .append(failures.size() - MAX_FAILURES)
+                        .append(" more in the full report._\n");
             }
             sb.append("\n</details>\n");
         }

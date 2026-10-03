@@ -31,7 +31,32 @@ public record EvalScenario(
         String expectedOutput,
         List<String> expectedTools,
         List<String> context,
-        List<String> retrievalContext) {
+        List<String> retrievalContext,
+        String id,
+        List<String> dimensions,
+        List<String> tags) {
+
+    /** The original seven-field form: no stable id, dimensions or tags. */
+    public EvalScenario(
+            String name,
+            String input,
+            String expectedOutputContains,
+            String expectedOutput,
+            List<String> expectedTools,
+            List<String> context,
+            List<String> retrievalContext) {
+        this(
+                name,
+                input,
+                expectedOutputContains,
+                expectedOutput,
+                expectedTools,
+                context,
+                retrievalContext,
+                null,
+                null,
+                null);
+    }
 
     /**
      * Used as the parameterized-test display name, so reports show {@code name} rather than the

@@ -58,7 +58,12 @@ class DashboardTest {
     private static EvalReportWriter.RunInfo run(
             String id, List<EvalRecord> records, List<TestOutcome> tests) {
         return new EvalReportWriter.RunInfo(
-                id, "2026-01-01T00:00:00Z", "2026-01-01T00:01:05Z", "0123456789abcdef", records, tests);
+                id,
+                "2026-01-01T00:00:00Z",
+                "2026-01-01T00:01:05Z",
+                "0123456789abcdef",
+                records,
+                tests);
     }
 
     private static EvalReportWriter.RunInfo run(String id, List<EvalRecord> records) {
@@ -71,7 +76,9 @@ class DashboardTest {
     void drillDownShowsInputOutputExpectedAndRetrievedContext() {
         String html =
                 EvalReportWriter.html(
-                        run("r1", List.of(detailed("t1", "Faithfulness", 0.2, "contradicts policy"))),
+                        run(
+                                "r1",
+                                List.of(detailed("t1", "Faithfulness", 0.2, "contradicts policy"))),
                         List.of(),
                         Map.of());
         assertThat(html)
@@ -90,11 +97,26 @@ class DashboardTest {
         String evil = "</pre><script>alert('x')</script>\"onmouseover=\"alert(1)";
         var r =
                 new EvalRecord(
-                        evil, evil, evil, 0.1, 0.5, false, evil, evil, evil, evil, evil, evil,
-                        List.of(evil), 1L);
+                        evil,
+                        evil,
+                        evil,
+                        0.1,
+                        0.5,
+                        false,
+                        evil,
+                        evil,
+                        evil,
+                        evil,
+                        evil,
+                        evil,
+                        List.of(evil),
+                        1L);
         String html =
                 EvalReportWriter.html(
-                        run("<b>run</b>", List.of(r), List.of(new TestOutcome(evil, evil, "FAILED", 1, evil))),
+                        run(
+                                "<b>run</b>",
+                                List.of(r),
+                                List.of(new TestOutcome(evil, evil, "FAILED", 1, evil))),
                         List.of(),
                         Map.of());
         assertThat(html).doesNotContain("<script>alert").doesNotContain("</pre><script>");
@@ -167,7 +189,10 @@ class DashboardTest {
         String html =
                 EvalReportWriter.html(
                         run("n", List.of(rec("t", "M", 0.9, 0.5, "ok"))), List.of(old), Map.of());
-        assertThat(html).contains("<polyline").contains("Trends").doesNotContain("Since the previous run");
+        assertThat(html)
+                .contains("<polyline")
+                .contains("Trends")
+                .doesNotContain("Since the previous run");
         assertThat(html).contains("+0.500");
     }
 
@@ -176,7 +201,10 @@ class DashboardTest {
         var h1 = new HistoryEntry("a", "t1", "abc", Map.of("M", 0.5), 0.5, 10, Map.of());
         var h2 = new HistoryEntry("b", "t2", null, Map.of("M", 0.6));
         String html =
-                EvalReportWriter.html(run("c", List.of(rec("t", "M", 0.9, 0.5, "ok"))), List.of(h1, h2), Map.of());
+                EvalReportWriter.html(
+                        run("c", List.of(rec("t", "M", 0.9, 0.5, "ok"))),
+                        List.of(h1, h2),
+                        Map.of());
         assertThat(html).contains("class=\"trend\"").contains("pass rate");
     }
 
@@ -184,11 +212,19 @@ class DashboardTest {
 
     @Test
     void verdictReflectsFailuresRegressionsAndEmptiness() {
-        String pass = EvalReportWriter.html(run("r", List.of(rec("t", "M", 0.9, 0.5, "ok"))), List.of(), Map.of());
+        String pass =
+                EvalReportWriter.html(
+                        run("r", List.of(rec("t", "M", 0.9, 0.5, "ok"))), List.of(), Map.of());
         assertThat(pass).contains("verdict pass").contains("PASSING");
-        String fail = EvalReportWriter.html(run("r", List.of(rec("t", "M", 0.1, 0.5, "no"))), List.of(), Map.of());
+        String fail =
+                EvalReportWriter.html(
+                        run("r", List.of(rec("t", "M", 0.1, 0.5, "no"))), List.of(), Map.of());
         assertThat(fail).contains("verdict fail").contains("FAILING");
-        String reg = EvalReportWriter.html(run("r", List.of(rec("t", "M", 0.9, 0.5, "ok"))), List.of(), Map.of("M", 0.99));
+        String reg =
+                EvalReportWriter.html(
+                        run("r", List.of(rec("t", "M", 0.9, 0.5, "ok"))),
+                        List.of(),
+                        Map.of("M", 0.99));
         assertThat(reg).contains("verdict reg").contains("REGRESSION");
         String none = EvalReportWriter.html(run("r", List.of()), List.of(), Map.of());
         assertThat(none).contains("NO EVALUATIONS").contains("No judged evaluations were recorded");
@@ -198,7 +234,10 @@ class DashboardTest {
     void aFailedJUnitTestWithNoEvaluationsStillFailsTheRun() {
         var tests = List.of(new TestOutcome("a.B", "boom()", "FAILED", 5, "expected 1 but was 2"));
         String html = EvalReportWriter.html(run("r", List.of(), tests), List.of(), Map.of());
-        assertThat(html).contains("FAILING").contains("expected 1 but was 2").contains("id=\"tests\"");
+        assertThat(html)
+                .contains("FAILING")
+                .contains("expected 1 but was 2")
+                .contains("id=\"tests\"");
     }
 
     @Test
@@ -225,7 +264,12 @@ class DashboardTest {
                         .parse(new InputSource(new java.io.StringReader(xml)));
         assertThat(doc.getElementsByTagName("testcase").getLength()).isEqualTo(2);
         assertThat(doc.getElementsByTagName("failure").getLength()).isEqualTo(1);
-        assertThat(doc.getElementsByTagName("testsuite").item(0).getAttributes().getNamedItem("failures").getNodeValue())
+        assertThat(
+                        doc.getElementsByTagName("testsuite")
+                                .item(0)
+                                .getAttributes()
+                                .getNamedItem("failures")
+                                .getNodeValue())
                 .isEqualTo("1");
     }
 
@@ -233,7 +277,13 @@ class DashboardTest {
     void csvQuotesCellsAndNeutralisesSpreadsheetFormulas() {
         String csv =
                 CsvWriter.render(
-                        List.of(rec("=HYPERLINK(\"x\")", "M", 0.5, 0.5, "line1\nline \"2\", with comma")));
+                        List.of(
+                                rec(
+                                        "=HYPERLINK(\"x\")",
+                                        "M",
+                                        0.5,
+                                        0.5,
+                                        "line1\nline \"2\", with comma")));
         assertThat(csv).contains("\"'=HYPERLINK(\"\"x\"\")\"");
         assertThat(csv).contains("\"line1\nline \"\"2\"\", with comma\"");
         assertThat(csv.lines().findFirst().get()).startsWith("suite,test,metric,score");
@@ -241,8 +291,12 @@ class DashboardTest {
 
     @Test
     void markdownSummaryEscapesPipesAndListsFailures() {
-        var records = List.of(rec("a|b", "M|N", 0.1, 0.5, "x | y\nz <b>"), rec("ok", "M|N", 0.9, 0.5, "f"));
-        String md = MarkdownSummary.render(new ReportAnalysis(run("r", records), List.of(), Map.of()));
+        var records =
+                List.of(
+                        rec("a|b", "M|N", 0.1, 0.5, "x | y\nz <b>"),
+                        rec("ok", "M|N", 0.9, 0.5, "f"));
+        String md =
+                MarkdownSummary.render(new ReportAnalysis(run("r", records), List.of(), Map.of()));
         assertThat(md)
                 .contains("1 / 2 evaluations passed (50%)")
                 .contains("a\\|b")
@@ -253,7 +307,8 @@ class DashboardTest {
 
     @Test
     void writeProducesAllFiveFiles(@TempDir Path dir) {
-        EvalReportWriter.write(dir, run("r", List.of(rec("t", "M", 0.9, 0.5, "ok"))), List.of(), Map.of());
+        EvalReportWriter.write(
+                dir, run("r", List.of(rec("t", "M", 0.9, 0.5, "ok"))), List.of(), Map.of());
         for (String f :
                 List.of(
                         EvalReportWriter.HTML_FILE,
@@ -289,7 +344,8 @@ class DashboardTest {
         EvalRecorder.activate();
         try {
             String huge = "x".repeat(100_000);
-            EvalRecorder.record("M", 1, 0.5, "r", null, new EvalDetails(huge, huge, null, List.of(huge), 7L));
+            EvalRecorder.record(
+                    "M", 1, 0.5, "r", null, new EvalDetails(huge, huge, null, List.of(huge), 7L));
             EvalRecord r = EvalRecorder.records().get(0);
             assertThat(r.input()).hasSizeLessThan(21_000).endsWith("chars]");
             assertThat(r.retrievalContext().get(0)).hasSizeLessThan(21_000);
@@ -321,22 +377,32 @@ class DashboardTest {
     }
 
     @Test
-    void extensionWritesTestOutcomesCaseDetailsAndPerCaseHistory(@TempDir Path dir) throws Exception {
+    void extensionWritesTestOutcomesCaseDetailsAndPerCaseHistory(@TempDir Path dir)
+            throws Exception {
         System.setProperty(EvalReportExtension.REPORT_DIR_PROPERTY, dir.toString());
         EngineTestKit.engine("junit-jupiter").selectors(selectClass(Fixture.class)).execute();
 
         var run =
                 new ObjectMapper()
-                        .readValue(dir.resolve("eval4j-report.json").toFile(), EvalReportWriter.RunInfo.class);
-        assertThat(run.tests()).extracting(TestOutcome::status).containsExactlyInAnyOrder("PASSED", "FAILED");
-        assertThat(run.tests()).filteredOn(t -> !t.passed()).extracting(TestOutcome::message).containsExactly("plain failure");
+                        .readValue(
+                                dir.resolve("eval4j-report.json").toFile(),
+                                EvalReportWriter.RunInfo.class);
+        assertThat(run.tests())
+                .extracting(TestOutcome::status)
+                .containsExactlyInAnyOrder("PASSED", "FAILED");
+        assertThat(run.tests())
+                .filteredOn(t -> !t.passed())
+                .extracting(TestOutcome::message)
+                .containsExactly("plain failure");
         assertThat(run.records().get(0).input()).isEqualTo("q");
 
         var history = new FileSystemScoreHistory(dir.resolve("eval4j-history.jsonl")).load();
         assertThat(history).hasSize(1);
         assertThat(history.get(0).passRate()).isEqualTo(1.0);
         assertThat(history.get(0).caseScores()).hasSize(1);
-        assertThat(Files.readString(dir.resolve("eval4j-report.html"))).contains("plain failure").contains("FAILING");
+        assertThat(Files.readString(dir.resolve("eval4j-report.html")))
+                .contains("plain failure")
+                .contains("FAILING");
     }
 
     // --- CLI -------------------------------------------------------------------------------
@@ -345,17 +411,25 @@ class DashboardTest {
     void cliMergesReportsFromSeveralModules(@TempDir Path dir) throws Exception {
         Path a = dir.resolve("a");
         Path b = dir.resolve("b");
-        EvalReportWriter.write(a, run("ra", List.of(rec("t1", "M", 0.9, 0.5, "ok"))), List.of(), Map.of());
-        EvalReportWriter.write(b, run("rb", List.of(rec("t2", "M", 0.1, 0.5, "bad"))), List.of(), Map.of());
+        EvalReportWriter.write(
+                a, run("ra", List.of(rec("t1", "M", 0.9, 0.5, "ok"))), List.of(), Map.of());
+        EvalReportWriter.write(
+                b, run("rb", List.of(rec("t2", "M", 0.1, 0.5, "bad"))), List.of(), Map.of());
         Path out = dir.resolve("merged");
         EvalReportCli.main(
-                new String[] {"--out", out.toString(), a.resolve("eval4j-report.json").toString(), b.resolve("eval4j-report.json").toString()});
+                new String[] {
+                    "--out",
+                    out.toString(),
+                    a.resolve("eval4j-report.json").toString(),
+                    b.resolve("eval4j-report.json").toString()
+                });
         String html = Files.readString(out.resolve("eval4j-report.html"));
         assertThat(html).contains("1 / 2").contains("bad").contains("FAILING");
     }
 
     @Test
     void cliRejectsMissingOptionValue() {
-        assertThrows(IllegalArgumentException.class, () -> EvalReportCli.main(new String[] {"--out"}));
+        assertThrows(
+                IllegalArgumentException.class, () -> EvalReportCli.main(new String[] {"--out"}));
     }
 }

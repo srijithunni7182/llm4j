@@ -47,7 +47,9 @@ final class ReportAnalysis {
     /** All evaluations that one test produced. */
     record TestGroup(String suite, String testName, List<Integer> recordIndexes) {
         String key() {
-            return (suite == null ? "" : suite) + " / " + (testName == null ? "(no test)" : testName);
+            return (suite == null ? "" : suite)
+                    + " / "
+                    + (testName == null ? "(no test)" : testName);
         }
     }
 
@@ -155,7 +157,8 @@ final class ReportAnalysis {
         }
         byMetric.forEach(
                 (metric, mine) -> {
-                    double[] scores = mine.stream().mapToDouble(EvalRecord::score).sorted().toArray();
+                    double[] scores =
+                            mine.stream().mapToDouble(EvalRecord::score).sorted().toArray();
                     double avg = 0;
                     int ok = 0;
                     int[] histogram = new int[BUCKETS];

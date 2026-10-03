@@ -149,7 +149,10 @@ final class Charts {
                     sb,
                     timeline,
                     metric,
-                    entry -> entry.metricAverages() == null ? null : entry.metricAverages().get(metric),
+                    entry ->
+                            entry.metricAverages() == null
+                                    ? null
+                                    : entry.metricAverages().get(metric),
                     color(series++),
                     false,
                     left,
@@ -210,7 +213,10 @@ final class Charts {
                     .append(String.format(Locale.ROOT, "%.3f", v))
                     .append(" · ")
                     .append(EvalReportWriter.esc(e.timestamp()))
-                    .append(e.gitSha() == null ? "" : " · " + EvalReportWriter.esc(shortSha(e.gitSha())))
+                    .append(
+                            e.gitSha() == null
+                                    ? ""
+                                    : " · " + EvalReportWriter.esc(shortSha(e.gitSha())))
                     .append("</title></circle>");
             count++;
         }

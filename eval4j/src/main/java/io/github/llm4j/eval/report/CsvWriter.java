@@ -15,18 +15,30 @@ final class CsvWriter {
     static String render(List<EvalRecord> records) {
         StringBuilder sb = new StringBuilder(HEADER);
         for (EvalRecord r : records) {
-            sb.append(cell(r.suite())).append(',')
-                    .append(cell(r.testName())).append(',')
-                    .append(cell(r.metric())).append(',')
-                    .append(String.format(Locale.ROOT, "%.4f,%.4f", r.score(), r.threshold())).append(',')
-                    .append(r.passed()).append(',')
-                    .append(cell(r.reason())).append(',')
-                    .append(cell(r.judgeIdentifier())).append(',')
-                    .append(cell(r.timestamp())).append(',')
-                    .append(r.durationMs() == null ? "" : r.durationMs()).append(',')
-                    .append(cell(r.input())).append(',')
-                    .append(cell(r.actualOutput())).append(',')
-                    .append(cell(r.expectedOutput())).append('\n');
+            sb.append(cell(r.suite()))
+                    .append(',')
+                    .append(cell(r.testName()))
+                    .append(',')
+                    .append(cell(r.metric()))
+                    .append(',')
+                    .append(String.format(Locale.ROOT, "%.4f,%.4f", r.score(), r.threshold()))
+                    .append(',')
+                    .append(r.passed())
+                    .append(',')
+                    .append(cell(r.reason()))
+                    .append(',')
+                    .append(cell(r.judgeIdentifier()))
+                    .append(',')
+                    .append(cell(r.timestamp()))
+                    .append(',')
+                    .append(r.durationMs() == null ? "" : r.durationMs())
+                    .append(',')
+                    .append(cell(r.input()))
+                    .append(',')
+                    .append(cell(r.actualOutput()))
+                    .append(',')
+                    .append(cell(r.expectedOutput()))
+                    .append('\n');
         }
         return sb.toString();
     }

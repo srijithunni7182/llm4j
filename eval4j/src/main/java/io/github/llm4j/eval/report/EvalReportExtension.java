@@ -1,5 +1,8 @@
 package io.github.llm4j.eval.report;
 
+import io.github.llm4j.eval.dataset.EvalScenario;
+import io.github.llm4j.eval.export.EvalRun;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -15,6 +18,8 @@ import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.InvocationInterceptor;
+import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
 import org.junit.jupiter.api.extension.TestWatcher;
 
 /**
@@ -42,6 +47,7 @@ public class EvalReportExtension
         implements TestWatcher,
                 BeforeAllCallback,
                 BeforeEachCallback,
+                InvocationInterceptor,
                 AfterEachCallback,
                 AfterAllCallback {
 
@@ -65,6 +71,7 @@ public class EvalReportExtension
             try {
                 writeRunReport();
             } finally {
+                EvalRun.get().finish();
                 EvalRecorder.reset();
             }
         }
@@ -126,6 +133,22 @@ public class EvalReportExtension
                 context.getRequiredTestClass().getName(), context.getDisplayName());
     }
 
+    /** Binds the {@link EvalScenario} argument of a parameterized test as the current case. */
+    @Override
+    public void interceptTestTemplateMethod(
+            Invocation<Void> invocation,
+            ReflectiveInvocationContext<Method> invocationContext,
+            ExtensionContext extensionContext)
+            throws Throwable {
+        for (Object arg : invocationContext.getArguments()) {
+            if (arg instanceof EvalScenario scenario) {
+                EvalRun.get().bindScenario(scenario);
+                break;
+            }
+        }
+        invocation.proceed();
+    }
+
     @Override
     public void afterEach(ExtensionContext context) {
         EvalRecorder.clearCurrentTest();
@@ -153,6 +176,13 @@ public class EvalReportExtension
     private void recordTest(ExtensionContext context, String status, String message) {
         Long start = context.getStore(NAMESPACE).get("startNanos", Long.class);
         long ms = start == null ? 0 : (System.nanoTime() - start) / 1_000_000;
+        EvalRun.get()
+                .recordTest(
+                        context.getRequiredTestClass().getName(),
+                        context.getDisplayName(),
+                        status,
+                        ms,
+                        message);
         runState(context)
                 .tests
                 .add(

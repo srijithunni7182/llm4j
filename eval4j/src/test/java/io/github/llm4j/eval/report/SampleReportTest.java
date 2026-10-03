@@ -23,10 +23,24 @@ class SampleReportTest {
         "Faithfulness", "Answer Relevancy", "Contextual Precision", "Tone"
     };
     private static final String[] TESTS = {
-        "refund window", "shipping to Canada", "cancel subscription", "reset password",
-        "invoice copy", "change delivery address", "warranty length", "student discount",
-        "bulk order pricing", "gift wrapping", "damaged item", "lost parcel", "price match",
-        "payment methods", "account deletion", "two-factor setup", "loyalty points", "store hours"
+        "refund window",
+        "shipping to Canada",
+        "cancel subscription",
+        "reset password",
+        "invoice copy",
+        "change delivery address",
+        "warranty length",
+        "student discount",
+        "bulk order pricing",
+        "gift wrapping",
+        "damaged item",
+        "lost parcel",
+        "price match",
+        "payment methods",
+        "account deletion",
+        "two-factor setup",
+        "loyalty points",
+        "store hours"
     };
 
     static EvalReportWriter.RunInfo sampleRun(String id, long seed, double quality, int day) {
@@ -36,7 +50,14 @@ class SampleReportTest {
         for (String test : TESTS) {
             for (String metric : METRICS) {
                 double base = quality - (metric.equals("Contextual Precision") ? 0.12 : 0.0);
-                double score = Math.max(0, Math.min(1, base + fixed.nextGaussian() * 0.15 + rnd.nextGaussian() * 0.04));
+                double score =
+                        Math.max(
+                                0,
+                                Math.min(
+                                        1,
+                                        base
+                                                + fixed.nextGaussian() * 0.15
+                                                + rnd.nextGaussian() * 0.04));
                 score = Math.round(score * 100) / 100.0;
                 double threshold = metric.equals("Tone") ? 0.6 : 0.7;
                 boolean ok = score >= threshold;
@@ -56,19 +77,36 @@ class SampleReportTest {
                                 "claude-judge",
                                 "2026-09-%02dT10:00:00Z".formatted(day),
                                 "Customer: What is your policy on " + test + "?",
-                                "Our policy on " + test + " is described in the help centre; most requests are handled within 5 business days.",
+                                "Our policy on "
+                                        + test
+                                        + " is described in the help centre; most requests are handled within 5 business days.",
                                 "Policy: " + test + " requests are handled within 14 days.",
                                 List.of(
-                                        "Help centre / " + test + ": requests are handled within 14 days of purchase.",
+                                        "Help centre / "
+                                                + test
+                                                + ": requests are handled within 14 days of purchase.",
                                         "Help centre / contact: reach support 24/7 by chat."),
                                 400L + rnd.nextInt(1800)));
             }
         }
         List<TestOutcome> tests = new ArrayList<>();
         for (String t : TESTS) {
-            tests.add(new TestOutcome("com.acme.support.SupportBotEvalTest", t, "PASSED", 900L + rnd.nextInt(3000), null));
+            tests.add(
+                    new TestOutcome(
+                            "com.acme.support.SupportBotEvalTest",
+                            t,
+                            "PASSED",
+                            900L + rnd.nextInt(3000),
+                            null));
         }
-        tests.set(3, new TestOutcome("com.acme.support.SupportBotEvalTest", "reset password", "FAILED", 2100, "Expecting actual: 0.41 to be greater than or equal to: 0.7 (Faithfulness)"));
+        tests.set(
+                3,
+                new TestOutcome(
+                        "com.acme.support.SupportBotEvalTest",
+                        "reset password",
+                        "FAILED",
+                        2100,
+                        "Expecting actual: 0.41 to be greater than or equal to: 0.7 (Faithfulness)"));
         return new EvalReportWriter.RunInfo(
                 id,
                 "2026-09-%02dT10:00:00Z".formatted(day),
@@ -83,10 +121,13 @@ class SampleReportTest {
         List<HistoryEntry> history = new ArrayList<>();
         double[] quality = {0.71, 0.74, 0.73, 0.78, 0.80, 0.79, 0.84};
         for (int i = 0; i < quality.length; i++) {
-            history.add(EvalReportWriter.historyEntry(sampleRun("run-" + i, 100 + i, quality[i], 1 + i)));
+            history.add(
+                    EvalReportWriter.historyEntry(
+                            sampleRun("run-" + i, 100 + i, quality[i], 1 + i)));
         }
         EvalReportWriter.RunInfo current = sampleRun("run-7", 107, 0.76, 9);
-        Map<String, Double> baseline = EvalReportWriter.metricAverages(sampleRun("b", 105, 0.82, 6).records());
+        Map<String, Double> baseline =
+                EvalReportWriter.metricAverages(sampleRun("b", 105, 0.82, 6).records());
         EvalReportWriter.write(OUT, current, history, baseline);
         assertThat(Files.size(OUT.resolve("eval4j-report.html"))).isGreaterThan(20_000);
     }

@@ -1,5 +1,8 @@
 package io.github.llm4j.eval.report;
 
+import io.github.llm4j.eval.export.EvalRun;
+import io.github.llm4j.eval.export.Evaluation;
+import io.github.llm4j.eval.export.MetricRef;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,10 +54,12 @@ public final class EvalRecorder {
 
     static void setCurrentTest(String suite, String testName) {
         CURRENT_TEST.set(new String[] {suite, testName});
+        EvalRun.get().bindTest(suite, testName);
     }
 
     static void clearCurrentTest() {
         CURRENT_TEST.remove();
+        EvalRun.get().unbind();
     }
 
     /** Records one evaluation; no-op when the recorder is not active. */
@@ -78,6 +83,7 @@ public final class EvalRecorder {
             return;
         }
         EvalDetails d = details == null ? EvalDetails.NONE : details.bounded();
+        exportEvaluation(metric, score, threshold, reason, judgeIdentifier, d);
         String[] test = CURRENT_TEST.get();
         RECORDS.add(
                 new EvalRecord(
@@ -95,6 +101,41 @@ public final class EvalRecorder {
                         d.expectedOutput(),
                         d.retrievalContext(),
                         d.durationMs()));
+    }
+
+    private static void exportEvaluation(
+            String metric,
+            double score,
+            double threshold,
+            String reason,
+            String judgeIdentifier,
+            EvalDetails d) {
+        EvalRun run = EvalRun.get();
+        if (!run.isExporting()) {
+            return;
+        }
+        MetricRef ref = MetricRef.of(metric).threshold(threshold);
+        EvalRun.MetricOverride o = run.override();
+        if (o != null) {
+            ref = o.metric();
+        }
+        Evaluation.Builder b =
+                Evaluation.builder(ref)
+                        .score(score)
+                        .threshold(threshold)
+                        .reason(reason)
+                        .details(
+                                d.input(),
+                                d.actualOutput(),
+                                d.expectedOutput(),
+                                d.retrievalContext())
+                        .durationMs(d.durationMs());
+        if (judgeIdentifier != null && !judgeIdentifier.isBlank()) {
+            String judgeId = MetricRef.slug(judgeIdentifier);
+            run.noteJudge(judgeId, judgeIdentifier);
+            b.judgeId(judgeId);
+        }
+        run.record(b);
     }
 
     /** A snapshot of everything recorded so far, in recording order. */
