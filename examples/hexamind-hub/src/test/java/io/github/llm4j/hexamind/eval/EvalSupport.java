@@ -83,6 +83,77 @@ public final class EvalSupport {
 
     private EvalSupport() {}
 
+    /**
+     * Spaces Gemini calls out (a free-tier key allows only a few requests a minute) and retries rate-limit
+     * errors with a growing pause. Five rate-limit errors in a row stop the whole run: the quota is gone.
+     */
+    static final class Throttled implements LLMClient {
+        private final LLMClient delegate;
+        private final long gapMillis;
+        private long next;
+        private int consecutive429;
+
+        Throttled(LLMClient delegate, int perMinute) {
+            this.delegate = delegate;
+            this.gapMillis = 60_000L / Math.max(1, perMinute);
+        }
+
+        private synchronized void pace() {
+            long now = System.currentTimeMillis();
+            long wait = next - now;
+            next = Math.max(now, next) + gapMillis;
+            if (wait > 0) {
+                try {
+                    Thread.sleep(wait);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+
+        @Override
+        public io.github.llm4j.model.LLMResponse chat(io.github.llm4j.model.LLMRequest request) {
+            RuntimeException last = null;
+            for (int attempt = 0; attempt < 6; attempt++) {
+                pace();
+                try {
+                    io.github.llm4j.model.LLMResponse r = delegate.chat(request);
+                    synchronized (this) {
+                        consecutive429 = 0;
+                    }
+                    return r;
+                } catch (RuntimeException e) {
+                    String m = String.valueOf(e) + " " + e.getCause();
+                    if (!(m.contains("429") || m.toLowerCase().contains("rate") || m.toLowerCase().contains("quota")
+                            || m.contains("RESOURCE_EXHAUSTED"))) {
+                        throw e;
+                    }
+                    last = e;
+                    boolean quotaGone;
+                    synchronized (this) {
+                        consecutive429++;
+                        quotaGone = consecutive429 >= 5;
+                    }
+                    if (quotaGone) {
+                        GUARD.stop("Gemini kept returning rate-limit errors (free-tier quota is probably used up)");
+                        throw e;
+                    }
+                    try {
+                        Thread.sleep(Math.min(120_000L, 15_000L << attempt));
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
+            throw last;
+        }
+
+        @Override
+        public java.util.stream.Stream<io.github.llm4j.model.LLMResponse> chatStream(io.github.llm4j.model.LLMRequest request) {
+            return java.util.stream.Stream.of(chat(request));
+        }
+    }
+
     /** A search tool whose recorded snippets are switched per scenario. */
     static final class Holder implements Tool {
         private volatile FixtureSearchTool current = new FixtureSearchTool(List.of());
@@ -134,7 +205,7 @@ public final class EvalSupport {
                                                     .apiKey(key("GEMINI_API_KEY", "google.api.key"))
                                                     .defaultModel(AGENT_MODEL)
                                                     .build()));
-            agentClient = GUARD.guard(base, AGENT_MODEL);
+            agentClient = GUARD.guard(FAKE ? base : new Throttled(base, Integer.getInteger("eval.geminiRpm", 10)), AGENT_MODEL);
         }
         return agentClient;
     }
