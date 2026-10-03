@@ -18,12 +18,13 @@ import org.junit.jupiter.params.provider.MethodSource;
  * agent outputs come from the replay cache of stage 2, so this stage pays for the judge only.
  */
 @ExtendWith(EvalReportExtension.class)
+@org.junit.jupiter.api.Order(5)
 class CalibrationEvalTest {
 
     @BeforeAll
     static void declare() {
         EvalSupport.declare();
-        EvalSupport.GUARD.stage("calibration", 0.30); // estimate $0.10
+        EvalSupport.GUARD.stage("calibration", 1.00); // measured about $0.0048 per judge call, 90 calls
     }
 
     static Stream<EvalScenario> scenarios() {
@@ -41,7 +42,8 @@ class CalibrationEvalTest {
                         .orElseThrow()
                         .render(Map.of("role", role == null ? "" : role, "problem", s.input()));
         AgentResult result = EvalSupport.run(agent, s, "agent_analyze:v1", task);
-        EvalSupport.judgeRubric(
-                "Rubric adherence (calibration)", s, result, true, EvalSupport.calibrationCache(), EvalSupport.CALIBRATION_JUDGE_ID, 3);
+        // the verdict is recorded either way; this stage measures the judge, so it never fails the test
+        EvalSupport.rubric("Rubric adherence (calibration)", s, result, true, EvalSupport.calibrationCache(), EvalSupport.CALIBRATION_JUDGE_ID, 3)
+                .matches(result);
     }
 }

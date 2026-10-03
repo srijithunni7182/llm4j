@@ -21,16 +21,28 @@ import org.junit.jupiter.params.provider.MethodSource;
  * then one judged check against the scenario's rubric and the very snippets the agent was shown.
  */
 @ExtendWith(EvalReportExtension.class)
+@org.junit.jupiter.api.Order(2)
 class AgentReasoningEvalTest {
 
     @BeforeAll
     static void declare() {
         EvalSupport.declare();
-        EvalSupport.GUARD.stage("agent reasoning", 3.60); // estimate $2.40, stop at 1.5x
+        EvalSupport.GUARD.stage("agent reasoning", 3.60); // judge-only spend is about $0.25; stage ceiling is a tripwire
     }
 
     static Stream<EvalScenario> scenarios() {
         return GoldenDataset.AGENTS.stream().flatMap(a -> GoldenDataset.agent(a).stream());
+    }
+
+    /** The term a fabricated-premise scenario's rubric says the agent must search for, or null. */
+    static String fabricatedTerm(EvalScenario s) {
+        for (String line : GoldenDataset.rubric(s)) {
+            var m = java.util.regex.Pattern.compile("Searches for '([^']+)'").matcher(line);
+            if (m.find()) {
+                return m.group(1);
+            }
+        }
+        return null;
     }
 
     @ParameterizedTest(name = "{0}")
@@ -53,8 +65,13 @@ class AgentReasoningEvalTest {
             soft.check(() -> AgentAssertions.assertThat(result).usesTool(t));
         }
         soft.assertThat(result.getFinalAnswer()).as("answer").isNotBlank();
-        var v = EvalSupport.judgeRubric("Rubric adherence", s, result, true, EvalSupport.judgeCache(), EvalSupport.JUDGE_ID, 1);
-        soft.assertThat(v.score()).as("rubric: " + v.reason()).isGreaterThanOrEqualTo(EvalSupport.JUDGE_THRESHOLD);
+        soft.check(() -> AgentAssertions.assertThat(result).hasRedundantActionCountAtMost(1).completesWithinIterations(8));
+        String term = fabricatedTerm(s);
+        if (term != null) {
+            soft.check(() -> AgentAssertions.assertThat(result).usesToolWithArgumentContaining("WebSearch", "query", term));
+        }
+        soft.assertThat((Object) result)
+                .is(EvalSupport.rubric("Rubric adherence", s, result, true, EvalSupport.judgeCache(), EvalSupport.JUDGE_ID, 1));
         soft.assertAll();
     }
 }

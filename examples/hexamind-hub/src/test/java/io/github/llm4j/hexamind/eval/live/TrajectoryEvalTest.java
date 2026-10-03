@@ -24,6 +24,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * EXPECT lines. With {@code -Deval.fake=true} a scripted model plays every agent.
  */
 @ExtendWith(EvalReportExtension.class)
+@org.junit.jupiter.api.Order(4)
 class TrajectoryEvalTest {
 
     static final List<String> REFINE_PATH = List.of("start", "n1", "n2", "end");
@@ -98,9 +99,22 @@ class TrajectoryEvalTest {
         soft.check(() -> WorkflowAssertions.assertThat(d.trace()).invokesAgents("Alex", "Rahul"));
         soft.assertThat(d.stopped()).as("stopped by a budget").isNull();
         soft.assertThat(d.output()).as("consensus").isNotBlank();
+        if (!EvalSupport.FAKE) {
+            // the scripted fake never calls tools; with real models every debate must search, and only through Search
+            soft.check(() -> WorkflowAssertions.assertThat(d.trace()).callsOnlyAllowedTools(java.util.Set.of("Search")));
+            if (!"refine".equals(kind)) {
+                soft.check(() -> WorkflowAssertions.assertThat(d.trace()).usesToolsInOrder("Search"));
+            }
+        }
+        if (!"refine".equals(kind)) {
+            for (String agent : List.of("Alex", "Jordan", "Sasha", "Aris", "Casey", "Rahul")) {
+                int rounds = "debunk".equals(kind) ? 1 : 5;
+                soft.check(() -> WorkflowAssertions.assertThat(d.trace()).delegatesToTimes(agent, rounds));
+            }
+        }
         if (d.output() != null && !d.output().isBlank()) {
-            var v = EvalSupport.judgeRubric("Debate consensus", s, d.output(), false, EvalSupport.judgeCache(), EvalSupport.JUDGE_ID, 1);
-            soft.assertThat(v.score()).as("consensus: " + v.reason()).isGreaterThanOrEqualTo(EvalSupport.JUDGE_THRESHOLD);
+            soft.assertThat((Object) d.output())
+                    .is(EvalSupport.rubric("Debate consensus", s, d.output(), false, EvalSupport.judgeCache(), EvalSupport.JUDGE_ID, 1));
         }
         soft.assertAll();
     }

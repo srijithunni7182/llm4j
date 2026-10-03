@@ -4,16 +4,18 @@
 #   eval/run-all.sh --fake            free: scripted models stand in for Gemini and Claude (checks the pipeline)
 #   eval/run-all.sh                   real run, hard cap $10 (override: EVAL_CAP_USD); asks for the safety checks first
 #   GEMINI_FREE_TIER=1 EVAL_CAP_USD=5 eval/run-all.sh   free-tier Gemini key, cap on Claude spend only
+#   eval/run-all.sh --fresh           forget stored agent runs and judge verdicts (default: reuse them, so a re-run pays only for what is missing)
 #   eval/run-all.sh --stage smoke     only the one-scenario smoke test (about one cent)
 #
 # Keys are read from the environment only: GEMINI_API_KEY, ANTHROPIC_API_KEY. They are never printed or stored.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-FAKE=0; STAGE=all
+FAKE=0; STAGE=all; FRESH=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --fake) FAKE=1 ;;
+    --fresh) FRESH=1 ;;
     --stage) STAGE="$2"; shift ;;
     -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
@@ -58,7 +60,8 @@ if [ "$FAKE" = 0 ]; then
 else
   echo "fake mode: no keys, no spend"
 fi
-rm -rf target/eval "$OUT" ; mkdir -p target/eval
+if [ "$FRESH" = 1 ]; then rm -rf target/eval; fi
+rm -rf "$OUT" target/eval/spend.json target/eval/mvn-*.log; mkdir -p target/eval
 
 # ---- stage 4 first, because it is free: workflow logic on a scripted model ---------------------------
 say "stage 4: workflow logic, golden dataset and spend guard (free)"
@@ -79,7 +82,7 @@ grep -h "^SMOKE" target/eval/mvn-smoke.log || true
 spend
 [ "$STAGE" = smoke ] && exit 0
 # the smoke run is its own bundle; clear it so the main report is one clean run
-rm -rf "$OUT" target/eval/replay target/eval/judge-cache target/eval/judge-cache-fake
+rm -rf "$OUT"
 
 # ---- stages 2, 3, 5, 6 in one JVM, so the report is one run ------------------------------------------
 say "stages 2, 3, 5, 6: reasoning, calibration, prompts, debates"

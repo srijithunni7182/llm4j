@@ -19,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
  * are close to what the cost model assumed; if they are not, the plan's numbers must be redone.
  */
 @ExtendWith(EvalReportExtension.class)
+@org.junit.jupiter.api.Order(1)
 class SmokeEvalTest {
 
     /** The cost model assumes about 650 output tokens per agent call (answer or step plus thinking). */
@@ -40,7 +41,7 @@ class SmokeEvalTest {
 
         AgentResult r = EvalSupport.run("alex", s, "agent_analyze:v1", task);
         AgentAssertions.assertThat(r).completedSuccessfully().usesTool("WebSearch");
-        EvalSupport.judgeRubric("Rubric adherence", s, r, true, EvalSupport.judgeCache(), EvalSupport.JUDGE_ID, 1);
+        EvalSupport.rubric("Rubric adherence", s, r, true, EvalSupport.judgeCache(), EvalSupport.JUDGE_ID, 1).matches(r);
 
         long agentCalls = Math.max(1, r.getUsage() == null ? r.getIterations() : r.getUsage().getLlmCalls());
         double perCall = (EvalSupport.GUARD.tokensOut() - outBefore) / (double) Math.max(1, EvalSupport.GUARD.calls() - callsBefore);

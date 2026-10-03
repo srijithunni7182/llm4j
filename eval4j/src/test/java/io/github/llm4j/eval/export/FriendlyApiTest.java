@@ -48,8 +48,16 @@ class FriendlyApiTest {
     void oneJudgeCallIsFiledUnderEveryDimensionOfTheScenario() throws Exception {
         EvalScenario s =
                 new EvalScenario(
-                        "s1", "Is QLL-7 real?", null, null, null, null, null, null,
-                        List.of("fact-checking", "safety"), null);
+                        "s1",
+                        "Is QLL-7 real?",
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        List.of("fact-checking", "safety"),
+                        null);
         StubJudge judge = StubJudge.rating(m -> 4);
         EvalRun.get().bindTest("com.acme.T", "t");
         EvalRun.get().bindScenario(s);
@@ -84,10 +92,16 @@ class FriendlyApiTest {
     @Test
     void withoutDimensionsTheVerdictIsRecordedOnceAsBefore() throws Exception {
         EvalRun.get().bindTest("com.acme.T", "t");
-        llmJudged("Correctness").criteria("c").judge(StubJudge.rating(m -> 5)).threshold(0.5).build().matches("x");
+        llmJudged("Correctness")
+                .criteria("c")
+                .judge(StubJudge.rating(m -> 5))
+                .threshold(0.5)
+                .build()
+                .matches("x");
         EvalRun.get().unbind();
         EvalRun.get().finish();
-        assertThat(Files.readAllLines(root.resolve("runs/RUN-FRIENDLY-0001/evaluations.jsonl"))).hasSize(1);
+        assertThat(Files.readAllLines(root.resolve("runs/RUN-FRIENDLY-0001/evaluations.jsonl")))
+                .hasSize(1);
     }
 
     @Test
@@ -98,13 +112,42 @@ class FriendlyApiTest {
     }
 
     @Test
+    void toolArgumentCanBeCheckedForAnySubstringOfAFreeTextQuery() {
+        AgentResult r =
+                AgentResult.builder()
+                        .finalAnswer("could not verify")
+                        .completed(true)
+                        .addStep(
+                                new AgentResult.AgentStep(
+                                        "t",
+                                        "WebSearch",
+                                        "{\"query\": \"QLL-7 consensus protocol\"}",
+                                        "No results found."))
+                        .build();
+        io.github.llm4j.eval.assertions.AgentAssertions.assertThat(r)
+                .usesToolWithArgumentContaining("WebSearch", "query", "qll-7");
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () ->
+                                io.github.llm4j.eval.assertions.AgentAssertions.assertThat(r)
+                                        .usesToolWithArgumentContaining(
+                                                "WebSearch", "query", "HQFL"))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("contains <HQFL>");
+    }
+
+    @Test
     void delegationCountsSeeEveryRoundNotJustTheFirst() {
         var events = new ArrayList<WorkflowTrace.Event>();
         for (int round = 0; round < 3; round++) {
-            events.add(new WorkflowTrace.Event(round, "delegate_start", "Alex", null, null, null, null));
+            events.add(
+                    new WorkflowTrace.Event(
+                            round, "delegate_start", "Alex", null, null, null, null));
         }
         events.add(new WorkflowTrace.Event(4, "delegate_start", "Rahul", null, null, null, null));
-        WorkflowTrace t = new WorkflowTrace("wf", List.of(), List.of(), List.of(), List.of(), events, List.of(), null, 0, null);
+        WorkflowTrace t =
+                new WorkflowTrace(
+                        "wf", List.of(), List.of(), List.of(), List.of(), events, List.of(), null,
+                        0, null);
         assertThat(t.agentsInOrder()).containsExactly("Alex", "Rahul");
         assertThat(t.delegationsTo("Alex")).isEqualTo(3);
         assertThat(t.delegationCounts()).containsEntry("Alex", 3L).containsEntry("Rahul", 1L);

@@ -376,6 +376,40 @@ public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, A
         return this;
     }
 
+    /**
+     * Passes if any call to {@code toolName} had a {@code argKey} argument that contains {@code
+     * expectedText}, ignoring case. Meant for free-text arguments such as a search query ("the
+     * agent searched for the term it was asked to verify").
+     */
+    public AgentResultAssert usesToolWithArgumentContaining(
+            String toolName, String argKey, String expectedText) {
+        EvalChecks.check(
+                M_USESTOOLWITHARGUMENT,
+                () -> {
+                    isNotNull();
+                    List<String> values =
+                            actual.getSteps().stream()
+                                    .filter(
+                                            step ->
+                                                    step.getAction() != null
+                                                            && step.getAction()
+                                                                    .equalsIgnoreCase(toolName))
+                                    .map(step -> parseArgs(step.getActionInput()).get(argKey))
+                                    .filter(Objects::nonNull)
+                                    .map(String::valueOf)
+                                    .collect(Collectors.toList());
+                    String needle = expectedText.toLowerCase(java.util.Locale.ROOT);
+                    if (values.stream()
+                            .noneMatch(
+                                    v -> v.toLowerCase(java.util.Locale.ROOT).contains(needle))) {
+                        failWithMessage(
+                                "Expected a call to tool <%s> whose <%s> contains <%s> but found: %s",
+                                toolName, argKey, expectedText, values);
+                    }
+                });
+        return this;
+    }
+
     /** Reads {@code AgentResult.getUsage().getTotalTokens()} across the whole run. */
     public AgentResultAssert usesFewerTokensThan(int maxTotalTokens) {
         EvalChecks.checkMeasured(

@@ -28,6 +28,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * orders, by a pairwise judge.
  */
 @ExtendWith(EvalReportExtension.class)
+@org.junit.jupiter.api.Order(3)
 class PromptEvalTest {
 
     private static final PromptRegistry CURRENT = EvalSupport.prompts();
@@ -37,7 +38,7 @@ class PromptEvalTest {
     @BeforeAll
     static void declare() {
         EvalSupport.declare();
-        EvalSupport.GUARD.stage("prompts", 1.20); // estimate $0.80
+        EvalSupport.GUARD.stage("prompts", 1.20);
     }
 
     static Stream<EvalScenario> scenarios() {
@@ -54,22 +55,36 @@ class PromptEvalTest {
         return template.lines().filter(l -> !l.contains("{{")).collect(Collectors.joining("\n")).strip();
     }
 
-    private static Object output(EvalScenario s, PromptRegistry registry, String label) {
+    private static boolean usesTools(EvalScenario s) {
+        return s.expectedTools() != null && !s.expectedTools().isEmpty();
+    }
+
+    /** The agent's run (through Alex, with recorded search) when the prompt needs tools, else a plain answer. */
+    private static Object run(EvalScenario s, PromptRegistry registry, String label) {
         String instr = instructions(registry, promptId(s));
-        if (s.expectedTools() != null && !s.expectedTools().isEmpty()) {
-            return EvalSupport.run("alex", s, "prompt:" + label, s.input() + "\n\n" + instr).getFinalAnswer();
+        if (usesTools(s)) {
+            return EvalSupport.run("alex", s, "prompt:" + label, s.input() + "\n\n" + instr);
         }
         return EvalSupport.plain(instr, s.input());
+    }
+
+    private static Object output(EvalScenario s, PromptRegistry registry, String label) {
+        Object r = run(s, registry, label);
+        return r instanceof io.github.llm4j.agent.AgentResult a ? a.getFinalAnswer() : r;
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("scenarios")
     void currentPromptEnforcesItsRule(EvalScenario s) {
-        Object out = output(s, CURRENT, "current");
+        Object out = run(s, CURRENT, "current");
         SoftAssertions soft = new SoftAssertions();
-        soft.assertThat(String.valueOf(out)).as("output").isNotBlank();
-        var v = EvalSupport.judgeRubric("Prompt rule", s, out, true, EvalSupport.judgeCache(), EvalSupport.JUDGE_ID, 1);
-        soft.assertThat(v.score()).as("rule: " + v.reason()).isGreaterThanOrEqualTo(EvalSupport.JUDGE_THRESHOLD);
+        if (out instanceof io.github.llm4j.agent.AgentResult r) {
+            for (String t : s.expectedTools()) {
+                soft.check(() -> AgentAssertions.assertThat(r).usesTool(t));
+            }
+        }
+        soft.assertThat((Object) out)
+                .is(EvalSupport.rubric("Prompt rule", s, out, true, EvalSupport.judgeCache(), EvalSupport.JUDGE_ID, 1));
         soft.assertAll();
     }
 

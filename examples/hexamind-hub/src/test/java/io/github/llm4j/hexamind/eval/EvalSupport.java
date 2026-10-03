@@ -50,6 +50,17 @@ public final class EvalSupport {
 
     public static final ReplayCache REPLAY = new ReplayCache(OUT.resolve("replay"));
 
+    /** Part of every replay key: changing the recorded search library invalidates stored agent runs. */
+    private static final String LIBRARY_HASH = ReplayCache.key("library", "", "", readLibrary());
+
+    private static String readLibrary() {
+        try {
+            return java.nio.file.Files.readString(SearchLibrary.FILE);
+        } catch (java.io.IOException e) {
+            return "";
+        }
+    }
+
     private static LLMClient agentClient;
     private static LLMClient judgeClient;
     private static Holder holder;
@@ -281,56 +292,26 @@ public final class EvalSupport {
     }
 
     /**
-     * Judges {@code output} once against the scenario's rubric, then files that single verdict under each
-     * quality dimension the scenario lists, so the report's dimensions are populated from the dataset.
-     * {@code withFixture} gives the judge the recorded search snippets as retrieval context.
+     * The rubric check for one scenario, as an AssertJ condition: {@code assertThat(output).is(rubric(...))}.
+     * One judge call; the verdict counts toward every dimension the scenario lists. With {@code evidence} the
+     * judge is shown what the agent's searches actually returned.
      */
-    public static io.github.llm4j.eval.judge.JudgeVerdict judgeRubric(
-            String metricName,
-            EvalScenario s,
-            Object output,
-            boolean withFixture,
-            JudgeCache cache,
-            String judgeId,
-            int samples) {
+    public static io.github.llm4j.eval.judge.LlmJudgeCondition rubric(
+            String metricName, EvalScenario s, Object output, boolean evidence, JudgeCache cache, String judgeId, int samples) {
         var b =
                 io.github.llm4j.eval.judge.LlmJudgeCondition.llmJudged(metricName)
                         .criteria(String.join("\n", GoldenDataset.rubric(s)))
-                        .input(s.input())
+                        .scenario(s)
                         .judge(judgeClient())
                         .samples(samples)
                         .cache(cache)
                         .judgeIdentifier(judgeId)
                         .threshold(JUDGE_THRESHOLD);
-        List<String> evidence = withFixture ? evidence(s, output) : List.of();
-        if (!evidence.isEmpty()) {
-            b.retrievalContext(evidence);
+        List<String> seen = evidence ? evidence(s, output) : List.of();
+        if (!seen.isEmpty()) {
+            b.retrievalContext(seen);
         }
-        var verdict = b.build().evaluate(output);
-        var details =
-                new io.github.llm4j.eval.report.EvalDetails(
-                        s.input(),
-                        output instanceof AgentResult r ? r.getFinalAnswer() : String.valueOf(output),
-                        null,
-                        evidence.isEmpty() ? null : evidence,
-                        0L);
-        List<String> dims = s.dimensions() == null || s.dimensions().isEmpty() ? java.util.Collections.singletonList(null) : s.dimensions();
-        for (String dim : dims) {
-            io.github.llm4j.eval.export.MetricRef ref =
-                    new io.github.llm4j.eval.export.MetricRef(
-                            dim == null ? "rubric" : "rubric-" + dim,
-                            metricName,
-                            io.github.llm4j.eval.export.Kind.JUDGE,
-                            "agents",
-                            "answers",
-                            dim,
-                            null,
-                            null,
-                            null);
-            io.github.llm4j.eval.report.EvalRecorder.record(
-                    ref, verdict.score(), JUDGE_THRESHOLD, verdict.reason(), judgeId, details);
-        }
-        return verdict;
+        return b.build();
     }
 
     /** What the agent was actually shown: the observations of its WebSearch steps (else the scenario's fixture). */
@@ -361,7 +342,7 @@ public final class EvalSupport {
     public static AgentResult run(String agentName, EvalScenario s, String promptVersion, String task) {
         swarm();
         String fixture = String.join("\n", fixture(s));
-        String key = ReplayCache.key(s.id() + ":" + agentName, promptVersion, AGENT_MODEL + (FAKE ? ":fake" : ""), fixture + "\n" + task);
+        String key = ReplayCache.key(s.id() + ":" + agentName, promptVersion, AGENT_MODEL + (FAKE ? ":fake" : ""), fixture + "\n" + LIBRARY_HASH + "\n" + task);
         var hit = REPLAY.get(key);
         if (hit.isPresent()) {
             return fromJson(hit.get());
