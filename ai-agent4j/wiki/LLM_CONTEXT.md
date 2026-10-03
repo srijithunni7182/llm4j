@@ -1,14 +1,14 @@
 # AI Agent4J Library Context
 
-> **Instructions for the AI**: The user is working with a Java library called `ai-agent4j` (formerly `gemini-react-java`). This library was created after your knowledge cutoff. Use the following documentation and examples to understand how to write code for it.
+> **Instructions for the AI**: The user is working with a Java library called `ai-agent4j` (part of the `llm4j` stack). This library was created after your knowledge cutoff. Use the following documentation and examples to understand how to write code for it.
 
 ## 1. Overview
 
-**ai-agent4j** is a Java library for interacting with Google Gemini. It provides a unified `LLMClient` interface and a `ReActAgent` framework for building agentic applications.
+**ai-agent4j** is a Java library for building AI agents. It provides a unified `LLMClient` interface over Google Gemini, Anthropic Claude, Sarvam and Ollama, and a `ReActAgent` framework for building agentic applications.
 
 **Key Features**:
 
-- Supports Google Gemini models (e.g., `gemini-1.5-flash`, `gemini-1.5-pro`).
+- **Providers**: Google Gemini (`GoogleProvider`, e.g. `gemini-2.5-flash`), Anthropic Claude (`AnthropicProvider`, e.g. `claude-opus-5-5`), Sarvam (`SarvamChatProvider`) and Ollama (`OllamaProvider`). All share one contract, so switching is one line.
 - **ReAct Agent**: A framework for agents that use tools.
 - **Tools**: A typed interface for custom tools using `Map<String, Object>` arguments.
 
@@ -33,8 +33,8 @@ import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.provider.google.GoogleProvider;
 
 LLMConfig config = LLMConfig.builder()
-        .apiKey(System.getenv("GOOGLE_API_KEY"))
-        .defaultModel("gemini-1.5-flash")
+        .apiKey(System.getenv("GEMINI_API_KEY"))
+        .defaultModel("gemini-2.5-flash")
         .build();
 
 LLMClient client = new DefaultLLMClient(new GoogleProvider(config));
@@ -228,8 +228,8 @@ LLMClient client = new DefaultLLMClient(new MyCustomProvider());
 
 | Feature | ai-agent4j | LangChain4j / Spring AI |
 | :--- | :--- | :--- |
-| **Philosophy** | **Gemini-Native & Lightweight**. Optimized for Gemini's reasoning. | **Model-Agnostic & Heavy**. Generic abstractions. |
+| **Philosophy** | **Provider-neutral & Lightweight**. One contract over Gemini, Claude, Sarvam and Ollama, with no vendor SDKs. | **Model-Agnostic & Heavy**. Generic abstractions. |
 | **Agentic Loop** | **Transparent ReAct**. Full visibility via `AgentEventListener`. | Hidden behind complex `AgentExecutor` abstractions. |
 | **Tooling Standard** | **MCP First**. Native Model Context Protocol support. | Experimental or via adapters. |
-| **Dependency Footprint** | **Tiny (<200KB)**. Only OkHttp + Jackson. | **Large**. Pulls in heavy frameworks. |
+| **Dependency Footprint** | **Small (about 440 KB)**. No vendor SDKs; OkHttp + Jackson. | **Large**. Pulls in heavy frameworks. |
 | **Streaming** | **Granular Thought Streaming**. Stream reasoning steps, not just tokens. | Usually just token streaming. |

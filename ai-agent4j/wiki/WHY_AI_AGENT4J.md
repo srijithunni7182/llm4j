@@ -1,14 +1,14 @@
 # Why AI Agent4J?
 
-In a world full of heavy AI frameworks, **AI Agent4J** (formerly Gemini ReAct Java) is built on a different philosophy. If you've looked at LangChain4j or Spring AI and felt they were "too much" for your project, this is for you.
+In a world full of heavy AI frameworks, **AI Agent4J** is built on a different philosophy. If you've looked at LangChain4j or Spring AI and felt they were "too much" for your project, this is for you.
 
 ## 🚀 The Core Philosophy: Zero Magic
 
 Most AI frameworks try to hide the LLM behind complex abstractions. **AI Agent4J** gives you full control.
 
-1. **Lightweight (< 200KB)**: No massive dependency trees. We don't pull in Spring Boot, Netty, or Hibernate unless you explicitly ask for the Addons.
+1. **Lightweight (about 440 KB)**: No massive dependency trees. We don't pull in Spring Boot, Netty, or Hibernate unless you explicitly ask for the Addons.
 2. **Pure, Typed Java**: No complex XML or annotation-driven magic. It's just clean, object-oriented Java code that your IDE (and an LLM) can understand instantly.
-3. **Multi-Provider by Design**: While we started with Gemini, the architecture is provider-agnostic. Switching from Gemini Pro to a local Llama model via `RoutingLLMClient` is a one-liner.
+3. **Multi-Provider by Design**: Gemini, Claude, Sarvam and Ollama sit behind one tested contract. Switching from a hosted model to a local Llama model is a one-liner, and `RoutingLLMClient` can route between them.
 
 ---
 
@@ -17,7 +17,7 @@ Most AI frameworks try to hide the LLM behind complex abstractions. **AI Agent4J
 | Feature | **AI Agent4J** | LangChain4j | Spring AI |
 | :--- | :--- | :--- | :--- |
 | **Startup Time** | Near-instant | Moderate | Slower (Spring Overhead) |
-| **Binary Size** | Tiny (<200KB) | Large | Large |
+| **Binary Size** | Small (about 440 KB) | Large | Large |
 | **Learning Curve** | 15 minutes | Days | Moderate (if you know Spring) |
 | **Transparency** | High (Pure ReAct loop) | Lower (Complex Chains) | Moderate |
 | **Deterministic Planning** | Optional (ToolRegistry) | Low | Low |
