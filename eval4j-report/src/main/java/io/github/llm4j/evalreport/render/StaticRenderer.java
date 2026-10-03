@@ -180,6 +180,35 @@ public final class StaticRenderer {
                 .append(
                         " passing case(s) are not listed here; the interactive edition shows them.</p>\n");
 
+        java.util.Map<String, int[]> ab = new java.util.LinkedHashMap<>();
+        for (CaseView cv : m.cases()) {
+            for (Ev e : cv.evaluations()) {
+                if ("PAIRWISE".equals(e.kind()) && e.counted() && e.score() != null) {
+                    int[] w =
+                            ab.computeIfAbsent(
+                                    m.metricNames().getOrDefault(e.metric(), e.metric()),
+                                    k -> new int[3]);
+                    w[e.score() >= 0.99 ? 2 : e.score() > 0.01 ? 1 : 0]++;
+                }
+            }
+        }
+        if (!ab.isEmpty()) {
+            h.append(
+                    "<h2 id=\"ab\">Prompt A/B</h2><table><thead><tr><th>Comparison</th><th>A wins</th><th>Ties</th><th>B wins</th></tr></thead><tbody>");
+            ab.forEach(
+                    (k, w) ->
+                            h.append("<tr><td>")
+                                    .append(Escape.html(k))
+                                    .append("</td><td class=\"num\">")
+                                    .append(w[0])
+                                    .append("</td><td class=\"num\">")
+                                    .append(w[1])
+                                    .append("</td><td class=\"num\">")
+                                    .append(w[2])
+                                    .append("</td></tr>"));
+            h.append("</tbody></table>");
+        }
+
         CompareModel c = m.compare();
         if (c != null) {
             h.append("<h2 id=\"compare\">Compared with the baseline</h2><p class=\"sub\">")

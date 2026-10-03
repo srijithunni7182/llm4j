@@ -48,12 +48,11 @@ public final class PairwiseCondition extends Condition<Object> {
         perThreadDescription.set(
                 new TextDescription(
                         "%s: winner=%s. %s", metricName, result.winner(), result.reason()));
-        EvalRecorder.record(
+        EvalRecorder.recordPairwise(
                 metricName,
                 score,
                 0.5,
                 result.reason(),
-                null,
                 new io.github.llm4j.eval.report.EvalDetails(
                         pair.input(),
                         "A: " + pair.a() + "\n\nB: " + pair.b(),

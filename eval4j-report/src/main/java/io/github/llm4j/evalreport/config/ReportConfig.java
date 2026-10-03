@@ -98,7 +98,13 @@ public final class ReportConfig {
     public final String baselinePolicy;
     public final String defaultBranch;
     public final String projectName;
+    public final Branding branding;
     private final Map<String, DimensionConfig> dimensions;
+
+    /** Report title override, an optional logo (as a data URI) and an accent colour. */
+    public record Branding(String title, String logoDataUri, String accent) {
+        public static final Branding NONE = new Branding(null, null, null);
+    }
 
     private ReportConfig(
             double defaultGoal,
@@ -107,7 +113,9 @@ public final class ReportConfig {
             String baselinePolicy,
             String defaultBranch,
             String projectName,
-            Map<String, DimensionConfig> dimensions) {
+            Map<String, DimensionConfig> dimensions,
+            Branding branding) {
+        this.branding = branding;
         this.defaultGoal = defaultGoal;
         this.warnGap = warnGap;
         this.noiseBand = noiseBand;
@@ -118,7 +126,8 @@ public final class ReportConfig {
     }
 
     public static ReportConfig defaults() {
-        return new ReportConfig(90, 10, 0.07, "sameBranch", null, null, new LinkedHashMap<>());
+        return new ReportConfig(
+                90, 10, 0.07, "sameBranch", null, null, new LinkedHashMap<>(), Branding.NONE);
     }
 
     /** Loads {@code eval4j-report.yaml} (or .json); a missing file gives the defaults. */
@@ -129,13 +138,13 @@ public final class ReportConfig {
         try {
             boolean json = file.getFileName().toString().endsWith(".json");
             ObjectMapper m = json ? new ObjectMapper() : new ObjectMapper(new YAMLFactory());
-            return parse(m.readTree(file.toFile()));
+            return parse(m.readTree(file.toFile()), file.toAbsolutePath().getParent());
         } catch (IOException e) {
             throw new UncheckedIOException("cannot read report configuration " + file, e);
         }
     }
 
-    static ReportConfig parse(JsonNode n) {
+    static ReportConfig parse(JsonNode n, Path baseDir) {
         double goal = num(n.path("defaultGoal"), 90, "defaultGoal");
         double warn = num(n.path("warnGap"), 10, "warnGap");
         double noise = num(n.path("compare").path("noiseBand"), 0.07, "compare.noiseBand");
@@ -180,7 +189,107 @@ public final class ReportConfig {
                 policy,
                 defBranch,
                 n.path("project").path("name").asText(null),
-                dims);
+                dims,
+                branding(n.path("branding"), baseDir));
+    }
+
+    private static Branding branding(JsonNode b, Path baseDir) {
+        if (!b.isObject()) {
+            return Branding.NONE;
+        }
+        String accent = b.path("accent").asText(null);
+        if (accent != null && !accent.matches("#[0-9a-fA-F]{6}")) {
+            throw new IllegalArgumentException("branding.accent must look like #1a73e8");
+        }
+        String title = b.path("title").asText(null);
+        String logo = null;
+        if (b.hasNonNull("logo")) {
+            Path f =
+                    baseDir == null
+                            ? Path.of(b.get("logo").asText())
+                            : baseDir.resolve(b.get("logo").asText());
+            String name = f.getFileName().toString().toLowerCase(Locale.ROOT);
+            String mime =
+                    name.endsWith(".svg")
+                            ? "image/svg+xml"
+                            : name.endsWith(".png")
+                                    ? "image/png"
+                                    : name.endsWith(".jpg") || name.endsWith(".jpeg")
+                                            ? "image/jpeg"
+                                            : name.endsWith(".gif") ? "image/gif" : null;
+            if (mime == null) {
+                throw new IllegalArgumentException(
+                        "branding.logo must be a .png, .jpg, .gif or .svg file");
+            }
+            try {
+                byte[] bytes = Files.readAllBytes(f);
+                if (bytes.length > 256 * 1024) {
+                    throw new IllegalArgumentException("branding.logo must be 256 KB or smaller");
+                }
+                logo =
+                        "data:"
+                                + mime
+                                + ";base64,"
+                                + java.util.Base64.getEncoder().encodeToString(bytes);
+            } catch (IOException e) {
+                throw new IllegalArgumentException("branding.logo cannot be read: " + f);
+            }
+        }
+        return new Branding(title, logo, accent);
+    }
+
+    /**
+     * Ready-made priority sets a viewer can switch between in the report. They only weight the
+     * summary figure; they never change a result.
+     */
+    public static Map<String, Map<String, String>> presets(
+            java.util.Collection<String> dimensionIds) {
+        Map<String, Map<String, String>> out = new LinkedHashMap<>();
+        out.put("Balanced", fill(dimensionIds, "IMPORTANT", Map.of()));
+        out.put(
+                "Safety first",
+                fill(
+                        dimensionIds,
+                        "IMPORTANT",
+                        Map.of(
+                                "safety",
+                                "CRITICAL",
+                                "compliance",
+                                "CRITICAL",
+                                "grounding",
+                                "CRITICAL",
+                                "correctness",
+                                "CRITICAL",
+                                "efficiency",
+                                "NICE_TO_HAVE")));
+        out.put(
+                "Speed and cost",
+                fill(
+                        dimensionIds,
+                        "NICE_TO_HAVE",
+                        Map.of("efficiency", "CRITICAL", "correctness", "IMPORTANT")));
+        out.put(
+                "Quality only",
+                fill(
+                        dimensionIds,
+                        "IMPORTANT",
+                        Map.of(
+                                "efficiency",
+                                "NONE",
+                                "correctness",
+                                "CRITICAL",
+                                "grounding",
+                                "CRITICAL")));
+        return out;
+    }
+
+    private static Map<String, String> fill(
+            java.util.Collection<String> ids, String base, Map<String, String> over) {
+        Map<String, String> m = new LinkedHashMap<>();
+        for (String id : ids) {
+            m.put(id, over.getOrDefault(id, base));
+        }
+        return m;
     }
 
     private static double num(JsonNode n, double fallback, String path) {

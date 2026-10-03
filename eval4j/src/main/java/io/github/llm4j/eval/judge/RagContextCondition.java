@@ -330,11 +330,13 @@ public final class RagContextCondition extends Condition<Object> {
             }
             return out;
         }
+        io.github.llm4j.eval.export.JudgeTelemetry.Handle telemetry =
+                io.github.llm4j.eval.export.JudgeTelemetry.capture();
         ExecutorService pool = Executors.newFixedThreadPool(parallel);
         try {
             List<Future<JudgeVerdict>> futures = new ArrayList<>();
             for (Callable<JudgeVerdict> task : tasks) {
-                futures.add(pool.submit(task));
+                futures.add(pool.submit(telemetry.wrap(task)));
             }
             for (int i = 0; i < futures.size(); i++) {
                 try {

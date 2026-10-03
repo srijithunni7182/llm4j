@@ -1,8 +1,10 @@
 # eval4j-report
 
+![eval4j report overview](docs/images/overview.png)
+
 A free, local dashboard for [eval4j](../eval4j/README.md) runs. It reads the **run bundle** that eval4j exports and builds:
 
-- an **interactive report**: one self-contained HTML file (no server, no account, no network request), with a left navigation by test family, a ring per quality dimension showing where the agent is against where it should be, drill-down to metrics, tests and each case, priorities you set, run comparison with a judge-noise band, dataset coverage, cost and evidence, judge and agent models, agent traces, workflow trajectories and the prompt optimizer;
+- an **interactive report**: one self-contained HTML file (no server, no account, no network request), with a left navigation by test family, a ring per quality dimension showing where the agent is against where it should be (with its trend), drill-down to metrics, tests and each case, priorities and presets you set, run comparison with a judge-noise band, dataset coverage, cost and evidence, judge reliability and agent models, agent traces, workflow trajectories with timeline and event log, prompt A/B and the prompt optimizer;
 - a **static edition** (`static/index.html` + `eval4j-static.css`): no script, no inline style, so it displays under a strict Content-Security-Policy such as Jenkins' default for archived reports;
 - `summary.md` (for pull-request comments), `compare.md`, `junit.xml` and `evaluations.csv`.
 
@@ -42,6 +44,9 @@ The report **informs** the release decision, it does not make it: there is no pa
    java -jar eval4j-report-5.0-cli.jar compare target/eval4j --baseline <runId>
    java -jar eval4j-report-5.0-cli.jar list target/eval4j
    java -jar eval4j-report-5.0-cli.jar validate target/eval4j
+   java -jar eval4j-report-5.0-cli.jar merge target/eval4j --group build-148      # bundles of one build
+   java -jar eval4j-report-5.0-cli.jar import-legacy old/eval4j-report.json       # a v1 report
+   java -jar eval4j-report-5.0-cli.jar prune target/eval4j --keep 50
    ```
 
 Exit codes: `0` success, `2` bad usage, `3` unreadable input, `4` unexpected failure.
@@ -91,6 +96,7 @@ Trajectory assertions are plain deterministic checks (free, every build) and lan
 
 ## Reference
 
+- **[User guide](docs/USER-GUIDE.md): the complete feature set with screenshots.** A sample report to open: [`docs/sample/report/index.html`](docs/sample/report/index.html).
 - Design and contracts: [`spec/`](spec/00-OVERVIEW.md). The JSON Schemas in [`spec/schema`](spec/schema) are the contract, and the examples in [`spec/examples`](spec/examples) are tested against them.
 - What is built and what is not yet: [`IMPLEMENTATION-STATUS.md`](IMPLEMENTATION-STATUS.md).
 - Browser smoke test: `node src/test/browser/smoke.js <report-dir>` (needs Playwright).

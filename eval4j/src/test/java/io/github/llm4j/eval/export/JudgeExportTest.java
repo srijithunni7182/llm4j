@@ -124,4 +124,41 @@ class JudgeExportTest {
         assertThat(ExportConfig.newRunId()).startsWith("R");
         assertThat(ExportConfig.fromSystem().profile()).isEqualTo("BUILD");
     }
+
+    @Test
+    void pairwiseResultsAreExportedAsPairwiseEvaluationsOfThePromptsFamily() throws Exception {
+        EvalRun.get().bindTest("com.acme.T", "ab()");
+        StubJudge stub = new StubJudge(r -> "{\"reasoning\": \"because\", \"winner\": \"B\"}");
+        var judge =
+                io.github.llm4j.eval.compare.PairwiseJudge.using(
+                        io.github.llm4j.eval.judge.JudgeCalls.using(stub), "be helpful");
+        new io.github.llm4j.eval.compare.PairwiseCondition(judge, "v3 vs v2")
+                .matches(new io.github.llm4j.eval.compare.ComparisonPair("q", "old", "new"));
+        EvalRun.get().finish();
+        Path dir = root.resolve("runs/RUN-JUDGE-0001");
+        JsonNode e =
+                RunWriter.MAPPER.readTree(
+                        Files.readAllLines(dir.resolve("evaluations.jsonl")).get(0));
+        assertThat(e.path("kind").asText()).isEqualTo("PAIRWISE");
+        JsonNode run = RunWriter.MAPPER.readTree(dir.resolve("run.json").toFile());
+        assertThat(run.path("metrics").get(0).path("family").asText()).isEqualTo("prompts");
+        assertThat(run.path("metrics").get(0).path("facet").asText()).isEqualTo("compare");
+    }
+
+    @Test
+    void parallelRetrievalJudgingIsAttributedToTheEvaluation() throws Exception {
+        EvalRun.get().bindTest("com.acme.T", "rag()");
+        StubJudge stub =
+                StubJudge.always("{\"reasoning\": \"r\", \"verdict\": \"yes\", \"rating\": 5}");
+        io.github.llm4j.eval.judge.LlmJudgePresets.using(stub)
+                .contextualPrecision("q", "answer", List.of("a", "b", "c", "d", "e", "f"))
+                .matches("answer");
+        EvalRun.get().finish();
+        JsonNode e =
+                RunWriter.MAPPER.readTree(
+                        Files.readAllLines(root.resolve("runs/RUN-JUDGE-0001/evaluations.jsonl"))
+                                .get(0));
+        assertThat(stub.callCount()).isEqualTo(6);
+        assertThat(e.path("calls").asInt()).as("calls made on worker threads").isEqualTo(6);
+    }
 }

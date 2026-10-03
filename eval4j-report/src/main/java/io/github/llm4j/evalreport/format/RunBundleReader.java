@@ -76,7 +76,7 @@ public final class RunBundleReader {
                 warnings);
     }
 
-    static RunMeta meta(JsonNode n) {
+    public static RunMeta meta(JsonNode n) {
         List<MetricDef> metrics = new ArrayList<>();
         for (JsonNode m : n.path("metrics")) {
             try {

@@ -24,7 +24,11 @@ public record ReportModel(
         List<TrendPoint> trend,
         List<JsonNode> traces,
         List<JsonNode> optimizations,
-        List<TestRow> tests) {
+        List<TestRow> tests,
+        List<JudgeReliability> reliability,
+        Map<String, Map<String, String>> presets,
+        Branding branding,
+        Map<String, String> metricNames) {
 
     /** Run facts plus how the report was made. */
     public record Meta(
@@ -118,6 +122,21 @@ public record ReportModel(
             Double estimatedFullCostUsd,
             Double savedByReuseUsd,
             String profile) {}
+
+    public record Branding(String title, String logo, String accent) {}
+
+    /** How far a judge can be trusted, from this run's own data. */
+    public record JudgeReliability(
+            String judgeId,
+            String model,
+            int evaluations,
+            int multiSample,
+            Double selfConsistency,
+            Double meanSpread,
+            int calls,
+            int failures,
+            Double failureRate,
+            List<String> sameFamilyAs) {}
 
     public record Note(String severity, String code, String message) {}
 

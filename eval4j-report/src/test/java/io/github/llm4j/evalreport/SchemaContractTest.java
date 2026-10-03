@@ -80,4 +80,13 @@ public class SchemaContractTest {
         Path runDir = EndToEndTest.exportSampleRun(root);
         assertThat(violations(runDir)).isEmpty();
     }
+
+    @Test
+    void theDocumentationSampleSatisfiesTheSchemas() throws Exception {
+        try (var runs = Files.list(Path.of("docs/sample/bundles/runs"))) {
+            for (Path run : (Iterable<Path>) runs::iterator) {
+                assertThat(violations(run)).as(run.getFileName().toString()).isEmpty();
+            }
+        }
+    }
 }

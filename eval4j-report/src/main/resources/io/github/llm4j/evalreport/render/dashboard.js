@@ -37,6 +37,7 @@
   function ms(x) { return x == null ? '–' : x >= 1000 ? (x / 1000).toFixed(1) + ' s' : Math.round(x) + ' ms'; }
   function counted(r) { return r.passed + r.failed; }
   function when(t) { try { return t ? new Date(t).toLocaleString() : ''; } catch (e) { return t || ''; } }
+  function mname(id) { return (M.metricNames || {})[id] || id; }
   function dimById(id) { return M.dimensions.filter(function (d) { return d.id === id; })[0]; }
   function famById(id) { return M.families.filter(function (d) { return d.id === id; })[0]; }
   var STATUS = {
@@ -124,6 +125,7 @@
       case 'models': fn = viewModels; title = 'Judges and models'; break;
       case 'traces': fn = viewTraces; title = 'Traces'; break;
       case 'optimizer': fn = viewOptim; title = 'Prompt optimizer'; break;
+      case 'ab': fn = viewAB; title = 'Prompt A/B'; break;
       case 'notes': fn = viewNotes; title = 'Data notes'; break;
       default: break;
     }
@@ -152,6 +154,7 @@
     item('Cost and evidence', '#cost', 'cost');
     item('Judges and models', '#models', 'models');
     if (M.traces.length) item('Traces', '#traces', 'traces', M.traces.length);
+    if (pairwise().length) item('Prompt A/B', '#ab', 'ab', pairwise().length);
     if (M.optimizations.length) item('Prompt optimizer', '#optimizer', 'optimizer', M.optimizations.length);
     item('Data notes', '#notes', 'notes', M.notes.length || null);
   }
@@ -164,6 +167,10 @@
     [[512, 286, 512, 610], [330, 340, 694, 340], [340, 340, 300, 434], [684, 340, 724, 434], [512, 610, 430, 660], [512, 610, 594, 660], [400, 660, 624, 660], [512, 234, 512, 196], [260.2, 480, 216, 480], [763.8, 480, 808, 480]]
       .forEach(function (l) { g.appendChild(s('line', { x1: l[0], y1: l[1], x2: l[2], y2: l[3] })); });
     svg.appendChild(g);
+    if (BR.logo) {
+      var img = h('img', { src: BR.logo, alt: BR.title || 'logo', style: 'height:32px;max-width:120px;object-fit:contain' });
+      return img;
+    }
     return svg;
   }
 
@@ -183,6 +190,14 @@
       mt.firstChild.style.width = (cw.rate || 0) + '%'; mt.lastChild.style.left = (cw.goal || 0) + '%';
     }
     var mt = meter(w.rate, w.goal);
+    var presetSel = h('select', { 'aria-label': 'Priority preset', onchange: function () {
+      var p = (M.presets || {})[presetSel.value];
+      if (!p) { M.dimensions.forEach(function (d) { prio[d.id] = d.priority; }); }
+      else { for (var k in p) if (k in prio) prio[k] = p[k]; }
+      try { localStorage.setItem(store, JSON.stringify(prio)); } catch (e) { /* ignore */ }
+      Array.prototype.forEach.call(gaps.querySelectorAll('select'), function (sel, i) { sel.value = prio[M.dimensions[i].id]; });
+      refresh();
+    } }, h('option', { value: '', text: 'As configured' }), Object.keys(M.presets || {}).map(function (k) { return h('option', { value: k, text: k }); }));
     M.dimensions.forEach(function (d) {
       var sel = h('select', { 'aria-label': 'Priority of ' + d.name, onchange: function () {
         prio[d.id] = sel.value;
@@ -191,7 +206,7 @@
       } });
       PRIO.forEach(function (p) { sel.appendChild(h('option', { value: p[0], selected: prio[d.id] === p[0], text: p[1] })); });
       var rate = d.rollup.rate;
-      gaps.appendChild(h('div', { class: 'gaprow' },
+      gaps.appendChild(h('div', { class: 'gaprow', 'data-dim': d.id },
         h('button', { class: 'gn', type: 'button', onclick: function () { go('#dim/' + encodeURIComponent(d.id)); }, text: d.name }),
         h('div', { class: 'bar' }, h('i', { style: 'width:' + (rate || 0) + '%' }), h('b', { style: 'left:' + d.goal + '%' })),
         h('span', { class: 'num', text: rate == null ? 'No results' : (d.gap >= 0 ? '+' : '') + d.gap.toFixed(1) + ' pts' }),
@@ -205,7 +220,7 @@
         h('div', { class: 'vline' }, big, wtxt),
         h('p', { class: 'hint', text: 'This report informs the release decision. It does not make it.' }),
         h('div', null, mt, h('div', { class: 'meter-lab' }, h('span', { text: '0%' }), h('span', { text: 'goal' }), h('span', { text: '100%' }))),
-        h('div', null, h('div', { class: 'eyebrow', text: 'Gap to goal · set what matters to you' }),
+        h('div', null, h('div', { style: 'display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap' }, h('div', { class: 'eyebrow', text: 'Gap to goal \u00b7 set what matters to you' }), presetSel),
           h('p', { class: 'hint', text: 'Priorities re-weight this summary. They never change a result or a CI gate.' }), gaps)),
       h('div', { class: 'card' }, h('div', { class: 'eyebrow', text: 'Evidence in this run' }), evidenceBars())));
     refresh();
@@ -238,20 +253,45 @@
       return h('button', { class: 'card tile' + (empty ? ' empty' : ''), type: 'button', onclick: function () { go('#dim/' + encodeURIComponent(d.id)); } },
         h('div', { style: 'display:flex;justify-content:space-between;gap:8px' }, h('h3', { text: d.name }), pill(d.status)),
         donut(d.rollup, d.goal),
-        h('div', { class: 'meta num', text: empty ? (COVER[d.coverage.state] || '') : d.rollup.passed + ' passed · ' + d.rollup.failed + ' failed · goal ' + pct(d.goal, 0) }));
+        h('div', { class: 'meta num', text: empty ? (COVER[d.coverage.state] || '') : d.rollup.passed + ' passed · ' + d.rollup.failed + ' failed · goal ' + pct(d.goal, 0) }),
+        dimSpark(d));
     }));
+  }
+  /* a tiny trend line for one dimension across recent runs on this branch; null when there is nothing to draw */
+  function dimSpark(d, big) {
+    var pts = M.trend.map(function (t) { return (t.byDimension || {})[d.id]; });
+    if (pts.filter(function (v) { return v != null; }).length < 2) return null;
+    var W = big ? 320 : 150, H = big ? 56 : 26, n = Math.max(1, pts.length - 1), path = '', i, v, x, y;
+    var svg = s('svg', { class: 'sparkline', viewBox: '0 0 ' + W + ' ' + H, width: big ? 320 : '100%', height: H, role: 'img',
+      'aria-label': d.name + ' pass rate over recent runs' });
+    var gy = 3 + (1 - d.goal / 100) * (H - 6);
+    svg.appendChild(s('line', { x1: 0, x2: W, y1: gy, y2: gy, stroke: 'var(--ink-3)', 'stroke-dasharray': '3 3', 'stroke-width': 1 }));
+    for (i = 0; i < pts.length; i++) {
+      v = pts[i]; if (v == null) continue;
+      x = 3 + i / n * (W - 6); y = 3 + (1 - v / 100) * (H - 6);
+      path += (path && pts[i - 1] != null ? 'L' : 'M') + x + ' ' + y;
+    }
+    svg.appendChild(s('path', { d: path, fill: 'none', stroke: 'var(--pass)', 'stroke-width': 1.8 }));
+    var lastI = pts.length - 1; while (lastI >= 0 && pts[lastI] == null) lastI--;
+    svg.appendChild(s('circle', { cx: 3 + lastI / n * (W - 6), cy: 3 + (1 - pts[lastI] / 100) * (H - 6), r: 3, fill: 'var(--pass)' }));
+    return svg;
   }
   function spark(trend) {
     var W = 640, H = 90, pts = trend.map(function (t, i) { return { i: i, r: t.rate, t: t }; });
+    var vals = pts.map(function (p) { return p.r; }).filter(function (v) { return v != null; });
+    var lo = Math.max(0, Math.floor(Math.min.apply(null, vals) / 5) * 5 - 5), hi = Math.min(100, Math.ceil(Math.max.apply(null, vals) / 5) * 5 + 5);
+    if (hi - lo < 10) { lo = Math.max(0, hi - 10); }
     var svg = s('svg', { class: 'sparkline', viewBox: '0 0 ' + W + ' ' + H, width: '100%', role: 'img', 'aria-label': 'Pass rate trend' });
     var n = Math.max(1, trend.length - 1), d = '';
     pts.forEach(function (p) {
       if (p.r == null) return;
-      var x = 10 + p.i / n * (W - 20), y = 8 + (1 - p.r / 100) * (H - 16);
+      var x = 10 + p.i / n * (W - 20), y = 8 + (1 - (p.r - lo) / (hi - lo)) * (H - 16);
       d += (d && pts[p.i - 1] && pts[p.i - 1].r != null ? 'L' : 'M') + x + ' ' + y;
       svg.appendChild(s('circle', { cx: x, cy: y, r: 3.5, fill: 'var(--pass)' }, s('title', null, (p.t.commit || p.t.runId) + ': ' + pct(p.r))));
     });
     svg.insertBefore(s('path', { d: d, fill: 'none', stroke: 'var(--pass)', 'stroke-width': 2 }), svg.firstChild);
+    svg.appendChild(s('text', { x: 4, y: 12, 'font-size': 11, fill: 'var(--ink-3)' }, hi + '%'));
+    svg.appendChild(s('text', { x: 4, y: H - 4, 'font-size': 11, fill: 'var(--ink-3)' }, lo + '%'));
     return svg;
   }
 
@@ -277,7 +317,8 @@
       h('div', null, h('div', { style: 'display:flex;gap:10px;align-items:center;flex-wrap:wrap' }, h('h1', { text: d.name }), pill(d.status)),
         h('p', { class: 'sub', text: d.blurb }),
         h('p', null, d.rollup.rate == null ? 'No evaluation in this dimension has a result.' : 'Reached ' + pct(d.rollup.rate) + ' against a goal of ' + pct(d.goal) + ' (' + (d.gap >= 0 ? '+' : '') + d.gap.toFixed(1) + ' points). ' + d.rollup.passed + ' passed, ' + d.rollup.failed + ' failed.'),
-        h('p', { class: 'hint', text: COVER[d.coverage.state] + (d.coverage.declared ? ' · ' + d.coverage.evaluated + ' of ' + d.coverage.declared + ' declared scenarios evaluated' : '') }))));
+        h('p', { class: 'hint', text: COVER[d.coverage.state] + (d.coverage.declared ? ' · ' + d.coverage.evaluated + ' of ' + d.coverage.declared + ' declared scenarios evaluated' : '') }),
+        dimSpark(d, true) ? h('div', null, h('div', { class: 'eyebrow', text: 'Recent runs on this branch (dashed: goal)' }), dimSpark(d, true)) : null)));
     if (d.rollup.rate == null) {
       view.appendChild(h('div', { class: 'sec' }, h('div', { class: 'card' }, h('h3', { text: 'Why is there no result?' }), emptyCauses(d))));
       return;
@@ -364,7 +405,7 @@
     drawer.appendChild(h('div', { class: 'field' }, h('div', { class: 'eyebrow', text: 'Evaluations' }), c.evaluations.map(function (e) {
       var ok = e.status === 'EVALUATED' ? (e.passed ? ['Passed', 'good'] : ['Failed', 'crit']) : [e.status.replace('_', ' ').toLowerCase(), 'warn'];
       return h('div', { class: 'evrow' },
-        h('header', null, h('span', { text: e.metric }), h('span', { class: 'pill ' + ok[1], text: ok[0] })),
+        h('header', null, h('span', { text: mname(e.metric) }), h('span', { class: 'pill ' + ok[1], text: ok[0] })),
         h('div', { class: 'num', text: (e.score != null ? 'score ' + sc(e.score) : '') + (e.threshold != null ? ' (pass at ' + sc(e.threshold) + ')' : '') + (e.display ? ' · ' + e.display : '') }),
         e.reason ? h('div', { text: e.reason }) : null,
         h('div', { class: 'hint', text: [e.kind.toLowerCase(), e.source ? e.source.toLowerCase() : 'fresh', e.judgeId, e.samples ? e.samples.length + ' samples: ' + e.samples.map(sc).join(', ') : null, e.durationMs != null ? ms(e.durationMs) : null, e.costUsd != null ? usd(e.costUsd) : null].filter(Boolean).join(' · ') }));
@@ -502,24 +543,104 @@
       ['Tools', function (a) { return (a.tools || []).join(', '); }]])));
     view.appendChild(h('div', { class: 'sec' }, h('header', null, h('h2', { text: 'Datasets' })), table('Datasets', env.datasets, [
       ['Dataset', function (d) { return d.id; }], ['Scenarios', function (d) { return d.scenarioCount; }], ['Revision', function (d) { return d.revision; }], ['Hash', function (d) { return d.hash; }]])));
-    judgeIndependence(env);
+    judgeIndependence();
   }
-  function judgeIndependence(env) {
-    function family(m) { return m ? String(m).toLowerCase().split(/[\d\-:\/]/)[0] : ''; }
-    (env.judges || []).forEach(function (j) {
-      (env.agents || []).forEach(function (a) {
-        if (j.model && a.model && family(j.model) && family(j.model) === family(a.model)) {
-          view.appendChild(h('div', { class: 'note', text: 'Judge ' + j.id + ' and agent ' + a.id + ' come from the same model family (' + family(j.model) + '). A model can favour its own style, so treat its scores with care. This is a heuristic.' }));
-        }
+  function judgeIndependence() {
+    var rel = M.reliability || [];
+    if (!rel.length) return;
+    view.appendChild(h('div', { class: 'sec' }, h('header', null, h('h2', { text: 'How far to trust the judges' }),
+      h('p', { text: 'From this run\u2019s own data. Self-consistency is the share of repeated judgements that agree within 0.1.' })),
+      h('div', { class: 'card tbl' }, h('table', null, h('thead', null, h('tr', null, ['Judge', 'Judged', 'Repeated', 'Self-consistency', 'Mean spread', 'Calls', 'Failure rate'].map(function (t) { return h('th', { text: t }); }))),
+        h('tbody', null, rel.map(function (r) {
+          return h('tr', null, h('td', { class: 'mono', text: r.judgeId }), h('td', { class: 'num', text: r.evaluations }), h('td', { class: 'num', text: r.multiSample }),
+            h('td', { class: 'num', text: r.selfConsistency == null ? 'not measured (one sample per case)' : pct(r.selfConsistency * 100, 0) }),
+            h('td', { class: 'num', text: r.meanSpread == null ? '\u2013' : r.meanSpread.toFixed(2) }), h('td', { class: 'num', text: r.calls }),
+            h('td', { class: 'num', text: r.failureRate == null ? '\u2013' : pct(r.failureRate * 100) }));
+        }))))));
+    rel.forEach(function (r) {
+      (r.sameFamilyAs || []).forEach(function (a) {
+        view.appendChild(h('div', { class: 'note', text: 'Judge ' + r.judgeId + ' and agent ' + a + ' come from the same model family. A model can favour its own style, so treat its scores with care. This is a heuristic.' }));
       });
     });
   }
   function viewTraces() {
-    view.appendChild(h('div', { class: 'pagehead' }, h('h1', { text: 'Traces' }), h('p', { class: 'sub', text: 'Agent steps and workflow paths, read from the run.' })));
+    view.appendChild(h('div', { class: 'pagehead' }, h('h1', { text: 'Traces' }), h('p', { class: 'sub', text: 'How agents reasoned and how workflows ran, read from the run.' })));
+    var steps = [], hist = {}, repeats = 0, errors = 0, unknown = 0, agentTraces = M.traces.filter(function (t) { return t.type === 'AGENT_STEPS'; });
+    agentTraces.forEach(function (t) { (t.steps || []).forEach(function (st) {
+      steps.push(st); hist[st.outcome] = (hist[st.outcome] || 0) + 1;
+      if (st.outcome === 'DUPLICATE_BLOCKED') repeats++; if (st.outcome === 'EXECUTION_ERROR') errors++; if (st.outcome === 'UNKNOWN_TOOL') unknown++;
+    }); });
+    if (steps.length) {
+      var tiles = h('div', { class: 'stats' });
+      [['Agent traces', agentTraces.length], ['Steps', steps.length], ['Steps per trace', (steps.length / agentTraces.length).toFixed(1)],
+       ['Repeated calls', pct(repeats / steps.length * 100, 0)], ['Tool errors', pct(errors / steps.length * 100, 0)], ['Unknown tools', unknown]]
+        .forEach(function (x) { tiles.appendChild(h('div', { class: 'stat' }, h('b', { class: 'num', text: x[1] }), h('span', { text: x[0] }))); });
+      var bars = h('div', { class: 'card', style: 'margin-top:12px;display:grid;gap:6px' }, h('div', { class: 'eyebrow', text: 'Step outcomes' }));
+      Object.keys(hist).forEach(function (k) {
+        bars.appendChild(h('div', { style: 'display:grid;grid-template-columns:190px minmax(0,1fr) 40px;gap:10px;align-items:center;font-size:13px' },
+          h('span', { text: k.toLowerCase().replace(/_/g, ' ') }), h('div', { class: 'bar' }, h('i', { style: 'width:' + hist[k] / steps.length * 100 + '%;background:' + (k === 'EXECUTED' ? 'var(--pass)' : 'var(--fail)') })), h('span', { class: 'num', text: hist[k] })));
+      });
+      view.appendChild(h('div', { class: 'sec' }, h('header', null, h('h2', { text: 'How the agents reasoned' })), tiles, bars));
+    }
     M.traces.forEach(function (t) {
       var c = M.cases.filter(function (x) { return x.caseId === t.caseId; })[0];
-      view.appendChild(h('div', { class: 'card', style: 'margin-bottom:14px' }, h('h3', { text: (c ? c.name : t.traceId) + ' · ' + (t.type === 'WORKFLOW' ? 'workflow' : 'agent steps') }), traceView(t)));
+      view.appendChild(h('div', { class: 'card', style: 'margin-bottom:14px' }, h('h3', { text: (c ? c.name : t.traceId) + ' \u00b7 ' + (t.type === 'WORKFLOW' ? 'workflow' : 'agent steps') }), traceView(t)));
     });
+  }
+  var MARKS = { guard: 'guard', checkpoint: 'checkpoint', rewind: 'rewind', budget: 'budget', suspended: 'suspended', decision: 'decision', approval: 'approval' };
+  /* a lane per agent, bars between delegate_start and delegate_end, diamonds for the events that matter */
+  function timeline(w) {
+    var ev = w.events || [], agents = [], max = 0.001;
+    ev.forEach(function (e) { max = Math.max(max, e.t); if (e.agent && agents.indexOf(e.agent) < 0) agents.push(e.agent); });
+    agents.push('workflow');
+    var LW = 110, W = 720, rowH = 28, H = agents.length * rowH + 28;
+    var svg = s('svg', { viewBox: '0 0 ' + (LW + W) + ' ' + H, width: '100%', role: 'img', 'aria-label': 'Workflow timeline' });
+    var x = function (t) { return LW + t / max * (W - 16); };
+    agents.forEach(function (a, i) {
+      svg.appendChild(s('text', { x: 4, y: i * rowH + 18, 'font-size': 12 }, a));
+      svg.appendChild(s('line', { x1: LW, x2: LW + W, y1: i * rowH + 22, y2: i * rowH + 22, stroke: 'var(--line)' }));
+    });
+    var open = {};
+    ev.forEach(function (e) {
+      var lane = e.agent ? agents.indexOf(e.agent) : agents.length - 1;
+      if (e.type === 'delegate_start') open[e.agent] = e.t;
+      else if (e.type === 'delegate_end' && open[e.agent] != null) {
+        svg.appendChild(s('rect', { x: x(open[e.agent]), y: lane * rowH + 8, width: Math.max(3, x(e.t) - x(open[e.agent])), height: 14, rx: 3, fill: 'var(--pass)', opacity: .8 }, s('title', null, e.agent + ' ' + open[e.agent].toFixed(2) + 's \u2192 ' + e.t.toFixed(2) + 's')));
+        delete open[e.agent];
+      } else if (MARKS[e.type]) {
+        var cx = x(e.t), cy = lane * rowH + 15;
+        svg.appendChild(s('polygon', { points: cx + ',' + (cy - 7) + ' ' + (cx + 7) + ',' + cy + ' ' + cx + ',' + (cy + 7) + ' ' + (cx - 7) + ',' + cy,
+          fill: e.type === 'rewind' || e.type === 'guard' ? 'var(--fail)' : 'var(--warn)' }, s('title', null, e.type + (e.text ? ': ' + e.text : ''))));
+      }
+    });
+    Object.keys(open).forEach(function (a) { svg.appendChild(s('rect', { x: x(open[a]), y: agents.indexOf(a) * rowH + 8, width: 6, height: 14, rx: 3, fill: 'var(--fail)' })); });
+    svg.appendChild(s('text', { x: LW, y: H - 4, 'font-size': 11, fill: 'var(--ink-3)' }, '0 s'));
+    svg.appendChild(s('text', { x: LW + W - 16, y: H - 4, 'font-size': 11, 'text-anchor': 'end', fill: 'var(--ink-3)' }, max.toFixed(1) + ' s'));
+    return svg;
+  }
+  function eventLog(w) {
+    var ev = w.events || [], types = [], agents = [];
+    ev.forEach(function (e) { if (types.indexOf(e.type) < 0) types.push(e.type); if (e.agent && agents.indexOf(e.agent) < 0) agents.push(e.agent); });
+    var tsel = h('select', { 'aria-label': 'Event type' }, h('option', { value: '', text: 'All types' }), types.map(function (t) { return h('option', { value: t, text: t }); }));
+    var asel = h('select', { 'aria-label': 'Agent' }, h('option', { value: '', text: 'All agents' }), agents.map(function (t) { return h('option', { value: t, text: t }); }));
+    var body = h('tbody');
+    function draw() {
+      clear(body);
+      ev.filter(function (e) { return (!tsel.value || e.type === tsel.value) && (!asel.value || e.agent === asel.value); }).slice(0, 400).forEach(function (e) {
+        body.appendChild(h('tr', null, h('td', { class: 'num', text: e.t.toFixed(2) }), h('td', { class: 'mono', text: e.type }), h('td', { text: e.agent || '' }), h('td', { class: 'mono', text: e.node || '' }), h('td', { text: e.text || '' })));
+      });
+    }
+    tsel.addEventListener('change', draw); asel.addEventListener('change', draw); draw();
+    return h('div', null, h('div', { class: 'tools' }, tsel, asel),
+      h('div', { class: 'card tbl' }, h('table', null, h('thead', null, h('tr', null, ['t (s)', 'Event', 'Agent', 'Node', 'Detail'].map(function (t) { return h('th', { text: t }); }))), body)));
+  }
+  function spendTable(w) {
+    var by = {};
+    (w.spend || []).forEach(function (l) { var b = by[l.agent] = by[l.agent] || { calls: 0, p: 0, c: 0, cost: 0, est: false }; b.calls += l.calls; b.p += l.promptTokens; b.c += l.completionTokens; b.cost += l.costUsd || 0; b.est = b.est || l.estimated; });
+    var keys = Object.keys(by);
+    if (!keys.length) return null;
+    return h('div', { class: 'card tbl' }, h('table', null, h('thead', null, h('tr', null, ['Agent', 'Calls', 'Prompt tokens', 'Completion tokens', 'Cost'].map(function (t) { return h('th', { text: t }); }))),
+      h('tbody', null, keys.map(function (k) { return h('tr', null, h('td', { text: k }), h('td', { class: 'num', text: by[k].calls }), h('td', { class: 'num', text: by[k].p }), h('td', { class: 'num', text: by[k].c }), h('td', { class: 'num', text: usd(by[k].cost) + (by[k].est ? ' (estimated)' : '') })); }))));
   }
   function traceView(t) {
     if (t.type === 'WORKFLOW' && t.workflow) {
@@ -531,7 +652,13 @@
           return [i ? h('span', { class: 'hint', text: '→' }) : null, h('span', { class: 'node' + (ok === true ? ' ok' : ok === false ? ' bad' : ''), text: label[id] || id })];
         }));
       }
-      return h('div', null, h('p', { class: 'hint', text: w.name }), h('div', { class: 'eyebrow', text: 'Expected path' }), row(exp), h('div', { class: 'eyebrow', style: 'margin-top:10px', text: 'Path taken' }), row(act, exp));
+      var rew = w.rewinds ? h('p', { class: 'hint', text: w.rewinds + ' rewind' + (w.rewinds === 1 ? '' : 's') + (w.rewindCap != null ? ' of at most ' + w.rewindCap : '') }) : null;
+      return h('div', null, h('p', { class: 'hint', text: w.name }), exp.length ? h('div', { class: 'eyebrow', text: 'Expected path' }) : null, exp.length ? row(exp) : null,
+        h('div', { class: 'eyebrow', style: 'margin-top:10px', text: 'Path taken' }), row(act, exp.length ? exp : null), rew,
+        (w.events || []).length ? h('div', { class: 'eyebrow', style: 'margin-top:14px', text: 'Timeline (diamonds: guard, checkpoint, rewind, budget, decision, approval)' }) : null,
+        (w.events || []).length ? timeline(w) : null,
+        spendTable(w) ? h('div', { class: 'eyebrow', style: 'margin:14px 0 6px', text: 'Spend by agent' + (w.budgetUsd != null ? ' (budget ' + usd(w.budgetUsd) + ')' : '') }) : null, spendTable(w),
+        (w.events || []).length ? h('div', { class: 'eyebrow', style: 'margin:14px 0 6px', text: 'Event log' }) : null, (w.events || []).length ? eventLog(w) : null);
     }
     var box = h('div');
     (t.steps || []).forEach(function (st) {
@@ -559,6 +686,56 @@
         svg, o.diff && o.diff.length ? diff : null));
     });
   }
+  /* ---------- prompt A/B ---------- */
+  function pairwise() {
+    var out = [];
+    M.cases.forEach(function (c) { c.evaluations.forEach(function (e) { if (e.kind === 'PAIRWISE' && e.status === 'EVALUATED') out.push({ c: c, e: e }); }); });
+    return out;
+  }
+  function splitAB(text) {
+    if (!text) return { a: '', b: '' };
+    var i = text.indexOf('\n\nB: ');
+    if (text.indexOf('A: ') === 0 && i > 0) return { a: text.slice(3, i), b: text.slice(i + 5) };
+    return { a: text, b: '' };
+  }
+  function viewAB() {
+    var all = pairwise(), by = {};
+    all.forEach(function (x) { (by[mname(x.e.metric)] = by[mname(x.e.metric)] || []).push(x); });
+    view.appendChild(h('div', { class: 'pagehead' }, h('h1', { text: 'Prompt A/B' }),
+      h('p', { class: 'sub', text: 'The new prompt (B) against the current one (A), judged by a model. B passes when it is at least as good as A.' })));
+    Object.keys(by).forEach(function (metric) {
+      var list = by[metric], w = { b: 0, tie: 0, a: 0 };
+      list.forEach(function (x) { if (x.e.score >= 0.99) w.b++; else if (x.e.score > 0.01) w.tie++; else w.a++; });
+      var tot = list.length;
+      function seg(n, color) { return h('i', { style: 'display:block;height:100%;width:' + (n / tot * 100) + '%;background:' + color }); }
+      view.appendChild(h('div', { class: 'sec' }, h('header', null, h('h2', { text: metric }), h('p', { text: tot + ' cases. B wins ' + w.b + ', tie ' + w.tie + ', A wins ' + w.a + '.' })),
+        h('div', { class: 'card' },
+          h('div', { style: 'display:flex;height:16px;border-radius:99px;overflow:hidden;background:var(--surface-2)', role: 'img', 'aria-label': 'B wins ' + w.b + ', ties ' + w.tie + ', A wins ' + w.a },
+            seg(w.a, 'var(--fail)'), seg(w.tie, 'var(--warn)'), seg(w.b, 'var(--good)')),
+          h('div', { class: 'legend', style: 'margin-top:8px' }, h('span', null, h('i', { class: 'i-fail' }), 'A wins'), h('span', null, h('i', { style: 'background:var(--warn)' }), 'Tie'), h('span', null, h('i', { style: 'background:var(--good)' }), 'B wins'))),
+        h('div', { class: 'card tbl', style: 'margin-top:12px' }, h('table', null, h('thead', null, h('tr', null, ['Case', 'Winner', 'Why'].map(function (t) { return h('th', { text: t }); }))),
+          h('tbody', null, list.map(function (x) {
+            var win = x.e.score >= 0.99 ? ['B wins', 'good'] : x.e.score > 0.01 ? ['Tie', 'warn'] : ['A wins', 'crit'];
+            return h('tr', { class: 'row', tabindex: 0, onclick: function () { openAB(x); }, onkeydown: function (ev) { if (ev.key === 'Enter') openAB(x); } },
+              h('td', null, h('b', { text: x.c.name })), h('td', null, h('span', { class: 'pill ' + win[1], text: win[0] })), h('td', { text: x.e.reason || '' }));
+          }))))));
+    });
+  }
+  function openAB(x) {
+    lastFocus = document.activeElement;
+    clear(drawer);
+    var t = splitAB(x.e.actualOutput);
+    drawer.appendChild(h('button', { class: 'back', type: 'button', onclick: closeDrawer, text: '\u2715 Close' }));
+    drawer.appendChild(h('h2', { text: x.c.name }));
+    drawer.appendChild(h('p', { class: 'sub', text: mname(x.e.metric) }));
+    add(drawer, x.c.input ? h('div', { class: 'field' }, h('div', { class: 'eyebrow', text: 'Input' }), h('div', { class: 'text', text: x.c.input })) : null);
+    drawer.appendChild(h('div', { class: 'field' }, h('div', { class: 'eyebrow', text: 'A (current prompt)' }), h('div', { class: 'text', text: t.a })));
+    drawer.appendChild(h('div', { class: 'field' }, h('div', { class: 'eyebrow', text: 'B (new prompt)' }), h('div', { class: 'text', text: t.b })));
+    if (t.b) drawer.appendChild(h('div', { class: 'field' }, h('div', { class: 'eyebrow', text: 'What changed, word by word' }), h('div', { class: 'text' }, wordDiff(t.a, t.b))));
+    drawer.appendChild(h('div', { class: 'field' }, h('div', { class: 'eyebrow', text: 'Judge\u2019s reason' }), h('div', { class: 'text', text: x.e.reason || '' })));
+    drawer.removeAttribute('hidden'); scrim.removeAttribute('hidden'); drawer.focus();
+  }
+
   function viewNotes() {
     view.appendChild(h('div', { class: 'pagehead' }, h('h1', { text: 'Data notes' }), h('p', { class: 'sub', text: 'Anything that could not be taken at face value.' })));
     if (!M.notes.length) view.appendChild(h('div', { class: 'card', text: 'No problems found in the run data.' }));
@@ -574,6 +751,9 @@
     try { localStorage.setItem('eval4j.theme', dark ? 'light' : 'dark'); } catch (e) { /* ignore */ }
   });
   try { var th = localStorage.getItem('eval4j.theme'); if (th) document.documentElement.setAttribute('data-theme', th); } catch (e) { /* ignore */ }
+  var BR = M.branding || {};
+  if (BR.accent) document.documentElement.style.setProperty('--pass', BR.accent);
+  if (BR.title) document.title = BR.title;
   $('chip').textContent = (M.meta.branch || 'no branch') + (M.meta.commit ? ' · ' + M.meta.commit : '');
   window.addEventListener('hashchange', route);
   route();

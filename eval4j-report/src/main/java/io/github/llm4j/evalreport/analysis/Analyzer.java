@@ -138,7 +138,109 @@ public final class Analyzer {
                 List.of(),
                 bundle.traces(),
                 bundle.optimizations(),
-                tests);
+                tests,
+                reliability(run, all),
+                ReportConfig.presets(dimensionIds(dimensions)),
+                new ReportModel.Branding(
+                        config.branding.title(),
+                        config.branding.logoDataUri(),
+                        config.branding.accent()),
+                metricNames(run));
+    }
+
+    private static Map<String, String> metricNames(RunMeta run) {
+        Map<String, String> out = new LinkedHashMap<>();
+        for (MetricDef m : run.metrics()) {
+            out.put(m.id(), m.name());
+        }
+        return out;
+    }
+
+    private static List<String> dimensionIds(List<DimensionView> dims) {
+        List<String> ids = new ArrayList<>();
+        for (DimensionView d : dims) {
+            ids.add(d.id());
+        }
+        return ids;
+    }
+
+    /**
+     * The first run of letters of a model name: gemini-2.5-pro gives gemini, llama3.3:70b gives
+     * llama.
+     */
+    static String family(String model) {
+        if (model == null) {
+            return "";
+        }
+        String m = model.toLowerCase(java.util.Locale.ROOT);
+        int i = 0;
+        while (i < m.length() && Character.isLetter(m.charAt(i))) {
+            i++;
+        }
+        return m.substring(0, i);
+    }
+
+    /**
+     * Judge reliability from this run's data: how often repeated samples agree (within 0.1), how
+     * often calls failed, and a heuristic warning when a judge and an agent share a model family.
+     */
+    static List<ReportModel.JudgeReliability> reliability(RunMeta run, List<Resolved> all) {
+        List<ReportModel.JudgeReliability> out = new ArrayList<>();
+        for (JsonNode j : run.env().path("judges")) {
+            String id = j.path("id").asText();
+            int judged = 0;
+            int multi = 0;
+            int agree = 0;
+            double spread = 0;
+            for (Resolved r : all) {
+                Ev e = r.ev();
+                if (!e.judged() || !id.equals(e.judgeId())) {
+                    continue;
+                }
+                judged++;
+                if (e.samples() != null && e.samples().size() >= 2) {
+                    multi++;
+                    double lo = 1;
+                    double hi = 0;
+                    for (double v : e.samples()) {
+                        lo = Math.min(lo, v);
+                        hi = Math.max(hi, v);
+                    }
+                    spread += hi - lo;
+                    if (hi - lo <= 0.1) {
+                        agree++;
+                    }
+                }
+            }
+            int calls = j.path("stats").path("calls").asInt();
+            int failures = j.path("stats").path("failures").asInt();
+            List<String> same = new ArrayList<>();
+            String jf = family(j.path("model").asText(null));
+            for (JsonNode a : run.env().path("agents")) {
+                if (!jf.isEmpty() && jf.equals(family(a.path("model").asText(null)))) {
+                    same.add(a.path("id").asText());
+                }
+            }
+            Double consistency = null;
+            if (multi > 0) {
+                consistency = (double) agree / multi;
+            } else if (j.path("stats").path("selfConsistency").isNumber()) {
+                consistency = j.path("stats").path("selfConsistency").asDouble();
+            }
+            out.add(
+                    new ReportModel.JudgeReliability(
+                            id,
+                            j.path("model").asText(null),
+                            judged,
+                            multi,
+                            consistency,
+                            multi == 0 ? null : spread / multi,
+                            calls,
+                            failures,
+                            calls + failures == 0 ? null : (double) failures / (calls + failures),
+                            same));
+        }
+        return out;
     }
 
     private static List<Ev> evs(List<Resolved> rs) {

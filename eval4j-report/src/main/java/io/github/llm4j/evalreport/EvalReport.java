@@ -2,6 +2,7 @@ package io.github.llm4j.evalreport;
 
 import io.github.llm4j.evalreport.analysis.Analyzer;
 import io.github.llm4j.evalreport.analysis.Baselines;
+import io.github.llm4j.evalreport.analysis.Classify;
 import io.github.llm4j.evalreport.analysis.Compare;
 import io.github.llm4j.evalreport.config.ReportConfig;
 import io.github.llm4j.evalreport.format.RunBundle;
@@ -13,7 +14,9 @@ import io.github.llm4j.evalreport.model.ReportModel.CompareModel;
 import io.github.llm4j.evalreport.model.ReportModel.TrendPoint;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** Public façade: load a run, analyse it, compare it with its baseline. */
 public final class EvalReport {
@@ -28,7 +31,7 @@ public final class EvalReport {
      */
     public static ReportModel build(
             RunStore store, String runId, String baselineId, boolean compare, ReportConfig config) {
-        List<RunMeta> runs = store.list();
+        List<RunMeta> runs = store.listRuns();
         if (runs.isEmpty()) {
             throw new IllegalArgumentException("no runs found under " + store.root());
         }
@@ -57,7 +60,11 @@ public final class EvalReport {
                 trend,
                 model.traces(),
                 model.optimizations(),
-                model.tests());
+                model.tests(),
+                model.reliability(),
+                model.presets(),
+                model.branding(),
+                model.metricNames());
     }
 
     private static RunMeta find(List<RunMeta> runs, String id) {
@@ -92,18 +99,25 @@ public final class EvalReport {
         for (RunMeta r : same) {
             int p = 0;
             int f = 0;
-            for (Ev e : store.load(r.runId(), false).evaluations()) {
+            RunBundle b = store.load(r.runId(), false);
+            Classify cl = new Classify(b.run().metrics());
+            Map<String, int[]> byDim = new LinkedHashMap<>();
+            for (Ev e : b.evaluations()) {
                 if (e.counted()) {
+                    int[] c = byDim.computeIfAbsent(cl.resolve(e).dimension(), k -> new int[2]);
                     if (e.passed()) {
                         p++;
+                        c[0]++;
                     } else {
                         f++;
+                        c[1]++;
                     }
                 }
             }
+            Map<String, Double> dimRates = new LinkedHashMap<>();
+            byDim.forEach((k, c) -> dimRates.put(k, 100.0 * c[0] / (c[0] + c[1])));
             Double rate = p + f == 0 ? null : 100.0 * p / (p + f);
-            points.add(
-                    new TrendPoint(r.runId(), r.startedAt(), r.commit(), rate, java.util.Map.of()));
+            points.add(new TrendPoint(r.runId(), r.startedAt(), r.commit(), rate, dimRates));
         }
         return points;
     }

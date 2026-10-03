@@ -1,5 +1,7 @@
 package io.github.llm4j.eval.export;
 
+import java.util.concurrent.Callable;
+
 /**
  * Judge activity of the evaluation being computed on this thread, plus the run-wide {@link
  * JudgeStats}. The judge calls report here; the recorder drains the totals when it records the
@@ -24,6 +26,49 @@ public final class JudgeTelemetry {
         int tokensIn;
         int tokensOut;
         long latencyMs;
+
+        synchronized void call(long ms, int in, int out) {
+            calls++;
+            tokensIn += in;
+            tokensOut += out;
+            latencyMs += ms;
+        }
+
+        synchronized void hit() {
+            cacheHits++;
+        }
+
+        synchronized Usage usage() {
+            return new Usage(calls, cacheHits, tokensIn, tokensOut, latencyMs);
+        }
+    }
+
+    /**
+     * The evaluation in progress on the capturing thread. Wrap work handed to other threads with
+     * {@link #wrap(Callable)} so its judge calls are attributed to the same evaluation.
+     */
+    public static final class Handle {
+        private final Acc acc;
+
+        private Handle(Acc acc) {
+            this.acc = acc;
+        }
+
+        public <T> Callable<T> wrap(Callable<T> task) {
+            return () -> {
+                Acc previous = CURRENT.get();
+                CURRENT.set(acc);
+                try {
+                    return task.call();
+                } finally {
+                    CURRENT.set(previous);
+                }
+            };
+        }
+    }
+
+    public static Handle capture() {
+        return new Handle(CURRENT.get());
     }
 
     private static final ThreadLocal<Acc> CURRENT = ThreadLocal.withInitial(Acc::new);
@@ -32,23 +77,18 @@ public final class JudgeTelemetry {
 
     public static void callMade(
             String judgeId, long latencyMs, int tokensIn, int tokensOut, boolean failure) {
-        Acc a = CURRENT.get();
-        a.calls++;
-        a.tokensIn += tokensIn;
-        a.tokensOut += tokensOut;
-        a.latencyMs += latencyMs;
+        CURRENT.get().call(latencyMs, tokensIn, tokensOut);
         JudgeStats.call(judgeId, latencyMs, tokensIn, tokensOut, false, failure);
     }
 
     public static void cacheHit(String judgeId) {
-        CURRENT.get().cacheHits++;
+        CURRENT.get().hit();
         JudgeStats.call(judgeId, 0, 0, 0, true, false);
     }
 
     /** Returns and clears the totals accumulated on this thread since the last drain. */
     public static Usage drain() {
-        Acc a = CURRENT.get();
-        Usage u = new Usage(a.calls, a.cacheHits, a.tokensIn, a.tokensOut, a.latencyMs);
+        Usage u = CURRENT.get().usage();
         CURRENT.remove();
         return u;
     }

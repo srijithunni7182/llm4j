@@ -82,11 +82,37 @@ public final class EvalRecorder {
             String reason,
             String judgeIdentifier,
             EvalDetails details) {
+        record(metric, score, threshold, reason, judgeIdentifier, details, null);
+    }
+
+    /**
+     * Records the result of an A/B comparison: score 1 when B wins, 0.5 for a tie, 0 when A wins.
+     * It is exported as a {@code PAIRWISE} evaluation of the prompts family.
+     */
+    public static void recordPairwise(
+            String metric, double score, double threshold, String reason, EvalDetails details) {
+        MetricRef ref =
+                MetricRef.of(metric)
+                        .kind(io.github.llm4j.eval.export.Kind.PAIRWISE)
+                        .family("prompts")
+                        .facet("compare")
+                        .dimension("prompting");
+        record(metric, score, threshold, reason, null, details, ref);
+    }
+
+    private static void record(
+            String metric,
+            double score,
+            double threshold,
+            String reason,
+            String judgeIdentifier,
+            EvalDetails details,
+            MetricRef forced) {
         if (!active) {
             return;
         }
         EvalDetails d = details == null ? EvalDetails.NONE : details.bounded();
-        exportEvaluation(metric, score, threshold, reason, judgeIdentifier, d);
+        exportEvaluation(metric, score, threshold, reason, judgeIdentifier, d, forced);
         String[] test = CURRENT_TEST.get();
         RECORDS.add(
                 new EvalRecord(
@@ -112,12 +138,13 @@ public final class EvalRecorder {
             double threshold,
             String reason,
             String judgeIdentifier,
-            EvalDetails d) {
+            EvalDetails d,
+            MetricRef forced) {
         EvalRun run = EvalRun.get();
         if (!run.isExporting()) {
             return;
         }
-        MetricRef ref = MetricRef.of(metric).threshold(threshold);
+        MetricRef ref = (forced != null ? forced : MetricRef.of(metric)).threshold(threshold);
         EvalRun.MetricOverride o = run.override();
         if (o != null) {
             ref = o.metric();
@@ -138,6 +165,8 @@ public final class EvalRecorder {
             String judgeId = MetricRef.slug(judgeIdentifier);
             run.noteJudge(judgeId, judgeIdentifier);
             b.judgeId(judgeId);
+        }
+        if (usage.calls() > 0 || usage.cacheHits() > 0) {
             b.usage(usage.calls(), usage.tokensIn(), usage.tokensOut(), null);
             if (usage.servedFromCache()) {
                 b.source(Source.REUSED);

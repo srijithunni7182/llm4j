@@ -2,6 +2,10 @@ package io.github.llm4j.evalreport.cli;
 
 import io.github.llm4j.evalreport.EvalReport;
 import io.github.llm4j.evalreport.config.ReportConfig;
+import io.github.llm4j.evalreport.format.BundleWriter;
+import io.github.llm4j.evalreport.format.LegacyV1Importer;
+import io.github.llm4j.evalreport.format.RunBundle;
+import io.github.llm4j.evalreport.format.RunBundleReader;
 import io.github.llm4j.evalreport.format.RunBundleReader.BundleFormatException;
 import io.github.llm4j.evalreport.format.RunStore;
 import io.github.llm4j.evalreport.format.model.RunMeta;
@@ -67,7 +71,7 @@ public final class Main {
             RunStore store = new RunStore(root);
             switch (cmd) {
                 case "list" -> {
-                    List<RunMeta> runs = store.list();
+                    List<RunMeta> runs = store.listRuns();
                     for (RunMeta r : runs) {
                         out.println(
                                 r.runId()
@@ -78,6 +82,82 @@ public final class Main {
                                         + "  "
                                         + (r.branch() == null ? "-" : r.branch()));
                     }
+                    return 0;
+                }
+                case "merge" -> {
+                    String group = opt.get("group");
+                    if (group == null) {
+                        err.println("merge needs --group <groupId>");
+                        return 2;
+                    }
+                    var merged = store.load(group, opt.containsKey("strict"));
+                    Path out2 = Path.of(opt.getOrDefault("out", root.toString()));
+                    var json = RunBundleReader.MAPPER.createObjectNode();
+                    json.put("schemaVersion", 1);
+                    json.put("format", "eval4j-run");
+                    json.put("runId", merged.run().runId() + "-merged");
+                    json.put("status", merged.run().status());
+                    json.put("startedAt", merged.run().startedAt());
+                    if (merged.run().endedAt() != null) {
+                        json.put("endedAt", merged.run().endedAt());
+                    }
+                    json.set(
+                            "project",
+                            RunBundleReader.MAPPER
+                                    .createObjectNode()
+                                    .put("name", String.valueOf(merged.run().project())));
+                    json.set("source", merged.run().source());
+                    json.set("profile", merged.run().profile());
+                    json.set("env", merged.run().env());
+                    json.set("metrics", RunBundleReader.MAPPER.valueToTree(merged.run().metrics()));
+                    var asRun = RunBundleReader.meta(json);
+                    Path dir =
+                            BundleWriter.write(
+                                    out2,
+                                    new RunBundle(
+                                            asRun,
+                                            merged.evaluations(),
+                                            merged.scenarios(),
+                                            merged.tests(),
+                                            merged.traces(),
+                                            merged.optimizations(),
+                                            merged.warnings()),
+                                    json);
+                    out.println("eval4j-report: merged " + group + " into " + dir);
+                    return 0;
+                }
+                case "import-legacy" -> {
+                    String file = opt.get("input");
+                    if (file == null) {
+                        err.println("import-legacy needs the path of an eval4j-report.json");
+                        return 2;
+                    }
+                    Path dir =
+                            LegacyV1Importer.importFile(
+                                    Path.of(file),
+                                    Path.of(opt.getOrDefault("out", "target/eval4j")));
+                    out.println("eval4j-report: imported into " + dir);
+                    return 0;
+                }
+                case "prune" -> {
+                    int keep;
+                    try {
+                        keep = Integer.parseInt(opt.getOrDefault("keep", "50"));
+                    } catch (NumberFormatException e) {
+                        err.println("--keep must be a number");
+                        return 2;
+                    }
+                    List<RunMeta> all = store.list();
+                    int removed = 0;
+                    for (int i = 0; i < all.size() - keep; i++) {
+                        deleteTree(store.dirOf(all.get(i).runId()));
+                        removed++;
+                    }
+                    out.println(
+                            "eval4j-report: removed "
+                                    + removed
+                                    + " run(s), kept "
+                                    + Math.min(keep, all.size()));
                     return 0;
                 }
                 case "validate" -> {
@@ -133,6 +213,15 @@ public final class Main {
         }
     }
 
+    private static void deleteTree(Path dir) throws IOException {
+        try (var walk = Files.walk(dir)) {
+            for (Path p :
+                    (Iterable<Path>) walk.sorted(java.util.Comparator.reverseOrder())::iterator) {
+                Files.delete(p);
+            }
+        }
+    }
+
     private static void write(Path p, String content) throws IOException {
         Files.writeString(p, content, StandardCharsets.UTF_8);
     }
@@ -144,6 +233,11 @@ public final class Main {
         o.println("  compare   same as render, always against a baseline");
         o.println("  list      list the runs in the export directory");
         o.println("  validate  read every run strictly and report problems");
+        o.println(
+                "  merge     --group <id> [--out <dir>]  merge the bundles of one build into one run");
+        o.println(
+                "  import-legacy <eval4j-report.json> [--out <dir>]  turn a v1 report into a bundle");
+        o.println("  prune     --keep <n>  delete all but the newest n runs");
         o.println(
                 "options: --run <id> --baseline <id> --no-compare --out <dir> --config <file> --strict");
     }
