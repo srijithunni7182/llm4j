@@ -78,18 +78,52 @@ Customer input, agent reply, expected output, retrieved chunks, a chip per dimen
 
 ## 5. Dimensions, metrics and goals
 
-### 5.1 Taxonomy
-Each metric has exactly one dimension. Built-ins get a default; users can override.
+### 5.1 Dimensions come from the golden dataset
 
-| Dimension | Built-in metrics mapped by default |
+The report never uses a fixed list. **Every dimension the golden dataset declares is shown**, whether or not anything was evaluated for it, so a gap in testing is as visible as a gap in quality.
+
+**Declaring dimensions.** A scenario states the dimensions it tests (additive, optional field):
+
+```yaml
+- name: gdpr-data-export
+  input: "I am in the EU. Send me all the data you hold on me."
+  expectedOutput: "Request an export under Settings, Privacy. We deliver it within 30 days."
+  dimensions: [compliance, correctness, grounding]
+```
+
+`EvalScenario` gains `dimensions` (a list of ids; old constructors still work). A scenario with no `dimensions` is attributed to whichever dimensions its recorded metrics belong to, so existing datasets keep working.
+
+**Dimension definitions.** Names, descriptions and goals live in project config (`eval4j.dimensions.yaml`), not in every scenario. eval4j ships defaults for the common set; teams add their own (Compliance, Multilingual, Accessibility, ...). Unknown ids still render, using the id as the name.
+
+**The dimension list of a report is the union of:**
+1. dimensions declared by the golden dataset(s) loaded in the run;
+2. dimensions of any metric that actually recorded a result;
+3. dimensions with a configured goal.
+
+**Metric to dimension.** Each metric belongs to one dimension. Built-ins have defaults (below); a metric can be tagged explicitly. A metric with no dimension goes under "Other", so nothing is dropped.
+
+| Default dimension | Built-in metrics mapped by default |
 |---|---|
-| Correctness | Answer correctness, task completion, tool-call accuracy, custom `LlmJudgeCondition` rubrics tagged correctness |
+| Correctness | Answer correctness, task completion, tool-call accuracy |
 | Relevancy | Answer relevancy, topic adherence |
 | Grounding | Faithfulness, hallucination, citation accuracy |
 | Retrieval | Contextual precision, recall, relevancy (RAG judges) |
 | Efficiency | Latency, token budget, steps/tool calls (measured, not judged) |
-| Safety & Tone | Toxicity, PII leakage, brand tone, conversation retention/completeness where tagged |
-| Other | Any metric with no mapping, so nothing is hidden |
+| Safety & Tone | Toxicity, PII leakage, brand tone |
+
+**Binding results to scenarios.** The extension reads the `EvalScenario` argument of a `@ParameterizedTest` automatically (via a JUnit invocation interceptor), so no test code changes. Tests that build scenarios some other way call `EvalRecorder.forScenario(...)` once.
+
+**Dimension states** (shown on the card, in the coverage panel and in the gap list):
+
+| State | Meaning | Shown as |
+|---|---|---|
+| Covered | Every scenario that declares it was evaluated | normal card |
+| Partly evaluated | Some declared scenarios were not evaluated (skipped, budget, error) | normal card plus a warning naming the missing scenarios |
+| Not evaluated | Declared by N scenarios but no result at all | dashed empty ring, "No results", excluded from the weighted pass rate, with causes and a fix |
+| Declared, no scenarios | Has a goal but no scenario declares it | card with "No scenario tests this" |
+| Undeclared | A metric recorded results for a dimension no scenario declares | normal card tagged "not in the dataset" |
+
+**Golden dataset coverage panel.** One table on the overview: dimension, scenarios that declare it (n of N), evaluated this run (n of N), metrics wired, status. It names the dataset file, scenario count and revision. Rows open the dimension.
 
 ### 5.2 Goals
 - A goal is a **pass-rate aim per dimension** (default 90%). It is context for reading the numbers, not a gate.
@@ -139,10 +173,11 @@ The report for a cheap run is assembled from the latest known result per case: f
 
 | Type | New fields |
 |---|---|
-| `EvalRecord` | `dimension`, `kind` (`JUDGED`/`MEASURED`), `measuredValue`, `budget`, `unit`, `judge` (see below), `source` (`FRESH`/`REUSED`/`CARRIED`/`NOT_EVALUATED`), `evaluatedInRun`, `evaluatedAt`, `costUsd`, `judgeCalls` |
+| `EvalRecord` | `scenarioId`, `dimension`, `kind` (`JUDGED`/`MEASURED`), `measuredValue`, `budget`, `unit`, `judge` (see below), `source` (`FRESH`/`REUSED`/`CARRIED`/`NOT_EVALUATED`), `evaluatedInRun`, `evaluatedAt`, `costUsd`, `judgeCalls` |
 | Judge descriptor | `provider`, `model`, `temperature`, `samples`, `aggregation`, `rubricId`, `rubricVersion` |
 | Judge run stats | calls, cache hits, latency mean/p95, tokens in/out, cost, failures, retries, sample-agreement |
-| `RunInfo` | `goals`, `profile` (`FAST`/`BUILD`/`SAMPLE`/`FULL`), `coverage` (evaluated / total), `judgeBudgetUsd`, `agent` descriptor (model, provider, prompt id, tools), `judge` stats, calibration summary, last full judged run id and time |
+| `EvalScenario` | `dimensions` (list of ids), optional `tags` |
+| `RunInfo` | `dataset` (path, revision/hash, scenario count, per-dimension declared scenario ids), `goals`, `profile` (`FAST`/`BUILD`/`SAMPLE`/`FULL`), `coverage` (evaluated / total), `judgeBudgetUsd`, `agent` descriptor (model, provider, prompt id, tools), `judge` stats, calibration summary, last full judged run id and time |
 | `HistoryEntry` | per-dimension pass rate and counts (sparklines, "vs previous run"), run profile, spend, and per-case latest verdict with its run id (drives carry-over) |
 
 Old reports load unchanged. Missing fields hide the related UI rather than showing empty boxes.
@@ -200,14 +235,20 @@ Unchanged from v1 (`eval4j-report.html/json/csv`, `eval4j-junit.xml`, `eval4j-su
 | Q17 | Judge spend, budget, saved-by-reuse and full-run estimate are shown; a budget stop yields "Not evaluated", never a false pass |
 | Q18 | Sampled runs show a margin of error on pass rates and the number of cases judged |
 | Q19 | Re-running a Build run with no agent change makes zero judge calls |
+| Q20 | Every dimension declared by the loaded golden dataset appears on the overview, in the radar, the gap list and the coverage panel, even with zero results |
+| Q21 | A declared dimension with no results shows "No results", is excluded from the weighted pass rate, and explains causes and fixes |
+| Q22 | A dimension evaluated on only some of its declared scenarios says so and names the missing ones |
+| Q23 | A dimension added to a scenario's `dimensions` list appears in the next report with no code change; removing it from every scenario removes the card |
+| Q24 | Datasets without `dimensions` still produce a report (dimensions inferred from recorded metrics) |
+| Q25 | A metric with no dimension appears under "Other" and a recorded but undeclared dimension is flagged "not in the dataset" |
 
 ## 10. Phasing
 
 | Phase | Contents |
 |---|---|
-| 1 | Data model: dimension + kind, goals, evidence source and run provenance, judge/agent descriptors, per-dimension history |
+| 1 | Data model: `EvalScenario.dimensions`, dimension registry and dataset descriptor, scenario binding (invocation interceptor), dimension + kind on records, goals, evidence source and run provenance, judge/agent descriptors, per-dimension history |
 | 2 | Cost-aware runs: change-aware judging via the existing cache, run profiles, budget cap, coverage and "Not evaluated" |
-| 3 | Overview: run summary, priorities, radar, dimension donuts with evidence bars, "How this run was produced", Models panel |
+| 3 | Overview: run summary, priorities, radar, dimension donuts (all declared dimensions, empty states), golden dataset coverage panel, evidence bars, "How this run was produced", Models panel |
 | 4 | Dimension view, metric filter, histogram, test list, case drawer, accessibility pass |
 | 5 | Composite (carry-over) view, sampling with margin of error, judge reliability, independence check, CLI and summary updates |
 
@@ -215,11 +256,12 @@ Run comparison, stability/flakiness and per-case cost analytics from the earlier
 
 ## 11. Open questions
 
-1. **Taxonomy:** are the six dimensions right, or do you want different names (for example "Accuracy" instead of "Correctness")?
-2. **Priority presets:** should a team be able to publish named presets ("Customer-facing", "Internal tool") that stakeholders pick from, or is per-dimension control enough?
-3. **Carry-over limits:** default staleness limit of 7 days, and should a carried-over result ever count towards the weighted pass rate, or be shown but excluded until refreshed?
-4. **Sampling:** is a seeded, per-dimension stratified sample the right default, and what default percentage for the Sample profile?
-5. **Efficiency:** are latency, tokens and steps the right measured metrics, and who supplies budgets?
-6. **Pricing:** user-supplied only (proposed), or ship a default table that will go stale?
-7. **Fonts:** embed Plex in the file (about 100 KB) or use the system font stack?
-8. **Anything else on the overview** you want visible at a glance?
+1. **Declaring dimensions:** is a per-scenario `dimensions:` list the right shape, or should datasets also carry a header block (name, description, goal per dimension)? The current YAML is a bare list, so a header would be a format change.
+2. **Defaults:** are the six shipped default dimensions and their names right (for example "Accuracy" instead of "Correctness")?
+3. **Priority presets:** should a team be able to publish named presets ("Customer-facing", "Internal tool") that stakeholders pick from, or is per-dimension control enough?
+4. **Carry-over limits:** default staleness limit of 7 days, and should a carried-over result ever count towards the weighted pass rate, or be shown but excluded until refreshed?
+5. **Sampling:** is a seeded, per-dimension stratified sample the right default, and what default percentage for the Sample profile?
+6. **Efficiency:** are latency, tokens and steps the right measured metrics, and who supplies budgets?
+7. **Pricing:** user-supplied only (proposed), or ship a default table that will go stale?
+8. **Fonts:** embed Plex in the file (about 100 KB) or use the system font stack?
+9. **Anything else on the overview** you want visible at a glance?
