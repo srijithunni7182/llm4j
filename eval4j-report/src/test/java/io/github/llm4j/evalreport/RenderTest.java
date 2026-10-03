@@ -80,4 +80,39 @@ class RenderTest {
                                 new PrintStream(o)))
                 .isEqualTo(3);
     }
+
+    @Test
+    void staticEditionHasNoScriptNoInlineStyleNoNetworkAndEscapesText(@TempDir Path tmp)
+            throws Exception {
+        Path root = store(tmp);
+        // a hostile test name and answer must come out escaped
+        Path eval = root.resolve("runs/candidate/evaluations.jsonl");
+        Files.writeString(
+                eval,
+                Files.readString(eval)
+                        .replace(
+                                "Happy to help. Our policy is 30 days.",
+                                "<script>alert(1)</script><img src=x onerror=alert(2)>"));
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        assertThat(
+                        Main.run(
+                                new String[] {"render", root.toString()},
+                                new PrintStream(out),
+                                new PrintStream(out)))
+                .as(out.toString())
+                .isZero();
+        String html = Files.readString(root.resolve("report/static/index.html"));
+        assertThat(html)
+                .doesNotContain("<script")
+                .doesNotContain(" style=")
+                .doesNotContain("<img")
+                .doesNotContain("javascript:");
+        assertThat(html).contains("&lt;script&gt;alert(1)&lt;/script&gt;");
+        assertThat(html).doesNotContainPattern(Pattern.compile("(src|href)=\"https?://"));
+        assertThat(html).contains("eval4j-static.css").contains("does not make it");
+        assertThat(root.resolve("report/static/eval4j-static.css")).exists();
+        assertThat(Files.readString(root.resolve("report/static/eval4j-static.css")))
+                .doesNotContain("@import")
+                .doesNotContain("url(");
+    }
 }

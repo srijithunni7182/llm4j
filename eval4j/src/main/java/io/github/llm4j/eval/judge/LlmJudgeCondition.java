@@ -158,6 +158,8 @@ public final class LlmJudgeCondition extends Condition<Object> {
                 JudgeTelemetry.cacheHit(telemetryId());
             }
             if (verdict == null) {
+                io.github.llm4j.eval.export.EvalRun.get()
+                        .gate(io.github.llm4j.eval.export.MetricRef.of(name), telemetryId());
                 verdict = callJudge(actualOutput, trajectory, temperature);
                 if (sampleKey != null) {
                     cache.put(sampleKey, verdict);

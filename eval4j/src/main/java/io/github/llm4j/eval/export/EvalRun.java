@@ -45,6 +45,8 @@ public final class EvalRun {
     private final Map<Source, AtomicInteger> bySource = new ConcurrentHashMap<>();
     private final Map<String, AtomicInteger> testCounts = new ConcurrentHashMap<>();
     private final AtomicLong costMicros = new AtomicLong();
+    private volatile Pricing pricing = new Pricing();
+    private final ThreadLocal<String> currentTrace = new ThreadLocal<>();
     private final ThreadLocal<EvalScenario> currentScenario = new ThreadLocal<>();
     private final ThreadLocal<String[]> currentTest = new ThreadLocal<>();
     private final ThreadLocal<MetricOverride> override = new ThreadLocal<>();
@@ -78,6 +80,7 @@ public final class EvalRun {
                 return false;
             }
             startedAt = Instant.now().toString();
+            pricing = Pricing.fromSystem();
             writer = new RunWriter(config.root(), config.runId());
             writer.writeRun(runJson("RUNNING", null));
             Runtime.getRuntime().addShutdownHook(new Thread(this::finish, "eval4j-run-finish"));
@@ -151,6 +154,9 @@ public final class EvalRun {
             r.currentScenario.remove();
             r.currentTest.remove();
             r.override.remove();
+            r.currentTrace.remove();
+            r.traceCount.set(0);
+            r.pricing = new Pricing();
         }
     }
 
@@ -268,6 +274,7 @@ public final class EvalRun {
     public void unbind() {
         currentTest.remove();
         currentScenario.remove();
+        currentTrace.remove();
     }
 
     void setOverride(MetricOverride o) {
@@ -280,6 +287,107 @@ public final class EvalRun {
 
     public MetricOverride override() {
         return override.get();
+    }
+
+    // ---- profiles and budget ---------------------------------------------------------------
+
+    /**
+     * Called before a judge call that would be a cache miss. Under {@code FAST}, outside a {@code
+     * SAMPLE} selection, or once the judge budget is spent, records a {@code NOT_EVALUATED}
+     * evaluation and aborts the test (reported as aborted, never as passed). A no-op outside a
+     * test.
+     */
+    public void gate(MetricRef metric, String judgeId) {
+        if (!ensureStarted() || currentTest.get() == null) {
+            return;
+        }
+        String reason = null;
+        switch (config.profile()) {
+            case "FAST" -> reason =
+                    "Profile FAST does not call the judge, and no cached verdict exists.";
+            case "SAMPLE" -> {
+                if (!sampled(metric)) {
+                    reason = "Not in this run's sample (profile SAMPLE).";
+                }
+            }
+            default -> {}
+        }
+        String budget = System.getProperty("eval4j.judge.budgetUsd");
+        if (reason == null && budget != null && !budget.isBlank()) {
+            try {
+                if (costMicros.get() / 1_000_000.0 >= Double.parseDouble(budget)) {
+                    reason = "The judge budget of $" + budget + " is spent.";
+                }
+            } catch (NumberFormatException ignored) {
+                // an unparsable budget is ignored rather than failing the build
+            }
+        }
+        if (reason == null) {
+            return;
+        }
+        record(Evaluation.builder(metric).status(EvalStatus.NOT_EVALUATED).reason(reason));
+        throw new org.opentest4j.TestAbortedException("eval4j: " + reason);
+    }
+
+    private boolean sampled(MetricRef metric) {
+        double rate = 0.2;
+        long seed = 0;
+        try {
+            rate = Double.parseDouble(System.getProperty("eval4j.sample.rate", "0.2"));
+            seed = Long.parseLong(System.getProperty("eval4j.sample.seed", "0"));
+        } catch (NumberFormatException ignored) {
+            // keep defaults
+        }
+        String[] test = currentTest.get();
+        EvalScenario sc = currentScenario.get();
+        String caseKey = sc != null ? CaseKey.of(sc) : CaseKey.ofTest(test[0], test[1]);
+        String h = Hashes.sha256Hex(seed + "\u0000" + caseKey + "\u0000" + metric.id());
+        double u = Long.parseUnsignedLong(h.substring(0, 15), 16) / (double) (1L << 60);
+        return u < rate;
+    }
+
+    // ---- traces ----------------------------------------------------------------------------
+
+    /** Records the trace of an agent run and links later evaluations of this case to it. */
+    public void recordAgentResult(io.github.llm4j.agent.AgentResult result) {
+        if (result == null || !ensureStarted() || currentTest.get() == null) {
+            return;
+        }
+        EvalScenario sc = currentScenario.get();
+        String[] test = currentTest.get();
+        String caseKey = sc != null ? CaseKey.of(sc) : CaseKey.ofTest(test[0], test[1]);
+        String traceId =
+                "t_"
+                        + Hashes.hex16(
+                                "trace\u0000" + caseKey + "\u0000" + traceCount.incrementAndGet());
+        Map<String, Object> t = new LinkedHashMap<>();
+        t.put("traceId", traceId);
+        t.put("caseId", CaseKey.caseId(caseKey));
+        t.put("type", "AGENT_STEPS");
+        List<Map<String, Object>> steps = new ArrayList<>();
+        int i = 1;
+        for (io.github.llm4j.agent.AgentResult.AgentStep s : result.getSteps()) {
+            if (i > 500) {
+                break;
+            }
+            Map<String, Object> st = new LinkedHashMap<>();
+            st.put("index", i++);
+            putIfPresent(st, "thought", cut(s.getThought()));
+            st.put("action", s.getAction() == null ? "(none)" : s.getAction());
+            putIfPresent(st, "input", cut(s.getActionInput()));
+            putIfPresent(st, "observation", cut(s.getObservation()));
+            st.put("outcome", s.getOutcome() == null ? "EXECUTED" : s.getOutcome().name());
+            steps.add(st);
+        }
+        t.put("steps", steps);
+        writer.append("traces.jsonl", t);
+        currentTrace.set(traceId);
+    }
+
+    private final AtomicInteger traceCount = new AtomicInteger();
+
+    private static String cut(String s) {
+        return s == null || s.length() <= 5000 ? s : s.substring(0, 5000) + "…";
     }
 
     // ---- recording ------------------------------------------------------------------------
@@ -309,6 +417,10 @@ public final class EvalRun {
                         .computeIfAbsent(caseKey + "\u0000" + metric.id(), k -> new AtomicInteger())
                         .getAndIncrement();
         int n = seq.getAndIncrement();
+        if (currentTrace.get() != null) {
+            builder.traceId(currentTrace.get());
+        }
+        builder.priceWith(pricing, judges);
         Evaluation e =
                 builder.build(
                         n,

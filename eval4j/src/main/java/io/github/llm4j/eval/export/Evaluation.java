@@ -168,6 +168,22 @@ public record Evaluation(
             return durationMs == null;
         }
 
+        /** Fills in costUsd from tokens when the judge has a price and no cost was given. */
+        void priceWith(
+                Pricing pricing, java.util.Map<String, java.util.Map<String, Object>> judges) {
+            if (costUsd != null || tokensIn == null || judgeId == null || pricing.isEmpty()) {
+                return;
+            }
+            java.util.Map<String, Object> j = judges.get(judgeId);
+            Object model = j == null ? null : j.get("model");
+            costUsd =
+                    pricing.cost(
+                            judgeId,
+                            model == null ? null : model.toString(),
+                            tokensIn,
+                            tokensOut == null ? 0 : tokensOut);
+        }
+
         MetricRef metric() {
             return metric;
         }

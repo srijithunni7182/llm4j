@@ -10,6 +10,7 @@ import io.github.llm4j.evalreport.render.Csv;
 import io.github.llm4j.evalreport.render.HtmlRenderer;
 import io.github.llm4j.evalreport.render.JUnitXml;
 import io.github.llm4j.evalreport.render.MarkdownSummary;
+import io.github.llm4j.evalreport.render.StaticRenderer;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -104,6 +105,10 @@ public final class Main {
                             Path.of(opt.getOrDefault("out", root.resolve("report").toString()));
                     Files.createDirectories(outDir);
                     write(outDir.resolve("index.html"), HtmlRenderer.render(m));
+                    Path stat = outDir.resolve("static");
+                    Files.createDirectories(stat);
+                    write(stat.resolve("index.html"), StaticRenderer.render(m));
+                    write(stat.resolve(StaticRenderer.CSS_NAME), StaticRenderer.css());
                     write(outDir.resolve("summary.md"), MarkdownSummary.summary(m));
                     write(outDir.resolve("junit.xml"), JUnitXml.render(m));
                     write(outDir.resolve("evaluations.csv"), Csv.render(m));

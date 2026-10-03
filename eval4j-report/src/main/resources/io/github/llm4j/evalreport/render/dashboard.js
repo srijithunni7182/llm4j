@@ -357,9 +357,9 @@
       return h('div', { class: 'field' }, h('div', { class: 'eyebrow', text: label }), h('div', { class: 'text', text: text }));
     }
     var first = c.evaluations.filter(function (e) { return e.actualOutput || e.expectedOutput || e.retrievalContext; })[0] || {};
-    drawer.appendChild(field('Input', c.input));
-    drawer.appendChild(field('Expected', first.expectedOutput));
-    drawer.appendChild(field('Actual output', first.actualOutput));
+    add(drawer, field('Input', c.input));
+    add(drawer, field('Expected', first.expectedOutput));
+    add(drawer, field('Actual output', first.actualOutput));
     if (first.retrievalContext) drawer.appendChild(h('div', { class: 'field' }, h('div', { class: 'eyebrow', text: 'Retrieved context' }), first.retrievalContext.map(function (t) { return h('div', { class: 'text', style: 'margin-bottom:6px', text: t }); })));
     drawer.appendChild(h('div', { class: 'field' }, h('div', { class: 'eyebrow', text: 'Evaluations' }), c.evaluations.map(function (e) {
       var ok = e.status === 'EVALUATED' ? (e.passed ? ['Passed', 'good'] : ['Failed', 'crit']) : [e.status.replace('_', ' ').toLowerCase(), 'warn'];

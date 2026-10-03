@@ -10,6 +10,7 @@ import io.github.llm4j.evalreport.render.Csv;
 import io.github.llm4j.evalreport.render.HtmlRenderer;
 import io.github.llm4j.evalreport.render.JUnitXml;
 import io.github.llm4j.evalreport.render.MarkdownSummary;
+import io.github.llm4j.evalreport.render.StaticRenderer;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -36,6 +37,14 @@ public final class ReportRunExportListener implements RunExportListener {
             Files.createDirectories(out);
             Files.writeString(
                     out.resolve("index.html"), HtmlRenderer.render(m), StandardCharsets.UTF_8);
+            Path stat = out.resolve("static");
+            Files.createDirectories(stat);
+            Files.writeString(
+                    stat.resolve("index.html"), StaticRenderer.render(m), StandardCharsets.UTF_8);
+            Files.writeString(
+                    stat.resolve(StaticRenderer.CSS_NAME),
+                    StaticRenderer.css(),
+                    StandardCharsets.UTF_8);
             Files.writeString(
                     out.resolve("summary.md"), MarkdownSummary.summary(m), StandardCharsets.UTF_8);
             Files.writeString(out.resolve("junit.xml"), JUnitXml.render(m), StandardCharsets.UTF_8);
