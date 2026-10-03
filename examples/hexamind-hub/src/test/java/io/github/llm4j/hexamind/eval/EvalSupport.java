@@ -44,7 +44,7 @@ public final class EvalSupport {
 
     public static final SpendGuard GUARD =
             new SpendGuard(
-                    Path.of("eval", "prices.properties"),
+                    Path.of(System.getProperty("eval.prices", "eval/prices.properties")),
                     Double.parseDouble(System.getProperty("eval.capUsd", "10")),
                     Integer.getInteger("eval.maxOutputTokens", 20_000));
 

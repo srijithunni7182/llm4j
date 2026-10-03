@@ -3,6 +3,7 @@
 #
 #   eval/run-all.sh --fake            free: scripted models stand in for Gemini and Claude (checks the pipeline)
 #   eval/run-all.sh                   real run, hard cap $10 (override: EVAL_CAP_USD); asks for the safety checks first
+#   GEMINI_FREE_TIER=1 EVAL_CAP_USD=5 eval/run-all.sh   free-tier Gemini key, cap on Claude spend only
 #   eval/run-all.sh --stage smoke     only the one-scenario smoke test (about one cent)
 #
 # Keys are read from the environment only: GEMINI_API_KEY, ANTHROPIC_API_KEY. They are never printed or stored.
@@ -21,8 +22,14 @@ while [ $# -gt 0 ]; do
 done
 
 CAP="${EVAL_CAP_USD:-10}"
+# GEMINI_FREE_TIER=1: the Gemini key costs nothing, so the spend guard counts only the Claude judge against the cap
+GUARD_PRICES=eval/prices.properties
+if [ "${GEMINI_FREE_TIER:-0}" = 1 ]; then
+  GUARD_PRICES="$(mktemp /tmp/eval-prices.XXXXXX)"
+  sed 's/^gemini-3.5-flash *=.*/gemini-3.5-flash = 0, 0/' eval/prices.properties > "$GUARD_PRICES"
+fi
 if [ "$FAKE" = 1 ]; then OUT=target/eval4j-fake; else OUT=target/eval4j; fi
-MVN=(mvn -B -q -Deval4j.export.dir="$OUT" -Deval4j.pricing=eval/prices.properties -Deval.capUsd="$CAP"
+MVN=(mvn -B -q -Deval4j.export.dir="$OUT" -Deval4j.pricing=eval/prices.properties -Deval.capUsd="$CAP" -Deval.prices="$GUARD_PRICES"
      -Dmaven.test.failure.ignore=true)
 [ "$FAKE" = 1 ] && MVN+=(-Deval.fake=true)
 
