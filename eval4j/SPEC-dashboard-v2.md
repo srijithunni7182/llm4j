@@ -1,213 +1,160 @@
-# eval4j — Spec: Dashboard v2 ("Run Explorer")
+# eval4j — Spec: Quality Dashboard v2
 
-Status: **Draft for review** · Scope: `eval4j` module, `report` package · No code written yet
+Status: **Draft for review** · Scope: `eval4j` `report` package · Supersedes the earlier "Run Explorer" draft
+Mockup: https://claude.ai/artifact/BTpq8amVUQWzqC9UEqqbXv (private; static, sample data, no product code)
 
-## 1. Where we are
+## 1. Why v1 is not good enough
 
-v1 (shipped on branch `ccr-24bca9ce-lieq8a`) is a **single-run report**: one HTML file showing KPIs,
-metric table, trend, heatmap, per-case drill-down, and a "since previous run" list. It answers
-*"how did this run go?"*
+v1 lists every evaluation and adds a heatmap. It answers "what happened in each test" but not the
+question a team actually has: **"is this agent good enough to ship, and where is it weak?"**
 
-It does **not** yet answer the questions that make a team *live* in a dashboard:
-
-| Question a user asks | v1 | v2 |
-|---|---|---|
-| "I changed the prompt. Did it help?" | only vs. *previous* run, no side-by-side | **Compare any two runs** |
-| "Which tests are flaky vs. really broken?" | no | **Stability** per case from history |
-| "What did this run cost me?" | no | **Cost & tokens** (judge + system under test) |
-| "Why is Faithfulness low?" | list of failures | **Failure clustering** by reason |
-| "Show me everything on one screen for the whole project" | one run only | **Runs index** (all runs, one page) |
-| "Can I share a link to one failing case?" | anchor only | **Permalinks** + copy-link |
+| Problem in v1 | v2 answer |
+|---|---|
+| Tests are the first thing you see, as a flat list | The first screen has **no tests**. It shows quality **dimensions** |
+| Metrics have free-form names (`Faithfulness`, `Tone`, ...) with no grouping | Every metric belongs to a **dimension** (Correctness, Relevancy, Grounding, Retrieval, Efficiency, Safety & Tone) |
+| Scores are shown without any notion of "good enough" | Every dimension has a **target**; every view shows **reached vs should be** |
+| The judge is a string in a tooltip | A first-class **Models** panel: judge identity, settings, cost and **reliability** |
+| One level of detail, everything at once | A drill-down: **Dimension → Metric → Test → Case** |
 
 ## 2. Principles
 
-1. **Free, local, no account.** Output is static files. No server, no telemetry, no network. This is
-   the differentiator against hosted dashboards.
-2. **One file you can email.** Every page is self-contained (inline CSS/SVG, no external requests).
-3. **Complete without JavaScript.** JS only enhances (filter, sort, compare pickers).
-4. **Reads from JSON, never from the run.** Every file is re-renderable from `eval4j-report.json`
-   (+ history). This keeps `EvalReportCli` honest.
-5. **Additive.** No breaking changes to `EvalRecord`, `HistoryEntry`, report JSON.
-6. **Escape everything.** Model output is hostile input; same rules as v1.
+1. **Summary first, detail on demand.** The overview never lists tests. Tests appear one click down.
+2. **Always show the gap.** Wherever a number appears, the number it should have reached is next to it.
+3. **Trust is part of the result.** A score is shown with who judged it and how reliable that judge is.
+4. **Static, local, free.** Self-contained files, no server, no network, no telemetry.
+5. **Readable without JavaScript.** Every view is real HTML; JS only adds navigation transitions, filters, the drawer and tooltips.
+6. **Additive.** No breaking change to existing report JSON, `EvalRecord`, history files or the public API.
 
 ## 3. Information architecture
 
-Two kinds of page, both static, cross-linked by relative links:
-
 ```
-report-dir/
-  index.html            ← NEW  Runs index (project home)
-  runs/<runId>.html     ← v1 report, now one per run (kept, not overwritten)
-  compare/<A>..<B>.html ← NEW  Run comparison (generated on demand by CLI, and for latest-vs-previous automatically)
-  eval4j-report.html    ← alias to the latest run page (backwards compatible path)
-  eval4j-report.json, eval4j-junit.xml, eval4j-summary.md, eval4j-report.csv  (unchanged)
-  eval4j-history.jsonl  ← extended (see §6)
+Overview ──► Dimension ──► (Metric filter) ──► Test list ──► Case drawer
+ (no tests)   donut, tiles    narrows chart      rows = tests    input/output/expected/
+ verdict,     metric cards    and test list      cells = metrics  context/each evaluation
+ radar,       histogram                                          with judge + reasoning
+ 6 donuts,
+ models
 ```
 
-Navigation bar on every page: **Runs · This run · Compare · Stability**.
+Deep links use plain tokens (`#grounding`, `#overview`); all view state beyond that stays in the page.
+Without JS, each dimension is a `<section>` reachable by `:target`.
 
-## 4. Mockups
+## 4. Screens (see mockup for the visual)
 
-### 4.1 Runs index (`index.html`) — NEW
+### 4.1 Overview
+- **Release readiness hero:** overall pass rate (large), verdict sentence ("Not ready: 4 of 6 dimensions below target"), change vs previous run, a meter with the **target tick**, and a **"gap to target, largest first"** list.
+- **Radar:** pass rate per dimension (filled) against target (dashed). Axis starts at 50% and says so.
+- **Dimension donuts (the main body):** one card per dimension.
+  - Ring = passed (blue) / failed (red) share. Centre = pass rate.
+  - **Black tick on the ring = target.** The blue arc should reach the tick.
+  - Status pill with icon and text: *On target* (gap ≥ 0), *Below target* (0 to −10 pts), *At risk* (worse than −10 pts).
+  - Target, gap, average score, failing tests, and a 10-run sparkline with the target dashed.
+  - Clicking the card opens the dimension. Clicking the **red arc** opens it pre-filtered to failing tests.
+- **Models in this run:** see 4.4.
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│ eval4j   Runs   Stability                                          ◐ Theme       │
-├──────────────────────────────────────────────────────────────────────────────────┤
-│  Support-bot evals                      last 40 runs · branch: all ▾  suite: all ▾│
-│                                                                                  │
-│  Pass rate over time                                                             │
-│  100% ┤                                                                          │
-│   80% ┤      ●────●        ●───●                                                 │
-│   60% ┤ ●───●       ╲  ●──●     ╲●  ← latest                                     │
-│   40% ┤              ●                                                           │
-│       └─────────────────────────────────────────────────────────────────────     │
-│        (hover: run, commit, pass rate · click a point to open that run)          │
-│                                                                                  │
-│  ┌ Runs ────────────────────────────────────────────────────────────────────┐    │
-│  │ ☐ │ Status   │ Run / commit      │ When       │ Pass  │ Avg  │ Cost │ Δ  │    │
-│  │ ☑ │ ● FAIL   │ #8  9f2c4e1  main │ 2h ago     │ 64%   │ 0.72 │ $0.41│ −15│    │
-│  │ ☑ │ ● PASS   │ #7  3ab91d0  main │ yesterday  │ 79%   │ 0.80 │ $0.39│ +2 │    │
-│  │ ☐ │ ● PASS   │ #6  77c0e52  feat │ 2 days ago │ 77%   │ 0.78 │ $0.40│ −1 │    │
-│  └──────────────────────────────────────────────────────────────────────────┘    │
-│  [ Compare selected (2) ]                                                        │
-└──────────────────────────────────────────────────────────────────────────────────┘
-```
+### 4.2 Dimension view
+- Header: large donut, description, tiles (pass rate, target, gap, average score, status).
+- **Metric cards:** passed/failed bar, average score, pass threshold, "LLM-judged" or "Measured" badge. Selecting one narrows everything below.
+- **Where scores landed:** histogram of scores 0 to 1, stacked passed/failed, the pass line marked for a single metric. Beside it: **Should be / Reached / Gap** and "N more evaluations must move into the pass zone".
+- **Tests:** one row per test case, one cell per metric (score with ✓ / ✕, never colour alone), result pill. Failing first. Filters: All / Failing / Passing, plus search. Row opens the case drawer.
 
-- Selecting exactly two runs enables **Compare**; without JS each row has a "compare with previous" link.
-- Status dot: green = all passed, red = failures, amber = pass but regressed vs. baseline.
+### 4.3 Case drawer
+Customer input, agent reply, expected output, retrieved chunks, a chip per dimension (pass / n failed), then **every evaluation of this test**, failures first: score bar with threshold tick, the judge's reasoning, and "Judged by *model* · 3 samples" or "Measured by the eval4j tracer".
 
-### 4.2 Run page (v1, refined)
+### 4.4 Models panel
+**Judge:** model name, provider, temperature, samples per evaluation and aggregation, rubric id/version, judge calls, cache-hit rate, latency (mean and p95), cost.
+**Reliability ("how far to trust these scores"):**
+- *Self-consistency:* share of multi-sample evaluations whose samples agree within 0.1.
+- *Agreement with people:* Cohen's κ against a labelled calibration set, when one is supplied (eval4j already ships calibration studies).
+- *Judge failures:* calls that errored, were retried, or stayed unresolved.
+- *Independence check:* a warning if judge and agent are the same model family (self-preference bias).
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│ eval4j  ● FAILING  run #8 · 9f2c4e1 · 2m41s      Runs  This run  Compare  Stability│
-├──────────────────────────────────────────────────────────────────────────────────┤
-│ ┌Evals──┐ ┌Passed──┐ ┌Pass rate┐ ┌Avg score┐ ┌Tests──┐ ┌Cost───┐ ┌Tokens──┐       │
-│ │  72   │ │ 46/72  │ │  64%    │ │  0.717  │ │ 17/18 │ │ $0.41 │ │ 182k   │       │
-│ └───────┘ └────────┘ └─────────┘ └─────────┘ └───────┘ └───────┘ └────────┘       │
-│                                                                                  │
-│ Top failure reasons  (NEW)                                                       │
-│ ┌──────────────────────────────────────────────────────────────────────────┐     │
-│ │ ████████████ 12  cites a figure not present in retrieved context          │     │
-│ │ ██████ 6        answer ignores part of the question                       │     │
-│ │ ███ 3           tone too informal                                         │     │
-│ └──────────────────────────────────────────────────────────────────────────┘     │
-│                                                                                  │
-│ Since previous run · Metrics · Trends · Heatmap · Evaluations · Tests  (as v1)   │
-└──────────────────────────────────────────────────────────────────────────────────┘
-```
+**Agent under test:** model, provider, prompt id/version, tools, test-case and evaluation counts, judged vs measured split.
 
-### 4.3 Evaluation row, expanded (v1, plus new bits marked ★)
+## 5. Dimensions, metrics and targets
 
-```
-▾ FAIL  refund window  SupportBotEvalTest   Faithfulness   ███░░░ 0.54 ≥0.70
-  ┌ Why it failed ───────────────────────────────────────────────────────────┐
-  │ States 30 days; retrieved policy says 14 days.                           │
-  └──────────────────────────────────────────────────────────────────────────┘
-  Input · Actual output · Expected output · Retrieved context (2)     (as v1)
-  ★ Score history of this case:  0.81 0.79 0.84 0.77 0.54   ▁▂▃▂▇  (stable → just regressed)
-  ★ Stability: Reliable (5/5 earlier runs passed)          ★ Tokens: 1.2k in / 0.3k out · $0.004
-  ★ [ Copy link ]   [ Compare with previous run ]
-```
+### 5.1 Taxonomy
+Each metric has exactly one dimension. Built-ins get a default; users can override.
 
-### 4.4 Compare two runs — NEW (`compare/A..B.html`)
+| Dimension | Built-in metrics mapped by default |
+|---|---|
+| Correctness | Answer correctness, task completion, tool-call accuracy, custom `LlmJudgeCondition` rubrics tagged correctness |
+| Relevancy | Answer relevancy, topic adherence |
+| Grounding | Faithfulness, hallucination, citation accuracy |
+| Retrieval | Contextual precision, recall, relevancy (RAG judges) |
+| Efficiency | Latency, token budget, steps/tool calls (measured, not judged) |
+| Safety & Tone | Toxicity, PII leakage, brand tone, conversation retention/completeness where tagged |
+| Other | Any metric with no mapping, so nothing is hidden |
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│ Compare   Baseline: #7 3ab91d0 (main)   ⇄   Candidate: #8 9f2c4e1 (feat/prompt-v3)│
-├──────────────────────────────────────────────────────────────────────────────────┤
-│ Verdict:  ▼ WORSE   pass rate 79% → 64% (−15 pts) · 12 new failures · 1 fixed    │
-│                                                                                  │
-│ Metric              Baseline   Candidate    Δ         Distribution (B ▏C)        │
-│ Faithfulness          0.79       0.81      +0.02      ▂▃▅▇ ▏▂▃▅▇                 │
-│ Contextual Precision  0.69       0.60      −0.09 ▼    ▃▅▇▃ ▏▇▅▃▂                 │
-│ Tone                  0.78       0.70      −0.08 ▼                                 │
-│                                                                                  │
-│ Per-case scatter (each dot = one case; above the line = candidate better)        │
-│  cand ↑        ·  ·                                                              │
-│   1.0 ┤       · ·   ╱                                                            │
-│   0.5 ┤   ●●●  ·  ╱   ●=regressed (red)  ○=improved (green)                      │
-│   0.0 ┼──────────────→ baseline                                                  │
-│                                                                                  │
-│ Cases that changed  [ All ▾ Regressed ▾ Improved ▾ ]   sorted by |Δ|             │
-│ ┌────────────────────────────────────────────────────────────────────────────┐   │
-│ │ cancel subscription · Faithfulness   0.94 ─────────▶ 0.41   ▼ −0.53        │   │
-│ │   baseline answer  │ candidate answer   (side-by-side text, word diff)     │   │
-│ └────────────────────────────────────────────────────────────────────────────┘   │
-└──────────────────────────────────────────────────────────────────────────────────┘
-```
+### 5.2 Targets
+- A target is a **pass-rate goal per dimension** (default 90%). Overall target is the mean of dimension targets, or an explicit value.
+- Configured per project (`eval4j.targets.properties`) and overridable in code; the report records the targets it used so old reports stay correct.
+- Per-metric pass **thresholds** are unchanged; they decide whether one evaluation passes. The target decides whether a dimension is good enough.
 
-Needs per-case records of **both** runs, so run JSON is kept per run (see §6).
+### 5.3 Measured metrics
+Efficiency metrics are measurements, not judge scores. They carry a raw value and a budget; the report shows the raw value (3.2 s, 2,140 tokens, 5 steps) and a normalised 0 to 1 score for the histogram where 0.5 means exactly on budget.
 
-### 4.5 Stability — NEW
+## 6. Data model (additive)
 
-```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│ Stability   last 20 runs                  filter: [Flaky ▾]  metric: [all ▾]     │
-│                                                                                  │
-│  Case                                  Last 20 runs        Pass%  σ     Verdict  │
-│  cancel subscription · Faithfulness    ■■■■■■■□■■□■■□■■■■■■   80%  0.21  ⚠ Flaky │
-│  reset password · Contextual Precision □□□□□□□□□□□□□□□□□□□□    0%  0.03  ✖ Broken│
-│  refund window · Tone                  ■■■■■■■■■■■■■■■■■■■■  100%  0.02  ✔ Stable│
-│  (■ pass  □ fail  — hover a cell: run, score, commit; click: open that case)     │
-└──────────────────────────────────────────────────────────────────────────────────┘
-```
+| Type | New fields |
+|---|---|
+| `EvalRecord` | `dimension`, `kind` (`JUDGED`/`MEASURED`), `measuredValue`, `budget`, `unit`, `judge` (see below) |
+| Judge descriptor | `provider`, `model`, `temperature`, `samples`, `aggregation`, `rubricId`, `rubricVersion` |
+| Judge run stats | calls, cache hits, latency mean/p95, tokens in/out, cost, failures, retries, sample-agreement |
+| `RunInfo` | `targets`, `agent` descriptor (model, provider, prompt id, tools), `judge` stats, calibration summary |
+| `HistoryEntry` | per-dimension pass rate and counts (drives sparklines and "vs previous run") |
 
-Verdict rules (configurable): **Broken** = failing in the last N consecutive runs; **Flaky** = both
-passes and failures in the window *and* score σ above a threshold; **Stable** otherwise; **New** if
-fewer than 3 runs of history.
+Old reports load unchanged. Missing fields hide the related UI rather than showing empty boxes.
+Judge and agent descriptors are supplied through the existing builders (`judgeIdentifier` today becomes a descriptor).
 
-## 5. Features and acceptance criteria
+## 7. Visual and interaction rules
 
-| ID | Feature | Acceptance criteria |
-|---|---|---|
-| D1 | Runs index | Lists every retained run, newest first; pass-rate chart; links to each run page; works with JS off |
-| D2 | Per-run pages kept | A new run no longer overwrites older run pages; `eval4j-report.html` still points at the latest |
-| D3 | Compare | Any two runs; metric table; scatter; changed-case list; side-by-side output with word diff; verdict |
-| D4 | Stability | Pass/fail strip per case over last N runs; Broken/Flaky/Stable/New; filter by verdict |
-| D5 | Failure clustering | Failure reasons grouped by normalised text similarity (no LLM call); counts link to cases |
-| D6 | Cost & tokens | Optional per-evaluation token counts and price table; run and case totals; absent data hides the UI |
-| D7 | Permalinks | Every case has a stable id (hash of suite+test+metric), not an index, so links survive re-runs |
-| D8 | Case history | Expanded row shows that case's score trend across runs |
-| D9 | Retention | Configurable (`eval4j.retention.runs`, default 40); oldest run pages and records pruned |
-| D10 | CLI | `EvalReportCli compare A B`, `EvalReportCli index <dir>` regenerate pages from stored JSON |
-| D11 | Accessibility | Keyboard navigable, colour never the only signal (icons + text), WCAG AA contrast, print stylesheet |
-| D12 | Security | All dynamic text escaped; no inline data in script blocks; CSV formula neutralised (unchanged from v1) |
+- **Donut caveat, handled:** a two-slice donut is weak for comparing values, so every donut carries the exact percentage in its centre, the target tick on the ring, and the gap in text. Exact numbers never rely on reading an arc.
+- **Colour:** blue = passed, red = failed (a colour-blind-safe pair, validated for light and dark), status pills use the fixed status palette **with an icon and a label**. No red/green pairing.
+- **Never colour alone:** ✓ / ✕ icons in cells, "▼" on radar axes below target, pills carry text.
+- **Both themes** follow the OS and have a toggle; tokens only, no literal colours in components.
+- **Tooltips** on arcs, histogram bars and radar points; **keyboard:** cards and rows focusable, Enter opens, Esc closes the drawer, `/` focuses search.
+- **Responsive:** one column at phone width; tables scroll inside their own container; the drawer becomes full screen.
+- **Type:** IBM Plex Sans with IBM Plex Mono for model names and identifiers, with system fallbacks. Fonts are **not** fetched by the report itself: they are embedded or fall back to the system stack, because the report must make no network requests.
 
-Explicitly **out of scope**: hosting, auth, comments, live updating, any network call, LLM calls to
-summarise failures.
+## 8. Output files
 
-## 6. Data model changes (additive)
+Unchanged from v1 (`eval4j-report.html/json/csv`, `eval4j-junit.xml`, `eval4j-summary.md`, history). `eval4j-summary.md` gains a per-dimension table with target and gap. `EvalReportCli` can re-render everything from JSON.
 
-- `EvalRecord`: add `caseId` (stable hash), `inputTokens`, `outputTokens`, `costUsd` (all nullable).
-- `HistoryEntry`: add `runFile` (relative path of that run's JSON), `branch`, `costUsd`.
-- Per-run JSON stored under `runs/<runId>.json`; history stays the lightweight index.
-- Old reports/history load unchanged; missing fields hide the related UI.
+## 9. Acceptance criteria
 
-## 7. Cost & tokens (D6) — design note
+| ID | Criterion |
+|---|---|
+| Q1 | The overview contains no per-test rows |
+| Q2 | Each dimension card shows pass rate, target tick, gap, status (icon + text) and a 10-run trend |
+| Q3 | Clicking a dimension shows its metrics, histogram and tests; clicking the red arc pre-filters to failing tests |
+| Q4 | Selecting a metric narrows histogram and test list consistently |
+| Q5 | The case drawer shows input, output, expected, context and every evaluation with reasoning and judge |
+| Q6 | The Models panel shows judge identity, settings, usage and reliability; warns when judge and agent share a model family |
+| Q7 | A metric with no mapping appears under "Other", never dropped |
+| Q8 | Old report JSON and history load and render with the new UI minus the missing parts |
+| Q9 | Complete and readable with JavaScript disabled |
+| Q10 | No network requests, all dynamic text escaped, passes the colour-validator in both themes |
+| Q11 | 10,000 evaluations render in under 5 s and stay under 10 MB |
 
-`LLMClient` responses already carry usage in `ai-agent4j`; judge conditions can read it and pass it via
-`EvalDetails`. Pricing is a user-supplied table (`eval4j.pricing.properties`: model → $/1M in/out);
-no built-in prices (they go stale). Without a table, tokens show but cost does not.
+## 10. Phasing
 
-## 8. Phasing
+| Phase | Contents |
+|---|---|
+| 1 | Data model: dimension + kind on records, targets, judge/agent descriptors, history per dimension |
+| 2 | Overview: hero, radar, dimension donuts, Models panel |
+| 3 | Dimension view, metric filter, histogram, test list |
+| 4 | Case drawer, keyboard and accessibility pass |
+| 5 | Judge reliability (self-consistency, calibration), independence check, CLI and summary updates |
 
-| Phase | Contents | Why this order |
-|---|---|---|
-| 1 | D2, D7, D9, D8 + data model (§6) | Foundation: per-run pages, stable ids |
-| 2 | D1 Runs index, D4 Stability | Highest value from data we already store |
-| 3 | D3 Compare | Needs phase 1 |
-| 4 | D6 Cost, D5 clustering | Needs model usage plumbing; clustering is independent |
-| 5 | D10 CLI, D11 polish | Hardening |
+Run comparison, stability/flakiness and cost tracking from the earlier draft are deferred until this lands.
 
-## 9. Open questions for review
+## 11. Open questions
 
-1. **Compare vs. scatter**: is the per-case scatter worth the space, or is the changed-case list enough?
-2. **Flaky definition**: is "both pass and fail in window + σ" right, or should it be a pass-rate band (e.g. 20–95%)?
-3. **Failure clustering** without an LLM is a heuristic (token similarity). Acceptable, or skip until we can afford a judge call?
-4. **Cost**: should pricing be user-supplied only (my proposal), or ship a default table?
-5. **Branch awareness**: group/filter runs by git branch in the index (PR vs. main)? Requires reading branch from CI env.
-6. **Retention**: 40 runs × per-run JSON could reach tens of MB with large outputs. Cap by size, or by count only?
-7. **Naming**: "Run Explorer" or keep "dashboard"?
-8. **Anything missing** you want from a DeepEval/Confident-style UI that you'd want in v2 (e.g. dataset view, prompt versions, annotations)?
+1. **Taxonomy:** are these six dimensions right, or do you want different names (for example "Accuracy" instead of "Correctness")?
+2. **Targets:** one pass-rate target per dimension, or also a minimum average score?
+3. **Overall verdict:** "ready" only when every dimension is on target, or weighted (for example Safety must be 100%)?
+4. **Efficiency:** are latency, tokens and steps the right measured metrics, and who supplies budgets?
+5. **Judge reliability:** is the κ calibration panel worth showing only when a calibration set exists?
+6. **Fonts:** embed Plex in the file (about 100 KB) or use the system font stack?
+7. **Anything else on the overview** you want visible at a glance?
