@@ -8,7 +8,7 @@ Estimates for the plan in [`SPEC.md`](SPEC.md): Gemini runs the agents, Claude j
 |---|---|---|---|
 | **Setup phase** (about 2 weeks: 10 full runs, 2 calibration runs, 3 optimizer campaigns) | **$140** | **$40** | **$180** |
 | **A normal month afterwards** (30 nightly samples, 20 PR builds, 4 weekly full runs) | $150 | $30 | $180 |
-| Same, **without the nightly run** (PR builds and weekly full runs only) | $70 | $15 | $85 |
+| Same, **without the nightly run** (PR builds and weekly full runs only) | $85 | $17 | $100 |
 
 If you load **$250 on Google and $60 on Anthropic**, that covers the setup phase even if token use turns out about 1.7 times higher than assumed (the "high" case: $235 and $60). Start smaller: days 1 to 4 of the plan cost under $5 in total, and by then you will have real numbers.
 
@@ -56,7 +56,7 @@ One agent scenario costs about $0.03 on Gemini; one judge call about $0.002 on C
 
 | Lever | Effect |
 |---|---|
-| **Gemini thinking tokens** (assumed 400 per call, billed as output) | the biggest uncertainty. At 0 the Gemini cost drops by about 60%; at 1,000 it nearly doubles. Measure on day 2. |
+| **Gemini thinking tokens** (assumed 400 per call, billed as output) | the biggest uncertainty. At 0 the Gemini cost drops by about 30%; at 1,000 it rises by about 45%. Measure on day 2. |
 | Live search results instead of recorded fixtures | observations are about 3 times larger, raising agent input cost (this is most of the "high" case) |
 | Debates in every `BUILD` | about +$8 per pull request; keep them for orchestration or prompt changes |
 | More judge samples | linear in judge cost; only calibration needs more than one |
@@ -66,6 +66,6 @@ One agent scenario costs about $0.03 on Gemini; one judge call about $0.002 on C
 ## Guard rails so a bug cannot burn credits
 
 - `-Deval4j.judge.budgetUsd=<n>` stops judging once spent (the remaining cases become "not evaluated", never passed).
-- Loom's `budget { tokens: 900000 calls: 220 }` in `hexamind.loom` caps a debate at roughly 2 to 3 times a normal one.
+- Loom's `budget { tokens: 900000 calls: 220 }` in `hexamind.loom` caps a debate at roughly twice a normal one (a normal debate is about 450k tokens).
 - `maxIterations` stays at 10 and 12 per agent; the trajectory tests assert it.
 - Set a spending limit or alert on both provider accounts before the first live run.
