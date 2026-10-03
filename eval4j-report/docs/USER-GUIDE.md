@@ -192,7 +192,7 @@ Configuration changes how results are presented and weighted. It never changes a
 | Dimensions from your golden dataset | give scenarios `id`, `dimensions`, `tags` in the YAML; call `EvalRun.get().declareDataset(id, name, path, scenarios)` |
 | Judge, agent and prompt shown | `EvalRun.get().declareJudge(...)`, `declareAgent(...)` |
 | Deterministic checks named and classified | `EvalChecks.named("refund-order").dimension("reasoning").run(() -> assertThat(result).usesToolsInOrder(...))`. Unnamed assertions are recorded under defaults such as `tool-order`, `token-budget` (measured), `final-answer-contains` |
-| One judge verdict filed under several dimensions | `EvalRecorder.record(new MetricRef(id, name, Kind.JUDGE, family, facet, dimension, null, null, null), score, threshold, reason, judgeId, details)` once per dimension; judge once with `LlmJudgeCondition.evaluate` |
+| One judge verdict filed under several dimensions | `llmJudged("Rubric").scenario(scenario)…` (or `.dimensions("fact-checking", "safety")`): one judge call, one recorded evaluation per dimension |
 | A scenario bound to a parameterized test | take an `EvalScenario` as the test argument; `EvalReportExtension` binds it |
 
 ## Cheap runs: profiles, budget, carry-over

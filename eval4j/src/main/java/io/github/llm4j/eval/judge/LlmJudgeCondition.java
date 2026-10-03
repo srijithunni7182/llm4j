@@ -64,6 +64,7 @@ public final class LlmJudgeCondition extends Condition<Object> {
     private final int samples;
     private final boolean includeTrajectory;
     private final String judgeIdentifier;
+    private final List<String> dimensions;
 
     /**
      * Per-thread override of the failure description, so a shared/reused condition instance is safe
@@ -85,6 +86,7 @@ public final class LlmJudgeCondition extends Condition<Object> {
         this.samples = builder.samples;
         this.includeTrajectory = builder.includeTrajectory;
         this.judgeIdentifier = builder.judgeIdentifier;
+        this.dimensions = builder.dimensions;
     }
 
     @Override
@@ -108,18 +110,43 @@ public final class LlmJudgeCondition extends Condition<Object> {
                                 combined.score(),
                                 threshold,
                                 combined.reason())));
-        io.github.llm4j.eval.report.EvalRecorder.record(
-                name,
-                combined.score(),
-                threshold,
-                combined.reason(),
-                judgeIdentifier,
+        io.github.llm4j.eval.report.EvalDetails details =
                 new io.github.llm4j.eval.report.EvalDetails(
                         input,
                         OutputExtractor.extract(actual),
                         expectedOutput,
                         retrievalContext,
-                        elapsedMs));
+                        elapsedMs);
+        if (dimensions.isEmpty()) {
+            io.github.llm4j.eval.report.EvalRecorder.record(
+                    name, combined.score(), threshold, combined.reason(), judgeIdentifier, details);
+        } else {
+            // one judge call, filed under every dimension it speaks to
+            io.github.llm4j.eval.export.MetricRef base =
+                    io.github.llm4j.eval.export.MetricRef.of(name);
+            for (String dimension : dimensions) {
+                io.github.llm4j.eval.export.MetricRef ref =
+                        new io.github.llm4j.eval.export.MetricRef(
+                                base.id()
+                                        + "-"
+                                        + io.github.llm4j.eval.export.MetricRef.slug(dimension),
+                                base.name(),
+                                base.kind(),
+                                base.family(),
+                                base.facet(),
+                                dimension,
+                                null,
+                                null,
+                                null);
+                io.github.llm4j.eval.report.EvalRecorder.record(
+                        ref,
+                        combined.score(),
+                        threshold,
+                        combined.reason(),
+                        judgeIdentifier,
+                        details);
+            }
+        }
         return combined.score() >= threshold;
     }
 
@@ -257,6 +284,7 @@ public final class LlmJudgeCondition extends Condition<Object> {
         private int samples = 1;
         private boolean includeTrajectory;
         private String judgeIdentifier;
+        private List<String> dimensions = List.of();
 
         private Builder(String name) {
             this.name = name;
@@ -345,6 +373,36 @@ public final class LlmJudgeCondition extends Condition<Object> {
         public Builder judgeIdentifier(String judgeIdentifier) {
             this.judgeIdentifier = judgeIdentifier;
             return this;
+        }
+
+        /**
+         * The quality dimensions this check speaks to (for example {@code "fact-checking"}). The
+         * judge is called once; its verdict is recorded under each dimension, so the report's
+         * dimension rings are filled from your checks. Without it the verdict is classified by the
+         * metric's name.
+         */
+        public Builder dimensions(List<String> dimensions) {
+            this.dimensions = dimensions == null ? List.of() : List.copyOf(dimensions);
+            return this;
+        }
+
+        /** Shorthand for {@link #dimensions(List)} with one or more dimensions. */
+        public Builder dimensions(String... dimensions) {
+            return dimensions(dimensions == null ? null : List.of(dimensions));
+        }
+
+        /**
+         * Binds the case being judged in one call: its input, expected output, retrieved context
+         * and dimensions. Anything set explicitly afterwards wins.
+         */
+        public Builder scenario(io.github.llm4j.eval.dataset.EvalScenario scenario) {
+            Objects.requireNonNull(scenario, "scenario cannot be null");
+            this.input = scenario.input();
+            this.expectedOutput = scenario.expectedOutput();
+            if (scenario.retrievalContext() != null) {
+                retrievalContext(scenario.retrievalContext());
+            }
+            return dimensions(scenario.dimensions());
         }
 
         public LlmJudgeCondition build() {

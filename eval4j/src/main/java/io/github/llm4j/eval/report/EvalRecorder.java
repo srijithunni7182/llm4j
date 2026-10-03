@@ -86,8 +86,9 @@ public final class EvalRecorder {
     }
 
     /**
-     * Records one evaluation under an explicit metric, for example to file a single judge verdict under
-     * several quality dimensions (one metric per dimension). No-op when the recorder is not active.
+     * Records one evaluation under an explicit metric, for example to file a single judge verdict
+     * under several quality dimensions (one metric per dimension). No-op when the recorder is not
+     * active.
      */
     public static void record(
             MetricRef metric,

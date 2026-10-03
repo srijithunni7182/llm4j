@@ -13,7 +13,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** One verdict can be filed under several quality dimensions by recording it under explicit metrics. */
+/**
+ * One verdict can be filed under several quality dimensions by recording it under explicit metrics.
+ */
 class RecordUnderMetricTest {
 
     @TempDir Path root;
@@ -41,7 +43,15 @@ class RecordUnderMetricTest {
         for (String dim : List.of("fact-checking", "grounding")) {
             MetricRef m =
                     new MetricRef(
-                            "rubric-" + dim, "Rubric adherence", Kind.JUDGE, "agents", "answers", dim, null, null, null);
+                            "rubric-" + dim,
+                            "Rubric adherence",
+                            Kind.JUDGE,
+                            "agents",
+                            "answers",
+                            dim,
+                            null,
+                            null,
+                            null);
             EvalRecorder.record(m, 0.8, 0.7, "fine", "judge-main", EvalDetails.NONE);
         }
         EvalRun.get().unbind();
@@ -55,6 +65,8 @@ class RecordUnderMetricTest {
         assertThat(a.path("metric").asText()).isEqualTo("rubric-fact-checking");
         assertThat(b.path("metric").asText()).isEqualTo("rubric-grounding");
         JsonNode run = RunWriter.MAPPER.readTree(dir.resolve("run.json").toFile());
-        assertThat(run.path("metrics").toString()).contains("\"dimension\":\"grounding\"").contains("JUDGE");
+        assertThat(run.path("metrics").toString())
+                .contains("\"dimension\":\"grounding\"")
+                .contains("JUDGE");
     }
 }

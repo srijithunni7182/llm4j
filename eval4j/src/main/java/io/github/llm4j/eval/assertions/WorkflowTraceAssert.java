@@ -121,6 +121,25 @@ public class WorkflowTraceAssert extends AbstractObjectAssert<WorkflowTraceAsser
         return this;
     }
 
+    /**
+     * Passes if {@code agent} was delegated to exactly {@code times} times (for example once per
+     * round).
+     */
+    public WorkflowTraceAssert delegatesToTimes(String agent, int times) {
+        EvalChecks.check(
+                M_AGENTS,
+                () -> {
+                    isNotNull();
+                    long n = actual.delegationsTo(agent);
+                    if (n != times) {
+                        failWithMessage(
+                                "Expected %s to be delegated to %s time(s) but it was %s time(s); counts: %s",
+                                agent, times, n, actual.delegationCounts());
+                    }
+                });
+        return this;
+    }
+
     /** Passes if each of these agents was invoked at least once, in any order. */
     public WorkflowTraceAssert invokesAgents(String... agents) {
         EvalChecks.check(
