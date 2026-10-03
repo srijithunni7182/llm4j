@@ -24,17 +24,17 @@ for real under a cap.
 
 ## The running example
 
-[`examples/hexamind-hub`](../../examples/hexamind-hub): six personas (a technical analyst, a market strategist, a
+[`examples/hexamind-hub`](../../../examples/hexamind-hub): six personas (a technical analyst, a market strategist, a
 futurist, a research scientist, a customer advocate and an adversarial source-checker) debate a question in five rounds,
 a moderator checks whether the question contains a fabricated term, and a coordinator writes one consensus. The evaluation
-lives in [`eval/`](../../examples/hexamind-hub/eval): [SPEC](../../examples/hexamind-hub/eval/SPEC.md),
-[RUN-PLAN](../../examples/hexamind-hub/eval/RUN-PLAN.md), the [golden dataset](../../examples/hexamind-hub/eval/golden),
-the [Loom workflow](../../examples/hexamind-hub/eval/hexamind.loom) and `run-all.sh`.
+lives in [`eval/`](../../../examples/hexamind-hub/eval): [SPEC](../../../examples/hexamind-hub/eval/SPEC.md),
+[RUN-PLAN](../../../examples/hexamind-hub/eval/RUN-PLAN.md), the [golden dataset](../../../examples/hexamind-hub/eval/golden),
+the [Loom workflow](../../../examples/hexamind-hub/eval/hexamind.loom) and `run-all.sh`.
 
 ## What you need
 
 - Java 17+, Maven, and the libraries: `ai-agent4j` (agents), `ai-agent4j-loom` (workflows), `eval4j` and `eval4j-report`
-  (evaluation and the dashboard). See the [eval4j quick start](../../eval4j/docs/QUICKSTART.md) for the dependencies.
+  (evaluation and the dashboard). See the [eval4j quick start](../QUICKSTART.md) for the dependencies.
 - A model for the agents and a **different, ideally stronger,** model for the judge.
 - Keys in environment variables only, never in a file or the repository.
 

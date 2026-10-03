@@ -5,22 +5,22 @@ description: Guides a user through building, testing, securing and shipping a mu
 
 # llm4j workflow guide
 
-You are walking a user through a proven path. The chapters are in `docs/guide/` (read only the one for the stage the user is at):
+You are walking a user through a proven path. The chapters are in `eval4j/docs/guide/` (read only the one for the stage the user is at):
 
 | # | Stage | Chapter | Gate before moving on |
 |---|---|---|---|
-| 1 | Decide the agents | `docs/guide/01-decide-your-agents.md` | each agent has a one-sentence job, a tool list, a temperature with a reason, prompt ids in a registry |
-| 2 | Golden dataset | `docs/guide/02-golden-dataset.md` | the dataset test passes; every dimension covered; each agent has an injection and a fabricated-premise case |
-| 3 | Prompt tests | `docs/guide/03-prompt-tests.md` | each prompt meets its rule; candidates do not regress |
-| 4 | Prompt optimization | `docs/guide/04-prompt-optimization.md` | `result.generalized()` is true (skip the stage if prompts already pass) |
-| 5 | Agent tests with spend caps | `docs/guide/05-test-agents-with-caps.md` | goals met, judge noise measured, cost near the model |
-| 6 | Build the workflow | `docs/guide/06-build-the-workflow.md` | `weave check` passes |
-| 7 | Validate and audit | `docs/guide/07-validate-and-audit.md` | `weave audit --fail-on medium` clean or every finding explained; injection cases pass |
-| 8 | Trajectory tests | `docs/guide/08-trajectory-tests.md` | path, branch, round-count and budget-stop tests pass for free |
-| 9 | Go live | `docs/guide/09-go-live.md` | smoke and first real run within about twice the cost model; limits set |
-| 10 | Best practices | `docs/guide/10-best-practices.md` | the readiness checklist is ticked |
+| 1 | Decide the agents | `eval4j/docs/guide/01-decide-your-agents.md` | each agent has a one-sentence job, a tool list, a temperature with a reason, prompt ids in a registry |
+| 2 | Golden dataset | `eval4j/docs/guide/02-golden-dataset.md` | the dataset test passes; every dimension covered; each agent has an injection and a fabricated-premise case |
+| 3 | Prompt tests | `eval4j/docs/guide/03-prompt-tests.md` | each prompt meets its rule; candidates do not regress |
+| 4 | Prompt optimization | `eval4j/docs/guide/04-prompt-optimization.md` | `result.generalized()` is true (skip the stage if prompts already pass) |
+| 5 | Agent tests with spend caps | `eval4j/docs/guide/05-test-agents-with-caps.md` | goals met, judge noise measured, cost near the model |
+| 6 | Build the workflow | `eval4j/docs/guide/06-build-the-workflow.md` | `weave check` passes |
+| 7 | Validate and audit | `eval4j/docs/guide/07-validate-and-audit.md` | `weave audit --fail-on medium` clean or every finding explained; injection cases pass |
+| 8 | Trajectory tests | `eval4j/docs/guide/08-trajectory-tests.md` | path, branch, round-count and budget-stop tests pass for free |
+| 9 | Go live | `eval4j/docs/guide/09-go-live.md` | smoke and first real run within about twice the cost model; limits set |
+| 10 | Best practices | `eval4j/docs/guide/10-best-practices.md` | the readiness checklist is ticked |
 
-Start with `docs/guide/README.md` if the user is new to the path.
+Start with `eval4j/docs/guide/README.md` if the user is new to the path.
 
 ## How to guide
 

@@ -205,6 +205,16 @@ assertThat(result)
 
 ## ✨ Features
 
+### See it on a real app
+
+We evaluated a real six-agent application, Hexamind Hub, with eval4j on real models: golden dataset, prompt tests, agent tests, workflow trajectory and judge
+calibration, in one dashboard.
+
+[![Which agent scored how much on what](docs/images/hexamind-agents-matrix.png)](../examples/hexamind-hub/eval/reports/2026-10-03/index.html#family/agents)
+
+**[Open the interactive report](../examples/hexamind-hub/eval/reports/2026-10-03/index.html)** · [How it was done](docs/REAL-EXAMPLE.md) ·
+[Do it for your own workflow](docs/guide/README.md)
+
 ### Check what the agent did — free and deterministic
 Tool usage and order, argument values, iteration and token budgets, protocol adherence, redundant
 loops, JSON shape. → [Assertions & pass rates](docs/ASSERTIONS.md)
@@ -284,6 +294,8 @@ proven. Details and gaps: [VERIFICATION-RESULTS.md](VERIFICATION-RESULTS.md).
 | Guide | |
 |---|---|
 | [**Quick start**: first test to a budgeted real run](docs/QUICKSTART.md) | Start here |
+| [**Build a multi-agent workflow**, step by step](docs/guide/README.md) | Ten gated stages, from choosing agents to a live run |
+| [A real example: Hexamind Hub](docs/REAL-EXAMPLE.md) | Agents, workflow, how it was tested, the report |
 | [Fluent assertions & pass rates](docs/ASSERTIONS.md) | Deterministic checks on agent runs |
 | [LLM-as-judge](docs/LLM-AS-JUDGE.md) | Presets, rubric scoring, sampling, caching, choosing a judge |
 | [RAG evaluation](docs/RAG-EVALUATION.md) | Contextual precision / recall / relevancy |

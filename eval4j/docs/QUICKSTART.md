@@ -155,7 +155,7 @@ drawers for any failure. See the [dashboard tour](../../eval4j-report/docs/USER-
 
 ## Where next
 
-Building a whole multi-agent workflow? Follow the [step-by-step guide](../../docs/guide/README.md).
+Building a whole multi-agent workflow? Follow the [step-by-step guide](guide/README.md).
 
 
 [Assertions](ASSERTIONS.md) · [LLM-as-judge](LLM-AS-JUDGE.md) · [Datasets](DATASETS.md) ·

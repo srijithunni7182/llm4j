@@ -46,4 +46,4 @@ if (result.generalized()) { result.toPatch().applyTo(promptsDir); }
 
 `result.generalized()` is true: the sealed test split improved by a real margin, validation and test agree, no guardrail failed and the seed
 does not beat the winner on more test cases. If false, `result.verdict().reasons()` says why; do not apply the patch. Then re-run chapter 3's
-tests on the patched prompts. Details: [optimizer guide](../../eval4j/docs/OPTIMIZER.md).
+tests on the patched prompts. Details: [optimizer guide](../OPTIMIZER.md).

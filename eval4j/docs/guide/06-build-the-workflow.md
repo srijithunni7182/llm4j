@@ -6,7 +6,7 @@
 
 Building the workflow *after* the agents are tested means a failure is the workflow's fault, not an untested prompt's. In Loom each step is a
 named delegation with a trace event, a budget and a replay point, which is exactly what chapter 8's trajectory tests assert on.
-Reference: [Loom guide](../../loom/ai-agent4j-loom/LOOM_GUIDE.md).
+Reference: [Loom guide](../../../loom/ai-agent4j-loom/LOOM_GUIDE.md).
 
 ## Build it in this order
 
@@ -42,7 +42,7 @@ workflow Collaborate(problem) {
 }
 ```
 
-Full script: [`hexamind.loom`](../../examples/hexamind-hub/eval/hexamind.loom).
+Full script: [`hexamind.loom`](../../../examples/hexamind-hub/eval/hexamind.loom).
 
 ## Things that bit us (so they do not bite you)
 

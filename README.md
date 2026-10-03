@@ -340,7 +340,7 @@ takes it from there.
 
 ## Explore the docs
 
-**New here?** [Build a multi-agent workflow step by step](docs/guide/README.md): from choosing agents to a budgeted live run.
+**New here?** [Build a multi-agent workflow step by step](eval4j/docs/guide/README.md): from choosing agents to a budgeted live run.
 
 | Build agents | Orchestrate | Ship with confidence |
 |---|---|---|

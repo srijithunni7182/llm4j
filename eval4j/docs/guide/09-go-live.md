@@ -40,7 +40,7 @@ A **journal** makes the run durable: re-running with the same journal replays fi
 
 ## Check the cost afterwards
 
-There is no `weave estimate`; keep a small cost model (calls x tokens x price) and compare. Hexamind's is [`cost_model.py`](../../examples/hexamind-hub/eval/cost_model.py): expected a full debate at
+There is no `weave estimate`; keep a small cost model (calls x tokens x price) and compare. Hexamind's is [`cost_model.py`](../../../examples/hexamind-hub/eval/cost_model.py): expected a full debate at
 about 121 model calls, measured against the spend report. When reality and model disagree, change the model, not just the cap.
 
 Rate limits: a 429 with a short reset is waited out inside the call; a long one reaches Loom's `rate_limits`. A free-tier key will hit them: pace the calls (Hexamind's evaluation used

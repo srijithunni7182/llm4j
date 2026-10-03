@@ -37,7 +37,7 @@ WorkflowAssertions.assertThat(t)
         .noSecretsInTrace();
 ```
 
-What Hexamind's [`TrajectoryPathTest`](../../examples/hexamind-hub/src/test/java/io/github/llm4j/hexamind/eval/TrajectoryPathTest.java) checks for $0 on every build:
+What Hexamind's [`TrajectoryPathTest`](../../../examples/hexamind-hub/src/test/java/io/github/llm4j/hexamind/eval/TrajectoryPathTest.java) checks for $0 on every build:
 the **debunk path** (6 nodes), the **five-round path** (every agent delegated to five times), the exact **call count** (33: 30 agent rounds, the moderator, the coordinator and the hand-off),
 **refinement** (8 calls), and that a **tiny budget stops the run** without producing a consensus.
 
