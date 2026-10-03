@@ -1,6 +1,6 @@
 # eval4j — Spec: Quality Dashboard v2
 
-Status: **Draft for review (rev 5)** · Scope: `eval4j` `report` package · Supersedes the earlier "Run Explorer" draft
+Status: **Draft for review (rev 6)** · Scope: `eval4j` `report` package · Supersedes the earlier "Run Explorer" draft
 Mockups (private, sample data, no product code): interactive https://claude.ai/artifact/BTpq8amVUQWzqC9UEqqbXv · static edition https://claude.ai/artifact/1s1Ufc3nAnn6qV1rLZQ2zM
 
 ## 1. Why v1 is not good enough
@@ -138,6 +138,20 @@ eval4j depends on `ai-agent4j` only and must not depend on Loom. Loom already em
 3. Trajectory assertions (`usesToolsInOrder`-style, branch, loop bound, rewinds, approvals, guards) are plain assertions over the trace and are recorded as deterministic evaluations in the Workflows family, so they cost nothing to run on every build.
 4. Single-agent traces come straight from `AgentResult.getSteps()`.
 
+### 4.9 Compare runs
+Run comparison is a first-class view in the left navigation (Insights). It answers "what changed between these two runs, and is the change real?" and, like everything else, passes no verdict.
+
+- **Pickers:** baseline and candidate. Defaults: candidate is this run; baseline is the previous run on the same branch. Other choices: any retained run, the last **full judged** run, the pinned baseline (`@EvalBaseline`), or the last run on `main`.
+- **Headline:** "Compared with #147, 71 of 624 evaluations changed result: 32 now fail, 39 now pass. 6 moved by less than the judge's own noise, so treat them as unproven. Changed between these runs: commit, agent prompt, golden dataset."
+- **What changed between these runs:** a settings table of both runs with differences flagged: commit, agent prompt and version, agent model, judge model, judge rubric version, golden dataset revision, run profile. This is the first thing a reader needs to explain a change.
+- **Movement by test family / quality dimension:** a dumbbell per row (hollow dot = baseline, filled dot = this run, tick = goal, arrow shows direction), baseline and candidate pass rates, the change in points, and the counts of cases that got worse and better. Sorted by size of movement.
+- **Every judged evaluation:** a scatter of baseline score against this run's score. Marks below the diagonal scored lower, above scored higher; shapes differ for now-fails, now-passes and unchanged (never colour alone).
+- **Cases that changed:** largest movement first, filterable (all, now failing, now passing, within noise). Each row opens to show **both judge verdicts and, for agent cases, both answers with a word-level diff** (struck-through words in the baseline, underlined words in this run), or "the answer is unchanged; the difference is in the judge's score or the retrieved context".
+- **Noise awareness:** a change in a judged score smaller than the judge's own variability is flagged "within noise" and counted separately. The band comes from the measured self-consistency of multi-sample judging; without it a conservative default is used and labelled as such.
+- **Different datasets:** cases present in only one run are listed separately ("new in this run", "removed") and excluded from the deltas, so a dataset revision never looks like a quality change.
+- **Different run profiles:** comparing a Build run to a Full run shows which compared cases were carried over or reused on each side, so stale evidence is never presented as a change.
+- Also written as `eval4j-compare.html` and as a short Markdown summary for pull requests (`-Deval4j.compare.baseline=main`), and a static-edition section.
+
 ## 5. Dimensions, metrics and goals
 
 ### 5.1 Dimensions come from the golden dataset
@@ -243,6 +257,9 @@ The report for a cheap run is assembled from the latest known result per case: f
 | `WorkflowTrace` | events (type, agent, step id, text, data, time), spend lines, workflow name and expected path |
 | Prompt results | per-comparison pairwise outcomes; optimizer rounds (index, action, best score, cost) and diff |
 | `RunInfo` | `dataset` (path, revision/hash, scenario count, per-dimension declared scenario ids), `goals`, `profile` (`FAST`/`BUILD`/`SAMPLE`/`FULL`), `coverage` (evaluated / total), `judgeBudgetUsd`, `agent` descriptor (model, provider, prompt id, tools), `judge` stats, calibration summary, last full judged run id and time |
+| Run store | per-run JSON retained under `runs/<runId>.json` (default 40 runs, size-capped) with a lightweight index; per-case records keyed by a **stable case id** (hash of scenario id, metric and dimension) |
+| `RunInfo.env` | commit, branch, agent prompt id/version, agent model, judge model, rubric version, dataset revision/hash, run profile, config hash (the "what changed" table) |
+| Judge noise | per-metric estimate from multi-sample agreement, used for the within-noise band |
 | `HistoryEntry` | per-dimension pass rate and counts (sparklines, "vs previous run"), run profile, spend, and per-case latest verdict with its run id (drives carry-over) |
 
 Old reports load unchanged. Missing fields hide the related UI rather than showing empty boxes.
@@ -321,6 +338,13 @@ The static edition keeps the whole classification: overview, every family, cover
 | Q22 | A dimension evaluated on only some of its declared scenarios says so and names the missing ones |
 | Q23 | A dimension added to a scenario's `dimensions` list appears in the next report with no code change; removing it from every scenario removes the card |
 | Q24 | Datasets without `dimensions` still produce a report (dimensions inferred from recorded metrics) |
+| Q34 | Any two retained runs can be compared; the default baseline is the previous run on the same branch |
+| Q35 | The comparison shows what differed between the runs (commit, prompt, models, judge, rubric, dataset, profile) before it shows any result difference |
+| Q36 | Movement is shown per family and per dimension with baseline, candidate, change and counts of cases that got worse and better |
+| Q37 | A judged change smaller than the judge noise is flagged and counted separately, never presented as a regression or improvement |
+| Q38 | Opening a changed case shows both verdicts and, for agent cases, both answers with a word diff |
+| Q39 | Cases present in only one run are listed separately and excluded from deltas |
+| Q40 | `eval4j-compare.html` and a PR-sized Markdown summary can be produced from two stored runs with the CLI, with no LLM call |
 | Q25 | A metric with no dimension appears under "Other" and a recorded but undeclared dimension is flagged "not in the dataset" |
 | Q26 | The left navigation lists every test family with its pass rate and a status icon, and works as an off-canvas menu on small screens |
 | Q27 | Selecting a family or facet shows only its evaluations, sliced by dimension, with its own tiles and donuts |
@@ -333,30 +357,53 @@ The static edition keeps the whole classification: overview, every family, cover
 
 ## 10. Phasing
 
+Run comparison is pulled forward. It depends only on phase 1 (stable case ids and a retained per-run store), it is the feature teams use every day, and the same store later powers carry-over.
+
 | Phase | Contents |
 |---|---|
-| 1 | Data model: `EvalScenario.dimensions`, dimension registry and dataset descriptor, scenario binding (invocation interceptor), family and facet on metrics, dimension and kind on records, goals, evidence source and run provenance, judge/agent descriptors, per-dimension history |
-| 2 | Cost-aware runs: change-aware judging via the existing cache, run profiles, budget cap, coverage and "Not evaluated" |
-| 3 | Shell and overview: left navigation, run summary, priorities, family tiles, dimension donuts with empty states, coverage, evidence, Models panel |
-| 4 | Family pages and the dimension, metric, test, drawer drill-down; Agents (answers, tools), Conversations, Retrieval |
-| 5 | **Static edition** (alongside phase 3 and 4: it renders the same model) |
-| 6 | Prompts view (A/B, optimizer, diff) and Agents / Reasoning view (step outcomes, trace viewer) |
-| 7 | Loom: `WorkflowTrace` model, bridge, trajectory assertions, Workflows family and Trajectory view (graph, timeline, event log, spend) |
-| 8 | Composite carry-over view, sampling with margin of error, judge reliability, independence check, CLI and summary updates |
+| 1 | Data model: `EvalScenario.dimensions`, dimension registry and dataset descriptor, scenario binding (invocation interceptor), family and facet on metrics, dimension and kind on records, goals, evidence source and run provenance, judge/agent descriptors, **stable case ids, run environment snapshot, retained per-run store** |
+| 2 | **Run comparison**: compare view, settings diff, movement by family and dimension, scatter, changed cases with word diff, judge-noise band, `eval4j-compare.html`, PR Markdown summary, CLI. Works on the current report pages before the new shell exists |
+| 3 | Cost-aware runs: change-aware judging via the existing cache, run profiles, budget cap, coverage and "Not evaluated" (reuses the phase 1 store) |
+| 4 | Shell and overview: left navigation, run summary, priorities, family tiles, dimension donuts with empty states, coverage, evidence, Models panel |
+| 5 | Family pages and the dimension, metric, test, drawer drill-down; Agents (answers, tools), Conversations, Retrieval |
+| 6 | **Static edition** (renders the same model as phases 4 and 5, including comparison) |
+| 7 | Prompts view (A/B, optimizer, diff) and Agents / Reasoning view (step outcomes, trace viewer) |
+| 8 | Loom: `WorkflowTrace` model, bridge, trajectory assertions, Workflows family and Trajectory view (graph, timeline, event log, spend) |
+| 9 | Composite carry-over view, sampling with margin of error, judge reliability, independence check, summary updates |
 
-Run comparison, stability/flakiness and per-case cost analytics from the earlier draft come after this.
+Stability/flakiness and per-case cost analytics come after this.
 
 ## 11. Open questions
 
-1. **Workflow graph source:** Loom scripts are the source of the workflow graph. Should the report parse the `.loom` file for the graph, or should the bridge record the graph (nodes and edges) alongside the trace? Recording is simpler and does not need a Loom parser in eval4j.
-2. **Families:** are Prompts, Agents, Conversations, Retrieval and Workflows the right top-level split? Loom's earned-autonomy replay could be a sixth.
-3. **Static edition CSS:** one extra `.css` file is needed under Jenkins' default policy. Is a two-file output acceptable, with the interactive file staying single-file?
-4. **Declaring dimensions:** is a per-scenario `dimensions:` list the right shape, or should datasets also carry a header block (name, description, goal per dimension)? The current YAML is a bare list, so a header would be a format change.
-5. **Defaults:** are the six shipped default dimensions and their names right (for example "Accuracy" instead of "Correctness")?
-6. **Priority presets:** should a team be able to publish named presets ("Customer-facing", "Internal tool") that stakeholders pick from, or is per-dimension control enough?
-7. **Carry-over limits:** default staleness limit of 7 days, and should a carried-over result ever count towards the weighted pass rate, or be shown but excluded until refreshed?
-8. **Sampling:** is a seeded, per-dimension stratified sample the right default, and what default percentage for the Sample profile?
-9. **Efficiency:** are latency, tokens and steps the right measured metrics, and who supplies budgets?
-10. **Pricing:** user-supplied only (proposed), or ship a default table that will go stale?
-11. **Fonts:** embed Plex in the file (about 100 KB) or use the system font stack?
-12. **Anything else on the overview** you want visible at a glance?
+1. **Default baseline:** previous run on the same branch (proposed), or the last run on `main`? For pull requests, comparing to `main` is usually what a reviewer wants.
+2. **Noise band:** estimate from multi-sample agreement (needs `samples(n)` > 1), or a fixed default (proposed ±0.07) until measured?
+3. **Retention:** per-run JSON for 40 runs can reach tens of MB with large outputs. Cap by count, by size, or both?
+
+4. **Workflow graph source:** Loom scripts are the source of the workflow graph. Should the report parse the `.loom` file for the graph, or should the bridge record the graph (nodes and edges) alongside the trace? Recording is simpler and does not need a Loom parser in eval4j.
+5. **Families:** are Prompts, Agents, Conversations, Retrieval and Workflows the right top-level split? Loom's earned-autonomy replay could be a sixth.
+6. **Static edition CSS:** one extra `.css` file is needed under Jenkins' default policy. Is a two-file output acceptable, with the interactive file staying single-file?
+7. **Declaring dimensions:** is a per-scenario `dimensions:` list the right shape, or should datasets also carry a header block (name, description, goal per dimension)? The current YAML is a bare list, so a header would be a format change.
+8. **Defaults:** are the six shipped default dimensions and their names right (for example "Accuracy" instead of "Correctness")?
+9. **Priority presets:** should a team be able to publish named presets ("Customer-facing", "Internal tool") that stakeholders pick from, or is per-dimension control enough?
+10. **Carry-over limits:** default staleness limit of 7 days, and should a carried-over result ever count towards the weighted pass rate, or be shown but excluded until refreshed?
+11. **Sampling:** is a seeded, per-dimension stratified sample the right default, and what default percentage for the Sample profile?
+12. **Efficiency:** are latency, tokens and steps the right measured metrics, and who supplies budgets?
+13. **Pricing:** user-supplied only (proposed), or ship a default table that will go stale?
+14. **Fonts:** embed Plex in the file (about 100 KB) or use the system font stack?
+15. **Anything else on the overview** you want visible at a glance?
+
+
+## 12. What "substantive" means: the release bar
+
+The goal is a report with real depth, not a thin skin over a score. Every view that ships must meet all of these, and a phase is not done until it does.
+
+1. **Real evidence, not just scores.** Every number drills down to the underlying case: input, output, expected, retrieved context, the judge's reasoning, and (for agents and workflows) the trace.
+2. **Context for every number.** A goal and a gap beside it; a comparison with the previous run beside it; the evidence source (fresh, reused, carried over) and its age.
+3. **Honest about uncertainty.** Judge noise, sampling margin of error, coverage ("17 of 18 scenarios evaluated"), stale evidence and "not evaluated" are shown, never hidden. No verdict is issued.
+4. **Explains change, not just reports it.** Comparison leads with what differed between runs, then what moved.
+5. **Complete in both editions.** The interactive and static editions carry the same content; interactivity only changes how it is explored.
+6. **Proven on real evals.** Each phase is demonstrated on evaluations this repository already has (the support-agent style golden dataset, `examples/getviral` for Loom, the optimizer and comparison tests), not on invented data.
+7. **Tested.** Report generation is covered by unit and snapshot tests on the Java side, with the same hostile-text, size and old-format-compatibility tests as v1; UI behaviour is covered by a headless-browser test where scripts are involved.
+8. **Accessible and private.** Never colour alone, keyboard navigable, both themes, no network request, all dynamic text escaped.
+
+**Parity floor against hosted tools.** Before the first public release the report must match the everyday core of hosted dashboards: test history and pass-rate trends, run-to-run regression comparison against a baseline, per-case drill-down with inputs and outputs, metric and status filtering, and shareable reports. It then goes beyond with what is specific to eval4j: dimensions from the golden dataset, cost-aware evidence, family classification, and Loom trajectories. Deliberately out of scope because they need a server: team comments, production tracing, alerting and dataset editing UIs.
