@@ -1,6 +1,6 @@
 # Plan: one real evaluation of Hexamind Hub, all layers, one report
 
-Status: **Draft for your approval** · Spend: about **$6 expected, hard cap $10 (about ₹880)** · Builds on [`SPEC.md`](SPEC.md), [`COST.md`](COST.md), [`golden/`](golden), [`hexamind.loom`](hexamind.loom)
+Status: **Approved; offline build done, waiting for your keys** · Spend: about **$6 expected, hard cap $10 (about ₹880)** · Builds on [`SPEC.md`](SPEC.md), [`COST.md`](COST.md), [`golden/`](golden), [`hexamind.loom`](hexamind.loom)
 
 ## What you get
 
@@ -16,6 +16,9 @@ One run that exercises all three layers on the real models and produces one dash
 The report is a first baseline of **what Hexamind does today**: dimensions with goals, judge noise, cost per layer, agent traces, and the debate's path against the expected path. It is not a before/after comparison (that needs a second run, which you can do later for about $6).
 
 ## Before anything runs (you, about 20 minutes)
+
+The run script refuses to start a real run until `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` are exported and you set `EVAL_LIMITS_CONFIRMED=1` (your confirmation that the provider-side limits below exist).
+
 
 1. **Create or confirm the keys:** a Google AI Studio key (`GEMINI_API_KEY`) on a billing-enabled project, and an Anthropic key (`ANTHROPIC_API_KEY`). Keep them out of the repo; export them in your shell only.
 2. **Set provider-side spending limits**, which are the real safety net: **$10 on Google, $5 on Anthropic** (if a provider offers only prepaid credit, load that amount instead). This is independent of anything in our code.
@@ -44,6 +47,40 @@ Everything here is verified without any API key before a single paid call is mad
 | B10 | the debate wiring for tests: a small `LoomDebateRunner` that runs `hexamind.loom` through `HarnessExecutor` with `LoomTrace`; search served by a local fixture endpoint through a Loom `http` tool | scripted-model run |
 
 **Exit criterion for the build:** `eval/run-all.sh --fake` produces a full report from fake models, with every dimension populated, in under a minute and for $0. Only then do we spend.
+
+## Build status (offline, $0): done
+
+`eval/run-all.sh --fake` runs every stage on scripted models and writes the full report in about 17 seconds
+(`target/eval4j-fake/report/index.html`); all eleven dimensions have data. What was built, and what it found:
+
+| # | Status | Notes |
+|---|---|---|
+| B1 golden dataset test | done | 70 scenarios load and validate |
+| B2 `EvalSupport` | done | agents from the app's own `AgentConfiguration` with recorded search; Claude judge at effort `low`; judge cache; `-Deval.fake=true` |
+| B3 `FixtureSearchTool` | done | |
+| B4 `ScriptedModel`, `TrajectoryPathTest` | done | debunk path, five-round path, six agents x five rounds, refinement, budget stop |
+| B5 `ReplayCache` | done | agent outputs and plain calls replayed by scenario, prompt version, model and fixture (the `CURRENT TIME` line is ignored) |
+| B6 live tests | done | `SmokeEvalTest`, `AgentReasoningEvalTest`, `PromptEvalTest`, `CalibrationEvalTest`, `TrajectoryEvalTest` |
+| B7 `SpendGuard` | done | prices every real call, per-stage ceilings, global cap (`EVAL_CAP_USD`, default $10), stops on any call over 20,000 output tokens; once tripped every call fails |
+| B8 `run-all.sh` | done | preflight, stage order, `--fake`, `--stage smoke` |
+| B9 `eval4j-report.yaml`, `prices.properties` | done | goals and priorities from `SPEC.md` section 3 |
+| B10 debate runner | done, differently | `LoomDebateRunner` replaces the script's SerpAPI `tool Search` with a registered recorded-search tool (a query about a fabricated term finds nothing, any other finds three generic snippets). No local HTTP endpoint needed |
+
+**Findings from the build** (each would have cost money or misled the report in the paid run):
+
+1. **Loom replaces a variable name wherever it appears in a string, braces or not.** `Refine(problem, consensus, feedback)` turned
+   "Previous consensus: {consensus}" into "Previous old: old". Variables are now `final_text`, `prior`, `feedback_text`, `fb`, `fabcheck`,
+   chosen never to be ordinary words in the prompts (note in `hexamind.loom`).
+2. **A Loom `budget` is a hard stop.** Exhausting it throws and no consensus is produced, so flow-10 now expects "stopped, no consensus"
+   instead of "partial consensus". If the product wants a partial consensus it needs a wind-down step or `SUSPEND`.
+3. **`handoff` to the Coordinator makes one more model call**, so a debate is 33 calls (not 32) and a refinement 8. About 3% more than `cost_model.py`.
+4. **Judged verdicts did not reach the report's dimensions** (they landed in "Other"). Fixed with `EvalRecorder.record(MetricRef, ...)` in eval4j:
+   one verdict is judged once and filed under each dimension the scenario lists.
+5. The eval4j-report bridge now maps parallel rounds to one node per round (it used to guess by position), and the script has a `Debunker`
+   agent so the debunk branch is distinguishable from the consensus step.
+6. Prompt tests apply each prompt's instructions to the scenario input (through Alex with recorded search when the prompt needs tools, otherwise a plain
+   call). `AgentParticipant.analyze` is not used because it needs the shared-knowledge services (vector store and embeddings), which would add paid embedding calls.
+7. Real debates are not replayed: a failed debate is re-paid (about $0.4 to $1.2). Refinement (flow-03) reuses flow-01's consensus, so it costs about $0.15, not a full debate.
 
 ## The paid run (you run it, about 30 minutes; each stage has a gate)
 
