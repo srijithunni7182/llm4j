@@ -86,6 +86,21 @@ public final class EvalRecorder {
     }
 
     /**
+     * Records one evaluation under an explicit metric, for example to file a single judge verdict
+     * under several quality dimensions (one metric per dimension). No-op when the recorder is not
+     * active.
+     */
+    public static void record(
+            MetricRef metric,
+            double score,
+            double threshold,
+            String reason,
+            String judgeIdentifier,
+            EvalDetails details) {
+        record(metric.name(), score, threshold, reason, judgeIdentifier, details, metric);
+    }
+
+    /**
      * Records the result of an A/B comparison: score 1 when B wins, 0.5 for a tie, 0 when A wins.
      * It is exported as a {@code PAIRWISE} evaluation of the prompts family.
      */

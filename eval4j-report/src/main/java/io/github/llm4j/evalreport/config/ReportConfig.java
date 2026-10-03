@@ -99,6 +99,13 @@ public final class ReportConfig {
     public final String defaultBranch;
     public final String projectName;
     public final Branding branding;
+
+    /**
+     * Scenario tag keys the report breaks results down by (for example {@code agent}); see {@code
+     * breakdowns:} in the YAML.
+     */
+    public final java.util.List<String> breakdownKeys;
+
     private final Map<String, DimensionConfig> dimensions;
 
     /** Report title override, an optional logo (as a data URI) and an accent colour. */
@@ -114,8 +121,10 @@ public final class ReportConfig {
             String defaultBranch,
             String projectName,
             Map<String, DimensionConfig> dimensions,
-            Branding branding) {
+            Branding branding,
+            java.util.List<String> breakdownKeys) {
         this.branding = branding;
+        this.breakdownKeys = breakdownKeys;
         this.defaultGoal = defaultGoal;
         this.warnGap = warnGap;
         this.noiseBand = noiseBand;
@@ -127,7 +136,15 @@ public final class ReportConfig {
 
     public static ReportConfig defaults() {
         return new ReportConfig(
-                90, 10, 0.07, "sameBranch", null, null, new LinkedHashMap<>(), Branding.NONE);
+                90,
+                10,
+                0.07,
+                "sameBranch",
+                null,
+                null,
+                new LinkedHashMap<>(),
+                Branding.NONE,
+                java.util.List.of("agent"));
     }
 
     /** Loads {@code eval4j-report.yaml} (or .json); a missing file gives the defaults. */
@@ -190,7 +207,21 @@ public final class ReportConfig {
                 defBranch,
                 n.path("project").path("name").asText(null),
                 dims,
-                branding(n.path("branding"), baseDir));
+                branding(n.path("branding"), baseDir),
+                breakdowns(n.path("breakdowns")));
+    }
+
+    /**
+     * {@code breakdowns: [agent, kind]}: scenario tag keys to break results down by. Absent means
+     * {@code [agent]}.
+     */
+    private static java.util.List<String> breakdowns(JsonNode n) {
+        if (!n.isArray()) {
+            return java.util.List.of("agent");
+        }
+        java.util.List<String> out = new java.util.ArrayList<>();
+        n.forEach(x -> out.add(x.asText()));
+        return java.util.List.copyOf(out);
     }
 
     private static Branding branding(JsonNode b, Path baseDir) {

@@ -242,7 +242,8 @@ public class AgentConfiguration {
                                 promptRegistry);
         }
 
-        private io.github.llm4j.agent.Tool createWebSearchTool() {
+        /** The agents' web search. Protected so the evaluation can substitute recorded fixtures. */
+        protected io.github.llm4j.agent.Tool createWebSearchTool() {
                 java.util.List<io.github.llm4j.agent.Tool> searchTools = new java.util.ArrayList<>();
 
                 // 1. SerpAPI (Premium - First Choice)

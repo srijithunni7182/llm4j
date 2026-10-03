@@ -4,11 +4,15 @@ import io.github.llm4j.agent.AgentResult;
 import io.github.llm4j.model.LLMResponse;
 
 /** Resolves the text to grade out of whatever eval4j assertion type is being evaluated. */
-final class OutputExtractor {
+public final class OutputExtractor {
 
     private OutputExtractor() {}
 
-    static String extract(Object actual) {
+    /**
+     * The text a judge grades: the final answer of an agent result, a response's content, or the
+     * string itself.
+     */
+    public static String extract(Object actual) {
         if (actual instanceof AgentResult agentResult) {
             return agentResult.getFinalAnswer();
         }
@@ -29,7 +33,7 @@ final class OutputExtractor {
      * Judging only {@link #extract(Object)} (the final answer) misses everything the agent actually
      * did to get there — some criteria, like task completion, need the whole run.
      */
-    static String extractTrajectory(Object actual) {
+    public static String extractTrajectory(Object actual) {
         if (!(actual instanceof AgentResult agentResult) || agentResult.getSteps().isEmpty()) {
             return null;
         }

@@ -186,21 +186,25 @@ public final class LoomTrace {
         List<WorkflowGraph.Slot> slots = graph.slots;
         List<WorkflowTrace.Event> out = new ArrayList<>();
         path.add(WorkflowGraph.START);
-        int last = -1;
+        // each agent keeps its own place in the script: agents inside a parallel round start in any
+        // order
+        Map<String, Integer> last = new java.util.HashMap<>();
+        java.util.Set<Integer> entered = new java.util.HashSet<>();
         List<String> open = new ArrayList<>();
         for (WorkflowTrace.Event e : events) {
             String node = null;
             if (("delegate_start".equals(e.type()) || "delegate_replayed".equals(e.type()))
                     && e.agent() != null) {
+                int from = last.getOrDefault(e.agent(), -1);
                 int idx = -1;
-                for (int i = last + 1; i < slots.size() && idx < 0; i++) {
-                    if (e.agent().equals(slots.get(i).node().agent())) {
+                for (int i = from + 1; i < slots.size() && idx < 0; i++) {
+                    if (belongs(slots.get(i), e.agent())) {
                         idx = i;
                     }
                 }
                 boolean wrapped = false;
-                for (int i = 0; i <= last && idx < 0; i++) {
-                    if (e.agent().equals(slots.get(i).node().agent())) {
+                for (int i = 0; i <= from && idx < 0; i++) {
+                    if (belongs(slots.get(i), e.agent())) {
                         idx = i;
                         wrapped = true;
                     }
@@ -231,8 +235,13 @@ public final class LoomTrace {
                             }
                         }
                     }
-                    path.add(node);
-                    last = idx;
+                    if (slot.agents().isEmpty() || entered.add(idx)) {
+                        path.add(node);
+                    }
+                    if (wrapped) {
+                        entered.remove(idx);
+                    }
+                    last.put(e.agent(), idx);
                 }
             }
             out.add(
@@ -244,6 +253,10 @@ public final class LoomTrace {
         }
         path.add(WorkflowGraph.END);
         return out;
+    }
+
+    private static boolean belongs(WorkflowGraph.Slot slot, String agent) {
+        return agent.equals(slot.node().agent()) || slot.agents().contains(agent);
     }
 
     private static String cut(String s) {

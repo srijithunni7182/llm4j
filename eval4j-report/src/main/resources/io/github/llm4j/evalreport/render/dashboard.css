@@ -135,3 +135,10 @@ tbody tr.row{cursor:pointer}tbody tr.row:hover{background:var(--surface-2)}
   .dhead{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* breakdown matrix: agent x dimension */
+table.matrix td.hm{text-align:center;font-weight:600;min-width:86px}
+table.matrix td.hm small{display:block;font-weight:400;color:var(--ink-3);font-size:11px}
+table.matrix td.good{background:var(--tint-good)}table.matrix td.warn{background:var(--tint-warn)}table.matrix td.crit{background:var(--tint-crit)}table.matrix td.none{color:var(--ink-3)}
+table.matrix th.num{text-align:center}
+a.nav.sub{padding-left:30px;font-size:13.5px}

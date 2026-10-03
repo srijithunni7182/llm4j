@@ -135,6 +135,23 @@ assertThat(result)
 ```
 
 
+### Judge a whole scenario in one line, and fill the report's dimensions
+
+`scenario(...)` binds a golden case (input, expected output, retrieved context and dimensions) to the check, and
+`dimensions(...)` says which quality dimensions the verdict counts toward. The judge is called **once**; the verdict is
+recorded under each dimension, so the dashboard's dimension rings fill from your dataset:
+
+```java
+assertThat(result).is(
+    llmJudged("Rubric adherence")
+        .criteria(String.join("\n", rubricLines))
+        .scenario(scenario)            // input, expected output, retrieval context, dimensions
+        .judge(judge).cache(cache).threshold(0.7)
+        .build());
+```
+
+`OutputExtractor.extract(actual)` returns the text a judge grades from an `AgentResult`, `LLMResponse` or `String`.
+
 ## Choosing a judge model
 
 A small calibration study (author-labelled synthetic data, Claude Haiku 4.5 vs Sonnet 5.5 — see

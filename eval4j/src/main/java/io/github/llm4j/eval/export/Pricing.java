@@ -26,10 +26,18 @@ public final class Pricing {
     private final Map<String, Rate> rates = new HashMap<>();
 
     public static Pricing fromSystem() {
-        Pricing p = new Pricing();
         String file = System.getProperty("eval4j.pricing");
-        if (file != null && !file.isBlank()) {
-            try (Reader r = Files.newBufferedReader(Path.of(file))) {
+        return file == null || file.isBlank() ? new Pricing() : fromFile(Path.of(file));
+    }
+
+    /**
+     * Reads a prices file in the format described above; a missing or unreadable file gives no
+     * prices.
+     */
+    public static Pricing fromFile(Path file) {
+        Pricing p = new Pricing();
+        if (file != null) {
+            try (Reader r = Files.newBufferedReader(file)) {
                 Properties props = new Properties();
                 props.load(r);
                 for (String name : props.stringPropertyNames()) {

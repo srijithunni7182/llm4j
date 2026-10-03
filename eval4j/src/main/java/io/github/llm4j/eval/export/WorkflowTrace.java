@@ -77,6 +77,27 @@ public record WorkflowTrace(
         return List.copyOf(out);
     }
 
+    /**
+     * How many times {@code agent} was delegated to (every delegation counts, unlike {@link
+     * #agentsInOrder()}).
+     */
+    public long delegationsTo(String agent) {
+        return events.stream()
+                .filter(e -> "delegate_start".equals(e.type()) && agent.equals(e.agent()))
+                .count();
+    }
+
+    /** Delegations per agent, in the order each agent was first used. */
+    public java.util.Map<String, Long> delegationCounts() {
+        java.util.Map<String, Long> out = new java.util.LinkedHashMap<>();
+        for (Event e : events) {
+            if ("delegate_start".equals(e.type()) && e.agent() != null) {
+                out.merge(e.agent(), 1L, Long::sum);
+            }
+        }
+        return out;
+    }
+
     public double totalCostUsd() {
         double sum = 0;
         for (SpendLine s : spend) {

@@ -1,0 +1,32 @@
+# Candidate rewrites of three prompts, compared against src/main/resources/prompts.yaml by PromptEvalTest.
+# Each states the same rules more directly and puts the fabricated-term check first.
+prompts:
+  agent_analyze:
+    v1: |
+      Analyze this problem from your perspective as a {{role}}: {{problem}}
+
+      FIRST, search for every unfamiliar name, acronym or standard in the problem. If a search finds nothing relevant, open your answer with one plain sentence saying you could not verify it exists, and do not describe it. Only then analyze.
+
+      Cite the type of each source in brackets ([Journal], [News], [Whitepaper], [Social Media]). Give concrete numbers, not generalities. 2-4 sentences. No corporate clichés.
+    latest: "v1"
+
+  orch_synthesize_consensus:
+    v1: |
+      You are the Master Coordinator. Merge the expert opinions below into one recommendation.
+
+      If any expert could not verify a term, or called it fabricated, your FIRST sentence must say so, and the recommendation must be to correct the premise. Give no plan for something that does not exist.
+
+      ### EXPERT OPINIONS:
+      {{context}}
+
+      Otherwise write one unified recommendation: name the exact pilot location, the numeric KPIs that decide success, and a separate short "Future Possibilities" section. No generic advice, no clichés ('phased approach', 'holistic', 'proceed with caution').
+
+      FINAL UNIFIED RECOMMENDATION:
+    latest: "v1"
+
+  orch_refinement_instruction:
+    v1: |
+      The user gave this feedback on the group's analysis: {{feedback}}
+
+      Say in one sentence what the feedback changes in your earlier position, then give the updated recommendation, addressing the feedback directly and specifically. Keep it conversational and short.
+    latest: "v1"

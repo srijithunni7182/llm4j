@@ -11,6 +11,10 @@ import io.github.llm4j.evalreport.format.model.RunMeta;
 import io.github.llm4j.evalreport.format.model.ScenarioDef;
 import io.github.llm4j.evalreport.format.model.TestOutcome;
 import io.github.llm4j.evalreport.model.ReportModel;
+import io.github.llm4j.evalreport.model.ReportModel.BreakdownCell;
+import io.github.llm4j.evalreport.model.ReportModel.BreakdownColumn;
+import io.github.llm4j.evalreport.model.ReportModel.BreakdownRow;
+import io.github.llm4j.evalreport.model.ReportModel.BreakdownView;
 import io.github.llm4j.evalreport.model.ReportModel.CaseView;
 import io.github.llm4j.evalreport.model.ReportModel.Coverage;
 import io.github.llm4j.evalreport.model.ReportModel.DimensionView;
@@ -145,7 +149,123 @@ public final class Analyzer {
                         config.branding.title(),
                         config.branding.logoDataUri(),
                         config.branding.accent()),
-                metricNames(run));
+                metricNames(run),
+                breakdowns(bundle, all, dimensions, config));
+    }
+
+    /**
+     * One breakdown per configured scenario tag key: rows are the tag's values (for example each
+     * agent), columns the dimensions that have results for it. Evaluations whose scenario lacks the
+     * tag are left out.
+     */
+    private static List<BreakdownView> breakdowns(
+            RunBundle bundle,
+            List<Resolved> all,
+            List<DimensionView> dimensions,
+            ReportConfig config) {
+        Map<String, ScenarioDef> scenarios = new HashMap<>();
+        for (ScenarioDef s : bundle.scenarios()) {
+            if (s.caseId() != null) {
+                scenarios.put(s.caseId(), s);
+            }
+        }
+        Map<String, DimensionView> dimById = new LinkedHashMap<>();
+        for (DimensionView d : dimensions) {
+            dimById.put(d.id(), d);
+        }
+        List<BreakdownView> out = new ArrayList<>();
+        for (String key : config.breakdownKeys) {
+            Map<String, List<Resolved>> byValue = new LinkedHashMap<>();
+            for (Resolved r : all) {
+                if (!r.ev().counted() || r.ev().caseId() == null) {
+                    continue;
+                }
+                ScenarioDef sc = scenarios.get(r.ev().caseId());
+                String value = sc == null ? null : tagValue(sc, key);
+                if (value != null) {
+                    byValue.computeIfAbsent(value, k -> new ArrayList<>()).add(r);
+                }
+            }
+            if (byValue.isEmpty()) {
+                continue;
+            }
+            java.util.Set<String> used = new java.util.LinkedHashSet<>();
+            for (DimensionView d : dimensions) {
+                for (List<Resolved> rs : byValue.values()) {
+                    if (rs.stream().anyMatch(r -> r.dimension().equals(d.id()))) {
+                        used.add(d.id());
+                        break;
+                    }
+                }
+            }
+            List<BreakdownColumn> columns = new ArrayList<>();
+            for (String id : used) {
+                DimensionView d = dimById.get(id);
+                columns.add(new BreakdownColumn(id, d.name(), d.goal()));
+            }
+            List<BreakdownRow> rows = new ArrayList<>();
+            for (Map.Entry<String, List<Resolved>> en : byValue.entrySet()) {
+                List<BreakdownCell> cells = new ArrayList<>();
+                for (BreakdownColumn c : columns) {
+                    int passed = 0;
+                    int failed = 0;
+                    java.util.Set<String> failedCases = new java.util.LinkedHashSet<>();
+                    for (Resolved r : en.getValue()) {
+                        if (!r.dimension().equals(c.dimension())) {
+                            continue;
+                        }
+                        if (r.ev().passed()) {
+                            passed++;
+                        } else {
+                            failed++;
+                            ScenarioDef sc = scenarios.get(r.ev().caseId());
+                            failedCases.add(
+                                    sc == null || sc.id() == null ? r.ev().caseId() : sc.id());
+                        }
+                    }
+                    int n = passed + failed;
+                    Double rate =
+                            n == 0
+                                    ? null
+                                    : 100.0 * passed
+                                            / n; // percent, like every other rate in the model
+                    String status = rate == null ? "NONE" : rate >= c.goal() ? "MET" : "BELOW";
+                    cells.add(
+                            new BreakdownCell(
+                                    c.dimension(),
+                                    passed,
+                                    failed,
+                                    rate,
+                                    status,
+                                    List.copyOf(failedCases)));
+                }
+                java.util.Set<String> caseIds = new java.util.LinkedHashSet<>();
+                for (Resolved r : en.getValue()) {
+                    caseIds.add(r.ev().caseId());
+                }
+                rows.add(
+                        new BreakdownRow(
+                                en.getKey(),
+                                Rollups.of(evs(en.getValue())),
+                                cells,
+                                List.copyOf(caseIds)));
+            }
+            out.add(new BreakdownView(key, "By " + key, columns, rows));
+        }
+        return out;
+    }
+
+    /** The value of a {@code key:value} tag on a scenario, or null. */
+    private static String tagValue(ScenarioDef s, String key) {
+        if (s.tags() == null) {
+            return null;
+        }
+        for (String t : s.tags()) {
+            if (t.startsWith(key + ":")) {
+                return t.substring(key.length() + 1);
+            }
+        }
+        return null;
     }
 
     private static Map<String, String> metricNames(RunMeta run) {

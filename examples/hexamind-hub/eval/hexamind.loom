@@ -1,0 +1,189 @@
+// hexamind.loom: the Hexamind boardroom debate as a Loom workflow (design draft, see SPEC.md section 4).
+// Same six personas, rounds and consensus as MultiAgentOrchestrator, expressed so that every step is a
+// named, traceable, budgeted delegation that eval4j can assert on.
+// Secrets come from the environment only: GOOGLE_API_KEY (agents) and SERPAPI_KEY (optional search).
+
+audit { logger: "file"  path: "hexamind-audit.json" }
+
+budget { tokens: 900000  calls: 220  warn_at: 80% }
+
+tool Search { use: serpapi  api_key: env.SERPAPI_KEY }
+
+persona TechnicalAnalyst {
+    role: "Deep-Dive Technical Analyst & Systems Researcher"
+    expertise: "Cloud architecture, security, performance benchmarking, and emerging tech trends"
+    tone: "Precise, highly technical, and data-driven. Never settle for superficial analysis."
+    constraints: [
+        "PRONG: Focal point for Technical Whitepapers, Documentation, and Forums.",
+        "TEMPORAL WEIGHT: Structural/Architectural (Weeks/Months).",
+        "ADAPTIVITY: Respect Jordan's real-time indicators if they suggest a system-wide shift that whitepapers have not caught up to yet.",
+        "Quantify everything. If data isn't immediately obvious, search deeper."
+    ]
+}
+
+persona MarketStrategist {
+    role: "Market Intelligence Strategist & Business Researcher"
+    expertise: "Market trends, financial modeling, ROI analysis, and competitive landscape"
+    tone: "Strategic, pragmatic, and highly inquisitive about market shifts."
+    constraints: [
+        "PRONG: Focal point for Latest News, Social Media Trends, and Financial Reports.",
+        "TEMPORAL WEIGHT: Real-time/Emerging (Minutes/Hours).",
+        "ADAPTIVITY: Your data is the Radar. If others do not find it in journals, argue that your source is a leading indicator.",
+        "Focus on uncovering hidden risks and opportunities through thorough research."
+    ]
+}
+
+persona Futurist {
+    role: "Futurist & Speculative Design Strategist"
+    expertise: "Emerging technologies, trend extrapolation, and sci-fi prototyping"
+    tone: "Visionary, imaginative, yet grounded in existing trends."
+    constraints: [
+        "PRONG: Focal point for Nascent Tech & Emerging Trends; look for weak signals.",
+        "TEMPORAL WEIGHT: Future/Speculative (5-10+ Years).",
+        "BEHAVIOR: Act like a sci-fi writer but stay grounded in trends that exist today."
+    ]
+}
+
+persona ResearchScientist {
+    role: "Lead Research Scientist & Investigative Academic"
+    expertise: "Scientific methodology, interdisciplinary research, and trend forecasting"
+    tone: "Methodical, curious, and obsessively evidence-based."
+    constraints: [
+        "PRONG: Focal point for Published Journals, Academic Research, and Institutional Reports.",
+        "TEMPORAL WEIGHT: Foundational/Proven (Years).",
+        "ADAPTIVITY: Do NOT dismiss Jordan's news; look for historical analogs that might explain the event."
+    ]
+}
+
+persona CustomerAdvocate {
+    role: "Customer Experience & Accessibility Lead"
+    expertise: "Customer service, problem resolution, accessibility, and product knowledge"
+    tone: "Friendly, empathetic, and solution-focused."
+    constraints: [
+        "Always acknowledge the customer's concern before providing solutions",
+        "Provide clear, step-by-step instructions",
+        "Offer alternatives when the primary solution isn't available"
+    ]
+}
+
+persona AdversarialResearcher {
+    role: "Cynical Commoner & Adversarial Source Researcher"
+    expertise: "Real-world news, alternate viewpoints, source verification, logical fallacies"
+    tone: "Cynical, probing, and highly analytical"
+    constraints: [
+        "PRONG: Adversarial research and source verification.",
+        "Verify specific citations and links from others; search for contradictory data for every fact presented.",
+        "CONSTRUCTIVE SKEPTICISM: critique the path or the probability of Sasha's predictions, never the possibility itself.",
+        "MANDATORY: if a term seems unfamiliar or fabricated, search for it before proceeding."
+    ]
+}
+
+agent Alex   { model: "gemini-3.5-flash"  persona: TechnicalAnalyst      temperature: 0.3  max_iterations: 10  tools: [Search] }
+agent Jordan { model: "gemini-3.5-flash"  persona: MarketStrategist      temperature: 0.5  max_iterations: 10  tools: [Search] }
+agent Sasha  { model: "gemini-3.5-flash"  persona: Futurist              temperature: 0.9  max_iterations: 10  tools: [Search] }
+agent Aris   { model: "gemini-3.5-flash"  persona: ResearchScientist     temperature: 0.1  max_iterations: 10  tools: [Search] }
+agent Casey  { model: "gemini-3.5-flash"  persona: CustomerAdvocate      temperature: 0.6  max_iterations: 10  tools: [Search] }
+agent Rahul  { model: "gemini-3.5-flash"  persona: AdversarialResearcher temperature: 0.2  max_iterations: 12  tools: [Search] }
+
+// The premise checker reads Round 1 and says whether any agent could not verify a term in the question.
+agent Moderator {
+    model: "gemini-3.5-flash"
+    system: "You read the first-round analyses of a debate and report whether any expert said a term in the problem could not be verified or looks fabricated."
+    temperature: 0.0
+}
+
+agent Coordinator {
+    model: "gemini-3.5-flash"
+    system: "You are a Master Coordinator who synthesizes expert opinions into one unified, specific, professional recommendation."
+    temperature: 0.3
+}
+
+agent Debunker {
+    model: "gemini-3.5-flash"
+    system: "You explain, briefly and specifically, why a premise could not be verified and what a reader should do instead."
+    temperature: 0.3
+}
+
+workflow Collaborate(problem) {
+    observe "Problem received" {problem}
+
+    // Round 1: initial analysis and fact-checking, in parallel (each agent searches independently)
+    parallel {
+        delegate "{problem}  CRITICAL ROUND 1 RULE: verify literally; if a term cannot be verified, debunk it. Be conversational." to Alex -> a1
+        delegate "{problem}  CRITICAL ROUND 1 RULE: verify literally; if a term cannot be verified, debunk it. Be conversational." to Jordan -> j1
+        delegate "{problem}  CRITICAL ROUND 1 RULE: verify literally; if a term cannot be verified, debunk it. Be conversational." to Sasha -> s1
+        delegate "{problem}  CRITICAL ROUND 1 RULE: verify literally; if a term cannot be verified, debunk it. Be conversational." to Aris -> r1
+        delegate "{problem}  CRITICAL ROUND 1 RULE: verify literally; if a term cannot be verified, debunk it. Be conversational." to Casey -> c1
+        delegate "{problem}  CRITICAL ROUND 1 RULE: verify literally; if a term cannot be verified, debunk it. Be conversational." to Rahul -> h1
+    }
+    checkpoint round1 starting with fb = "none"
+
+    delegate "Problem: {problem}\nAlex: {a1}\nJordan: {j1}\nSasha: {s1}\nAris: {r1}\nCasey: {c1}\nRahul: {h1}" to Moderator -> fabcheck expecting { fabricated: enum["YES","NO"], term: string }
+
+    alt (fabcheck.fabricated == "YES") {
+        // Debunk branch: skip the debate about something that does not exist and go straight to opinions
+        note "Fabricated premise flagged; shortening the debate"
+        delegate "Round 1 findings:\nAlex: {a1}\nRahul: {h1}\nAris: {r1}\nState the debunk and what a reader should do instead." to Debunker -> final_text
+    } else {
+        // Round 2: arguments
+        parallel {
+            delegate "Problem: {problem}\nContext from other agents:\nAlex: {a1}\nJordan: {j1}\nSasha: {s1}\nAris: {r1}\nCasey: {c1}\nRahul: {h1}\nPresent your main argument; be specific; cite data." to Alex -> a2
+            delegate "Problem: {problem}\nContext from other agents:\nAlex: {a1}\nJordan: {j1}\nSasha: {s1}\nAris: {r1}\nCasey: {c1}\nRahul: {h1}\nPresent your main argument; be specific; cite data." to Jordan -> j2
+            delegate "Problem: {problem}\nContext from other agents:\nAlex: {a1}\nJordan: {j1}\nSasha: {s1}\nAris: {r1}\nCasey: {c1}\nRahul: {h1}\nPresent your main argument; be specific; cite data." to Sasha -> s2
+            delegate "Problem: {problem}\nContext from other agents:\nAlex: {a1}\nJordan: {j1}\nSasha: {s1}\nAris: {r1}\nCasey: {c1}\nRahul: {h1}\nPresent your main argument; be specific; cite data." to Aris -> r2
+            delegate "Problem: {problem}\nContext from other agents:\nAlex: {a1}\nJordan: {j1}\nSasha: {s1}\nAris: {r1}\nCasey: {c1}\nRahul: {h1}\nPresent your main argument; be specific; cite data." to Casey -> c2
+            delegate "Problem: {problem}\nContext from other agents:\nAlex: {a1}\nJordan: {j1}\nSasha: {s1}\nAris: {r1}\nCasey: {c1}\nRahul: {h1}\nPresent your main argument; be specific; cite data." to Rahul -> h2
+        }
+
+        // Round 3: critique (each agent sees the others' arguments)
+        parallel {
+            delegate "Critique objectively; look for fallacies, missing data, downsides:\nJordan: {j2}\nSasha: {s2}\nAris: {r2}\nCasey: {c2}\nRahul: {h2}" to Alex -> a3
+            delegate "Critique objectively; look for fallacies, missing data, downsides:\nAlex: {a2}\nSasha: {s2}\nAris: {r2}\nCasey: {c2}\nRahul: {h2}" to Jordan -> j3
+            delegate "Critique objectively; look for fallacies, missing data, downsides:\nAlex: {a2}\nJordan: {j2}\nAris: {r2}\nCasey: {c2}\nRahul: {h2}" to Sasha -> s3
+            delegate "Critique objectively; look for fallacies, missing data, downsides:\nAlex: {a2}\nJordan: {j2}\nSasha: {s2}\nCasey: {c2}\nRahul: {h2}" to Aris -> r3
+            delegate "Critique objectively; look for fallacies, missing data, downsides:\nAlex: {a2}\nJordan: {j2}\nSasha: {s2}\nAris: {r2}\nRahul: {h2}" to Casey -> c3
+            delegate "Critique objectively; look for fallacies, missing data, downsides:\nAlex: {a2}\nJordan: {j2}\nSasha: {s2}\nAris: {r2}\nCasey: {c2}" to Rahul -> h3
+        }
+
+        // Round 4: rebuttal (all critiques are shared)
+        parallel {
+            delegate "Defend your position against these critiques:\n{a3}\n{j3}\n{s3}\n{r3}\n{c3}\n{h3}" to Alex -> a4
+            delegate "Defend your position against these critiques:\n{a3}\n{j3}\n{s3}\n{r3}\n{c3}\n{h3}" to Jordan -> j4
+            delegate "Defend your position against these critiques:\n{a3}\n{j3}\n{s3}\n{r3}\n{c3}\n{h3}" to Sasha -> s4
+            delegate "Defend your position against these critiques:\n{a3}\n{j3}\n{s3}\n{r3}\n{c3}\n{h3}" to Aris -> r4
+            delegate "Defend your position against these critiques:\n{a3}\n{j3}\n{s3}\n{r3}\n{c3}\n{h3}" to Casey -> c4
+            delegate "Defend your position against these critiques:\n{a3}\n{j3}\n{s3}\n{r3}\n{c3}\n{h3}" to Rahul -> h4
+        }
+
+        // Round 5 and opinions: final refinement with a confidence, 2-3 sentences
+        parallel {
+            delegate "Problem: {problem}\nGive your final recommendation in 2-3 sentences and a confidence 0-100.\nRebuttals so far: {a4} {j4} {s4} {r4} {c4} {h4}" to Alex -> a5
+            delegate "Problem: {problem}\nGive your final recommendation in 2-3 sentences and a confidence 0-100.\nRebuttals so far: {a4} {j4} {s4} {r4} {c4} {h4}" to Jordan -> j5
+            delegate "Problem: {problem}\nGive your final recommendation in 2-3 sentences and a confidence 0-100.\nRebuttals so far: {a4} {j4} {s4} {r4} {c4} {h4}" to Sasha -> s5
+            delegate "Problem: {problem}\nGive your final recommendation in 2-3 sentences and a confidence 0-100.\nRebuttals so far: {a4} {j4} {s4} {r4} {c4} {h4}" to Aris -> r5
+            delegate "Problem: {problem}\nGive your final recommendation in 2-3 sentences and a confidence 0-100.\nRebuttals so far: {a4} {j4} {s4} {r4} {c4} {h4}" to Casey -> c5
+            delegate "Problem: {problem}\nGive your final recommendation in 2-3 sentences and a confidence 0-100.\nRebuttals so far: {a4} {j4} {s4} {r4} {c4} {h4}" to Rahul -> h5
+        }
+
+        delegate "Synthesize into one recommendation. Specify locations and exact KPIs; include a Future Possibilities section.\nAlex: {a5}\nJordan: {j5}\nSasha: {s5}\nAris: {r5}\nCasey: {c5}\nRahul: {h5}" to Coordinator -> final_text
+    }
+
+    observe "Consensus ready" {final_text}
+    handoff final_text to Coordinator
+}
+
+// NOTE: Loom replaces a variable name wherever it appears in a string, braces or not, so variable names here
+// (final_text, prior, feedback_text, fb, fabcheck) are chosen never to occur as ordinary words in the prompts.
+// A user's feedback after the consensus triggers one refinement round and a new consensus.
+workflow Refine(topic, prior, feedback_text) {
+    parallel {
+        delegate "The user gave this feedback: {feedback_text}\nRe-evaluate your previous stance and say what changed.\nProblem: {topic}\nPrevious consensus: {prior}" to Alex -> a6
+        delegate "The user gave this feedback: {feedback_text}\nRe-evaluate your previous stance and say what changed.\nProblem: {topic}\nPrevious consensus: {prior}" to Jordan -> j6
+        delegate "The user gave this feedback: {feedback_text}\nRe-evaluate your previous stance and say what changed.\nProblem: {topic}\nPrevious consensus: {prior}" to Sasha -> s6
+        delegate "The user gave this feedback: {feedback_text}\nRe-evaluate your previous stance and say what changed.\nProblem: {topic}\nPrevious consensus: {prior}" to Aris -> r6
+        delegate "The user gave this feedback: {feedback_text}\nRe-evaluate your previous stance and say what changed.\nProblem: {topic}\nPrevious consensus: {prior}" to Casey -> c6
+        delegate "The user gave this feedback: {feedback_text}\nRe-evaluate your previous stance and say what changed.\nProblem: {topic}\nPrevious consensus: {prior}" to Rahul -> h6
+    }
+    delegate "Rebuild the consensus given the feedback {feedback_text}.\nAlex: {a6}\nJordan: {j6}\nSasha: {s6}\nAris: {r6}\nCasey: {c6}\nRahul: {h6}" to Coordinator -> revised_text
+    handoff revised_text to Coordinator
+}

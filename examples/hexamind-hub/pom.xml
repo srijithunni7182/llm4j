@@ -77,6 +77,27 @@
             <scope>test</scope>
         </dependency>
         
+        <!-- Evaluation (see eval/SPEC.md): eval4j, its dashboard, and the Loom runtime for the debate workflow.
+             Test scope only: nothing here reaches the application. -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>eval4j</artifactId>
+            <version>5.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>eval4j-report</artifactId>
+            <version>5.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j-loom</artifactId>
+            <version>5.0</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Awaitility for async testing -->
         <dependency>
             <groupId>org.awaitility</groupId>
@@ -93,6 +114,16 @@
 
     <build>
         <plugins>
+            <!-- Live evaluation tests call paid APIs: they live in ...hexamind.eval.live and run only with -Peval -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>**/eval/live/**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -166,4 +197,36 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- mvn test -Peval : runs the live evaluation (needs GEMINI_API_KEY and ANTHROPIC_API_KEY; spends money).
+             Use eval/run-all.sh, which sets spend limits and runs the stages in order. -->
+        <profile>
+            <id>eval</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <excludes combine.self="override"/>
+                            <includes>
+                                <include>**/eval/live/**/*EvalTest.java</include>
+                            </includes>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>jacoco-check</id>
+                                <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
