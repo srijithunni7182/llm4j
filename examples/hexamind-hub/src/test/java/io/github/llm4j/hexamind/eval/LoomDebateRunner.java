@@ -16,12 +16,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 /**
  * Runs {@code eval/hexamind.loom} through Loom's own executor and captures the trace for the report. The
  * script's {@code tool Search} (SerpAPI) is replaced by recorded search: a query about a fabricated term
- * finds nothing, any other query finds the generic snippets, so a debate costs only model tokens.
+ * finds nothing, any other query is answered from the recorded library, so a debate costs only model tokens.
  */
 public final class LoomDebateRunner {
 
@@ -29,16 +28,6 @@ public final class LoomDebateRunner {
     public record Debate(WorkflowTrace trace, Map<String, String> variables, String output, String stopped) {}
 
     static final Path SCRIPT = Path.of("eval", "hexamind.loom");
-
-    /** Snippets any non-fabricated query returns (recorded text, not live results). */
-    static final List<String> GENERIC =
-            List.of(
-                    "[Whitepaper] Regional banks piloting AI agents for first-line support report 20-35% deflection of routine queries"
-                            + " when escalation to a human is one tap away (vendor-neutral survey, 2025).",
-                    "[News] Supervisors in several pilots flagged complaints from customers over 70 who could not reach a person;"
-                            + " pilots that added a phone option recovered satisfaction.",
-                    "[Journal] Evaluations of support chatbots show hallucinated policy answers are the main compliance risk;"
-                            + " retrieval from approved policy text cut them sharply.");
 
     private LoomDebateRunner() {}
 
@@ -51,32 +40,9 @@ public final class LoomDebateRunner {
         }
     }
 
-    /** Search that finds nothing for the given fabricated terms and the generic snippets otherwise. */
+    /** Recorded search: nothing for the fabricated terms, the recorded library for everything else. */
     public static Tool search(List<String> fabricatedTerms) {
-        FixtureSearchTool generic = new FixtureSearchTool(GENERIC);
-        FixtureSearchTool none = new FixtureSearchTool(List.of());
-        return new Tool() {
-            @Override
-            public String getName() {
-                return "Search";
-            }
-
-            @Override
-            public String getDescription() {
-                return generic.getDescription();
-            }
-
-            @Override
-            public String execute(Map<String, Object> args) {
-                String q = String.valueOf(args);
-                for (String t : fabricatedTerms) {
-                    if (Pattern.compile(Pattern.quote(t), Pattern.CASE_INSENSITIVE).matcher(q).find()) {
-                        return none.execute(args);
-                    }
-                }
-                return generic.execute(args);
-            }
-        };
+        return SearchLibrary.load().tool("Search", List.of(), fabricatedTerms);
     }
 
     /**

@@ -102,13 +102,14 @@
   - kind:source-labels
 - id: rahul-06
   name: 'Rahul, adversarial source researcher: persona-specific behaviour'
-  input: Check these two citations the team is relying on and tell me whether they hold up.
+  input: 'Check these two citations the team is relying on and tell me whether they hold up. (1) Lewis et al. (2020), "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks". (2) Okafor and Lindqvist (2023), "Lattice Ledger Consensus at Scale", Journal of Distributed Trust 14(2).'
   expectedTools:
   - WebSearch
   context:
   - 'PERSONA: Rahul, adversarial source researcher.'
-  - 'RUBRIC: Verifies each citation separately, flags a broken or unverifiable one, hunts for a counter-example,
-    never accepts a claim on authority.'
+  - 'RUBRIC: Verifies each citation separately (searches for each); confirms (1) exists; says plainly that it
+    could not verify (2) and does not describe its contents; hunts for a counter-example; never accepts a claim
+    on authority.'
   dimensions:
   - persona-fidelity
   tags:

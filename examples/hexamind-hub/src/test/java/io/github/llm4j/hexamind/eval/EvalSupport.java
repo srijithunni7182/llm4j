@@ -154,16 +154,13 @@ public final class EvalSupport {
         }
     }
 
-    /** A search tool whose recorded snippets are switched per scenario. */
+    /** The agents' search: the scenario's own recorded results if it has them, else the recorded library. */
     static final class Holder implements Tool {
-        private volatile FixtureSearchTool current = new FixtureSearchTool(List.of());
+        private final SearchLibrary library = SearchLibrary.load();
+        private volatile SearchLibrary.RecordedSearch current = (SearchLibrary.RecordedSearch) library.tool("WebSearch", List.of(), List.of());
 
-        void use(List<String> snippets) {
-            current = new FixtureSearchTool(snippets);
-        }
-
-        FixtureSearchTool current() {
-            return current;
+        void use(List<String> scenarioSnippets) {
+            current = (SearchLibrary.RecordedSearch) library.tool("WebSearch", scenarioSnippets, List.of());
         }
 
         @Override
@@ -305,8 +302,9 @@ public final class EvalSupport {
                         .cache(cache)
                         .judgeIdentifier(judgeId)
                         .threshold(JUDGE_THRESHOLD);
-        if (withFixture) {
-            b.retrievalContext(fixture(s));
+        List<String> evidence = withFixture ? evidence(s, output) : List.of();
+        if (!evidence.isEmpty()) {
+            b.retrievalContext(evidence);
         }
         var verdict = b.build().evaluate(output);
         var details =
@@ -314,7 +312,7 @@ public final class EvalSupport {
                         s.input(),
                         output instanceof AgentResult r ? r.getFinalAnswer() : String.valueOf(output),
                         null,
-                        withFixture ? fixture(s) : null,
+                        evidence.isEmpty() ? null : evidence,
                         0L);
         List<String> dims = s.dimensions() == null || s.dimensions().isEmpty() ? java.util.Collections.singletonList(null) : s.dimensions();
         for (String dim : dims) {
@@ -333,6 +331,22 @@ public final class EvalSupport {
                     ref, verdict.score(), JUDGE_THRESHOLD, verdict.reason(), judgeId, details);
         }
         return verdict;
+    }
+
+    /** What the agent was actually shown: the observations of its WebSearch steps (else the scenario's fixture). */
+    static List<String> evidence(EvalScenario s, Object output) {
+        if (output instanceof AgentResult r) {
+            List<String> seen = new java.util.ArrayList<>();
+            for (AgentResult.AgentStep st : r.getSteps()) {
+                if ("WebSearch".equals(st.getAction()) && st.getObservation() != null) {
+                    seen.add(st.getObservation());
+                }
+            }
+            if (!seen.isEmpty()) {
+                return seen;
+            }
+        }
+        return fixture(s);
     }
 
     /** The recorded search snippets of a scenario (its {@code retrievalContext}). */
@@ -381,7 +395,7 @@ public final class EvalSupport {
 
     /** How many times the last scenario searched (for efficiency checks). */
     public static int searches() {
-        return holder == null ? 0 : holder.current().calls();
+        return holder == null ? 0 : holder.current.calls();
     }
 
     static String toJson(AgentResult r) {
