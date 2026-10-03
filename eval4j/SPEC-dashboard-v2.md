@@ -1,7 +1,7 @@
 # eval4j — Spec: Quality Dashboard v2
 
-Status: **Draft for review (rev 3)** · Scope: `eval4j` `report` package · Supersedes the earlier "Run Explorer" draft
-Mockup: https://claude.ai/artifact/BTpq8amVUQWzqC9UEqqbXv (private; static, sample data, no product code)
+Status: **Draft for review (rev 5)** · Scope: `eval4j` `report` package · Supersedes the earlier "Run Explorer" draft
+Mockups (private, sample data, no product code): interactive https://claude.ai/artifact/BTpq8amVUQWzqC9UEqqbXv · static edition https://claude.ai/artifact/1s1Ufc3nAnn6qV1rLZQ2zM
 
 ## 1. Why v1 is not good enough
 
@@ -31,17 +31,51 @@ Shipping is a business decision. The report supplies the evidence; **it does not
 
 ## 3. Information architecture
 
+Two independent axes classify every evaluation:
+
+- **Test family (what is under test)** is the left-hand navigation.
+- **Quality dimension (what quality is measured)** is the donuts, goals and priorities already specified.
+
+A family page shows only that family's evaluations, sliced by dimension. The overview shows everything.
+
 ```
-Overview ──► Dimension ──► (Metric filter) ──► Test list ──► Case drawer
- (no tests)   donut, tiles    narrows chart      rows = tests    input/output/expected/
- verdict,     metric cards    and test list      cells = metrics  context/each evaluation
- radar,       histogram                                          with judge + reasoning
- 6 donuts,
- models
+Left navigation                         Views
+─────────────────                       ──────────────────────────────────────────
+Overview                                run summary · family tiles · dimension donuts
+TEST FAMILIES
+  Prompts                               A/B comparisons · optimizer rounds · prompt diff
+  Agents                                family page: facets + dimensions
+    Reasoning                           step outcomes · steps vs budget · trace viewer
+    Tool use                            tool-call accuracy, order, success
+    Answers & speed                     answer quality, latency, tokens
+  Conversations                         memory, completeness, role adherence
+  Retrieval (RAG)                       precision, recall, relevancy
+  Workflows (Loom)                      family page: facets + dimensions
+    Trajectory                          path graph · timeline · checks · spend · event log
+    Orchestration                       branches, loops, rewinds, approvals
+    Outputs & structure                 typed outputs
+    Guardrails                          PII and secret guards
+INSIGHTS
+  Dataset coverage · Cost and evidence · Judges and models
 ```
 
-Deep links use plain tokens (`#grounding`, `#overview`); all view state beyond that stays in the page.
-Without JS, each dimension is a `<section>` reachable by `:target`.
+Drill-down inside any family: **dimension, then metric, then test list, then case drawer.** A case drawer adapts to its family: customer/agent/context for agents, scenario and both prompt outputs for prompts, turns for conversations, and the run summary with a link into the trajectory view for workflows.
+
+Navigation shows each item's pass rate with an icon, so the left panel is itself a scorecard. On narrow screens it becomes an off-canvas menu. Deep links are plain tokens: `#agents-reasoning`, `#workflows-trajectory`, `#coverage`.
+Without JS, every view is a `<section>` reachable by `:target` (see the static edition, 8a).
+
+### 3a. Family and facet classification
+Each metric carries a **family** and a **facet**; the dimension stays separate.
+
+| Family | Facets | Example metrics |
+|---|---|---|
+| Prompts | A/B comparisons, optimization | pairwise "B does not lose" per comparison, optimizer best validation score |
+| Agents | Reasoning, Tool use, Answers & speed | plan coherence, tool choice, error recovery, step efficiency, tool order, correctness, relevancy, faithfulness, latency, tokens |
+| Conversations | Multi-turn | knowledge retention, conversation completeness, role adherence |
+| Retrieval (RAG) | Retrieval | contextual precision, recall, relevancy |
+| Workflows (Loom) | Trajectory, Orchestration, Outputs & structure, Guardrails | tool order across agents, required agents invoked, correct branch, loop within bound, rewinds within cap, approval requested, typed output complete, PII guard held, spend within budget |
+
+Built-in metrics map to a family and facet by default; a metric can override both. An unmapped metric defaults to Agents / Answers. Families and facets are open: Loom's earned-autonomy replay (`ReplayReport`) is a natural later family.
 
 ## 4. Screens (see mockup for the visual)
 
@@ -75,6 +109,34 @@ Customer input, agent reply, expected output, retrieved chunks, a chip per dimen
 - *Independence check:* a warning if judge and agent are the same model family (self-preference bias).
 
 **Agent under test:** model, provider, prompt id/version, tools, test-case and evaluation counts, judged vs measured split.
+
+### 4.5 Prompts view
+- **A/B comparisons:** one card per comparison (for example `support-agent v3 vs v2`): stacked bar of B wins / ties / A wins, counts, and how many verdicts flipped when the order was swapped (so they are treated as ties). Built on `PromptComparison` / `PairwiseJudge`, which already judge both orders.
+- **Optimizer run:** best validation score by round against the goal line, accepted rounds filled and rejected rounds hollow, stop reason (for example "goal reached in round 8"), LLM calls and cost against the budget, and the **prompt diff** (`LineDiff`) of what the accepted rewrite changed, plus the train-versus-validation gap from the overfitting guard. Built on `OptimizationReport`.
+- Prompt results also feed the **Prompt quality** dimension and the baseline gate like any other metric.
+
+### 4.6 Agents: Reasoning view
+- **Reasoning summary:** traces, average steps, repeat rate, tool-error rate, unknown-tool count.
+- **What happened at each step:** the counts of `AgentResult.StepOutcome` across all traces: `EXECUTED`, `UNKNOWN_TOOL`, `DUPLICATE_BLOCKED` (loop detection), `EXECUTION_ERROR`, `REJECTED_BY_HUMAN`, `APPROVAL_UNAVAILABLE`, `BUDGET_EXHAUSTED`, each with a plain-language meaning.
+- **Steps per trace** histogram against the step budget.
+- **Traces table:** one row per agentic test with steps, plan coherence, tool choice, error recovery and flags. A row opens the drawer with the **step-by-step trace**: thought, action and input, observation, outcome chip; failed steps are highlighted and numbered, never colour alone.
+- Metrics: plan coherence, tool choice and error recovery are judged from the trace (`includeTrajectory`); tool order and tool success are deterministic (`usesToolsInOrder`, `usesToolSuccessfully`); steps to resolution is measured.
+
+### 4.7 Workflows (Loom): Trajectory view
+Pick a workflow run (runs with failed checks are marked). Then:
+- **Path graph:** the workflow's control flow (`delegate`, `alt`, `loop until`, `handoff`) with the **expected path dashed** and the **path taken solid**. A wrong or failed node is outlined red with an icon; badges show guard held/leaked, rewound ×N, approved / no approval, and loop count against its bound.
+- **Timeline:** a swim lane per agent (and the harness), with bars for each agent working and markers for guard, checkpoint, rewind, budget and suspend events.
+- **Checks for this run:** every trajectory assertion for the run with the reason, failures first.
+- **Spend by agent:** model and cost per agent against the run budget (from `SpendReport`).
+- **Event log:** the run's trace events, filterable by type: `delegate_start/end/replayed`, `thought`, `action`, `observation`, `tool`, `budget`, `approval`, `guard`, `checkpoint`, `rewind`, `decision`, `suspended`.
+- The family page also shows **Orchestration**, **Outputs & structure** and **Guardrails** as dimension-and-test views, and the case drawer links a run into this view.
+
+### 4.8 Getting Loom data into eval4j
+eval4j depends on `ai-agent4j` only and must not depend on Loom. Loom already emits what the view needs: `TraceEvent` (type, agent, hierarchical step id, text, data, time) through `TraceListener`, per-step spend through `SpendReport`, and the run journal. The design:
+1. eval4j defines a small neutral **trace model** (`WorkflowTrace`: events with type, agent, step id, time, data; plus spend lines). It is serializable into the report JSON.
+2. A thin bridge in the Loom module (or an `eval4j-loom` artifact) subscribes with `HarnessExecutor.addTraceListener` and records a `WorkflowTrace` against the current test; no change to Loom's runtime.
+3. Trajectory assertions (`usesToolsInOrder`-style, branch, loop bound, rewinds, approvals, guards) are plain assertions over the trace and are recorded as deterministic evaluations in the Workflows family, so they cost nothing to run on every build.
+4. Single-agent traces come straight from `AgentResult.getSteps()`.
 
 ## 5. Dimensions, metrics and goals
 
@@ -177,6 +239,9 @@ The report for a cheap run is assembled from the latest known result per case: f
 | Judge descriptor | `provider`, `model`, `temperature`, `samples`, `aggregation`, `rubricId`, `rubricVersion` |
 | Judge run stats | calls, cache hits, latency mean/p95, tokens in/out, cost, failures, retries, sample-agreement |
 | `EvalScenario` | `dimensions` (list of ids), optional `tags` |
+| `EvalRecord` (more) | `family`, `facet`, `trace` (agent steps or `WorkflowTrace`, size-bounded) |
+| `WorkflowTrace` | events (type, agent, step id, text, data, time), spend lines, workflow name and expected path |
+| Prompt results | per-comparison pairwise outcomes; optimizer rounds (index, action, best score, cost) and diff |
 | `RunInfo` | `dataset` (path, revision/hash, scenario count, per-dimension declared scenario ids), `goals`, `profile` (`FAST`/`BUILD`/`SAMPLE`/`FULL`), `coverage` (evaluated / total), `judgeBudgetUsd`, `agent` descriptor (model, provider, prompt id, tools), `judge` stats, calibration summary, last full judged run id and time |
 | `HistoryEntry` | per-dimension pass rate and counts (sparklines, "vs previous run"), run profile, spend, and per-case latest verdict with its run id (drives carry-over) |
 
@@ -212,6 +277,22 @@ The report is an llm4j product and looks like one.
 
 Unchanged from v1 (`eval4j-report.html/json/csv`, `eval4j-junit.xml`, `eval4j-summary.md`, history). `eval4j-summary.md` gains a per-dimension table with goal and gap. `EvalReportCli` can re-render everything from JSON.
 
+## 8a. Static edition (for Jenkins and other locked-down viewers)
+
+Jenkins' default Content-Security-Policy blocks inline scripts and inline styles, and the interactive report relies on both. So every run also writes a **static edition**: the same data, simpler, and safe under that policy.
+
+| | Interactive edition | Static edition |
+|---|---|---|
+| Files | `eval4j-report.html` (one self-contained file) | `eval4j-static.html` + `eval4j-static.css` |
+| JavaScript | enhances: drill-down, filters, priorities, drawer, trace and graph pickers | none |
+| Styling | inline `<style>` | linked stylesheet, no `style=""` attributes (SVG uses presentation attributes), so `style-src 'self'` accepts it |
+| Navigation | left panel, in-page views | left panel of anchor links to sections on one page |
+| Drill-down | click a donut | one section per family: dimension table, then `<details>` of failing evaluations |
+| Charts | interactive SVG | static SVG: donuts with goal tick, bars, and the workflow path graph for runs with failed checks |
+| Priorities | adjustable | configured defaults only |
+
+The static edition keeps the whole classification: overview, every family, coverage, cost and evidence, judges and models, and the same "no verdict" wording. It is complete on its own and prints cleanly. The mockup of it is linked above.
+
 ## 9. Acceptance criteria
 
 | ID | Criterion |
@@ -241,27 +322,41 @@ Unchanged from v1 (`eval4j-report.html/json/csv`, `eval4j-junit.xml`, `eval4j-su
 | Q23 | A dimension added to a scenario's `dimensions` list appears in the next report with no code change; removing it from every scenario removes the card |
 | Q24 | Datasets without `dimensions` still produce a report (dimensions inferred from recorded metrics) |
 | Q25 | A metric with no dimension appears under "Other" and a recorded but undeclared dimension is flagged "not in the dataset" |
+| Q26 | The left navigation lists every test family with its pass rate and a status icon, and works as an off-canvas menu on small screens |
+| Q27 | Selecting a family or facet shows only its evaluations, sliced by dimension, with its own tiles and donuts |
+| Q28 | The Prompts view shows A/B outcomes with order-flip counts, optimizer score by round against its goal, and the prompt diff |
+| Q29 | The Reasoning view shows step-outcome counts, steps against budget, and a readable step-by-step trace for each agentic test |
+| Q30 | The Trajectory view shows expected versus taken path, a per-agent timeline, the run's checks, spend by agent and a filterable event log |
+| Q31 | Trajectory checks are deterministic assertions and make no LLM call |
+| Q32 | The static edition has no `<script>` and no inline `style` attributes, renders under a default Jenkins CSP, and contains every family section |
+| Q33 | eval4j gains no dependency on Loom |
 
 ## 10. Phasing
 
 | Phase | Contents |
 |---|---|
-| 1 | Data model: `EvalScenario.dimensions`, dimension registry and dataset descriptor, scenario binding (invocation interceptor), dimension + kind on records, goals, evidence source and run provenance, judge/agent descriptors, per-dimension history |
+| 1 | Data model: `EvalScenario.dimensions`, dimension registry and dataset descriptor, scenario binding (invocation interceptor), family and facet on metrics, dimension and kind on records, goals, evidence source and run provenance, judge/agent descriptors, per-dimension history |
 | 2 | Cost-aware runs: change-aware judging via the existing cache, run profiles, budget cap, coverage and "Not evaluated" |
-| 3 | Overview: run summary, priorities, radar, dimension donuts (all declared dimensions, empty states), golden dataset coverage panel, evidence bars, "How this run was produced", Models panel |
-| 4 | Dimension view, metric filter, histogram, test list, case drawer, accessibility pass |
-| 5 | Composite (carry-over) view, sampling with margin of error, judge reliability, independence check, CLI and summary updates |
+| 3 | Shell and overview: left navigation, run summary, priorities, family tiles, dimension donuts with empty states, coverage, evidence, Models panel |
+| 4 | Family pages and the dimension, metric, test, drawer drill-down; Agents (answers, tools), Conversations, Retrieval |
+| 5 | **Static edition** (alongside phase 3 and 4: it renders the same model) |
+| 6 | Prompts view (A/B, optimizer, diff) and Agents / Reasoning view (step outcomes, trace viewer) |
+| 7 | Loom: `WorkflowTrace` model, bridge, trajectory assertions, Workflows family and Trajectory view (graph, timeline, event log, spend) |
+| 8 | Composite carry-over view, sampling with margin of error, judge reliability, independence check, CLI and summary updates |
 
 Run comparison, stability/flakiness and per-case cost analytics from the earlier draft come after this.
 
 ## 11. Open questions
 
-1. **Declaring dimensions:** is a per-scenario `dimensions:` list the right shape, or should datasets also carry a header block (name, description, goal per dimension)? The current YAML is a bare list, so a header would be a format change.
-2. **Defaults:** are the six shipped default dimensions and their names right (for example "Accuracy" instead of "Correctness")?
-3. **Priority presets:** should a team be able to publish named presets ("Customer-facing", "Internal tool") that stakeholders pick from, or is per-dimension control enough?
-4. **Carry-over limits:** default staleness limit of 7 days, and should a carried-over result ever count towards the weighted pass rate, or be shown but excluded until refreshed?
-5. **Sampling:** is a seeded, per-dimension stratified sample the right default, and what default percentage for the Sample profile?
-6. **Efficiency:** are latency, tokens and steps the right measured metrics, and who supplies budgets?
-7. **Pricing:** user-supplied only (proposed), or ship a default table that will go stale?
-8. **Fonts:** embed Plex in the file (about 100 KB) or use the system font stack?
-9. **Anything else on the overview** you want visible at a glance?
+1. **Workflow graph source:** Loom scripts are the source of the workflow graph. Should the report parse the `.loom` file for the graph, or should the bridge record the graph (nodes and edges) alongside the trace? Recording is simpler and does not need a Loom parser in eval4j.
+2. **Families:** are Prompts, Agents, Conversations, Retrieval and Workflows the right top-level split? Loom's earned-autonomy replay could be a sixth.
+3. **Static edition CSS:** one extra `.css` file is needed under Jenkins' default policy. Is a two-file output acceptable, with the interactive file staying single-file?
+4. **Declaring dimensions:** is a per-scenario `dimensions:` list the right shape, or should datasets also carry a header block (name, description, goal per dimension)? The current YAML is a bare list, so a header would be a format change.
+5. **Defaults:** are the six shipped default dimensions and their names right (for example "Accuracy" instead of "Correctness")?
+6. **Priority presets:** should a team be able to publish named presets ("Customer-facing", "Internal tool") that stakeholders pick from, or is per-dimension control enough?
+7. **Carry-over limits:** default staleness limit of 7 days, and should a carried-over result ever count towards the weighted pass rate, or be shown but excluded until refreshed?
+8. **Sampling:** is a seeded, per-dimension stratified sample the right default, and what default percentage for the Sample profile?
+9. **Efficiency:** are latency, tokens and steps the right measured metrics, and who supplies budgets?
+10. **Pricing:** user-supplied only (proposed), or ship a default table that will go stale?
+11. **Fonts:** embed Plex in the file (about 100 KB) or use the system font stack?
+12. **Anything else on the overview** you want visible at a glance?
