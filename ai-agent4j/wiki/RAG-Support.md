@@ -43,8 +43,8 @@ import io.github.llm4j.config.LLMConfig;
 
 // Option 1: Google Gemini (Cloud)
 LLMConfig config = LLMConfig.builder()
-    .apiKey(System.getenv("GOOGLE_API_KEY"))
-    .defaultModel("gemini-1.5-flash")
+    .apiKey(System.getenv("GEMINI_API_KEY"))
+    .defaultModel("gemini-2.5-flash")
     .build();
 EmbeddingProvider geminiProvider = new GeminiEmbeddingProvider(config);
 

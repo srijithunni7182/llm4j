@@ -98,7 +98,7 @@ While general libraries like LangChain or Spring AI focus on **"Broad Features,"
 
 The era of "AI for the sake of AI" is over. We are entering the era of **Accountable AI**.
 
-A library shouldn't just be judged by its speed or its number of integrations; it must be judged by its **Verifiability**. By choosing **ai-agent4j**, you aren't just choosing a client for Google Gemini—you are choosing a framework that respects the rights of the data subject, the requirements of the auditor, and the safety of the enterprise.
+A library shouldn't just be judged by its speed or its number of integrations; it must be judged by its **Verifiability**. By choosing **ai-agent4j**, you aren't just choosing a model client—you are choosing a framework that respects the rights of the data subject, the requirements of the auditor, and the safety of the enterprise.
 
 > [!IMPORTANT]
 > **ai-agent4j** currently achieves **~95% xAI Compliance**, providing a turnkey solution for developers in Finance, Healthcare, and Legal sectors.
