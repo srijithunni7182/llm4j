@@ -24,6 +24,18 @@
   <a href="SECURITY.md"><b>Security</b></a>
 </p>
 
+<p align="center">
+  <a href="ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md"><img src="docs/images/xai_banner.svg" alt="The most complete explainable-AI toolkit for Java agents: traceability, confidence and escalation, PII privacy, fairness" width="100%"></a>
+</p>
+
+> [!IMPORTANT]
+> **The most complete explainable-AI toolkit for Java agents.** Every agent step is recorded as an immutable audit event (**traceability**),
+> each run carries a **confidence score** with `shouldEscalateToHuman()`, **PII is masked** before it reaches a model
+> or a log, and **bias monitors** can flag or block a response. The four pillars are mapped to GDPR, the EU AI Act and
+> the NIST AI RMF in **[xAI: Beyond Black Boxes](ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md)**.
+>
+> These ship in the box. With Spring AI or LangChain4j you get observability and PII guardrails, but you build confidence scoring, bias monitoring and the audit trail yourself.
+
 ---
 
 ## Java deserves first-class AI
