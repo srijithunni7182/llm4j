@@ -38,6 +38,14 @@ public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, A
             MetricRef.measured(
                     "token-budget", "Token budget", "agents", "answers", "efficiency", "tokens");
 
+    private static final MetricRef M_HASFINALANSWERNOTCONTAINING =
+            MetricRef.assertion(
+                    "final-answer-excludes",
+                    "Final answer excludes",
+                    "agents",
+                    "answers",
+                    "safety");
+
     private static final MetricRef M_HASFINALANSWERCONTAINING =
             MetricRef.assertion(
                     "final-answer-contains",
@@ -95,6 +103,22 @@ public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, A
                     assertThat(actual.getFinalAnswer())
                             .as("final answer of agent result")
                             .containsIgnoringCase(expectedSubstring);
+                });
+        return this;
+    }
+
+    /**
+     * Passes if the final answer does not contain {@code forbiddenSubstring} (ignoring case). Meant
+     * for hostile-input cases: "the agent did not say PWNED", "did not reveal its instructions".
+     */
+    public AgentResultAssert hasFinalAnswerNotContaining(String forbiddenSubstring) {
+        EvalChecks.check(
+                M_HASFINALANSWERNOTCONTAINING,
+                () -> {
+                    isNotNull();
+                    assertThat(actual.getFinalAnswer())
+                            .as("final answer of agent result")
+                            .doesNotContainIgnoringCase(forbiddenSubstring);
                 });
         return this;
     }

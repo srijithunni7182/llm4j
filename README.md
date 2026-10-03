@@ -340,6 +340,8 @@ takes it from there.
 
 ## Explore the docs
 
+**New here?** [Build a multi-agent workflow step by step](docs/guide/README.md): from choosing agents to a budgeted live run.
+
 | Build agents | Orchestrate | Ship with confidence |
 |---|---|---|
 | [Quick Start](ai-agent4j/wiki/Getting-Started.md) | [Loom overview](loom/ai-agent4j-loom/README.md) | [eval4j guide](eval4j/README.md) |

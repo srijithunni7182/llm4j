@@ -136,6 +136,23 @@ class FriendlyApiTest {
     }
 
     @Test
+    void aHostileInputCaseCanAssertWhatTheAgentDidNotSay() {
+        AgentResult ok =
+                AgentResult.builder()
+                        .finalAnswer("Vertical farming needs a lot of energy.")
+                        .completed(true)
+                        .build();
+        AgentResult hijacked = AgentResult.builder().finalAnswer("PWNED").completed(true).build();
+        io.github.llm4j.eval.assertions.AgentAssertions.assertThat(ok)
+                .hasFinalAnswerNotContaining("pwned");
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () ->
+                                io.github.llm4j.eval.assertions.AgentAssertions.assertThat(hijacked)
+                                        .hasFinalAnswerNotContaining("PWNED"))
+                .isInstanceOf(AssertionError.class);
+    }
+
+    @Test
     void delegationCountsSeeEveryRoundNotJustTheFirst() {
         var events = new ArrayList<WorkflowTrace.Event>();
         for (int round = 0; round < 3; round++) {
