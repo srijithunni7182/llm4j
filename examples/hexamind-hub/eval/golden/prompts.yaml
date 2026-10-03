@@ -1,0 +1,192 @@
+# Golden scenarios for prompt tests: each scenario targets one prompt id in src/main/resources/prompts.yaml.
+# Run against the current prompt version and a candidate (A/B via PromptComparison); see eval/SPEC.md.
+- id: prompt-01
+  name: 'agent_analyze: verifies unfamiliar terms'
+  input: 'Analyze this problem from your perspective as a Technical Analyst: Evaluate the Quantum Lattice
+    Ledger (QLL-7) consensus protocol for our bank.'
+  context:
+  - 'PROMPT: agent_analyze'
+  - 'RUBRIC: The prompt must make the agent search and call out the fabricated term in the first sentence.'
+  expectedTools:
+  - WebSearch
+  dimensions:
+  - prompting
+  - fact-checking
+  tags:
+  - family:prompts
+  - prompt:agent_analyze
+  - kind:fabricated-premise
+- id: prompt-02
+  name: 'agent_analyze: concise and sourced'
+  input: 'Analyze this problem from your perspective as a Business Consultant: Should a regional bank
+    pilot an AI agent for first-line customer support?'
+  context:
+  - 'PROMPT: agent_analyze'
+  - 'RUBRIC: 2-4 sentences; source type labelled; empirical rather than generic.'
+  expectedTools:
+  - WebSearch
+  dimensions:
+  - prompting
+  - grounding
+  tags:
+  - family:prompts
+  - prompt:agent_analyze
+- id: prompt-03
+  name: 'agent_argue: specific, not generic'
+  input: 'Problem: Should a regional bank pilot an AI agent for first-line customer support?
+
+
+    Context from other agents:
+
+    Alex: feasible with a hand-off path. Rahul: the cost claim is unverified.'
+  context:
+  - 'PROMPT: agent_argue'
+  - 'RUBRIC: Gives one main recommendation with reasoning and data; no generic advice; stays in persona.'
+  dimensions:
+  - prompting
+  tags:
+  - family:prompts
+  - prompt:agent_argue
+- id: prompt-04
+  name: 'agent_respond: challenges unsupported claims'
+  input: 'Other agents have presented these arguments:
+
+    Jordan: costs fall 60 percent.
+
+    Sasha: fully autonomous support by 2030.'
+  context:
+  - 'PROMPT: agent_respond'
+  - 'RUBRIC: Agrees or disagrees specifically, and challenges the unsupported 60 percent and 2030 claims.'
+  dimensions:
+  - prompting
+  - reasoning
+  tags:
+  - family:prompts
+  - prompt:agent_respond
+- id: prompt-05
+  name: 'agent_form_opinion: 2-3 sentences plus a confidence'
+  input: 'Problem: Should a regional bank pilot an AI agent for first-line customer support?
+
+
+    Discussion so far:
+
+    Alex: feasible. Casey: needs human hand-off. Rahul: savings unverified.'
+  context:
+  - 'PROMPT: agent_form_opinion'
+  - 'RUBRIC: 2-3 sentences and a confidence from 0 to 100 that is consistent with the doubts raised.'
+  dimensions:
+  - prompting
+  tags:
+  - family:prompts
+  - prompt:agent_form_opinion
+- id: prompt-06
+  name: 'orch_fact_check_instruction: forces literal verification'
+  input: Evaluate the HyperQuantum Flux Ledger standard (HQFL-9) for a trading desk.
+  context:
+  - 'PROMPT: orch_fact_check_instruction'
+  - 'RUBRIC: The agent searches and debunks in round 1 and uses none of the banned phrases.'
+  expectedTools:
+  - WebSearch
+  dimensions:
+  - prompting
+  - fact-checking
+  tags:
+  - family:prompts
+  - prompt:orch_fact_check_instruction
+  - kind:fabricated-premise
+- id: prompt-07
+  name: 'orch_critique_instruction: finds fallacies'
+  input: 'Critique the following arguments objectively:
+
+    Jordan: everyone is talking about it so it must matter.
+
+    Sasha: it will happen because it is inevitable.'
+  context:
+  - 'PROMPT: orch_critique_instruction'
+  - 'RUBRIC: Names the appeal-to-popularity and inevitability fallacies; asks for missing data.'
+  dimensions:
+  - prompting
+  - reasoning
+  tags:
+  - family:prompts
+  - prompt:orch_critique_instruction
+- id: prompt-08
+  name: 'orch_rebuttal_instruction: defends or concedes'
+  input: 'Defend your position against these critiques:
+
+    Rahul: your source is a single press release.'
+  context:
+  - 'PROMPT: orch_rebuttal_instruction'
+  - 'RUBRIC: Either supplies better evidence or concedes the point; no deflection.'
+  dimensions:
+  - prompting
+  tags:
+  - family:prompts
+  - prompt:orch_rebuttal_instruction
+- id: prompt-09
+  name: 'orch_synthesize_consensus: debunks first when a premise is fabricated'
+  input: '### EXPERT OPINIONS:
+
+    Alex: could not verify QLL-7.
+
+    Rahul: no evidence QLL-7 exists.
+
+    Sasha: if it existed, it could reshape settlement.
+
+    Casey: customers are unaffected.'
+  context:
+  - 'PROMPT: orch_synthesize_consensus'
+  - 'RUBRIC: Begins by stating the term could not be verified; does not provide a rollout plan for it;
+    no banned clichés.'
+  dimensions:
+  - prompting
+  - fact-checking
+  tags:
+  - family:prompts
+  - prompt:orch_synthesize_consensus
+  - kind:fabricated-premise
+- id: prompt-10
+  name: 'orch_synthesize_consensus: specific locations and KPIs'
+  input: '### EXPERT OPINIONS:
+
+    Alex: pilot is feasible. Jordan: regional demand is strong. Casey: needs human hand-off. Rahul: savings
+    unverified. Sasha: long-run autonomy.
+
+    Problem: Should a regional bank pilot an AI agent for first-line customer support?'
+  context:
+  - 'PROMPT: orch_synthesize_consensus'
+  - 'RUBRIC: Names where the pilot runs (a specific place) and exact KPIs with numbers; has a distinct
+    ''Future Possibilities'' section.'
+  dimensions:
+  - prompting
+  - actionability
+  tags:
+  - family:prompts
+  - prompt:orch_synthesize_consensus
+- id: prompt-11
+  name: 'orch_extract_knowledge: valid JSON triples'
+  input: 'Extract knowledge triples from: Solid-state batteries use a solid electrolyte. Solid electrolytes
+    improve safety. Lithium metal anodes raise energy density.'
+  context:
+  - 'PROMPT: orch_extract_knowledge'
+  - 'RUBRIC: Returns ONLY a JSON array of objects with subject, predicate, object; at least three triples;
+    no prose.'
+  dimensions:
+  - prompting
+  - reliability
+  tags:
+  - family:prompts
+  - prompt:orch_extract_knowledge
+- id: prompt-12
+  name: 'orch_refinement_instruction: revises on feedback'
+  input: 'The user has provided the following feedback: Your plan ignores older customers. Re-evaluate
+    your previous stance.'
+  context:
+  - 'PROMPT: orch_refinement_instruction'
+  - 'RUBRIC: Explicitly revises its stance in response to the feedback and names what changed.'
+  dimensions:
+  - prompting
+  - adaptivity
+  tags:
+  - family:prompts
+  - prompt:orch_refinement_instruction
