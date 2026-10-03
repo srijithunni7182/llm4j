@@ -17,12 +17,40 @@
 <p align="center">
   <a href="ai-agent4j/wiki/Getting-Started.md">Get started</a> ·
   <a href="#the-stack">The stack</a> ·
+  <a href="#new-a-premium-eval-dashboard-free-and-local">Eval dashboard</a> ·
   <a href="#see-it-built">Showcases</a> ·
   <a href="#explore-the-docs">Docs</a> ·
   <a href="ai-agent4j/wiki/WHY_AI_AGENT4J.md">Why ai-agent4j?</a> ·
   <a href="loom/ai-agent4j-loom/WHY_LOOM.md">Why Loom?</a> ·
   <a href="SECURITY.md"><b>Security</b></a>
 </p>
+
+---
+
+## New: a premium eval dashboard, free and local
+
+<p align="center">
+  <a href="eval4j-report/docs/USER-GUIDE.md"><img alt="The eval4j dashboard: quality dimensions, goals and trends" src="eval4j-report/docs/images/overview.png" width="860"></a>
+</p>
+
+**eval4j-report** turns every `mvn test` run of your agent evaluations into a dashboard you would
+otherwise pay a hosted platform for. It is one self-contained HTML file: **no account, no server, no
+telemetry, no network request**, MIT-licensed, and part of the build you already run.
+
+- **Quality dimensions from your golden dataset**: a ring per dimension (correctness, grounding, retrieval, safety, efficiency, …) showing where the agent is against where it should be, with its trend. Dimensions you declared but never evaluated stay visible as *No results*.
+- **Informs the release decision, doesn't make it**: no pass/fail banner. Set what matters with priorities and presets; goals are context, not gates.
+- **Run comparison that knows judges are noisy**: against the previous run on the same branch, with the answer diffed word by word and changes inside the judge's own noise band *not* called regressions.
+- **Built for LLM cost**: `FAST`, `BUILD`, `SAMPLE` and `FULL` profiles, judge-cache reuse, a spend budget, and carry-over of the latest known results, always labelled *evaluated now*, *reused* or *carried*. A case that wasn't judged is *not evaluated*, never passed.
+- **See how agents reason and how workflows run**: step traces, and [Loom](loom/ai-agent4j-loom/README.md) workflow trajectories (expected path vs path taken, timeline, event log, spend).
+- **Everywhere**: a Jenkins-safe static edition (no script, no inline style), `summary.md` for pull requests, JUnit XML, CSV, a 3 MB CLI.
+
+<p align="center">
+  <img alt="Run comparison with the judge-noise band" src="eval4j-report/docs/images/compare.png" width="420">
+  &nbsp;
+  <img alt="Loom workflow trajectory: timeline, spend and event log" src="eval4j-report/docs/images/traces.png" width="420">
+</p>
+
+👉 [Tour of every view](eval4j-report/docs/USER-GUIDE.md) · [Open the sample report](eval4j-report/docs/sample/report/index.html) · [eval4j-report README](eval4j-report/README.md)
 
 ---
 
@@ -262,6 +290,7 @@ built for Java, not ported from Python:
   bias and toxicity.
 - **YAML golden datasets**, run through plain JUnit 5.
 - **Pass-rate thresholds** for noisy judges.
+- **A free, local, premium dashboard** ([eval4j-report](eval4j-report/docs/USER-GUIDE.md)): quality dimensions with goals and trends, run comparison that respects judge noise, cost-aware runs, agent traces and Loom workflow trajectories.
 
 It runs in `mvn test`, next to the rest of your suite. 👉 [Why eval4j?](ai-agent4j/wiki/WHY_EVAL4J.md)
 
@@ -272,7 +301,7 @@ It runs in `mvn test`, next to the rest of your suite. 👉 [Why eval4j?](ai-age
 - ai-agent4j gives agents that are **objects**;
 - Loom arranges them into **processes** that survive the real world;
 - Engram and the addons give them **memory and knowledge**;
-- eval4j turns quality into a **build gate**.
+- eval4j turns quality into a **build gate**, and eval4j-report into a **dashboard** you can show your stakeholders.
 
 It's all Java, on the JVM you already operate, monitor and trust.
 
@@ -338,7 +367,7 @@ takes it from there.
 
 | Build agents | Orchestrate | Ship with confidence |
 |---|---|---|
-| [Quick Start](ai-agent4j/wiki/Getting-Started.md) | [Loom overview](loom/ai-agent4j-loom/README.md) | [eval4j guide](eval4j/README.md) |
+| [Quick Start](ai-agent4j/wiki/Getting-Started.md) | [Loom overview](loom/ai-agent4j-loom/README.md) | [eval4j guide](eval4j/README.md) · [eval dashboard](eval4j-report/docs/USER-GUIDE.md) |
 | [ReAct Agent Guide](ai-agent4j/wiki/ReAct-Agent-Guide.md) | [Why Loom?](loom/ai-agent4j-loom/WHY_LOOM.md) | [Budgets and Rate Limits](ai-agent4j/wiki/Budgets-and-Rate-Limits.md) |
 | [Providers and the Uniform Contract](ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md) | [Loom Language Guide](loom/ai-agent4j-loom/LOOM_GUIDE.md) | [xAI: Beyond Black Boxes](ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md) |
 | [Creating Custom Tools](ai-agent4j/wiki/Creating-Custom-Tools.md) · [Ready-made tools](ai-agent4j-tools/docs/README.md) | [Budgets, Pausing and Scheduling](loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md) | [Testing Strategy](docs/TESTING_STRATEGY.md) |

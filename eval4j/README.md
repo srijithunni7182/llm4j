@@ -9,11 +9,38 @@
 drops — all inside the `mvn test` you already run, written in the Java idioms you already know.
 **If you can write a JUnit test, you can write an eval.**
 
+<p align="center">
+  <a href="../eval4j-report/docs/USER-GUIDE.md"><img alt="The eval4j dashboard" src="../eval4j-report/docs/images/overview.png" width="860"></a>
+</p>
+
+> [!TIP]
+> ## ✨ New: a premium dashboard, free and local
+> Add **[eval4j-report](../eval4j-report/README.md)** and every `mvn test` run produces a dashboard you would
+> normally need a hosted platform for. One self-contained HTML file: **no account, no server, no telemetry,
+> no network request.** MIT-licensed, in the build you already run.
+>
+> - **Quality dimensions from your golden dataset**, each with a goal and a trend. Declared but never evaluated? It stays visible as *No results*.
+> - **Informs the release decision, doesn't make it.** No pass/fail banner; set priorities and presets for what your stakeholders care about.
+> - **Run comparison that knows judges are noisy**, against the previous run on the same branch, answers diffed word by word.
+> - **Built for LLM cost**: `FAST` / `BUILD` / `SAMPLE` / `FULL` profiles, cache reuse, a spend budget, carried-over results, always labelled.
+> - **Agent traces and [Loom](../loom/ai-agent4j-loom/README.md) workflow trajectories**: path taken vs expected, timeline, event log, spend.
+> - A **Jenkins-safe static edition**, `summary.md` for pull requests, JUnit XML, CSV and a 3 MB CLI.
+>
+> ```xml
+> <dependency>
+>   <groupId>io.github.srijithunni7182</groupId><artifactId>eval4j-report</artifactId>
+>   <version>5.0</version><scope>test</scope>
+> </dependency>
+> ```
+> 👉 [**Tour of every view**](../eval4j-report/docs/USER-GUIDE.md) · [Open the sample report](../eval4j-report/docs/sample/report/index.html)
+
+
 [**Why evaluate?**](#-why-evaluation-is-not-optional) ·
 [**Philosophy**](#-philosophy) ·
 [**Ease of use**](#-if-you-can-write-a-junit-test-you-can-write-an-eval) ·
 [**Quick start**](#-quick-start) ·
 [**Features**](#-features) ·
+[**Dashboard**](../eval4j-report/docs/USER-GUIDE.md) ·
 [**Docs**](docs/README.md)
 
 ---
@@ -186,9 +213,14 @@ Knowledge retention, role adherence, completeness and relevancy across turns, wi
 the offending turn (`turn 4: asked for the user's name again`).
 → [Conversation metrics](docs/CONVERSATIONS.md)
 
+### See your agent's quality: a premium dashboard, free
+With [**eval4j-report**](../eval4j-report/docs/USER-GUIDE.md), every run becomes a dashboard: a ring per quality dimension against its goal, trends, drill-down to every case, run comparison that respects judge noise, cost and evidence (fresh, reused, carried), judge reliability, agent traces, Loom workflow trajectories, prompt A/B and optimizer views. One local HTML file, no account, plus a Jenkins-safe static edition.
+
+![Run comparison](../eval4j-report/docs/images/compare.png)
+
 ### Catch regressions before your users do
-A self-contained **HTML dashboard** (heatmap, trends, per-case drill-down, run-to-run changes), **JUnit XML / Markdown / CSV** exports, a **score history** for trends, and an `@EvalBaseline` gate
-that fails the build when a metric drops.
+**JUnit XML / Markdown / CSV** exports, a **score history** for trends, and an `@EvalBaseline` gate
+that fails the build when a metric drops. (The v1 single-file dashboard still works; [eval4j-report](../eval4j-report/README.md) supersedes it.)
 
 ```java
 @ExtendWith(EvalReportExtension.class)
@@ -238,7 +270,8 @@ proven. Details and gaps: [VERIFICATION-RESULTS.md](VERIFICATION-RESULTS.md).
 | [RAG evaluation](docs/RAG-EVALUATION.md) | Contextual precision / recall / relevancy |
 | [Conversation metrics](docs/CONVERSATIONS.md) | Multi-turn behavior |
 | [Datasets & synthesis](docs/DATASETS.md) | YAML goldens and generated scenarios |
-| [Reports, baselines & gates](docs/REPORTING-AND-BASELINES.md) | Dashboard, JUnit/Markdown/CSV reports, trends, CI gate |
+| [Dashboard user guide](../eval4j-report/docs/USER-GUIDE.md) | The full eval4j-report feature set, with screenshots |
+| [Reports, baselines & gates](docs/REPORTING-AND-BASELINES.md) | JUnit/Markdown/CSV reports, trends, CI gate, migration to the new dashboard |
 | [Comparing prompts](docs/PROMPT-COMPARISON.md) | Pairwise A/B testing |
 | [Prompt optimizer](docs/OPTIMIZER.md) | Autonomous prompt improvement with held-out verification |
 | [Design philosophy](docs/DESIGN.md) | Why it is shaped this way, spec, verification, roadmap |
