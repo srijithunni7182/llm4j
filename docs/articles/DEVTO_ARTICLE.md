@@ -375,7 +375,7 @@ This is the question I get most often, so let me answer it directly.
 | Lines of Code | 13,700+ |
 | Test Cases | 438+ |
 | Maven Central | v5.0 |
-| License | MIT |
+| License | Apache 2.0 |
 | Java Version | 17+ |
 | Library Size | ~308 KB |
 
@@ -408,7 +408,7 @@ Or add the Maven dependency and start with the [Quick Start Guide](https://githu
 
 ## Contribute
 
-llm4j is MIT licensed and actively developed. The repo is at:
+llm4j is Apache 2.0 licensed and actively developed. The repo is at:
 
 **[https://github.com/srijithunni7182/llm4j](https://github.com/srijithunni7182/llm4j)**
 

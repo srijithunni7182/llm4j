@@ -180,7 +180,7 @@ assertThat(result)
 > ## ✨ New: a premium dashboard, free and local
 > Add **[eval4j-report](../eval4j-report/README.md)** and every `mvn test` run produces a dashboard you would
 > normally need a hosted platform for. One self-contained HTML file: **no account, no server, no telemetry,
-> no network request.** MIT-licensed, in the build you already run.
+> no network request.** Apache-2.0-licensed, in the build you already run.
 >
 > - **Quality dimensions from your golden dataset**, each with a goal and a trend. Declared but never evaluated? It stays visible as *No results*.
 > - **Informs the release decision, doesn't make it.** No pass/fail banner; set priorities and presets for what your stakeholders care about.

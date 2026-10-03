@@ -9,7 +9,7 @@
 **Build autonomous agents, RAG pipelines, and specialized tools with Google Gemini, Anthropic Claude, Sarvam AI, and local LLMs.**
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.github.srijithunni7182/ai-agent4j.svg?label=Maven%20Central)](https://central.sonatype.com/artifact/io.github.srijithunni7182/ai-agent4j)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Java 17+](https://img.shields.io/badge/Java-17%2B-orange)](https://www.oracle.com/java/technologies/downloads/#java17)
 
 `ai-agent4j` is a high-performance, modular LLM library for Java that prioritizes simplicity and correctness. It provides a unified API for cloud providers (Gemini, Claude), regional specialists (Sarvam AI), and local models (Ollama). Every provider meets [one contract](wiki/Providers-and-the-Uniform-Contract.md): the same requests, finish reasons, exceptions and streaming, so you switch models by changing a name.
@@ -322,7 +322,7 @@ and how to run the live suite with your own keys.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](../LICENSE) file for details.
 
 ## Support
 
