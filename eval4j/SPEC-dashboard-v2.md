@@ -58,7 +58,7 @@ Without JS, each dimension is a `<section>` reachable by `:target`.
 - **Models in this run:** see 4.4.
 
 ### 4.2 Dimension view
-- Header: large donut, description, tiles (pass rate, target, gap, average score, status).
+- Header: large donut, description, tiles (pass rate, goal, gap, average score, status).
 - **Metric cards:** passed/failed bar, average score, pass threshold, "LLM-judged" or "Measured" badge. Selecting one narrows everything below.
 - **Where scores landed:** histogram of scores 0 to 1, stacked passed/failed, the pass line marked for a single metric. Beside it: **Should be / Reached / Gap** and "N more evaluations must move into the pass zone".
 - **Tests:** one row per test case, one cell per metric (score with ✓ / ✕, never colour alone; a clock marks carried-over results), result pill. Failing first. Filters: All / Failing / Passing, plus search. Row opens the case drawer.
@@ -76,7 +76,7 @@ Customer input, agent reply, expected output, retrieved chunks, a chip per dimen
 
 **Agent under test:** model, provider, prompt id/version, tools, test-case and evaluation counts, judged vs measured split.
 
-## 5. Dimensions, metrics and targets
+## 5. Dimensions, metrics and goals
 
 ### 5.1 Taxonomy
 Each metric has exactly one dimension. Built-ins get a default; users can override.
@@ -150,9 +150,9 @@ Judge and agent descriptors are supplied through the existing builders (`judgeId
 
 ## 7. Visual and interaction rules
 
-- **Donut caveat, handled:** a two-slice donut is weak for comparing values, so every donut carries the exact percentage in its centre, the target tick on the ring, and the gap in text. Exact numbers never rely on reading an arc.
+- **Donut caveat, handled:** a two-slice donut is weak for comparing values, so every donut carries the exact percentage in its centre, the goal tick on the ring, and the gap in text. Exact numbers never rely on reading an arc.
 - **Colour:** blue = passed, red = failed (a colour-blind-safe pair, validated for light and dark), status pills use the fixed status palette **with an icon and a label**; evidence uses neutral tones plus a hatch pattern (carried over), so it never competes with pass/fail. No red/green pairing.
-- **Never colour alone:** ✓ / ✕ icons in cells, "▼" on radar axes below target, pills carry text.
+- **Never colour alone:** ✓ / ✕ icons in cells, "▼" on radar axes below goal, pills carry text.
 - **Both themes** follow the OS and have a toggle; tokens only, no literal colours in components.
 - **Tooltips** on arcs, histogram bars and radar points; **keyboard:** cards and rows focusable, Enter opens, Esc closes the drawer, `/` focuses search.
 - **Responsive:** one column at phone width; tables scroll inside their own container; the drawer becomes full screen.
@@ -175,7 +175,7 @@ The report is an llm4j product and looks like one.
 
 ## 8. Output files
 
-Unchanged from v1 (`eval4j-report.html/json/csv`, `eval4j-junit.xml`, `eval4j-summary.md`, history). `eval4j-summary.md` gains a per-dimension table with target and gap. `EvalReportCli` can re-render everything from JSON.
+Unchanged from v1 (`eval4j-report.html/json/csv`, `eval4j-junit.xml`, `eval4j-summary.md`, history). `eval4j-summary.md` gains a per-dimension table with goal and gap. `EvalReportCli` can re-render everything from JSON.
 
 ## 9. Acceptance criteria
 
