@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/srijithunni7182/llm4j/eval4j-report/spec/schema/scenario.schema.json",
+  "title": "eval4j golden scenario (one line of scenarios.jsonl)",
+  "description": "A golden scenario the dataset declares. Lets the report show dimensions that were declared but not evaluated.",
+  "type": "object",
+  "required": ["id", "datasetId"],
+  "properties": {
+    "id": { "type": "string", "maxLength": 256 },
+    "caseId": { "type": "string", "pattern": "^c_[0-9a-f]{16}$" },
+    "datasetId": { "type": "string", "maxLength": 128 },
+    "name": { "type": ["string", "null"], "maxLength": 300 },
+    "dimensions": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$" }, "maxItems": 32 },
+    "families": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$" } },
+    "tags": { "type": "array", "items": { "type": "string", "maxLength": 64 } }
+  },
+  "additionalProperties": true
+}

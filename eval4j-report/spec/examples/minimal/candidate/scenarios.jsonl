@@ -1,0 +1,4 @@
+{"id": "refund-inside-window", "caseId": "c_36002d9a396666c3", "datasetId": "support-scenarios", "name": "Refund inside the window", "dimensions": ["correctness", "grounding", "efficiency", "reasoning"], "families": ["agents"], "tags": ["demo"]}
+{"id": "shipping-canada", "caseId": "c_548260ae655b164e", "datasetId": "support-scenarios", "name": "Shipping to Canada", "dimensions": ["correctness", "grounding", "efficiency"], "families": ["agents"], "tags": ["demo"]}
+{"id": "gdpr-data-export", "caseId": "c_550bb49dae44b852", "datasetId": "support-scenarios", "name": "GDPR data export", "dimensions": ["correctness", "compliance"], "families": ["agents"], "tags": ["demo"]}
+{"id": "research-and-publish-sufficient", "caseId": "c_f799e9e6e5a58aa4", "datasetId": "support-scenarios", "name": "Research and publish: sufficient findings", "dimensions": ["orchestration"], "families": ["workflows"], "tags": ["demo"]}

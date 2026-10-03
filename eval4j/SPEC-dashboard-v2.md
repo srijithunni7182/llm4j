@@ -1,7 +1,13 @@
 # eval4j — Spec: Quality Dashboard v2
 
-Status: **Draft for review (rev 6)** · Scope: `eval4j` `report` package · Supersedes the earlier "Run Explorer" draft
+Status: **Draft for review (rev 7)** · Scope: `eval4j` `report` package · Supersedes the earlier "Run Explorer" draft
 Mockups (private, sample data, no product code): interactive https://claude.ai/artifact/BTpq8amVUQWzqC9UEqqbXv · static edition https://claude.ai/artifact/1s1Ufc3nAnn6qV1rLZQ2zM
+
+> **Implementation.** The engineering specification lives in [`eval4j-report/spec`](../eval4j-report/spec/00-OVERVIEW.md). Two decisions are recorded there:
+> 1. **Architecture.** `eval4j` captures and exports each run as a documented *run bundle* (JSON and JSON Lines); a separate add-on, **`eval4j-report`**, reads bundles and builds the dashboard (interactive and static editions, comparison, summaries). eval4j stays lean; the file format is the contract.
+> 2. **Default baseline.** The default comparison baseline is **the previous run on the same branch**; if none exists, the latest run on the default branch; otherwise the page says there is no baseline yet. The viewer can pick any retained run.
+>
+> Phase numbers below are *product* phases; the engineering plan is [`08-DELIVERY-PLAN.md`](../eval4j-report/spec/08-DELIVERY-PLAN.md).
 
 ## 1. Why v1 is not good enough
 
@@ -375,7 +381,7 @@ Stability/flakiness and per-case cost analytics come after this.
 
 ## 11. Open questions
 
-1. **Default baseline:** previous run on the same branch (proposed), or the last run on `main`? For pull requests, comparing to `main` is usually what a reviewer wants.
+1. ~~**Default baseline**~~ **Resolved:** the previous run on the same branch, falling back to the default branch (see the note at the top). Other choices stay available in the baseline picker and the CLI.
 2. **Noise band:** estimate from multi-sample agreement (needs `samples(n)` > 1), or a fixed default (proposed ±0.07) until measured?
 3. **Retention:** per-run JSON for 40 runs can reach tens of MB with large outputs. Cap by count, by size, or both?
 

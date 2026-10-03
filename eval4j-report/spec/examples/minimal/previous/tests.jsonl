@@ -1,0 +1,3 @@
+{"testId": "com.acme.SupportBotEvalTest#refund-inside-window", "suite": "com.acme.SupportBotEvalTest", "name": "Refund inside the window", "caseId": "c_36002d9a396666c3", "scenarioId": "refund-inside-window", "status": "PASSED", "durationMs": 1200}
+{"testId": "com.acme.SupportBotEvalTest#shipping-canada", "suite": "com.acme.SupportBotEvalTest", "name": "Shipping to Canada", "caseId": "c_548260ae655b164e", "scenarioId": "shipping-canada", "status": "PASSED", "durationMs": 1200}
+{"testId": "com.acme.SupportBotEvalTest#research-and-publish-sufficient", "suite": "com.acme.SupportBotEvalTest", "name": "Research and publish: sufficient findings", "caseId": "c_f799e9e6e5a58aa4", "scenarioId": "research-and-publish-sufficient", "status": "PASSED", "durationMs": 1200}
