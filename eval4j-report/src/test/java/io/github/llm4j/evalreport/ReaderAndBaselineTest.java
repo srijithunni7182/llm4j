@@ -140,4 +140,20 @@ class ReaderAndBaselineTest {
         assertThat(Escape.html(null)).isEmpty();
         assertThat(Escape.csv(null)).isEmpty();
     }
+
+    @Test
+    void aRepeatedKeyKeepsTheLaterLine(@TempDir Path tmp) throws Exception {
+        String ne =
+                "{\"seq\":0,\"key\":\"k_1\",\"caseId\":\"c_1\",\"metric\":\"m\",\"kind\":\"JUDGE\",\"status\":\"NOT_EVALUATED\"}\n";
+        String carried =
+                "{\"seq\":1,\"key\":\"k_1\",\"caseId\":\"c_1\",\"metric\":\"m\",\"kind\":\"JUDGE\",\"status\":\"EVALUATED\",\"source\":\"CARRIED\",\"evaluatedInRun\":\"r0\",\"score\":0.9,\"passed\":true}\n";
+        bundle(tmp, "RUN-DDDDDD", "main", "2026-01-01T00:00:00Z", "COMPLETE", ne + carried);
+        RunBundle b = new RunStore(tmp).load("RUN-DDDDDD", false);
+        assertThat(b.evaluations()).hasSize(1);
+        assertThat(b.evaluations().get(0).source()).isEqualTo("CARRIED");
+        assertThat(b.warnings()).isEmpty();
+        bundle(tmp, "RUN-EEEEEE", "main", "2026-01-02T00:00:00Z", "COMPLETE", E1 + E1);
+        assertThat(new RunStore(tmp).load("RUN-EEEEEE", false).warnings())
+                .anyMatch(w -> w.contains("appears twice"));
+    }
 }

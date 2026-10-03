@@ -246,6 +246,60 @@
 
     <profiles>
         <profile>
+            <id>cli</id>
+            <!-- mvn -P cli package: builds eval4j-report-<version>-cli.jar, a single runnable jar
+                 (java -jar eval4j-report-5.0-cli.jar render target/eval4j). eval4j and Loom are
+                 left out on purpose: the CLI reads bundles from disk and needs neither. -->
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>3.5.1</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <shadedArtifactAttached>true</shadedArtifactAttached>
+                                    <shadedClassifierName>cli</shadedClassifierName>
+                                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                                    <artifactSet>
+                                        <includes>
+                                            <include>io.github.srijithunni7182:eval4j-report</include>
+                                            <include>com.fasterxml.jackson.core:*</include>
+                                            <include>com.fasterxml.jackson.dataformat:*</include>
+                                            <include>org.yaml:snakeyaml</include>
+                                        </includes>
+                                    </artifactSet>
+                                    <filters>
+                                        <filter>
+                                            <artifact>*:*</artifact>
+                                            <excludes>
+                                                <exclude>META-INF/*.SF</exclude>
+                                                <exclude>META-INF/*.DSA</exclude>
+                                                <exclude>META-INF/*.RSA</exclude>
+                                                <exclude>module-info.class</exclude>
+                                                <exclude>META-INF/versions/**</exclude>
+                                            </excludes>
+                                        </filter>
+                                    </filters>
+                                    <transformers>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                            <mainClass>io.github.llm4j.evalreport.cli.Main</mainClass>
+                                        </transformer>
+                                    </transformers>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
             <id>integration-tests</id>
             <build>
                 <plugins>

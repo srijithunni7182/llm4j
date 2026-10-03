@@ -1,8 +1,8 @@
 # 06. Loom workflows and agent traces
 
-Status: **Draft for review** · Modules: `eval4j` (trace model, assertions), `eval4j-loom` (new, small bridge) · Related: [01](01-RUN-FORMAT.md) §6, [04](04-DASHBOARD-UI.md) §2 and §7
+Status: **Draft for review** · Modules: `eval4j` (trace model, assertions), `eval4j-report` (the bridge, package `io.github.llm4j.evalreport.loom`) · Related: [01](01-RUN-FORMAT.md) §6, [04](04-DASHBOARD-UI.md) §2 and §7
 
-The dashboard shows whole Loom workflow runs (path graph, timeline, checks, spend, event log) and single-agent step traces. Neither eval4j nor eval4j-report may depend on Loom (D12). This document defines how Loom data gets into a bundle.
+The dashboard shows whole Loom workflow runs (path graph, timeline, checks, spend, event log) and single-agent step traces. `eval4j` and the report library may not depend on Loom; only the bridge package does (D12). This document defines how Loom data gets into a bundle.
 
 ## 1. What Loom already provides
 
@@ -19,9 +19,9 @@ For single agents, `AgentResult.getSteps()` (thought, action, input, observation
 
 `io.github.llm4j.eval.export.WorkflowTrace` (a plain immutable record tree mirroring `trace.schema.json` → `workflow`): `name`, `graph{nodes[], edges[]}`, `expectedPath[]`, `actualPath[]` (optional), `events[]`, `spend[]`, `budgetUsd`, `rewinds`, `rewindCap`. `TraceRecorder.workflow(WorkflowTrace, String caseKey)` writes a `traces.jsonl` line and returns the `traceId` to attach to evaluations.
 
-## 3. The bridge: `eval4j-loom`
+## 3. The bridge: `io.github.llm4j.evalreport.loom`
 
-A tiny artifact (`io.github.srijithunni7182:eval4j-loom`) depending on **both** `eval4j` and `ai-agent4j-loom`. Nothing depends on it.
+A package inside `eval4j-report` that depends on `eval4j` and `ai-agent4j-loom`, both declared `<optional>` so the report library and the CLI jar stay lean. Add `ai-agent4j-loom` yourself to use it. There is no `eval4j-loom` artifact.
 
 ```java
 try (LoomTrace trace = LoomTrace.attach(executor).named("ResearchAndPublish")) {
@@ -46,7 +46,7 @@ try (LoomTrace trace = LoomTrace.attach(executor).named("ResearchAndPublish")) {
 | Req | Statement |
 |---|---|
 | LOOM-01 | The bridge MUST NOT change Loom's runtime behaviour or timing materially; the listener is a bounded in-memory append. |
-| LOOM-02 | `eval4j` and `eval4j-report` MUST NOT reference any Loom class; the trace in the bundle is Loom-free (event type names are strings). |
+| LOOM-02 | `eval4j` and every `eval4j-report` package except `evalreport.loom` MUST NOT reference any Loom class; the trace in the bundle is Loom-free (event type names are strings). |
 | LOOM-03 | A workflow with no available AST (for example a remote run) still produces a trace: the graph is omitted and the report shows the timeline, checks, spend and log without the path graph. |
 | LOOM-04 | Secrets never reach a bundle: Loom already keeps them out of trace data; the bridge additionally applies the redaction list, and drops `data` values whose keys look like credentials (`token`, `secret`, `password`, `authorization`). |
 
@@ -96,10 +96,11 @@ Plain AssertJ-style assertions on `WorkflowTrace`, so they run with no judge and
 | LOOM-21 | Concurrency: a parallel-branch workflow produces a trace with all events and no exceptions from the listener. |
 | LOOM-22 | Rewind and budget-cap scenarios produce `rewind` / `budget` events and the matching badges data. |
 | LOOM-23 | The `examples/getviral` workflow evaluation (already in the repo) is the dogfood case: it must produce a bundle whose trajectory view renders without hand-editing. |
-| LOOM-24 | A grep test proves `eval4j` and `eval4j-report` have no Loom import. |
+| LOOM-24 | A test proves `eval4j` and every `eval4j-report` package except `evalreport.loom` have no Loom import. |
 
 ## 8. Open questions
 
-- **Q-L1.** Where `eval4j-loom` lives: a new module, or inside `ai-agent4j-loom`'s test-support. A new module keeps Loom free of eval4j and is the proposal.
-- **Q-L2.** How a test declares the expected path: explicit call (proposed), or a comment/annotation in the `.loom` script that the bridge reads.
+- ~~Q-L1~~ Resolved: the bridge lives inside `eval4j-report` (package `evalreport.loom`), Loom optional.
+- ~~Q-L2~~ Resolved: an explicit call, `LoomTrace.expectPath("start", "n1", …, "end")`. Node ids are `start`, `n1`…`nN` in statement pre-order, `end`; `trace.graph()` lists them.
+- **Implementation note.** Loom emits no event for an `alt` decision, so the bridge infers the branch taken and loop iterations from which delegations happened and marks those `decision` events `data.inferred = true`. Delegations map to nodes by agent name in statement order.
 - **Q-L3.** Loom's earned-autonomy replay (`ReplayReport`) as a future sixth family; the format already allows a new family id without a version change.

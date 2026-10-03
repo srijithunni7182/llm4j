@@ -21,6 +21,21 @@ Prints a pass/fail summary (with judge reasons for failures) in `afterAll`, obse
 JUnit/AssertJ ones. It's a standard JUnit 5 `TestWatcher`/`AfterAllCallback` extension, not a
 bespoke "runner" you call explicitly.
 
+## The new dashboard: eval4j-report
+
+`eval4j` now also **exports every run as a documented run bundle** (JSON and JSON Lines under
+`target/eval4j/runs/<runId>/`, override with `-Deval4j.export.dir`; turn off with
+`-Deval4j.export=false`). The add-on module [`eval4j-report`](../../eval4j-report/README.md) reads
+bundles and builds a much richer, still free and local, dashboard: quality dimensions from your golden
+dataset with goals, run comparison against the previous run on the same branch with a judge-noise band,
+cost-aware profiles (`FAST`, `BUILD`, `SAMPLE`, `FULL`), agent traces and Loom workflow trajectories, and a
+static edition for Jenkins. It has no pass/fail verdict: it informs the decision.
+
+**Migration.** Nothing breaks. `EvalReportExtension`, `@EvalBaseline` and the regression gate work as
+before. The v1 writers (`EvalReportWriter`, `EvalReportCli`) and `-Deval4j.report.dir` keep working
+(`eval4j.report.dir` is now also accepted as the export directory); the v1 writers are deprecated in
+favour of `eval4j-report` and are not removed in this release.
+
 ## The dashboard
 
 ![eval4j dashboard](images/dashboard-overview.png)

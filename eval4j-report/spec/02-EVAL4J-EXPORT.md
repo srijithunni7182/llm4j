@@ -115,7 +115,7 @@ Today `AgentResultAssert.usesToolsInOrder(...)` and its siblings throw `Assertio
 | EXP-15 | Each instrumented assertion records exactly one evaluation per invocation, with `reason` = the failure message (or `null` when it passed) and the relevant `measured{value, unit, budget}`. |
 | EXP-16 | A failing assertion MUST still throw the same `AssertionError` as before; recording MUST NOT change test outcomes. |
 | EXP-17 | Under `SoftAssertions` / `assertAll`, each sub-check is recorded individually. |
-| EXP-18 | Users may name the metric and classify it: `assertThat(result).as(MetricRef.assertion("refund-flow").dimension("correctness"))…` using AssertJ's `as(...)` description hook, or a dedicated `EvalChecks.named(...)` wrapper. The exact fluent form is decided in the API review (open question Q-A). |
+| EXP-18 | Users may name the metric and classify it: `assertThat(result).as(MetricRef.assertion("refund-flow").dimension("correctness"))…` using AssertJ's `as(...)` description hook, or a dedicated `EvalChecks.named(...)` wrapper. **Decided (Q-A):** deterministic assertions get an automatic default metric id and classification (table in §5.2); a team renames or reclassifies with the scoped wrapper `EvalChecks.named("id").dimension("…").facet("…").run(() -> assertThat(…)…)`. Assertions inside the scope are recorded under that metric. AssertJ's `as(...)` is untouched. |
 
 ### 5.3 `MetricRef` and the default classification
 
@@ -319,6 +319,6 @@ eval4j: run bundle written to target/eval4j/runs/<runId>. Add the eval4j-report 
 
 ## 14. Open questions
 
-- **Q-A.** The fluent way to name and classify a deterministic assertion (AssertJ `as(...)` hook, a `Checks.named(...)` wrapper, or both). Needs a small API spike.
+- ~~Q-A~~ Resolved: scoped `EvalChecks.named(...)` wrapper plus automatic defaults (see EXP-18).
 - **Q-B.** Whether `JudgeCacheKey` should also fold in the **agent** descriptor (so a prompt change always misses). Today the key includes the agent's *output*, which already changes when the prompt changes the answer; folding in the descriptor would be stricter than needed.
 - **Q-C.** Default `eval4j.export.dir` for Gradle projects.

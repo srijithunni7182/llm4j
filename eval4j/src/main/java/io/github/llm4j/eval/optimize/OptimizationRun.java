@@ -579,18 +579,21 @@ final class OptimizationRun {
                         budget.rewriterCalls(),
                         budget.llmCalls() - budget.rewriterCalls(),
                         budget.elapsedMillis());
-        return new OptimizationResult(
-                cfg.seed(),
-                best,
-                stop,
-                seedScores,
-                bestScores,
-                selectionMean,
-                verdict,
-                comparison,
-                cost,
-                trace,
-                warnings);
+        OptimizationResult result =
+                new OptimizationResult(
+                        cfg.seed(),
+                        best,
+                        stop,
+                        seedScores,
+                        bestScores,
+                        selectionMean,
+                        verdict,
+                        comparison,
+                        cost,
+                        trace,
+                        warnings);
+        io.github.llm4j.eval.export.OptimizationExporter.export(result);
+        return result;
     }
 
     private CandidateScores seedOnlyScores() {

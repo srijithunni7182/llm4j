@@ -1,6 +1,6 @@
 # 07. Test strategy
 
-Status: **Draft for review** · Applies to: `eval4j`, `eval4j-report`, `eval4j-loom` · Requirement ids use `TST-`; the module documents define their own testable requirements.
+Status: **Draft for review** · Applies to: `eval4j`, `eval4j-report` (including its Loom bridge) · Requirement ids use `TST-`; the module documents define their own testable requirements.
 
 The release bar (product spec §12) says every view is proven on real evaluations and tested. This document says how.
 

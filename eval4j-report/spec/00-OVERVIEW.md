@@ -1,6 +1,6 @@
 # eval4j-report: implementation specification
 
-Status: **Draft for review** · Applies to: `eval4j` (changes), `eval4j-report` (new), `eval4j-loom` (new, small) · Product spec: [`eval4j/SPEC-dashboard-v2.md`](../../eval4j/SPEC-dashboard-v2.md)
+Status: **Draft for review** · Applies to: `eval4j` (changes), `eval4j-report` (new; includes the Loom bridge) · Product spec: [`eval4j/SPEC-dashboard-v2.md`](../../eval4j/SPEC-dashboard-v2.md)
 
 This is the engineering specification for the dashboard described in the product spec. The product spec says **what** the user gets; this set says **how** it is built, where each piece lives, and how each piece is tested. Where the two disagree, the product spec wins on behaviour and this set wins on structure; raise the conflict before building.
 
@@ -37,11 +37,11 @@ This is the engineering specification for the dashboard described in the product
 | D9 | Format versioning: integer `schemaVersion`; readers accept the current and the previous major; unknown fields are ignored. | Old reports keep rendering; new fields are additive. |
 | D10 | The interactive edition embeds data as inert JSON and renders with a small hand-written script; the **static edition** has no script and no inline style. No Node/npm build in the repository. | Matches the repo's Maven-only toolchain; both editions share one analysed model. |
 | D11 | New Java packages: `io.github.llm4j.eval.export` (in eval4j) and `io.github.llm4j.evalreport` (in eval4j-report). The existing `io.github.llm4j.eval.report` package in eval4j is not reused for new code. | Avoids a package split across two JARs. |
-| D12 | Loom data reaches the report through a neutral **workflow trace** in the bundle and a small bridge module, `eval4j-loom`. eval4j and eval4j-report never depend on Loom. | Keeps Loom optional and eval4j independent. |
+| D12 | Loom data reaches the report through a neutral **workflow trace** in the bundle. The Loom bridge lives in a package of `eval4j-report` (`io.github.llm4j.evalreport.loom`) with `ai-agent4j-loom` as an **optional** dependency. `eval4j` and the rest of `eval4j-report` never reference Loom (decided: no separate `eval4j-loom` module). | Fewer artifacts; Loom stays optional; the bundle and the CLI jar stay Loom-free. |
 
 ## 3. Responsibilities
 
-| Concern | `eval4j` | `eval4j-report` | `eval4j-loom` |
+| Concern | `eval4j` | `eval4j-report` | `eval4j-report` Loom bridge |
 |---|---|---|---|
 | Run assertions and judges | ✔ | | |
 | Record each evaluation with its case, scenario, metric, evidence and cost | ✔ | | |

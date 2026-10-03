@@ -23,7 +23,11 @@ import java.util.TreeMap;
  * </ul>
  *
  * Every dynamic value is escaped for the format it lands in.
+ *
+ * @deprecated the v1 report writer; use the eval4j-report module, which reads the run bundle eval4j
+ *     now exports. This class keeps working and is not removed in this release.
  */
+@Deprecated
 public final class EvalReportWriter {
 
     public static final String JSON_FILE = "eval4j-report.json";

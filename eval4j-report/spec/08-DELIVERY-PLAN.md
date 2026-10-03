@@ -17,7 +17,7 @@ The bundle format is the seam. Once the schemas and the example bundles exist (p
 
 Track A (eval4j): P1 → P4 (eval4j half) → P5 (export half) → P6 (model + assertions) → P8 (carry-over).
 Track B (eval4j-report): P2 → P3 → P7 → P5/P6 views → P8.
-Track C (`eval4j-loom`): P6 only, after the trace model exists.
+Track C (Loom bridge, a package of `eval4j-report`): P6 only, after the trace model exists.
 
 ## 2. Releases
 
@@ -25,7 +25,7 @@ Track C (`eval4j-loom`): P6 only, after the trace model exists.
 |---|---|---|
 | **5.1** (eval4j + eval4j-report together) | P0–P3 and P7: export, comparison, interactive dashboard, static edition; v1 report writers **deprecated** | The first release a user can adopt end to end. |
 | **5.2** | P4, P5: cost-aware runs, prompts and reasoning views | |
-| **5.3** | P6: Loom bridge and trajectory view | `eval4j-loom` first published. |
+| **5.3** | P6: Loom bridge and trajectory view | Loom bridge first published (in `eval4j-report`). |
 | **5.4** | P8: carry-over, reliability, presets | |
 | **6.0** | removal of the deprecated v1 report code from eval4j | Only after one full release cycle with the migration guide. |
 
@@ -112,7 +112,7 @@ Sizes are relative: **S** a few days, **M** about a week, **L** one to two weeks
 | WI | Scope | Requirements | Size |
 |---|---|---|---|
 | WI-601 | eval4j: `WorkflowTrace` model, `TraceRecorder.workflow`, trajectory assertions (06 §5). | LOOM-10..12 | M |
-| WI-602 | New `eval4j-loom` module: `LoomTrace` (listener, graph from AST, expected/actual path, spend). | LOOM-01..04, 20..24 | L |
+| WI-602 | `LoomTrace` in `eval4j-report` package `evalreport.loom` (listener, graph from AST, expected/actual path, spend). | LOOM-01..04, 20..24 | L |
 | WI-603 | Report: Workflows family and Trajectory view (deterministic graph layout, path rendering, Gantt, checks, spend, event log). | UI §7.3, UI-42 | L |
 
 **Done when:** the `examples/getviral` workflow shows a graph, timeline, spend and log, and a deliberately broken workflow shows the red node and the failing check (gate 6).
@@ -174,10 +174,10 @@ Sizes are relative: **S** a few days, **M** about a week, **L** one to two weeks
 
 | # | Decision | Where |
 |---|---|---|
-| Q-A | The fluent form for naming and classifying a deterministic assertion | 02 §14 |
+| ~~Q-A~~ | Resolved: scoped `EvalChecks.named(...)` wrapper | 02 §14 |
 | Q-B | Whether the cache key also folds in the agent descriptor | 02 §14 |
 | Q-C | Default export directory for Gradle projects | 02 §14 |
 | Q-R1 | Listener packaging if the optional dependency causes trouble | 03 §13 |
 | Q-R2 | Who writes per-run `dimRates` into `index.jsonl` | 03 §13 |
-| Q-L1 | Where `eval4j-loom` lives | 06 §8 |
-| Q-L2 | How a test declares the expected workflow path | 06 §8 |
+| ~~Q-L1~~ | Resolved: inside `eval4j-report`, Loom optional | 06 §8 |
+| ~~Q-L2~~ | Resolved: explicit `expectPath(...)` call | 06 §8 |

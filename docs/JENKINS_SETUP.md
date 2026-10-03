@@ -43,3 +43,18 @@ gpg --list-secret-keys --keyid-format LONG
 # Export Secret Key
 gpg --export-secret-keys -a <YOUR_KEY_ID> > secring.asc
 ```
+
+## eval4j reports in Jenkins
+
+Jenkins serves archived HTML under a strict Content-Security-Policy, so scripts and inline styles are
+blocked. Publish the **static edition** of the eval4j report, which needs neither:
+
+```groovy
+publishHTML(target: [reportDir: 'eval4j-report/target/eval4j/report/static',
+                     reportFiles: 'index.html', reportName: 'eval4j report',
+                     keepAll: true, allowMissing: true])
+junit 'eval4j-report/target/eval4j/report/junit.xml'
+```
+
+The interactive `index.html` in the parent directory is one self-contained file; download it from the
+build's artifacts and open it locally for the full experience.

@@ -21,7 +21,11 @@ import java.util.Map;
  *
  * {@code --out} defaults to the first report's directory; {@code --history} is an optional {@code
  * eval4j-history.jsonl} to draw trends and the "since previous run" section from.
+ *
+ * @deprecated the v1 report CLI; use the eval4j-report command line (render, compare, list). This
+ *     class keeps working and is not removed in this release.
  */
+@Deprecated
 public final class EvalReportCli {
 
     private EvalReportCli() {}

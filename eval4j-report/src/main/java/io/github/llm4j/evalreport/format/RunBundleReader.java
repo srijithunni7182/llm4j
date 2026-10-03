@@ -49,10 +49,23 @@ public final class RunBundleReader {
         }
         RunMeta meta = meta(runNode);
         List<Ev> evals = lines(dir, "evaluations", Ev.class, strict, warnings);
+        // a key appears once per run: when it repeats (a result carried over a "not evaluated"
+        // line, or a writer bug) the later line wins; a clash of two real results is reported
+        java.util.Map<String, Ev> byKey = new java.util.LinkedHashMap<>();
         List<Ev> clean = new ArrayList<>(evals.size());
-        for (Ev e : evals) {
-            clean.add(sanitize(e, warnings));
+        for (Ev raw : evals) {
+            Ev e = sanitize(raw, warnings);
+            if (e.key() == null) {
+                clean.add(e);
+                continue;
+            }
+            Ev prev = byKey.put(e.key(), e);
+            if (prev != null && prev.counted() && e.counted()) {
+                warnings.add(
+                        "key " + e.key() + " appears twice with results; the later line was used");
+            }
         }
+        clean.addAll(byKey.values());
         return new RunBundle(
                 meta,
                 clean,

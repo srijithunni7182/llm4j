@@ -154,4 +154,35 @@ class ProfileTest {
         assertThat(t.path("traceId").asText()).isEqualTo(traceId);
         assertThat(t.path("steps").get(0).path("action").asText()).isEqualTo("lookup");
     }
+
+    @Test
+    void casesNotEvaluatedNowAreCarriedFromTheLatestEarlierRunAndLabelled() throws Exception {
+        // run 1 (FULL): two cases judged
+        System.setProperty(ExportConfig.PROFILE, "FULL");
+        EvalRun.get().bindTest("com.acme.T", "a()");
+        EvalRecorder.record("Correctness", 1.0, 0.7, "ok", "j");
+        EvalRun.get().bindTest("com.acme.T", "b()");
+        EvalRecorder.record("Correctness", 0.2, 0.7, "bad", "j");
+        EvalRun.get().finish();
+        // run 2 (BUILD): only a() is judged; b() was not evaluated
+        EvalRun.resetForTests();
+        System.setProperty(ExportConfig.RUN_ID, "RUN-PROFILE-2");
+        System.setProperty(ExportConfig.PROFILE, "BUILD");
+        EvalRecorder.reset();
+        EvalRecorder.activate();
+        EvalRun.get().bindTest("com.acme.T", "a()");
+        EvalRecorder.record("Correctness", 1.0, 0.7, "ok", "j");
+        EvalRun.get().finish();
+        List<String> lines =
+                Files.readAllLines(root.resolve("runs/RUN-PROFILE-2/evaluations.jsonl"));
+        assertThat(lines).hasSize(2);
+        JsonNode carried = RunWriter.MAPPER.readTree(lines.get(1));
+        assertThat(carried.path("source").asText()).isEqualTo("CARRIED");
+        assertThat(carried.path("evaluatedInRun").asText()).isEqualTo("RUN-PROFILE-1");
+        assertThat(carried.path("passed").asBoolean()).isFalse();
+        JsonNode run =
+                RunWriter.MAPPER.readTree(root.resolve("runs/RUN-PROFILE-2/run.json").toFile());
+        assertThat(run.path("summary").path("bySource").path("CARRIED").asInt()).isEqualTo(1);
+        assertThat(run.path("summary").path("failed").asInt()).isEqualTo(1);
+    }
 }

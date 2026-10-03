@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -37,6 +38,9 @@ public final class EvalRun {
     private final Map<String, Map<String, Object>> judges = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> datasets = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> scenariosWritten = new ConcurrentHashMap<>();
+    private final Set<String> evaluatedKeys = ConcurrentHashMap.newKeySet();
+    private final Set<String> touchedSuites = ConcurrentHashMap.newKeySet();
+    private final Set<String> touchedCases = ConcurrentHashMap.newKeySet();
     private final AtomicInteger evaluated = new AtomicInteger();
     private final AtomicInteger passed = new AtomicInteger();
     private final AtomicInteger failed = new AtomicInteger();
@@ -106,6 +110,7 @@ public final class EvalRun {
                 return;
             }
             finished = true;
+            carryOver();
             String endedAt = Instant.now().toString();
             Map<String, Object> run = runJson("COMPLETE", endedAt);
             writer.writeRun(run);
@@ -128,6 +133,40 @@ public final class EvalRun {
         }
     }
 
+    /**
+     * Fills in cases this run did not evaluate from the latest earlier run (profile
+     * BUILD/SAMPLE/FAST by default).
+     */
+    private void carryOver() {
+        String flag = System.getProperty("eval4j.carryOver");
+        boolean enabled =
+                flag != null ? Boolean.parseBoolean(flag) : !"FULL".equals(config.profile());
+        if (!enabled || writer.failed()) {
+            return;
+        }
+        Set<String> cases = new java.util.HashSet<>(touchedCases);
+        for (String k : scenariosWritten.keySet()) {
+            cases.add(CaseKey.caseId(k));
+        }
+        Object branch = RunEnvironment.source().get("branch");
+        int[] c =
+                CarryOver.apply(
+                        config.root(),
+                        config.runId(),
+                        branch == null ? null : branch.toString(),
+                        cases,
+                        new java.util.HashSet<>(touchedSuites),
+                        evaluatedKeys,
+                        writer,
+                        seq.get());
+        if (c[0] > 0) {
+            bySource.computeIfAbsent(Source.CARRIED, k -> new AtomicInteger()).addAndGet(c[0]);
+            evaluated.addAndGet(c[0]);
+            passed.addAndGet(c[1]);
+            failed.addAndGet(c[2]);
+        }
+    }
+
     /** Discards all state so a test can start a fresh run in the same JVM. */
     public static void resetForTests() {
         EvalRun r = INSTANCE;
@@ -144,6 +183,9 @@ public final class EvalRun {
             r.datasets.clear();
             r.scenariosWritten.clear();
             r.scenarioByTest.clear();
+            r.evaluatedKeys.clear();
+            r.touchedCases.clear();
+            r.touchedSuites.clear();
             r.evaluated.set(0);
             r.passed.set(0);
             r.failed.set(0);
@@ -268,6 +310,9 @@ public final class EvalRun {
     // ---- current case ---------------------------------------------------------------------
 
     public void bindTest(String suite, String testName) {
+        if (suite != null) {
+            touchedSuites.add(suite);
+        }
         currentTest.set(new String[] {suite, testName});
     }
 
@@ -534,6 +579,10 @@ public final class EvalRun {
                         Instant.now().toString());
         synchronized (lock) {
             metrics.putIfAbsent(metric.id(), metric);
+        }
+        touchedCases.add(e.caseId());
+        if (e.status() == EvalStatus.EVALUATED) {
+            evaluatedKeys.add(e.key());
         }
         count(e);
         writer.append("evaluations.jsonl", e);
