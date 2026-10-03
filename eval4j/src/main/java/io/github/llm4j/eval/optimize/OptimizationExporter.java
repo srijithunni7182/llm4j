@@ -1,19 +1,18 @@
-package io.github.llm4j.eval.export;
+package io.github.llm4j.eval.optimize;
 
-import io.github.llm4j.eval.optimize.OptimizationResult;
-import io.github.llm4j.eval.optimize.Round;
-import io.github.llm4j.eval.optimize.RoundAction;
+import io.github.llm4j.eval.export.EvalRun;
+import io.github.llm4j.eval.export.Hashes;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /** Writes a prompt-optimizer run into the bundle's {@code optimizations.jsonl}. Never throws. */
-public final class OptimizationExporter {
+final class OptimizationExporter {
 
     private OptimizationExporter() {}
 
-    public static void export(OptimizationResult r) {
+    static void export(OptimizationResult r) {
         try {
             EvalRun run = EvalRun.get();
             if (!run.isExporting()) {

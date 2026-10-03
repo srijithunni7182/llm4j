@@ -5,11 +5,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 /** SHA-256 helpers for the stable identifiers of the run bundle format. */
-final class Hashes {
+public final class Hashes {
 
     private Hashes() {}
 
-    static String sha256Hex(String text) {
+    public static String sha256Hex(String text) {
         try {
             byte[] digest =
                     MessageDigest.getInstance("SHA-256")
@@ -26,7 +26,7 @@ final class Hashes {
     }
 
     /** The first 16 lowercase hex characters of the SHA-256 of {@code text}. */
-    static String hex16(String text) {
+    public static String hex16(String text) {
         return sha256Hex(text).substring(0, 16);
     }
 }

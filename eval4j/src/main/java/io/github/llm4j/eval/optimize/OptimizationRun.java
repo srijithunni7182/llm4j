@@ -592,7 +592,7 @@ final class OptimizationRun {
                         cost,
                         trace,
                         warnings);
-        io.github.llm4j.eval.export.OptimizationExporter.export(result);
+        OptimizationExporter.export(result);
         return result;
     }
 
