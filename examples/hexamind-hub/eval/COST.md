@@ -1,8 +1,33 @@
 # What evaluating Hexamind Hub will cost
 
-Estimates for the plan in [`SPEC.md`](SPEC.md): Gemini runs the agents, Claude judges. Reproduce or change any number with [`cost_model.py`](cost_model.py) (`python3 cost_model.py`). These are **model-based estimates, not measurements**: no real call has been made. Replace the assumptions with real token counts after day 2 of the plan; the eval4j report's *Cost and evidence* page shows tokens per judge.
+Estimates for [`SPEC.md`](SPEC.md): Gemini runs the agents, Claude judges. Reproduce or change any number with [`cost_model.py`](cost_model.py) (`python3 cost_model.py`). These are **model-based estimates, not measurements**: no real call has been made. Replace the assumptions with real token counts after day 2 of the plan; the eval4j report's *Cost and evidence* page shows tokens per judge.
 
-## Short answer: how much to load
+## In rupees, and the lean plan (read this first)
+
+The plan below the line costs about **$180 to set up and $180 a month**, roughly **₹16,000 each** at about ₹88 to ₹90 per dollar (check today's rate). That is too much for a first pass, and most of it is avoidable. The **lean plan** gets the same coverage for about a sixth:
+
+| | Lean, expected | Lean, high case | In rupees (expected, before tax) |
+|---|---|---|---|
+| **Setup** (about 2 weeks) | **$20** (Gemini $12, Claude $9) | $33 | **about ₹1,800** |
+| **A month afterwards** | **$30** (Gemini $21, Claude $9) | $50 | **about ₹2,700** |
+| One release run | $6 | $10 | about ₹530 |
+| One pull-request build | $0.65 | $1.04 | about ₹60 |
+
+What makes it lean (each is a design change in [`SPEC.md`](SPEC.md)):
+
+1. **Test the debate's path with a scripted model, not a real one.** Whether the workflow takes the right branch, runs five rounds, stops at a budget and routes feedback is logic, not language. A scripted (stub) model checks all of that for **$0**. This removes the biggest cost: the ten real debates were 74% of a full run.
+2. **Run only three real debates per release** (standard, debunk, refinement) to judge consensus quality: about $2 instead of $8.60.
+3. **Record and replay agent outputs.** Store each scenario's agent output keyed by scenario, prompt version and model. A pull request re-runs only what changed (about 20%); everything else replays for free. Judge verdicts are already cached by eval4j.
+4. **Develop on the free tier or Flash-Lite.** Google's free tier covers Flash and Flash-Lite models with rate limits (about 5 to 15 requests a minute, up to roughly 1,000 a day) and with the catch that Google may use free-tier prompts to improve its products. Our scenarios are synthetic, so that is acceptable; do not paste real customer text. Gemini 3.5 Flash-Lite is $0.30 in and $2.50 out per million tokens, five times cheaper on input than Flash. Use the real Flash model only for the weekly release run. ([pricing summary](https://www.cloudzero.com/blog/gemini-pricing/); confirm free-tier eligibility of the exact model at ai.google.dev.)
+5. **Claude is a small part of the bill.** A judge call on Claude Sonnet 5.5 is about $0.002 (about ₹0.2). Keep it as the judge. If you want to trim more, the cheaper Claude Haiku 4.5 would save about $4 of the $9 setup judge cost, at some loss in rubric accuracy.
+
+**What to load for the lean plan:** about **$15 on Google** and **$25 on Anthropic** (₹1,300 and ₹2,200) covers the whole setup phase with room to spare; Anthropic credits are bought in advance, so start with the smallest amount it allows. Tax and card charges can add roughly 20 to 25% (Indian GST on imported services plus forex markup); check what each provider and your card charge.
+
+Everything after this heading is the **full plan** for reference: it is what you would spend if you ran every scenario on real models every time.
+
+---
+
+## The full plan: how much to load
 
 | | Google (Gemini) | Anthropic (Claude) | Total |
 |---|---|---|---|

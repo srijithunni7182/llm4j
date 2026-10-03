@@ -123,6 +123,41 @@ def table(mult_agent=1.0, mult_judge=1.0):
         rows.append((name, r["agent_calls"], r["judge_calls"], g, j, g + j))
     return rows
 
+# ---- the lean plan: what to do when rupees matter ------------------------------------------------------------
+LITE = dict(inp=0.30, out=2.50)      # gemini-3.5-flash-lite, USD per 1M tokens (check ai.google.dev)
+
+def with_model(fn, price):
+    """Run a cost function with another Gemini price."""
+    global GEMINI
+    old = GEMINI
+    GEMINI = dict(old, **price)
+    try:
+        return fn()
+    finally:
+        GEMINI = old
+
+def lean(ma=1.0, mj=1.0):
+    """Lean plan. Trajectory PATH logic is tested with a scripted (stub) model: free. Agent outputs are recorded
+    and replayed, so a build only re-runs changed scenarios. Real debates are run 3 times per release
+    (standard, debunk, refinement) instead of 10. Development uses Flash-Lite or the free tier."""
+    def agent_suites():   # reasoning + prompts, real Gemini Flash, judged once by Sonnet
+        r, p = reasoning_suite(), prompt_suite()
+        return (r["gemini"] + p["gemini"]) * ma, (r["judge"] + p["judge"]) * mj
+    def three_debates():
+        g = (gemini_cost(*DEBATE[:2]) * 2 + gemini_cost(*DEBATE_SHORT[:2])) * ma     # standard, refinement, debunk
+        jc = 3 * 4
+        j_in, j_out = judge_call(5500)
+        return g, judge_cost(MAIN_JUDGE, jc * j_in, jc * j_out) * mj
+    ag, aj = agent_suites(); dg, dj = three_debates()
+    full_g, full_j = ag + dg, aj + dj                      # a lean "release" run
+    pr_g, pr_j = ag * 0.2, aj * 0.2                        # a PR build: 20% of agent scenarios changed (replay for the rest)
+    lite_g = (with_model(lambda: reasoning_suite()["gemini"], LITE) + with_model(lambda: prompt_suite()["gemini"], LITE)) * ma
+    setup_g = 2 * full_g + 3 * lite_g + 4 * pr_g
+    setup_j = 2 * full_j + 3 * aj + 4 * pr_j + 0.10 * mj   # + judge calibration on 30 cases, 3 samples, Sonnet
+    month_g = 4 * full_g + 10 * pr_g
+    month_j = 4 * full_j + 10 * pr_j
+    return dict(release=(full_g, full_j), pr=(pr_g, pr_j), setup=(setup_g, setup_j), month=(month_g, month_j))
+
 def plan(ma=1.0, mj=1.0):
     """Credits to load: a setup phase, then a month of steady state, plus one prompt-optimizer campaign."""
     def t(name): r = PROFILES[name]; return r["gemini"] * ma + r["judge"] * mj
@@ -148,6 +183,10 @@ if __name__ == "__main__":
         print(f"{'profile':100s} {'agent calls':>11s} {'judge calls':>11s} {'Gemini':>9s} {'Claude':>9s} {'total':>9s}")
         for name, ac, jc, g, j, t in table(ma, mj):
             print(f"{name:100s} {ac:11d} {jc:11d} {money(g):>9s} {money(j):>9s} {money(t):>9s}")
+        l = lean(ma, mj)
+        print("  LEAN plan: setup %s (Gemini %s + Claude %s), month %s (Gemini %s + Claude %s); release run %s, PR build %s" % (
+            money(sum(l["setup"])), money(l["setup"][0]), money(l["setup"][1]), money(sum(l["month"])), money(l["month"][0]), money(l["month"][1]),
+            money(sum(l["release"])), money(sum(l["pr"]))))
         p = plan(ma, mj)
         print(f"  Setup phase (10 full runs, 2 calibration runs, 3 optimizer campaigns): {money(p['setup'])}")
         print(f"  One optimizer campaign (~150 rollouts): {money(p['optimizer'])}   (one rollout: {money(p['rollout'])})")

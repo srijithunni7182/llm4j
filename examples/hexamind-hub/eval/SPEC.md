@@ -12,6 +12,8 @@ Evaluate the whole of Hexamind Hub, not just its answers:
 
 Models: **Gemini** (`gemini-3.5-flash`, the model Hexamind already uses) runs the agents; **Claude** judges. Different vendors, so no judge grades its own family's work (the report's independence check will stay quiet).
 
+**Cost is a design constraint** (see [`COST.md`](COST.md): the lean plan is about ₹1,800 to set up and ₹2,700 a month; running everything on real models every time would be about ₹16,000). Sections 5, 8 and 9 are written for the lean plan.
+
 Decisions this spec asks you to confirm are in section 10. Everything else is a recommendation with a reason.
 
 ## 2. What exists today (read from the code)
@@ -89,7 +91,9 @@ Code lives in `examples/hexamind-hub/src/test/java/io/github/llm4j/hexamind/eval
 | `FixtureSearchTool` | live tests | a `Tool` named `WebSearch` that returns the scenario's `retrievalContext` instead of hitting the network. Deterministic, free, and the same text the grounding judge sees. A scenario with no fixture returns "no results". |
 | `AgentReasoningEvalTest` | `-Peval` | `@ParameterizedTest` over each persona file: run the agent on the scenario with the fixture tool; deterministic assertions (`usesTool`, `usesToolsInOrder`, `completesWithinIterations`, `hasRedundantActionCountAtMost`, no injected-marker in output); judge conditions built from the scenario's `RUBRIC:` lines |
 | `PromptEvalTest` | `-Peval` | for each `prompt-*` scenario run the prompt id on the current and candidate versions (`PromptRegistry` versions), judge each against its rubric, then `PromptComparison` / `PairwiseCondition` (both orders) for A/B |
-| `TrajectoryEvalTest` | `-Peval` | run `Collaborate` with `LoomTrace`, build the `WorkflowTrace`, assert the path and spend with `WorkflowAssertions` (`followsExpectedPath`, `visitsInOrder`, `takesBranch`, `loopStopsWithin`, `rewindsAtMost`, `staysWithinSpend`, `noSecretsInTrace`), then judge only the consensus |
+| `TrajectoryEvalTest` | `-Peval` | **three real debates** (standard, debunk, refinement): run `Collaborate` with `LoomTrace`, build the `WorkflowTrace`, assert the path and spend with `WorkflowAssertions` (`followsExpectedPath`, `visitsInOrder`, `takesBranch`, `loopStopsWithin`, `rewindsAtMost`, `staysWithinSpend`, `noSecretsInTrace`), then judge only the consensus |
+| `ScriptedModel` | free, offline | an `LLMClient` that returns canned answers per agent and round (and can inject a search failure or an over-budget reply). `TrajectoryPathTest` uses it to check the workflow's logic, branches, budget stop and refinement for **$0**, on every build. |
+| `ReplayCache` | live tests | records each agent output under (scenario id, prompt version, model, search fixture hash) and replays it when nothing changed, so a pull request pays only for changed scenarios. |
 | `ParityEvalTest` | `-Peval`, during the migration | the same scenarios on the legacy and the Loom engine, exported as two runs for the report's comparison view |
 
 Every test binds its `EvalScenario` so evaluations are keyed by scenario id and dimensions; the report matches runs across commits by those keys.
@@ -115,10 +119,10 @@ Determinism: temperature stays as configured (that is the product); stability co
 
 | When | Profile | Notes |
 |---|---|---|
-| local, while editing | `FAST` | deterministic assertions only, judge never called; judge cache hits still serve |
-| every pull request | `BUILD` | only changed cases are judged; a spend budget stops it |
-| nightly (optional) | `SAMPLE` rate 0.2 | a seeded sample across all dimensions |
-| weekly and before a release | `FULL` | everything once |
+| local, while editing | `FAST` on the free tier or Flash-Lite | deterministic assertions only, judge never called; judge cache hits still serve |
+| every pull request | `BUILD` | scripted-model path tests (free) plus replayed outputs; only changed scenarios call Gemini and only changed cases are judged; a spend budget stops it |
+| nightly (optional, off in the lean plan) | `SAMPLE` rate 0.2 | a seeded sample across all dimensions |
+| weekly and before a release | `FULL` (lean) | all 60 agent and prompt scenarios on Gemini Flash, three real debates, judged once |
 | once, then after a judge change | calibration | 3 samples plus the Opus cross-check |
 
 `-Deval4j.pricing=eval/prices.properties` (Gemini and Claude rates) and `-Deval4j.judge.budgetUsd=...` cap judge spend. Agent spend is bounded by the scenario count and Loom's `budget` block.
@@ -127,20 +131,22 @@ Keys come from the environment only: `GEMINI_API_KEY` (Loom) and `google.api.key
 
 ## 9. Plan: one small step a day
 
-Each step ends with something runnable and a stated cost. Steps 1-2 cost nothing.
+Each step ends with something runnable and a stated cost (lean plan; see `COST.md`). Steps 1 and 6 cost nothing.
 
 | Day | Step | Exit criterion | Cost |
 |---|---|---|---|
-| 1 | `GoldenDatasetTest`, `EvalSupport`, `FixtureSearchTool`, `eval4j-report` on the test classpath | the 70 scenarios load; the report renders with all dimensions as "No results" | $0 |
-| 2 | `AgentReasoningEvalTest` for Alex only, `FAST` profile | assertions run against Gemini; first real bundle and report | about $0.25 |
+| 1 | `GoldenDatasetTest`, `EvalSupport`, `FixtureSearchTool`, `ScriptedModel`, `eval4j-report` on the test classpath | the 70 scenarios load; the report renders with all dimensions as "No results" | $0 |
+| 2 | `AgentReasoningEvalTest` for Alex only, `FAST` profile, on the Gemini free tier or Flash-Lite | assertions run against Gemini; first real bundle and report | $0 on the free tier (about $0.05 otherwise) |
 | 3 | add Claude judging for Alex; set judge budget; read the report | judged dimensions appear; cost page shows real tokens | about $0.45 |
-| 4 | the other five agents | all 48 reasoning scenarios; record real token counts and update `cost_model.py` | about $2.50 |
+| 4 | the other five agents, with `ReplayCache` | all 48 reasoning scenarios; record real token counts and update `cost_model.py` | about $0.50 on Flash-Lite, $2.50 on Flash |
 | 5 | `PromptEvalTest` (regression) | 12 prompts scored | about $0.80 |
-| 6 | `LoomDebateEngine` behind the flag; run `Collaborate` once | one traced debate; compare with the legacy engine | about $1.15 |
-| 7 | `TrajectoryEvalTest` and `ParityEvalTest` | 10 workflow scenarios on both engines | about $18 |
-| 8 | calibration run | judge agreement and noise band measured; thresholds set | about $17 |
-| 9 | CI wiring (`BUILD` per PR, `FULL` weekly), `eval4j-report.yaml` goals and priorities | green pipeline | per section 8 |
-| 10 | optional: optimizer campaign on the weakest prompt | A/B evidence for a v2 prompt | about $6 |
+| 6 | `LoomDebateEngine` behind the flag; `TrajectoryPathTest` with the scripted model | the workflow's branches, rounds, budget stop and refinement verified | $0 |
+| 7 | `TrajectoryEvalTest`: three real debates per engine; `ParityEvalTest` | consensus quality judged; legacy and Loom compared in the report | about $4 |
+| 8 | calibration: 30 hand-picked cases, 3 judge samples | judge noise band measured; thresholds set (no Opus cross-check in the lean plan) | about $0.10 |
+| 9 | CI wiring (`BUILD` per PR, `FULL` weekly), `eval4j-report.yaml` goals and priorities | green pipeline | about $0.65 per PR, $6 per weekly run |
+| 10 | optional: optimizer campaign on the weakest prompt, rollouts on Flash-Lite | A/B evidence for a v2 prompt | about $1.50 |
+
+Total for days 1 to 8: about **$20** (the lean setup figure in `COST.md`).
 
 ## 10. Decisions and open questions
 
