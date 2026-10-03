@@ -8,6 +8,7 @@ public final class AgentAssertions {
     private AgentAssertions() {}
 
     public static AgentResultAssert assertThat(AgentResult actual) {
+        io.github.llm4j.eval.export.EvalRun.get().recordAgentResult(actual);
         return new AgentResultAssert(actual);
     }
 }

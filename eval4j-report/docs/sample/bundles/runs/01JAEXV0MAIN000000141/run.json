@@ -1,0 +1,220 @@
+{
+  "schemaVersion": 1,
+  "format": "eval4j-run",
+  "runId": "01JAEXV0MAIN000000141",
+  "runNumber": 141,
+  "status": "COMPLETE",
+  "startedAt": "2026-09-29T10:14:00Z",
+  "endedAt": "2026-09-29T10:16:41Z",
+  "durationMs": 161000,
+  "project": {
+    "name": "Support agent"
+  },
+  "source": {
+    "branch": "main",
+    "commit": "c41a9b2",
+    "dirty": false,
+    "ci": {
+      "provider": "jenkins",
+      "buildNumber": "141"
+    }
+  },
+  "profile": {
+    "name": "FULL",
+    "judgeBudgetUsd": 2.0,
+    "carryOver": true
+  },
+  "env": {
+    "agents": [
+      {
+        "id": "support-agent",
+        "provider": "ollama",
+        "model": "llama3.3:70b",
+        "promptId": "support-agent.md",
+        "promptVersion": "support-agent v2",
+        "tools": [
+          "order_lookup",
+          "kb_search",
+          "refund",
+          "handoff"
+        ]
+      }
+    ],
+    "judges": [
+      {
+        "id": "judge-main",
+        "provider": "google",
+        "model": "gemini-2.5-pro",
+        "temperature": 0.0,
+        "samples": 3,
+        "aggregation": "MEAN",
+        "rubricId": "judge-rubrics",
+        "rubricVersion": "1.4",
+        "stats": {
+          "calls": 442,
+          "cacheHits": 0,
+          "latencyMeanMs": 1900,
+          "latencyP95Ms": 3400,
+          "tokensIn": 176800,
+          "tokensOut": 24310,
+          "costUsd": 0.5029,
+          "failures": 0,
+          "retries": 0
+        }
+      }
+    ],
+    "datasets": [
+      {
+        "id": "support-scenarios",
+        "name": "support-scenarios.yaml",
+        "path": "src/test/resources/support-scenarios.yaml",
+        "revision": "11",
+        "hash": "44f4cdb2f1d8a9575e4a4501365904b9",
+        "scenarioCount": 51
+      }
+    ],
+    "eval4jVersion": "5.1",
+    "javaVersion": "17.0.12",
+    "configHash": "6c760e2d9f59a7ab"
+  },
+  "metrics": [
+    {
+      "name": "Answer Correctness",
+      "kind": "JUDGE",
+      "family": "agents",
+      "facet": "answers",
+      "dimension": "correctness",
+      "threshold": 0.7,
+      "judgeId": "judge-main",
+      "id": "answer-correctness"
+    },
+    {
+      "name": "Answer Relevancy",
+      "kind": "JUDGE",
+      "family": "agents",
+      "facet": "answers",
+      "dimension": "relevancy",
+      "threshold": 0.7,
+      "judgeId": "judge-main",
+      "id": "answer-relevancy"
+    },
+    {
+      "name": "Faithfulness",
+      "kind": "JUDGE",
+      "family": "agents",
+      "facet": "answers",
+      "dimension": "grounding",
+      "threshold": 0.7,
+      "judgeId": "judge-main",
+      "id": "faithfulness"
+    },
+    {
+      "name": "Toxicity",
+      "kind": "JUDGE",
+      "family": "agents",
+      "facet": "answers",
+      "dimension": "safety",
+      "threshold": 0.8,
+      "judgeId": "judge-main",
+      "id": "toxicity"
+    },
+    {
+      "name": "Contextual Precision",
+      "kind": "JUDGE",
+      "family": "retrieval",
+      "facet": "rag",
+      "dimension": "retrieval",
+      "threshold": 0.7,
+      "judgeId": "judge-main",
+      "id": "contextual-precision"
+    },
+    {
+      "name": "Latency p95",
+      "kind": "MEASURED",
+      "family": "agents",
+      "facet": "answers",
+      "dimension": "efficiency",
+      "unit": "s",
+      "budget": 4.0,
+      "id": "latency-p95"
+    },
+    {
+      "name": "Token budget",
+      "kind": "MEASURED",
+      "family": "agents",
+      "facet": "answers",
+      "dimension": "efficiency",
+      "unit": "tokens",
+      "budget": 3000.0,
+      "id": "token-budget"
+    },
+    {
+      "name": "Tool Order",
+      "kind": "ASSERTION",
+      "family": "agents",
+      "facet": "tools",
+      "dimension": "reasoning",
+      "threshold": 1,
+      "id": "tool-order"
+    },
+    {
+      "name": "Knowledge Retention",
+      "kind": "JUDGE",
+      "family": "conversations",
+      "facet": "multi",
+      "dimension": "conversation",
+      "threshold": 0.7,
+      "judgeId": "judge-main",
+      "id": "knowledge-retention"
+    },
+    {
+      "name": "Role Adherence",
+      "kind": "JUDGE",
+      "family": "conversations",
+      "facet": "multi",
+      "dimension": "safety",
+      "threshold": 0.8,
+      "judgeId": "judge-main",
+      "id": "role-adherence"
+    },
+    {
+      "name": "Correct branch taken",
+      "kind": "ASSERTION",
+      "family": "workflows",
+      "facet": "orchestration",
+      "dimension": "orchestration",
+      "threshold": 1,
+      "id": "correct-branch"
+    },
+    {
+      "name": "Follows expected path",
+      "kind": "ASSERTION",
+      "family": "workflows",
+      "facet": "trajectory",
+      "dimension": "orchestration",
+      "threshold": 1,
+      "id": "follows-expected-path"
+    },
+    {
+      "name": "support-agent v3 vs v2",
+      "kind": "PAIRWISE",
+      "family": "prompts",
+      "facet": "compare",
+      "dimension": "prompting",
+      "threshold": 0.5,
+      "judgeId": "judge-main",
+      "id": "prompt-v3-vs-v2"
+    }
+  ],
+  "summary": {
+    "evaluations": 262,
+    "passed": 239,
+    "failed": 23,
+    "notEvaluated": 0,
+    "errors": 0,
+    "bySource": {
+      "FRESH": 262
+    },
+    "costUsd": 0.5029
+  }
+}

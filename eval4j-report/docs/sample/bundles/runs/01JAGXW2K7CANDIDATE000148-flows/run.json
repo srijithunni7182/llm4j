@@ -1,0 +1,142 @@
+{
+  "schemaVersion": 1,
+  "format": "eval4j-run",
+  "runId": "01JAGXW2K7CANDIDATE000148-flows",
+  "runNumber": 148,
+  "status": "COMPLETE",
+  "startedAt": "2026-10-03T10:14:00Z",
+  "endedAt": "2026-10-03T10:16:41Z",
+  "durationMs": 161000,
+  "project": {
+    "name": "Support agent"
+  },
+  "source": {
+    "branch": "feature/refund-policy",
+    "commit": "9f2c4e1",
+    "dirty": false,
+    "ci": {
+      "provider": "jenkins",
+      "buildNumber": "148"
+    }
+  },
+  "profile": {
+    "name": "BUILD",
+    "judgeBudgetUsd": 2.0,
+    "carryOver": true
+  },
+  "env": {
+    "agents": [
+      {
+        "id": "support-agent",
+        "provider": "ollama",
+        "model": "llama3.3:70b",
+        "promptId": "support-agent.md",
+        "promptVersion": "support-agent v3",
+        "tools": [
+          "order_lookup",
+          "kb_search",
+          "refund",
+          "handoff"
+        ]
+      }
+    ],
+    "judges": [
+      {
+        "id": "judge-main",
+        "provider": "google",
+        "model": "gemini-2.5-pro",
+        "temperature": 0.0,
+        "samples": 3,
+        "aggregation": "MEAN",
+        "rubricId": "judge-rubrics",
+        "rubricVersion": "1.4",
+        "stats": {
+          "calls": 12,
+          "cacheHits": 0,
+          "latencyMeanMs": 1900,
+          "latencyP95Ms": 3400,
+          "tokensIn": 4800,
+          "tokensOut": 660,
+          "costUsd": 0.0758,
+          "failures": 0,
+          "retries": 0
+        }
+      }
+    ],
+    "datasets": [
+      {
+        "id": "support-workflows",
+        "name": "support-workflows.yaml",
+        "path": "flows/src/test/resources/support-workflows.yaml",
+        "revision": "3",
+        "hash": "9ae17aa1e2f04d4f9d3a2f0a9de1b001",
+        "scenarioCount": 15
+      }
+    ],
+    "eval4jVersion": "5.1",
+    "javaVersion": "17.0.12",
+    "configHash": "6c760e2d9f59a7ab"
+  },
+  "metrics": [
+    {
+      "name": "Knowledge Retention",
+      "kind": "JUDGE",
+      "family": "conversations",
+      "facet": "multi",
+      "dimension": "conversation",
+      "threshold": 0.7,
+      "judgeId": "judge-main",
+      "id": "knowledge-retention"
+    },
+    {
+      "name": "Role Adherence",
+      "kind": "JUDGE",
+      "family": "conversations",
+      "facet": "multi",
+      "dimension": "safety",
+      "threshold": 0.8,
+      "judgeId": "judge-main",
+      "id": "role-adherence"
+    },
+    {
+      "name": "Correct branch taken",
+      "kind": "ASSERTION",
+      "family": "workflows",
+      "facet": "orchestration",
+      "dimension": "orchestration",
+      "threshold": 1,
+      "id": "correct-branch"
+    },
+    {
+      "name": "Follows expected path",
+      "kind": "ASSERTION",
+      "family": "workflows",
+      "facet": "trajectory",
+      "dimension": "orchestration",
+      "threshold": 1,
+      "id": "follows-expected-path"
+    },
+    {
+      "name": "support-agent v3 vs v2",
+      "kind": "PAIRWISE",
+      "family": "prompts",
+      "facet": "compare",
+      "dimension": "prompting",
+      "threshold": 0.5,
+      "judgeId": "judge-main",
+      "id": "prompt-v3-vs-v2"
+    }
+  ],
+  "summary": {
+    "evaluations": 22,
+    "passed": 16,
+    "failed": 6,
+    "notEvaluated": 0,
+    "errors": 0,
+    "bySource": {
+      "FRESH": 22
+    },
+    "costUsd": 0.0758
+  },
+  "groupId": "build-148"
+}

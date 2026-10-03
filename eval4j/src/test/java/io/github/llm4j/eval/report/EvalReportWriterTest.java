@@ -53,7 +53,9 @@ class EvalReportWriterTest {
         EvalReportWriter.write(dir, run(List.of(rec("t", "M", 0.9, "fine"))), List.of(), Map.of());
         String html = Files.readString(dir.resolve("eval4j-report.html"));
         assertThat(html).doesNotContain("http://").doesNotContain("https://");
-        assertThat(html).doesNotContainPattern("(src|href)=");
+        // In-page "#anchor" links are fine; nothing may point outside the file.
+        assertThat(html).doesNotContainPattern("(src|href)=\"(?!#)");
+        assertThat(html).doesNotContain("url(").doesNotContain("@import");
     }
 
     @Test

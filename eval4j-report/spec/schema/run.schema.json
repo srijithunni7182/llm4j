@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/srijithunni7182/llm4j/eval4j-report/spec/schema/run.schema.json",
+  "title": "eval4j run (run.json)",
+  "description": "The header of one eval4j run bundle: who ran what, where, with which models, and a summary. Facts only; goals, priorities and presentation live in the report configuration.",
+  "type": "object",
+  "required": ["schemaVersion", "format", "runId", "status", "startedAt"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "format": { "const": "eval4j-run" },
+    "runId": { "$ref": "#/$defs/runId" },
+    "groupId": { "type": "string", "maxLength": 128, "description": "Shared by the bundles of one build (for example several Maven modules or JVMs). The report merges bundles with the same groupId into one run." },
+    "runNumber": { "type": ["integer", "null"], "minimum": 0, "description": "The CI build number, if any." },
+    "status": { "enum": ["RUNNING", "COMPLETE", "PARTIAL", "FAILED"], "description": "RUNNING while being written; COMPLETE at a clean finish; PARTIAL if stopped early (budget, abort); FAILED if the writer failed." },
+    "startedAt": { "$ref": "#/$defs/instant" },
+    "endedAt": { "oneOf": [{ "$ref": "#/$defs/instant" }, { "type": "null" }] },
+    "durationMs": { "type": ["integer", "null"], "minimum": 0 },
+    "project": {
+      "type": "object",
+      "properties": { "name": { "type": "string", "maxLength": 200 }, "module": { "type": "string", "maxLength": 200 } },
+      "additionalProperties": true
+    },
+    "source": { "$ref": "#/$defs/source" },
+    "profile": { "$ref": "#/$defs/profile" },
+    "env": {
+      "type": "object",
+      "properties": {
+        "agents": { "type": "array", "items": { "$ref": "#/$defs/agent" } },
+        "judges": { "type": "array", "items": { "$ref": "#/$defs/judge" } },
+        "datasets": { "type": "array", "items": { "$ref": "#/$defs/dataset" } },
+        "eval4jVersion": { "type": "string" },
+        "javaVersion": { "type": "string" },
+        "os": { "type": "string" },
+        "configHash": { "type": "string", "description": "Hash of settings that change results (profile, thresholds, sample rate), so two runs with different settings are not silently compared." }
+      },
+      "additionalProperties": true
+    },
+    "metrics": { "type": "array", "items": { "$ref": "#/$defs/metric" }, "description": "The metrics that appeared in this run, with their classification. Evaluations refer to them by id." },
+    "summary": { "$ref": "#/$defs/summary" },
+    "extensions": { "type": "object", "description": "Free space for tools. Readers must ignore unknown keys." }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "runId": { "type": "string", "pattern": "^[A-Za-z0-9._-]{6,64}$" },
+    "instant": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "object",
+      "properties": {
+        "branch": { "type": ["string", "null"], "maxLength": 255 },
+        "commit": { "type": ["string", "null"], "pattern": "^[0-9a-fA-F]{7,64}$" },
+        "commitTime": { "oneOf": [{ "$ref": "#/$defs/instant" }, { "type": "null" }] },
+        "dirty": { "type": ["boolean", "null"] },
+        "pullRequest": { "type": ["string", "null"], "maxLength": 64 },
+        "ci": {
+          "type": ["object", "null"],
+          "properties": { "provider": { "type": "string" }, "buildUrl": { "type": "string" }, "buildNumber": { "type": ["string", "integer"] } },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "profile": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "enum": ["FAST", "BUILD", "SAMPLE", "FULL"] },
+        "judgeBudgetUsd": { "type": ["number", "null"], "minimum": 0 },
+        "sampleRate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "seed": { "type": ["integer", "null"] },
+        "carryOver": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "agent": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "provider": { "type": ["string", "null"] },
+        "model": { "type": ["string", "null"] },
+        "promptId": { "type": ["string", "null"] },
+        "promptVersion": { "type": ["string", "null"] },
+        "tools": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "judge": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "provider": { "type": ["string", "null"] },
+        "model": { "type": ["string", "null"] },
+        "temperature": { "type": ["number", "null"] },
+        "samples": { "type": ["integer", "null"], "minimum": 1 },
+        "aggregation": { "enum": ["MEAN", "MEDIAN", null] },
+        "rubricId": { "type": ["string", "null"] },
+        "rubricVersion": { "type": ["string", "null"] },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "calls": { "type": "integer", "minimum": 0 },
+            "cacheHits": { "type": "integer", "minimum": 0 },
+            "latencyMeanMs": { "type": ["number", "null"] },
+            "latencyP95Ms": { "type": ["number", "null"] },
+            "tokensIn": { "type": "integer", "minimum": 0 },
+            "tokensOut": { "type": "integer", "minimum": 0 },
+            "costUsd": { "type": ["number", "null"], "minimum": 0 },
+            "failures": { "type": "integer", "minimum": 0 },
+            "retries": { "type": "integer", "minimum": 0 },
+            "selfConsistency": { "type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "Share of multi-sample evaluations whose samples agree within 0.1." },
+            "noiseBand": { "type": ["number", "null"], "minimum": 0, "description": "Measured spread of repeated judgements; used for the within-noise band." }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "dataset": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string" },
+        "path": { "type": "string" },
+        "revision": { "type": ["string", "null"] },
+        "hash": { "type": ["string", "null"], "pattern": "^[0-9a-f]{16,64}$" },
+        "scenarioCount": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "metric": {
+      "type": "object",
+      "required": ["id", "name", "kind"],
+      "properties": {
+        "id": { "$ref": "#/$defs/slug" },
+        "name": { "type": "string", "maxLength": 200 },
+        "kind": { "enum": ["JUDGE", "PAIRWISE", "ASSERTION", "MEASURED"] },
+        "family": { "$ref": "#/$defs/slug" },
+        "facet": { "$ref": "#/$defs/slug" },
+        "dimension": { "$ref": "#/$defs/slug" },
+        "threshold": { "type": ["number", "null"] },
+        "unit": { "type": ["string", "null"] },
+        "budget": { "type": ["number", "null"], "description": "For MEASURED metrics: the limit a value must stay within." },
+        "judgeId": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "slug": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$" },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "evaluations": { "type": "integer", "minimum": 0 },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "notEvaluated": { "type": "integer", "minimum": 0 },
+        "errors": { "type": "integer", "minimum": 0 },
+        "bySource": {
+          "type": "object",
+          "properties": { "FRESH": { "type": "integer" }, "REUSED": { "type": "integer" }, "CARRIED": { "type": "integer" } },
+          "additionalProperties": false
+        },
+        "costUsd": { "type": ["number", "null"], "minimum": 0 },
+        "tests": { "type": "object", "properties": { "passed": { "type": "integer" }, "failed": { "type": "integer" }, "aborted": { "type": "integer" }, "skipped": { "type": "integer" } }, "additionalProperties": true }
+      },
+      "additionalProperties": true
+    }
+  }
+}

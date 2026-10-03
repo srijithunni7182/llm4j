@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="eval4j" tests="51" failures="28" skipped="0">
+  <testcase classname="eval4j" name="Accessibility request"><failure message="failed">faithfulness 0.62: Makes a claim no retrieved chunk supports.
+</failure></testcase>
+  <testcase classname="eval4j" name="Angry customer, hand over"><failure message="failed">faithfulness 0.33: Makes a claim no retrieved chunk supports.
+</failure></testcase>
+  <testcase classname="eval4j" name="Cancel a subscription"><failure message="failed">faithfulness 0.62: Makes a claim no retrieved chunk supports.
+</failure></testcase>
+  <testcase classname="eval4j" name="Change the account email"><failure message="failed">latency-p95 0.30: Over the 4 s budget.
+</failure></testcase>
+  <testcase classname="eval4j" name="Change the delivery address"><failure message="failed">faithfulness 0.55: Makes a claim no retrieved chunk supports.
+</failure></testcase>
+  <testcase classname="eval4j" name="Cookie preferences"><failure message="failed">faithfulness 0.39: Makes a claim no retrieved chunk supports.
+latency-p95 0.30: Over the 4 s budget.
+tool-order 0.00: Expected tools [order_lookup, refund] in order but the agent used: [refund, order_lookup]
+</failure></testcase>
+  <testcase classname="eval4j" name="Currency conversion"><failure message="failed">token-budget 0.30
+</failure></testcase>
+  <testcase classname="eval4j" name="Customs fees"><failure message="failed">faithfulness 0.57: Makes a claim no retrieved chunk supports.
+token-budget 0.30
+</failure></testcase>
+  <testcase classname="eval4j" name="Data retention period"><failure message="failed">faithfulness 0.63: Makes a claim no retrieved chunk supports.
+</failure></testcase>
+  <testcase classname="eval4j" name="Escalation after repeated failure"><failure message="failed">knowledge-retention 0.46: Forgets the order number after turn 3.
+</failure></testcase>
+  <testcase classname="eval4j" name="Legal threat"><failure message="failed">faithfulness 0.29: Makes a claim no retrieved chunk supports.
+</failure></testcase>
+  <testcase classname="eval4j" name="Marketing opt-out"><failure message="failed">answer-correctness 0.66: States a window that does not match the policy.
+faithfulness 0.53: Makes a claim no retrieved chunk supports.
+</failure></testcase>
+  <testcase classname="eval4j" name="Merge duplicate accounts"><failure message="failed">latency-p95 0.30: Over the 4 s budget.
+</failure></testcase>
+  <testcase classname="eval4j" name="Partial refund"><failure message="failed">answer-correctness 0.57: States a window that does not match the policy.
+faithfulness 0.57: Makes a claim no retrieved chunk supports.
+</failure></testcase>
+  <testcase classname="eval4j" name="Press enquiry"><failure message="failed">answer-correctness 0.32: States a window that does not match the policy.
+</failure></testcase>
+  <testcase classname="eval4j" name="Prompt A/B: Handoff wording"><failure message="failed">prompt-v3-vs-v2 0.00: A is more concise and equally complete.
+</failure></testcase>
+  <testcase classname="eval4j" name="Prompt A/B: Policy citation"><failure message="failed">prompt-v3-vs-v2 0.00: A is more concise and equally complete.
+</failure></testcase>
+  <testcase classname="eval4j" name="Refund after exchange"><failure message="failed">answer-correctness 0.50: States a window that does not match the policy.
+</failure></testcase>
+  <testcase classname="eval4j" name="Refund outside the window"><failure message="failed">contextual-precision 0.48: The relevant chunk is ranked below irrelevant ones.
+</failure></testcase>
+  <testcase classname="eval4j" name="Refund to store credit"><failure message="failed">answer-correctness 0.54: States a window that does not match the policy.
+</failure></testcase>
+  <testcase classname="eval4j" name="Remembers the order number"><failure message="failed">role-adherence 0.49: Forgets the order number after turn 3.
+</failure></testcase>
+  <testcase classname="eval4j" name="Research and publish: sufficient findings"><failure message="failed">correct-branch 0.00: Expected node n2 to take branch then but decisions there were: [else]
+follows-expected-path 0.00: Expected the workflow to follow [start, n1, n2, n3, n4, n6, end] but it took [start, n1, n2, n5, n6, end]
+</failure></testcase>
+  <testcase classname="eval4j" name="Reset a password"><failure message="failed">answer-correctness 0.17: States a window that does not match the policy.
+</failure></testcase>
+  <testcase classname="eval4j" name="Subscription renewal date"><failure message="failed">latency-p95 0.30: Over the 4 s budget.
+</failure></testcase>
+  <testcase classname="eval4j" name="Track a delayed parcel"><failure message="failed">tool-order 0.00: Expected tools [order_lookup, refund] in order but the agent used: [refund, order_lookup]
+</failure></testcase>
+  <testcase classname="eval4j" name="Two-factor setup"><failure message="failed">faithfulness 0.53: Makes a claim no retrieved chunk supports.
+</failure></testcase>
+  <testcase classname="eval4j" name="Update payment method"><failure message="failed">latency-p95 0.30: Over the 4 s budget.
+</failure></testcase>
+  <testcase classname="eval4j" name="Who sees my data"><failure message="failed">tool-order 0.00: Expected tools [order_lookup, refund] in order but the agent used: [refund, order_lookup]
+</failure></testcase>
+  <testcase classname="eval4j" name="Delete my account"></testcase>
+  <testcase classname="eval4j" name="Delete order history"></testcase>
+  <testcase classname="eval4j" name="Double charge"></testcase>
+  <testcase classname="eval4j" name="Escalate a fraud report"></testcase>
+  <testcase classname="eval4j" name="Express shipping cost"></testcase>
+  <testcase classname="eval4j" name="Fraud report"></testcase>
+  <testcase classname="eval4j" name="GDPR data export"></testcase>
+  <testcase classname="eval4j" name="Invoice copy"></testcase>
+  <testcase classname="eval4j" name="Large order discount"></testcase>
+  <testcase classname="eval4j" name="Lost in transit"></testcase>
+  <testcase classname="eval4j" name="Order change over three turns"></testcase>
+  <testcase classname="eval4j" name="Politeness under pressure"></testcase>
+  <testcase classname="eval4j" name="Prompt A/B: Closing message"></testcase>
+  <testcase classname="eval4j" name="Prompt A/B: Greeting tone"></testcase>
+  <testcase classname="eval4j" name="Prompt A/B: Plain language"></testcase>
+  <testcase classname="eval4j" name="Prompt A/B: Refund explanation"></testcase>
+  <testcase classname="eval4j" name="Prompt A/B: Shipping delay apology"></testcase>
+  <testcase classname="eval4j" name="Prompt A/B: Short answers"></testcase>
+  <testcase classname="eval4j" name="Refund for a damaged item"></testcase>
+  <testcase classname="eval4j" name="Refund inside the window"></testcase>
+  <testcase classname="eval4j" name="Shipping to Canada"></testcase>
+  <testcase classname="eval4j" name="Switches language mid-chat"></testcase>
+  <testcase classname="eval4j" name="Tax on invoice"></testcase>
+</testsuite>

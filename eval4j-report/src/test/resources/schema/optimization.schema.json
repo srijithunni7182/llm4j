@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/srijithunni7182/llm4j/eval4j-report/spec/schema/optimization.schema.json",
+  "title": "eval4j prompt optimization (one line of optimizations.jsonl)",
+  "description": "One prompt optimizer run: its rounds, stop reason, budget and the accepted prompt change.",
+  "type": "object",
+  "required": ["id", "promptId", "rounds"],
+  "properties": {
+    "id": { "type": "string", "maxLength": 128 },
+    "promptId": { "type": "string", "maxLength": 200 },
+    "fromVersion": { "type": ["string", "null"] },
+    "toVersion": { "type": ["string", "null"] },
+    "goal": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "stopReason": { "type": ["string", "null"], "maxLength": 200 },
+    "rounds": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "required": ["index", "action", "bestScore"],
+        "properties": {
+          "index": { "type": "integer", "minimum": 0 },
+          "action": { "type": "string", "maxLength": 100, "description": "For example BASELINE, ACCEPTED, REJECTED." },
+          "candidateScore": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "bestScore": { "type": "number", "minimum": 0, "maximum": 1 },
+          "calls": { "type": ["integer", "null"], "minimum": 0 },
+          "costUsd": { "type": ["number", "null"], "minimum": 0 }
+        },
+        "additionalProperties": true
+      }
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "calls": { "type": "integer", "minimum": 0 }, "maxCalls": { "type": ["integer", "null"], "minimum": 0 },
+        "costUsd": { "type": ["number", "null"], "minimum": 0 }, "maxCostUsd": { "type": ["number", "null"], "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "overfit": {
+      "type": ["object", "null"],
+      "properties": { "trainScore": { "type": "number" }, "validationScore": { "type": "number" }, "gap": { "type": "number" }, "limit": { "type": ["number", "null"] } },
+      "additionalProperties": true
+    },
+    "diff": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": { "type": "object", "required": ["op", "text"], "properties": { "op": { "enum": ["ADD", "DEL", "KEEP"] }, "text": { "type": "string", "maxLength": 2000 } }, "additionalProperties": false }
+    }
+  },
+  "additionalProperties": true
+}

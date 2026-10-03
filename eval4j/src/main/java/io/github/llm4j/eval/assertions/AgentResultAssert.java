@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.llm4j.agent.AgentResult;
+import io.github.llm4j.eval.export.EvalChecks;
+import io.github.llm4j.eval.export.MetricRef;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -19,26 +21,96 @@ import org.assertj.core.api.ListAssert;
  */
 public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, AgentResult> {
 
+    private static final MetricRef M_ITERATIONS =
+            MetricRef.measured(
+                    "iterations", "Iterations", "agents", "answers", "efficiency", "iterations");
+
+    private static final MetricRef M_REDUNDANT =
+            MetricRef.measured(
+                    "redundant-actions",
+                    "Redundant actions",
+                    "agents",
+                    "answers",
+                    "efficiency",
+                    "actions");
+
+    private static final MetricRef M_TOKENS =
+            MetricRef.measured(
+                    "token-budget", "Token budget", "agents", "answers", "efficiency", "tokens");
+
+    private static final MetricRef M_HASFINALANSWERCONTAINING =
+            MetricRef.assertion(
+                    "final-answer-contains",
+                    "Final answer contains",
+                    "agents",
+                    "answers",
+                    "correctness");
+    private static final MetricRef M_HASFINALANSWERMATCHING =
+            MetricRef.assertion(
+                    "final-answer-matches",
+                    "Final answer matches",
+                    "agents",
+                    "answers",
+                    "correctness");
+    private static final MetricRef M_USESTOOL =
+            MetricRef.assertion("tool-used", "Tool used", "agents", "tools", "reasoning");
+    private static final MetricRef M_USESTOOLSUCCESSFULLY =
+            MetricRef.assertion(
+                    "tool-succeeded", "Tool executed successfully", "agents", "tools", "reasoning");
+    private static final MetricRef M_HADACTIONREJECTED =
+            MetricRef.assertion(
+                    "action-rejected", "Action rejected by reviewer", "agents", "tools", "safety");
+    private static final MetricRef M_HASSTEPOUTCOME =
+            MetricRef.assertion("tool-outcome", "Tool outcome", "agents", "tools", "reasoning");
+    private static final MetricRef M_USESTOOLSEXACTLY =
+            MetricRef.assertion(
+                    "tool-sequence", "Tool sequence exact", "agents", "tools", "reasoning");
+    private static final MetricRef M_USESTOOLSINORDER =
+            MetricRef.assertion("tool-order", "Tool order", "agents", "tools", "reasoning");
+    private static final MetricRef M_USESNOTOOLS =
+            MetricRef.assertion("no-tools", "No tools used", "agents", "tools", "reasoning");
+    private static final MetricRef M_ISCONFIDENTABOVE =
+            MetricRef.assertion("confidence", "Agent confidence", "agents", "answers", "reasoning");
+    private static final MetricRef M_COMPLETEDSUCCESSFULLY =
+            MetricRef.assertion(
+                    "completed", "Completed successfully", "agents", "answers", "reliability");
+    private static final MetricRef M_FOLLOWEDPROTOCOL =
+            MetricRef.assertion(
+                    "protocol", "Followed response protocol", "agents", "answers", "reliability");
+    private static final MetricRef M_USESTOOLWITHARGUMENT =
+            MetricRef.assertion("tool-argument", "Tool argument", "agents", "tools", "reasoning");
+    private static final MetricRef M_HASVALIDJSON =
+            MetricRef.assertion(
+                    "valid-json", "Valid JSON output", "agents", "answers", "reliability");
+
     public AgentResultAssert(AgentResult actual) {
         super(actual, AgentResultAssert.class);
     }
 
     public AgentResultAssert hasFinalAnswerContaining(String expectedSubstring) {
-        isNotNull();
-        assertThat(actual.getFinalAnswer())
-                .as("final answer of agent result")
-                .containsIgnoringCase(expectedSubstring);
+        EvalChecks.check(
+                M_HASFINALANSWERCONTAINING,
+                () -> {
+                    isNotNull();
+                    assertThat(actual.getFinalAnswer())
+                            .as("final answer of agent result")
+                            .containsIgnoringCase(expectedSubstring);
+                });
         return this;
     }
 
     public AgentResultAssert hasFinalAnswerMatching(Pattern pattern) {
-        isNotNull();
-        String finalAnswer = actual.getFinalAnswer();
-        if (finalAnswer == null || !pattern.matcher(finalAnswer).find()) {
-            failWithMessage(
-                    "Expected final answer to match pattern <%s> but was <%s>",
-                    pattern, finalAnswer);
-        }
+        EvalChecks.check(
+                M_HASFINALANSWERMATCHING,
+                () -> {
+                    isNotNull();
+                    String finalAnswer = actual.getFinalAnswer();
+                    if (finalAnswer == null || !pattern.matcher(finalAnswer).find()) {
+                        failWithMessage(
+                                "Expected final answer to match pattern <%s> but was <%s>",
+                                pattern, finalAnswer);
+                    }
+                });
         return this;
     }
 
@@ -52,12 +124,18 @@ public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, A
      * #hadActionRejected(String)}.
      */
     public AgentResultAssert usesTool(String toolName) {
-        isNotNull();
-        boolean used = toolNames().stream().anyMatch(name -> name.equalsIgnoreCase(toolName));
-        if (!used) {
-            failWithMessage(
-                    "Expected agent to use tool <%s> but it used: %s", toolName, toolNames());
-        }
+        EvalChecks.check(
+                M_USESTOOL,
+                () -> {
+                    isNotNull();
+                    boolean used =
+                            toolNames().stream().anyMatch(name -> name.equalsIgnoreCase(toolName));
+                    if (!used) {
+                        failWithMessage(
+                                "Expected agent to use tool <%s> but it used: %s",
+                                toolName, toolNames());
+                    }
+                });
         return this;
     }
 
@@ -67,14 +145,20 @@ public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, A
      * every attempt was blocked, rejected, or errored.
      */
     public AgentResultAssert usesToolSuccessfully(String toolName) {
-        return hasStepOutcome(toolName, AgentResult.StepOutcome.EXECUTED);
+        EvalChecks.check(
+                M_USESTOOLSUCCESSFULLY,
+                () -> hasStepOutcome(toolName, AgentResult.StepOutcome.EXECUTED));
+        return this;
     }
 
     /**
      * Passes if a human reviewer rejected an attempted call to {@code toolName} via HITL approval.
      */
     public AgentResultAssert hadActionRejected(String toolName) {
-        return hasStepOutcome(toolName, AgentResult.StepOutcome.REJECTED_BY_HUMAN);
+        EvalChecks.check(
+                M_HADACTIONREJECTED,
+                () -> hasStepOutcome(toolName, AgentResult.StepOutcome.REJECTED_BY_HUMAN));
+        return this;
     }
 
     /**
@@ -82,39 +166,49 @@ public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, A
      * AgentResult.StepOutcome}.
      */
     public AgentResultAssert hasStepOutcome(String toolName, AgentResult.StepOutcome outcome) {
-        isNotNull();
-        List<AgentResult.AgentStep> callsToTool =
-                actual.getSteps().stream()
-                        .filter(
-                                step ->
-                                        step.getAction() != null
-                                                && step.getAction().equalsIgnoreCase(toolName))
-                        .collect(Collectors.toList());
-        boolean matched = callsToTool.stream().anyMatch(step -> step.getOutcome() == outcome);
-        if (!matched) {
-            List<AgentResult.StepOutcome> actualOutcomes =
-                    callsToTool.stream()
-                            .map(AgentResult.AgentStep::getOutcome)
-                            .collect(Collectors.toList());
-            failWithMessage(
-                    "Expected a step for tool <%s> with outcome <%s> but its outcomes were: %s",
-                    toolName, outcome, actualOutcomes);
-        }
+        EvalChecks.check(
+                M_HASSTEPOUTCOME,
+                () -> {
+                    isNotNull();
+                    List<AgentResult.AgentStep> callsToTool =
+                            actual.getSteps().stream()
+                                    .filter(
+                                            step ->
+                                                    step.getAction() != null
+                                                            && step.getAction()
+                                                                    .equalsIgnoreCase(toolName))
+                                    .collect(Collectors.toList());
+                    boolean matched =
+                            callsToTool.stream().anyMatch(step -> step.getOutcome() == outcome);
+                    if (!matched) {
+                        List<AgentResult.StepOutcome> actualOutcomes =
+                                callsToTool.stream()
+                                        .map(AgentResult.AgentStep::getOutcome)
+                                        .collect(Collectors.toList());
+                        failWithMessage(
+                                "Expected a step for tool <%s> with outcome <%s> but its outcomes were: %s",
+                                toolName, outcome, actualOutcomes);
+                    }
+                });
         return this;
     }
 
     public AgentResultAssert usesToolsExactly(String... toolNamesInOrder) {
-        isNotNull();
-        List<String> actualToolNames = toolNames();
-        List<String> expected = List.of(toolNamesInOrder);
-        boolean matches =
-                actualToolNames.size() == expected.size()
-                        && allEqualIgnoringCase(actualToolNames, expected);
-        if (!matches) {
-            failWithMessage(
-                    "Expected agent to use exactly the tools %s in order but it used: %s",
-                    expected, actualToolNames);
-        }
+        EvalChecks.check(
+                M_USESTOOLSEXACTLY,
+                () -> {
+                    isNotNull();
+                    List<String> actualToolNames = toolNames();
+                    List<String> expected = List.of(toolNamesInOrder);
+                    boolean matches =
+                            actualToolNames.size() == expected.size()
+                                    && allEqualIgnoringCase(actualToolNames, expected);
+                    if (!matches) {
+                        failWithMessage(
+                                "Expected agent to use exactly the tools %s in order but it used: %s",
+                                expected, actualToolNames);
+                    }
+                });
         return this;
     }
 
@@ -125,43 +219,64 @@ public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, A
      * take extra steps as long as the important ones happen in the right order.
      */
     public AgentResultAssert usesToolsInOrder(String... toolNamesInOrder) {
-        isNotNull();
-        List<String> actualToolNames = toolNames();
-        List<String> expectedSubsequence = List.of(toolNamesInOrder);
-        if (!isSubsequenceIgnoringCase(expectedSubsequence, actualToolNames)) {
-            failWithMessage(
-                    "Expected agent to use tools %s in that relative order but it used: %s",
-                    expectedSubsequence, actualToolNames);
-        }
+        EvalChecks.check(
+                M_USESTOOLSINORDER,
+                () -> {
+                    isNotNull();
+                    List<String> actualToolNames = toolNames();
+                    List<String> expectedSubsequence = List.of(toolNamesInOrder);
+                    if (!isSubsequenceIgnoringCase(expectedSubsequence, actualToolNames)) {
+                        failWithMessage(
+                                "Expected agent to use tools %s in that relative order but it used: %s",
+                                expectedSubsequence, actualToolNames);
+                    }
+                });
         return this;
     }
 
     public AgentResultAssert usesNoTools() {
-        isNotNull();
-        List<String> actualToolNames = toolNames();
-        if (!actualToolNames.isEmpty()) {
-            failWithMessage("Expected agent to use no tools but it used: %s", actualToolNames);
-        }
+        EvalChecks.check(
+                M_USESNOTOOLS,
+                () -> {
+                    isNotNull();
+                    List<String> actualToolNames = toolNames();
+                    if (!actualToolNames.isEmpty()) {
+                        failWithMessage(
+                                "Expected agent to use no tools but it used: %s", actualToolNames);
+                    }
+                });
         return this;
     }
 
     public AgentResultAssert isConfidentAbove(double threshold) {
-        isNotNull();
-        double score = actual.getConfidence() == null ? 0.0 : actual.getConfidence().getScore();
-        if (score <= threshold) {
-            failWithMessage(
-                    "Expected agent confidence to be above <%s> but was <%s>", threshold, score);
-        }
+        EvalChecks.check(
+                M_ISCONFIDENTABOVE,
+                () -> {
+                    isNotNull();
+                    double score =
+                            actual.getConfidence() == null
+                                    ? 0.0
+                                    : actual.getConfidence().getScore();
+                    if (score <= threshold) {
+                        failWithMessage(
+                                "Expected agent confidence to be above <%s> but was <%s>",
+                                threshold, score);
+                    }
+                });
         return this;
     }
 
     public AgentResultAssert completedSuccessfully() {
-        isNotNull();
-        if (!actual.isCompleted()) {
-            failWithMessage(
-                    "Expected agent to complete successfully but it did not (uncertaintyReason=%s)",
-                    actual.getUncertaintyReason());
-        }
+        EvalChecks.check(
+                M_COMPLETEDSUCCESSFULLY,
+                () -> {
+                    isNotNull();
+                    if (!actual.isCompleted()) {
+                        failWithMessage(
+                                "Expected agent to complete successfully but it did not (uncertaintyReason=%s)",
+                                actual.getUncertaintyReason());
+                    }
+                });
         return this;
     }
 
@@ -173,23 +288,34 @@ public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, A
      * failure worth catching separately from a genuine, well-formed answer.
      */
     public AgentResultAssert followedProtocol() {
-        isNotNull();
-        if (!actual.isProtocolFollowed()) {
-            failWithMessage(
-                    "Expected the agent to follow the expected response protocol on every iteration,"
-                            + " but it fell back to treating raw output as the final answer at least"
-                            + " once");
-        }
+        EvalChecks.check(
+                M_FOLLOWEDPROTOCOL,
+                () -> {
+                    isNotNull();
+                    if (!actual.isProtocolFollowed()) {
+                        failWithMessage(
+                                "Expected the agent to follow the expected response protocol on every iteration,"
+                                        + " but it fell back to treating raw output as the final answer at least"
+                                        + " once");
+                    }
+                });
         return this;
     }
 
     public AgentResultAssert completesWithinIterations(int maxIterations) {
-        isNotNull();
-        if (actual.getIterations() > maxIterations) {
-            failWithMessage(
-                    "Expected agent to complete within <%s> iterations but it took <%s>",
-                    maxIterations, actual.getIterations());
-        }
+        EvalChecks.checkMeasured(
+                M_ITERATIONS,
+                actual == null ? null : (double) (actual.getIterations()),
+                "iterations",
+                (double) maxIterations,
+                () -> {
+                    isNotNull();
+                    if (actual.getIterations() > maxIterations) {
+                        failWithMessage(
+                                "Expected agent to complete within <%s> iterations but it took <%s>",
+                                maxIterations, actual.getIterations());
+                    }
+                });
         return this;
     }
 
@@ -217,66 +343,90 @@ public class AgentResultAssert extends AbstractObjectAssert<AgentResultAssert, A
     /** Passes if any call to {@code toolName} had {@code argKey} equal to {@code expectedValue}. */
     public AgentResultAssert usesToolWithArgument(
             String toolName, String argKey, Object expectedValue) {
-        isNotNull();
-        List<AgentResult.AgentStep> callsToTool =
-                actual.getSteps().stream()
-                        .filter(
-                                step ->
-                                        step.getAction() != null
-                                                && step.getAction().equalsIgnoreCase(toolName))
-                        .collect(Collectors.toList());
-        boolean found =
-                callsToTool.stream()
-                        .anyMatch(
-                                step ->
-                                        Objects.equals(
-                                                parseArgs(step.getActionInput()).get(argKey),
-                                                expectedValue));
-        if (!found) {
-            List<String> rawArgs =
-                    callsToTool.stream()
-                            .map(AgentResult.AgentStep::getActionInput)
-                            .collect(Collectors.toList());
-            failWithMessage(
-                    "Expected a call to tool <%s> with argument <%s>=<%s> but found none. Calls to %s: %s",
-                    toolName, argKey, expectedValue, toolName, rawArgs);
-        }
+        EvalChecks.check(
+                M_USESTOOLWITHARGUMENT,
+                () -> {
+                    isNotNull();
+                    List<AgentResult.AgentStep> callsToTool =
+                            actual.getSteps().stream()
+                                    .filter(
+                                            step ->
+                                                    step.getAction() != null
+                                                            && step.getAction()
+                                                                    .equalsIgnoreCase(toolName))
+                                    .collect(Collectors.toList());
+                    boolean found =
+                            callsToTool.stream()
+                                    .anyMatch(
+                                            step ->
+                                                    Objects.equals(
+                                                            parseArgs(step.getActionInput())
+                                                                    .get(argKey),
+                                                            expectedValue));
+                    if (!found) {
+                        List<String> rawArgs =
+                                callsToTool.stream()
+                                        .map(AgentResult.AgentStep::getActionInput)
+                                        .collect(Collectors.toList());
+                        failWithMessage(
+                                "Expected a call to tool <%s> with argument <%s>=<%s> but found none. Calls to %s: %s",
+                                toolName, argKey, expectedValue, toolName, rawArgs);
+                    }
+                });
         return this;
     }
 
     /** Reads {@code AgentResult.getUsage().getTotalTokens()} across the whole run. */
     public AgentResultAssert usesFewerTokensThan(int maxTotalTokens) {
-        isNotNull();
-        int actualTokens = actual.getUsage().getTotalTokens();
-        if (actualTokens >= maxTotalTokens) {
-            failWithMessage(
-                    "Expected agent run to use fewer than <%s> total tokens but used <%s>",
-                    maxTotalTokens, actualTokens);
-        }
+        EvalChecks.checkMeasured(
+                M_TOKENS,
+                actual == null ? null : (double) (actual.getUsage().getTotalTokens()),
+                "tokens",
+                (double) maxTotalTokens,
+                () -> {
+                    isNotNull();
+                    int actualTokens = actual.getUsage().getTotalTokens();
+                    if (actualTokens >= maxTotalTokens) {
+                        failWithMessage(
+                                "Expected agent run to use fewer than <%s> total tokens but used <%s>",
+                                maxTotalTokens, actualTokens);
+                    }
+                });
         return this;
     }
 
     /** Flags looping/dithering: repeated identical action+input pairs within a single run. */
     public AgentResultAssert hasRedundantActionCountAtMost(int max) {
-        isNotNull();
-        int actualCount = actual.getRedundantActionCount();
-        if (actualCount > max) {
-            failWithMessage(
-                    "Expected at most <%s> redundant (repeated) actions but had <%s>",
-                    max, actualCount);
-        }
+        EvalChecks.checkMeasured(
+                M_REDUNDANT,
+                actual == null ? null : (double) (actual.getRedundantActionCount()),
+                "actions",
+                (double) max,
+                () -> {
+                    isNotNull();
+                    int actualCount = actual.getRedundantActionCount();
+                    if (actualCount > max) {
+                        failWithMessage(
+                                "Expected at most <%s> redundant (repeated) actions but had <%s>",
+                                max, actualCount);
+                    }
+                });
         return this;
     }
 
     public AgentResultAssert hasValidJson(Class<?> shape) {
-        isNotNull();
-        try {
-            new ObjectMapper().readValue(actual.getFinalAnswer(), shape);
-        } catch (Exception e) {
-            failWithMessage(
-                    "Expected final answer to be valid JSON matching <%s> but parsing failed: %s",
-                    shape.getSimpleName(), e.getMessage());
-        }
+        EvalChecks.check(
+                M_HASVALIDJSON,
+                () -> {
+                    isNotNull();
+                    try {
+                        new ObjectMapper().readValue(actual.getFinalAnswer(), shape);
+                    } catch (Exception e) {
+                        failWithMessage(
+                                "Expected final answer to be valid JSON matching <%s> but parsing failed: %s",
+                                shape.getSimpleName(), e.getMessage());
+                    }
+                });
         return this;
     }
 

@@ -1,5 +1,8 @@
 package io.github.llm4j.eval.report;
 
+import io.github.llm4j.eval.dataset.EvalScenario;
+import io.github.llm4j.eval.export.EvalRun;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -15,6 +18,8 @@ import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.InvocationInterceptor;
+import org.junit.jupiter.api.extension.ReflectiveInvocationContext;
 import org.junit.jupiter.api.extension.TestWatcher;
 
 /**
@@ -42,6 +47,7 @@ public class EvalReportExtension
         implements TestWatcher,
                 BeforeAllCallback,
                 BeforeEachCallback,
+                InvocationInterceptor,
                 AfterEachCallback,
                 AfterAllCallback {
 
@@ -58,12 +64,14 @@ public class EvalReportExtension
         final String runId = UUID.randomUUID().toString();
         final Instant startedAt = Instant.now();
         final Map<String, Double> baselineAverages = new TreeMap<>();
+        final List<TestOutcome> tests = new CopyOnWriteArrayList<>();
 
         @Override
         public void close() {
             try {
                 writeRunReport();
             } finally {
+                EvalRun.get().finish();
                 EvalRecorder.reset();
             }
         }
@@ -85,15 +93,15 @@ public class EvalReportExtension
             String sha = gitSha();
             EvalReportWriter.RunInfo info =
                     new EvalReportWriter.RunInfo(
-                            runId, startedAt.toString(), Instant.now().toString(), sha, records);
+                            runId,
+                            startedAt.toString(),
+                            Instant.now().toString(),
+                            sha,
+                            records,
+                            List.copyOf(tests));
             EvalReportWriter.write(reportDir, info, prior, baselineAverages);
             if (!records.isEmpty()) {
-                history.append(
-                        new HistoryEntry(
-                                runId,
-                                info.endedAt(),
-                                sha,
-                                EvalReportWriter.metricAverages(records)));
+                history.append(EvalReportWriter.historyEntry(info));
             }
         }
     }
@@ -120,8 +128,25 @@ public class EvalReportExtension
 
     @Override
     public void beforeEach(ExtensionContext context) {
+        context.getStore(NAMESPACE).put("startNanos", System.nanoTime());
         EvalRecorder.setCurrentTest(
                 context.getRequiredTestClass().getName(), context.getDisplayName());
+    }
+
+    /** Binds the {@link EvalScenario} argument of a parameterized test as the current case. */
+    @Override
+    public void interceptTestTemplateMethod(
+            Invocation<Void> invocation,
+            ReflectiveInvocationContext<Method> invocationContext,
+            ExtensionContext extensionContext)
+            throws Throwable {
+        for (Object arg : invocationContext.getArguments()) {
+            if (arg instanceof EvalScenario scenario) {
+                EvalRun.get().bindScenario(scenario);
+                break;
+            }
+        }
+        invocation.proceed();
     }
 
     @Override
@@ -132,21 +157,41 @@ public class EvalReportExtension
     @Override
     public void testSuccessful(ExtensionContext context) {
         outcomesFor(context).add(new Outcome(context.getDisplayName(), true, null));
+        recordTest(context, "PASSED", null);
     }
 
     @Override
     public void testFailed(ExtensionContext context, Throwable cause) {
         outcomesFor(context).add(new Outcome(context.getDisplayName(), false, cause.getMessage()));
+        recordTest(context, "FAILED", cause.getMessage());
     }
 
     @Override
     public void testAborted(ExtensionContext context, Throwable cause) {
-        outcomesFor(context)
+        String message = "aborted: " + (cause == null ? "" : cause.getMessage());
+        outcomesFor(context).add(new Outcome(context.getDisplayName(), false, message));
+        recordTest(context, "ABORTED", message);
+    }
+
+    private void recordTest(ExtensionContext context, String status, String message) {
+        Long start = context.getStore(NAMESPACE).get("startNanos", Long.class);
+        long ms = start == null ? 0 : (System.nanoTime() - start) / 1_000_000;
+        EvalRun.get()
+                .recordTest(
+                        context.getRequiredTestClass().getName(),
+                        context.getDisplayName(),
+                        status,
+                        ms,
+                        message);
+        runState(context)
+                .tests
                 .add(
-                        new Outcome(
+                        new TestOutcome(
+                                context.getRequiredTestClass().getName(),
                                 context.getDisplayName(),
-                                false,
-                                "aborted: " + (cause == null ? "" : cause.getMessage())));
+                                status,
+                                ms,
+                                message));
     }
 
     @Override

@@ -187,7 +187,7 @@ the offending turn (`turn 4: asked for the user's name again`).
 → [Conversation metrics](docs/CONVERSATIONS.md)
 
 ### Catch regressions before your users do
-A self-contained **HTML/JSON report**, a **score history** for trends, and an `@EvalBaseline` gate
+A self-contained **HTML dashboard** (heatmap, trends, per-case drill-down, run-to-run changes), **JUnit XML / Markdown / CSV** exports, a **score history** for trends, and an `@EvalBaseline` gate
 that fails the build when a metric drops.
 
 ```java
@@ -238,7 +238,7 @@ proven. Details and gaps: [VERIFICATION-RESULTS.md](VERIFICATION-RESULTS.md).
 | [RAG evaluation](docs/RAG-EVALUATION.md) | Contextual precision / recall / relevancy |
 | [Conversation metrics](docs/CONVERSATIONS.md) | Multi-turn behavior |
 | [Datasets & synthesis](docs/DATASETS.md) | YAML goldens and generated scenarios |
-| [Reports, baselines & gates](docs/REPORTING-AND-BASELINES.md) | HTML/JSON reports, trends, CI gate |
+| [Reports, baselines & gates](docs/REPORTING-AND-BASELINES.md) | Dashboard, JUnit/Markdown/CSV reports, trends, CI gate |
 | [Comparing prompts](docs/PROMPT-COMPARISON.md) | Pairwise A/B testing |
 | [Prompt optimizer](docs/OPTIMIZER.md) | Autonomous prompt improvement with held-out verification |
 | [Design philosophy](docs/DESIGN.md) | Why it is shaped this way, spec, verification, roadmap |

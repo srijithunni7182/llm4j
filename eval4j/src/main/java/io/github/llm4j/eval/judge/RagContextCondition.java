@@ -104,7 +104,9 @@ public final class RagContextCondition extends Condition<Object> {
 
     @Override
     public boolean matches(Object ignoredActual) {
+        long startedNanos = System.nanoTime();
         JudgeVerdict verdict = evaluate();
+        long elapsedMs = (System.nanoTime() - startedNanos) / 1_000_000;
         perThreadDescription.set(
                 new TextDescription(
                         "%s",
@@ -120,7 +122,9 @@ public final class RagContextCondition extends Condition<Object> {
                 verdict.score(),
                 threshold,
                 verdict.reason(),
-                calls == null ? null : calls.judgeIdentifier());
+                calls == null ? null : calls.judgeIdentifier(),
+                new io.github.llm4j.eval.report.EvalDetails(
+                        input, null, expectedOutput, chunks, elapsedMs));
         return verdict.score() >= threshold;
     }
 
@@ -326,11 +330,13 @@ public final class RagContextCondition extends Condition<Object> {
             }
             return out;
         }
+        io.github.llm4j.eval.export.JudgeTelemetry.Handle telemetry =
+                io.github.llm4j.eval.export.JudgeTelemetry.capture();
         ExecutorService pool = Executors.newFixedThreadPool(parallel);
         try {
             List<Future<JudgeVerdict>> futures = new ArrayList<>();
             for (Callable<JudgeVerdict> task : tasks) {
-                futures.add(pool.submit(task));
+                futures.add(pool.submit(telemetry.wrap(task)));
             }
             for (int i = 0; i < futures.size(); i++) {
                 try {

@@ -58,6 +58,14 @@ pipeline {
             }
         }
 
+        stage('Build eval4j-report') {
+            steps {
+                dir('eval4j-report') {
+                    sh 'mvn clean install -DskipTests'
+                }
+            }
+        }
+
         stage('Unit Tests & Coverage') {
             steps {
                 parallel(
@@ -80,6 +88,11 @@ pipeline {
                     "eval4j Tests": {
                         dir('eval4j') {
                             // verify (not test) so the enforced 80% JaCoCo gate actually runs
+                            sh 'mvn verify'
+                        }
+                    },
+                    "eval4j-report Tests": {
+                        dir('eval4j-report') {
                             sh 'mvn verify'
                         }
                     }
@@ -107,6 +120,11 @@ pipeline {
                     },
                     "eval4j Quality": {
                         dir('eval4j') {
+                            sh 'mvn spotless:check'
+                        }
+                    },
+                    "eval4j-report Quality": {
+                        dir('eval4j-report') {
                             sh 'mvn spotless:check'
                         }
                     }

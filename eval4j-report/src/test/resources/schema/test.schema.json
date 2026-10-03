@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/srijithunni7182/llm4j/eval4j-report/spec/schema/test.schema.json",
+  "title": "eval4j test outcome (one line of tests.jsonl)",
+  "description": "How one JUnit test ended, including tests that failed without recording any evaluation.",
+  "type": "object",
+  "required": ["testId", "status"],
+  "properties": {
+    "testId": { "type": "string", "maxLength": 512 },
+    "suite": { "type": ["string", "null"], "maxLength": 300 },
+    "name": { "type": ["string", "null"], "maxLength": 300 },
+    "caseId": { "type": ["string", "null"], "pattern": "^c_[0-9a-f]{16}$" },
+    "scenarioId": { "type": ["string", "null"], "maxLength": 256 },
+    "status": { "enum": ["PASSED", "FAILED", "ABORTED", "SKIPPED"] },
+    "durationMs": { "type": ["integer", "null"], "minimum": 0 },
+    "message": { "type": ["string", "null"], "maxLength": 5000 }
+  },
+  "additionalProperties": true
+}
