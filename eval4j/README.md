@@ -287,6 +287,7 @@ proven. Details and gaps: [VERIFICATION-RESULTS.md](VERIFICATION-RESULTS.md).
 | [Datasets & synthesis](docs/DATASETS.md) | YAML goldens and generated scenarios |
 | [Dashboard user guide](../eval4j-report/docs/USER-GUIDE.md) | The full eval4j-report feature set, with screenshots |
 | [Reports, baselines & gates](docs/REPORTING-AND-BASELINES.md) | JUnit/Markdown/CSV reports, trends, CI gate, migration to the new dashboard |
+| [Offline and budgeted runs](docs/OFFLINE-AND-BUDGETED-RUNS.md) | Spend cap, scripted client, fake judge, agent replay, recorded search |
 | [Comparing prompts](docs/PROMPT-COMPARISON.md) | Pairwise A/B testing |
 | [Prompt optimizer](docs/OPTIMIZER.md) | Autonomous prompt improvement with held-out verification |
 | [Design philosophy](docs/DESIGN.md) | Why it is shaped this way, spec, verification, roadmap |
