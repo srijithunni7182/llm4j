@@ -57,6 +57,42 @@ public final class MarkdownSummary {
                     .append(d.rollup().failed())
                     .append(" |\n");
         }
+        if (m.breakdowns() != null) {
+            for (io.github.llm4j.evalreport.model.ReportModel.BreakdownView b : m.breakdowns()) {
+                sb.append("\n### ")
+                        .append(cell(b.name()))
+                        .append("\n\n| ")
+                        .append(cell(b.key()))
+                        .append(" | Overall |");
+                for (io.github.llm4j.evalreport.model.ReportModel.BreakdownColumn c : b.columns()) {
+                    sb.append(' ').append(cell(c.name())).append(" |");
+                }
+                sb.append("\n|---|---|");
+                sb.append("---|".repeat(b.columns().size())).append('\n');
+                for (io.github.llm4j.evalreport.model.ReportModel.BreakdownRow r : b.rows()) {
+                    sb.append("| ")
+                            .append(cell(r.value()))
+                            .append(" | ")
+                            .append(pct(r.overall().rate()))
+                            .append(" |");
+                    for (io.github.llm4j.evalreport.model.ReportModel.BreakdownCell c : r.cells()) {
+                        int n = c.passed() + c.failed();
+                        sb.append(' ')
+                                .append(
+                                        n == 0
+                                                ? "-"
+                                                : String.format(
+                                                        Locale.ROOT,
+                                                        "%.0f%% (%d/%d)",
+                                                        c.rate(),
+                                                        c.passed(),
+                                                        n))
+                                .append(" |");
+                    }
+                    sb.append('\n');
+                }
+            }
+        }
         sb.append("\nThis report informs the release decision; it does not make it.\n");
         return sb.toString();
     }

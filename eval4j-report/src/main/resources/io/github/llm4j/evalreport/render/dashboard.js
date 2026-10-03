@@ -39,6 +39,7 @@
   function when(t) { try { return t ? new Date(t).toLocaleString() : ''; } catch (e) { return t || ''; } }
   function mname(id) { return (M.metricNames || {})[id] || id; }
   function dimById(id) { return M.dimensions.filter(function (d) { return d.id === id; })[0]; }
+  function bdByKey(k) { return (M.breakdowns || []).filter(function (b) { return b.key === k; })[0]; }
   function famById(id) { return M.families.filter(function (d) { return d.id === id; })[0]; }
   var STATUS = {
     MEETS_GOAL: ['Meets goal', 'good'], BELOW_GOAL: ['Below goal', 'warn'],
@@ -118,6 +119,7 @@
     var title = 'Overview', fn = viewOverview;
     switch (parts[0]) {
       case 'family': fn = function () { viewFamily(parts[1]); }; title = (famById(parts[1]) || {}).name || 'Family'; break;
+      case 'bd': fn = function () { parts[2] != null ? viewBreakdownRow(parts[1], parts[2]) : viewBreakdownPage(parts[1]); }; title = parts[2] != null ? parts[2] : ((bdByKey(parts[1]) || {}).name || 'Breakdown'); break;
       case 'dim': fn = function () { viewDim(parts[1], parts[2]); }; title = (dimById(parts[1]) || {}).name || 'Dimension'; break;
       case 'compare': fn = viewCompare; title = 'Compare runs'; break;
       case 'coverage': fn = viewCoverage; title = 'Dataset coverage'; break;
@@ -131,13 +133,13 @@
     }
     try { fn(); } catch (e) { view.appendChild(h('div', { class: 'note', text: 'This view could not be drawn: ' + e.message })); }
     clear(crumbs).appendChild(h('span', null, (M.meta.project || 'eval4j') + ' / ', h('b', { text: title })));
-    drawNav(parts[0] || 'overview', parts[1]);
+    drawNav(parts[0] || 'overview', parts[1], parts[2]);
     side.classList.remove('open');
     window.scrollTo(0, 0);
   }
   function go(hash) { location.hash = hash; }
 
-  function drawNav(cur, arg) {
+  function drawNav(cur, arg, curVal) {
     clear(side);
     side.appendChild(h('a', { class: 'lock', href: '#overview', 'aria-label': 'eval4j, part of llm4j' }, logo(), h('span', { class: 'wm' }, 'eval', h('span', { text: '4j' }))));
     function item(label, hash, key, count) {
@@ -147,9 +149,21 @@
     }
     item('Overview', '#overview', 'overview');
     side.appendChild(h('div', { class: 'navh', text: 'Test families' }));
-    M.families.forEach(function (f) { item(f.name, '#family/' + encodeURIComponent(f.id), 'family/' + f.id, counted(f.rollup)); });
+    M.families.forEach(function (f) {
+      item(f.name, '#family/' + encodeURIComponent(f.id), 'family/' + f.id, counted(f.rollup));
+      /* the agents family expands to list each agent: pick one to see its results */
+      var bd = f.id === 'agents' ? bdByKey('agent') : null;
+      if (bd && ((cur === 'family' && arg === 'agents') || (cur === 'bd' && arg === 'agent'))) {
+        bd.rows.forEach(function (r) {
+          var a = h('a', { class: 'nav sub', href: '#bd/agent/' + encodeURIComponent(r.value) }, h('span', { text: r.value }), h('small', { text: pct(r.overall.rate, 0) }));
+          if (cur === 'bd' && arg === 'agent' && curVal === r.value) a.setAttribute('aria-current', 'page');
+          side.appendChild(a);
+        });
+      }
+    });
     side.appendChild(h('div', { class: 'navh', text: 'Insight' }));
     item('Compare runs', '#compare', 'compare', M.compare ? M.compare.worse + M.compare.better : null);
+    (M.breakdowns || []).filter(function (b) { return b.key !== 'agent'; }).forEach(function (b) { item(b.name, '#bd/' + encodeURIComponent(b.key), 'bd/' + b.key); });
     item('Dataset coverage', '#coverage', 'coverage');
     item('Cost and evidence', '#cost', 'cost');
     item('Judges and models', '#models', 'models');
@@ -304,6 +318,8 @@
     view.appendChild(h('div', { class: 'sec' }, h('header', null, h('h2', { text: 'Areas' })), h('div', { class: 'grid' }, f.facets.map(function (x) {
       return h('div', { class: 'card tile' }, h('h3', { text: x.name }), donut(x.rollup, null, 100), h('div', { class: 'meta num', text: x.rollup.passed + ' passed · ' + x.rollup.failed + ' failed' }));
     }))));
+    var abd = f.id === 'agents' ? bdByKey('agent') : null;
+    if (abd) view.appendChild(h('div', { class: 'sec' }, h('header', null, h('h2', { text: 'Agents by dimension' }), h('p', { text: 'Pass rate of each agent on each quality dimension, against the dimension\u2019s goal. Select an agent for its own results.' })), matrix(abd)));
     view.appendChild(h('div', { class: 'sec' }, h('header', null, h('h2', { text: 'Quality dimensions in this view' })),
       dimGrid(M.dimensions.filter(function (d) { return f.dimensions.indexOf(d.id) >= 0; }))));
   }
@@ -505,6 +521,63 @@
   }
 
   /* ---------- insight pages ---------- */
+  /* ---------- breakdowns: which agent (or other tag value) scored how much on what ---------- */
+  function heat(cell, goal) {
+    if (cell.status === 'NONE') return 'hm none';
+    if (cell.status === 'MET') return 'hm good';
+    return 'hm ' + (cell.rate >= goal - 15 ? 'warn' : 'crit');
+  }
+  function matrix(bd) {
+    var head = h('tr', null, h('th', { text: bd.name.replace(/^By /, '') }), h('th', { text: 'Overall' }),
+      bd.columns.map(function (c) { return h('th', { class: 'num', title: 'goal ' + pct(c.goal, 0), text: c.name }); }));
+    var body = bd.rows.map(function (r) {
+      return h('tr', { class: 'row', tabindex: 0, onclick: function () { go('#bd/' + encodeURIComponent(bd.key) + '/' + encodeURIComponent(r.value)); },
+        onkeydown: function (ev) { if (ev.key === 'Enter') go('#bd/' + encodeURIComponent(bd.key) + '/' + encodeURIComponent(r.value)); } },
+        h('td', null, h('b', { text: r.value })), h('td', { class: 'num', text: pct(r.overall.rate, 0) }),
+        r.cells.map(function (c, i) {
+          var n = c.passed + c.failed;
+          return h('td', { class: 'num ' + heat(c, bd.columns[i].goal), title: n ? c.passed + ' of ' + n + ' passed' + (c.failedCases.length ? '; failed: ' + c.failedCases.join(', ') : '') : 'not evaluated',
+            text: n ? pct(c.rate, 0) : '–' }, n ? h('small', { text: c.passed + '/' + n }) : null);
+        }));
+    });
+    return h('div', null, h('div', { class: 'card tbl' }, h('table', { class: 'matrix' }, h('thead', null, head), h('tbody', null, body))),
+      h('p', { class: 'hint', text: 'Green meets the goal; amber is within 15 points; red is further below. A dash means that agent has no evaluation in that dimension.' }));
+  }
+  function viewBreakdownPage(key) {
+    var bd = bdByKey(key);
+    if (!bd) return viewNotFound();
+    view.appendChild(h('div', { class: 'pagehead' }, h('h1', { text: bd.name }), h('p', { class: 'sub', text: 'Pass rate for each ' + key + ' on each quality dimension. Select one for its own results.' })));
+    view.appendChild(matrix(bd));
+  }
+  function viewBreakdownRow(key, value) {
+    var bd = bdByKey(key), row = bd && bd.rows.filter(function (r) { return r.value === value; })[0];
+    if (!row) return viewNotFound();
+    var kind = key === 'agent' ? 'agent' : key;
+    view.appendChild(h('button', { class: 'back', type: 'button', onclick: function () { go(key === 'agent' ? '#family/agents' : '#bd/' + encodeURIComponent(key)); }, text: '\u2039 All ' + (key === 'agent' ? 'agents' : bd.name) }));
+    view.appendChild(h('div', { class: 'card dhead' }, donut(row.overall, null, 130), h('div', null, h('h1', { text: value }),
+      h('p', { class: 'sub', text: counted(row.overall) + ' evaluations \u00b7 ' + row.overall.passed + ' passed \u00b7 ' + row.overall.failed + ' failed \u00b7 ' + row.caseIds.length + ' ' + kind + ' scenarios' }))));
+    var cards = row.cells.filter(function (c) { return c.passed + c.failed > 0; }).map(function (c, i) {
+      var col = bd.columns[row.cells.indexOf(c)], n = c.passed + c.failed;
+      return h('button', { class: 'card tile', type: 'button', onclick: function () { go('#dim/' + encodeURIComponent(col.dimension)); } },
+        h('div', { style: 'display:flex;justify-content:space-between;gap:8px' }, h('h3', { text: col.name }), h('span', { class: 'pill ' + (c.status === 'MET' ? 'good' : 'crit'), text: c.status === 'MET' ? 'Meets goal' : 'Below goal' })),
+        h('div', { class: 'num', text: pct(c.rate, 0) }), meter(c.rate, col.goal),
+        h('div', { class: 'meta num', text: c.passed + ' of ' + n + ' passed \u00b7 goal ' + pct(col.goal, 0) }),
+        c.failedCases.length ? h('div', { class: 'meta', text: 'Failed: ' + c.failedCases.join(', ') }) : null);
+    });
+    view.appendChild(h('div', { class: 'sec' }, h('header', null, h('h2', { text: 'Results by dimension' }), h('p', { text: 'This ' + kind + ' only. Select a dimension for all ' + kind + 's on it.' })), h('div', { class: 'grid' }, cards)));
+    var mine = M.cases.filter(function (c) { return row.caseIds.indexOf(c.caseId) >= 0; });
+    var tbody = h('tbody', null, mine.map(function (c) {
+      var evs = c.evaluations.filter(function (e) { return e.status === 'EVALUATED' && e.passed != null; });
+      var failed = evs.some(function (e) { return e.passed === false; });
+      var best = evs.filter(function (e) { return e.score != null; }).map(function (e) { return e.score; });
+      var dims = Object.keys(c.dims).map(function (k) { return c.dims[k]; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+      return h('tr', { class: 'row', tabindex: 0, onclick: function () { openCase(c); }, onkeydown: function (ev) { if (ev.key === 'Enter') openCase(c); } },
+        h('td', null, h('b', { text: c.name || c.id })), h('td', null, h('span', { class: 'pill ' + (failed ? 'crit' : 'good'), text: failed ? 'Failed' : 'Passed' })),
+        h('td', { class: 'num', text: best.length ? sc(Math.min.apply(null, best)) : '\u2013' }), h('td', { text: dims.join(', ') }));
+    }));
+    view.appendChild(h('div', { class: 'sec' }, h('header', null, h('h2', { text: 'Scenarios' }), h('p', { text: 'Select one to see the input, the answer, the evidence and the judge\u2019s reasoning.' })),
+      h('div', { class: 'card tbl' }, h('table', null, h('thead', null, h('tr', null, h('th', { text: 'Scenario' }), h('th', { text: 'Result' }), h('th', { text: 'Lowest score' }), h('th', { text: 'Dimensions' }))), tbody))));
+  }
   function viewCoverage() {
     view.appendChild(h('div', { class: 'pagehead' }, h('h1', { text: 'Golden dataset coverage' }), h('p', { class: 'sub', text: 'Every dimension the dataset declares is listed, whether or not it was evaluated.' })));
     view.appendChild(h('div', { class: 'card tbl' }, h('table', null, h('thead', null, h('tr', null, ['Dimension', 'State', 'Declared', 'Evaluated', 'Not evaluated'].map(function (t) { return h('th', { text: t }); }))),

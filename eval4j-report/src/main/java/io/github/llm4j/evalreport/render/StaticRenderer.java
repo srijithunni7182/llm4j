@@ -130,6 +130,47 @@ public final class StaticRenderer {
         }
         h.append("</div>\n");
 
+        if (m.breakdowns() != null) {
+            for (io.github.llm4j.evalreport.model.ReportModel.BreakdownView b : m.breakdowns()) {
+                h.append("<h2>")
+                        .append(Escape.html(b.name()))
+                        .append(" by dimension</h2><table><thead><tr><th>")
+                        .append(Escape.html(b.key()))
+                        .append("</th><th>Overall</th>");
+                for (io.github.llm4j.evalreport.model.ReportModel.BreakdownColumn c : b.columns()) {
+                    h.append("<th>").append(Escape.html(c.name())).append("</th>");
+                }
+                h.append("</tr></thead><tbody>");
+                for (io.github.llm4j.evalreport.model.ReportModel.BreakdownRow r : b.rows()) {
+                    h.append("<tr><td><b>")
+                            .append(Escape.html(r.value()))
+                            .append("</b></td><td>")
+                            .append(
+                                    r.overall().rate() == null
+                                            ? "-"
+                                            : String.format(
+                                                    Locale.ROOT, "%.0f%%", r.overall().rate()))
+                            .append("</td>");
+                    for (io.github.llm4j.evalreport.model.ReportModel.BreakdownCell c : r.cells()) {
+                        int n = c.passed() + c.failed();
+                        h.append("<td>")
+                                .append(
+                                        n == 0
+                                                ? "-"
+                                                : String.format(
+                                                        Locale.ROOT,
+                                                        "%.0f%% (%d/%d)",
+                                                        c.rate(),
+                                                        c.passed(),
+                                                        n))
+                                .append("</td>");
+                    }
+                    h.append("</tr>");
+                }
+                h.append("</tbody></table>\n");
+            }
+        }
+
         h.append("<h2 id=\"failures\">Failing cases</h2>");
         int shown = 0;
         for (CaseView c : m.cases()) {

@@ -64,7 +64,8 @@ public final class EvalReport {
                 model.reliability(),
                 model.presets(),
                 model.branding(),
-                model.metricNames());
+                model.metricNames(),
+                model.breakdowns());
     }
 
     private static RunMeta find(List<RunMeta> runs, String id) {

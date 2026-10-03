@@ -28,7 +28,36 @@ public record ReportModel(
         List<JudgeReliability> reliability,
         Map<String, Map<String, String>> presets,
         Branding branding,
-        Map<String, String> metricNames) {
+        Map<String, String> metricNames,
+        List<BreakdownView> breakdowns) {
+
+    /**
+     * Results broken down by a scenario tag (for example {@code agent}): one row per tag value, one
+     * column per quality dimension, so "which agent scored how much on what" is one table.
+     */
+    public record BreakdownView(
+            String key, String name, List<BreakdownColumn> columns, List<BreakdownRow> rows) {}
+
+    public record BreakdownColumn(String dimension, String name, double goal) {}
+
+    /**
+     * {@code caseIds} are the {@link CaseView#caseId()} values of this row's cases, for the
+     * drill-down.
+     */
+    public record BreakdownRow(
+            String value, Rollup overall, List<BreakdownCell> cells, List<String> caseIds) {}
+
+    /**
+     * {@code status} is MET or BELOW the dimension's goal, or NONE when this row has no evaluation
+     * there.
+     */
+    public record BreakdownCell(
+            String dimension,
+            int passed,
+            int failed,
+            Double rate,
+            String status,
+            List<String> failedCases) {}
 
     /** Run facts plus how the report was made. */
     public record Meta(
