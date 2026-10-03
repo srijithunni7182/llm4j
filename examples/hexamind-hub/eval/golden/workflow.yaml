@@ -150,8 +150,8 @@
   input: Should a regional bank pilot an AI agent for first-line customer support?
   expectedTools: []
   context:
-  - 'EXPECTED PATH: path stops at the budget limit and still produces a consensus from the opinions gathered.'
-  - 'EXPECT: a budget-exhausted event, a labelled partial consensus, spend within the ceiling.'
+  - 'EXPECTED PATH: path stops at the budget limit; Loom ends the run with a budget-exhausted error and no consensus (its STOP behaviour).'
+  - 'EXPECT: the run stops within the ceiling plus one call, and says it was stopped. A partial consensus would need a SUSPEND or an explicit wind-down step: report the absence as a finding, not a failure.'
   dimensions:
   - efficiency
   - orchestration

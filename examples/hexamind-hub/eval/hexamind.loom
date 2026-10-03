@@ -116,14 +116,14 @@ workflow Collaborate(problem) {
         delegate "{problem}  CRITICAL ROUND 1 RULE: verify literally; if a term cannot be verified, debunk it. Be conversational." to Casey -> c1
         delegate "{problem}  CRITICAL ROUND 1 RULE: verify literally; if a term cannot be verified, debunk it. Be conversational." to Rahul -> h1
     }
-    checkpoint round1 starting with feedback = "none"
+    checkpoint round1 starting with fb = "none"
 
-    delegate "Problem: {problem}\nAlex: {a1}\nJordan: {j1}\nSasha: {s1}\nAris: {r1}\nCasey: {c1}\nRahul: {h1}" to Moderator -> premise expecting { fabricated: enum["YES","NO"], term: string }
+    delegate "Problem: {problem}\nAlex: {a1}\nJordan: {j1}\nSasha: {s1}\nAris: {r1}\nCasey: {c1}\nRahul: {h1}" to Moderator -> fabcheck expecting { fabricated: enum["YES","NO"], term: string }
 
-    alt (premise.fabricated == "YES") {
+    alt (fabcheck.fabricated == "YES") {
         // Debunk branch: skip the debate about something that does not exist and go straight to opinions
         note "Fabricated premise flagged; shortening the debate"
-        delegate "Round 1 findings:\nAlex: {a1}\nRahul: {h1}\nAris: {r1}\nState the debunk and what a reader should do instead." to Debunker -> consensus
+        delegate "Round 1 findings:\nAlex: {a1}\nRahul: {h1}\nAris: {r1}\nState the debunk and what a reader should do instead." to Debunker -> final_text
     } else {
         // Round 2: arguments
         parallel {
@@ -165,23 +165,25 @@ workflow Collaborate(problem) {
             delegate "Problem: {problem}\nGive your final recommendation in 2-3 sentences and a confidence 0-100.\nRebuttals so far: {a4} {j4} {s4} {r4} {c4} {h4}" to Rahul -> h5
         }
 
-        delegate "Synthesize into one recommendation. Specify locations and exact KPIs; include a Future Possibilities section.\nAlex: {a5}\nJordan: {j5}\nSasha: {s5}\nAris: {r5}\nCasey: {c5}\nRahul: {h5}" to Coordinator -> consensus
+        delegate "Synthesize into one recommendation. Specify locations and exact KPIs; include a Future Possibilities section.\nAlex: {a5}\nJordan: {j5}\nSasha: {s5}\nAris: {r5}\nCasey: {c5}\nRahul: {h5}" to Coordinator -> final_text
     }
 
-    observe "Consensus ready" {consensus}
-    handoff consensus to Coordinator
+    observe "Consensus ready" {final_text}
+    handoff final_text to Coordinator
 }
 
+// NOTE: Loom replaces a variable name wherever it appears in a string, braces or not, so variable names here
+// (final_text, prior, feedback_text, fb, fabcheck) are chosen never to occur as ordinary words in the prompts.
 // A user's feedback after the consensus triggers one refinement round and a new consensus.
-workflow Refine(problem, consensus, feedback) {
+workflow Refine(topic, prior, feedback_text) {
     parallel {
-        delegate "The user gave this feedback: {feedback}\nRe-evaluate your previous stance and say what changed.\nProblem: {problem}\nPrevious consensus: {consensus}" to Alex -> a6
-        delegate "The user gave this feedback: {feedback}\nRe-evaluate your previous stance and say what changed.\nProblem: {problem}\nPrevious consensus: {consensus}" to Jordan -> j6
-        delegate "The user gave this feedback: {feedback}\nRe-evaluate your previous stance and say what changed.\nProblem: {problem}\nPrevious consensus: {consensus}" to Sasha -> s6
-        delegate "The user gave this feedback: {feedback}\nRe-evaluate your previous stance and say what changed.\nProblem: {problem}\nPrevious consensus: {consensus}" to Aris -> r6
-        delegate "The user gave this feedback: {feedback}\nRe-evaluate your previous stance and say what changed.\nProblem: {problem}\nPrevious consensus: {consensus}" to Casey -> c6
-        delegate "The user gave this feedback: {feedback}\nRe-evaluate your previous stance and say what changed.\nProblem: {problem}\nPrevious consensus: {consensus}" to Rahul -> h6
+        delegate "The user gave this feedback: {feedback_text}\nRe-evaluate your previous stance and say what changed.\nProblem: {topic}\nPrevious consensus: {prior}" to Alex -> a6
+        delegate "The user gave this feedback: {feedback_text}\nRe-evaluate your previous stance and say what changed.\nProblem: {topic}\nPrevious consensus: {prior}" to Jordan -> j6
+        delegate "The user gave this feedback: {feedback_text}\nRe-evaluate your previous stance and say what changed.\nProblem: {topic}\nPrevious consensus: {prior}" to Sasha -> s6
+        delegate "The user gave this feedback: {feedback_text}\nRe-evaluate your previous stance and say what changed.\nProblem: {topic}\nPrevious consensus: {prior}" to Aris -> r6
+        delegate "The user gave this feedback: {feedback_text}\nRe-evaluate your previous stance and say what changed.\nProblem: {topic}\nPrevious consensus: {prior}" to Casey -> c6
+        delegate "The user gave this feedback: {feedback_text}\nRe-evaluate your previous stance and say what changed.\nProblem: {topic}\nPrevious consensus: {prior}" to Rahul -> h6
     }
-    delegate "Rebuild the consensus given the feedback {feedback}.\nAlex: {a6}\nJordan: {j6}\nSasha: {s6}\nAris: {r6}\nCasey: {c6}\nRahul: {h6}" to Coordinator -> revised
-    handoff revised to Coordinator
+    delegate "Rebuild the consensus given the feedback {feedback_text}.\nAlex: {a6}\nJordan: {j6}\nSasha: {s6}\nAris: {r6}\nCasey: {c6}\nRahul: {h6}" to Coordinator -> revised_text
+    handoff revised_text to Coordinator
 }

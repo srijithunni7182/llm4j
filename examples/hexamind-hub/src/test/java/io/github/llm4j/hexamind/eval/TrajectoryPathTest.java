@@ -2,14 +2,7 @@ package io.github.llm4j.hexamind.eval;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import io.github.llm4j.loom.execution.ToolRegistry;
 import io.github.llm4j.eval.export.WorkflowTrace;
-import io.github.llm4j.evalreport.loom.LoomTrace;
-import io.github.llm4j.loom.execution.HarnessExecutor;
-import io.github.llm4j.loom.lexer.Lexer;
-import io.github.llm4j.loom.parser.LoomParser;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -17,43 +10,78 @@ import org.junit.jupiter.api.Test;
 /** Runs hexamind.loom on a scripted model and checks which way the debate went. Free and offline. */
 class TrajectoryPathTest {
 
-    private static String script() throws Exception {
-        String s = Files.readString(Path.of("eval/hexamind.loom"));
-        // the real run searches over the network; here the declared tool is replaced by a fixture
-        return s.replaceAll("(?s)tool Search \\{.*?\\}\\s*", "");
-    }
+    private static final String FABRICATED = "{\"fabricated\": \"YES\", \"term\": \"Quantum Flux\"}";
+    private static final String REAL = "{\"fabricated\": \"NO\", \"term\": \"\"}";
 
-    private WorkflowTrace run(ScriptedModel model, String problem) throws Exception {
-        var parsed = new LoomParser(new Lexer(script()).tokenize()).parseScript();
-        ToolRegistry tools = new ToolRegistry();
-        tools.register("Search", new FixtureSearchTool(List.of("a fixture snippet")));
-        HarnessExecutor e = new HarnessExecutor(parsed, tools, model);
-        LoomTrace trace = LoomTrace.attach(e);
-        trace.workflow(parsed.getWorkflows().stream()
-                .filter(w -> w.getName().equals("Collaborate"))
-                .findFirst()
-                .orElseThrow());
-        e.initialize();
-        e.executeWorkflow("Collaborate", Map.of("problem", problem));
-        return trace.finish(null);
+    private static LoomDebateRunner.Debate collaborate(ScriptedModel model, String problem) {
+        return LoomDebateRunner.run(
+                "Collaborate", Map.of("problem", problem), "final_text", List.of(), List.of("Quantum Flux"), model);
     }
 
     @Test
-    void fabricatedPremiseTakesTheDebunkBranch() throws Exception {
-        ScriptedModel model = new ScriptedModel()
-                .whenSeen("Round 1 findings", "It does not exist.")
-                .whenSeen("Alex: ", "{\"fabricated\": \"YES\", \"term\": \"Quantum Flux\"}");
-        WorkflowTrace t = run(model, "Explain the Quantum Flux protocol");
-        assertThat(t.actualPath()).containsExactly("start", "n2", "n4", "n5", "n7", "end");
+    void fabricatedPremiseTakesTheDebunkBranch() {
+        ScriptedModel model =
+                new ScriptedModel().whenSeen("Round 1 findings", "It does not exist.").whenSeen("Alex: ", FABRICATED);
+        var d = collaborate(model, "Explain the Quantum Flux protocol");
+        assertThat(d.trace().actualPath()).isEqualTo(LoomDebateRunner.DEBUNK);
+        assertThat(d.output()).isEqualTo("It does not exist.");
     }
 
     @Test
-    void realPremiseRunsAllFiveRoundsThenTheCoordinator() throws Exception {
-        ScriptedModel model = new ScriptedModel()
-                .whenSeen("Alex: ", "{\"fabricated\": \"NO\", \"term\": \"\"}");
-        WorkflowTrace t = run(model, "Should we adopt Kubernetes?");
-        assertThat(t.actualPath())
-                .containsExactly(
-                        "start", "n2", "n4", "n5", "n8", "n9", "n10", "n11", "n12", "end");
+    void realPremiseRunsAllFiveRoundsThenTheCoordinator() {
+        ScriptedModel model = new ScriptedModel().whenSeen("Alex: ", REAL);
+        var d = collaborate(model, "Should we adopt Kubernetes?");
+        assertThat(d.trace().actualPath()).isEqualTo(LoomDebateRunner.FULL);
+    }
+
+    @Test
+    void everyRoundDelegatesToAllSixAgents() {
+        ScriptedModel model = new ScriptedModel().whenSeen("Alex: ", REAL);
+        var d = collaborate(model, "Should we adopt Kubernetes?");
+        for (String a : List.of("Alex", "Jordan", "Sasha", "Aris", "Casey", "Rahul")) {
+            assertThat(delegations(d, a)).as(a).isEqualTo(5);
+        }
+        assertThat(delegations(d, "Moderator")).isEqualTo(1);
+        assertThat(delegations(d, "Coordinator")).isEqualTo(1);
+        // 6 agents x 5 rounds + moderator + coordinator + the handoff back to the coordinator
+        assertThat(model.calls()).isEqualTo(33);
+    }
+
+    private static long delegations(LoomDebateRunner.Debate d, String agent) {
+        return d.trace().events().stream()
+                .filter(e -> "delegate_start".equals(e.type()) && agent.equals(e.agent()))
+                .count();
+    }
+
+    @Test
+    void refinementRunsOneRoundAndRebuildsTheConsensus() {
+        ScriptedModel model = new ScriptedModel().whenSeen("Rebuild the consensus", "Revised for older customers.");
+        var d =
+                LoomDebateRunner.run(
+                        "Refine",
+                        Map.of("topic", "p", "prior", "old", "feedback_text", "ignores customers over 70"),
+                        "revised_text",
+                        List.of(),
+                        List.of(),
+                        model);
+        assertThat(d.output()).isEqualTo("Revised for older customers.");
+        assertThat(model.calls()).isEqualTo(8); // six agents, the coordinator, and the handoff
+    }
+
+    @Test
+    void aTightBudgetStopsTheDebateWithoutAConsensus() {
+        ScriptedModel model = new ScriptedModel().whenSeen("Alex: ", REAL);
+        var d =
+                LoomDebateRunner.run(
+                        "Collaborate",
+                        Map.of("problem", "Should we adopt Kubernetes?"),
+                        "final_text",
+                        List.of(),
+                        List.of(),
+                        model,
+                        s -> s.replace("tokens: 900000", "tokens: 2000"));
+        assertThat(d.stopped()).contains("budget exhausted");
+        assertThat(d.output()).isNullOrEmpty();
+        assertThat(model.calls()).isLessThan(33);
     }
 }
