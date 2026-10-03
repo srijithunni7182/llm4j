@@ -117,6 +117,21 @@ Judge and agent descriptors are supplied through the existing builders (`judgeId
 - **Responsive:** one column at phone width; tables scroll inside their own container; the drawer becomes full screen.
 - **Type:** IBM Plex Sans with IBM Plex Mono for model names and identifiers, with system fallbacks. Fonts are **not** fetched by the report itself: they are embedded or fall back to the system stack, because the report must make no network requests.
 
+## 7a. Branding
+
+The report is an llm4j product and looks like one.
+
+| Element | Rule |
+|---|---|
+| **eval4j icon** | The existing scales-of-justice mark from `eval4j_logo.svg` (hexagonal pans, circuit nodes), inlined as an SVG symbol so it costs no request. Used in the top bar (about 44 px), the hero card, the footer and as the page favicon (data URI). Stroke gradient follows the logo: cyan, violet, pink |
+| **Wordmark** | `eval4j` with the `4j` in the brand gradient, followed by a quiet "by **llm4j**" credit |
+| **Gradient** | llm4j neon (`#22d3ee` to `#a78bfa` to `#f472b6`) in dark mode; deeper equivalents (`#0891b2`, `#7c3aed`, `#db2777`) in light mode so gradient text keeps contrast |
+| **Where the brand appears** | A 2 px gradient hairline under the top bar; the hero card's soft violet/cyan glow (the logo's background glow); gradient eyebrow text; the drawer header rule; the footer lockup |
+| **Where it does not** | **Chart colours.** Passed/failed stay on the validated blue/red pair, so the neon palette never affects data readability or colour-blind safety |
+| **Footer lockup** | Icon, "eval4j", the llm4j tagline ("AI agents, written the Java way"), a one-line privacy note (self-contained, no account, no telemetry) and the ecosystem chips: ai-agent4j, **eval4j**, loom, engram, tantrik |
+| **Project identity** | The breadcrumb shows a project name (`eval4j.report.project`, default: the Maven artifact id). An optional project logo may sit beside it; the llm4j mark and credit always remain |
+| **Both themes** | Brand tokens are defined for light and dark; the dark theme matches the logo's near-black `#05060f` ground |
+
 ## 8. Output files
 
 Unchanged from v1 (`eval4j-report.html/json/csv`, `eval4j-junit.xml`, `eval4j-summary.md`, history). `eval4j-summary.md` gains a per-dimension table with target and gap. `EvalReportCli` can re-render everything from JSON.
@@ -135,6 +150,8 @@ Unchanged from v1 (`eval4j-report.html/json/csv`, `eval4j-junit.xml`, `eval4j-su
 | Q8 | Old report JSON and history load and render with the new UI minus the missing parts |
 | Q9 | Complete and readable with JavaScript disabled |
 | Q10 | No network requests, all dynamic text escaped, passes the colour-validator in both themes |
+| Q12 | The eval4j icon renders complete in the top bar, hero, footer and favicon in both themes, with no external request |
+| Q13 | Gradient text meets 4.5:1 contrast against its surface in light and dark; chart colours are unaffected by the brand palette |
 | Q11 | 10,000 evaluations render in under 5 s and stay under 10 MB |
 
 ## 10. Phasing
