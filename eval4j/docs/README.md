@@ -7,6 +7,7 @@
 | [RAG evaluation](RAG-EVALUATION.md) | evaluate retrieval quality: contextual precision, recall, relevancy |
 | [Conversation metrics](CONVERSATIONS.md) | judge knowledge retention, role adherence, completeness, relevancy across turns |
 | [Datasets & synthesis](DATASETS.md) | keep golden scenarios in YAML, or generate them from documents |
+| [The dashboard (eval4j-report)](../../eval4j-report/docs/USER-GUIDE.md) | see quality dimensions, trends, run comparison, cost, agent traces and Loom trajectories in a free local dashboard |
 | [Reports, baselines & gates](REPORTING-AND-BASELINES.md) | get the HTML dashboard, JUnit/Markdown/CSV reports, trends, and a CI regression gate |
 | [Comparing prompts](PROMPT-COMPARISON.md) | A/B test two prompts, agents or models |
 | [Prompt optimizer](OPTIMIZER.md) | let eval4j rewrite a prompt until the evals pass, with held-out verification |
