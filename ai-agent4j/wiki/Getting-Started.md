@@ -39,15 +39,89 @@ implementation 'io.github.srijithunni7182:ai-agent4j:5.0'
 | Sarvam | [Sarvam AI](https://www.sarvam.ai/) | `SARVAM_API_KEY` | see the [Sarvam guide](../docs/SARVAM.md) |
 | Ollama (local) | none: [install Ollama](../docs/OLLAMA.md) | none | e.g. `gemma3` |
 
-The variable names are only a convention: you pass the key to `LLMConfig` yourself, so use whatever name you like.
+The variable names are only a convention: you pass the key to `LLMConfig` yourself, so use whatever name or source you like (see Step 2).
 
-### Step 2: Set the Environment Variable
+<a id="set-up-your-api-key"></a>
+
+### Step 2: Set Up Your API Key
+
+Pick **one** of the ways below. They all end the same way: `LLMConfig` gets the key, and the provider uses it on each request.
+You choose where keys live; llm4j never picks a location for you.
+
+**A. An environment variable** (quickest for a first run)
 
 ```bash
 export GEMINI_API_KEY="your-api-key-here"
 ```
 
+```java
+LLMConfig config = LLMConfig.builder()
+        .apiKey(System.getenv("GEMINI_API_KEY"))
+        .defaultModel("gemini-2.5-flash")
+        .build();
+```
+
+**B. Your own vault or configuration service** (HashiCorp Vault, AWS or GCP secret managers, Kubernetes secrets, ...). Fetch the value
+however your application already does, and hand it over in memory. Two ways:
+
+```java
+// 1. Put the value in an in-memory store once, and pass a reference
+SecretStore secrets = new InMemorySecretStore();
+secrets.put("GEMINI_API_KEY", myVault.read("llm/gemini"));      // any String you already have
+
+LLMConfig config = LLMConfig.builder()
+        .apiKey(SecretRef.of(secrets, "GEMINI_API_KEY"))        // a reference, not the key
+        .defaultModel("gemini-2.5-flash")
+        .build();
+
+// To rotate: secrets.put("GEMINI_API_KEY", newValue). The next request uses it; nothing is rebuilt.
+```
+
+```java
+// 2. Or let llm4j ask your vault each time it needs the key: implement SecretStore over it
+class VaultSecrets implements SecretStore {
+    public String resolve(String name)             { return myVault.read("llm/" + name); }   // called per request
+    public boolean contains(String name)           { return myVault.exists("llm/" + name); }
+    public Set<String> names()                     { return myVault.list("llm/"); }
+    public Optional<SecretMetadata> metadata(String name) { return Optional.empty(); }
+}
+
+LLMConfig config = LLMConfig.builder().apiKey(SecretRef.of(new VaultSecrets(), "GEMINI_API_KEY")).build();
+```
+
+**C. An encrypted file** (when you have no vault). The file holds your keys encrypted with AES-256-GCM. **You choose the path and how the
+master key is supplied** (a passphrase, a key file, or an environment variable you name), and you keep the file's directory
+access-controlled. Nothing is stored anywhere you didn't choose.
+
+```java
+SecretStore secrets = EncryptedFileSecretStore.openOrCreate(
+        Path.of("/etc/myapp/secrets.store"),
+        MasterKey.fromEnv("MYAPP_MASTER_KEY"));                 // or MasterKey.fromFile(...), MasterKey.of(passphrase)
+
+secrets.put("GEMINI_API_KEY", key);                             // once, e.g. from an admin task; later runs only read it
+
+LLMConfig config = LLMConfig.builder().apiKey(SecretRef.of(secrets, "GEMINI_API_KEY")).build();
+```
+
+With Loom installed, `weave secrets` does the same from a terminal (the value is typed without echo, never an argument):
+
+```bash
+weave secrets create --secrets keys.store
+weave secrets set GEMINI_API_KEY --secrets keys.store --allow-host generativelanguage.googleapis.com
+```
+
+**Good to know**
+
+- You can mix modes: `ChainedSecretStore.of(vaultStore, encryptedFile, EnvSecretStore.system())` uses the first store that has the name.
+- `allowedHosts` (via `SecretMetadata.allowing("host")` when you `put`) stops a key being sent anywhere but its provider.
+- The same `SecretRef` works for every provider (`GoogleProvider`, `AnthropicProvider`, `SarvamChatProvider`), embeddings and tools such as search and OpenAPI.
+- A key must never be committed to your repository or logged. If one ever is, revoke it at the provider.
+
+The full API, and what the encrypted file protects, is in the [Secret Store](Secret-Store.md) guide.
+
 ### Step 3: Create Your First Program
+
+This uses an environment variable; swap in any option from Step 2.
 
 ```java
 import io.github.llm4j.DefaultLLMClient;
@@ -168,7 +242,7 @@ import io.github.llm4j.agent.tools.openapi.OpenAPITool;
 OpenAPITool aviationTool = OpenAPITool.builder()
     .name("AviationStack")
     .specLocation("https://api.aviationstack.com/openapi.json")
-    .apiKeyAuth("access_key", "YOUR_KEY")
+    .apiKeyAuth("access_key", SecretRef.of(secrets, "AVIATION_KEY"))   // fetched on each request
     .build();
 
 agent = ReActAgent.builder()
@@ -243,7 +317,7 @@ LLMRequest request = LLMRequest.builder()
 ### Common Issues
 
 **Issue**: `AuthenticationException`
-- **Solution**: Check that your API key is correct and set in the environment (for example `GEMINI_API_KEY` or `ANTHROPIC_API_KEY`)
+- **Solution**: Check that your API key is correct and reachable: set in the environment, present in your `SecretStore`, and, if the secret was stored with `allowedHosts`, allowed for the provider's host. The exception names the secret, never its value.
 
 **Issue**: `RateLimitException`
 - **Solution**: Implement exponential backoff or reduce request rate

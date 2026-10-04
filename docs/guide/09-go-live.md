@@ -48,7 +48,7 @@ about 10 a minute) rather than hammering.
 
 ## Keys and secrets
 
-Environment variables only: `env.NAME` in scripts, `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` for the evaluation. Never in a script, a test or the repository; if a key is ever pasted somewhere shared, rotate it.
+Environment variables (`env.NAME`) or an encrypted [secret store](../../ai-agent4j/wiki/Secret-Store.md) (`secret.NAME`, `weave run --secrets <file>`; you choose and protect its path and master key) in scripts, `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` for the evaluation. Never in a script, a test or the repository; if a key is ever pasted somewhere shared, rotate it.
 Secrets are scrubbed from results, traces, journals and audit logs.
 
 ## Gate

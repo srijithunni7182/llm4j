@@ -71,6 +71,6 @@ public record Capabilities(boolean untrusted, boolean privateData, boolean outwa
 
     static String opt(ToolDef t, String name) {
         ToolDef.OptionValue v = t.getOptions().get(name);
-        return v == null ? null : (v.fromEnv() ? "env." + v.value() : v.value());
+        return v == null ? null : (v.isReference() ? v.toString() : v.value());
     }
 }

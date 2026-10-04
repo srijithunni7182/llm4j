@@ -1,4 +1,6 @@
-![LLM4J Ecosystem Hero](docs/images/hero_ecosystem.png)
+<p align="center">
+  <img src="docs/images/hero_llm4j.svg" width="640" alt="llm4j: ai-agent4j builds agents, Loom orchestrates them, eval4j tests them">
+</p>
 
 <h1 align="center">llm4j</h1>
 
@@ -16,9 +18,9 @@
 
 <p align="center">
   <a href="ai-agent4j/wiki/Getting-Started.md">Get started</a> ·
-  <a href="#the-stack">The stack</a> ·
-  <a href="#see-it-built">Showcases</a> ·
-  <a href="#explore-the-docs">Docs</a> ·
+  <a href="docs/THE_STACK.md">The stack</a> ·
+  <a href="docs/EXAMPLES.md">Examples</a> ·
+  <a href="docs/README.md">Docs</a> ·
   <a href="ai-agent4j/wiki/WHY_AI_AGENT4J.md">Why ai-agent4j?</a> ·
   <a href="loom/ai-agent4j-loom/WHY_LOOM.md">Why Loom?</a> ·
   <a href="SECURITY.md"><b>Security</b></a>
@@ -38,294 +40,25 @@
 
 ---
 
-## Java deserves first-class AI
+## Why llm4j
 
-For twenty-five years Java has run the systems that can't go down: banks, airlines, telecoms, the
-back offices of the world. Java developers have strong reasons to trust it:
-
-- **Types** catch mistakes before the program runs.
-- **Interfaces** keep contracts honest.
-- **Objects** own their state and their behaviour.
-- **The compiler is the first reviewer**, the IDE refactors a thousand call sites safely, and the JVM
-  runs for months without a restart.
-
-Then AI arrived, and the ecosystem went mostly to Python: dictionaries passed between untyped
-functions, prompts in string templates, and agents you can't unit test.
-
-**llm4j is the other path.** It is a complete AI stack written from the ground up in idiomatic Java,
-with no vendor SDKs, where an agent is as ordinary as a `PaymentService`. It's no less capable; it's
-built the way Java developers already build everything else.
-
----
-
-## An agent is just an object
-
-In llm4j, every part of an AI system maps onto something a Java developer already knows:
-
-| AI concept | In llm4j, it's… |
-|---|---|
-| A language model | An `LLMClient` interface. Gemini, Sarvam, Ollama and Claude sit behind [one contract](ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md), so switching is one line. |
-| A tool the model can use | A class that implements `Tool`, with a name, a description and an `execute` method. |
-| A prompt | A versioned resource in a [`PromptRegistry`](ai-agent4j/wiki/Prompt-Registry-Guide.md), or a Markdown [skill](ai-agent4j/wiki/Agent-Skills-Guide.md) on the classpath. Not a string buried in code. |
-| An agent | An immutable object built with a builder, from a client, tools, skills, memory and a budget. |
-| A risky action | `requiresApproval(args)` on the tool, and an `ApprovalCallback` that a person answers. |
-| A spending limit | A `Budget` value object, checked before every model call. |
-| Something going wrong | A typed exception: `AuthenticationException`, `RateLimitException` with the exact reset time, `ContentBlockedException`. |
-| A test | An AssertJ assertion, in JUnit, in your normal build. |
-
-Here is what that looks like. A tool is a class:
-
-```java
-public class RefundTool implements Tool {
-    private final Payments payments;
-
-    public RefundTool(Payments payments) { this.payments = payments; }
-
-    @Override public String getName()        { return "refund"; }
-    @Override public String getDescription() { return "Refund an order. Args: orderId, amount"; }
-
-    @Override
-    public String execute(Map<String, Object> args) {
-        return payments.refund((String) args.get("orderId"), ((Number) args.get("amount")).doubleValue());
-    }
-
-    @Override
-    public boolean requiresApproval(Map<String, Object> args) {
-        return ((Number) args.get("amount")).doubleValue() > 100;     // big refunds need a person
-    }
-}
-```
-
-An agent is composed like any other object:
+Java runs the systems that can't go down, and its strengths (types, interfaces, a compiler that reviews for you) are what
+agents need too. llm4j is a complete AI stack in idiomatic Java with no vendor SDKs: **an agent is as ordinary as a
+`PaymentService`**, built with a builder, tested with JUnit, and bounded by a budget.
+[More on the idea](docs/AGENTS_AS_OBJECTS.md).
 
 ```java
 ReActAgent support = ReActAgent.builder()
-        .llmClient(client)                                            // any provider
-        .addSkill(AgentSkill.fromClasspath("skills/refund-policy.md"))  // domain knowledge, in Markdown
-        .addTool(new RefundTool(payments))
-        .approvalCallback((tool, args, plan) -> supervisor.confirm(tool, args))
-        .budget(Budget.builder().tokens(20_000).build())              // it cannot overspend
+        .llmClient(client)                                   // Gemini, Claude, Sarvam or Ollama: one contract
+        .addSkill(AgentSkill.fromClasspath("skills/refund-policy.md"))
+        .addTool(new RefundTool(payments))                   // requiresApproval(args) puts a person in the loop
+        .budget(Budget.builder().tokens(20_000).build())     // it cannot overspend
         .build();
 
-AgentResult result = support.run("Customer 42 was charged twice for order A-17.");
+assertThat(support.run(question)).usesTool("refund").completedSuccessfully();   // eval4j, in plain JUnit
 ```
 
-And it's tested like any other object, with [eval4j](eval4j/):
-
-```java
-assertThat(support.run(question))
-        .usesTool("refund")
-        .completedSuccessfully()
-        .is(presets.taskCompletion(question));    // an LLM judge, as an AssertJ Condition
-```
-
-No framework magic, no annotation processors, no hidden global state. Just classes, interfaces and a
-builder, and a compiler that has your back.
-
----
-
-<a id="security"></a>
-
-## Secure by construction
-
-An agent's next step is chosen by text, and some of that text comes from places you don't control: a web page, an
-email, a tool's output. Any of it can try to give the agent orders, and no prompt reliably stops that. So llm4j
-doesn't rely on the model to behave. **The model reasons; the code holds the authority.** What an agent may touch,
-spend, send and decide is declared in Java or in a Loom script and enforced by the runtime on every call, whatever
-the model says.
-
-| The risk | What llm4j does about it |
-|---|---|
-| A web page tells the agent to run a command | Tools are declared **per agent**. The agent that reads the web needn't have a shell, and a `shell` tool runs only allow-listed programs, with no shell syntax, behind an approval. |
-| The agent sends data somewhere it shouldn't | Webhooks have a fixed URL. `http` reaches only paths under one base URL and refuses internal and cloud-metadata addresses. `email` sends only to listed recipients. **Every way out can wait for a person's yes.** |
-| A loop runs away with your money | **Budgets are checked before each model call.** Every loop and reasoning chain has a bound, and the script decides what happens at the limit. |
-| A crash makes it send the same thing twice | Every effect is **journaled**. A resume, a retry or a rewind never repeats a send. |
-| A secret leaks into a prompt, a log or an error | Credentials come only from the environment. A literal in a script is a load error, and secrets are scrubbed from every result, trace and journal. |
-| Customer data reaches a hosted model | `guard { pii: mask }` masks emails, phone numbers, card numbers and more in everything the agent sends, including tool results. |
-| An agent is given too much freedom too soon | **Earned autonomy**: it starts by proposing while people decide, and moves up only when its measured record supports it. A ceiling, a freeze and fail-closed defaults stay in force. |
-| Someone else answers your agent's questions | Questions reach your phone; only allowlisted users can answer, approvals need the question's code, and nothing listens on a port. |
-| You can't tell what happened | `weave check` finds problems before anything runs. Audit logs and journals record every approval, refusal, level change and operator action, with the reason. |
-
-These controls are tested like features: hostile-input suites, secrets sweeps, and **sabotage runs** that break each
-guard on purpose to prove a test catches it.
-
-**`weave audit`** reviews any Loom script before it runs. It maps each agent's reach, flags the "lethal trifecta" and
-unapproved effects, and reports every finding against the **[OWASP Top 10 for LLM Applications](https://genai.owasp.org/llm-top-10/)**.
-It exits non-zero on a high finding, so it can gate your CI.
-
-👉 **[Read the security guide](SECURITY.md)**. It covers:
-- the threat model, and what each building block does;
-- a step-by-step way to secure a Loom workflow;
-- a worked example that survives a prompt injection;
-- a risk-by-risk mapping to the OWASP Top 10 for LLM Applications, **with the gaps named**;
-- the patterns to avoid, and an honest account of what llm4j does *not* protect you from.
-
----
-
-<a id="the-stack"></a>
-
-## The stack: one agent to a whole organisation of them
-
-Each module answers the question the previous one raises.
-
-```mermaid
-flowchart LR
-    A["<b>ai-agent4j</b><br/>agents, tools, providers"] --> L["<b>Loom</b><br/>workflows that run for days"]
-    A --> E["<b>Engram</b><br/>memory that stays sharp"]
-    A --> X["<b>Addons</b><br/>local embeddings, vector stores"]
-    A --> T["<b>Tools</b><br/>webhook, email, http, file, shell, sql"]
-    A --> V["<b>eval4j</b><br/>tests for agents"]
-    L --> G["<b>Your application</b>"]
-    E --> G
-    X --> G
-    T --> G
-    T --> L
-    V -.->|gates the build| G
-```
-
-### 🏗️ [ai-agent4j](ai-agent4j/): *"How do I build an agent?"*
-
-The core library, about 440 KB with no vendor SDKs.
-
-- **Reasoning and acting.** ReAct agents reason, call tools, and correct themselves.
-- **Where tools come from.**
-  - your own classes;
-  - built-ins such as a calculator and web search;
-  - any REST API, via its [OpenAPI spec](ai-agent4j/wiki/OpenAPI-Tool.md);
-  - any [MCP server](ai-agent4j/wiki/MCP-Integration.md).
-- **Building blocks.**
-  - Memory: [short-term and semantic](ai-agent4j/wiki/Memory-and-Persistence.md).
-  - Knowledge: [RAG](ai-agent4j/wiki/RAG-Support.md) and [knowledge graphs](ai-agent4j/wiki/Knowledge-Graphs.md).
-  - Behaviour: [personas](ai-agent4j/wiki/Agent-Personas.md), delegation between agents, and scheduling.
-- **Voice.** Speech-to-text and text-to-speech in Indian languages, through Sarvam.
-- **Built to see inside.** Every agent explains itself, with audit trails, PII masking and confidence
-  scores ([xAI](ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md)).
-- **Built for production.** [Budgets and rate limits](ai-agent4j/wiki/Budgets-and-Rate-Limits.md) keep
-  a runaway loop from becoming a runaway bill.
-
-### 🧵 [Loom](loom/ai-agent4j-loom/): *"How do many agents work together, reliably, for days?"*
-
-One agent is a function call. A business process is many agents, people and hours of waiting.
-Loom is a small language for exactly that. The agents reason; **the script governs**:
-
-```text
-budget { tokens: 100000 per day  when_exhausted: suspend }
-
-workflow Digest(topic) {
-    delegate "Find today's news on {topic}" to Researcher -> findings expecting { items: list }
-    for each item in findings.items { delegate "Summarise {item.url}" to Writer -> summary }
-    human_prompt "Publish today's digest? (yes/no)" -> go
-    alt (go == "yes") { handoff "Publish" to Publisher }
-}
-
-schedule Morning { cron: "0 7 * * *"  run: Digest(topic="AI agents") }
-```
-
-What the runtime does for you:
-
-- journals every step, so runs survive restarts;
-- waits for people without holding a thread;
-- pauses on rate limits and resumes when they lift;
-- enforces budgets before each call;
-- runs on schedules without a hosted platform;
-- runs the parts too important to leave to a model as **tasks**: plain Java behind a `run` step, no tokens, journaled, never repeated by a crash if it changes things, and never callable by a model ([Tasks](loom/ai-agent4j-loom/LOOM_GUIDE.md#tasks-deterministic-steps-run));
-- ships six generic tools usable from the script with no Java: `webhook`, `email`, `http`, `file`, `shell` and read-only `sql`, with a journal so a crash never sends the same message twice ([Generic Tools](loom/ai-agent4j-loom/LOOM_GUIDE.md#generic-tools), [daily digest sample](loom/ai-agent4j-loom/samples/digest/));
-- lets an agent **earn its autonomy**: it proposes, a person decides, and a ledger of both moves it from `watch` to `suggest` to `act` (and back) on evidence, with a prompt change tested on your past cases before it goes live ([Earned Autonomy](loom/ai-agent4j-loom/LOOM_GUIDE.md#earned-autonomy));
-- asks you on Telegram when it needs a person, and carries on when you reply, so it can run on a machine nobody sits at ([Answering from Your Phone](loom/ai-agent4j-loom/LOOM_GUIDE.md#answering-from-your-phone));
-- finds problems with `weave check` before anything runs.
-
-👉 [Loom overview](loom/ai-agent4j-loom/README.md) · [**Why Loom?**](loom/ai-agent4j-loom/WHY_LOOM.md) ·
-[Language guide](loom/ai-agent4j-loom/LOOM_GUIDE.md)
-
-### 🧠 [Engram](engram/engram-core/): *"How does an agent remember without drowning in context?"*
-
-Long conversations bloat prompts and dilute attention. Engram replaces the growing transcript with a
-**retrieve-and-synthesise loop**:
-
-- it extracts the facts that matter;
-- it writes a short, task-specific briefing for each turn;
-- it corrects its own memories as new information arrives.
-
-The prompt stays small and sharp however long the relationship runs.
-👉 [Agentic workflows with Loom and Engram](docs/AGENTIC_WORKFLOWS_GUIDE.md)
-
-### 🧩 [Addons](ai-agent4j-addons/): *"How do I keep my data private and my costs at zero?"*
-
-The heavy-lifting pieces, kept out of the core so it stays light:
-
-- **Local embeddings**: ONNX and DJL models on your own machine, with no API calls and no per-token cost.
-- **Persistent vector stores**: PostgreSQL with pgvector, or Pinecone.
-
-### 🔧 [Tools](ai-agent4j-tools/): *"How do I let an agent act on the world safely?"*
-
-Ready-made tools built for the case where the model picks the arguments: `webhook` (Slack, Discord, Teams),
-`email`, `http`, `file`, `shell` and read-only `sql`. Each has allow-lists, size and time limits, secrets scrubbed from
-every result, and a journal so a crash never repeats a send. Use them from Java, or from a Loom script with no Java.
-The contracts they implement (`ToolKind`, `Effectful`, `EffectJournal`) live in the core `ai-agent4j`; this module is the
-implementations, with [its own documentation](ai-agent4j-tools/docs/README.md).
-
-### 🧪 [eval4j](eval4j/): *"How do I know it works, and keeps working?"*
-
-Agents are non-deterministic, which is no excuse for not testing them. eval4j is a testing framework
-built for Java, not ported from Python:
-
-- **AssertJ assertions on what agents did**: which tools they called, in what order, and how confident
-  they were.
-- **LLM-as-judge conditions**: correctness, relevancy, groundedness, hallucination, task completion,
-  bias and toxicity.
-- **YAML golden datasets**, run through plain JUnit 5.
-- **Pass-rate thresholds** for noisy judges.
-
-It runs in `mvn test`, next to the rest of your suite. 👉 [Why eval4j?](ai-agent4j/wiki/WHY_EVAL4J.md)
-
-**Premium dashboarding capability for evaluation runs**, free and local. 👉 [See every view](eval4j-report/docs/USER-GUIDE.md)
-
-<a href="eval4j-report/docs/USER-GUIDE.md"><img alt="The eval4j dashboard: overview, run comparison, dimension drill-down and Loom workflow trajectory" src="eval4j-report/docs/images/montage.png" width="100%"></a>
-
-### Together
-
-**Put together**, it is a complete alternative ecosystem:
-
-- ai-agent4j gives agents that are **objects**;
-- Loom arranges them into **processes** that survive the real world;
-- Engram and the addons give them **memory and knowledge**;
-- eval4j turns quality into a **build gate**.
-
-It's all Java, on the JVM you already operate, monitor and trust.
-
----
-
-<a id="see-it-built"></a>
-
-## See it built
-
-The best argument for a stack is what people build with it. Every app below lives in this repo and runs.
-
-### ⚡ [GetViral](examples/getviral/): the flagship
-
-**One idea in; a ready-to-post pack for X, Instagram Reels and YouTube out.** Twelve agents, one Loom
-workflow, every module in the repo.
-
-- A Researcher cites every fact it finds.
-- A Showrunner writes each specialist's prompt, live.
-- An ArtDirector and a VideoEditor produce real images and a real MP4.
-- An eval4j quality gate sends failing work back until every platform passes.
-- Human approval comes before anything is published.
-
-It runs as a multi-user website on Cloud Run, and on a laptop with one command, **with no API key
-needed**.
-👉 [Get viral](examples/getviral/README.md)
-
-| | |
-|---|---|
-| 🚀 **[Hexamind Hub](examples/hexamind-hub/README.md)** | A digital boardroom. Six agents with distinct personalities, including a cynical skeptic and a creative thinker, debate your problem live over WebSockets and reach consensus. |
-| 🏭 **[Nirmaan Yantra](examples/nirmaan-yantra/README.md)** | An autonomous software factory: spec → tests → code → QA → release, from a one-line prompt. It fixes its own build errors and detects dead ends. |
-| 🐈 **[Kingini](examples/kingini/README.md)** | A voice-first companion for children: a whimsical Kerala cat who talks in Malayalam, built on Sarvam speech-to-text, LLM and text-to-speech. |
-| 📧 **[Gmail MCP App](examples/gmail-mcp-app/)** | Agents that read, draft and send email through the Model Context Protocol, with human approval before anything is sent. |
-
----
-
-## Get started in five minutes
+## Get started
 
 ```xml
 <dependency>
@@ -343,52 +76,54 @@ AgentResult result = ReActAgent.builder().llmClient(client).addTool(new Calculat
         .run("What is 1234 * 5678?");
 ```
 
-Add `ai-agent4j-tools`, `ai-agent4j-loom` and `ai-agent4j-addons` in the same way (see the
-[Version Matrix](docs/VERSION_MATRIX.md)). The [Quick Start Guide](ai-agent4j/wiki/Getting-Started.md)
-takes it from there.
+Keys can come from the environment, your own vault, or an encrypted file, and components fetch them per request:
+see [API keys in the Quick Start](ai-agent4j/wiki/Getting-Started.md#set-up-your-api-key) and the
+[Secret Store](ai-agent4j/wiki/Secret-Store.md). Next: the [Quick Start Guide](ai-agent4j/wiki/Getting-Started.md), or
+[build a multi-agent workflow step by step](docs/guide/README.md).
 
----
+## The stack
 
-<a id="explore-the-docs"></a>
-
-## Explore the docs
-
-**New here?** [Build a multi-agent workflow step by step](docs/guide/README.md): from choosing agents to a budgeted live run.
-
-| Build agents | Orchestrate | Ship with confidence |
+| Module | Answers | |
 |---|---|---|
-| [Quick Start](ai-agent4j/wiki/Getting-Started.md) | [Loom overview](loom/ai-agent4j-loom/README.md) | [eval4j guide](eval4j/README.md) |
-| [ReAct Agent Guide](ai-agent4j/wiki/ReAct-Agent-Guide.md) | [Why Loom?](loom/ai-agent4j-loom/WHY_LOOM.md) | [Budgets and Rate Limits](ai-agent4j/wiki/Budgets-and-Rate-Limits.md) |
-| [Providers and the Uniform Contract](ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md) | [Loom Language Guide](loom/ai-agent4j-loom/LOOM_GUIDE.md) | [xAI: Beyond Black Boxes](ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md) |
-| [Creating Custom Tools](ai-agent4j/wiki/Creating-Custom-Tools.md) · [Ready-made tools](ai-agent4j-tools/docs/README.md) | [Budgets, Pausing and Scheduling](loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md) | [Testing Strategy](docs/TESTING_STRATEGY.md) |
-| [Agent Skills](ai-agent4j/wiki/Agent-Skills-Guide.md) · [Personas](ai-agent4j/wiki/Agent-Personas.md) | [Agentic Workflows with Loom and Engram](docs/AGENTIC_WORKFLOWS_GUIDE.md) | [API Compatibility Policy](docs/API_COMPATIBILITY.md) |
-| [Memory](ai-agent4j/wiki/Memory-and-Persistence.md) · [Semantic Memory](ai-agent4j/wiki/SEMANTIC_MEMORY.md) | [Loom CTK (conformance)](loom/ctk/README.md) | [Version Matrix](docs/VERSION_MATRIX.md) |
-| [RAG](ai-agent4j/wiki/RAG-Support.md) · [Knowledge Graphs](ai-agent4j/wiki/Knowledge-Graphs.md) | [VS Code extension](loom/vscode-loom/README.md) | [Migration Guide 5.0](docs/MIGRATION_GUIDE_5_0.md) |
-| [MCP](ai-agent4j/wiki/MCP-Integration.md) · [OpenAPI Tool](ai-agent4j/wiki/OpenAPI-Tool.md) · [Prompt Registry](ai-agent4j/wiki/Prompt-Registry-Guide.md) | | |
-| [Sarvam](ai-agent4j/docs/SARVAM.md) · [Ollama](ai-agent4j/docs/OLLAMA.md) | | |
+| 🏗️ [**ai-agent4j**](ai-agent4j/) | How do I build an agent? | ReAct agents, tools, skills, memory, RAG, budgets, one contract over Gemini, Claude, Sarvam and Ollama |
+| 🧵 [**Loom**](loom/ai-agent4j-loom/) | How do many agents work together, reliably, for days? | A small workflow language: journaled, resumable, budgeted, scheduled, with deterministic tasks and earned autonomy ([why](loom/ai-agent4j-loom/WHY_LOOM.md)) |
+| 🧠 [**Engram**](engram/engram-core/) | How does an agent remember without drowning in context? | Retrieve-and-synthesise memory that keeps prompts small |
+| 🧩 [**Addons**](ai-agent4j-addons/) | How do I keep data private and costs at zero? | Local ONNX/DJL embeddings, pgvector and Pinecone |
+| 🔧 [**Tools**](ai-agent4j-tools/) | How do I let an agent act safely? | `webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, with allow-lists and journals |
+| 🧪 [**eval4j**](eval4j/) | How do I know it works? | AssertJ assertions on agent behaviour, LLM judges, golden datasets, a [local dashboard](eval4j-report/docs/USER-GUIDE.md) ([why](ai-agent4j/wiki/WHY_EVAL4J.md)) |
+
+[Module details and diagram](docs/THE_STACK.md)
+
+## Secure by construction
+
+The model reasons; **the code holds the authority**. What an agent may touch, spend, send and decide is declared in Java
+or a Loom script and enforced on every call: per-agent tools, approvals before anything leaves, budgets checked before
+each model call, journaled effects that a crash never repeats, secrets that never become text, PII masking, and
+`weave audit` mapped to the OWASP Top 10 for LLM Applications.
+[The risks and the controls](docs/security/secure-by-construction.md) · [**Security guide**](SECURITY.md)
+
+## Examples
+
+[**GetViral**](examples/getviral/) turns one idea into a ready-to-post pack: twelve agents, one Loom workflow, every
+module here, and no API key needed to try it. Also a [boardroom of debating agents](examples/hexamind-hub/README.md), an
+[autonomous software factory](examples/nirmaan-yantra/README.md), a [Malayalam voice companion](examples/kingini/README.md)
+and a [Gmail MCP app](examples/gmail-mcp-app/). [All examples](docs/EXAMPLES.md)
+
+## Documentation
+
+[**Docs index**](docs/README.md) ·
+[Quick Start](ai-agent4j/wiki/Getting-Started.md) ·
+[Loom guide](loom/ai-agent4j-loom/LOOM_GUIDE.md) ·
+[Secret Store](ai-agent4j/wiki/Secret-Store.md) ·
+[Security](SECURITY.md) ·
+[eval4j](eval4j/README.md) ·
+[Contributing](CONTRIBUTING.md)
 
 > [!TIP]
-> **[Why AI Agent4J? Our comparison against LangChain4j and Spring AI](ai-agent4j/wiki/WHY_AI_AGENT4J.md)**
->
-> **[Why Loom? Long-running, autonomous workflows, and how Loom goes further than LangGraph](loom/ai-agent4j-loom/WHY_LOOM.md)**
->
-> **[Why eval4j? Our comparison against deepeval](ai-agent4j/wiki/WHY_EVAL4J.md)**
->
-> **[xAI Beyond Black Boxes: Our 95% Compliance Guide](ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md)**
+> How it compares: [vs LangChain4j and Spring AI](ai-agent4j/wiki/WHY_AI_AGENT4J.md) ·
+> [Loom vs LangGraph](loom/ai-agent4j-loom/WHY_LOOM.md) · [eval4j vs deepeval](ai-agent4j/wiki/WHY_EVAL4J.md)
 
-## 📐 Project Standards
-
-- [Security guide](SECURITY.md): threat model, building blocks, securing a workflow, reporting a vulnerability
-- [Testing Strategy](docs/TESTING_STRATEGY.md)
-- [API Compatibility Policy](docs/API_COMPATIBILITY.md)
-- [Contributing Guide](CONTRIBUTING.md)
-
-## 💡 Our Philosophy
-
-1. **Java First**: AI isn't just for Python. Java's strong typing, concurrency, and ecosystem make it perfect for building robust AI systems.
-2. **Ground Up**: We minimize dependencies. By building our own ReAct loop and provider clients, we gain full control and understanding of the LLM's behavior.
-3. **Transparency**: We believe in "glass-box" AI. You should be able to see exactly what your agent is thinking and why it made a decision.
-4. **Authority in code, not in prompts**: The model is treated as untrusted. What an agent may do is declared, checked before it runs, enforced on every call and recorded. See [Security](SECURITY.md).
+**Philosophy:** Java first. Ground up, with minimal dependencies. Glass-box AI you can see inside. Authority in code, not in prompts.
 
 ---
 

@@ -212,12 +212,12 @@ Six tool kinds cover what most long-running workflows need to touch the outside 
 
 They share these rules:
 
-- **Secrets come from the environment.** `url`, `password`, `auth_value` and any header that looks like a credential
-  (`Authorization`, `…-Key`, `…-Token`, `Cookie`, `…Secret`, `…Password`) must be written `env.NAME`. A literal is a
-  load error. A secret never appears in a result, an error, the trace, the audit log or the run journal.
+- **Secrets come from the environment or the secret store.** `url`, `password`, `auth_value` and any header that looks like a credential
+  (`Authorization`, `…-Key`, `…-Token`, `Cookie`, `…Secret`, `…Password`) must be written `env.NAME` or `secret.NAME`
+  (see [Secrets](#secrets-the-secret-store)). A literal is a load error. A secret never appears in a result, an error, the trace, the audit log or the run journal.
 - **Everything is checked when the script loads.** A missing option, an unknown option, a value out of range or an
   unset variable is an error that names the tool and the option. Nothing connects to a network at load.
-- **Options** are strings, numbers, `true`/`false` or `env.NAME`. Lists are comma-separated strings
+- **Options** are strings, numbers, `true`/`false`, `env.NAME` or `secret.NAME`. Lists are comma-separated strings
   (`hosts: "a.com, b.com"`). Durations are `500ms`, `20s`, `2m`; sizes are `64k`, `1m`. Fixed request headers are
   written `header.Name`, quoted when the name has a hyphen: `"header.X-Trace-Id": "abc"`.
 - **`description:`** on any tool adds your own text to what the model is told. Each kind already tells the model its
@@ -729,7 +729,7 @@ workflow Main(recording) {
 
 `model:` understands these names:
 
-- `gemini-…` (key in `GEMINI_API_KEY`);
+- `gemini-…` (key in `GEMINI_API_KEY`, in the environment or the secret store);
 - `claude-…` or `anthropic/<model>` (`ANTHROPIC_API_KEY`), e.g. `claude-opus-5-5`, `claude-haiku-4-5`;
 - `ollama/<model>` (at `OLLAMA_BASE_URL`, default `http://localhost:11434`);
 - `sarvam/<model>` (`SARVAM_API_KEY`).
@@ -738,7 +738,7 @@ To reach a specific endpoint with its own key, declare a **provider**:
 
 ```loom
 provider Box    { use: ollama  base_url: "http://gpu-box:11434" }
-provider Team   { use: sarvam  api_key: env.TEAM_SARVAM_KEY }
+provider Team   { use: sarvam  api_key: secret.TEAM_SARVAM_KEY }   // or env.TEAM_SARVAM_KEY
 
 agent Local  { model: "Box/llama3" }
 agent Indic  { model: "Team/sarvam-m" }
@@ -1039,6 +1039,33 @@ agent Support {
   steps aren't checked again.
 
 URLs are not treated as personal data.
+
+### Secrets: the secret store
+
+Keys can live in an encrypted file or in memory instead of the environment. Write `secret.NAME` where you would write `env.NAME`:
+
+```loom
+provider Box { use: sarvam  api_key: secret.BOX_KEY  base_url: "https://box.example.com" }
+tool Search  { use: serpapi api_key: secret.SERP_KEY }
+```
+
+```bash
+weave secrets create --secrets keys.store
+weave secrets set BOX_KEY --secrets keys.store --allow-host box.example.com
+weave run flow.loom --secrets keys.store --secrets-key-env MYAPP_MASTER_KEY
+```
+
+- **You choose the file and the master key.** `--secrets <file>` and one of `--secrets-key-file <file>` or `--secrets-key-env <VARIABLE>` (you name the variable);
+  with neither, `weave` asks for the passphrase. There is no default location. Keeping the file and its directory ACL-protected is yours to do.
+  `run`, `check`, `resume`, `tick` and `daemon` take these options; they are not saved in a run's spec, so give them again when resuming.
+- `secret.NAME` reads only the store. The built-in models look the store up first by their usual name (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`,
+  `SARVAM_API_KEY`), then the environment.
+- A provider's key is fetched **for each request**, so rotating it needs no restart. Tool options are read when the tool is created.
+- A provider that sets `api_key` and a custom `base_url` must use https (http only for localhost); a secret stored with `--allow-host` is refused for any other host,
+  at load time. `weave audit` reports a key sent to a custom address as LA15.
+- Values are typed without echo or piped with `--stdin`, never passed as arguments. `weave secrets list` shows names and hosts, never values.
+
+From Java: `executor.setSecretStore(store)`. The full API is in the [Secret Store](../../ai-agent4j/wiki/Secret-Store.md) page.
 
 ### Security Audit
 

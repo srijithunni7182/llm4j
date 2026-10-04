@@ -183,7 +183,7 @@ public class HttpClientWrapper {
                 }
 
                 if (enableLogging) {
-                    logger.debug("Executing HTTP {} to {}", request.method(), request.url());
+                    logger.debug("Executing HTTP {} to {}", request.method(), request.url().redact());
                 }
 
                 Response response = http.newCall(request).execute();
@@ -202,6 +202,8 @@ public class HttpClientWrapper {
                     ResponseBody responseBody = response.body();
                     bodyString = responseBody != null ? responseBody.string() : "";
                 }
+                // a provider may echo what it was sent: nothing downstream (messages, logs, rate-limit parsing) sees the credential
+                bodyString = Credentials.scrub(bodyString, request.headers());
 
                 if (enableLogging) {
                     logger.warn("HTTP request failed with status {}: {}", statusCode, bodyString);
@@ -236,7 +238,7 @@ public class HttpClientWrapper {
                     logger.error("HTTP request failed with IOException", e);
                 }
 
-                lastException = new LLMException("HTTP request failed: " + e.getMessage(), e);
+                lastException = new LLMException("HTTP request failed: " + Credentials.scrub(e.getMessage(), request.headers()), e);
 
                 if (attempt >= retryPolicy.getMaxRetries()) {
                     throw lastException;

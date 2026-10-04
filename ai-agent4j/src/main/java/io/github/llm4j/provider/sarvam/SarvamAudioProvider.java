@@ -98,8 +98,8 @@ public class SarvamAudioProvider implements SpeechToTextProvider {
 
     @Override
     public void validate() {
-        if (config.getApiKey() == null || config.getApiKey().isEmpty()) {
-            throw new AuthenticationException("Sarvam API key is required");
+        if (!config.hasApiKey()) {
+            throw new AuthenticationException(config.missingApiKeyMessage("Sarvam API key is required"));
         }
     }
 
@@ -107,7 +107,7 @@ public class SarvamAudioProvider implements SpeechToTextProvider {
         // Content-Type is multipart/form-data, but OkHttp handles that when using
         // MultipartBody.
         // We just need the API key.
-        return new Headers.Builder().add("api-subscription-key", config.getApiKey()).build();
+        return new Headers.Builder().add("api-subscription-key", config.requireApiKey("Sarvam", baseUrl)).build();
     }
 
     private TranscriptionResponse parseResponse(String responseJson) throws IOException {

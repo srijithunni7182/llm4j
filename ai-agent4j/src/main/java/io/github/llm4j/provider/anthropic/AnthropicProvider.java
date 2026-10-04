@@ -157,8 +157,8 @@ public class AnthropicProvider implements LLMProvider {
 
     @Override
     public void validate() {
-        if (config.getApiKey() == null || config.getApiKey().isBlank()) {
-            throw new AuthenticationException("Anthropic API key is required (ANTHROPIC_API_KEY)");
+        if (!config.hasApiKey()) {
+            throw new AuthenticationException(config.missingApiKeyMessage("Anthropic API key is required (ANTHROPIC_API_KEY)"));
         }
     }
 
@@ -227,7 +227,7 @@ public class AnthropicProvider implements LLMProvider {
 
     private Headers headers() {
         return new Headers.Builder()
-                .add("x-api-key", config.getApiKey())
+                .add("x-api-key", config.requireApiKey("Anthropic", baseUrl))
                 .add("anthropic-version", API_VERSION)
                 .add("content-type", "application/json")
                 .build();

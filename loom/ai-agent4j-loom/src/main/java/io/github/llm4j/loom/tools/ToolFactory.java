@@ -201,9 +201,9 @@ public final class ToolFactory {
             ToolDef.OptionValue fallback = kind.defaults().get(req);
             if (fallback == null) {
                 out.add("use: " + kind.name() + " needs " + req + ":");
-            } else if (fallback.fromEnv() && isUnset(env.apply(fallback.value()))) {
-                out.add("environment variable " + fallback.value() + " is not set (for " + req
-                        + "; or give " + req + ": env.<NAME>)");
+            } else if (fallback.isReference() && isUnset(env.apply(fallback.lookupKey()))) {
+                out.add(fallback.describe() + " is not set (for " + req
+                        + "; or give " + req + ": env.<NAME> or secret.<NAME>)");
             }
         }
         for (Map.Entry<String, ToolDef.OptionValue> e : def.getOptions().entrySet()) {
@@ -226,14 +226,14 @@ public final class ToolFactory {
                         + (kind.prefixes().isEmpty() ? "" : " and " + kind.prefixes() + "<name>")));
                 continue;
             }
-            if (kind.secrets().contains(key) && !e.getValue().fromEnv()) {
-                out.add(key + " must come from the environment, e.g. " + key + ": env."
-                        + suggestEnv(kind.name(), def.getName(), key));
+            if (kind.secrets().contains(key) && !e.getValue().isReference()) {
+                out.add(key + " must come from the environment or the secret store, e.g. " + key + ": secret."
+                        + suggestEnv(kind.name(), def.getName(), key) + " (or env." + suggestEnv(kind.name(), def.getName(), key) + ")");
                 continue;
             }
-            if (e.getValue().fromEnv()) {
-                String v = env.apply(e.getValue().value());
-                if (v == null || v.isEmpty()) out.add("environment variable " + e.getValue().value() + " is not set (for " + key + ")");
+            if (e.getValue().isReference()) {
+                String v = env.apply(e.getValue().lookupKey());
+                if (v == null || v.isEmpty()) out.add(notSet(e.getValue()) + " (for " + key + ")");
             }
         }
         if (out.isEmpty()) {
@@ -256,14 +256,21 @@ public final class ToolFactory {
 
     /** A {@code header.<Name>} option: a credential-looking header must come from the environment. */
     private static String checkPrefixed(String prefix, String key, ToolDef.OptionValue value, Function<String, String> env) {
-        if (prefix.equals(Options.HEADER_PREFIX) && Options.isSecretHeader(key.substring(prefix.length())) && !value.fromEnv()) {
-            return key + " must come from the environment, e.g. " + key + ": env."
-                    + key.substring(prefix.length()).toUpperCase(java.util.Locale.ROOT).replaceAll("[^A-Z0-9]+", "_");
+        if (prefix.equals(Options.HEADER_PREFIX) && Options.isSecretHeader(key.substring(prefix.length())) && !value.isReference()) {
+            String suggested = key.substring(prefix.length()).toUpperCase(java.util.Locale.ROOT).replaceAll("[^A-Z0-9]+", "_");
+            return key + " must come from the environment or the secret store, e.g. " + key + ": secret." + suggested + " (or env." + suggested + ")";
         }
-        if (value.fromEnv() && isUnset(env.apply(value.value()))) {
-            return "environment variable " + value.value() + " is not set (for " + key + ")";
+        if (value.isReference() && isUnset(env.apply(value.lookupKey()))) {
+            return notSet(value) + " (for " + key + ")";
         }
         return null;
+    }
+
+    /** What to say when a reference resolves to nothing. */
+    private static String notSet(ToolDef.OptionValue v) {
+        return v.fromSecret()
+                ? "secret " + v.value() + " is not in the secret store (give one with --secrets, or HarnessExecutor.setSecretStore)"
+                : v.describe() + " is not set";
     }
 
     private static boolean isUnset(String value) {
@@ -295,7 +302,7 @@ public final class ToolFactory {
         Map<String, ToolDef.OptionValue> all = new LinkedHashMap<>(kind.defaults());
         all.putAll(def.getOptions());
         all.forEach((k, v) -> {
-            String value = v.fromEnv() ? env.apply(v.value()) : v.value();
+            String value = v.isReference() ? env.apply(v.lookupKey()) : v.value();
             if (!isUnset(value)) out.put(k, value);
         });
         return out;

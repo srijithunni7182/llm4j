@@ -99,6 +99,7 @@ final class AutonomySupport {
             HarnessExecutor executor = new HarnessExecutor(loaded, registry, env.models());
             executor.setBaseDir(baseDir);
             executor.setEnvLookup(env.env());
+            executor.setSecretStore(env.secrets());
             executor.setClock(env.clock());
             executor.setSleeper(env.sleeper());
             executor.setJournal(journal);

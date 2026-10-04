@@ -42,6 +42,7 @@ public final class SecurityAudit {
         for (AgentDef a : script.getAgents()) profiles.add(agent(a, script, tools, findings));
         toolSettings(script, findings);
         supplyChain(script, findings);
+        providerEndpoints(script, findings);
         if (script.getBudget() == null) {
             findings.add(new Finding("LA03", Severity.MEDIUM, List.of(Owasp.LLM10), "script", 0, "No run budget",
                     "Nothing caps what one run may spend: a loop or a manipulated agent can keep calling models.",
@@ -161,6 +162,22 @@ public final class SecurityAudit {
                         t.getName() + " allows " + Capabilities.opt(t, "methods") + " on every path below " + Capabilities.opt(t, "base_url") + ".",
                         "Add allow_paths: with the paths the workflow needs."));
             }
+        }
+    }
+
+    /** A provider that sends its key to an address the script chooses: whoever controls that address receives the key. */
+    private static void providerEndpoints(LoomScript script, List<Finding> findings) {
+        for (io.github.llm4j.loom.ast.ProviderDef p : script.getProviders()) {
+            ToolDef.OptionValue key = p.getOptions().get("api_key");
+            ToolDef.OptionValue url = p.getOptions().get("base_url");
+            if (key == null || url == null) continue;
+            boolean secret = key.fromSecret();
+            findings.add(new Finding("LA15", secret ? Severity.LOW : Severity.MEDIUM, List.of(Owasp.LLM02, Owasp.LLM03), "provider " + p.getName(), p.getLine(),
+                    "A credential is sent to a custom address",
+                    "provider " + p.getName() + " sends " + key + " to " + url.value() + ". Whoever runs that address receives the key"
+                            + (secret ? ", unless the stored secret is bound to hosts." : "."),
+                    secret ? "Store the secret with --allow-host for that host (weave secrets set NAME --allow-host <host>), so it is refused anywhere else."
+                            : "Keep the key in a secret store with a host binding (api_key: secret.NAME), and use https."));
         }
     }
 

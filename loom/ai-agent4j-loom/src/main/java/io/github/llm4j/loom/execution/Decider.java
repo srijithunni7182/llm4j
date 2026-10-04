@@ -174,8 +174,8 @@ final class Decider {
         java.util.List<String> out = new ArrayList<>();
         for (io.github.llm4j.loom.ast.ToolDef t : run.script().getTools()) {
             t.getOptions().forEach((k, v) -> {
-                if (v.fromEnv()) {
-                    String value = run.envValue(v.value());
+                if (v.isReference()) {
+                    String value = run.credentialValue(v);
                     if (value != null && !value.isBlank()) out.add(value);
                 }
             });

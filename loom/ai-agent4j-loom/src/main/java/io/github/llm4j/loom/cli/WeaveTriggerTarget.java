@@ -42,6 +42,7 @@ final class WeaveTriggerTarget implements TriggerTarget {
         Trigger.AgentTask a = (Trigger.AgentTask) trigger.target();
         LoomScript script = new LoomLoader().load(Path.of(a.script()).toAbsolutePath().toString());
         HarnessExecutor executor = new HarnessExecutor(script, new ToolRegistry(), env.models());
+        executor.setSecretStore(env.secrets());
         executor.setClock(env.clock());
         executor.setSleeper(env.sleeper());
         // the script's schedules are already stored; don't also start them in memory

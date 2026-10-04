@@ -133,6 +133,9 @@ public class HarnessExecutor implements LoomEngine {
     /** Which memory session each running step belongs to (steps may run on other threads). */
     private final Map<String, String> sessions = new java.util.concurrent.ConcurrentHashMap<>();
     private java.util.function.Function<String, String> envLookup = System::getenv;
+    private io.github.llm4j.secret.SecretStore secretStore;
+    /** What {@code env.NAME} and {@code secret.NAME} resolve through: see {@link #credential(String)}. */
+    private final java.util.function.Function<String, String> credentials = this::credential;
     private final List<java.util.function.Consumer<RunSuspended>> suspensionListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final List<TraceListener> traceListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     
@@ -277,7 +280,7 @@ public class HarnessExecutor implements LoomEngine {
     Decider decider() { return decider; }
     String envValue(String name) {
         try {
-            return envLookup.apply(name);
+            return credentials.apply(name);
         } catch (RuntimeException e) {
             return null;
         }
@@ -479,6 +482,40 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     /** Where {@code env.NAME} values come from (default: the process environment). */
+    /**
+     * Where {@code secret.NAME} references in the script are resolved, and where a secret named like an environment variable ({@code GEMINI_API_KEY})
+     * takes precedence over that variable. The consumer chooses the store and protects it; the executor only reads it. Set it before {@link #initialize()}.
+     */
+    public void setSecretStore(io.github.llm4j.secret.SecretStore store) {
+        this.secretStore = store;
+    }
+
+    public io.github.llm4j.secret.SecretStore getSecretStore() {
+        return secretStore;
+    }
+
+    /**
+     * Resolves a credential reference: {@code secret:NAME} is read from the secret store only; any other name is the store's secret of that name
+     * if there is one (a stored secret wins over the ambient environment), else the environment variable. Null when there is none.
+     */
+    String credential(String key) {
+        if (key.startsWith("secret:")) {
+            String name = key.substring("secret:".length());
+            return secretStore != null && secretStore.contains(name) ? secretStore.resolve(name) : null;
+        }
+        if (secretStore != null && io.github.llm4j.secret.SecretNames.isValid(key) && secretStore.contains(key)) return secretStore.resolve(key);
+        return envLookup.apply(key);
+    }
+
+    /** The value of an option that is a reference (null when unset), for scrubbing it from anything recorded. */
+    String credentialValue(io.github.llm4j.loom.ast.ToolDef.OptionValue v) {
+        try {
+            return v.isReference() ? credentials.apply(v.lookupKey()) : v.value();
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     public void setEnvLookup(java.util.function.Function<String, String> envLookup) {
         this.envLookup = envLookup != null ? envLookup : System::getenv;
     }
@@ -489,7 +526,7 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     private io.github.llm4j.loom.knowledge.EmbeddingFactory embeddings() {
-        if (embeddingFactory == null) embeddingFactory = new io.github.llm4j.loom.knowledge.DefaultEmbeddingFactory(envLookup);
+        if (embeddingFactory == null) embeddingFactory = new io.github.llm4j.loom.knowledge.DefaultEmbeddingFactory(envLookup, secretStore);
         return embeddingFactory;
     }
 
@@ -542,15 +579,24 @@ public class HarnessExecutor implements LoomEngine {
         io.github.llm4j.loom.ast.ProviderDef declared = declaredProvider(model);
         if (declared == null) return llmClientFactory.createClient(model);
         String baseUrl = option(declared, "base_url");
-        String key = option(declared, "api_key");
-        return llmClientFactory.createClient(new ProviderSpec(declared.getName(), declared.getKind(), baseUrl, key),
+        io.github.llm4j.loom.ast.ToolDef.OptionValue keyOption = declared.getOptions().get("api_key");
+        io.github.llm4j.secret.SecretRef ref = storedKey(keyOption);
+        // a key in the store is handed over by reference: the provider fetches it for each request, and the secret's host binding applies
+        String key = ref != null || keyOption == null ? null : option(declared, "api_key");
+        return llmClientFactory.createClient(new ProviderSpec(declared.getName(), declared.getKind(), baseUrl, key, ref),
                 model.substring(declared.getName().length() + 1));
+    }
+
+    /** The key as a reference into the secret store when that is where it lives, else null. */
+    private io.github.llm4j.secret.SecretRef storedKey(io.github.llm4j.loom.ast.ToolDef.OptionValue key) {
+        if (key == null || !key.isReference() || secretStore == null) return null;
+        return secretStore.contains(key.value()) ? io.github.llm4j.secret.SecretRef.of(secretStore, key.value()) : null;
     }
 
     private String option(io.github.llm4j.loom.ast.ToolDef def, String name) {
         io.github.llm4j.loom.ast.ToolDef.OptionValue v = def.getOptions().get(name);
         if (v == null) return null;
-        return v.fromEnv() ? envLookup.apply(v.value()) : v.value();
+        return v.isReference() ? credentials.apply(v.lookupKey()) : v.value();
     }
 
     private void checkProviders(ScriptValidator.Checker c) {
@@ -570,18 +616,24 @@ public class HarnessExecutor implements LoomEngine {
                 switch (e.getKey()) {
                     case "base_url" -> { }
                     case "api_key" -> {
-                        if (!e.getValue().fromEnv()) {
-                            c.error(p.getLine(), who, "api_key must come from the environment, e.g. api_key: env.MY_KEY");
-                        } else if (envLookup.apply(e.getValue().value()) == null || envLookup.apply(e.getValue().value()).isBlank()) {
-                            c.error(p.getLine(), who, "environment variable " + e.getValue().value() + " is not set");
+                        if (!e.getValue().isReference()) {
+                            c.error(p.getLine(), who, "api_key must not be written in the script: use api_key: secret.MY_KEY (or env.MY_KEY)");
+                        } else {
+                            String found = credentialValue(e.getValue());
+                            if (found == null || found.isBlank()) {
+                                c.error(p.getLine(), who, e.getValue().fromSecret()
+                                        ? "secret " + e.getValue().value() + " is not in the secret store" + (secretStore == null ? " (no secret store was given: pass one with --secrets, or HarnessExecutor.setSecretStore)" : "")
+                                        : "environment variable " + e.getValue().value() + " is not set (and there is no secret of that name)");
+                            }
                         }
                     }
                     default -> c.error(p.getLine(), who, "unknown option " + e.getKey() + "; use base_url or api_key");
                 }
             }
             if (!p.getKind().equals("ollama") && !p.getOptions().containsKey("api_key")) {
-                c.error(p.getLine(), who, p.getKind() + " needs api_key: env.<NAME>");
+                c.error(p.getLine(), who, p.getKind() + " needs api_key: secret.<NAME> (or env.<NAME>)");
             }
+            checkProviderEndpoint(c, p, who);
         }
         for (AgentDef a : script.getAgents()) {
             if (a.getRoutingPolicy() == null) {
@@ -592,6 +644,29 @@ public class HarnessExecutor implements LoomEngine {
         for (RoutingPolicyDef r : script.getRoutingPolicies()) {
             if (r.getPrimaryModel() != null) checkModel(c, r.getLine(), "routing " + r.getName(), r.getPrimaryModel());
             for (String fb : r.getFallbackModels()) checkModel(c, r.getLine(), "routing " + r.getName(), fb);
+        }
+    }
+
+    /**
+     * A key is only ever sent to an endpoint it is safe for: https (or http on this machine), and, for a key in the store, a host the secret allows.
+     * Otherwise a script could send a credential in clear text, or to a host of its own choosing.
+     */
+    private void checkProviderEndpoint(ScriptValidator.Checker c, io.github.llm4j.loom.ast.ProviderDef p, String who) {
+        io.github.llm4j.loom.ast.ToolDef.OptionValue keyOption = p.getOptions().get("api_key");
+        io.github.llm4j.loom.ast.ToolDef.OptionValue urlOption = p.getOptions().get("base_url");
+        if (keyOption == null || urlOption == null) return;
+        String url = urlOption.isReference() ? credentialValue(urlOption) : urlOption.value();
+        if (url == null || url.isBlank()) return;
+        String host = io.github.llm4j.secret.SecretMetadata.hostOf(url);
+        boolean https = url.regionMatches(true, 0, "https://", 0, 8);
+        boolean local = host != null && (host.equals("localhost") || host.equals("127.0.0.1") || host.equals("::1"));
+        if (!https && !local) {
+            c.error(p.getLine(), who, "base_url " + url + " is not https, so api_key would travel unencrypted; use https:// (http is only allowed for localhost)");
+        }
+        io.github.llm4j.secret.SecretRef ref = storedKey(keyOption);
+        if (ref != null && secretStore.metadata(keyOption.value()).map(m -> !m.allows(host)).orElse(false)) {
+            c.error(p.getLine(), who, "secret " + keyOption.value() + " may not be sent to " + host + " (its allowedHosts are "
+                    + secretStore.metadata(keyOption.value()).orElseThrow().allowedHosts() + ")");
         }
     }
 
@@ -632,8 +707,8 @@ public class HarnessExecutor implements LoomEngine {
                     c.error(settings.lineOf(e.getKey()), who, "unknown " + block + " setting " + e.getKey()
                             + "; use " + new java.util.TreeSet<>(allowed));
                 }
-            } else if (e.getValue().fromEnv()) {
-                c.error(settings.lineOf(e.getKey()), who, block + " " + e.getKey() + " is written in the script, not taken from the environment");
+            } else if (e.getValue().isReference()) {
+                c.error(settings.lineOf(e.getKey()), who, block + " " + e.getKey() + " is written in the script, not taken from the environment or a secret");
             }
         }
     }
@@ -691,7 +766,7 @@ public class HarnessExecutor implements LoomEngine {
                         + (key.equals("speak") ? "sarvam/bulbul:v2" : "sarvam/saarika:v2.5"));
             }
         }
-        if ((v.has("listen") || v.has("speak")) && (envLookup.apply("SARVAM_API_KEY") == null || envLookup.apply("SARVAM_API_KEY").isBlank())) {
+        if ((v.has("listen") || v.has("speak")) && (credentials.apply("SARVAM_API_KEY") == null || credentials.apply("SARVAM_API_KEY").isBlank())) {
             c.error(v.getLine(), who, "voice needs SARVAM_API_KEY in the environment");
         }
         try {
@@ -778,7 +853,7 @@ public class HarnessExecutor implements LoomEngine {
         java.util.Set<String> seen = new java.util.HashSet<>();
         for (io.github.llm4j.loom.ast.ToolDef t : script.getTools()) {
             if (!seen.add(t.getName())) c.error(t.getLine(), "tool " + t.getName(), "declared twice");
-            for (String problem : toolFactory.problems(t, envLookup, baseDir)) c.error(t.getLine(), "tool " + t.getName(), problem);
+            for (String problem : toolFactory.problems(t, credentials, baseDir)) c.error(t.getLine(), "tool " + t.getName(), problem);
         }
         // Built-in names an agent uses (not declared, not registered by the host): their keys must be set too
         java.util.Set<String> declared = new java.util.HashSet<>();
@@ -789,7 +864,7 @@ public class HarnessExecutor implements LoomEngine {
                 if (declared.contains(name) || toolRegistry.getTool(name) != null || !checkedBuiltIns.add(name)) continue;
                 io.github.llm4j.loom.ast.ToolDef builtIn = io.github.llm4j.loom.tools.ToolFactory.builtIn(name);
                 if (builtIn == null) continue;
-                for (String problem : toolFactory.problems(builtIn, envLookup, baseDir)) c.error(a.getLine(), "tool " + name, problem);
+                for (String problem : toolFactory.problems(builtIn, credentials, baseDir)) c.error(a.getLine(), "tool " + name, problem);
             }
         }
         for (AgentDef a : script.getAgents()) {
@@ -803,7 +878,7 @@ public class HarnessExecutor implements LoomEngine {
                 for (io.github.llm4j.loom.ast.ToolDef def : script.getTools()) {
                     if (!def.getName().equals(name)) continue;
                     boolean approved = a.isApproveAll() || a.getApprove().contains(name);
-                    String problem = toolFactory.agentProblem(def, envLookup, a.getName(), approved);
+                    String problem = toolFactory.agentProblem(def, credentials, a.getName(), approved);
                     if (problem != null) c.error(a.getLine(), who, problem);
                 }
             }
@@ -881,7 +956,7 @@ public class HarnessExecutor implements LoomEngine {
     private Tool createTool(io.github.llm4j.loom.ast.ToolDef def) {
         return createdTools.computeIfAbsent(def.getName(), n -> {
             try {
-                return toolFactory.create(def, envLookup, baseDir, effectContext());
+                return toolFactory.create(def, credentials, baseDir, effectContext());
             } catch (Exception e) {
                 throw new LoomLoadException(List.of(new ScriptValidator.Problem(def.getLine(), "tool " + def.getName(),
                         "can't be created: " + e.getMessage(), ScriptValidator.Severity.ERROR)));
@@ -1113,7 +1188,7 @@ public class HarnessExecutor implements LoomEngine {
                 }
                 memories.put(agentDef.getName(), agentMemory);
             }
-            if (agentDef.getVoice() != null) voices.put(agentDef.getName(), new AgentVoice(agentDef.getVoice(), envLookup, baseDir));
+            if (agentDef.getVoice() != null) voices.put(agentDef.getName(), new AgentVoice(agentDef.getVoice(), credentials, baseDir));
 
             ReActAgent.Builder agentBuilder = ReActAgent.builder().llmClient(llmClient);
             if (agentDef.getTemperature() != null) {

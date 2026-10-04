@@ -127,13 +127,13 @@ class ProvidersTest {
                 provider S { use: ollama }
                 provider T { use: gemini }
                 """)).isInstanceOfSatisfying(LoomLoadException.class, e -> assertThat(e.getMessage())
-                .contains("line 1: provider P: api_key must come from the environment")
-                .contains("line 2: provider Q: environment variable MISSING is not set")
+                .contains("line 1: provider P: api_key must not be written in the script")
+                .contains("line 2: provider Q: environment variable MISSING is not set (and there is no secret of that name)")
                 .contains("line 3: provider R: unknown use: openai; use one of gemini, anthropic, ollama, sarvam")
                 .contains("line 4: provider gemini: the name gemini is reserved")
                 .contains("line 5: provider S: unknown option colour")
                 .contains("line 6: provider S: declared twice")
-                .contains("line 7: provider T: gemini needs api_key: env.<NAME>"));
+                .contains("line 7: provider T: gemini needs api_key: secret.<NAME> (or env.<NAME>)"));
         assertThatThrownBy(() -> h.ready("provider P { base_url: \"x\" }")).hasMessageContaining("needs use:");
     }
 
@@ -243,7 +243,7 @@ class ProvidersTest {
     @Test
     void anthropicNeedsItsKeyAndItsNameIsReserved() {
         DefaultLLMClientFactory none = new DefaultLLMClientFactory(n -> null);
-        assertThat(none.problem("claude-opus-5-5")).isEqualTo("model claude-opus-5-5 needs ANTHROPIC_API_KEY in the environment");
+        assertThat(none.problem("claude-opus-5-5")).isEqualTo("model claude-opus-5-5 needs ANTHROPIC_API_KEY in the environment or the secret store");
         assertThat(none.problem("anthropic/claude-haiku-4-5")).contains("ANTHROPIC_API_KEY");
         assertThat(new DefaultLLMClientFactory(Map.of("ANTHROPIC_API_KEY", "k")::get).problem("claude-sonnet-5-5")).isNull();
         assertThatThrownBy(() -> none.createClient("claude-opus-5-5")).hasMessageContaining("ANTHROPIC_API_KEY");

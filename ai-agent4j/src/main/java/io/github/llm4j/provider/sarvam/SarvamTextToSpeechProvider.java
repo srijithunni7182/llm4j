@@ -81,8 +81,8 @@ public class SarvamTextToSpeechProvider implements TextToSpeechProvider {
 
     @Override
     public void validate() {
-        if (config.getApiKey() == null || config.getApiKey().isEmpty()) {
-            throw new AuthenticationException("Sarvam API key is required");
+        if (!config.hasApiKey()) {
+            throw new AuthenticationException(config.missingApiKeyMessage("Sarvam API key is required"));
         }
     }
 
@@ -121,7 +121,7 @@ public class SarvamTextToSpeechProvider implements TextToSpeechProvider {
     private Headers buildHeaders() {
         return new Headers.Builder()
                 .add("Content-Type", "application/json")
-                .add("api-subscription-key", config.getApiKey())
+                .add("api-subscription-key", config.requireApiKey("Sarvam", baseUrl))
                 .build();
     }
 

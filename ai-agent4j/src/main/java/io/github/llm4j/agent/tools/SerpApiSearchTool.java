@@ -2,6 +2,9 @@ package io.github.llm4j.agent.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.llm4j.secret.SecretException;
+import io.github.llm4j.secret.SecretMetadata;
+import io.github.llm4j.secret.SecretRef;
 import io.github.llm4j.agent.Tool;
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -14,7 +17,7 @@ import okhttp3.Response;
 /** A tool that allows agents to search the web using SerpAPI. */
 public class SerpApiSearchTool implements Tool {
 
-    private final String apiKey;
+    private final SecretRef apiKey;
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final String baseUrl;
@@ -28,10 +31,26 @@ public class SerpApiSearchTool implements Tool {
     }
 
     public SerpApiSearchTool(String apiKey, OkHttpClient httpClient, String baseUrl) {
+        this(apiKey == null ? null : SecretRef.literal(apiKey), httpClient, baseUrl, true);
+    }
+
+    private SerpApiSearchTool(SecretRef apiKey, OkHttpClient httpClient, String baseUrl, boolean unused) {
         this.apiKey = apiKey;
         this.httpClient = httpClient;
         this.baseUrl = baseUrl;
         this.objectMapper = new ObjectMapper();
+    }
+
+    /**
+     * A tool whose key lives in a {@link io.github.llm4j.secret.SecretStore}: it is fetched for each search and not kept. (SerpAPI accepts the key
+     * only as a query parameter, so this tool never logs or reports its URL.)
+     */
+    public static SerpApiSearchTool withSecret(SecretRef apiKey) {
+        return new SerpApiSearchTool(apiKey, new OkHttpClient(), "https://serpapi.com/search", true);
+    }
+
+    public static SerpApiSearchTool withSecret(SecretRef apiKey, OkHttpClient httpClient, String baseUrl) {
+        return new SerpApiSearchTool(apiKey, httpClient, baseUrl, true);
     }
 
     @Override
@@ -56,8 +75,9 @@ public class SerpApiSearchTool implements Tool {
             return "Error: No search 'query' provided.";
         }
 
-        if (apiKey == null || apiKey.isEmpty()) {
-            return "Error: SerpAPI key not configured for SerpApiSearchTool.";
+        if (apiKey == null || (apiKey.isLiteral() ? apiKey.resolve().isEmpty() : !apiKey.exists())) {
+            return "Error: SerpAPI key not configured for SerpApiSearchTool"
+                    + (apiKey != null && !apiKey.isLiteral() ? " (" + apiKey + " is not in the store)." : ".");
         }
 
         return performSearch(query);
@@ -65,9 +85,15 @@ public class SerpApiSearchTool implements Tool {
 
     private String performSearch(String query) throws IOException {
         String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
+        String key;
+        try {
+            key = apiKey.resolveFor(SecretMetadata.hostOf(baseUrl));
+        } catch (SecretException e) {
+            return "Error: SerpAPI key unavailable: " + e.getMessage();
+        }
         // Using engine=google by default
-        String url =
-                String.format("%s?q=%s&api_key=%s&engine=google", baseUrl, encodedQuery, apiKey);
+        String url = String.format("%s?q=%s&api_key=%s&engine=google", baseUrl, encodedQuery,
+                URLEncoder.encode(key, StandardCharsets.UTF_8));
 
         Request request = new Request.Builder().url(url).build();
 
@@ -75,7 +101,7 @@ public class SerpApiSearchTool implements Tool {
             if (!response.isSuccessful()) {
                 String errorBody =
                         response.body() != null ? response.body().string() : "No error body";
-                return "SerpAPI error (HTTP " + response.code() + "): " + errorBody;
+                return "SerpAPI error (HTTP " + response.code() + "): " + errorBody.replace(key, "***");
             }
 
             JsonNode root = objectMapper.readTree(response.body().string());

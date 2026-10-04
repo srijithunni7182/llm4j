@@ -47,7 +47,7 @@ public class SemanticMemoryFactory {
         return switch (config.getEmbeddingMode()) {
             case GEMINI -> {
                 LLMConfig llmConfig = LLMConfig.builder()
-                        .apiKey(config.getGeminiApiKey())
+                        .apiKey(config.getGeminiApiKeyRef())
                         .build();
                 yield new GeminiEmbeddingProvider(llmConfig, config.getGeminiEmbeddingModel());
             }
@@ -95,9 +95,17 @@ public class SemanticMemoryFactory {
     private static VectorStore loadPGVectorStore(SemanticMemoryConfig config, EmbeddingProvider provider) {
         try {
             Class<?> cls = Class.forName("io.github.llm4j.agent.rag.store.PGVectorStore");
-            Object instance = cls.getConstructor(String.class, String.class, String.class, String.class, int.class)
-                    .newInstance(config.getPgUrl(), config.getPgUser(), config.getPgPassword(),
-                                 config.getPgTable(), config.getPgDimension());
+            io.github.llm4j.secret.SecretRef password = config.getPgPasswordRef();
+            Object instance;
+            if (password != null && !password.isLiteral()) {
+                // a password kept in a secret store stays there: the store fetches it for each connection
+                instance = cls.getMethod("withSecret", String.class, String.class, io.github.llm4j.secret.SecretRef.class, String.class, int.class)
+                        .invoke(null, config.getPgUrl(), config.getPgUser(), password, config.getPgTable(), config.getPgDimension());
+            } else {
+                instance = cls.getConstructor(String.class, String.class, String.class, String.class, int.class)
+                        .newInstance(config.getPgUrl(), config.getPgUser(), config.getPgPassword(),
+                                     config.getPgTable(), config.getPgDimension());
+            }
             return (VectorStore) instance;
         } catch (ClassNotFoundException e) {
             throw new IllegalStateException(

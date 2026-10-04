@@ -2,6 +2,8 @@ package io.github.llm4j.agent.skill;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.llm4j.secret.SecretException;
+import io.github.llm4j.secret.SecretRef;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -21,7 +23,7 @@ import java.util.Objects;
 public class RestSkillRegistry implements SkillRegistry {
 
     private final String baseUrl;
-    private final String apiKey;
+    private final SecretRef apiKey;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
 
@@ -32,6 +34,25 @@ public class RestSkillRegistry implements SkillRegistry {
         this.objectMapper = builder.objectMapper != null ? builder.objectMapper : new ObjectMapper();
     }
 
+    /** Adds the credential, fetched now, and returns it (for scrubbing what the server says back); null when there is none. */
+    private String authorize(HttpRequest.Builder requestBuilder, URI uri) throws IOException {
+        if (apiKey == null) return null;
+        String key;
+        try {
+            key = apiKey.resolveFor(uri.getHost());
+        } catch (SecretException e) {
+            throw new IOException("skill registry credential unavailable: " + e.getMessage(), e);
+        }
+        if (key == null || key.isBlank()) return null;
+        requestBuilder.header("Authorization", "Bearer " + key);
+        requestBuilder.header("x-api-key", key); // Add both formats just in case
+        return key;
+    }
+
+    private static String scrub(String body, String key) {
+        return key == null || key.length() < 6 || body == null ? body : body.replace(key, "***");
+    }
+
     @Override
     public List<SkillMetadata> searchSkills(String query) throws IOException {
         String encodedQuery = URLEncoder.encode(query == null ? "" : query, StandardCharsets.UTF_8);
@@ -39,15 +60,12 @@ public class RestSkillRegistry implements SkillRegistry {
         URI uri = URI.create(baseUrl + (baseUrl.endsWith("/") ? "" : "/") + "search?q=" + encodedQuery);
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri).GET();
-        if (apiKey != null && !apiKey.isBlank()) {
-            requestBuilder.header("Authorization", "Bearer " + apiKey);
-            requestBuilder.header("x-api-key", apiKey); // Add both formats just in case
-        }
+        String key = authorize(requestBuilder, uri);
 
         try {
             HttpResponse<String> response = httpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
-                throw new IOException("Failed to search skills: HTTP " + response.statusCode() + " - " + response.body());
+                throw new IOException("Failed to search skills: HTTP " + response.statusCode() + " - " + scrub(response.body(), key));
             }
 
             return parseSearchResponse(response.body());
@@ -63,15 +81,12 @@ public class RestSkillRegistry implements SkillRegistry {
         URI uri = URI.create(baseUrl + (baseUrl.endsWith("/") ? "" : "/") + encodedId);
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(uri).GET();
-        if (apiKey != null && !apiKey.isBlank()) {
-            requestBuilder.header("Authorization", "Bearer " + apiKey);
-            requestBuilder.header("x-api-key", apiKey);
-        }
+        String key = authorize(requestBuilder, uri);
 
         try {
             HttpResponse<String> response = httpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
-                throw new IOException("Failed to fetch skill: HTTP " + response.statusCode() + " - " + response.body());
+                throw new IOException("Failed to fetch skill: HTTP " + response.statusCode() + " - " + scrub(response.body(), key));
             }
 
             return parseSkillResponse(skillId, response.body());
@@ -159,7 +174,7 @@ public class RestSkillRegistry implements SkillRegistry {
 
     public static final class Builder {
         private String baseUrl;
-        private String apiKey;
+        private SecretRef apiKey;
         private HttpClient httpClient;
         private ObjectMapper objectMapper;
 
@@ -171,6 +186,12 @@ public class RestSkillRegistry implements SkillRegistry {
         }
 
         public Builder apiKey(String apiKey) {
+            this.apiKey = apiKey == null ? null : SecretRef.literal(apiKey);
+            return this;
+        }
+
+        /** A key kept in a {@link io.github.llm4j.secret.SecretStore}: fetched for each request and not held by the registry. */
+        public Builder apiKey(SecretRef apiKey) {
             this.apiKey = apiKey;
             return this;
         }

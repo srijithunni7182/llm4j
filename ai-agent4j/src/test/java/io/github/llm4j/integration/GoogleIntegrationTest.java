@@ -23,9 +23,8 @@ class GoogleIntegrationTest {
     @BeforeAll
     static void setUp() {
         apiKey = System.getenv("GOOGLE_API_KEY");
-        if (apiKey == null || apiKey.isEmpty()) {
-            apiKey = "AIzaSyAUYe7LBsFmqh_PE76u_0wGfF9pc-J7prM";
-        }
+        // These tests make real, billable calls: they run only when the caller supplies a key. Never commit one.
+        Assumptions.assumeTrue(apiKey != null && !apiKey.isEmpty(), "GOOGLE_API_KEY is not set; skipping the live Gemini test");
 
         // Create Google provider with auto-discovered model
         LLMConfig tempConfig = LLMConfig.builder().apiKey(apiKey).build();
