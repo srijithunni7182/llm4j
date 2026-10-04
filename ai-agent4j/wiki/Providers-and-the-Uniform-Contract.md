@@ -50,6 +50,11 @@ conformance suite runs against each provider.
 
 Messages carry the HTTP status, the provider's error text and its request id, and never the API key.
 
+### Tool calling
+
+`client.supportsToolCalling()` tells you whether a client can offer tools natively: Gemini and Claude yes, Sarvam and Ollama no (agents use the
+text protocol with them). See [Native Tool Calling](Native-Tool-Calling.md).
+
 ### Streaming works everywhere
 
 ```java

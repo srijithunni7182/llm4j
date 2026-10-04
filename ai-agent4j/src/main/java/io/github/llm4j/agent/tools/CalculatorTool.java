@@ -117,4 +117,9 @@ public class CalculatorTool implements Tool {
             return x;
         }
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return io.github.llm4j.model.ToolSchema.object().string("expression", "The arithmetic expression to evaluate, e.g. 12 * (3 + 4)", true).build();
+    }
 }

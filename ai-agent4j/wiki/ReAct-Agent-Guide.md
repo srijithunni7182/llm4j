@@ -60,9 +60,12 @@ ReActAgent agent = ReActAgent.builder()
         .addTool(new CalculatorTool())
         .maxIterations(15)              // Max reasoning steps before giving up
         .temperature(0.7)               // LLM temperature for variety vs precision
-        .systemPrompt(customPrompt)     // Custom prompt template
+        .systemPrompt(customPrompt)     // Custom prompt template (keeps the text protocol in AUTO mode)
+        .toolCalling(ReActAgent.ToolCalling.AUTO)  // native tool calling on Gemini/Claude, text protocol elsewhere
         .build();
 ```
+
+On Gemini and Claude the agent uses the provider's structured tool calls by default; see [Native Tool Calling](Native-Tool-Calling.md).
 
 ---
 

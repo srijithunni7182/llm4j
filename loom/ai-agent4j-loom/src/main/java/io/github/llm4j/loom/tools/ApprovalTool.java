@@ -35,4 +35,9 @@ public final class ApprovalTool implements Tool {
     public boolean requiresApproval(Map<String, Object> args) {
         return true;
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return delegate.getParametersSchema();
+    }
 }

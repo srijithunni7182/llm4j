@@ -186,7 +186,7 @@ public final class BudgetedLLMClient implements LLMClient {
             LLMResponse.TokenUsage usage = response == null ? null : response.getTokenUsage();
             boolean estimated = usage == null;
             long p = estimated ? prompt : usage.getPromptTokens();
-            long c = estimated ? estimator.completion(content) : usage.getCompletionTokens();
+            long c = estimated ? estimator.completion(content + toolCallText(response)) : usage.getCompletionTokens();
             BigDecimal money = cost(p, c);
             charge(new Charge(p, c, 1, money, estimated));
             if (response == null || (!estimated && price == null)) return response;
@@ -198,6 +198,8 @@ public final class BudgetedLLMClient implements LLMClient {
                     .model(response.getModel())
                     .tokenUsage(estimated ? new LLMResponse.TokenUsage((int) p, (int) c, (int) (p + c)) : usage)
                     .finishReason(response.getFinishReason())
+                    .toolCalls(response.getToolCalls())
+                    .providerData(response.getProviderData())
                     .metadata(meta)
                     .build();
         }
@@ -226,19 +228,20 @@ public final class BudgetedLLMClient implements LLMClient {
         return (long) Math.min(a, b);
     }
 
+    private static String toolCallText(LLMResponse response) {
+        if (response == null || !response.hasToolCalls()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (io.github.llm4j.model.ToolCall c : response.getToolCalls()) sb.append(c.name()).append(c.arguments());
+        return sb.toString();
+    }
+
     static LLMRequest withMaxTokens(LLMRequest r, int maxTokens) {
-        LLMRequest.Builder b = LLMRequest.builder()
-                .messages(r.getMessages())
-                .model(r.getModel())
-                .temperature(r.getTemperature())
-                .maxTokens(maxTokens)
-                .topP(r.getTopP())
-                .stopSequences(r.getStopSequences())
-                .complexityHint(r.getComplexityHint());
-        if (r.getAdditionalParameters() != null && !r.getAdditionalParameters().isEmpty()) {
-            b.additionalParameters(r.getAdditionalParameters());
-        }
-        return b.build();
+        return r.toBuilder().maxTokens(maxTokens).build();
+    }
+
+    @Override
+    public boolean supportsToolCalling() {
+        return delegate.supportsToolCalling();
     }
 
     public static final class Builder {

@@ -66,6 +66,22 @@ pipeline {
             }
         }
 
+        stage('Build Loom') {
+            steps {
+                dir('loom/ai-agent4j-loom') {
+                    sh 'mvn clean install -DskipTests -Djacoco.skip=true'
+                }
+            }
+        }
+
+        stage('Build Engram') {
+            steps {
+                dir('engram') {
+                    sh 'mvn clean install -DskipTests -Djacoco.skip=true'
+                }
+            }
+        }
+
         stage('Unit Tests & Coverage') {
             steps {
                 parallel(
@@ -93,6 +109,22 @@ pipeline {
                     },
                     "eval4j-report Tests": {
                         dir('eval4j-report') {
+                            sh 'mvn verify'
+                        }
+                    },
+                    "Loom Tests": {
+                        dir('loom/ai-agent4j-loom') {
+                            // verify, not test: the JaCoCo coverage rules run here
+                            sh 'mvn verify'
+                        }
+                    },
+                    "Loom CTK Tests": {
+                        dir('loom/ctk') {
+                            sh 'mvn test'
+                        }
+                    },
+                    "Engram Tests": {
+                        dir('engram') {
                             sh 'mvn verify'
                         }
                     }

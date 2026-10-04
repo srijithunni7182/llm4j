@@ -216,4 +216,13 @@ final class EmailTool extends GenericTool {
         }
         return files;
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        io.github.llm4j.model.ToolSchema s = io.github.llm4j.model.ToolSchema.object();
+        if (config.fixedTo().isEmpty()) s.string("to", "One or more addresses separated by commas", true);
+        s.string("subject", "A one-line subject", true).string("body", "The message text", true).bool("html", "Send the body as HTML", false);
+        if (config.attachments()) s.string("attach", "File paths, comma separated", false);
+        return s.build();
+    }
 }

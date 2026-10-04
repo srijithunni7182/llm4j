@@ -48,4 +48,9 @@ final class RecordingTool implements Tool {
     public boolean requiresApproval(Map<String, Object> args) {
         return real.requiresApproval(args);
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return real.getParametersSchema();
+    }
 }

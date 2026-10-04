@@ -175,4 +175,9 @@ public class SerpApiSearchTool implements Tool {
             return results.toString();
         }
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return io.github.llm4j.model.ToolSchema.object().string("query", "What to search the web for", true).build();
+    }
 }

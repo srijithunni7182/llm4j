@@ -77,6 +77,19 @@ public class RoutingLLMClient implements LLMClient {
         throw fatal;
     }
 
+    /** True only when every client supports it, since any of them may end up serving a request. */
+    @Override
+    public boolean supportsToolCalling() {
+        boolean any = false;
+        for (List<LLMClient> clients : clientsByTier.values()) {
+            for (LLMClient c : clients) {
+                if (!c.supportsToolCalling()) return false;
+                any = true;
+            }
+        }
+        return any;
+    }
+
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
         Objects.requireNonNull(request, "request cannot be null");

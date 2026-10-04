@@ -64,4 +64,9 @@ public class ScheduledActionTool implements Tool {
             return "Successfully scheduled a single background task to execute in " + delaySecondsNum + " seconds.";
         }
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return io.github.llm4j.model.ToolSchema.object().string("instructions", "What to do when waking up", true).integer("delaySeconds", "How many seconds to wait first", true).bool("isRecurring", "Repeat every delaySeconds (default false)", false).build();
+    }
 }

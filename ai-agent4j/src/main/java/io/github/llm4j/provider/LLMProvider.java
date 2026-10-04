@@ -53,4 +53,9 @@ public interface LLMProvider {
      * @throws io.github.llm4j.exception.LLMException if the provider is not properly configured
      */
     void validate();
+
+    /** Whether {@link #chat} honours {@link LLMRequest#getTools()} and returns {@link LLMResponse#getToolCalls()}. */
+    default boolean supportsToolCalling() {
+        return false;
+    }
 }

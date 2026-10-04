@@ -37,4 +37,9 @@ public final class NamedTool implements Tool {
     public boolean requiresApproval(Map<String, Object> args) {
         return delegate.requiresApproval(args);
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return delegate.getParametersSchema();
+    }
 }

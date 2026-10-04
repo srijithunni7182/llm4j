@@ -734,6 +734,9 @@ workflow Main(recording) {
 - `ollama/<model>` (at `OLLAMA_BASE_URL`, default `http://localhost:11434`);
 - `sarvam/<model>` (`SARVAM_API_KEY`).
 
+Agents that use tools talk to Gemini and Claude through their native tool calling (structured calls, not parsed text); Sarvam and Ollama use the
+text protocol. See [Native Tool Calling](../../ai-agent4j/wiki/Native-Tool-Calling.md).
+
 To reach a specific endpoint with its own key, declare a **provider**:
 
 ```loom

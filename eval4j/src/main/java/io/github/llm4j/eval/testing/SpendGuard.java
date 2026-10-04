@@ -170,6 +170,11 @@ public final class SpendGuard {
                 check();
                 return delegate.chatStream(request);
             }
+
+            @Override
+            public boolean supportsToolCalling() {
+                return delegate.supportsToolCalling();
+            }
         };
     }
 

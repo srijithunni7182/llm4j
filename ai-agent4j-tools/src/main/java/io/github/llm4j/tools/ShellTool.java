@@ -144,4 +144,9 @@ final class ShellTool extends GenericTool {
         if (text.isEmpty()) return label + ": (empty)\n";
         return label + ":\n" + text + (text.endsWith("\n") ? "" : "\n") + (c.truncated() ? Limits.markerUnknownTotal(c.bytes().length) + "\n" : "");
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return io.github.llm4j.model.ToolSchema.object().string("program", "The program to run (one of the allowed programs)", true).stringArray("args", "The program's arguments, one string each", false).build();
+    }
 }

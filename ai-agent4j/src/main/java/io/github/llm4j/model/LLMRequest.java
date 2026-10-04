@@ -18,6 +18,16 @@ public final class LLMRequest {
     private final List<String> stopSequences;
     private final ComplexityHint complexityHint;
     private final Map<String, Object> additionalParameters;
+    private final List<ToolSpec> tools;
+    private final ToolChoice toolChoice;
+
+    /** Whether the model may call the tools it is offered. */
+    public enum ToolChoice {
+        /** The model decides (the default). */
+        AUTO,
+        /** The model must answer in text. */
+        NONE
+    }
 
     private LLMRequest(Builder builder) {
         this.messages = Collections.unmodifiableList(new ArrayList<>(builder.messages));
@@ -34,6 +44,9 @@ public final class LLMRequest {
                 builder.additionalParameters != null
                         ? Collections.unmodifiableMap(new HashMap<>(builder.additionalParameters))
                         : Collections.emptyMap();
+
+        this.tools = builder.tools == null ? List.of() : List.copyOf(builder.tools);
+        this.toolChoice = builder.toolChoice == null ? ToolChoice.AUTO : builder.toolChoice;
 
         validate();
     }
@@ -85,6 +98,23 @@ public final class LLMRequest {
         return additionalParameters;
     }
 
+    /** The tools offered to the model (empty when none). */
+    public List<ToolSpec> getTools() {
+        return tools;
+    }
+
+    public ToolChoice getToolChoice() {
+        return toolChoice;
+    }
+
+    /** A builder holding everything of this request, so a copy never drops a field. */
+    public Builder toBuilder() {
+        Builder b = builder().messages(messages).model(model).temperature(temperature).maxTokens(maxTokens).topP(topP)
+                .stopSequences(stopSequences).complexityHint(complexityHint).tools(tools).toolChoice(toolChoice);
+        if (!additionalParameters.isEmpty()) b.additionalParameters(additionalParameters);
+        return b;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -101,13 +131,15 @@ public final class LLMRequest {
                 && Objects.equals(topP, that.topP)
                 && Objects.equals(stopSequences, that.stopSequences)
                 && Objects.equals(complexityHint, that.complexityHint)
-                && Objects.equals(additionalParameters, that.additionalParameters);
+                && Objects.equals(additionalParameters, that.additionalParameters)
+                && Objects.equals(tools, that.tools)
+                && toolChoice == that.toolChoice;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                messages, model, temperature, maxTokens, topP, stopSequences, complexityHint, additionalParameters);
+                messages, model, temperature, maxTokens, topP, stopSequences, complexityHint, additionalParameters, tools, toolChoice);
     }
 
     @Override
@@ -142,8 +174,20 @@ public final class LLMRequest {
         private List<String> stopSequences;
         private ComplexityHint complexityHint;
         private Map<String, Object> additionalParameters;
+        private List<ToolSpec> tools;
+        private ToolChoice toolChoice;
 
         private Builder() {}
+
+        public Builder tools(List<ToolSpec> tools) {
+            this.tools = tools;
+            return this;
+        }
+
+        public Builder toolChoice(ToolChoice toolChoice) {
+            this.toolChoice = toolChoice;
+            return this;
+        }
 
         public Builder messages(List<Message> messages) {
             this.messages = messages != null ? new ArrayList<>(messages) : new ArrayList<>();

@@ -59,23 +59,34 @@ public class MaskingLLMClient implements LLMClient {
         return delegate.chatStream(masked(request));
     }
 
+    @Override
+    public boolean supportsToolCalling() {
+        return delegate.supportsToolCalling();
+    }
+
     private LLMRequest masked(LLMRequest request) {
         Map<PIIType, Integer> counts = new EnumMap<>(PIIType.class);
         List<Message> messages = new ArrayList<>();
         for (Message m : request.getMessages()) {
-            messages.add(new Message(m.getRole(), mask(m.getContent(), detector, types, counts), m.getName()));
+            Message.Builder b = m.toBuilder().content(mask(m.getContent(), detector, types, counts));
+            if (!m.getToolCalls().isEmpty()) {
+                // tool-call arguments are text the model produced from what it saw: mask them like any other text
+                List<io.github.llm4j.model.ToolCall> calls = new ArrayList<>();
+                for (io.github.llm4j.model.ToolCall c : m.getToolCalls()) calls.add(new io.github.llm4j.model.ToolCall(c.id(), c.name(), maskedArguments(c.arguments(), counts)));
+                b.toolCalls(calls);
+            }
+            messages.add(b.build());
         }
         if (!counts.isEmpty()) onMasked.accept(counts);
-        return LLMRequest.builder()
-                .messages(messages)
-                .model(request.getModel())
-                .temperature(request.getTemperature())
-                .maxTokens(request.getMaxTokens())
-                .topP(request.getTopP())
-                .stopSequences(request.getStopSequences())
-                .complexityHint(request.getComplexityHint())
-                .additionalParameters(request.getAdditionalParameters())
-                .build();
+        return request.toBuilder().messages(messages).build();
+    }
+
+    private Map<String, Object> maskedArguments(Map<String, Object> arguments, Map<PIIType, Integer> counts) {
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        for (Map.Entry<String, Object> e : arguments.entrySet()) {
+            out.put(e.getKey(), e.getValue() instanceof String s ? mask(s, detector, types, counts) : e.getValue());
+        }
+        return out;
     }
 
     /**

@@ -14,8 +14,14 @@ public interface Tool {
     String getName();           // Tool identifier
     String getDescription();    // What the tool does
     String execute(Map<String, Object> args) throws Exception;  // Tool logic
+
+    // optional: the arguments, as a JSON Schema, for models with native tool calling
+    default Map<String, Object> getParametersSchema() { /* any object */ }
 }
 ```
+
+On Gemini and Claude the agent offers your tool to the model as a function definition, so declare its arguments with
+`ToolSchema.object().string("query", "what to search", true).build()`. See [Native Tool Calling](Native-Tool-Calling.md).
 
 ## Basic Custom Tool
 

@@ -51,4 +51,9 @@ public class MemoryManagementTool implements Tool {
             return "Warning: Failed to save fact due to system error: " + e.getMessage();
         }
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return io.github.llm4j.model.ToolSchema.object().string("fact", "A clear, standalone sentence stating the fact to remember", true).build();
+    }
 }
