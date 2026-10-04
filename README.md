@@ -1,4 +1,6 @@
-![LLM4J Ecosystem Hero](docs/images/hero_ecosystem.png)
+<p align="center">
+  <img src="docs/images/hero_llm4j.svg" width="640" alt="llm4j: ai-agent4j builds agents, Loom orchestrates them, eval4j tests them">
+</p>
 
 <h1 align="center">llm4j</h1>
 
