@@ -106,6 +106,7 @@ agent <AgentName> {
         delegate "Task 2" to Agent2 -> res2
     }
     ```
+*   **Deterministic Task (no model):** `run <TaskName>(<arg> = <value>, ...) -> <variable>` runs plain Java registered by the operator (`io.github.llm4j.agent.task.Task`). A value is a variable or path (passed with its type: `amount = request.amount`), a quoted string (`"Refund {request.order_id}"`), a number, or `true`/`false`. The variable holds a map: `outcome` (always), `reason`, `value` and data, so branch with `alt (verdict.outcome == "approved")`. Options as for `delegate`: `retry N backoff 2s timeout 30s on_failure { ... }`, but never `budget` (a task spends no tokens). **Use a task, not an agent, for anything that must be exact or has side effects: policy checks, calculations, payments, ticket creation, audit writes.** Never invent a task name: use only the tasks the user listed. Never retry a task that changes things unless the user says it is idempotent.
 *   **Broadcasting (Parallel Map):** `broadcast "<payload>" to [<Agent1>, <Agent2>] -> <variable_name>`
 *   **Guardrails (PII):** 
     ```loom

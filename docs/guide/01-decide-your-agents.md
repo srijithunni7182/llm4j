@@ -39,6 +39,21 @@ prompts:
     latest: "v1"
 ```
 
+## Agent or task?
+
+Not every step of a workflow should have a model behind it. Before you write a prompt, ask of each step:
+
+| If the step... | Make it a... | Because |
+|---|---|---|
+| reads messy input, writes, judges, argues, summarises | **agent** | it needs reasoning |
+| checks a rule, calculates, looks something up, formats a record | **task** (plain Java) | exact, free, unit-testable |
+| moves money, sends, creates, deletes, writes an audit record | **task** (plain Java) | a model must never decide *whether* or *with what arguments* |
+| has to give the same answer for the same input, every time | **task** | determinism is the requirement |
+
+The usual shape is **the model reads, the code decides and acts**: a support bot lets an agent extract `{order_id, amount}` from the customer's message, then a
+`RefundPolicy` task decides, then an `IssueRefund` task pays. A prompt-injected customer can fool the agent into saying "100000", but not the policy. A task needs no prompt, no
+temperature and no rubric: you test it like any function (see [Creating Tasks](../../ai-agent4j/wiki/Creating-Tasks.md)), so it costs nothing at stages 2 to 5.
+
 ## Worked example: Hexamind
 
 | Agent | Job | Prong | Temp | Tools |
@@ -56,4 +71,5 @@ The three workflow roles have **no tools**, which is why the security audit in c
 ## Gate
 
 Every agent has: a one-sentence job, a tool list, a temperature with a reason, and prompt ids in a registry.
+Every step that moves money, sends something or must be exact is a **task**, not an agent.
 If two agents' jobs overlap, merge or sharpen them now; it is free.

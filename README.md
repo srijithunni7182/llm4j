@@ -228,6 +228,7 @@ What the runtime does for you:
 - pauses on rate limits and resumes when they lift;
 - enforces budgets before each call;
 - runs on schedules without a hosted platform;
+- runs the parts too important to leave to a model as **tasks**: plain Java behind a `run` step, no tokens, journaled, never repeated by a crash if it changes things, and never callable by a model ([Tasks](loom/ai-agent4j-loom/LOOM_GUIDE.md#tasks-deterministic-steps-run));
 - ships six generic tools usable from the script with no Java: `webhook`, `email`, `http`, `file`, `shell` and read-only `sql`, with a journal so a crash never sends the same message twice ([Generic Tools](loom/ai-agent4j-loom/LOOM_GUIDE.md#generic-tools), [daily digest sample](loom/ai-agent4j-loom/samples/digest/));
 - lets an agent **earn its autonomy**: it proposes, a person decides, and a ledger of both moves it from `watch` to `suggest` to `act` (and back) on evidence, with a prompt change tested on your past cases before it goes live ([Earned Autonomy](loom/ai-agent4j-loom/LOOM_GUIDE.md#earned-autonomy));
 - asks you on Telegram when it needs a person, and carries on when you reply, so it can run on a machine nobody sits at ([Answering from Your Phone](loom/ai-agent4j-loom/LOOM_GUIDE.md#answering-from-your-phone));

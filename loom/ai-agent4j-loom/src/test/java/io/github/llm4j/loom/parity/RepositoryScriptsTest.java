@@ -44,6 +44,16 @@ class RepositoryScriptsTest {
             for (AgentDef a : parsed.getAgents()) a.getTools().forEach(t -> hostTools.register(t, new io.github.llm4j.agent.tools.EchoTool()));
             // Hosts resolve their own model names (GetViral's "studio", test mocks): a host factory is trusted.
             HarnessExecutor e = new HarnessExecutor(parsed, hostTools, m -> { throw new IllegalStateException(); });
+            // Like tools, tasks are the host's: a script's `run` steps name tasks the host supplies, so stand in for the ones not on the class path.
+            io.github.llm4j.agent.task.TaskRegistry hostTasks = io.github.llm4j.agent.task.TaskRegistry.discovered();
+            for (var w : parsed.getWorkflows()) {
+                io.github.llm4j.loom.ast.StatementWalker.walk(w.getStatements(), st -> {
+                    if (st instanceof io.github.llm4j.loom.ast.RunStmt r && !hostTasks.contains(r.getTaskName())) {
+                        hostTasks.register(io.github.llm4j.agent.task.Task.pure(r.getTaskName(), c -> io.github.llm4j.agent.task.TaskResult.ok()));
+                    }
+                });
+            }
+            e.setTaskRegistry(hostTasks);
             e.setBaseDir(script.getParent());
             // A value that is also a well-formed URL, since env vars feed URL options of the generic tools.
             e.setEnvLookup(name -> "https://example.invalid/set-" + name);

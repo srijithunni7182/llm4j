@@ -124,6 +124,24 @@ Every `delegate`, `broadcast`, `human_prompt` and approved tool call is recorded
 `for each fix in review.fixes { delegate "{fix.task}" to {fix.owner} -> {fix.output} }`: an agent's
 structured answer decides which agent handles each item. `parallel for each` runs them all at once.
 
+### 7b. Code where it must be code
+
+Some steps must not have a model behind them. A support bot that refunds orders should let a model *read* the
+customer's message, and let **code** decide whether the refund is allowed and call the payments API. In Loom
+that code is a **task**: a unit of plain Java, run with `run RefundPolicy(amount = request.amount) -> verdict`.
+
+- It costs no tokens and gives the same answer every time, so it is unit-testable like any function.
+- It is immune to prompt injection: customer text only ever arrives as an argument *value*; it cannot select or
+  change the code, and a model can never call a task as a tool.
+- It is durable: journaled and replayed like any other step. A task that changes things (a payment) is never
+  silently repeated after a crash. If the outcome is unknown, the run stops and tells an operator, unless the
+  task is idempotent, in which case it runs again with the same idempotency key.
+- It is checked before it runs: `weave check` rejects an unknown task, and a `retry` on a payment that could pay twice.
+
+LangGraph has the same idea (nodes that are ordinary functions); Loom adds the guarantees around it
+(a replayable journal, an effect protocol for the crash window, approvals, simulation, and a trace that shows
+which steps had no model).
+
 ### 8. The whole agent, declared in the script
 
 These are declared next to the agent that uses them:

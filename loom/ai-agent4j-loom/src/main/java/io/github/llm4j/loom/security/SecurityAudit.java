@@ -211,6 +211,14 @@ public final class SecurityAudit {
         }
     }
 
+    private static long countTaskSteps(LoomScript script) {
+        long[] n = {0};
+        for (WorkflowDef w : script.getWorkflows()) {
+            StatementWalker.walk(w.getStatements(), s -> { if (s instanceof io.github.llm4j.loom.ast.RunStmt) n[0]++; });
+        }
+        return n[0];
+    }
+
     private static void rewinds(LoomScript script, List<Finding> findings) {
         for (WorkflowDef w : script.getWorkflows()) {
             StatementWalker.walk(w.getStatements(), s -> {
@@ -232,6 +240,8 @@ public final class SecurityAudit {
         long guarded = profiles.stream().filter(p -> p.pii() != null && !p.pii().equals("warn")).count();
         long budgets = profiles.stream().filter(p -> p.budget().equals("own")).count();
         boolean typed = StatementWalker.any(script, s -> s instanceof io.github.llm4j.loom.ast.DelegateStmt d && d.getExpecting() != null);
+        long taskSteps = countTaskSteps(script);
+        if (taskSteps > 0) out.get(Owasp.LLM06).add(taskSteps + " deterministic task steps (run): plain code, no model decides them");
         out.get(Owasp.LLM01).add(split + " of " + profiles.size() + " agents without the trifecta");
         if (typed) out.get(Owasp.LLM01).add("typed hand-offs between agents (expecting)");
         out.get(Owasp.LLM02).add(guarded + " agents with a PII guard (mask or block)");

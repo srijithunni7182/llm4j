@@ -8,7 +8,7 @@ import java.util.List;
  * 
  * <p>The TraceComparator validates that an actual execution trace matches an expected canonical
  * trace structurally. It compares workflow names, step counts, and individual step fields
- * (kind, agentName, outputVariable) but explicitly excludes outputValue from comparison since
+ * (kind, taskName, agentName, outputVariable; and the arguments of a task step) but explicitly excludes outputValue from comparison since
  * LLM responses are non-deterministic.</p>
  * 
  * <p>Validates: Requirements 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8</p>
@@ -53,6 +53,14 @@ public class TraceComparator {
                 differences.add("[step " + i + "] kind: " + actualStep.kind() + " vs " + expectedStep.kind());
             }
             
+            // A task is deterministic code: which task ran, and with which arguments, must match exactly
+            if (!areEqual(actualStep.taskName(), expectedStep.taskName())) {
+                differences.add("[step " + i + "] taskName: " + actualStep.taskName() + " vs " + expectedStep.taskName());
+            }
+            if ("task".equals(expectedStep.kind()) && !areEqual(actualStep.payload(), expectedStep.payload())) {
+                differences.add("[step " + i + "] payload: " + actualStep.payload() + " vs " + expectedStep.payload());
+            }
+
             // Compare agentName (handling nulls)
             if (!areEqual(actualStep.agentName(), expectedStep.agentName())) {
                 differences.add("[step " + i + "] agentName: " + actualStep.agentName() + " vs " + expectedStep.agentName());

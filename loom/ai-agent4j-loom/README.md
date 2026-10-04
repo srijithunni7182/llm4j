@@ -79,6 +79,7 @@ SqlQuery    = com.mycompany.tools.DatabaseTool
 | `delegate` | Call one agent, await result, bind to variable |
 | `broadcast` | Fan out to multiple agents in parallel (Java streams), collect combined result |
 | `handoff` | Terminal node — pass control to an agent and end the current branch |
+| `run` | Run a deterministic **task** — plain Java, no model, no tokens — and bind its result: `run RefundPolicy(amount = request.amount) -> verdict`. For the steps too important to leave to an LLM (policy checks, payments, audit records). Journaled and replayed like a `delegate`; a task that changes things is never repeated by a crash or a retry; a model can never call one. See [Tasks](LOOM_GUIDE.md#tasks-deterministic-steps-run) |
 | `alt` / `else` | Symbolic conditional branching on typed context variable values |
 | `loop until` | Repeats a block until a symbolic condition is met; `max N … on_exhausted` bounds it |
 | `for each` | Runs a block per list item (`parallel for each` for all at once); targets may come from the item |

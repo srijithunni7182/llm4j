@@ -42,6 +42,17 @@ the **debunk path** (6 nodes), the **five-round path** (every agent delegated to
 **refinement** (8 calls), and that a **tiny budget stops the run** without producing a consensus.
 
 `LoomTrace` maps parallel rounds to one node per round and reports the path as node ids; print `t.actualPath()` once to learn the ids for your script, then pin them.
+**Tasks** (`run` steps, plain Java with no model) are nodes of kind `task` in the path and have their own assertions, which are free even on real runs because a task costs nothing:
+
+```java
+WorkflowAssertions.assertThat(t)
+        .runsTasksInOrder("RefundPolicy", "IssueRefund")   // in this relative order (a step replayed from a journal did not run)
+        .runsTaskTimes("Escalate", 0)                      // 0 proves a task never ran: the refund the policy refused was not paid
+        .taskEndedWith("RefundPolicy", "approved");        // its outcome (the result's `outcome`)
+```
+
+A workflow made only of tasks needs no scripted model at all; a mixed one needs a scripted model only for its agent steps, and the number of model calls equals the number of agent steps.
+
 Other assertions: `visitsInOrder`, `usesToolsInOrder`, `loopStopsWithin`, `rewindsAtMost`, `requestsApprovalBefore`, `guardHeld`, `outputMatchesSchema`, `staysWithinSpend`.
 
 ## Step 2: real models, one at a time

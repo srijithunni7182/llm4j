@@ -24,6 +24,7 @@ Maven: `io.github.srijithunni7182:ai-agent4j:5.0`. This file covers the core lib
 ## Tools
 
 - `Tool`: `getName`, `getDescription`, `execute(Map<String,Object>)`, and `requiresApproval(args)` to make a call wait for a person through `ApprovalCallback`. With no callback set, a call that needs approval is **blocked**.
+- `Task` (`io.github.llm4j.agent.task`): a deterministic step with no model. `run(TaskContext)` returns a `TaskResult`; `effect()` is `NONE | READS | CHANGES` (default `CHANGES`) and `policy()` is an `EffectPolicy`. A task is never offered to a model; Loom runs it with `run Name(arg = value) -> result`. Register with `TaskRegistry` or `META-INF/services`. See [Creating Tasks](wiki/Creating-Tasks.md).
 - Built-ins: calculator, date and time, web search. `McpClient` and `McpToolAdapter` bring in tools from MCP servers; the OpenAPI tool turns a REST spec into tools.
 - Effect contracts for tools that change the world:
   - `Effectful`: is this call a read or an effect?

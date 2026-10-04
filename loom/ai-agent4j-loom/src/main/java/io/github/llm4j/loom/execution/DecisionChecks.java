@@ -168,6 +168,7 @@ final class DecisionChecks {
                 continue;
             }
             if (s instanceof DelegateStmt d) known.add(d.getVariableName());
+            else if (s instanceof io.github.llm4j.loom.ast.RunStmt run) known.add(run.getVariableName());
             else if (s instanceof BroadcastStmt b) known.add(b.getVariableName());
             else if (s instanceof HumanPromptStmt h) known.add(h.getVariableName());
             else if (s instanceof CallStmt call && call.getResultVariable() != null) known.add(call.getResultVariable());

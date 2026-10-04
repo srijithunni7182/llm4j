@@ -124,11 +124,12 @@ The entire coordination logic — the retries, the branching, the human approval
 
 ## The Full Primitive Set
 
-Loom ships with twelve primitives that cover the full space of multi-agent coordination patterns:
+Loom ships with thirteen primitives that cover the full space of multi-agent coordination patterns:
 
 | Primitive | What it does |
 |---|---|
 | `delegate` | Call one agent, await result, bind to variable |
+| `run` | Run a deterministic task (plain Java, no model) and bind its result. For steps too important to leave to an LLM |
 | `broadcast` | Fan out to multiple agents in parallel, collect combined result |
 | `handoff` | Terminal node — pass control to an agent and end the current branch |
 | `parallel { }` | Concurrent execution block — every statement runs in its own thread |
@@ -188,7 +189,7 @@ The key insight in the trace comparison algorithm: we compare *structure*, not *
 Building the CTK taught me something I hadn't fully appreciated before: **a language specification without an executable test suite is just documentation**. The CTK is the executable specification of Loom's behavioral contract. Any runtime that passes the CTK is, by definition, a conformant Loom runtime.
 
 The CTK currently covers 15 canonical test cases:
-- All twelve statement primitives
+- All thirteen statement primitives
 - Retry with `on_failure` handling
 - Sub-workflow call with scope isolation
 - All mock fixtures verified to contain no PII or real API keys

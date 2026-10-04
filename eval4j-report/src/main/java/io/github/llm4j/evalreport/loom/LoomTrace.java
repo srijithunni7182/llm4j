@@ -193,18 +193,18 @@ public final class LoomTrace {
         List<String> open = new ArrayList<>();
         for (WorkflowTrace.Event e : events) {
             String node = null;
-            if (("delegate_start".equals(e.type()) || "delegate_replayed".equals(e.type()))
-                    && e.agent() != null) {
-                int from = last.getOrDefault(e.agent(), -1);
+            String actor = actorOf(e);
+            if (actor != null) {
+                int from = last.getOrDefault(actor, -1);
                 int idx = -1;
                 for (int i = from + 1; i < slots.size() && idx < 0; i++) {
-                    if (belongs(slots.get(i), e.agent())) {
+                    if (belongs(slots.get(i), actor)) {
                         idx = i;
                     }
                 }
                 boolean wrapped = false;
                 for (int i = 0; i <= from && idx < 0; i++) {
-                    if (belongs(slots.get(i), e.agent())) {
+                    if (belongs(slots.get(i), actor)) {
                         idx = i;
                         wrapped = true;
                     }
@@ -241,7 +241,7 @@ public final class LoomTrace {
                     if (wrapped) {
                         entered.remove(idx);
                     }
-                    last.put(e.agent(), idx);
+                    last.put(actor, idx);
                 }
             }
             out.add(
@@ -255,8 +255,26 @@ public final class LoomTrace {
         return out;
     }
 
-    private static boolean belongs(WorkflowGraph.Slot slot, String agent) {
-        return agent.equals(slot.node().agent()) || slot.agents().contains(agent);
+    /** Who a step belongs to: the agent of a delegation, or {@code task:Name} for a task; null for other events. */
+    private static String actorOf(WorkflowTrace.Event e) {
+        if (("delegate_start".equals(e.type()) || "delegate_replayed".equals(e.type())) && e.agent() != null) {
+            return e.agent();
+        }
+        if (("task_start".equals(e.type()) || "task_replayed".equals(e.type()))
+                && e.data() != null
+                && e.data().get("task") != null) {
+            return TASK_PREFIX + e.data().get("task");
+        }
+        return null;
+    }
+
+    private static final String TASK_PREFIX = "task:";
+
+    private static boolean belongs(WorkflowGraph.Slot slot, String actor) {
+        if (actor.startsWith(TASK_PREFIX)) {
+            return actor.substring(TASK_PREFIX.length()).equals(slot.task());
+        }
+        return actor.equals(slot.node().agent()) || slot.agents().contains(actor);
     }
 
     private static String cut(String s) {

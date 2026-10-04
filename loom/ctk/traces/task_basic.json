@@ -1,0 +1,18 @@
+{
+  "scriptName": "task_basic.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "task",
+      "taskName": "RefundPolicy",
+      "payload": "{\"amount\":40}",
+      "outputVariable": "verdict"
+    },
+    {
+      "kind": "task",
+      "taskName": "IssueRefund",
+      "payload": "{\"amount\":40}",
+      "outputVariable": "receipt"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+// Canonical CTK test: task_rejected
+// Tests the other branch of a task's result, and a {placeholder} in a string argument filled from that result.
+
+workflow main() {
+    run RefundPolicy(amount = 90) -> verdict
+    alt (verdict.outcome == "approved") {
+        run IssueRefund(amount = 90) -> receipt
+    } else {
+        run Escalate(reason = verdict.reason, note = "refused: {verdict.reason}") -> ticket
+    }
+}

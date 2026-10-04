@@ -30,7 +30,7 @@
             <artifactId>ai-agent4j</artifactId>
             <version>5.0</version>
             <scope>system</scope>
-            <systemPath>${project.basedir}/../ai-agent4j/target/ai-agent4j-5.0.jar</systemPath>
+            <systemPath>${project.basedir}/../../ai-agent4j/target/ai-agent4j-5.0.jar</systemPath>
         </dependency>
 
         <!-- JSON Processing -->

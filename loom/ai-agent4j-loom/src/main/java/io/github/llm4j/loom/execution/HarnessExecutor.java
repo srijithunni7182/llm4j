@@ -149,6 +149,20 @@ public class HarnessExecutor implements LoomEngine {
         this.rewindsUsed = io.github.llm4j.loom.ast.StatementWalker.any(script, st -> st instanceof CheckpointStmt || st instanceof RewindStmt);
     }
 
+    private io.github.llm4j.agent.task.TaskRegistry taskRegistry;
+    private final TaskRunner taskRunner = new TaskRunner(this);
+
+    /**
+     * The tasks {@code run} statements can use. Default: every task the class path declares as a service
+     * ({@link io.github.llm4j.agent.task.TaskRegistry#discovered()}). Tasks are operator-supplied; a script can name one, never load one.
+     */
+    public void setTaskRegistry(io.github.llm4j.agent.task.TaskRegistry registry) { this.taskRegistry = registry; }
+
+    public synchronized io.github.llm4j.agent.task.TaskRegistry getTaskRegistry() {
+        if (taskRegistry == null) taskRegistry = io.github.llm4j.agent.task.TaskRegistry.discovered();
+        return taskRegistry;
+    }
+
     public void setHumanInterface(HumanInterface humanInterface) { this.humanInterface = humanInterface; }
     public void setPromptRegistry(PromptRegistry promptRegistry) { this.promptRegistry = promptRegistry; }
     public void setAuditLogger(AuditLogger auditLogger) {
@@ -501,6 +515,7 @@ public class HarnessExecutor implements LoomEngine {
         tools.addAll(io.github.llm4j.loom.tools.ToolFactory.BUILT_INS.keySet());
         return new ScriptValidator.Context()
                 .registeredTools(tools)
+                .tasks(getTaskRegistry())
                 .env(envLookup)
                 .lenient(lenient)
                 .humanInterface(humanInterface != null)
@@ -908,7 +923,7 @@ public class HarnessExecutor implements LoomEngine {
 
     private ApprovalGate approvalGate;
 
-    private synchronized ApprovalGate approvals() {
+    synchronized ApprovalGate approvals() {
         if (approvalGate == null) approvalGate = new ApprovalGate(this);
         return approvalGate;
     }
@@ -1277,6 +1292,8 @@ public class HarnessExecutor implements LoomEngine {
             decider.decide(decide);
         } else if (stmt instanceof NoteStmt note) {
             log.info("NOTE: " + resolvePayload(note.getMessage()));
+        } else if (stmt instanceof io.github.llm4j.loom.ast.RunStmt run) {
+            taskRunner.run(run);
         } else if (stmt instanceof DelegateStmt del) {
             executeDelegate(del);
         } else if (stmt instanceof CallStmt call) {
@@ -1862,6 +1879,50 @@ public class HarnessExecutor implements LoomEngine {
         handleExhausted(del, agentName, message, lastError);
     }
 
+    /** Runs an {@code on_failure} block with {@code _error} in scope. */
+    void runFailureHandler(List<Statement> onFailure, String message) {
+        Map<String, Object> outer = locals.get();
+        Map<String, Object> names = new HashMap<>(outer);
+        names.put("_error", message);
+        locals.set(names);
+        try {
+            runBlock(onFailure, "f");
+        } finally {
+            locals.set(outer);
+        }
+    }
+
+    String resolveVariableName(String name) { return resolveName(name); }
+
+    /** Runs {@code work} on another thread, with this thread's step id and names, and gives up after {@code timeoutMillis}. */
+    <T> T callWithTimeout(java.util.concurrent.Callable<T> work, long timeoutMillis, String what) throws Exception {
+        String stepId = step.get();
+        Map<String, Object> names = locals.get();
+        List<io.github.llm4j.budget.Budget> budgets = scopes.get();
+        // submit() (not a CompletableFuture): cancel(true) on its Future interrupts the thread that is running the work
+        java.util.concurrent.Future<T> future = BRANCHES.submit(() -> {
+            step.set(stepId);
+            locals.set(names);
+            scopes.set(budgets);
+            try {
+                return work.call();
+            } finally {
+                step.remove();
+                locals.remove();
+                scopes.remove();
+            }
+        });
+        try {
+            return future.get(timeoutMillis, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.TimeoutException e) {
+            future.cancel(true);
+            throw new java.util.concurrent.TimeoutException(what + " timed out after " + timeoutMillis + " ms");
+        } catch (java.util.concurrent.ExecutionException e) {
+            if (e.getCause() instanceof Exception ex) throw ex;
+            throw e;
+        }
+    }
+
     /** A step that failed before its agent ran: recorded (when on_failure lets the run go on), then handled. */
     private void failStep(DelegateStmt del, String stepId, String agentName, String message, Exception cause) {
         log.warning("Step " + stepId + " failed: " + message);
@@ -1890,15 +1951,7 @@ public class HarnessExecutor implements LoomEngine {
     /** Runs the on_failure block with {@code _error} in scope, or fails the workflow. */
     private void handleExhausted(DelegateStmt del, String agentName, String message, Exception cause) {
         if (!del.getOnFailure().isEmpty()) {
-            Map<String, Object> outer = locals.get();
-            Map<String, Object> names = new HashMap<>(outer);
-            names.put("_error", message);
-            locals.set(names);
-            try {
-                runBlock(del.getOnFailure(), "f");
-            } finally {
-                locals.set(outer);
-            }
+            runFailureHandler(del.getOnFailure(), message);
         } else {
             throw new RuntimeException("Delegate to " + agentName + " failed after " + del.getRetryCount()
                     + " retries: " + message, cause);
@@ -1993,6 +2046,7 @@ public class HarnessExecutor implements LoomEngine {
     private static boolean hasStatementBudget(List<Statement> statements) {
         for (Statement st : statements) {
             if (st instanceof DelegateStmt d && (d.getBudget() != null || hasStatementBudget(d.getOnFailure()))) return true;
+            if (st instanceof io.github.llm4j.loom.ast.RunStmt r && hasStatementBudget(r.getOnFailure())) return true;
             if (st instanceof BroadcastStmt b && b.getBudget() != null) return true;
             if (st instanceof LoopStmt l && (l.getBudget() != null || hasStatementBudget(l.getBody())
                     || hasStatementBudget(l.getOnExhausted()))) return true;

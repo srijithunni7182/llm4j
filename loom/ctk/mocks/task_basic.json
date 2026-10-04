@@ -1,0 +1,12 @@
+{
+  "RefundPolicy": {
+    "{\"amount\":40}": "{\"outcome\":\"approved\"}",
+    "{\"amount\":90}": "{\"outcome\":\"rejected\",\"reason\":\"over the limit\"}"
+  },
+  "IssueRefund": {
+    "{\"amount\":40}": "{\"outcome\":\"ok\",\"value\":\"rcpt-1\"}"
+  },
+  "Escalate": {
+    "{\"note\":\"refused: over the limit\",\"reason\":\"over the limit\"}": "{\"outcome\":\"ok\"}"
+  }
+}

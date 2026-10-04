@@ -184,7 +184,7 @@ public final class RunTravel {
             if (key.endsWith("#checkpoint") && entry.value() instanceof Map<?, ?> m) checkpoints.add(m.get("name") + " (" + key.substring(0, key.length() - 11) + ")");
             if (key.contains("#")) continue;
             String kind = entry.kind();
-            if (!List.of("delegate", "handoff", "broadcast", "human", "failed", "retry").contains(kind)) continue;
+            if (!List.of("delegate", "handoff", "broadcast", "human", "failed", "retry", "task").contains(kind)) continue;
             boolean current = generations.isCurrent(key);
             String state = !current ? "discarded" : "failed".equals(kind) ? "failed" : "retry".equals(kind) ? "retry" : "done";
             long t = tokens.getOrDefault(key, new long[] {0})[0];

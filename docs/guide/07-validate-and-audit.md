@@ -9,7 +9,8 @@ weave check hexamind.loom          # exit 0: no errors, 2: errors
 ```
 
 It runs every load-time check **without calling a model**: undefined persona, tool or model; a missing provider key; `approve:` naming a tool the agent
-does not have; a literal credential; duplicate declarations; bad rewind or checkpoint rules. Errors print with their source line.
+does not have; a literal credential; duplicate declarations; bad rewind or checkpoint rules. For `run` steps: a task name that is not registered (the message lists the ones that are),
+and `retry` on a task that changes things and is not idempotent (it could repeat a payment). Errors print with their source line. Your task jars must be on the class path (or `executor.setTaskRegistry(...)` called) for these checks to know your tasks.
 Hexamind: `✓ hexamind.loom: ready to run`. (It does not flag unused variables or a missing budget; the audit does the latter.)
 
 ## Audit: `weave audit`
@@ -39,6 +40,8 @@ LLM Top 10 coverage table. The rules:
 | LA11 | a rewind that repeats side effects |
 | LA12 | a `file` tool that may overwrite |
 | LA13 / LA14 | indexed documents (info) / opaque Java or host tools |
+
+`weave audit` counts the deterministic task steps in the controls it reports (excessive agency): steps no model decides. It cannot see what a task's Java does; review those like any code.
 
 **Hexamind's real result:** 0 findings. Its six researchers read untrusted content (search) but reach no private data and can send or act on nothing,
 so none has the trifecta; the moderator, coordinator and debunker have no tools at all; there is a run budget; secrets come from the environment.

@@ -13,6 +13,8 @@ Lessons from building and evaluating Hexamind, in the order they would have save
 - **Set caps at three levels** and set stage ceilings from *measured* costs, with margin.
 - **Assert on behaviour, not just text:** tools used, arguments, number of delegations, the path taken, the trace free of secrets.
 - **Keep roles without tools wherever you can.** They cannot be hijacked into acting.
+- **Put money, policy and side effects in tasks, not agents.** Plain Java behind a `run` step is exact, free and unit-testable, and a model can never call it. Let agents read and propose; let code decide and act.
+- **Make a task that changes things idempotent**, and hand its `idempotencyKey()` to the provider, so a crash between the payment and the journal never pays twice.
 - **Pin the expected path** of the workflow and the exact number of calls; a refactor that changes either should be a conscious decision.
 - **Treat failures as findings.** A failing check is information; read the case, fix the prompt or tool, re-run from cache.
 
@@ -21,6 +23,7 @@ Lessons from building and evaluating Hexamind, in the order they would have save
 - Don't read results from fake models: they check the wiring only.
 - Don't name workflow variables like ordinary words (Loom replaces them inside strings).
 - Don't rely on a budget to produce a partial result: it stops the run.
+- Don't give an agent a tool that moves money and hope its prompt keeps it safe; and don't `retry` a task that changes things unless it is idempotent (`weave check` refuses).
 - Don't optimize prompts before they have tests, or apply a patch that did not `generalize()`.
 - Don't put keys in files, scripts or chat. If you do, rotate them.
 - Don't let one stage's tight ceiling cancel the rest: order stages so cheap, informative ones run first, and make a tripped ceiling an explicit stop, not a silent cascade of errors.
@@ -28,6 +31,7 @@ Lessons from building and evaluating Hexamind, in the order they would have save
 ## Readiness checklist
 
 - [ ] Each agent: one job, listed tools, tested prompt, temperature with a reason
+- [ ] Every step that moves money or must be exact is a task, unit-tested, with an `EffectPolicy` (idempotent or not) and an approval where a person should decide
 - [ ] Golden dataset passes its own test; every dimension covered; injection and fabricated cases present
 - [ ] Prompt tests pass; candidates do not regress; optimizer patches only if `generalized()`
 - [ ] Agent tests meet their goals; judge noise measured; costs measured and modelled

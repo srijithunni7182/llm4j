@@ -35,6 +35,8 @@ public class WorkflowTraceAssert extends AbstractObjectAssert<WorkflowTraceAsser
                     "No unexpected tool calls",
                     "trajectory",
                     "orchestration");
+    private static final MetricRef M_TASKS =
+            m("required-tasks-run", "Required tasks run", "trajectory", "orchestration");
     private static final MetricRef M_PATH =
             m("follows-expected-path", "Follows expected path", "trajectory", "orchestration");
     private static final MetricRef M_SPEND =
@@ -135,6 +137,56 @@ public class WorkflowTraceAssert extends AbstractObjectAssert<WorkflowTraceAsser
                         failWithMessage(
                                 "Expected %s to be delegated to %s time(s) but it was %s time(s); counts: %s",
                                 agent, times, n, actual.delegationCounts());
+                    }
+                });
+        return this;
+    }
+
+    /**
+     * Passes if these tasks (deterministic steps, no model) ran, in this relative order. A step
+     * replayed from a journal did not run and does not count.
+     */
+    public WorkflowTraceAssert runsTasksInOrder(String... tasks) {
+        EvalChecks.check(
+                M_TASKS,
+                () -> {
+                    isNotNull();
+                    if (!subsequence(List.of(tasks), actual.taskSequence())) {
+                        failWithMessage(
+                                "Expected tasks %s in that relative order but the workflow ran: %s",
+                                List.of(tasks), actual.taskSequence());
+                    }
+                });
+        return this;
+    }
+
+    /** Passes if {@code task} ran exactly {@code times} times; 0 proves it never ran (a refund that policy refused). */
+    public WorkflowTraceAssert runsTaskTimes(String task, int times) {
+        EvalChecks.check(
+                M_TASKS,
+                () -> {
+                    isNotNull();
+                    long n = actual.taskRuns(task);
+                    if (n != times) {
+                        failWithMessage(
+                                "Expected task %s to run %s time(s) but it ran %s time(s); counts: %s",
+                                task, times, n, actual.taskCounts());
+                    }
+                });
+        return this;
+    }
+
+    /** Passes if the last time {@code task} ended, its outcome was {@code outcome} (for example {@code approved}). */
+    public WorkflowTraceAssert taskEndedWith(String task, String outcome) {
+        EvalChecks.check(
+                M_TASKS,
+                () -> {
+                    isNotNull();
+                    List<String> outcomes = actual.taskOutcomes(task);
+                    if (outcomes.isEmpty() || !outcome.equals(outcomes.get(outcomes.size() - 1))) {
+                        failWithMessage(
+                                "Expected task %s to end with outcome \"%s\" but its outcomes were: %s",
+                                task, outcome, outcomes);
                     }
                 });
         return this;

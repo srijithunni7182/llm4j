@@ -15,6 +15,7 @@ import java.util.List;
  */
 public record TraceStep(
     @JsonProperty("kind") String kind,
+    @JsonProperty("taskName") @JsonInclude(JsonInclude.Include.NON_NULL) String taskName,
     @JsonProperty("agentName") @JsonInclude(JsonInclude.Include.NON_NULL) String agentName,
     @JsonProperty("payload") @JsonInclude(JsonInclude.Include.NON_NULL) String payload,
     @JsonProperty("outputVariable") @JsonInclude(JsonInclude.Include.NON_NULL) String outputVariable,
@@ -25,9 +26,12 @@ public record TraceStep(
     /**
      * Creates a TraceStep with all fields.
      * 
-     * @param kind one of: delegate, handoff, broadcast, note, call, parallel, observe
+     * @param kind one of: delegate, handoff, broadcast, note, call, parallel, observe, task
+     * @param taskName for a {@code task} step, the name of the task that ran ({@code run Name(...)}); null otherwise
      * @param agentName the name of the agent executing this step (nullable)
-     * @param payload the input payload for this step (nullable)
+     * @param payload the input payload for this step (nullable). For a {@code task} step: the arguments as sorted-key,
+     *                compact JSON, such as {@code {"amount":40,"order":"A-1"}}; unlike a model's payload it is deterministic
+     *                and is compared
      * @param outputVariable the variable name where output is stored (nullable)
      * @param outputValue the actual output value (nullable, not compared in CTK)
      * @param subSteps nested steps for parallel/call statements (nullable)
@@ -35,5 +39,11 @@ public record TraceStep(
      */
     public TraceStep {
         // Compact constructor - validation can be added here if needed
+    }
+
+    /** A step that is not a task step (no task name). */
+    public TraceStep(String kind, String agentName, String payload, String outputVariable, String outputValue,
+                     List<TraceStep> subSteps, String timestamp) {
+        this(kind, null, agentName, payload, outputVariable, outputValue, subSteps, timestamp);
     }
 }

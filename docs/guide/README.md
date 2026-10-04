@@ -16,7 +16,7 @@ for real under a cap.
 | 3 | [Test the prompts](03-prompt-tests.md) | rubric checks, A/B against a candidate | `llmJudged`, `PromptComparison` | cents | each prompt meets its rule |
 | 4 | [Optimize the prompts](04-prompt-optimization.md) | only where tests fail | `PromptOptimizer` | capped | held-out test agrees (`generalized()`) |
 | 5 | [Test each agent, with spend caps](05-test-agents-with-caps.md) | free on mocks, then real under a cap | `ScriptedClient`, `FakeJudge`, `SpendGuard`, `AgentReplay` | dollars, capped | agents meet their goals; judge noise known |
-| 6 | [Build the workflow](06-build-the-workflow.md) | compose tested agents in Loom | Loom | $0 | the script loads |
+| 6 | [Build the workflow](06-build-the-workflow.md) | compose tested agents in Loom, and exact steps as tasks | Loom, `Task` | $0 | the script loads |
 | 7 | [Validate and audit](07-validate-and-audit.md) | static checks, security audit, injection tests | `weave check`, `weave audit` | $0 | no unexplained findings |
 | 8 | [Test the trajectory](08-trajectory-tests.md) | path, branches, rounds, budget stop | scripted model, `LoomTrace`, `WorkflowAssertions` | $0, then capped | expected paths hold |
 | 9 | [Go live: real APIs, budgets, cost checks](09-go-live.md) | staged rollout under caps | `weave run --max-cost`, `SpendGuard` | capped | spend within the model; limits set |
