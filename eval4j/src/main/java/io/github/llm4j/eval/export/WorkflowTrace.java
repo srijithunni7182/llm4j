@@ -25,8 +25,8 @@ public record WorkflowTrace(
         Integer rewindCap) {
 
     /**
-     * A workflow statement. {@code kind}: start, end, delegate, alt, loop, handoff, human_prompt,
-     * parallel, checkpoint.
+     * A workflow statement. {@code kind}: start, end, delegate, task, alt, loop, handoff,
+     * human_prompt, parallel, checkpoint.
      */
     public record Node(String id, String kind, String label, String agent, Integer bound) {}
 
@@ -96,6 +96,57 @@ public record WorkflowTrace(
             }
         }
         return out;
+    }
+
+    /**
+     * Tasks (deterministic steps: plain code, no model) in the order they first ran. A task that
+     * was only replayed from a journal did not run in this trace and is not counted.
+     */
+    public List<String> tasksInOrder() {
+        return List.copyOf(taskCounts().keySet());
+    }
+
+    /** How many times {@code task} ran (every run counts; replays from a journal do not). */
+    public long taskRuns(String task) {
+        return events.stream().filter(e -> isTaskStart(e) && task.equals(e.data().get("task"))).count();
+    }
+
+    /** The task names in the order each ran, repeats included. */
+    public List<String> taskSequence() {
+        List<String> out = new java.util.ArrayList<>();
+        for (Event e : events) {
+            if (isTaskStart(e)) {
+                out.add(String.valueOf(e.data().get("task")));
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /** Runs per task, in the order each task first ran. */
+    public java.util.Map<String, Long> taskCounts() {
+        java.util.Map<String, Long> out = new java.util.LinkedHashMap<>();
+        for (String t : taskSequence()) {
+            out.merge(t, 1L, Long::sum);
+        }
+        return out;
+    }
+
+    /** The outcomes {@code task} ended with, in order ({@code task_end} events). */
+    public List<String> taskOutcomes(String task) {
+        List<String> out = new java.util.ArrayList<>();
+        for (Event e : events) {
+            if ("task_end".equals(e.type())
+                    && e.data() != null
+                    && task.equals(e.data().get("task"))
+                    && e.data().get("outcome") != null) {
+                out.add(String.valueOf(e.data().get("outcome")));
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    private static boolean isTaskStart(Event e) {
+        return "task_start".equals(e.type()) && e.data() != null && e.data().get("task") != null;
     }
 
     public double totalCostUsd() {

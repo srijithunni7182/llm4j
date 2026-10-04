@@ -69,6 +69,11 @@ public final class ScriptDrift {
             var agent = script.getAgents().stream().filter(x -> x.getName().equals(d.getTargetAgent())).findFirst();
             return d.getTargetAgent() + ":" + d.getPayload() + ":" + (agent.isPresent() ? agent.get().getTools() + "/" + agent.get().getModel() : "?");
         }
+        if (s instanceof io.github.llm4j.loom.ast.RunStmt r) {
+            StringBuilder b = new StringBuilder("task " + r.getTaskName() + "(");
+            r.getArgs().forEach(a -> b.append(a.name()).append('=').append(a.kind()).append(':').append(a.text()).append(','));
+            return b.append(')').toString();
+        }
         if (s instanceof io.github.llm4j.loom.ast.HumanPromptStmt h) return h.getMessage();
         if (s instanceof io.github.llm4j.loom.ast.NoteStmt n) return n.getMessage();
         return "";

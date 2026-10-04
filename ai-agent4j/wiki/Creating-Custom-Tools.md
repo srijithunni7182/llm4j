@@ -2,6 +2,9 @@
 
 Learn how to create custom tools for the ReAct agent framework.
 
+> **Tool or task?** A tool is something a *model chooses* to call. For a step that must run exactly as written, with no model deciding
+> whether or how (a policy check, a payment), write a [task](Creating-Tasks.md) instead and let your workflow run it.
+
 ## Tool Interface
 
 All tools implement the `Tool` interface:

@@ -34,6 +34,7 @@ public class ScriptValidator {
     /** What the script is checked against. */
     public static final class Context {
         Set<String> registeredTools = Set.of();
+        io.github.llm4j.agent.task.TaskRegistry tasks = new io.github.llm4j.agent.task.TaskRegistry();
         Function<String, String> env = System::getenv;
         boolean lenient;
         boolean humanInterface;
@@ -44,6 +45,16 @@ public class ScriptValidator {
         public Context registeredTools(Set<String> names) {
             this.registeredTools = Set.copyOf(names);
             return this;
+        }
+
+        /** The tasks {@code run} statements may name. */
+        public Context tasks(io.github.llm4j.agent.task.TaskRegistry tasks) {
+            this.tasks = tasks;
+            return this;
+        }
+
+        public io.github.llm4j.agent.task.TaskRegistry tasks() {
+            return tasks;
         }
 
         public Context env(Function<String, String> env) {
@@ -231,6 +242,7 @@ public class ScriptValidator {
 
     private void checkStatements(Checker c) {
         for (WorkflowDef w : c.script().getWorkflows()) walk(w.getStatements(), c);
+        TaskChecks.run(c);
         RewindChecks.run(c);
         DecisionChecks.run(c);
     }
@@ -246,6 +258,8 @@ public class ScriptValidator {
                 walk(g.getOnViolation(), c);
             } else if (st instanceof DelegateStmt d) {
                 walk(d.getOnFailure(), c);
+            } else if (st instanceof RunStmt r) {
+                walk(r.getOnFailure(), c);
             } else if (st instanceof LoopStmt l) {
                 walk(l.getBody(), c);
                 walk(l.getOnExhausted(), c);

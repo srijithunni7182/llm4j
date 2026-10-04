@@ -8,6 +8,7 @@ import io.github.llm4j.loom.ast.HandoffStmt;
 import io.github.llm4j.loom.ast.HumanPromptStmt;
 import io.github.llm4j.loom.ast.LoopStmt;
 import io.github.llm4j.loom.ast.ParallelStmt;
+import io.github.llm4j.loom.ast.RunStmt;
 import io.github.llm4j.loom.ast.Statement;
 import io.github.llm4j.loom.ast.WorkflowDef;
 import java.util.ArrayList;
@@ -29,7 +30,8 @@ public final class WorkflowGraph {
             WorkflowTrace.Node node,
             List<String> ancestors,
             java.util.Map<String, String> branches,
-            java.util.Set<String> agents) {}
+            java.util.Set<String> agents,
+            String task) {}
 
     final List<WorkflowTrace.Node> nodes = new ArrayList<>();
     final List<WorkflowTrace.Edge> edges = new ArrayList<>();
@@ -69,7 +71,7 @@ public final class WorkflowGraph {
             String id = "n" + (++counter);
             WorkflowTrace.Node node = nodeFor(id, st);
             nodes.add(node);
-            slots.add(new Slot(node, ancestors, branches, agentsOf(st)));
+            slots.add(new Slot(node, ancestors, branches, agentsOf(st), st instanceof RunStmt r ? r.getTaskName() : null));
             for (String from : current) {
                 edges.add(new WorkflowTrace.Edge(from, id, label));
             }
@@ -125,6 +127,10 @@ public final class WorkflowGraph {
         if (st instanceof DelegateStmt d) {
             return new WorkflowTrace.Node(
                     id, "delegate", "delegate " + d.getTargetAgent(), d.getTargetAgent(), null);
+        }
+        if (st instanceof RunStmt r) {
+            // a deterministic step: plain code, no agent
+            return new WorkflowTrace.Node(id, "task", "run " + r.getTaskName(), null, null);
         }
         if (st instanceof HandoffStmt h) {
             return new WorkflowTrace.Node(

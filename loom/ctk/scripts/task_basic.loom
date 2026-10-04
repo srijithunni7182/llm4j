@@ -1,0 +1,12 @@
+// Canonical CTK test: task_basic
+// Tests a deterministic task step (run): no agent, no model. The result map is branched on.
+// The tasks are code supplied by the runtime; mocks/task_basic.json defines what each returns for given arguments.
+
+workflow main() {
+    run RefundPolicy(amount = 40) -> verdict
+    alt (verdict.outcome == "approved") {
+        run IssueRefund(amount = 40) -> receipt
+    } else {
+        run Escalate(reason = verdict.reason) -> ticket
+    }
+}

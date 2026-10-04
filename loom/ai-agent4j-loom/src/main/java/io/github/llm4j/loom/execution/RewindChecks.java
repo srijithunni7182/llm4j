@@ -115,11 +115,13 @@ final class RewindChecks {
             if (contains(s, r)) break;
         }
         Set<String> agents = new LinkedHashSet<>();
+        Set<String> tasks = new LinkedHashSet<>();
         StatementWalker.walk(region, s -> {
             if (s instanceof DelegateStmt d) agents.add(d.getTargetAgent());
             else if (s instanceof HandoffStmt h) agents.add(h.getTargetAgent());
             else if (s instanceof BroadcastStmt b) agents.addAll(b.getTargetAgents());
             else if (s instanceof CallStmt) agents.add("*");
+            else if (s instanceof io.github.llm4j.loom.ast.RunStmt run) tasks.add(run.getTaskName());
         });
         List<String> risky = new ArrayList<>();
         boolean unapproved = false;
@@ -134,6 +136,18 @@ final class RewindChecks {
                 risky.add(tool);
                 if (!a.isApproveAll() && !a.getApprove().contains(tool) && !unattended(tool)) unapproved = true;
             }
+        }
+        List<String> unsafeTasks = new ArrayList<>();
+        for (String name : tasks) {
+            io.github.llm4j.agent.task.Task t = checker.context().tasks().get(name);
+            if (t == null || t.effect() != io.github.llm4j.agent.task.TaskEffect.CHANGES) continue;
+            risky.add("task " + name);
+            if (!(t.policy().idempotent() || t.policy().onUnknown() == io.github.llm4j.agent.tool.EffectPolicy.OnUnknown.RETRY)) unsafeTasks.add(name);
+        }
+        if (r.getEffects() == RewindStmt.Effects.REPEAT && !unsafeTasks.isEmpty()) {
+            checker.error(r.getLine(), construct, "side effects: repeat would run " + String.join(", ", unsafeTasks)
+                    + " again, but " + (unsafeTasks.size() == 1 ? "it changes" : "they change") + " things and "
+                    + (unsafeTasks.size() == 1 ? "is" : "are") + " not idempotent; make the task idempotent (EffectPolicy) or use side effects: ask first | keep");
         }
         if (risky.isEmpty()) return;
         if (!r.isEffectsStated()) {

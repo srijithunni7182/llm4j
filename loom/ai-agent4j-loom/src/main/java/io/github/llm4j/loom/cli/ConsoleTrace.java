@@ -30,7 +30,10 @@ final class ConsoleTrace implements TraceListener {
             Map.entry(TraceEvent.SUSPENDED, "⏸"),
             Map.entry(TraceEvent.TOOL, "🧰"),
             Map.entry(TraceEvent.CHECKPOINT, "📍"),
-            Map.entry(TraceEvent.REWIND, "⏪"));
+            Map.entry(TraceEvent.REWIND, "⏪"),
+            Map.entry(TraceEvent.TASK_START, "⚙"),
+            Map.entry(TraceEvent.TASK_END, "✔"),
+            Map.entry(TraceEvent.TASK_REPLAYED, "↺"));
 
     private final PrintStream out;
     private final boolean json;

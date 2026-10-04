@@ -9,12 +9,12 @@ You are walking a user through a proven path. The chapters are in `docs/guide/` 
 
 | # | Stage | Chapter | Gate before moving on |
 |---|---|---|---|
-| 1 | Decide the agents | `docs/guide/01-decide-your-agents.md` | each agent has a one-sentence job, a tool list, a temperature with a reason, prompt ids in a registry |
+| 1 | Decide the agents | `docs/guide/01-decide-your-agents.md` | each agent has a one-sentence job, a tool list, a temperature with a reason, prompt ids in a registry; every step that moves money or must be exact is a task (plain Java), not an agent |
 | 2 | Golden dataset | `docs/guide/02-golden-dataset.md` | the dataset test passes; every dimension covered; each agent has an injection and a fabricated-premise case |
 | 3 | Prompt tests | `docs/guide/03-prompt-tests.md` | each prompt meets its rule; candidates do not regress |
 | 4 | Prompt optimization | `docs/guide/04-prompt-optimization.md` | `result.generalized()` is true (skip the stage if prompts already pass) |
 | 5 | Agent tests with spend caps | `docs/guide/05-test-agents-with-caps.md` | goals met, judge noise measured, cost near the model |
-| 6 | Build the workflow | `docs/guide/06-build-the-workflow.md` | `weave check` passes |
+| 6 | Build the workflow | `docs/guide/06-build-the-workflow.md` | `weave check` passes (tasks registered, `run` steps checked) |
 | 7 | Validate and audit | `docs/guide/07-validate-and-audit.md` | `weave audit --fail-on medium` clean or every finding explained; injection cases pass |
 | 8 | Trajectory tests | `docs/guide/08-trajectory-tests.md` | path, branch, round-count and budget-stop tests pass for free |
 | 9 | Go live | `docs/guide/09-go-live.md` | smoke and first real run within about twice the cost model; limits set |
@@ -34,7 +34,7 @@ Start with `docs/guide/README.md` if the user is new to the path.
 
 ## Be honest about the edges
 
-llm4j does not (yet) provide: a cost estimator for Loom (keep a small cost model and compare it with the measured spend report); detection of prompt injection (defence is architectural, so write hostile cases and assert on tools used and the trace); ready-made PII-leak or red-team assertions in eval4j; or visibility into what Java or MCP tools do in `weave audit` (it reads the script only). Say so when it matters instead of improvising.
+llm4j does not (yet) provide: a cost estimator for Loom (keep a small cost model and compare it with the measured spend report); detection of prompt injection (defence is architectural, so write hostile cases and assert on tools used and the trace); ready-made PII-leak or red-team assertions in eval4j; or visibility into what Java or MCP tools, or your own tasks, do in `weave audit` (it reads the script only; review task code like any code that moves money). Say so when it matters instead of improvising.
 
 ## Useful commands
 

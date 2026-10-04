@@ -258,6 +258,8 @@ public class LoomParser {
             return parseRewind();
         } else if (isWord("decide") && peekAt(1).getType() == TokenType.IDENTIFIER) {
             return parseDecide();
+        } else if (isRunStart()) {
+            return parseRun();
         }
         
         throw error(peek(), "Expected statement, got " + peek().getType());
@@ -280,6 +282,84 @@ public class LoomParser {
     private void expectWord(String word, String message) {
         if (!isWord(word)) throw error(peek(), message);
         advance();
+    }
+
+    // -----------------------------------------------------------------------
+    // run: a deterministic task (plain Java, no model).
+    // -----------------------------------------------------------------------
+
+    /** A word that can name a task or an argument: it looks like an identifier, whichever keyword the lexer made of it. */
+    private static boolean isNameToken(Token t) {
+        return t.getType() != TokenType.STRING_LITERAL && t.getType() != TokenType.NUMBER_LITERAL
+                && t.getValue() != null && t.getValue().matches("[A-Za-z][A-Za-z0-9_-]*");
+    }
+
+    /** {@code run Name(}: `run` is a keyword only where a statement starts and a task name and '(' follow, so it stays a usable variable name. */
+    private boolean isRunStart() {
+        return isWord("run") && isNameToken(peekAt(1)) && peekAt(2).getType() == TokenType.LPAREN;
+    }
+
+    /**
+     * {@code run Task(name = value, ...) -> variable [retry N] [backoff 2s] [timeout 30s] [on_failure { ... }]}.
+     * A value is a variable path (passed with its type), a quoted string (placeholders filled in), a number or true/false.
+     */
+    private RunStmt parseRun() {
+        Token keyword = advance();
+        Token task = advance();
+        consume(TokenType.LPAREN, "Expect '(' after the task name, as in run " + task.getValue() + "(name = value).");
+        List<RunStmt.Arg> args = new java.util.ArrayList<>();
+        if (!check(TokenType.RPAREN)) {
+            do {
+                Token key = advance();
+                if (!isNameToken(key)) throw error(key, "Expect an argument name, as in run " + task.getValue() + "(name = value).");
+                consume(TokenType.ASSIGN, "Expect '=' after " + key.getValue() + ", as in " + key.getValue() + " = value.");
+                for (RunStmt.Arg earlier : args) {
+                    if (earlier.name().equals(key.getValue())) throw error(key, "Argument " + key.getValue() + " is given twice.");
+                }
+                Token value = advance();
+                if (value.getType() == TokenType.STRING_LITERAL) {
+                    args.add(new RunStmt.Arg(key.getValue(), RunStmt.Kind.STRING, value.getValue()));
+                } else if (value.getType() == TokenType.NUMBER_LITERAL) {
+                    args.add(new RunStmt.Arg(key.getValue(), RunStmt.Kind.NUMBER, value.getValue()));
+                } else if (isNameToken(value) && ("true".equals(value.getValue()) || "false".equals(value.getValue()))) {
+                    args.add(new RunStmt.Arg(key.getValue(), RunStmt.Kind.BOOLEAN, value.getValue()));
+                } else if (isNameToken(value) || (value.getValue() != null && value.getValue().matches("[A-Za-z][A-Za-z0-9_.-]*"))) {
+                    args.add(new RunStmt.Arg(key.getValue(), RunStmt.Kind.REFERENCE, value.getValue()));
+                } else {
+                    throw error(value, "Expect a value for " + key.getValue() + ": a variable (request.amount), a quoted string, a number or true/false.");
+                }
+            } while (match(TokenType.COMMA));
+        }
+        consume(TokenType.RPAREN, "Expect ')' after the arguments of " + task.getValue() + ".");
+        consume(TokenType.ARROW, "Expect '->' and a variable to hold the result, as in run " + task.getValue() + "(...) -> result.");
+        String variable = nameOrReference("Expect a variable name for the result (or {item.field}).");
+
+        RunStmt stmt = new RunStmt(task.getValue(), variable);
+        stmt.setLine(keyword.getLine());
+        stmt.getArgs().addAll(args);
+        // Optional, in any order: retry 3 · backoff 2s · timeout 30s
+        while (true) {
+            if (match(TokenType.RETRY)) {
+                Token count = consume(TokenType.NUMBER_LITERAL, "Expect number of retries.");
+                stmt.setRetryCount((int) Double.parseDouble(count.getValue()));
+            } else if (check(TokenType.IDENTIFIER) && ("backoff".equals(peek().getValue()) || "timeout".equals(peek().getValue()))) {
+                String option = advance().getValue();
+                long millis = durationMillis();
+                if (option.equals("backoff")) stmt.setBackoffMillis(millis); else stmt.setTimeoutMillis(millis);
+            } else if (isBudgetModifier()) {
+                throw error(peek(), "A task spends no tokens, so it has no budget: remove 'budget' from run " + task.getValue() + ".");
+            } else {
+                break;
+            }
+        }
+        if (match(TokenType.ON_FAILURE)) {
+            consume(TokenType.LBRACE, "Expect '{' before on_failure body.");
+            while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                stmt.getOnFailure().add(parseStatement());
+            }
+            consume(TokenType.RBRACE, "Expect '}' after on_failure body.");
+        }
+        return stmt;
     }
 
     /** {@code checkpoint Name [starting with name = "value", name = "value"]} */

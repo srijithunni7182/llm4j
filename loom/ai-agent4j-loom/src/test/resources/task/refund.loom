@@ -1,0 +1,24 @@
+// A support bot that refunds orders. The model reads the customer's message; code decides and acts.
+//
+//   Intake        agent  - understands the message (the only step with a model)
+//   RefundPolicy  task   - the rules: pure code, free, testable, immune to prompt injection
+//   IssueRefund   task   - calls the payments API; never repeated by a retry or a restart
+
+agent Intake {
+    model: "gemini/gemini-2.5-flash"
+    system: "You are Intake. Extract the order id and the refund amount from the customer's message."
+    output_schema: { order_id: string, amount: number }
+}
+
+workflow Refund(msg) {
+    delegate "Extract the order id and amount from: {msg}" to Intake -> request
+
+    run RefundPolicy(order = request.order_id, amount = request.amount) -> verdict
+
+    alt (verdict.outcome == "approved") {
+        run IssueRefund(order = request.order_id, amount = request.amount) -> receipt
+            on_failure { human_prompt "The refund for {request.order_id} could not be confirmed: {_error}. Check the payment provider, then answer done." -> checked }
+    } else {
+        human_prompt "Refund refused: {verdict.reason}. Override? (yes/no)" -> decision
+    }
+}

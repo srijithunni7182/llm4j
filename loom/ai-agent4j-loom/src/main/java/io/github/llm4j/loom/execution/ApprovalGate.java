@@ -37,6 +37,23 @@ final class ApprovalGate {
         return yes;
     }
 
+    /** Asks before a {@code run} step's task runs (a task with {@code requiresApproval}); journaled like a tool call's approval. */
+    boolean approveTask(String task, Map<String, Object> args) {
+        String key = key(executor.identityStep(), task, args);
+        RunJournal journal = executor.getJournal();
+        String masked = executor.maskPii(String.valueOf(args));
+        audit("approval_requested", null, task, masked);
+        String answer = journal.get(key).map(e -> String.valueOf(e.value())).orElse(null);
+        if (answer == null) {
+            String question = "Task " + task + " wants to run with " + args + ". Approve? yes/no";
+            answer = executor.humanInterface().promptHuman(key, question, new io.github.llm4j.loom.runtime.HumanInterface.Hints(io.github.llm4j.loom.runtime.HumanInterface.Hints.Kind.APPROVAL, java.util.List.of("yes", "no"), null)); // may pause the run
+            journal.put(key, new RunJournal.Entry("human", answer));
+        }
+        boolean yes = yes(answer);
+        audit(yes ? "approval_granted" : "approval_rejected", null, task, masked);
+        return yes;
+    }
+
     static boolean yes(String answer) {
         String a = answer == null ? "" : answer.trim().toLowerCase(Locale.ROOT);
         return a.equals("yes") || a.equals("y") || a.equals("ok") || a.equals("approve") || a.equals("true");

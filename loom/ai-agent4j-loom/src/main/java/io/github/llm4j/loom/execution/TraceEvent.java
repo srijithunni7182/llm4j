@@ -31,4 +31,7 @@ public record TraceEvent(String type, String agent, String step, String text, Ma
     public static final String CHECKPOINT = "checkpoint";
     public static final String REWIND = "rewind";
     public static final String DECISION = "decision";
+    public static final String TASK_START = "task_start";
+    public static final String TASK_END = "task_end";
+    public static final String TASK_REPLAYED = "task_replayed";
 }
