@@ -118,7 +118,7 @@ class ToolsTest {
                 tool Search { use: serpapi  api_key: "abc123" }
                 agent A { model: "m" tools: [Search] }
                 """, Map.of()).initialize())
-                .hasMessageContaining("line 1: tool Search: api_key must come from the environment, e.g. api_key: env.SERPAPI_KEY")
+                .hasMessageContaining("line 1: tool Search: api_key must come from the environment or the secret store, e.g. api_key: secret.SERPAPI_KEY (or env.SERPAPI_KEY)")
                 .hasMessageNotContaining("abc123");
     }
 

@@ -86,7 +86,7 @@ public final class AgentIdentity {
     }
 
     private static String optionValue(String key, ToolDef.OptionValue v) {
-        if (v.fromEnv()) return "env:" + v.value();
+        if (v.isReference()) return (v.fromSecret() ? "secret:" : "env:") + v.value();
         return SECRETISH.matcher(key).matches() ? "(secret)" : v.value();
     }
 

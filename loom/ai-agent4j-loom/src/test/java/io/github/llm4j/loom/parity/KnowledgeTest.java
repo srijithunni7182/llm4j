@@ -199,7 +199,7 @@ class KnowledgeTest {
         real.setEnvLookup(Map.<String, String>of()::get);
         assertThatThrownBy(real::initialize)
                 .hasMessageContaining("line 1: knowledge K1: unknown embedding model \"nope/x\"")
-                .hasMessageContaining("line 2: knowledge K2: embedding gemini/text-embedding-004 needs the GEMINI_API_KEY")
+                .hasMessageContaining("line 2: knowledge K2: embedding gemini/text-embedding-004 needs GEMINI_API_KEY (an environment variable or a secret)")
                 .hasMessageContaining("line 3: knowledge K3: needs embedding:")
                 .hasMessageContaining("line 4: knowledge K4: overlap must be smaller than chunk_size");
     }

@@ -29,6 +29,8 @@ class GeminiEmbeddingProviderTest {
 
         config = mock(LLMConfig.class);
         when(config.getApiKey()).thenReturn("test-api-key");
+        when(config.getApiKeyRef()).thenReturn(io.github.llm4j.secret.SecretRef.literal("test-api-key"));
+        when(config.requireApiKey(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any())).thenReturn("test-api-key");
         // Redirect base URL to MockWebServer
         when(config.getBaseUrl()).thenReturn(mockWebServer.url("/").toString());
         when(config.getConnectTimeout()).thenReturn(java.time.Duration.ofSeconds(5));

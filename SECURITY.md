@@ -53,7 +53,7 @@ third.
 3. **Effects are gated, journaled and never repeated.** Anything that changes the world can need a person's yes.
    Every effect is recorded, so a crash, a resume or a retry never sends the same thing twice.
 4. **Spend is bounded before the call.** Budgets are checked before each model call, not discovered on the invoice.
-5. **Secrets never become text.** Credentials come only from the environment. They never appear in a prompt, a
+5. **Secrets never become text.** Credentials come only from the environment or an encrypted secret store you choose and protect (the library has no default file location or master key); providers fetch them for each request and only send them to hosts the secret allows. They never appear in a prompt, a
    result, an error, a trace, the audit log or the journal.
 6. **Fail closed.** A missing approver blocks the call. An unreadable ledger means the lowest autonomy. A channel
    with no allowlist refuses to start. An unknown tool is held, not run.

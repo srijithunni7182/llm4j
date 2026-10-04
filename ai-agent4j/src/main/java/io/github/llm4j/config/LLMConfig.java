@@ -1,5 +1,9 @@
 package io.github.llm4j.config;
 
+import io.github.llm4j.exception.AuthenticationException;
+import io.github.llm4j.secret.SecretException;
+import io.github.llm4j.secret.SecretMetadata;
+import io.github.llm4j.secret.SecretRef;
 import java.time.Duration;
 import java.util.Objects;
 
@@ -9,7 +13,7 @@ import java.util.Objects;
  */
 public final class LLMConfig {
 
-    private final String apiKey;
+    private final SecretRef apiKey;
     private final String baseUrl;
     private final Duration timeout;
     private final Duration connectTimeout;
@@ -29,8 +33,50 @@ public final class LLMConfig {
         this.enableLogging = builder.enableLogging;
     }
 
+    /**
+     * The API key, fetched now (from the secret store when one was given), or null when none was set. No host check: providers use
+     * {@link #getApiKey(String)} or {@link #requireApiKey(String, String)} so a key bound to hosts is refused for any other.
+     */
     public String getApiKey() {
+        return apiKey == null ? null : apiKey.resolve();
+    }
+
+    /** The API key for a request to {@code host}: a secret restricted to other hosts is refused. Null when no key was set. */
+    public String getApiKey(String host) {
+        return apiKey == null ? null : apiKey.resolveFor(host);
+    }
+
+    /** The reference the key is held by, or null. It is never the value. */
+    public SecretRef getApiKeyRef() {
         return apiKey;
+    }
+
+    /** True when a key is set and, for a secret, it exists. Does not hand the value out. */
+    public boolean hasApiKey() {
+        if (apiKey == null) return false;
+        return apiKey.isLiteral() ? !apiKey.resolve().isBlank() : apiKey.exists();
+    }
+
+    /** What to say when {@link #hasApiKey()} is false: {@code defaultMessage}, naming the secret when one was given and is missing. */
+    public String missingApiKeyMessage(String defaultMessage) {
+        if (apiKey != null && !apiKey.isLiteral()) return defaultMessage + ": secret " + apiKey.name() + " is not in the store";
+        return defaultMessage;
+    }
+
+    /**
+     * The key to send to the host of {@code baseUrl}, fetched for this request. A missing key, a missing secret or a host the secret is not allowed
+     * for all surface as {@link AuthenticationException}, the type providers are documented to throw. Never put the result in a log or a message.
+     */
+    public String requireApiKey(String provider, String baseUrl) {
+        if (apiKey == null) throw new AuthenticationException(provider + " API key is required");
+        String value;
+        try {
+            value = apiKey.resolveFor(SecretMetadata.hostOf(baseUrl));
+        } catch (SecretException e) {
+            throw new AuthenticationException(provider + " API key unavailable: " + e.getMessage(), e);
+        }
+        if (value == null || value.isBlank()) throw new AuthenticationException(provider + " API key is required");
+        return value;
     }
 
     public String getBaseUrl() {
@@ -85,7 +131,7 @@ public final class LLMConfig {
     public String toString() {
         return "LLMConfig{"
                 + "apiKey="
-                + (apiKey != null ? "***" : "null")
+                + (apiKey != null ? apiKey.toString() : "null")
                 + ", baseUrl='"
                 + baseUrl
                 + '\''
@@ -104,7 +150,7 @@ public final class LLMConfig {
     }
 
     public static final class Builder {
-        private String apiKey;
+        private SecretRef apiKey;
         private String baseUrl;
         private Duration timeout;
         private Duration connectTimeout;
@@ -114,7 +160,14 @@ public final class LLMConfig {
 
         private Builder() {}
 
+        /** A key held in memory as given. For anything you keep, prefer {@link #apiKey(SecretRef)}. */
         public Builder apiKey(String apiKey) {
+            this.apiKey = apiKey == null ? null : SecretRef.literal(apiKey);
+            return this;
+        }
+
+        /** A key kept in a {@link io.github.llm4j.secret.SecretStore}, fetched for each request and never held by the config. */
+        public Builder apiKey(SecretRef apiKey) {
             this.apiKey = apiKey;
             return this;
         }

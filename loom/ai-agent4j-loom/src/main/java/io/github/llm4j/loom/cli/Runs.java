@@ -89,6 +89,7 @@ final class Runs {
             executor.setLenient(spec.lenient());
             executor.setBaseDir(scriptFile.getAbsoluteFile().getParentFile().toPath());
             executor.setEnvLookup(env.env());
+            executor.setSecretStore(env.secrets());
             executor.setClock(env.clock());
             executor.setSleeper(env.sleeper());
             if (spec.prices() != null) executor.setPriceTable(io.github.llm4j.budget.PriceTable.load(Path.of(spec.prices())));

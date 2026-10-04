@@ -84,7 +84,7 @@ to act: after 300 cases over 30 days, agreeing at least 95%, with no dangerous m
 | `budget` | Caps a run, an agent or a step in tokens, calls or money; enforced before each LLM call. `per day` makes it refill |
 | `checkpoint` / `rewind` | Name a point and go back to it when a late check fails, carrying what was learned and keeping the old attempt as history: `rewind to collected when (review.score < 7) at most 2 times carrying feedback = "{review.notes}"`. Identical side effects and answers are never repeated; `weave timeline`, `rewind`, `reset` and `fork` do the same from outside |
 | `decision` / `decide` | Earned autonomy: an agent proposes, a person decides, and the record of both moves the agent up a ladder (`watch`, `suggest`, `act`) or back down. Written in plain phrases (`to act: after 300 cases over 30 days, agreeing at least 97%, with no dangerous mistakes`); `weave autonomy` operates it and `weave replay` tries a changed prompt or model on past cases with nothing sent |
-| `tool` | Declare and configure a tool in the script (`use: webhook`, `email`, `http`, `file`, `shell`, `sql`, `serpapi`, `openapi`, …); secrets only from `env.NAME`; side effects are journaled so a resume never repeats a send |
+| `tool` | Declare and configure a tool in the script (`use: webhook`, `email`, `http`, `file`, `shell`, `sql`, `serpapi`, `openapi`, …); secrets only from `env.NAME` or the encrypted secret store (`secret.NAME`); side effects are journaled so a resume never repeats a send |
 | `knowledge` | A knowledge base: source files, embedding model, index store; agents get the relevant passages |
 | `approve` | On an agent: which tool calls need a person's yes (durable, journaled per call) |
 | `memory` | On an agent: its conversations per session and long-term facts, kept across runs |
@@ -146,7 +146,7 @@ call ValidateAndApprove(draft) -> approved_draft
 ## Everything ai-agent4j can do, from the script
 
 Tools, knowledge, approvals, memory, voice, guards and providers are declared next to the agents that use
-them. Secrets only ever come from the environment (`env.NAME`), and nothing is silently ignored: `weave check`
+them. Secrets only ever come from the environment (`env.NAME`) or an encrypted secret store (`secret.NAME`, `weave run --secrets <file>`), and nothing is silently ignored: `weave check`
 reports every problem with its line before anything runs.
 
 ```text

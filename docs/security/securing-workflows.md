@@ -238,7 +238,7 @@ finding for this script, and a test keeps it that way.
 | Don't | Do instead |
 |---|---|
 | Give one agent `web_search` and `shell` (or `http` with `POST`, or `email`) | Split them across agents; connect them with `expecting { ... }` |
-| Put an API key, password or webhook URL in a script | `env.NAME` (a literal is a load error anyway) |
+| Put an API key, password or webhook URL in a script | `env.NAME` or `secret.NAME` from an encrypted secret store (a literal is a load error anyway); bind a stored secret to its host with `weave secrets set NAME --allow-host <host>` |
 | Allow `bash`, `python` or `sh` in a `shell` tool | Allow the few programs you need; keep `allow_interpreters` off |
 | Use `http` with `methods: "GET, POST, DELETE"` and no approval | Approve the agent's calls, or split read-only from write tools |
 | Give the `sql` tool an account that can write | A read-only database user |

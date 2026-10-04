@@ -24,7 +24,7 @@ public class GeminiEmbeddingProvider implements EmbeddingProvider {
 
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
-    private final String apiKey;
+    private final LLMConfig config;
     private final String model;
     private final String baseUrl;
 
@@ -43,7 +43,9 @@ public class GeminiEmbeddingProvider implements EmbeddingProvider {
     }
 
     protected GeminiEmbeddingProvider(LLMConfig config, String model, OkHttpClient httpClient) {
-        this.apiKey = Objects.requireNonNull(config.getApiKey(), "API key cannot be null");
+        // the key itself is never held here: it is fetched (from the secret store, if one was given) for each request
+        Objects.requireNonNull(config.getApiKeyRef(), "API key cannot be null");
+        this.config = config;
         this.model = model != null ? model : DEFAULT_MODEL;
         this.baseUrl =
                 config.getBaseUrl() != null
@@ -58,7 +60,7 @@ public class GeminiEmbeddingProvider implements EmbeddingProvider {
         Objects.requireNonNull(text, "text cannot be null");
 
         try {
-            String url = String.format("%s/models/%s:embedContent?key=%s", baseUrl, model, apiKey);
+            String url = String.format("%s/models/%s:embedContent", baseUrl, model);
 
             String requestBody =
                     String.format(
@@ -67,12 +69,15 @@ public class GeminiEmbeddingProvider implements EmbeddingProvider {
             Request request =
                     new Request.Builder()
                             .url(url)
+                            // a header, not ?key=...: a URL ends up in logs, proxies and exception messages
+                            .header("x-goog-api-key", config.requireApiKey("Google", baseUrl))
                             .post(RequestBody.create(requestBody, JSON))
                             .build();
 
             try (Response response = httpClient.newCall(request).execute()) {
                 if (!response.isSuccessful()) {
-                    throw new IOException("Embedding request failed: " + response);
+                    // not "+ response": Response.toString() contains the request URL
+                    throw new IOException("Embedding request failed: HTTP " + response.code());
                 }
 
                 String responseBody = response.body().string();

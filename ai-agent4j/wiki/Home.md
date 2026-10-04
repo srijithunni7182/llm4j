@@ -24,6 +24,7 @@ calls tools, and the building blocks around them: memory, RAG, knowledge graphs,
 | **[🔌 Providers](Providers-and-the-Uniform-Contract.md)** | Gemini, Claude, Sarvam and Ollama behind one contract. See also the [Sarvam](../docs/SARVAM.md) and [Ollama](../docs/OLLAMA.md) guides. |
 | **[🤖 ReAct Agent](ReAct-Agent.md)** | Build agents that reason, plan, and use tools. ([Short guide](ReAct-Agent-Guide.md)) |
 | **[🛠️ Custom Tools](Creating-Custom-Tools.md)** | Extend an agent with your own logic, including approvals. |
+| **[🔐 Secret Store](Secret-Store.md)** | Keep API keys in an encrypted file or in memory; providers and tools fetch them per request. You choose the path and the master key. |
 | **[⚙️ Tasks](Creating-Tasks.md)** | Deterministic steps with no model: the code a workflow runs for the parts too important to leave to an LLM. |
 | **[🌐 OpenAPI Tool](OpenAPI-Tool.md)** | Turn any REST API's spec into a tool. |
 | **[🔗 MCP Integration](MCP-Integration.md)** | Use tools from any Model Context Protocol server. |

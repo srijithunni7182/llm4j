@@ -42,7 +42,9 @@ class SarvamAudioProviderTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        when(config.getApiKey()).thenReturn(DUMMY_API_KEY);
+        org.mockito.Mockito.lenient().when(config.getApiKey()).thenReturn(DUMMY_API_KEY);
+        org.mockito.Mockito.lenient().when(config.hasApiKey()).thenReturn(true);
+        org.mockito.Mockito.lenient().when(config.requireApiKey(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(DUMMY_API_KEY);
         provider = new SarvamAudioProvider(config, httpClient);
         dummyAudioFile = Files.createFile(tempDir.resolve("test.wav")).toFile();
     }

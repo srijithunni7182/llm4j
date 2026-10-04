@@ -8,6 +8,8 @@ import io.github.llm4j.provider.LLMProvider;
 import io.github.llm4j.provider.google.GoogleProvider;
 import io.github.llm4j.provider.ollama.OllamaProvider;
 import io.github.llm4j.provider.sarvam.SarvamChatProvider;
+import io.github.llm4j.secret.SecretRef;
+import io.github.llm4j.secret.SecretStore;
 import java.util.Locale;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -27,6 +29,7 @@ import java.util.stream.Stream;
 public class DefaultLLMClientFactory implements LLMClientFactory {
 
     private final Function<String, String> env;
+    private final SecretStore secrets;
 
     public DefaultLLMClientFactory() {
         this(System::getenv);
@@ -34,7 +37,28 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
 
     /** @param env where keys and endpoints are read (the process environment by default) */
     public DefaultLLMClientFactory(Function<String, String> env) {
+        this(env, null);
+    }
+
+    /**
+     * @param env where endpoints, and keys not found in the store, are read
+     * @param secrets where keys are looked up first, by the name of the variable they replace ({@code GEMINI_API_KEY}); null for none. A key found
+     *     there is fetched for each request and keeps the host binding it was stored with.
+     */
+    public DefaultLLMClientFactory(Function<String, String> env, SecretStore secrets) {
         this.env = env;
+        this.secrets = secrets;
+    }
+
+    /** The key called {@code name}: from the store when it has one, else from the environment (null when neither does). */
+    private ProviderSpec spec(String provider, String baseUrl, String name) {
+        if (secrets != null && secrets.contains(name)) return new ProviderSpec(provider, provider, baseUrl, null, SecretRef.of(secrets, name));
+        String key = env(name);
+        return key == null ? null : new ProviderSpec(provider, provider, baseUrl, key);
+    }
+
+    private boolean hasKey(String name) {
+        return (secrets != null && secrets.contains(name)) || env(name) != null;
     }
 
     private enum Kind { GEMINI, OLLAMA, SARVAM, ANTHROPIC }
@@ -53,9 +77,8 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
         return v == null || v.isBlank() ? null : v;
     }
 
-    private String geminiKey() {
-        String key = env("GEMINI_API_KEY");
-        return key != null ? key : System.getProperty("google.api.key");
+    private boolean hasGeminiKey() {
+        return hasKey("GEMINI_API_KEY") || System.getProperty("google.api.key") != null;
     }
 
     @Override
@@ -66,9 +89,9 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
             return "unknown model \"" + modelName + "\": use gemini-…, claude-… (or anthropic/<model>), ollama/<model>, sarvam/<model>, "
                     + "or a provider declared in the script (provider Name { use: … }, then \"Name/<model>\")";
         }
-        if (kind == Kind.GEMINI && geminiKey() == null) return "model " + modelName + " needs GEMINI_API_KEY in the environment";
-        if (kind == Kind.SARVAM && env("SARVAM_API_KEY") == null) return "model " + modelName + " needs SARVAM_API_KEY in the environment";
-        if (kind == Kind.ANTHROPIC && env("ANTHROPIC_API_KEY") == null) return "model " + modelName + " needs ANTHROPIC_API_KEY in the environment";
+        if (kind == Kind.GEMINI && !hasGeminiKey()) return "model " + modelName + " needs GEMINI_API_KEY in the environment or the secret store";
+        if (kind == Kind.SARVAM && !hasKey("SARVAM_API_KEY")) return "model " + modelName + " needs SARVAM_API_KEY in the environment or the secret store";
+        if (kind == Kind.ANTHROPIC && !hasKey("ANTHROPIC_API_KEY")) return "model " + modelName + " needs ANTHROPIC_API_KEY in the environment or the secret store";
         return null;
     }
 
@@ -78,23 +101,23 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
         if (kind == null) throw new IllegalArgumentException(problem(modelName));
         return switch (kind) {
             case GEMINI -> {
-                String key = geminiKey();
-                if (key == null) throw new IllegalStateException("GEMINI_API_KEY environment variable is required for model: " + modelName);
-                yield forProvider(new ProviderSpec("gemini", "gemini", null, key), modelName);
+                ProviderSpec spec = spec("gemini", null, "GEMINI_API_KEY");
+                if (spec == null && System.getProperty("google.api.key") != null) spec = new ProviderSpec("gemini", "gemini", null, System.getProperty("google.api.key"));
+                if (spec == null) throw new IllegalStateException("GEMINI_API_KEY (an environment variable or a secret) is required for model: " + modelName);
+                yield forProvider(spec, modelName);
             }
             case OLLAMA -> forProvider(new ProviderSpec("ollama", "ollama",
                     env("OLLAMA_BASE_URL") != null ? env("OLLAMA_BASE_URL") : "http://localhost:11434", null),
                     modelName.toLowerCase(Locale.ROOT).startsWith("ollama/") ? modelName.substring("ollama/".length()) : modelName);
             case SARVAM -> {
-                String key = env("SARVAM_API_KEY");
-                if (key == null) throw new IllegalStateException("SARVAM_API_KEY environment variable is required for model: " + modelName);
-                yield forProvider(new ProviderSpec("sarvam", "sarvam", env("SARVAM_BASE_URL"), key), modelName.substring("sarvam/".length()));
+                ProviderSpec spec = spec("sarvam", env("SARVAM_BASE_URL"), "SARVAM_API_KEY");
+                if (spec == null) throw new IllegalStateException("SARVAM_API_KEY (an environment variable or a secret) is required for model: " + modelName);
+                yield forProvider(spec, modelName.substring("sarvam/".length()));
             }
             case ANTHROPIC -> {
-                String key = env("ANTHROPIC_API_KEY");
-                if (key == null) throw new IllegalStateException("ANTHROPIC_API_KEY environment variable is required for model: " + modelName);
-                yield forProvider(new ProviderSpec("anthropic", "anthropic", env("ANTHROPIC_BASE_URL"), key),
-                        modelName.startsWith("anthropic/") ? modelName.substring("anthropic/".length()) : modelName);
+                ProviderSpec spec = spec("anthropic", env("ANTHROPIC_BASE_URL"), "ANTHROPIC_API_KEY");
+                if (spec == null) throw new IllegalStateException("ANTHROPIC_API_KEY (an environment variable or a secret) is required for model: " + modelName);
+                yield forProvider(spec, modelName.startsWith("anthropic/") ? modelName.substring("anthropic/".length()) : modelName);
             }
         };
     }
@@ -103,7 +126,8 @@ public class DefaultLLMClientFactory implements LLMClientFactory {
     public static LLMClient forProvider(ProviderSpec spec, String model) {
         LLMConfig.Builder config = LLMConfig.builder().defaultModel(model);
         if (spec.baseUrl() != null) config.baseUrl(spec.kind().equals("ollama") ? ollamaApi(spec.baseUrl()) : spec.baseUrl());
-        if (spec.apiKey() != null) config.apiKey(spec.apiKey());
+        if (spec.apiKeyRef() != null) config.apiKey(spec.apiKeyRef());
+        else if (spec.apiKey() != null) config.apiKey(spec.apiKey());
         LLMProvider provider = switch (spec.kind()) {
             case "gemini" -> new GoogleProvider(config.build());
             case "ollama" -> new OllamaProvider(config.build());

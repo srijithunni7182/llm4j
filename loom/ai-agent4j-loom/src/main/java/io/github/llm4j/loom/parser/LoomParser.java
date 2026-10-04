@@ -1570,11 +1570,18 @@ public class LoomParser {
         if (check(TokenType.STRING_LITERAL)) {
             return io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(advance().getValue());
         }
-        Token w = word("Expect a value: a \"string\", a number, true/false, or env.NAME");
+        Token w = word("Expect a value: a \"string\", a number, true/false, env.NAME or secret.NAME");
         if (w.getValue().startsWith("env.")) {
             String var = w.getValue().substring(4);
             if (var.isEmpty() || var.contains(".")) throw error(w, "an environment reference is env.NAME, got " + w.getValue());
             return io.github.llm4j.loom.ast.ToolDef.OptionValue.env(var);
+        }
+        if (w.getValue().startsWith("secret.")) {
+            String name = w.getValue().substring(7);
+            if (!io.github.llm4j.secret.SecretNames.isValid(name)) {
+                throw error(w, "a secret reference is secret.NAME (a letter, then letters, digits, _ or -), got " + w.getValue());
+            }
+            return io.github.llm4j.loom.ast.ToolDef.OptionValue.secret(name);
         }
         return io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(w.getValue());
     }

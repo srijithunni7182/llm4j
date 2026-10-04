@@ -2,6 +2,8 @@ package io.github.llm4j.agent.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.llm4j.secret.SecretException;
+import io.github.llm4j.secret.SecretRef;
 import io.github.llm4j.agent.Tool;
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -14,7 +16,7 @@ import okhttp3.Response;
 /** A tool that allows agents to search the web using Google Custom Search API. */
 public class WebSearchTool implements Tool {
 
-    private final String apiKey;
+    private final SecretRef apiKey;
     private final String cx;
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
@@ -24,10 +26,23 @@ public class WebSearchTool implements Tool {
     }
 
     public WebSearchTool(String apiKey, String cx, OkHttpClient httpClient) {
+        this(apiKey == null ? null : SecretRef.literal(apiKey), cx, httpClient, true);
+    }
+
+    private WebSearchTool(SecretRef apiKey, String cx, OkHttpClient httpClient, boolean unused) {
         this.apiKey = apiKey;
         this.cx = cx;
         this.httpClient = httpClient;
         this.objectMapper = new ObjectMapper();
+    }
+
+    /** A tool whose key lives in a {@link io.github.llm4j.secret.SecretStore}: fetched for each search and not kept. */
+    public static WebSearchTool withSecret(SecretRef apiKey, String cx) {
+        return new WebSearchTool(apiKey, cx, new OkHttpClient(), true);
+    }
+
+    public static WebSearchTool withSecret(SecretRef apiKey, String cx, OkHttpClient httpClient) {
+        return new WebSearchTool(apiKey, cx, httpClient, true);
     }
 
     @Override
@@ -52,8 +67,9 @@ public class WebSearchTool implements Tool {
             return "Error: No search 'query' provided.";
         }
 
-        if (apiKey == null || apiKey.isEmpty()) {
-            return "Error: Google API key not configured for WebSearchTool.";
+        if (apiKey == null || (apiKey.isLiteral() ? apiKey.resolve().isEmpty() : !apiKey.exists())) {
+            return "Error: Google API key not configured for WebSearchTool"
+                    + (apiKey != null && !apiKey.isLiteral() ? " (" + apiKey + " is not in the store)." : ".");
         }
 
         if (cx == null || cx.isEmpty()) {
@@ -63,6 +79,8 @@ public class WebSearchTool implements Tool {
 
         try {
             return performSearch(query);
+        } catch (SecretException e) {
+            return "Error: Google API key unavailable: " + e.getMessage();
         } catch (IOException e) {
             return "Error performing search: " + e.getMessage();
         }
@@ -70,10 +88,11 @@ public class WebSearchTool implements Tool {
 
     private String performSearch(String query) throws IOException {
         String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
+        String key = apiKey.resolveFor("www.googleapis.com");
         String url =
                 String.format(
                         "https://www.googleapis.com/customsearch/v1?key=%s&cx=%s&q=%s",
-                        apiKey, cx, encodedQuery);
+                        URLEncoder.encode(key, StandardCharsets.UTF_8), cx, encodedQuery);
 
         Request request = new Request.Builder().url(url).build();
 
@@ -81,7 +100,7 @@ public class WebSearchTool implements Tool {
             if (!response.isSuccessful()) {
                 String errorBody =
                         response.body() != null ? response.body().string() : "No error body";
-                return "Search API error (HTTP " + response.code() + "): " + errorBody;
+                return "Search API error (HTTP " + response.code() + "): " + errorBody.replace(key, "***");
             }
 
             JsonNode root = objectMapper.readTree(response.body().string());

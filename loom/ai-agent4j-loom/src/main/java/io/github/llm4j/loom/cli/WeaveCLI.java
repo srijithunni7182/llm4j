@@ -79,15 +79,20 @@ public class WeaveCLI implements Callable<Integer> {
                 description = "Show what agents think and do, live, on stderr (--trace=json for JSON lines).")
         private String trace;
 
+        @CommandLine.Mixin
+        private SecretOptions secrets = new SecretOptions();
+
         @Override
         public Integer call() throws Exception {
             if (!scriptFile.exists()) {
                 System.err.println("Error: Script file not found: " + scriptFile);
                 return 1;
             }
+            WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
+            if (env == null) return 2;
             return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, prices,
                     journal == null ? null : journal.toPath(), store == null ? null : store.toPath(), waitForResume,
-                    lenient, trace, stopAt, maxRewinds, WeaveEnv.system().withAskVia(askVia));
+                    lenient, trace, stopAt, maxRewinds, env);
         }
     }
 
@@ -197,9 +202,14 @@ public class WeaveCLI implements Callable<Integer> {
         @Option(names = "--lenient", description = "Treat features that aren't supported yet as warnings.")
         private boolean lenient;
 
+        @CommandLine.Mixin
+        private SecretOptions secrets = new SecretOptions();
+
         @Override
         public Integer call() {
-            return check(scriptFile, lootFile, lenient, WeaveEnv.system());
+            WeaveEnv env = secrets.apply(WeaveEnv.system(), Prompts.console());
+            if (env == null) return 2;
+            return check(scriptFile, lootFile, lenient, env);
         }
     }
 
@@ -232,6 +242,7 @@ public class WeaveCLI implements Callable<Integer> {
         executor.setLenient(lenient);
         executor.setBaseDir(scriptFile.getAbsoluteFile().getParentFile().toPath());
         executor.setEnvLookup(env.env());
+        executor.setSecretStore(env.secrets());
         executor.setHumanInterface(env.human()); // the CLI always has a console
         List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems =
                 new io.github.llm4j.loom.execution.ScriptValidator().validate(script, executor.validationContext());
@@ -259,9 +270,14 @@ public class WeaveCLI implements Callable<Integer> {
         @Option(names = "--ask-via", paramLabel = "telegram|command|console", description = "Where to ask a person (default: the store's channel.json, else the console).")
         private String askVia;
 
+        @CommandLine.Mixin
+        private SecretOptions secrets = new SecretOptions();
+
         @Override
         public Integer call() {
-            return resume(runDir.toPath(), stopAt, WeaveEnv.system().withAskVia(askVia));
+            WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
+            if (env == null) return 2;
+            return resume(runDir.toPath(), stopAt, env);
         }
     }
 
@@ -293,9 +309,14 @@ public class WeaveCLI implements Callable<Integer> {
         @Option(names = "--ask-via", paramLabel = "telegram|command|console", description = "Where to ask a person (default: the store's channel.json, else the console).")
         private String askVia;
 
+        @CommandLine.Mixin
+        private SecretOptions secrets = new SecretOptions();
+
         @Override
         public Integer call() {
-            return tick(store.toPath(), WeaveEnv.system().withAskVia(askVia));
+            WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
+            if (env == null) return 2;
+            return tick(store.toPath(), env);
         }
     }
 
@@ -336,9 +357,14 @@ public class WeaveCLI implements Callable<Integer> {
         @Option(names = "--ask-via", paramLabel = "telegram|command|console", description = "Where to ask a person (default: the store's channel.json, else the console).")
         private String askVia;
 
+        @CommandLine.Mixin
+        private SecretOptions secrets = new SecretOptions();
+
         @Override
         public Integer call() throws Exception {
-            return daemon(store.toPath(), io.github.llm4j.loom.trigger.Schedules.parse(poll), null, WeaveEnv.system().withAskVia(askVia));
+            WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
+            if (env == null) return 2;
+            return daemon(store.toPath(), io.github.llm4j.loom.trigger.Schedules.parse(poll), null, env);
         }
     }
 
@@ -595,7 +621,8 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new TravelCommands.Fork())
                 .addSubcommand(new AutonomyCommands())
                 .addSubcommand(new ReplayCommand())
-                .addSubcommand(new AuditCommand());
+                .addSubcommand(new AuditCommand())
+                .addSubcommand(new SecretCommands());
     }
 
     public static void main(String[] args) {

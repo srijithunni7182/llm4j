@@ -37,7 +37,7 @@ public class Settings {
     /** A literal value, or null (also null for {@code env.X}; the validator reports those). */
     public String get(String key) {
         ToolDef.OptionValue v = values.get(key);
-        return v == null || v.fromEnv() ? null : v.value();
+        return v == null || v.isReference() ? null : v.value();
     }
 
     public String get(String key, String fallback) {

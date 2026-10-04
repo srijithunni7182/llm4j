@@ -31,7 +31,9 @@ class SarvamTextProviderTest {
 
     @BeforeEach
     void setUp() {
-        when(config.getApiKey()).thenReturn(DUMMY_API_KEY);
+        org.mockito.Mockito.lenient().when(config.getApiKey()).thenReturn(DUMMY_API_KEY);
+        org.mockito.Mockito.lenient().when(config.hasApiKey()).thenReturn(true);
+        org.mockito.Mockito.lenient().when(config.requireApiKey(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(DUMMY_API_KEY);
         // Use the package-private constructor to inject the mock client
         provider = new SarvamTextProvider(config, httpClient);
     }

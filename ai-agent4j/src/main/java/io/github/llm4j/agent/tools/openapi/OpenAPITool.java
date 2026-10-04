@@ -1,6 +1,9 @@
 package io.github.llm4j.agent.tools.openapi;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.llm4j.secret.SecretException;
+import io.github.llm4j.secret.SecretMetadata;
+import io.github.llm4j.secret.SecretRef;
 import io.github.llm4j.agent.Tool;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -24,6 +27,9 @@ public class OpenAPITool implements Tool {
     private final HttpClient httpClient;
     private final Map<String, String> authHeaders;
     private final Map<String, String> authQueryParams;
+    /** Credentials held by reference: fetched for each request, never kept. */
+    private final Map<String, SecretRef> authQuerySecrets;
+    private final Map<String, SecretRef> authHeaderSecrets;
 
     private OpenAPITool(Builder builder) {
         this.name = builder.name;
@@ -33,6 +39,8 @@ public class OpenAPITool implements Tool {
         this.authHeaders = builder.authHeaders != null ? builder.authHeaders : new HashMap<>();
         this.authQueryParams =
                 builder.authQueryParams != null ? builder.authQueryParams : new HashMap<>();
+        this.authQuerySecrets = builder.authQuerySecrets != null ? builder.authQuerySecrets : new HashMap<>();
+        this.authHeaderSecrets = builder.authHeaderSecrets != null ? builder.authHeaderSecrets : new HashMap<>();
     }
 
     @Override
@@ -118,6 +126,19 @@ public class OpenAPITool implements Tool {
         String path = endpoint.getPath();
         Map<String, String> pathParams = new HashMap<>();
         Map<String, String> queryParams = new HashMap<>(authQueryParams);
+        String requestHost = SecretMetadata.hostOf(baseUrl);
+        // every credential this request carries, so none can come back out in a log line or an error
+        java.util.List<String> credentials = new java.util.ArrayList<>(authQueryParams.values());
+        credentials.addAll(authHeaders.values());
+        try {
+            for (Map.Entry<String, SecretRef> secret : authQuerySecrets.entrySet()) {
+                String value = secret.getValue().resolveFor(requestHost);
+                queryParams.put(secret.getKey(), value);
+                credentials.add(value);
+            }
+        } catch (SecretException e) {
+            return "Error: credential unavailable: " + e.getMessage();
+        }
 
         if (endpoint.getParameters() != null) {
             for (OpenAPIParameter param : endpoint.getParameters()) {
@@ -151,13 +172,25 @@ public class OpenAPITool implements Tool {
         }
 
         String fullUrl = baseUrl + path;
+        // not the query string: it can carry an API key, and logs outlive the run
         logger.info(
                 "Executing OpenAPI Tool request to URL: {} with method: {}",
-                fullUrl,
+                fullUrl.contains("?") ? fullUrl.substring(0, fullUrl.indexOf('?')) + "?..." : fullUrl,
                 endpoint.getMethod());
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder().uri(URI.create(fullUrl));
         authHeaders.forEach(requestBuilder::header);
+        try {
+            for (Map.Entry<String, SecretRef> secret : authHeaderSecrets.entrySet()) {
+                String value = secret.getValue().resolveFor(requestHost);
+                requestBuilder.header(secret.getKey(), value);
+                credentials.add(value);
+                int space = value.indexOf(' ');
+                if (space > 0) credentials.add(value.substring(space + 1)); // "Bearer <token>": the token alone
+            }
+        } catch (SecretException e) {
+            return "Error: credential unavailable: " + e.getMessage();
+        }
 
         switch (endpoint.getMethod().toUpperCase()) {
             case "GET":
@@ -184,13 +217,14 @@ public class OpenAPITool implements Tool {
         HttpResponse<String> response =
                 httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
+        String safeBody = scrub(response.body(), credentials);
         logger.info(
                 "OpenAPI Tool Response - Status: {}, Body: {}",
                 response.statusCode(),
-                response.body());
+                safeBody);
 
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
-            String responseBody = response.body();
+            String responseBody = safeBody;
             if (responseBody.length() > 2000) {
                 return responseBody.substring(0, 2000) + "\n... (truncated due to length)";
             }
@@ -198,8 +232,16 @@ public class OpenAPITool implements Tool {
         } else {
             return String.format(
                     "Error: API returned status code %d. Body: %s",
-                    response.statusCode(), response.body());
+                    response.statusCode(), safeBody);
         }
+    }
+
+    private static String scrub(String text, java.util.List<String> credentials) {
+        String out = text == null ? "" : text;
+        for (String c : credentials) {
+            if (c != null && c.length() >= 6) out = out.replace(c, "***");
+        }
+        return out;
     }
 
     public static Builder builder() {
@@ -212,6 +254,8 @@ public class OpenAPITool implements Tool {
         private HttpClient httpClient;
         private Map<String, String> authHeaders;
         private Map<String, String> authQueryParams;
+        private Map<String, SecretRef> authQuerySecrets;
+        private Map<String, SecretRef> authHeaderSecrets;
 
         public Builder name(String name) {
             this.name = name;
@@ -231,6 +275,20 @@ public class OpenAPITool implements Tool {
         public Builder apiKeyAuth(String paramName, String apiKey) {
             if (this.authQueryParams == null) this.authQueryParams = new HashMap<>();
             this.authQueryParams.put(paramName, apiKey);
+            return this;
+        }
+
+        /** An API key kept in a {@link io.github.llm4j.secret.SecretStore}: fetched for each request and not held by the tool. */
+        public Builder apiKeyAuth(String paramName, SecretRef apiKey) {
+            if (this.authQuerySecrets == null) this.authQuerySecrets = new HashMap<>();
+            this.authQuerySecrets.put(paramName, apiKey);
+            return this;
+        }
+
+        /** A header credential (for example {@code Authorization} with its whole value) kept in a store, fetched for each request. */
+        public Builder headerAuth(String headerName, SecretRef value) {
+            if (this.authHeaderSecrets == null) this.authHeaderSecrets = new HashMap<>();
+            this.authHeaderSecrets.put(headerName, value);
             return this;
         }
 
