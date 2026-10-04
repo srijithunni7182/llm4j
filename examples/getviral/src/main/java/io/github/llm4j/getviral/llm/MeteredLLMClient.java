@@ -39,4 +39,9 @@ public class MeteredLLMClient implements LLMClient {
     public Stream<LLMResponse> chatStream(LLMRequest request) {
         return delegate.chatStream(request);
     }
+
+    @Override
+    public boolean supportsToolCalling() {
+        return delegate.supportsToolCalling();
+    }
 }

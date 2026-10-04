@@ -30,6 +30,9 @@ import io.github.llm4j.media.JavaAudioPlayer;
 import io.github.llm4j.model.ConfidenceScore;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
+import io.github.llm4j.model.Message;
+import io.github.llm4j.model.ToolCall;
+import io.github.llm4j.model.ToolSpec;
 import io.github.llm4j.model.TextToSpeechRequest;
 import io.github.llm4j.model.TextToSpeechResponse;
 import io.github.llm4j.model.TranscriptionRequest;
@@ -77,17 +80,41 @@ public class ReActAgent {
 
     // Legacy patterns for backward compatibility
     private static final Pattern THOUGHT_PATTERN =
-            Pattern.compile("(?:Thought|Plan):\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
+            Pattern.compile("(?:Thought|Plan):\\s*(.+?)(?=\\r?\\n|$)", Pattern.CASE_INSENSITIVE);
     private static final Pattern ACTION_PATTERN =
-            Pattern.compile("Action:\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
+            Pattern.compile("Action:\\s*(.+?)(?=\\r?\\n|$)", Pattern.CASE_INSENSITIVE);
+    /** The input runs to the next protocol line (or the end), so a multi-line JSON input survives. */
     private static final Pattern ACTION_INPUT_PATTERN =
-            Pattern.compile("Action Input:\\s*(.+?)(?=\\n|$)", Pattern.CASE_INSENSITIVE);
+            Pattern.compile(
+                    "Action Input:\\s*(.+?)(?=\\r?\\n\\s*(?:Observation|Thought|Plan|Action|Final Answer)\\s*:|\\z)",
+                    Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final Pattern FINAL_ANSWER_PATTERN =
             Pattern.compile("Final Answer:\\s*(.*)", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    /** A fenced JSON block: any case of {@code json}, spaces, LF or CRLF, with or without a newline before the closing fence. */
     private static final Pattern JSON_PATTERN =
-            Pattern.compile("```json\\n(.*?)\\n```", Pattern.DOTALL);
+            Pattern.compile("```[ \\t]*json\\b\\s*(.*?)\\s*```", Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
+
+    /** How the agent asks the model to use tools. */
+    public enum ToolCalling {
+        /** Native tool calling when the client supports it and the default prompt is used; otherwise the text protocol. The default. */
+        AUTO,
+        /** Always native; building the agent fails when the client or the tools cannot support it. */
+        NATIVE,
+        /** The text protocol: the model writes a JSON block that the agent parses. */
+        TEXT
+    }
+
+    private static final String NATIVE_SYSTEM_PROMPT =
+            """
+            You are a helpful assistant with access to tools. Call a tool when it helps, using the exact tool name and its arguments.
+            Use a tool's result as given and never invent one. When you have the answer, or no tool is needed, reply directly in plain text.
+            """;
 
     // ... (fields remain the same)
+    private final ToolCalling toolCalling;
+    private final boolean nativeCalling;
+    private final boolean customPrompt;
+    private final String nativePrompt;
     private final LLMClient llmClient;
     private final LLMClient baseClient; // as given to the builder, before any budget wrapping
     private final Budget budget;
@@ -137,6 +164,10 @@ public class ReActAgent {
         this.promptRegistry = builder.promptRegistry;
         this.systemPromptId = builder.systemPromptId;
         this.systemPrompt = resolveSystemPrompt(builder);
+        this.customPrompt = builder.inheritedPrompt ? false : builder.systemPrompt != null || usesRegistryTemplate(builder);
+        this.nativePrompt = builder.inheritedPrompt ? builder.inheritedNativePrompt : buildNativePrompt(builder);
+        this.toolCalling = builder.toolCalling;
+        this.nativeCalling = decideNative(builder);
         this.maxIterations = builder.maxIterations;
         this.temperature = builder.temperature;
         this.conversationHistory = builder.conversationHistory;
@@ -164,6 +195,41 @@ public class ReActAgent {
         this.ttsModel = builder.ttsModel;
     }
 
+    private static boolean usesRegistryTemplate(Builder builder) {
+        return builder.promptRegistry != null
+                && builder.systemPromptId != null
+                && builder.promptRegistry.get(builder.systemPromptId).isPresent();
+    }
+
+    private String buildNativePrompt(Builder builder) {
+        if (builder.systemPrompt != null) return builder.systemPrompt; // their prompt, as given
+        StringBuilder prompt = new StringBuilder();
+        if (builder.instructions != null && !builder.instructions.isBlank()) prompt.append(builder.instructions.trim()).append("\n\n");
+        if (persona != null) prompt.append(persona.toSystemPromptAddition()).append("\n\n");
+        if (!skills.isEmpty()) {
+            prompt.append("## Skills\n\n");
+            for (AgentSkill skill : skills) prompt.append(skill.toSystemPromptSection()).append("\n\n");
+        }
+        return prompt.append(NATIVE_SYSTEM_PROMPT).toString();
+    }
+
+    /** Native calling needs a client that supports it, at least one tool, and function-legal tool names. */
+    private boolean decideNative(Builder builder) {
+        if (builder.toolCalling == ToolCalling.TEXT) return false;
+        boolean supported = llmClient.supportsToolCalling();
+        boolean hasTools = !tools.isEmpty();
+        boolean legal = tools.values().stream().allMatch(t -> ToolSpec.isLegalName(t.getName()));
+        if (builder.toolCalling == ToolCalling.NATIVE) {
+            if (!supported) throw new IllegalStateException("toolCalling(NATIVE) needs an LLMClient that supports tool calling (Gemini or Claude); this one does not");
+            if (!hasTools) throw new IllegalStateException("toolCalling(NATIVE) needs at least one tool");
+            if (!legal) throw new IllegalStateException("toolCalling(NATIVE) needs tool names of letters, digits, _ or - (at most 64): " + tools.values().stream().map(Tool::getName).filter(n -> !ToolSpec.isLegalName(n)).toList());
+            return true;
+        }
+        if (supported && hasTools && legal && !customPrompt) return true;
+        if (supported && hasTools && !legal) logger.info("Using the text protocol: some tool names are not legal function names");
+        return false;
+    }
+
     /** Wraps the client in a {@link BudgetedLLMClient} when this agent has a budget or a per-call cap. */
     private LLMClient budgeted(LLMClient client) {
         if ((budget == null && maxTokensPerCall == null) || client instanceof BudgetedLLMClient) return client;
@@ -179,6 +245,7 @@ public class ReActAgent {
     public AgentResult run(String question) {
         // ... (run method setup is the same)
         Objects.requireNonNull(question, "question cannot be null");
+        if (nativeCalling) return runNative(question);
 
         // If question starts with "VOICE:" (or similar marker), we could infer?
         // But better to have explicit methods.
@@ -374,6 +441,152 @@ public class ReActAgent {
                 protocolFollowed);
     }
 
+
+    /** The tools as offered to a model that supports native tool calling. */
+    private List<ToolSpec> toolSpecs() {
+        List<ToolSpec> specs = new ArrayList<>();
+        for (Tool tool : tools.values()) {
+            specs.add(new ToolSpec(tool.getName(), tool.getDescription(), tool.getParametersSchema()));
+        }
+        return specs;
+    }
+
+    /** What a tool with no declared parameters is sent as: a free-form {@code input} string, which may hold a JSON object. */
+    private static Map<String, Object> unwrapFreeForm(Tool tool, Map<String, Object> args) {
+        Object declared = tool.getParametersSchema().get("properties");
+        boolean none = !(declared instanceof Map<?, ?> m) || m.isEmpty();
+        if (!none || args.size() != 1 || !(args.get("input") instanceof String text)) return args;
+        String t = text.trim();
+        if (!t.startsWith("{")) return args;
+        try {
+            return objectMapper.readValue(t, new TypeReference<Map<String, Object>>() {});
+        } catch (JsonProcessingException notJson) {
+            return args;
+        }
+    }
+
+    /** Running totals of a run, shared by the loop's exits. */
+    private static final class Tally {
+        int calls;
+        int prompt;
+        int completion;
+        int total;
+        boolean estimated;
+        java.math.BigDecimal cost;
+
+        void add(LLMResponse response) {
+            calls++;
+            LLMResponse.TokenUsage u = response.getTokenUsage();
+            if (u != null) {
+                prompt += u.getPromptTokens();
+                completion += u.getCompletionTokens();
+                total += u.getTotalTokens();
+            }
+            if (response.getMetadata() != null) {
+                if (Boolean.TRUE.equals(response.getMetadata().get(BudgetedLLMClient.ESTIMATED))) estimated = true;
+                if (response.getMetadata().get(BudgetedLLMClient.COST) instanceof java.math.BigDecimal c) cost = cost == null ? c : cost.add(c);
+            }
+        }
+
+        AgentResult.Usage usage() {
+            return new AgentResult.Usage(calls, prompt, completion, total, estimated, cost);
+        }
+    }
+
+    /**
+     * The loop on native tool calling: the model gets the tools as definitions and answers with tool calls; each result goes back as a tool
+     * message, and a reply with no tool calls is the final answer. Approvals, budgets, rate limits, duplicate blocking, listeners, audit and the
+     * result are the same as on the text protocol.
+     */
+    private AgentResult runNative(String question) {
+        List<AgentResult.AgentStep> steps = new ArrayList<>();
+        Set<String> actionHistory = new HashSet<>();
+        AtomicInteger redundantActionCount = new AtomicInteger(0);
+        Tally tally = new Tally();
+        String lastThought = null;
+        String lastObservation = null;
+        int callNumber = 0;
+
+        String context = "";
+        if (conversationHistory != null) {
+            context += "Previous conversation history:\n" + conversationHistory.getFormattedHistory() + "\n\n";
+        }
+        if (semanticMemoryService != null) {
+            String memoryQuery = question.length() > 500 ? question.substring(0, 500) : question;
+            List<String> facts = semanticMemoryService.recallRelevantFacts(memoryQuery, recallTopK, recallMinSimilarity);
+            if (!facts.isEmpty()) {
+                context += "Relevant context from user's long-term memory:\n";
+                for (String fact : facts) context += "- " + fact + "\n";
+                context += "\n";
+            }
+        }
+        List<Message> conversation = new ArrayList<>();
+        conversation.add(Message.system(nativePrompt));
+        conversation.add(Message.user(context + question));
+        List<ToolSpec> specs = toolSpecs();
+
+        for (int i = 0; i < maxIterations; i++) {
+            logger.debug("Agent iteration {}/{} (native tool calling)", i + 1, maxIterations);
+            LLMRequest request = LLMRequest.builder().messages(conversation).tools(specs).temperature(temperature).build();
+            LLMResponse response;
+            try {
+                response = llmClient.chat(request);
+            } catch (io.github.llm4j.exception.RateLimitException limited) {
+                throw new io.github.llm4j.ratelimit.RateLimited(
+                        limited.infoOrEstimate(java.time.Instant.now(), java.time.Duration.ofSeconds(60)),
+                        io.github.llm4j.ratelimit.RateLimited.Reason.PROVIDER_LIMIT);
+            } catch (BudgetExceeded exhausted) {
+                if (budgetPolicy == BudgetPolicy.FAIL) throw exhausted;
+                if (budgetPolicy == BudgetPolicy.SUSPEND && exhausted.resetAt().isPresent()) {
+                    throw io.github.llm4j.ratelimit.RateLimited.of(exhausted);
+                }
+                return buildBudgetExhaustedResult(
+                        exhausted,
+                        lastThought != null ? lastThought : lastObservation != null ? lastObservation : "",
+                        steps, i, tally.usage(), redundantActionCount.get(), true);
+            }
+            tally.add(response);
+            String text = response.getContent() == null ? "" : response.getContent();
+            logger.info("=== LLM Response (Iteration {}) ===\n{}{}", i + 1, text, response.hasToolCalls() ? "\n[tool calls: " + response.getToolCalls().size() + "]" : "");
+
+            if (!response.hasToolCalls()) {
+                if (text.isBlank()) {
+                    // an empty reply is not an answer: say so and let the model try again (this counts as an iteration)
+                    conversation.add(Message.user("Your last reply was empty. Call a tool, or give your final answer."));
+                    continue;
+                }
+                return processFinalAnswer(question, text, null, steps, i, tally.usage(), redundantActionCount.get(), true);
+            }
+
+            String thought = text.isBlank() ? null : text.trim();
+            if (thought != null) {
+                notifyThought(thought);
+                lastThought = thought;
+            }
+            List<ToolCall> calls = new ArrayList<>();
+            for (ToolCall c : response.getToolCalls()) calls.add(c.id() == null || c.id().isBlank() ? c.withId("call_" + (++callNumber)) : c);
+            conversation.add(Message.assistantToolCalls(text, calls, response.getProviderData()));
+
+            for (ToolCall call : calls) {
+                Tool tool = tools.get(call.name().toLowerCase());
+                Map<String, Object> args = tool == null ? call.arguments() : unwrapFreeForm(tool, call.arguments());
+                String actionInput;
+                try {
+                    actionInput = objectMapper.writeValueAsString(args);
+                } catch (JsonProcessingException e) {
+                    actionInput = String.valueOf(args);
+                }
+                notifyAction(call.name(), actionInput);
+                ActionExecution execution = executeAction(call.name(), actionInput, actionHistory, thought, redundantActionCount);
+                lastObservation = execution.observation();
+                steps.add(new AgentResult.AgentStep(thought, call.name(), actionInput, execution.observation(), execution.outcome()));
+                conversation.add(Message.toolResult(call.id(), call.name(), execution.observation()));
+                thought = null; // the model's note belongs to the first call of the turn
+            }
+        }
+        return buildFailureResult(steps, tally.usage(), redundantActionCount.get(), true);
+    }
+
     /**
      * Models asked for structured output often put a JSON object (rather than a string) in
      * {@code final_answer}; keep it as JSON text instead of failing the iteration.
@@ -399,6 +612,17 @@ public class ReActAgent {
         if (jsonMatcher.find()) {
             String jsonBlock = jsonMatcher.group(1);
             return objectMapper.readValue(jsonBlock, new TypeReference<>() {});
+        }
+
+        // A bare JSON object that follows the protocol (no fence)
+        String trimmed = llmOutput.trim();
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            try {
+                Map<String, Object> bare = objectMapper.readValue(trimmed, new TypeReference<>() {});
+                if (bare.containsKey("action") || bare.containsKey("final_answer")) return bare;
+            } catch (JsonProcessingException notProtocolJson) {
+                // fall through to the line formats
+            }
         }
 
         // Fallback for backward compatibility with old tests
@@ -780,6 +1004,13 @@ public class ReActAgent {
         }
     }
 
+    private static boolean isFailure(AgentResult.StepOutcome outcome) {
+        return switch (outcome) {
+            case EXECUTION_ERROR, UNKNOWN_TOOL, DUPLICATE_BLOCKED, APPROVAL_UNAVAILABLE -> true;
+            default -> false;
+        };
+    }
+
     private ConfidenceScore calculateConfidence(
             List<AgentResult.AgentStep> steps, int iterations, String finalAnswer) {
         // ... (same)
@@ -792,12 +1023,10 @@ public class ReActAgent {
         } else if (iterationRatio > 0.5) {
             baseScore -= 0.1;
         }
+        // What happened, not what the text says: a tool may legitimately return text that begins "Error".
         long failureCount =
                 steps.stream()
-                        .filter(
-                                step ->
-                                        step.getObservation() != null
-                                                && step.getObservation().startsWith("Error"))
+                        .filter(step -> step.getOutcome() != null && isFailure(step.getOutcome()))
                         .count();
         if (failureCount > 0) {
             baseScore -= (failureCount * 0.15);
@@ -858,6 +1087,9 @@ public class ReActAgent {
         private PriceTable priceTable;
         private String budgetModel;
         private TokenEstimator tokenEstimator;
+        private ToolCalling toolCalling = ToolCalling.AUTO;
+        private boolean inheritedPrompt;
+        private String inheritedNativePrompt;
 
         private Builder() {}
 
@@ -893,6 +1125,15 @@ public class ReActAgent {
             this.autoPlayAudio = agent.autoPlayAudio;
             this.ttsLanguage = agent.ttsLanguage;
             this.ttsModel = agent.ttsModel;
+            this.toolCalling = agent.toolCalling;
+            this.inheritedPrompt = !agent.customPrompt;
+            this.inheritedNativePrompt = agent.nativePrompt;
+        }
+
+        /** How the agent asks the model to use tools; {@link ToolCalling#AUTO} by default. */
+        public Builder toolCalling(ToolCalling mode) {
+            this.toolCalling = mode == null ? ToolCalling.AUTO : mode;
+            return this;
         }
 
         public Builder llmClient(LLMClient llmClient) {
@@ -919,6 +1160,7 @@ public class ReActAgent {
 
         public Builder systemPrompt(String systemPrompt) {
             this.systemPrompt = systemPrompt;
+            this.inheritedPrompt = false;
             return this;
         }
 
@@ -970,6 +1212,7 @@ public class ReActAgent {
 
         public Builder systemPromptId(String systemPromptId) {
             this.systemPromptId = systemPromptId;
+            this.inheritedPrompt = false;
             return this;
         }
 

@@ -12,6 +12,8 @@ import io.github.llm4j.http.HttpClientWrapper;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.Message;
+import io.github.llm4j.model.ToolCall;
+import io.github.llm4j.model.ToolSpec;
 import io.github.llm4j.provider.DescribableProvider;
 import java.io.IOException;
 import java.util.Objects;
@@ -21,6 +23,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class GoogleProvider implements DescribableProvider {
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER = new com.fasterxml.jackson.databind.ObjectMapper();
+    /** Key in {@link io.github.llm4j.model.LLMResponse#getProviderData()}: the parts of a tool-call reply, to be sent back verbatim. */
+    static final String RAW_PARTS = "google.parts";
+
 
     private static final Logger logger = LoggerFactory.getLogger(GoogleProvider.class);
     private static final String DEFAULT_BASE_URL =
@@ -234,6 +241,7 @@ public class GoogleProvider implements DescribableProvider {
         }
 
         // Gemini expects user and model turns to alternate: consecutive turns of one role are merged.
+        // An assistant tool call is a model turn of functionCall parts; a tool result is a user turn of functionResponse parts.
         String lastRole = null;
         ArrayNode lastParts = null;
         for (Message message : request.getMessages()) {
@@ -241,15 +249,23 @@ public class GoogleProvider implements DescribableProvider {
                 continue;
             }
             String role = message.getRole() == Message.Role.ASSISTANT ? "model" : "user";
-            if (role.equals(lastRole)) {
-                lastParts.addObject().put("text", message.getContent());
-                continue;
+            if (!role.equals(lastRole)) {
+                ObjectNode contentNode = contentsArray.addObject();
+                contentNode.put("role", role);
+                lastParts = contentNode.putArray("parts");
+                lastRole = role;
             }
-            ObjectNode contentNode = contentsArray.addObject();
-            contentNode.put("role", role);
-            lastParts = contentNode.putArray("parts");
-            lastParts.addObject().put("text", message.getContent());
-            lastRole = role;
+            addParts(lastParts, message);
+        }
+
+        if (!request.getTools().isEmpty()) {
+            ArrayNode declarations = root.putArray("tools").addObject().putArray("functionDeclarations");
+            for (ToolSpec t : request.getTools()) {
+                ObjectNode d = declarations.addObject().put("name", t.name()).put("description", t.description());
+                d.set("parameters", geminiSchema(t.parameters()));
+            }
+            root.putObject("toolConfig").putObject("functionCallingConfig")
+                    .put("mode", request.getToolChoice() == LLMRequest.ToolChoice.NONE ? "NONE" : "AUTO");
         }
 
         ObjectNode generationConfig = root.putObject("generationConfig");
@@ -264,6 +280,74 @@ public class GoogleProvider implements DescribableProvider {
         }
 
         return objectMapper.writeValueAsString(root);
+    }
+
+    private void addParts(ArrayNode parts, Message message) {
+        if (message.getRole() == Message.Role.TOOL) {
+            ObjectNode response = parts.addObject().putObject("functionResponse");
+            response.put("name", message.getName() == null ? "" : message.getName());
+            response.putObject("response").put("result", message.getContent());
+            return;
+        }
+        if (message.getRole() == Message.Role.ASSISTANT && !message.getToolCalls().isEmpty()) {
+            Object raw = message.getProviderData().get(RAW_PARTS);
+            if (raw instanceof java.util.List<?> list && !list.isEmpty()) {
+                // the parts Gemini produced (thought signatures included), sent back untouched
+                for (Object part : list) parts.add(objectMapper.valueToTree(part));
+                return;
+            }
+            if (!message.getContent().isEmpty()) parts.addObject().put("text", message.getContent());
+            for (ToolCall c : message.getToolCalls()) {
+                ObjectNode call = parts.addObject().putObject("functionCall");
+                call.put("name", c.name());
+                call.set("args", objectMapper.valueToTree(c.arguments()));
+            }
+            return;
+        }
+        parts.addObject().put("text", message.getContent());
+    }
+
+    /**
+     * Gemini accepts an OpenAPI subset: {@code additionalProperties} and a few other keywords are refused, and an object with no properties
+     * is refused too, so a tool that declares none is offered one free-form {@code input} string (the agent unwraps it).
+     */
+    static JsonNode geminiSchema(java.util.Map<String, Object> schema) {
+        JsonNode node = MAPPER.valueToTree(schema);
+        node = stripUnsupported(node);
+        if (node.isObject() && "object".equals(node.path("type").asText()) && node.path("properties").size() == 0) {
+            ObjectNode free = MAPPER.createObjectNode().put("type", "object");
+            free.putObject("properties").putObject(FREE_FORM_INPUT)
+                    .put("type", "string")
+                    .put("description", "The tool's input. For several arguments, a JSON object written as a string, as the tool description says.");
+            return free;
+        }
+        return node;
+    }
+
+    /** The argument name a tool with no declared parameters is offered (see {@link #geminiSchema}). */
+    public static final String FREE_FORM_INPUT = "input";
+
+    private static JsonNode stripUnsupported(JsonNode node) {
+        if (node.isObject()) {
+            ObjectNode out = MAPPER.createObjectNode();
+            node.fields().forEachRemaining(e -> {
+                String k = e.getKey();
+                if (k.equals("additionalProperties") || k.equals("$schema") || k.equals("$id") || k.equals("examples") || k.equals("default")) return;
+                out.set(k, stripUnsupported(e.getValue()));
+            });
+            return out;
+        }
+        if (node.isArray()) {
+            ArrayNode out = MAPPER.createArrayNode();
+            node.forEach(n -> out.add(stripUnsupported(n)));
+            return out;
+        }
+        return node;
+    }
+
+    @Override
+    public boolean supportsToolCalling() {
+        return true;
     }
 
     private Headers buildHeaders() {
@@ -327,6 +411,18 @@ public class GoogleProvider implements DescribableProvider {
         }
 
         String textContent = answerText(parts);
+        java.util.List<ToolCall> calls = new java.util.ArrayList<>();
+        for (JsonNode part : parts) {
+            if (part.has("functionCall")) {
+                JsonNode fc = part.get("functionCall");
+                calls.add(new ToolCall(fc.path("id").asText(null), fc.path("name").asText(),
+                        objectMapper.convertValue(fc.path("args"), new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {})));
+            }
+        }
+        java.util.Map<String, Object> rawParts = java.util.Map.of();
+        if (!calls.isEmpty()) {
+            rawParts = java.util.Map.of(RAW_PARTS, objectMapper.convertValue(parts, new com.fasterxml.jackson.core.type.TypeReference<java.util.List<java.util.Map<String, Object>>>() {}));
+        }
 
         LLMResponse.TokenUsage tokenUsage = null;
         JsonNode usage = root.path("usageMetadata");
@@ -343,7 +439,9 @@ public class GoogleProvider implements DescribableProvider {
                 .content(textContent)
                 .model(model)
                 .tokenUsage(tokenUsage)
-                .finishReason(finishReason)
+                .toolCalls(calls)
+                .providerData(rawParts)
+                .finishReason(calls.isEmpty() ? finishReason : "tool_calls")
                 .addMetadata(Providers.FINISH_REASON_RAW, finishReason)
                 .build();
     }

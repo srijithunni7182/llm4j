@@ -84,4 +84,9 @@ final class WebhookTool extends GenericTool {
         throw new ToolRefusal("the webhook answered HTTP " + reply.status() + " " + reply.reason() + ": "
                 + Limits.excerpt(reply.bodyText(), 200));
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return io.github.llm4j.model.ToolSchema.object().string("text", "The message to post", true).string("title", "An optional title", false).build();
+    }
 }

@@ -85,4 +85,9 @@ public class DelegateTaskTool implements Tool {
             return "Sub-agent failed with error: " + e.getMessage();
         }
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return io.github.llm4j.model.ToolSchema.object().string("role", "The sub-agent's role", true).string("instructions", "The job for the sub-agent", true).stringArray("requiredTools", "Names of tools the sub-agent needs", false).build();
+    }
 }

@@ -89,4 +89,9 @@ final class EvidenceTool implements Tool {
     static void write(RunJournal journal, String step, int n, String tool, String argsHash, String result) {
         journal.put(step + "#decide-evidence:" + n, new RunJournal.Entry("evidence", Map.of("tool", tool, "args", argsHash, "result", result)));
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return real.getParametersSchema();
+    }
 }

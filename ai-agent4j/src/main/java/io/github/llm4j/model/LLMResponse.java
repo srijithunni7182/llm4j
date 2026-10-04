@@ -63,6 +63,8 @@ public final class LLMResponse {
     private final TokenUsage tokenUsage;
     private final FinishReason finishReason;
     private final Map<String, Object> metadata;
+    private final java.util.List<ToolCall> toolCalls;
+    private final Map<String, Object> providerData;
 
     private LLMResponse(Builder builder) {
         this.content = builder.content;
@@ -70,6 +72,8 @@ public final class LLMResponse {
         this.tokenUsage = builder.tokenUsage;
         this.finishReason =
                 builder.finishReason != null ? builder.finishReason : FinishReason.UNKNOWN;
+        this.toolCalls = builder.toolCalls == null ? java.util.List.of() : java.util.List.copyOf(builder.toolCalls);
+        this.providerData = builder.providerData == null ? Map.of() : Map.copyOf(builder.providerData);
         this.metadata =
                 builder.metadata != null
                         ? Collections.unmodifiableMap(new HashMap<>(builder.metadata))
@@ -96,6 +100,20 @@ public final class LLMResponse {
         return metadata;
     }
 
+    /** The tools the model asked for (empty when it answered in text). */
+    public java.util.List<ToolCall> getToolCalls() {
+        return toolCalls;
+    }
+
+    public boolean hasToolCalls() {
+        return !toolCalls.isEmpty();
+    }
+
+    /** What the provider needs sent back unchanged with the tool results; copy it onto the assistant {@link Message}. */
+    public Map<String, Object> getProviderData() {
+        return providerData;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -109,12 +127,14 @@ public final class LLMResponse {
                 && Objects.equals(model, that.model)
                 && Objects.equals(tokenUsage, that.tokenUsage)
                 && finishReason == that.finishReason
-                && Objects.equals(metadata, that.metadata);
+                && Objects.equals(metadata, that.metadata)
+                && Objects.equals(toolCalls, that.toolCalls)
+                && Objects.equals(providerData, that.providerData);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(content, model, tokenUsage, finishReason, metadata);
+        return Objects.hash(content, model, tokenUsage, finishReason, metadata, toolCalls, providerData);
     }
 
     @Override
@@ -193,8 +213,20 @@ public final class LLMResponse {
         private TokenUsage tokenUsage;
         private FinishReason finishReason;
         private Map<String, Object> metadata;
+        private java.util.List<ToolCall> toolCalls;
+        private Map<String, Object> providerData;
 
         private Builder() {}
+
+        public Builder toolCalls(java.util.List<ToolCall> toolCalls) {
+            this.toolCalls = toolCalls;
+            return this;
+        }
+
+        public Builder providerData(Map<String, Object> providerData) {
+            this.providerData = providerData;
+            return this;
+        }
 
         public Builder content(String content) {
             this.content = content;

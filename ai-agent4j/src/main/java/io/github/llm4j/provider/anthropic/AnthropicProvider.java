@@ -17,6 +17,8 @@ import io.github.llm4j.http.StreamingBody;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.Message;
+import io.github.llm4j.model.ToolCall;
+import io.github.llm4j.model.ToolSpec;
 import io.github.llm4j.provider.LLMProvider;
 import io.github.llm4j.provider.Providers;
 import java.io.IOException;
@@ -49,6 +51,8 @@ public class AnthropicProvider implements LLMProvider {
     static final int DEFAULT_STREAM_MAX_TOKENS = 64_000;
     private static final Set<String> EFFORTS = Set.of("low", "medium", "high", "xhigh", "max");
     private static final ObjectMapper JSON = new ObjectMapper();
+    /** Key in {@link io.github.llm4j.model.LLMResponse#getProviderData()}: the content blocks of a tool-call reply, to be sent back verbatim. */
+    static final String RAW_CONTENT = "anthropic.content";
 
     private final LLMConfig config;
     private final HttpClientWrapper http;
@@ -185,25 +189,41 @@ public class AnthropicProvider implements LLMProvider {
         if (!system.isEmpty()) root.put("system", system);
 
         // Anthropic has no system role and expects user/assistant turns: merge consecutive turns of one role.
-        ArrayNode messages = root.putArray("messages");
-        String lastRole = null;
-        StringBuilder lastText = null;
-        List<ObjectNode> turns = new ArrayList<>();
-        List<StringBuilder> texts = new ArrayList<>();
+        // A tool result is a user turn holding a tool_result block; an assistant tool call is tool_use blocks.
+        List<String> roles = new ArrayList<>();
+        List<List<ObjectNode>> blocks = new ArrayList<>();
         for (Message m : request.getMessages()) {
             if (m.getRole() == Message.Role.SYSTEM) continue;
             String role = m.getRole() == Message.Role.ASSISTANT ? "assistant" : "user";
-            if (role.equals(lastRole)) {
-                lastText.append("\n\n").append(m.getContent());
-                continue;
+            List<ObjectNode> mine = blocksOf(m);
+            if (!roles.isEmpty() && roles.get(roles.size() - 1).equals(role)) {
+                blocks.get(blocks.size() - 1).addAll(mine);
+            } else {
+                roles.add(role);
+                blocks.add(new ArrayList<>(mine));
             }
-            ObjectNode turn = messages.addObject().put("role", role);
-            lastText = new StringBuilder(m.getContent());
-            turns.add(turn);
-            texts.add(lastText);
-            lastRole = role;
         }
-        for (int i = 0; i < turns.size(); i++) turns.get(i).put("content", texts.get(i).toString());
+        ArrayNode messages = root.putArray("messages");
+        for (int i = 0; i < roles.size(); i++) {
+            ObjectNode turn = messages.addObject().put("role", roles.get(i));
+            List<ObjectNode> turnBlocks = blocks.get(i);
+            if (turnBlocks.stream().allMatch(AnthropicProvider::isText)) {
+                // plain text turns keep the simple string form
+                turn.put("content", turnBlocks.stream().map(x -> x.path("text").asText()).collect(Collectors.joining("\n\n")));
+            } else {
+                ArrayNode content = turn.putArray("content");
+                turnBlocks.forEach(content::add);
+            }
+        }
+
+        if (!request.getTools().isEmpty()) {
+            ArrayNode tools = root.putArray("tools");
+            for (ToolSpec t : request.getTools()) {
+                ObjectNode tool = tools.addObject().put("name", t.name()).put("description", t.description());
+                tool.set("input_schema", JSON.valueToTree(t.parameters()));
+            }
+            root.putObject("tool_choice").put("type", request.getToolChoice() == LLMRequest.ToolChoice.NONE ? "none" : "auto");
+        }
 
         if (AnthropicModels.acceptsSampling(model)) {
             if (request.getTemperature() != null) root.put("temperature", request.getTemperature());
@@ -225,6 +245,42 @@ public class AnthropicProvider implements LLMProvider {
         return JSON.writeValueAsString(root);
     }
 
+    private static boolean isText(ObjectNode block) {
+        return "text".equals(block.path("type").asText());
+    }
+
+    /** The content blocks of one message. An assistant tool-call turn re-sends the blocks Claude produced (thinking included), verbatim. */
+    private static List<ObjectNode> blocksOf(Message m) {
+        List<ObjectNode> out = new ArrayList<>();
+        if (m.getRole() == Message.Role.TOOL) {
+            ObjectNode result = JSON.createObjectNode().put("type", "tool_result").put("tool_use_id", m.getToolCallId() == null ? "" : m.getToolCallId());
+            result.put("content", m.getContent());
+            out.add(result);
+            return out;
+        }
+        if (m.getRole() == Message.Role.ASSISTANT && !m.getToolCalls().isEmpty()) {
+            Object raw = m.getProviderData().get(RAW_CONTENT);
+            if (raw instanceof List<?> list && !list.isEmpty()) {
+                for (Object block : list) out.add((ObjectNode) JSON.valueToTree(block));
+                return out;
+            }
+            if (!m.getContent().isEmpty()) out.add(JSON.createObjectNode().put("type", "text").put("text", m.getContent()));
+            for (ToolCall c : m.getToolCalls()) {
+                ObjectNode use = JSON.createObjectNode().put("type", "tool_use").put("id", c.id() == null ? "" : c.id()).put("name", c.name());
+                use.set("input", JSON.valueToTree(c.arguments()));
+                out.add(use);
+            }
+            return out;
+        }
+        out.add(JSON.createObjectNode().put("type", "text").put("text", m.getContent()));
+        return out;
+    }
+
+    @Override
+    public boolean supportsToolCalling() {
+        return true;
+    }
+
     private Headers headers() {
         return new Headers.Builder()
                 .add("x-api-key", config.requireApiKey("Anthropic", baseUrl))
@@ -241,18 +297,31 @@ public class AnthropicProvider implements LLMProvider {
         if ("refusal".equals(stop)) throw refusal(root.path("stop_details"));
 
         StringBuilder text = new StringBuilder();
+        List<ToolCall> calls = new ArrayList<>();
         for (JsonNode block : root.path("content")) {
-            if ("text".equals(block.path("type").asText())) text.append(block.path("text").asText(""));
+            String type = block.path("type").asText();
+            if ("text".equals(type)) text.append(block.path("text").asText(""));
+            else if ("tool_use".equals(type)) {
+                calls.add(new ToolCall(block.path("id").asText(null), block.path("name").asText(),
+                        JSON.convertValue(block.path("input"), new com.fasterxml.jackson.core.type.TypeReference<java.util.Map<String, Object>>() {})));
+            }
             // thinking and redacted_thinking blocks are the model's reasoning, not its answer
         }
         JsonNode u = root.path("usage");
         int input = inputTokens(u);
         int output = u.path("output_tokens").asInt(0);
+        java.util.Map<String, Object> raw = java.util.Map.of();
+        if (!calls.isEmpty()) {
+            // thinking blocks must come back with the tool results, so keep what Claude sent, untouched
+            raw = java.util.Map.of(RAW_CONTENT, JSON.convertValue(root.path("content"), new com.fasterxml.jackson.core.type.TypeReference<List<java.util.Map<String, Object>>>() {}));
+        }
         return LLMResponse.builder()
                 .content(text.toString())
                 .model(root.path("model").asText(model))
                 .tokenUsage(input, output, input + output)
-                .finishReason(stop)
+                .toolCalls(calls)
+                .providerData(raw)
+                .finishReason(calls.isEmpty() ? stop : "tool_use")
                 .addMetadata(Providers.FINISH_REASON_RAW, stop)
                 .addMetadata("id", root.path("id").asText(null))
                 .build();

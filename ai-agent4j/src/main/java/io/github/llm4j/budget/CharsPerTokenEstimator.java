@@ -16,6 +16,11 @@ public final class CharsPerTokenEstimator implements TokenEstimator {
         long chars = 0;
         for (Message m : request.getMessages()) {
             chars += m.getContent() == null ? 0 : m.getContent().length();
+            for (io.github.llm4j.model.ToolCall c : m.getToolCalls()) chars += c.name().length() + String.valueOf(c.arguments()).length();
+        }
+        // tool definitions are part of the prompt the model reads
+        for (io.github.llm4j.model.ToolSpec t : request.getTools()) {
+            chars += t.name().length() + t.description().length() + String.valueOf(t.parameters()).length();
         }
         return tokens(chars);
     }

@@ -189,4 +189,9 @@ public final class EffectTool implements Tool {
             this.attempt = attempt;
         }
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return delegate.getParametersSchema();
+    }
 }

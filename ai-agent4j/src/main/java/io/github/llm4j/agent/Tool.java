@@ -43,4 +43,15 @@ public interface Tool {
     default boolean requiresApproval(java.util.Map<String, Object> args) {
         return false;
     }
+
+    /**
+     * The JSON Schema of this tool's arguments, as offered to a model that supports native tool calling. The default accepts any object, which
+     * leaves the model to guess argument names from {@link #getDescription()}; declare the real parameters with
+     * {@link io.github.llm4j.model.ToolSchema} for reliable calls.
+     *
+     * @return a JSON Schema object
+     */
+    default java.util.Map<String, Object> getParametersSchema() {
+        return io.github.llm4j.model.ToolSchema.permissive();
+    }
 }

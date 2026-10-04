@@ -113,4 +113,9 @@ final class SqlTool extends GenericTool {
             throw new ToolRefusal("the database refused the request: " + Limits.excerpt(String.valueOf(e.getMessage()), 300));
         }
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return io.github.llm4j.model.ToolSchema.object().enumeration("action", "query (the default) or schema", false, java.util.List.of("query", "schema")).string("sql", "One SELECT statement; use ? for values (query)", false).stringArray("params", "Values for the ?s, as strings (query)", false).string("table", "Which table to describe (schema)", false).build();
+    }
 }

@@ -42,6 +42,11 @@ public final class LlmCallCounter implements LLMClient {
         return delegate.chatStream(request);
     }
 
+    @Override
+    public boolean supportsToolCalling() {
+        return delegate.supportsToolCalling();
+    }
+
     /** Calls made through this wrapper so far. */
     public long count() {
         return calls.get();

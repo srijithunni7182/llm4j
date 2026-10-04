@@ -59,4 +59,9 @@ public class CachedSearchTool implements Tool {
     public static void clearCache() {
         cache.clear();
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return delegate.getParametersSchema();
+    }
 }

@@ -115,4 +115,9 @@ public class GraphQueryTool implements Tool {
 
         return result.toString();
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return io.github.llm4j.model.ToolSchema.object().string("entityId", "Get this entity's details", false).string("entityType", "Find entities of this type", false).string("subjectId", "Get relationships from this entity", false).string("predicateType", "Only relationships of this type (with subjectId)", false).build();
+    }
 }

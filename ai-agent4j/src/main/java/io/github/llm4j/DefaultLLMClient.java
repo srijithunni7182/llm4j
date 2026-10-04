@@ -19,12 +19,26 @@ public class DefaultLLMClient implements LLMClient {
     @Override
     public LLMResponse chat(LLMRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
+        requireToolSupport(request);
         return provider.chat(request);
+    }
+
+    private void requireToolSupport(LLMRequest request) {
+        if (!request.getTools().isEmpty() && !provider.supportsToolCalling()) {
+            throw new io.github.llm4j.exception.InvalidRequestException(
+                    "provider " + provider.getProviderName() + " does not support native tool calling; send the request without tools");
+        }
+    }
+
+    @Override
+    public boolean supportsToolCalling() {
+        return provider.supportsToolCalling();
     }
 
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
         Objects.requireNonNull(request, "request cannot be null");
+        requireToolSupport(request);
         return provider.chatStream(request);
     }
 

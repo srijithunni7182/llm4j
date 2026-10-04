@@ -49,4 +49,9 @@ public class FallbackSearchTool implements Tool {
         }
         return "Error: All search tools failed.\n" + errors.toString();
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return tools.get(0).getParametersSchema();
+    }
 }

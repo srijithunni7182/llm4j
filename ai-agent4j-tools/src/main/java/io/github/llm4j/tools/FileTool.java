@@ -256,4 +256,9 @@ final class FileTool extends GenericTool {
             throw new ToolRefusal(key + " must be a whole number");
         }
     }
+
+    @Override
+    public java.util.Map<String, Object> getParametersSchema() {
+        return io.github.llm4j.model.ToolSchema.object().enumeration("action", "What to do", true, java.util.List.of("read", "list", "exists", "write", "append")).string("path", "A path relative to the tool's directory", false).string("content", "The text to write or append", false).integer("from_line", "First line to read (read)", false).integer("lines", "How many lines to read (read)", false).string("pattern", "A glob to filter names (list)", false).build();
+    }
 }
