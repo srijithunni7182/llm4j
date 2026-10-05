@@ -29,7 +29,7 @@ Existing scripts are reused. New ones live in `loom/ai-agent4j-loom/src/test/res
 | `graph/syntax_error_import/` | entry is valid, imported file has an error at line 5 | diagnostic with file and line |
 | `graph/unresolved_call.loom` | `call Nowhere()` | unresolved node |
 | `graph/recursive.loom` | workflow `A` calls `A` | no inline expansion |
-| `graph/duplicate_names/` | `ReviseContent` defined in two imported files | nearest-first rule and warning |
+| `graph/duplicate_names/` | `Shared` defined in two imported files | first-in-run-order rule and warning |
 | `graph/large_400.loom` | generated: 400 statements in nested blocks | collapse, performance |
 | `report/` fixtures (`eval4j-report/src/test/resources/graph/`) | trace JSONs: `all-taken`, `one-missed`, `one-unexpected`, `loop-x3`, `no-expected`, `big-501`, `empty-path`, `old-kinds-only` | report graph and overlay |
 | `graph/hostile_labels.loom` | notes and agent names containing `<img src=x onerror=alert(1)>`, quotes, `</script>`, 5,000-character strings | escaping, truncation |
@@ -50,15 +50,15 @@ IDs are `V<requirement>.<n>`. The tests that implement them are named in each he
 |---|---|---|
 | V1.1 | `content_factory` `GenerateContent` | nodes are exactly `start, n1…n6, end` (8); edges are exactly 8: `start→n1, n1→n2, n2→n3, n3→n4, n4→n5 [then], n4→n6 [else], n5→end, n6→end` |
 | V1.2a | `alt` with both branches | two labelled edges `then` and `else` out of the alt node; both branch exits join the next node |
-| V1.2b | `loop` with a 2-statement body | edges: loop→first body node, last body node→loop `[again]`, loop→next `[exit]`; no other edges |
+| V1.2b | `loop` with a 2-statement body | edges: loop→first body node, last body node→loop `[again]`, loop→next `[done]`; no other edges |
 | V1.2c | `for each` and `parallel for each` | same shape as `loop`; `attrs.parallel` is `true` only for the second |
 | V1.2d | `parallel` with 3 delegates | **one** node, `agent` set is the 3 targets; no child nodes |
-| V1.3 | `all_statements.loom` | every statement kind yields a node whose `kind` equals the name in `ui.md` 3.1; an injected unknown `Statement` subclass yields `kind == "unknown"` and is not dropped |
+| V1.3 | `all_statements.loom` | every statement kind yields a node whose `kind` equals the name in `ui.md` 3.1 (a `run` statement is kind `task`, the name the report already used); an injected unknown `Statement` subclass yields `kind == "unknown"` and is not dropped |
 | V1.4 | `handlers.loom` | handler nodes exist; edges from owner are labelled `failure`, `exhausted`, `violation`; handler blocks do not appear in the main path |
 | V1.5 | build the same script 100 times, in 8 threads | identical JSON every time (byte for byte) |
 | V1.6a | every statement type has a line | `source.line` equals the line in the file for each node in `all_statements.loom` |
 | V1.6b | a hand-built AST statement with no line | node has no `source` key (absent, not `0` or null) |
-| V1.7 | `all_statements.loom` | `attrs` has exactly the keys set in the script: `retry`, `backoffMs`, `timeoutMs`, `expecting`, `budget{tokens,calls,cost,perCall,warnAt,window,whenExhausted}`, `maxIterations`, `parallel`, `variable`, `args`, `atMost`, `effects`, `carrying`, `startingWith`, `type`, `decision`, `level`; a statement with none set has no `attrs` key; no value is `null` |
+| V1.7 | `all_statements.loom` | `attrs` has exactly the keys set in the script: `retry`, `backoffMs`, `timeoutMs`, `expecting`, `budget{tokens,calls,cost,perCall,warnAt,window,whenExhausted}`, `text`, `condition`, `agents`, `branches`, `task`, `item`, `collection`, `parallel`, `variable`, `args`, `name`, `startingWith`, `target`, `atMost`, `effects`, `carrying`, `type`, `decision`, `level` (a loop's maximum is the node's `bound`, not an attribute); a statement with none set has no `attrs` key; no value is `null` |
 | V1.8 | `content_factory` | `agents` lists `Researcher` and `Copywriter` with `model`, `tools`, `approve`, `budget`, `maxIterations`, and `source.line` equal to the `agent` line; the script-level run budget is present when declared and absent otherwise |
 
 ### Requirement 2: Imports and calls
@@ -76,7 +76,7 @@ IDs are `V<requirement>.<n>`. The tests that implement them are named in each he
 | V2.6b | `syntax_error_import/` | diagnostic names the imported file and line 5; entry's graph present; the imported file's workflows absent |
 | V2.7 | `recursive.loom` | `A` has one `call` node pointing to `A`; node count is 3 (`start, n1, end`); output is finite |
 | V2.8 | `diamond/` | `files[].imports` forms the tree used by the panel and matches the real `import` lines |
-| V2.9 | `duplicate_names/` | the call links to the nearest definition (same file, then first import); one `warning` diagnostic names both files; the rule matches `LoomScript.merge` (task 4.3) |
+| V2.9 | `duplicate_names/` | the call links to the definition that comes first in run order (imports before the importing file's own definitions), which is the one `HarnessExecutor` runs; one `warning` diagnostic names both files; a test loads the script with `LoomLoader` and shows the same definition wins |
 
 ### Requirement 3: `weave graph` command
 *Tests: `GraphCommandTest`, `GraphCliNoSecretsTest`*

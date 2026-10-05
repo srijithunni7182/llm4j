@@ -1,0 +1,7 @@
+import "b.loom"
+import "c.loom"
+
+workflow A() {
+    call B() -> x
+    call C() -> y
+}

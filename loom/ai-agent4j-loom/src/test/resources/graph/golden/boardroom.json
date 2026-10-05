@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "entry": "<root>/samples/boardroom/main.loom",
+  "files": [
+    {
+      "path": "<root>/samples/boardroom/main.loom",
+      "imports": [
+        "<root>/samples/boardroom/members.loom"
+      ]
+    },
+    {
+      "path": "<root>/samples/boardroom/members.loom",
+      "imports": [ ]
+    }
+  ],
+  "workflows": [
+    {
+      "name": "EvaluateProposal",
+      "file": "<root>/samples/boardroom/main.loom",
+      "line": 9,
+      "params": [
+        "proposal"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "kind": "start",
+          "label": "Start"
+        },
+        {
+          "id": "n1",
+          "kind": "observe",
+          "label": "observe Proposal Ingested",
+          "source": {
+            "file": "<root>/samples/boardroom/main.loom",
+            "line": 10
+          },
+          "attrs": {
+            "text": "proposal"
+          }
+        },
+        {
+          "id": "n2",
+          "kind": "parallel",
+          "label": "in parallel: CFO, CTO",
+          "source": {
+            "file": "<root>/samples/boardroom/main.loom",
+            "line": 12
+          },
+          "attrs": {
+            "agents": [
+              "CFO",
+              "CTO"
+            ],
+            "branches": 2
+          }
+        },
+        {
+          "id": "n3",
+          "kind": "observe",
+          "label": "observe Analyses Complete",
+          "source": {
+            "file": "<root>/samples/boardroom/main.loom",
+            "line": 17
+          },
+          "attrs": {
+            "text": "finance_report"
+          }
+        },
+        {
+          "id": "n4",
+          "kind": "delegate",
+          "label": "delegate CEO",
+          "agent": "CEO",
+          "source": {
+            "file": "<root>/samples/boardroom/main.loom",
+            "line": 19
+          },
+          "attrs": {
+            "variable": "final_verdict",
+            "text": "Make final decision based on reports: {finance_report} and {tech_report}"
+          }
+        },
+        {
+          "id": "n5",
+          "kind": "handoff",
+          "label": "handoff CEO",
+          "agent": "CEO",
+          "source": {
+            "file": "<root>/samples/boardroom/main.loom",
+            "line": 21
+          },
+          "attrs": {
+            "text": "Decision Reached: {final_verdict}"
+          }
+        },
+        {
+          "id": "end",
+          "kind": "end",
+          "label": "End"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "n1"
+        },
+        {
+          "from": "n1",
+          "to": "n2"
+        },
+        {
+          "from": "n2",
+          "to": "n3"
+        },
+        {
+          "from": "n3",
+          "to": "n4"
+        },
+        {
+          "from": "n4",
+          "to": "n5"
+        },
+        {
+          "from": "n5",
+          "to": "end"
+        }
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "name": "CFO",
+      "model": "gemini-3.5-flash",
+      "persona": "FinancialAnalyst",
+      "source": {
+        "file": "<root>/samples/boardroom/members.loom",
+        "line": 23
+      }
+    },
+    {
+      "name": "CTO",
+      "model": "llama3",
+      "persona": "TechnicalArchitect",
+      "source": {
+        "file": "<root>/samples/boardroom/members.loom",
+        "line": 29
+      }
+    },
+    {
+      "name": "CEO",
+      "model": "gemini-1.5-pro",
+      "persona": "ExecutiveLeader",
+      "source": {
+        "file": "<root>/samples/boardroom/members.loom",
+        "line": 35
+      }
+    }
+  ],
+  "diagnostics": [ ]
+}

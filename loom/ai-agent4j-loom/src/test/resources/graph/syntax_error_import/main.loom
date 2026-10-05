@@ -1,0 +1,3 @@
+import "broken.loom"
+
+workflow Main() { note "fine" }

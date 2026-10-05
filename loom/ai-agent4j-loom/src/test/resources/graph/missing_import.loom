@@ -1,0 +1,3 @@
+import "nowhere.loom"
+
+workflow W() { note "still drawn" }

@@ -74,8 +74,17 @@ detected with a visiting set; the offending import is skipped and a diagnostic e
 in one file yields a diagnostic with the file and line and the file is skipped.
 
 `CallResolver` indexes workflows by name across the closure; a `call` node gets `CallLink` from the
-index, or `unresolved = true`. On a duplicate name it picks the file nearest the caller (same file,
-then first import in order) and emits a warning. Callees are never inlined, so recursion is safe.
+index, or `unresolved = true`. On a duplicate name the definition that comes first in run order wins,
+which is what `HarnessExecutor` runs (`LoomLoader` merges imports before the importing file's own
+definitions and the harness takes the first match); the other is reported as a warning. Callees are never
+inlined, so recursion is safe.
+
+Implemented as small single-purpose classes in `io.github.llm4j.loom.graph`: `NodeDescriber` (statement to
+node and attributes), `GraphBuilder` (control flow), `ImportClosureLoader` (files), `CallResolver` (call
+links), `AgentCatalog` (agent settings), `GraphService` (orchestration), `GraphJson` and `MermaidRenderer`
+(output). Facts that shaped them: a `run` statement keeps the kind `task` the report already used; a loop's
+exit edge is labelled `done`; handler blocks are numbered after the main path so existing ids do not move;
+`ImportClosureLoader` returns files in run order, plus discovery order for display.
 
 `MermaidRenderer` turns a `WorkflowGraph` into `flowchart TD` text (shapes per kind, labelled edges).
 
@@ -248,5 +257,5 @@ a larger Loom change; the overlay will pick it up unchanged when it exists.
 - JVM start (~0.5–1 s) per refresh. Mitigation: debounce and cancellation; a later optimisation is a
   long-lived `weave graph --serve` process, deliberately out of scope here.
 - Layout quality for large, deeply nested workflows; mitigated by collapsing and the dagre fallback.
-- Duplicate workflow names across imports follow the loader's merge order today; the graph picks
-  nearest-first and warns, which may differ from runtime. Confirm with the runtime's rule in task 4.3.
+- Duplicate workflow names across imports: the graph follows the harness (first in run order wins) and
+  warns. A test loads the same script through `LoomLoader` to keep the two in step.

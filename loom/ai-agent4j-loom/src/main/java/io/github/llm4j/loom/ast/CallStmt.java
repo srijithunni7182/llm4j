@@ -6,7 +6,7 @@ import java.util.Map;
  * Represents a call to a sub-workflow.
  * Form: call WorkflowName(arg1=val1, ...) -> resultVar
  */
-public class CallStmt implements Statement {
+public class CallStmt extends LocatedStatement {
     private final String workflowName;
     private final Map<String, String> arguments;
     private final String resultVariable;

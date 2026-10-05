@@ -21,7 +21,8 @@ public class LoomParser {
             if (match(TokenType.AGENT)) {
                 script.addAgent(parseAgent());
             } else if (match(TokenType.IMPORT)) {
-                script.addImport(parseImport());
+                int line = previous().getLine();
+                script.addImport(parseImport(), line);
             } else if (match(TokenType.WORKFLOW)) {
                 script.addWorkflow(parseWorkflow());
             } else if (match(TokenType.MCP)) {
@@ -201,6 +202,7 @@ public class LoomParser {
     private WorkflowDef parseWorkflow() {
         Token nameToken = consume(TokenType.IDENTIFIER, "Expect workflow name.");
         WorkflowDef workflow = new WorkflowDef(nameToken.getValue());
+        workflow.setLine(nameToken.getLine());
 
         if (match(TokenType.LPAREN)) {
             if (!check(TokenType.RPAREN)) {
@@ -222,7 +224,15 @@ public class LoomParser {
         return workflow;
     }
 
+    /** Parses one statement and records the line its first token is on. */
     private Statement parseStatement() {
+        int line = peek().getLine();
+        Statement statement = parseStatementBody();
+        statement.setLine(line);
+        return statement;
+    }
+
+    private Statement parseStatementBody() {
         if (match(TokenType.NOTE)) {
             return parseNoteStmt();
         } else if (match(TokenType.HANDOFF)) {

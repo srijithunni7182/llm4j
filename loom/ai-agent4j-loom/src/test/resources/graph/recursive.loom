@@ -1,0 +1,3 @@
+workflow A() {
+    call A() -> r
+}

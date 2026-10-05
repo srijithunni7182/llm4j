@@ -20,61 +20,61 @@ Three phases, each shippable on its own:
 
 <!-- PHASE 1: ai-agent4j-loom -->
 
-- [ ] 1. Source lines in the AST
-  - [ ] 1.1 Add `getLine()`/`setLine()` to statements (default 0) and `WorkflowDef.line`
+- [x] 1. Source lines in the AST
+  - [x] 1.1 Add `getLine()`/`setLine()` to statements (default 0) and `WorkflowDef.line`
     - _Requirements: 1.6_
-  - [ ] 1.2 Set lines in `LoomParser` where each statement and workflow is built
+  - [x] 1.2 Set lines in `LoomParser` where each statement and workflow is built
     - _Requirements: 1.6_
-  - [ ] 1.3 Parser tests: lines present for every statement kind; existing parser tests unchanged
+  - [x] 1.3 Parser tests: lines present for every statement kind; existing parser tests unchanged
     - _Requirements: 1.6, 9.1_
 
-- [ ] 2. Graph model and builder (`io.github.llm4j.loom.graph`)
-  - [ ] 2.1 Records: `GraphNode`, `GraphEdge`, `SourceRef`, `CallLink`, `WorkflowGraph`, `ImportFile`,
+- [x] 2. Graph model and builder (`io.github.llm4j.loom.graph`)
+  - [x] 2.1 Records: `GraphNode`, `GraphEdge`, `SourceRef`, `CallLink`, `WorkflowGraph`, `ImportFile`,
         `Diagnostic`, `GraphResult`
     - _Requirements: 1.1, 3.6_
-  - [ ] 2.2 `GraphBuilder`: port `block()` from `eval4j-report`'s `WorkflowGraph`; keep `n1…` pre-order ids
+  - [x] 2.2 `GraphBuilder`: port `block()` from `eval4j-report`'s `WorkflowGraph`; keep `n1…` pre-order ids
     - _Requirements: 1.1, 1.2, 1.5_
-  - [ ] 2.3 Cover all statement kinds (`call`, `foreach`, `guardrail`, `rewind`, `decide`, `observe`,
+  - [x] 2.3 Cover all statement kinds (`call`, `foreach`, `guardrail`, `rewind`, `decide`, `observe`,
         `note`, `broadcast`) with a generic fallback node
     - _Requirements: 1.3_
-  - [ ] 2.4 Handler blocks (`on_failure`, `on_exhausted`, `on_violation`) using `StatementWalker.nested`
+  - [x] 2.4 Handler blocks (`on_failure`, `on_exhausted`, `on_violation`) using `StatementWalker.nested`
     - _Requirements: 1.4_
-  - [ ] 2.5 `attrs` per node and `AgentInfo` per agent, from the AST (retry, backoff, timeout, expecting,
+  - [x] 2.5 `attrs` per node and `AgentInfo` per agent, from the AST (retry, backoff, timeout, expecting,
         budget, max, parallel, rewind and checkpoint settings, decision level, agent settings)
     - _Requirements: 1.7, 1.8_
-  - [ ] 2.6 Unit tests per kind, alt/loop edge shape, id stability, attrs present only when set
+  - [x] 2.6 Unit tests per kind, alt/loop edge shape, id stability, attrs present only when set
     - _Requirements: 1.1–1.8, 9.1_
     - _Requirements: 1.1–1.6, 9.1_
 
-- [ ] 3. Import closure
-  - [ ] 3.1 `ImportClosureLoader`: load entry + imports without merging, same path resolution as
+- [x] 3. Import closure
+  - [x] 3.1 `ImportClosureLoader`: load entry + imports without merging, same path resolution as
         `LoomLoader`, returns scripts, import edges, diagnostics
     - _Requirements: 2.1, 2.8_
-  - [ ] 3.2 Cycle detection and skip; missing-file and syntax-error diagnostics with file and line
+  - [x] 3.2 Cycle detection and skip; missing-file and syntax-error diagnostics with file and line
     - _Requirements: 2.5, 2.6_
-  - [ ] 3.3 Tests: simple, diamond, cycle (`circular_a/b.loom`), missing file, syntax error
+  - [x] 3.3 Tests: simple, diamond, cycle (`circular_a/b.loom`), missing file, syntax error
     - _Requirements: 2.1, 2.5, 2.6, 9.1_
 
-- [ ] 4. Call resolution
-  - [ ] 4.1 `CallResolver`: index workflows by name; set `CallLink` or `unresolved`
+- [x] 4. Call resolution
+  - [x] 4.1 `CallResolver`: index workflows by name; set `CallLink` or `unresolved`
     - _Requirements: 2.2, 2.3, 2.4_
-  - [ ] 4.2 Never inline callees; recursion test
+  - [x] 4.2 Never inline callees; recursion test
     - _Requirements: 2.7_
-  - [ ] 4.3 Duplicate names: match the runtime's rule (verify in `LoomScript.merge`), warn
+  - [x] 4.3 Duplicate names: match the runtime's rule (first in run order), warn
     - _Requirements: 2.3_
 
-- [ ] 5. `weave graph`
-  - [ ] 5.1 `MermaidRenderer` (shapes per kind, labelled edges, escaped labels)
+- [x] 5. `weave graph`
+  - [x] 5.1 `MermaidRenderer` (shapes per kind, labelled edges, escaped labels)
     - _Requirements: 3.2_
-  - [ ] 5.2 `GraphCommand` in `WeaveCLI`: `--format`, `--workflow`, JSON via Jackson, exit codes,
+  - [x] 5.2 `GraphCommand` in `WeaveCLI`: `--format`, `--workflow`, JSON via Jackson, exit codes,
         no model/secret access
     - _Requirements: 3.1–3.7_
-  - [ ] 5.3 Golden tests for samples (`boardroom`, `content_factory`, `digest`, `imports/parent`)
+  - [x] 5.3 Golden tests for samples (`boardroom`, `content_factory`, `digest`, `imports/parent`)
     - _Requirements: 9.2_
-  - [ ] 5.4 CLI tests: exit codes, stdout is pure JSON, unknown `--workflow` exits 2
+  - [x] 5.4 CLI tests: exit codes, stdout is pure JSON, unknown `--workflow` exits 2
     - _Requirements: 3.3, 3.5, 9.1_
 
-- [ ] 6. **Checkpoint — core**: `mvn -pl loom/ai-agent4j-loom test` green; manual `weave graph` on
+- [x] 6. **Checkpoint — core**: `mvn -pl loom/ai-agent4j-loom test` green; manual `weave graph` on
       `samples/content_factory/main.loom`
 
 <!-- PHASE 2: eval4j-report -->

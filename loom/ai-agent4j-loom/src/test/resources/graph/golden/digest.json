@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "entry": "<root>/samples/digest/digest.loom",
+  "files": [
+    {
+      "path": "<root>/samples/digest/digest.loom",
+      "imports": [
+        "<root>/samples/digest/core.loom"
+      ]
+    },
+    {
+      "path": "<root>/samples/digest/core.loom",
+      "imports": [ ]
+    }
+  ],
+  "workflows": [
+    {
+      "name": "DailyDigest",
+      "file": "<root>/samples/digest/core.loom",
+      "line": 37,
+      "params": [
+        "topic"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "kind": "start",
+          "label": "Start"
+        },
+        {
+          "id": "n1",
+          "kind": "delegate",
+          "label": "delegate Collector",
+          "agent": "Collector",
+          "source": {
+            "file": "<root>/samples/digest/core.loom",
+            "line": 38
+          },
+          "attrs": {
+            "variable": "stories",
+            "text": "Collect today's new stories about {topic}."
+          }
+        },
+        {
+          "id": "n2",
+          "kind": "delegate",
+          "label": "delegate Writer",
+          "agent": "Writer",
+          "source": {
+            "file": "<root>/samples/digest/core.loom",
+            "line": 39
+          },
+          "attrs": {
+            "variable": "result",
+            "text": "Write and save the digest from these stories: {stories}"
+          }
+        },
+        {
+          "id": "n3",
+          "kind": "delegate",
+          "label": "delegate Notifier",
+          "agent": "Notifier",
+          "source": {
+            "file": "<root>/samples/digest/core.loom",
+            "line": 40
+          },
+          "attrs": {
+            "variable": "sent",
+            "text": "Send this digest to the team: {result}"
+          }
+        },
+        {
+          "id": "n4",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/samples/digest/core.loom",
+            "line": 41
+          },
+          "attrs": {
+            "text": "Digest sent: {sent}"
+          }
+        },
+        {
+          "id": "end",
+          "kind": "end",
+          "label": "End"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "n1"
+        },
+        {
+          "from": "n1",
+          "to": "n2"
+        },
+        {
+          "from": "n2",
+          "to": "n3"
+        },
+        {
+          "from": "n3",
+          "to": "n4"
+        },
+        {
+          "from": "n4",
+          "to": "end"
+        }
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "name": "Collector",
+      "model": "gemini-2.5-flash",
+      "temperature": 0.2,
+      "tools": [
+        "Notes",
+        "Hn"
+      ],
+      "maxIterations": 14,
+      "source": {
+        "file": "<root>/samples/digest/core.loom",
+        "line": 12
+      }
+    },
+    {
+      "name": "Writer",
+      "model": "gemini-2.5-flash",
+      "tools": [
+        "Notes"
+      ],
+      "maxIterations": 8,
+      "source": {
+        "file": "<root>/samples/digest/core.loom",
+        "line": 20
+      }
+    },
+    {
+      "name": "Notifier",
+      "model": "gemini-2.5-flash",
+      "tools": [
+        "Outbox"
+      ],
+      "maxIterations": 4,
+      "source": {
+        "file": "<root>/samples/digest/core.loom",
+        "line": 27
+      }
+    }
+  ],
+  "runBudget": {
+    "tokens": 200000,
+    "window": "day",
+    "whenExhausted": "suspend"
+  },
+  "diagnostics": [ ]
+}

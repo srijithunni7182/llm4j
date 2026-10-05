@@ -52,7 +52,7 @@ Kind is carried by shape and glyph as well as colour. The JSON carries every att
 | Primitive | Source form | Shape and glyph | Title | Subtitle | Chips (attributes) | Extra edges |
 |---|---|---|---|---|---|---|
 | `delegate` | `delegate "…" to Agent -> var` | rectangle, blue, agent glyph | `delegate` | `Agent · model` | retry, timeout, budget, expecting, `→ var` | `failure` to its `on_failure` block |
-| `run` | `run Task(a=…) -> var` | rectangle, teal, code glyph | `run Task` | `n args` | retry, timeout, `→ var` (no budget: a task spends no tokens) | `failure` |
+| `run` (kind `task`) | `run Task(a=…) -> var` | rectangle, teal, code glyph | `run Task` | `n args` | retry, timeout, `→ var` (no budget: a task spends no tokens) | `failure` |
 | `handoff` | `handoff "…" to Agent` | rectangle, blue, arrow-out glyph, no outgoing edge to the next step | `handoff` | `Agent · model` | none | none (control leaves the workflow) |
 | `broadcast` | `broadcast "…" to A, B -> var` | rectangle, blue, fan-out glyph | `broadcast` | `A, B, C` (first 3, then `+n`) | budget, `→ var` | none |
 | `parallel` | `parallel { … }` | rectangle with double top bar, green | `in parallel` | agents, one per line (first 4, then `+n`) | `n branches` | none (one node for the whole round) |

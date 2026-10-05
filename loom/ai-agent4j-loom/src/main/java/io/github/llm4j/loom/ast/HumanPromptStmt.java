@@ -1,6 +1,6 @@
 package io.github.llm4j.loom.ast;
 
-public class HumanPromptStmt implements Statement {
+public class HumanPromptStmt extends LocatedStatement {
     private final String message;
     private final String variableName;
 

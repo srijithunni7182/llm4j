@@ -1,0 +1,29 @@
+agent Researcher { model: "gpt-4" }
+agent Writer { model: "gpt-4" }
+
+workflow Handlers() {
+    checkpoint first
+    delegate "Research" to Researcher -> notes
+        on_failure {
+            note "research failed"
+            delegate "Fallback" to Writer -> notes
+        }
+    run Lookup(id = 1) -> row on_failure {
+        note "lookup failed"
+    }
+    loop until (done == "yes") max 2 {
+        delegate "Try" to Writer -> attempt
+    } on_exhausted {
+        note "ran out of tries"
+    }
+    guardrail (PII) {
+        delegate "Draft" to Writer -> draft
+    } on_violation {
+        note "blocked"
+    }
+    rewind to first when (attempt.score < 5) at most 1 time carrying notes = "x"
+        if it still fails {
+            note "still bad"
+        }
+    note "end of handlers"
+}

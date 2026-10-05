@@ -1,0 +1,6 @@
+import "one.loom"
+import "two.loom"
+
+workflow Main() {
+    call Shared() -> r
+}

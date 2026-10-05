@@ -2,7 +2,7 @@ package io.github.llm4j.loom.ast;
 
 import java.util.List;
 
-public class BroadcastStmt implements Statement {
+public class BroadcastStmt extends LocatedStatement {
     private final String payload;
     private final List<String> targetAgents;
     private final String variableName;

@@ -1,0 +1,3 @@
+workflow W() {
+    delegate "hello" to Ghost -> r
+}
