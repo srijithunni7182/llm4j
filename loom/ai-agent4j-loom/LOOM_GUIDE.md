@@ -89,6 +89,44 @@ weave package research.loom --loot tools.loot --fat --out my-app.jar
 java -jar my-app.jar topic="Advanced Agentic Coding"
 ```
 
+### 3. Seeing a Workflow (`graph`)
+`weave graph` draws the workflows of a script, and of every file it imports, as nodes and edges. It runs nothing: no model, no tool, no secret and no network is touched, so it needs no keys and no `.loot` file.
+
+```bash
+weave graph digest.loom                                       # JSON (default), for tools
+weave graph digest.loom --format mermaid                      # Mermaid flowcharts, for docs and issues
+weave graph digest.loom --workflow Digest                     # one workflow only
+```
+
+Each step is one node: `delegate`, `run` (a task), `handoff`, `broadcast`, `parallel`, `alt`, `loop`, `for each`, `human_prompt`, `checkpoint`, `rewind`, `call`, `guardrail`, `decide`, `observe` and `note`. A step carries the settings written on it (`retry`, `backoff`, `timeout`, `budget`, `expecting`, a loop's `max`, …). `alt` has `then` and `else` edges; a loop has an `again` edge back and a `done` edge out; handler blocks (`on_failure`, `on_exhausted`, `on_violation`, a rewind's `if it still fails`) hang off their step and rejoin the main path. A `call` names the file that defines its workflow, but the callee is never drawn inside the caller.
+
+<!-- graph-example: samples/content_factory/main.loom GenerateContent -->
+```
+$ weave graph samples/content_factory/main.loom --format mermaid --workflow GenerateContent
+%% workflow GenerateContent (/path/to/samples/content_factory/main.loom)
+flowchart TD
+  start(["Start"])
+  n1["delegate Researcher"]
+  n2["in parallel: Copywriter"]
+  n3[/"ask a person"/]
+  n4{{"approval==yes?"}}
+  n5["note"]
+  n6["note"]
+  end_(["End"])
+  start --> n1
+  n1 --> n2
+  n2 --> n3
+  n3 --> n4
+  n4 -->|then| n5
+  n4 -->|else| n6
+  n5 --> end_
+  n6 --> end_
+```
+
+Exit code 0 means a graph was produced, even when some imports were missing or a `call` names a workflow that is not defined: those are reported as `diagnostics` inside the JSON, and the files that did load are still drawn. Exit code 2 means nothing could be drawn (the script is missing or has a syntax error); the message goes to standard error and standard output stays empty. The JSON follows `graph-result.schema.json` (version 1).
+
+In VS Code, **Loom: Show Workflow Graph** draws the same graph beside the editor and follows your edits; see the extension's README. The eval4j report draws it too, with what each run did laid over it.
+
 ---
 
 ## 🤖 3. Deep Dive: Agent Configuration
