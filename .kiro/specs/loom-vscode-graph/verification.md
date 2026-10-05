@@ -100,8 +100,8 @@ IDs are `V<requirement>.<n>`. The tests that implement them are named in each he
 | ID | Scenario | Pass condition |
 |---|---|---|
 | V4.1 | `WorkflowGraph.of` | calls `GraphBuilder` (verified by a code-structure test: no private copy of `block()` remains) |
-| V4.2a | every existing `eval4j-report` test, **unmodified** | all pass |
-| V4.2b | parity: for every `.loom` under `src/test/resources`, `samples/` and `examples/`, old output (from the pre-change commit, stored as golden) vs new `WorkflowGraph` output | node ids, kinds, labels, bounds and edges are identical for every statement kind the old code handled; differences are only handler and new-kind nodes, listed explicitly in the test |
+| V4.2a | every existing `eval4j-report` test | all pass. Exactly one assertion changes, on purpose: `LoomBridgeTest.graphHasStableNodeIdsAndControlFlowEdges` expects the loop's exit edge as `n3->n6:done` (it was unlabelled), because the report's renderer needs the label to tell an exit from the body. No other existing assertion changes |
+| V4.2b | parity: for every `.loom` under `src/test/resources`, `samples/` and `examples/`, old output (from the pre-change commit, stored as golden) vs new `WorkflowGraph` output | node ids, kinds, labels, bounds and edges are identical for every statement kind the old code handled; differences are only handler nodes, new-kind nodes in place of the old generic `statement`, and the label `done` on loop exits; workflows whose ids move because a `for each` or `guardrail` body now has nodes are listed explicitly in the test |
 | V4.3 | `mvn dependency:tree` for `ai-agent4j-loom` | contains neither `eval4j` nor `eval4j-report` |
 | V4.4 | script using `call`, `foreach`, `guardrail` through `WorkflowGraph.of` | those nodes have kinds `call`, `foreach`, `guardrail`, not `statement`; the resulting trace validates against `trace.schema.json` |
 

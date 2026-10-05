@@ -129,7 +129,10 @@ in CI, docs and the extension.
 
 1. `eval4j-report`'s `WorkflowGraph` SHALL build its nodes and edges from the shared Graph_Builder.
 2. THE existing eval-report output SHALL be unchanged for existing scripts: same node ids, kinds,
-   labels, edges and bounds. Existing `eval4j-report` tests SHALL pass unmodified.
+   labels, edges and bounds, with these exceptions: a loop's exit edge is labelled `done`; a statement
+   that used to be a generic `statement` node gets its own kind; and handler blocks and the bodies of
+   `for each` and `guardrail` are now nodes. Existing `eval4j-report` tests SHALL pass, with the one
+   assertion on the loop exit label updated.
 3. ai-agent4j-loom SHALL NOT depend on eval4j-report or eval4j.
 4. WHEN a script uses statements the report's graph did not know before (for example `call`, `foreach`,
    `guardrail`), THE report's graph SHALL show them as their own node kinds, not as a generic

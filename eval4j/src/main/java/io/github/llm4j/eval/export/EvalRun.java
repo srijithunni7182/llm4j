@@ -474,6 +474,9 @@ public final class EvalRun {
                 putIfPresent(o, "label", n.label());
                 putIfPresent(o, "agent", n.agent());
                 putIfPresent(o, "bound", n.bound());
+                if (!n.attrs().isEmpty()) {
+                    o.put("attrs", n.attrs());
+                }
                 nodes.add(o);
             }
             List<Map<String, Object>> edges = new ArrayList<>();
