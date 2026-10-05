@@ -1,0 +1,42 @@
+%% workflow Handlers
+flowchart TD
+  start(["Start"])
+  n1>"checkpoint first"]
+  n2["delegate Researcher"]
+  n3["run Lookup"]
+  n4("loop until done==yes")
+  n5["delegate Writer"]
+  n6["guardrail PII"]
+  n7["delegate Writer"]
+  n8["rewind to first"]
+  n9["note"]
+  n10["note"]
+  n11["delegate Writer"]
+  n12["note"]
+  n13["note"]
+  n14["note"]
+  n15["note"]
+  end_(["End"])
+  start --> n1
+  n1 --> n2
+  n2 --> n3
+  n11 --> n3
+  n3 --> n4
+  n12 --> n4
+  n4 --> n5
+  n5 -->|again| n4
+  n4 -->|done| n6
+  n13 --> n6
+  n6 --> n7
+  n7 --> n8
+  n14 --> n8
+  n8 -.->|rewind| n1
+  n8 --> n9
+  n15 --> n9
+  n2 -->|failure| n10
+  n10 --> n11
+  n3 -->|failure| n12
+  n4 -->|exhausted| n13
+  n6 -->|violation| n14
+  n8 -->|still fails| n15
+  n9 --> end_

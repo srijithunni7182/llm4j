@@ -1,0 +1,364 @@
+{
+  "version": 1,
+  "entry": "<root>/src/test/resources/graph/handlers.loom",
+  "files": [
+    {
+      "path": "<root>/src/test/resources/graph/handlers.loom",
+      "imports": [ ]
+    }
+  ],
+  "workflows": [
+    {
+      "name": "Handlers",
+      "file": "<root>/src/test/resources/graph/handlers.loom",
+      "line": 4,
+      "params": [ ],
+      "nodes": [
+        {
+          "id": "start",
+          "kind": "start",
+          "label": "Start"
+        },
+        {
+          "id": "n1",
+          "kind": "checkpoint",
+          "label": "checkpoint first",
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 5
+          },
+          "attrs": {
+            "name": "first"
+          }
+        },
+        {
+          "id": "n2",
+          "kind": "delegate",
+          "label": "delegate Researcher",
+          "agent": "Researcher",
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 6
+          },
+          "attrs": {
+            "variable": "notes",
+            "text": "Research"
+          }
+        },
+        {
+          "id": "n3",
+          "kind": "task",
+          "label": "run Lookup",
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 11
+          },
+          "attrs": {
+            "task": "Lookup",
+            "variable": "row",
+            "args": 1
+          }
+        },
+        {
+          "id": "n4",
+          "kind": "loop",
+          "label": "loop until done==yes",
+          "bound": 2,
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 14
+          },
+          "attrs": {
+            "condition": "done==yes"
+          }
+        },
+        {
+          "id": "n5",
+          "kind": "delegate",
+          "label": "delegate Writer",
+          "agent": "Writer",
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 15
+          },
+          "parent": "n4",
+          "branch": "body",
+          "attrs": {
+            "variable": "attempt",
+            "text": "Try"
+          }
+        },
+        {
+          "id": "n6",
+          "kind": "guardrail",
+          "label": "guardrail PII",
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 19
+          },
+          "attrs": {
+            "type": "PII"
+          }
+        },
+        {
+          "id": "n7",
+          "kind": "delegate",
+          "label": "delegate Writer",
+          "agent": "Writer",
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 20
+          },
+          "parent": "n6",
+          "branch": "body",
+          "attrs": {
+            "variable": "draft",
+            "text": "Draft"
+          }
+        },
+        {
+          "id": "n8",
+          "kind": "rewind",
+          "label": "rewind to first",
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 24
+          },
+          "attrs": {
+            "target": "first",
+            "condition": "attempt.score<5",
+            "atMost": 1,
+            "effects": "ask first",
+            "carrying": {
+              "notes": "x"
+            }
+          }
+        },
+        {
+          "id": "n9",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 28
+          },
+          "attrs": {
+            "text": "end of handlers"
+          }
+        },
+        {
+          "id": "n10",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 8
+          },
+          "parent": "n2",
+          "branch": "failure",
+          "attrs": {
+            "text": "research failed"
+          }
+        },
+        {
+          "id": "n11",
+          "kind": "delegate",
+          "label": "delegate Writer",
+          "agent": "Writer",
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 9
+          },
+          "parent": "n2",
+          "branch": "failure",
+          "attrs": {
+            "variable": "notes",
+            "text": "Fallback"
+          }
+        },
+        {
+          "id": "n12",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 12
+          },
+          "parent": "n3",
+          "branch": "failure",
+          "attrs": {
+            "text": "lookup failed"
+          }
+        },
+        {
+          "id": "n13",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 17
+          },
+          "parent": "n4",
+          "branch": "exhausted",
+          "attrs": {
+            "text": "ran out of tries"
+          }
+        },
+        {
+          "id": "n14",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 22
+          },
+          "parent": "n6",
+          "branch": "violation",
+          "attrs": {
+            "text": "blocked"
+          }
+        },
+        {
+          "id": "n15",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/src/test/resources/graph/handlers.loom",
+            "line": 26
+          },
+          "parent": "n8",
+          "branch": "still fails",
+          "attrs": {
+            "text": "still bad"
+          }
+        },
+        {
+          "id": "end",
+          "kind": "end",
+          "label": "End"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "n1"
+        },
+        {
+          "from": "n1",
+          "to": "n2"
+        },
+        {
+          "from": "n2",
+          "to": "n3"
+        },
+        {
+          "from": "n11",
+          "to": "n3"
+        },
+        {
+          "from": "n3",
+          "to": "n4"
+        },
+        {
+          "from": "n12",
+          "to": "n4"
+        },
+        {
+          "from": "n4",
+          "to": "n5"
+        },
+        {
+          "from": "n5",
+          "to": "n4",
+          "label": "again"
+        },
+        {
+          "from": "n4",
+          "to": "n6",
+          "label": "done"
+        },
+        {
+          "from": "n13",
+          "to": "n6"
+        },
+        {
+          "from": "n6",
+          "to": "n7"
+        },
+        {
+          "from": "n7",
+          "to": "n8"
+        },
+        {
+          "from": "n14",
+          "to": "n8"
+        },
+        {
+          "from": "n8",
+          "to": "n1",
+          "label": "rewind"
+        },
+        {
+          "from": "n8",
+          "to": "n9"
+        },
+        {
+          "from": "n15",
+          "to": "n9"
+        },
+        {
+          "from": "n2",
+          "to": "n10",
+          "label": "failure"
+        },
+        {
+          "from": "n10",
+          "to": "n11"
+        },
+        {
+          "from": "n3",
+          "to": "n12",
+          "label": "failure"
+        },
+        {
+          "from": "n4",
+          "to": "n13",
+          "label": "exhausted"
+        },
+        {
+          "from": "n6",
+          "to": "n14",
+          "label": "violation"
+        },
+        {
+          "from": "n8",
+          "to": "n15",
+          "label": "still fails"
+        },
+        {
+          "from": "n9",
+          "to": "end"
+        }
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "name": "Researcher",
+      "model": "gpt-4",
+      "source": {
+        "file": "<root>/src/test/resources/graph/handlers.loom",
+        "line": 1
+      }
+    },
+    {
+      "name": "Writer",
+      "model": "gpt-4",
+      "source": {
+        "file": "<root>/src/test/resources/graph/handlers.loom",
+        "line": 2
+      }
+    }
+  ],
+  "diagnostics": [ ]
+}

@@ -23,7 +23,9 @@ class GraphGoldenTest {
         "content_factory, samples/content_factory/main.loom",
         "boardroom, samples/boardroom/main.loom",
         "digest, samples/digest/digest.loom",
-        "imports_parent, src/test/resources/imports/parent.loom"
+        "imports_parent, src/test/resources/imports/parent.loom",
+        "all_statements, src/test/resources/graph/all_statements.loom",
+        "handlers, src/test/resources/graph/handlers.loom"
     })
     void jsonAndMermaidMatchTheCommittedFiles(String name, String script) throws IOException {
         GraphResult result = new GraphService().graph(Path.of(script));

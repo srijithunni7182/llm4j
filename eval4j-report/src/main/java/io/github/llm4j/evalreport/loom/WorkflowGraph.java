@@ -8,6 +8,7 @@ import io.github.llm4j.loom.graph.GraphNode;
 import io.github.llm4j.loom.graph.Kinds;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +55,7 @@ public final class WorkflowGraph {
         WorkflowGraph g = new WorkflowGraph();
         for (GraphNode node : built.nodes()) {
             WorkflowTrace.Node mapped = new WorkflowTrace.Node(
-                    node.id(), node.kind(), node.label(), node.agent(), node.bound(), node.attrs());
+                    node.id(), node.kind(), node.label(), node.agent(), node.bound(), withPlacement(node));
             g.nodes.add(mapped);
             if (!node.kind().equals(Kinds.START) && !node.kind().equals(Kinds.END)) {
                 g.slots.add(slot(mapped, node, byId));
@@ -72,6 +73,22 @@ public final class WorkflowGraph {
 
     public List<WorkflowTrace.Edge> edges() {
         return List.copyOf(edges);
+    }
+
+    /**
+     * The node's settings plus where it sits ({@code parent}, {@code branch}). A trace node has no field for the
+     * block it is in, and the report needs it to fold large blocks, so it travels with the settings.
+     */
+    private static Map<String, Object> withPlacement(GraphNode node) {
+        if (node.parent() == null) {
+            return node.attrs();
+        }
+        Map<String, Object> merged = new LinkedHashMap<>(node.attrs());
+        merged.put("parent", node.parent());
+        if (node.branch() != null) {
+            merged.put("branch", node.branch());
+        }
+        return merged;
     }
 
     /** Walks up from a node through the blocks it is inside of, outermost first. */

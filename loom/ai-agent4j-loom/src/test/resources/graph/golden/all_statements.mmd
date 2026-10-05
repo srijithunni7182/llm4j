@@ -1,0 +1,68 @@
+%% workflow Everything
+flowchart TD
+  start(["Start"])
+  n1>"checkpoint collected"]
+  n2["delegate Researcher"]
+  n3["run RefundPolicy"]
+  n4["broadcast"]
+  n5["in parallel: Copywriter"]
+  n6[/"ask a person"/]
+  n7{{"approval==yes?"}}
+  n8["note"]
+  n9["observe Rejected"]
+  n10("loop until done==yes")
+  n11["delegate Copywriter"]
+  n12("for each doc in docs")
+  n13["delegate Researcher"]
+  n14("for each doc in docs")
+  n15["delegate Researcher"]
+  n16["guardrail PII"]
+  n17["note"]
+  n18["decide Refund"]
+  n19[["call Helper"]]
+  n20["delegate Critic"]
+  n21["rewind to collected"]
+  n22["handoff Critic"]
+  n23["note"]
+  n24["note"]
+  end_(["End"])
+  start --> n1
+  n1 --> n2
+  n2 --> n3
+  n3 --> n4
+  n4 --> n5
+  n5 --> n6
+  n6 --> n7
+  n7 -->|then| n8
+  n7 -->|else| n9
+  n8 --> n10
+  n9 --> n10
+  n10 --> n11
+  n11 -->|again| n10
+  n10 -->|done| n12
+  n23 --> n12
+  n12 --> n13
+  n13 -->|again| n12
+  n12 -->|done| n14
+  n14 --> n15
+  n15 -->|again| n14
+  n14 -->|done| n16
+  n16 --> n17
+  n17 --> n18
+  n24 --> n18
+  n18 --> n19
+  n19 --> n20
+  n20 --> n21
+  n21 -.->|rewind| n1
+  n21 --> n22
+  n10 -->|exhausted| n23
+  n16 -->|violation| n24
+  n22 --> end_
+
+%% workflow Helper
+flowchart TD
+  start(["Start"])
+  n1["note"]
+  end_(["End"])
+  start --> n1
+  n1 --> end_

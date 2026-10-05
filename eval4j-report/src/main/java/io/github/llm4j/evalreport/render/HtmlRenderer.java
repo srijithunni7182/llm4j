@@ -52,6 +52,10 @@ public final class HtmlRenderer {
                     + json
                     + "</script>\n"
                     + "<script>\n"
+                    + resource("graph-render.js")
+                    + "</script>\n<script>\n"
+                    + resource("graph-card.js")
+                    + "</script>\n<script>\n"
                     + resource("dashboard.js")
                     + "</script>\n</body></html>\n";
         } catch (IOException e) {

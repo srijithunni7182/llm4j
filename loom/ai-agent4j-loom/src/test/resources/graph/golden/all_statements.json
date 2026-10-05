@@ -1,0 +1,607 @@
+{
+  "version": 1,
+  "entry": "<root>/src/test/resources/graph/all_statements.loom",
+  "files": [
+    {
+      "path": "<root>/src/test/resources/graph/all_statements.loom",
+      "imports": [ ]
+    }
+  ],
+  "workflows": [
+    {
+      "name": "Everything",
+      "file": "<root>/src/test/resources/graph/all_statements.loom",
+      "line": 18,
+      "params": [
+        "topic"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "kind": "start",
+          "label": "Start"
+        },
+        {
+          "id": "n1",
+          "kind": "checkpoint",
+          "label": "checkpoint collected",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 19
+          },
+          "attrs": {
+            "name": "collected",
+            "startingWith": {
+              "feedback": "none",
+              "round": "1"
+            }
+          }
+        },
+        {
+          "id": "n2",
+          "kind": "delegate",
+          "label": "delegate Researcher",
+          "agent": "Researcher",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 20
+          },
+          "attrs": {
+            "variable": "research",
+            "retry": 3,
+            "backoffMs": 2000,
+            "timeoutMs": 90000,
+            "budget": {
+              "tokens": 5000
+            },
+            "text": "Research {topic}"
+          }
+        },
+        {
+          "id": "n3",
+          "kind": "task",
+          "label": "run RefundPolicy",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 21
+          },
+          "attrs": {
+            "task": "RefundPolicy",
+            "variable": "verdict",
+            "args": 1,
+            "retry": 2,
+            "timeoutMs": 30000
+          }
+        },
+        {
+          "id": "n4",
+          "kind": "broadcast",
+          "label": "broadcast",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 22
+          },
+          "attrs": {
+            "agents": [
+              "Critic",
+              "Copywriter"
+            ],
+            "variable": "reviews",
+            "budget": {
+              "tokens": 3000
+            },
+            "text": "Review {research}"
+          }
+        },
+        {
+          "id": "n5",
+          "kind": "parallel",
+          "label": "in parallel: Copywriter",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 23
+          },
+          "attrs": {
+            "agents": [
+              "Copywriter"
+            ],
+            "branches": 2
+          }
+        },
+        {
+          "id": "n6",
+          "kind": "human_prompt",
+          "label": "ask a person",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 27
+          },
+          "attrs": {
+            "variable": "approval",
+            "text": "Approve?"
+          }
+        },
+        {
+          "id": "n7",
+          "kind": "alt",
+          "label": "approval==yes?",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 28
+          },
+          "attrs": {
+            "condition": "approval==yes"
+          }
+        },
+        {
+          "id": "n8",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 29
+          },
+          "parent": "n7",
+          "branch": "then",
+          "attrs": {
+            "text": "Approved"
+          }
+        },
+        {
+          "id": "n9",
+          "kind": "observe",
+          "label": "observe Rejected",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 31
+          },
+          "parent": "n7",
+          "branch": "else",
+          "attrs": {
+            "text": "approval"
+          }
+        },
+        {
+          "id": "n10",
+          "kind": "loop",
+          "label": "loop until done==yes",
+          "bound": 3,
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 33
+          },
+          "attrs": {
+            "condition": "done==yes",
+            "budget": {
+              "tokens": 2000
+            }
+          }
+        },
+        {
+          "id": "n11",
+          "kind": "delegate",
+          "label": "delegate Copywriter",
+          "agent": "Copywriter",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 34
+          },
+          "parent": "n10",
+          "branch": "body",
+          "attrs": {
+            "variable": "draft",
+            "text": "Revise"
+          }
+        },
+        {
+          "id": "n12",
+          "kind": "foreach",
+          "label": "for each doc in docs",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 38
+          },
+          "attrs": {
+            "item": "doc",
+            "collection": "docs"
+          }
+        },
+        {
+          "id": "n13",
+          "kind": "delegate",
+          "label": "delegate Researcher",
+          "agent": "Researcher",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 39
+          },
+          "parent": "n12",
+          "branch": "body",
+          "attrs": {
+            "variable": "out",
+            "text": "Read {doc}"
+          }
+        },
+        {
+          "id": "n14",
+          "kind": "foreach",
+          "label": "for each doc in docs",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 41
+          },
+          "attrs": {
+            "item": "doc",
+            "collection": "docs",
+            "parallel": true,
+            "budget": {
+              "tokens": 800
+            }
+          }
+        },
+        {
+          "id": "n15",
+          "kind": "delegate",
+          "label": "delegate Researcher",
+          "agent": "Researcher",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 42
+          },
+          "parent": "n14",
+          "branch": "body",
+          "attrs": {
+            "variable": "s",
+            "text": "Skim {doc}"
+          }
+        },
+        {
+          "id": "n16",
+          "kind": "guardrail",
+          "label": "guardrail PII",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 44
+          },
+          "attrs": {
+            "type": "PII"
+          }
+        },
+        {
+          "id": "n17",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 45
+          },
+          "parent": "n16",
+          "branch": "body",
+          "attrs": {
+            "text": "inside"
+          }
+        },
+        {
+          "id": "n18",
+          "kind": "decide",
+          "label": "decide Refund",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 49
+          },
+          "attrs": {
+            "decision": "Refund",
+            "variable": "choice",
+            "level": "watch"
+          }
+        },
+        {
+          "id": "n19",
+          "kind": "call",
+          "label": "call Helper",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 50
+          },
+          "call": {
+            "workflow": "Helper",
+            "file": "<root>/src/test/resources/graph/all_statements.loom"
+          },
+          "attrs": {
+            "args": 1,
+            "variable": "helped"
+          }
+        },
+        {
+          "id": "n20",
+          "kind": "delegate",
+          "label": "delegate Critic",
+          "agent": "Critic",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 51
+          },
+          "attrs": {
+            "variable": "review",
+            "expecting": "{score, notes}",
+            "text": "Review {draft}"
+          }
+        },
+        {
+          "id": "n21",
+          "kind": "rewind",
+          "label": "rewind to collected",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 52
+          },
+          "attrs": {
+            "target": "collected",
+            "condition": "review.score<7",
+            "atMost": 2,
+            "effects": "ask first",
+            "carrying": {
+              "feedback": "{review.notes}"
+            }
+          }
+        },
+        {
+          "id": "n22",
+          "kind": "handoff",
+          "label": "handoff Critic",
+          "agent": "Critic",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 53
+          },
+          "attrs": {
+            "text": "escalate"
+          }
+        },
+        {
+          "id": "n23",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 36
+          },
+          "parent": "n10",
+          "branch": "exhausted",
+          "attrs": {
+            "text": "gave up"
+          }
+        },
+        {
+          "id": "n24",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 47
+          },
+          "parent": "n16",
+          "branch": "violation",
+          "attrs": {
+            "text": "blocked"
+          }
+        },
+        {
+          "id": "end",
+          "kind": "end",
+          "label": "End"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "n1"
+        },
+        {
+          "from": "n1",
+          "to": "n2"
+        },
+        {
+          "from": "n2",
+          "to": "n3"
+        },
+        {
+          "from": "n3",
+          "to": "n4"
+        },
+        {
+          "from": "n4",
+          "to": "n5"
+        },
+        {
+          "from": "n5",
+          "to": "n6"
+        },
+        {
+          "from": "n6",
+          "to": "n7"
+        },
+        {
+          "from": "n7",
+          "to": "n8",
+          "label": "then"
+        },
+        {
+          "from": "n7",
+          "to": "n9",
+          "label": "else"
+        },
+        {
+          "from": "n8",
+          "to": "n10"
+        },
+        {
+          "from": "n9",
+          "to": "n10"
+        },
+        {
+          "from": "n10",
+          "to": "n11"
+        },
+        {
+          "from": "n11",
+          "to": "n10",
+          "label": "again"
+        },
+        {
+          "from": "n10",
+          "to": "n12",
+          "label": "done"
+        },
+        {
+          "from": "n23",
+          "to": "n12"
+        },
+        {
+          "from": "n12",
+          "to": "n13"
+        },
+        {
+          "from": "n13",
+          "to": "n12",
+          "label": "again"
+        },
+        {
+          "from": "n12",
+          "to": "n14",
+          "label": "done"
+        },
+        {
+          "from": "n14",
+          "to": "n15"
+        },
+        {
+          "from": "n15",
+          "to": "n14",
+          "label": "again"
+        },
+        {
+          "from": "n14",
+          "to": "n16",
+          "label": "done"
+        },
+        {
+          "from": "n16",
+          "to": "n17"
+        },
+        {
+          "from": "n17",
+          "to": "n18"
+        },
+        {
+          "from": "n24",
+          "to": "n18"
+        },
+        {
+          "from": "n18",
+          "to": "n19"
+        },
+        {
+          "from": "n19",
+          "to": "n20"
+        },
+        {
+          "from": "n20",
+          "to": "n21"
+        },
+        {
+          "from": "n21",
+          "to": "n1",
+          "label": "rewind"
+        },
+        {
+          "from": "n21",
+          "to": "n22"
+        },
+        {
+          "from": "n10",
+          "to": "n23",
+          "label": "exhausted"
+        },
+        {
+          "from": "n16",
+          "to": "n24",
+          "label": "violation"
+        },
+        {
+          "from": "n22",
+          "to": "end"
+        }
+      ]
+    },
+    {
+      "name": "Helper",
+      "file": "<root>/src/test/resources/graph/all_statements.loom",
+      "line": 56,
+      "params": [
+        "topic"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "kind": "start",
+          "label": "Start"
+        },
+        {
+          "id": "n1",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/src/test/resources/graph/all_statements.loom",
+            "line": 57
+          },
+          "attrs": {
+            "text": "helping"
+          }
+        },
+        {
+          "id": "end",
+          "kind": "end",
+          "label": "End"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "n1"
+        },
+        {
+          "from": "n1",
+          "to": "end"
+        }
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "name": "Researcher",
+      "model": "gpt-4",
+      "source": {
+        "file": "<root>/src/test/resources/graph/all_statements.loom",
+        "line": 2
+      }
+    },
+    {
+      "name": "Critic",
+      "model": "gpt-4",
+      "source": {
+        "file": "<root>/src/test/resources/graph/all_statements.loom",
+        "line": 4
+      }
+    },
+    {
+      "name": "Copywriter",
+      "model": "gpt-4",
+      "source": {
+        "file": "<root>/src/test/resources/graph/all_statements.loom",
+        "line": 3
+      }
+    }
+  ],
+  "diagnostics": [ ]
+}
