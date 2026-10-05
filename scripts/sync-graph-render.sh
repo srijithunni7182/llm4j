@@ -12,3 +12,9 @@ for target in "${targets[@]}"; do
   cp "$source_file" "$target"
   echo "synced ${target#$root/}"
 done
+
+# The VS Code webview has a strict content-security policy, so it loads the renderer's rules from a file
+# instead of an embedded style element. The file is generated from the same source.
+css_target="$root/loom/vscode-loom/media/graph-render.css"
+node -e "process.stdout.write(require(process.argv[1]).css + '\n')" "$source_file" > "$css_target"
+echo "synced ${css_target#$root/}"

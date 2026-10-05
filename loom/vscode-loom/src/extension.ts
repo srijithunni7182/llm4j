@@ -8,6 +8,7 @@ import {
 } from 'vscode-languageclient/node';
 
 import { runWorkflowCommand } from './commands/runWorkflow';
+import { showGraphCommand } from './commands/showGraph';
 import { WorkflowOutlineProvider } from './views/WorkflowOutlineProvider';
 
 // Module-level client reference so deactivate() can stop it.
@@ -90,6 +91,13 @@ export function activate(context: vscode.ExtensionContext): void {
         () => runWorkflowCommand(context)
     );
     context.subscriptions.push(runWorkflowDisposable);
+
+    // ------------------------------------------------------------------ //
+    // 3b. "Show Workflow Graph" command: the graph of the active script   //
+    // ------------------------------------------------------------------ //
+    context.subscriptions.push(
+        vscode.commands.registerCommand('loom.showGraph', () => showGraphCommand(context))
+    );
 
     // ------------------------------------------------------------------ //
     // 4. Workflow Outline tree view (Requirement 6.1)                    //

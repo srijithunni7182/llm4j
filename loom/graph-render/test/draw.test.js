@@ -160,3 +160,12 @@ test('a collapsed block folds the edges in and out of it onto its container', ()
 test('the legend lists the eight colour groups', () => {
   assert.equal(G.legend().length, 8);
 });
+
+test('the markup carries no inline style attributes, so a strict content-security policy can allow it', () => {
+  const result = golden('all_statements');
+  const wf = workflow(result, 'Everything');
+  const svg = G.svgText(wf, { agents: { Researcher: { approve: ['send'] } }, overlay: G.overlay(wf, [], ['start', 'n1']), collapsed: new Set([wf.nodes.find((n) => n.kind === 'loop').id]) });
+  assert.ok(!/ style=/.test(body(svg)), 'no style attribute in the drawing');
+  assert.ok(svg.includes('lg-approve'), 'the approval hand is drawn');
+  assert.ok(svg.includes('lg-chip-toggle'), 'a folded block shows its toggle');
+});

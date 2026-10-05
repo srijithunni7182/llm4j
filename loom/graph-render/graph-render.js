@@ -526,6 +526,8 @@
     '.lg-chip-warn .lg-chipbox{stroke:var(--lg-red,#c93232)}.lg-chip-warn .lg-chiptx{fill:var(--lg-red,#c93232)}',
     '.lg-chip-toggle .lg-chipbox{stroke:var(--lg-sel,#5a54e0)}.lg-chip-toggle .lg-chiptx{fill:var(--lg-sel,#5a54e0)}',
     '.lg-chip-muted .lg-chiptx{opacity:.7}',
+    '.lg-chip-toggle{cursor:pointer}',
+    '.lg-approve{--k:var(--lg-orange,#c4501a)}',
     '.lg-dim{opacity:.45}',
     '.lg-state-ok .lg-markbox{fill:var(--lg-good,#2a7f38)}.lg-state-taken .lg-markbox{fill:var(--lg-muted,#5a6177)}',
     '.lg-state-missed .lg-markbox,.lg-state-unexpected .lg-markbox{fill:var(--lg-surface,#fff)}',
@@ -572,12 +574,12 @@
     if (node.unresolved) { shown.unshift({ t: '?', v: 'warn' }); }
     shown.forEach(function (c) {
       var cw = Math.ceil(c.t.length * 6) + 12;
-      out += '<g class="lg-chip-' + esc(c.v || 'plain') + '"' + (c.v === 'toggle' ? ' data-toggle="' + esc(p.id) + '" style="cursor:pointer"' : '') + '><rect class="lg-chipbox" x="' + cx + '" y="' + cy + '" width="' + cw + '" height="17" rx="4"/><text class="lg-chiptx" x="' + (cx + 6) + '" y="' + (cy + 12.2) + '">' + esc(c.t) + '</text></g>';
+      out += '<g class="lg-chip-' + esc(c.v || 'plain') + '"' + (c.v === 'toggle' ? ' data-toggle="' + esc(p.id) + '"' : '') + '><rect class="lg-chipbox" x="' + cx + '" y="' + cy + '" width="' + cw + '" height="17" rx="4"/><text class="lg-chiptx" x="' + (cx + 6) + '" y="' + (cy + 12.2) + '">' + esc(c.t) + '</text></g>';
       cx += cw + 5;
     });
     var ag = node.agent && opts.agents && opts.agents[node.agent];
     if (ag && (ag.approveAll || (ag.approve && ag.approve.length))) {
-      out += '<g class="lg-glyph" transform="translate(' + (p.x + p.w - 24) + ',' + (p.y + 8) + ')" style="--k:var(--lg-orange,#c4501a)"><title>Needs approval' + (ag.approve && ag.approve.length ? ': ' + esc(ag.approve.join(', ')) : '') + '</title>' + GLYPHS.hand + '</g>';
+      out += '<g class="lg-glyph lg-approve" transform="translate(' + (p.x + p.w - 24) + ',' + (p.y + 8) + ')"><title>Needs approval' + (ag.approve && ag.approve.length ? ': ' + esc(ag.approve.join(', ')) : '') + '</title>' + GLYPHS.hand + '</g>';
     }
     if (st && MARK[st]) { out += markSvg(p, st, opts.overlay.visits[p.id]); }
     else if (opts.overlay && opts.overlay.visits[p.id] > 1) { out += visitsSvg(p, opts.overlay.visits[p.id]); }
@@ -628,7 +630,8 @@
 
   /**
    * An interactive graph in a container: pan, zoom, fit, selection and keyboard. DOM only.
-   * options: onSelect(id, node), onActivate(id, node, {shift, ctrl}), onHover(id, node, element), onToggle(id)
+   * options: onSelect(id, node), onActivate(id, node, {shift, ctrl}), onHover(id, node, element), onToggle(id),
+   * onZoom(k), embedCss (default true; false when the host loads graph-render.css itself)
    */
   function View(container, options) {
     this.options = options || {};
@@ -637,7 +640,8 @@
     this.svg = doc.createElementNS('http://www.w3.org/2000/svg', 'svg');
     this.svg.setAttribute('role', 'group'); this.svg.setAttribute('aria-label', 'Workflow graph');
     this.svg.style.cssText = 'width:100%;height:100%;display:block;touch-action:none;cursor:grab';
-    this.svg.innerHTML = '<style>' + CSS + '</style>' + DEFS + '<g class="lg-vp"></g>';
+    // a host with a strict content-security policy sets embedCss: false and loads the same rules from a file
+    this.svg.innerHTML = (this.options.embedCss === false ? '' : '<style>' + CSS + '</style>') + DEFS + '<g class="lg-vp"></g>';
     container.appendChild(this.svg);
     this.vp = this.svg.querySelector('.lg-vp');
     this.t = { k: 1, x: 0, y: 0 };
@@ -657,7 +661,13 @@
     this._apply();
   };
   View.prototype.setOverlay = function (data) { this.overlayData = data; this.draw(); };
-  View.prototype.select = function (id) { this.selected = id; this.draw(); };
+  /** Marks a step as selected without redrawing, so a double-click on it still reaches the same element. */
+  View.prototype.select = function (id) {
+    var before = this.selected && this.nodeElement(this.selected), now = id && this.nodeElement(id);
+    this.selected = id;
+    if (before) { before.classList.remove('lg-sel'); }
+    if (now) { now.classList.add('lg-sel'); }
+  };
   View.prototype.toggle = function (id) { if (this.collapsed.has(id)) { this.collapsed.delete(id); } else { this.collapsed.add(id); } this.draw(); this.fitIfNeeded && this.fitIfNeeded(); };
   View.prototype._apply = function () { this.vp.setAttribute('transform', 'translate(' + this.t.x + ',' + this.t.y + ') scale(' + this.t.k + ')'); if (this.options.onZoom) { this.options.onZoom(this.t.k); } };
   View.prototype.fit = function () {

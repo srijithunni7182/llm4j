@@ -1,10 +1,12 @@
 {
   "name": "vscode-loom",
   "displayName": "Loom",
-  "description": "VS Code extension for Loom DSL (.loom and .loot files). Provides syntax highlighting, LSP diagnostics, workflow outline, and run command.",
+  "description": "VS Code extension for Loom DSL (.loom and .loot files). Provides syntax highlighting, LSP diagnostics, workflow outline, a workflow graph, and run command.",
   "version": "1.0.0",
   "publisher": "srijithunni7182",
-  "repository": {"url": "https://github.com/srijithunni7182/llm4j"},
+  "repository": {
+    "url": "https://github.com/srijithunni7182/llm4j"
+  },
   "license": "Apache-2.0",
   "engines": {
     "vscode": "^1.85.0"
@@ -18,12 +20,16 @@
     "languages": [
       {
         "id": "loom",
-        "extensions": [".loom"],
+        "extensions": [
+          ".loom"
+        ],
         "configuration": "./language-configuration.json"
       },
       {
         "id": "loot",
-        "extensions": [".loot"],
+        "extensions": [
+          ".loot"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -60,11 +66,60 @@
       {
         "command": "loom.runWorkflow",
         "title": "Loom: Run Workflow"
+      },
+      {
+        "command": "loom.showGraph",
+        "title": "Loom: Show Workflow Graph",
+        "icon": "$(type-hierarchy)"
       }
-    ]
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "loom.showGraph",
+          "when": "resourceLangId == loom"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "loom.showGraph",
+          "when": "resourceLangId == loom",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "loom.showGraph",
+          "when": "resourceLangId == loom",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Loom",
+      "properties": {
+        "loom.graph.javaPath": {
+          "type": "string",
+          "default": "java",
+          "description": "The java executable used to run the bundled weave.jar when drawing a workflow graph."
+        },
+        "loom.graph.timeoutMs": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 1000,
+          "description": "How long to wait for weave graph before stopping it, in milliseconds. Raise it for very large scripts."
+        },
+        "loom.graph.autoRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Redraw the workflow graph when the script or a file it imports is saved."
+        }
+      }
+    }
   },
   "files": [
     "out/**/*",
+    "media/**/*",
     "bin/**/*",
     "syntaxes/**/*",
     "language-configuration.json",
@@ -89,5 +144,12 @@
     "@types/node": "20.11.0",
     "typescript": "5.3.3",
     "@vscode/test-electron": "2.3.8"
-  }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "pretest": "tsc -p tsconfig.test.json",
+    "test": "node --test out-test/test/*.test.js test/*.browser.test.js",
+    "vscode:prepublish": "npm run compile"
+  },
+  "icon": "media/loom-mark-128.png"
 }

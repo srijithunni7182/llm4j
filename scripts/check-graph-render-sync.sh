@@ -12,5 +12,10 @@ for target in \
     status=1
   fi
 done
+css_target="$root/loom/vscode-loom/media/graph-render.css"
+if ! node -e "process.stdout.write(require(process.argv[1]).css + '\n')" "$source_file" | cmp -s - "$css_target"; then
+  echo "OUT OF SYNC: ${css_target#$root/} differs from the rules in loom/graph-render/graph-render.js" >&2
+  status=1
+fi
 [ "$status" -eq 0 ] && echo "graph-render copies are in sync"
 exit "$status"
