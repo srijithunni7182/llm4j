@@ -146,6 +146,6 @@ Three phases, each shippable on its own:
   - [ ] 13.4 Docs: extension README, `weave graph` in the Loom docs
     - _Requirements: 9.4_
 
-- [ ] 14. **Final checkpoint**: open `examples/tantrik-console/loom-scripts/sdlc/autonomous-dev-cycle.loom`
+- [ ] 14. **Final checkpoint** (see `verification.md` gates G0–G6): open `examples/tantrik-console/loom-scripts/sdlc/autonomous-dev-cycle.loom`
       and `loom/ai-agent4j-loom/samples/boardroom/main.loom` in the extension; graph, imports, click-through
       and refresh work.
