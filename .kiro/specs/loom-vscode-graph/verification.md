@@ -31,6 +31,7 @@ Existing scripts are reused. New ones live in `loom/ai-agent4j-loom/src/test/res
 | `graph/recursive.loom` | workflow `A` calls `A` | no inline expansion |
 | `graph/duplicate_names/` | `ReviseContent` defined in two imported files | nearest-first rule and warning |
 | `graph/large_400.loom` | generated: 400 statements in nested blocks | collapse, performance |
+| `report/` fixtures (`eval4j-report/src/test/resources/graph/`) | trace JSONs: `all-taken`, `one-missed`, `one-unexpected`, `loop-x3`, `no-expected`, `big-501`, `empty-path`, `old-kinds-only` | report graph and overlay |
 | `graph/hostile_labels.loom` | notes and agent names containing `<img src=x onerror=alert(1)>`, quotes, `</script>`, 5,000-character strings | escaping, truncation |
 
 JSON fixtures for the extension (`vscode-loom/test/fixtures/`) are produced by `weave graph` from the
@@ -102,6 +103,7 @@ IDs are `V<requirement>.<n>`. The tests that implement them are named in each he
 | V4.2a | every existing `eval4j-report` test, **unmodified** | all pass |
 | V4.2b | parity: for every `.loom` under `src/test/resources`, `samples/` and `examples/`, old output (from the pre-change commit, stored as golden) vs new `WorkflowGraph` output | node ids, kinds, labels, bounds and edges are identical for every statement kind the old code handled; differences are only handler and new-kind nodes, listed explicitly in the test |
 | V4.3 | `mvn dependency:tree` for `ai-agent4j-loom` | contains neither `eval4j` nor `eval4j-report` |
+| V4.4 | script using `call`, `foreach`, `guardrail` through `WorkflowGraph.of` | those nodes have kinds `call`, `foreach`, `guardrail`, not `statement`; the resulting trace validates against `trace.schema.json` |
 
 ### Requirement 5: Command in VS Code
 *Tests: `showGraph.test.ts`, `@vscode/test-electron` smoke*
@@ -116,7 +118,7 @@ IDs are `V<requirement>.<n>`. The tests that implement them are named in each he
 | V5.5 | file with 2 workflows, cursor inside the second | selector lists both; the second is selected |
 
 ### Requirement 6: Panel
-*Tests: `layout.test.ts`, `render.test.ts` (Playwright on the webview HTML), accessibility scan, manual review (section 5)*
+*Tests: `graph-render.test.js` (shared with Requirement 10), `render.test.ts` (Playwright on the webview HTML), accessibility scan, manual review (section 5)*
 
 | ID | Scenario | Pass condition |
 |---|---|---|
@@ -155,13 +157,40 @@ IDs are `V<requirement>.<n>`. The tests that implement them are named in each he
 ### Requirement 9: Quality and packaging
 | ID | Scenario | Pass condition |
 |---|---|---|
-| V9.1 | coverage | `io.github.llm4j.loom.graph` line coverage ≥ 90 %, branch ≥ 80 % (JaCoCo); `layout.ts` and `model.ts` ≥ 90 % |
+| V9.1 | coverage | `io.github.llm4j.loom.graph` line coverage ≥ 90 %, branch ≥ 80 % (JaCoCo); `graph-render.js` and `model.ts` ≥ 90 % |
 | V9.2 | golden files | present for the four fixtures in V3.8; CI fails on a diff |
 | V9.3 | extension tests | message-protocol, layout and smoke suites run in CI (`npm test`) |
 | V9.4 | docs | extension README documents the command and the three settings; Loom docs document `weave graph` with an example; a doc test runs the README's example command and compares output |
 | V9.5 | `.vsix` | `vsce ls` lists `media/graph.js`, `media/graph.css`, both logo files and `bin/weave.jar`; installing the `.vsix` into a clean VS Code and running the command works |
 | V9.6 | manifest | `"icon"` points to a file that exists in the package |
 | V9.7 | `scripts/make-logo-assets.sh` | regenerates both logo files; outputs are 128×128 and 320×320; running it twice produces identical files |
+
+### Requirement 10: Graph in the eval report
+*Tests: `TraceSchemaTest`, `WorkflowTraceNodeTest`, `graph-render.test.js` (`node --test`), `report-graph.test.js` (Playwright on the generated HTML), `ReportSingleFileTest`, `GraphRenderSyncTest`*
+
+| ID | Scenario | Pass condition |
+|---|---|---|
+| V10.1 | report generated from `report/all-taken` | the trace view contains one graph card above the path rows; the path rows are present and unchanged (same text as before this change) |
+| V10.2 | the same node JSON drawn by the panel and by the report | SVG shape element type, glyph path, title, subtitle and Chip texts are identical (compared by a test that renders both with the shared module and diffs a normalised DOM) |
+| V10.3a | `all-taken` | every node on the path has the `✓` mark; all edges between consecutive path nodes have class `traversed`; no `missed` or `unexpected` marks |
+| V10.3b | `one-missed` (expected `start,n1,n2,end`; actual `start,n1,end`) | `n2` has the `✗ missed` chip and a dashed outline; edges `n1→n2` and `n2→end` are not traversed |
+| V10.3c | `one-unexpected` | the extra node has the `! unexpected` chip |
+| V10.4 | `loop-x3` (loop node three times in `actualPath`) | the loop node shows `×3`; a node visited once shows no count |
+| V10.5 | `no-expected` | nodes show `●` or not-visited only; no `✓`, `✗` or `!` anywhere |
+| V10.6 | themes | in the report's light and dark themes, overlay text meets 4.5:1 contrast; each state is identifiable with colours removed (greyscale screenshot check: glyph and text present) |
+| V10.7 | click a node with 3 mapped events | details area lists exactly those 3 events with time, type and text; shows duration when a start and end event exist; spend line says "per agent" |
+| V10.8 | generated report HTML | one file; contains `graph-render.js` inline; no `http://` or `https://` URL in any `src`, `href` or `url()` (the existing allowlisted `$id` strings in data are excluded by the test); opening it with the network blocked renders the graph |
+| V10.9a | every `old-kinds-only` trace stored before this change | validates against the new schema |
+| V10.9b | trace with each new kind, and `statement` | validates; a trace with kind `delegat` (typo) fails |
+| V10.9c | `spec/schema/trace.schema.json` vs `src/test/resources/schema/trace.schema.json` | byte-identical |
+| V10.10 | compile every existing caller of `new WorkflowTrace.Node(id, kind, label, agent, bound)` | compiles without edits; `attrs` is empty |
+| V10.11a | `big-501` | no diagram; note "Graph too large to draw (501 nodes)"; path rows present |
+| V10.11b | 400-node graph in the report | collapsed on load; same behaviour as V6.7 |
+| V10.12 | any Loom trace card | the one-line note "Path is inferred from the order of delegations." is present |
+| V10.13 | rendered report | no Loom logo image or data URI for it anywhere in the HTML |
+| V10.14 | edit one copy of `graph-render.js` | `check-graph-render-sync.sh` and `GraphRenderSyncTest` both fail; restored, both pass |
+| V10.15 | `empty-path` / no graph nodes | empty path: all nodes not visited plus "No steps were recorded."; no nodes: no card and no error in the console |
+| V10.16 | `trace_with_unplaced_events` | the line "n events could not be placed on a step" shows the right n |
 
 ---
 
@@ -185,7 +214,8 @@ IDs are `V<requirement>.<n>`. The tests that implement them are named in each he
 |---|---|---|
 | VP.1 | `weave graph` on `content_factory` (cold JVM) | ≤ 3.0 s end to end |
 | VP.2 | `GraphBuilder` on `large_400.loom` in-process | ≤ 200 ms |
-| VP.3 | `layout.ts` on 400 nodes / 1,000 nodes | ≤ 300 ms / ≤ 1.0 s |
+| VP.3 | `LoomGraph.layout` on 400 nodes / 1,000 nodes (the same module in panel and report) | ≤ 300 ms / ≤ 1.0 s |
+| VP.7 | report with 20 workflow traces of 100 nodes each | opens and draws the first graph in ≤ 1.0 s; the HTML grows by no more than 120 KB over the same report without graphs, excluding data |
 | VP.4 | first paint after JSON arrives, 400 nodes (collapsed) | ≤ 500 ms |
 | VP.5 | pan and zoom on 400 nodes | median frame ≤ 20 ms |
 | VP.6 | refresh after save (JVM start included) | ≤ 3.5 s from save to updated graph, including the 300 ms debounce |
@@ -213,7 +243,7 @@ A budget breach is a failure, not a warning.
 | VG.2 | existing `weave check`, `weave run`, `weave audit` tests | unchanged and green |
 | VG.3 | Outline view and `Loom: Run Workflow` | unchanged behaviour (existing tests plus the smoke test opens both) |
 | VG.4 | parser | every `.loom` in the repo still parses; AST equality tests are unchanged apart from added lines |
-| VG.5 | sabotage | each of these deliberately breaks the build, and the named check fails: remove the `then`/`else` label (V1.2a); drop handler nodes (V1.4); skip cycle detection (V2.5); log a secret (VS.4); put `innerHTML` back (VS.1); remove the debounce (V8.2). Each is reverted after |
+| VG.5 | sabotage | each of these deliberately breaks the build, and the named check fails: remove the `then`/`else` label (V1.2a); drop handler nodes (V1.4); skip cycle detection (V2.5); log a secret (VS.4); put `innerHTML` back (VS.1); remove the debounce (V8.2); make the report ignore `expectedPath` (V10.3b); drop `×n` (V10.4); let one renderer copy drift (V10.14). Each is reverted after |
 
 ---
 
@@ -238,8 +268,9 @@ screenshot saved to `evidence/`. Do it in light, dark and high-contrast themes.
 | M12 | Keyboard only | every control reachable; focus always visible |
 | M13 | Close the panel, edit and save | nothing runs (check Task Manager / `ps` for stray `java`) |
 | M14 | Loading state (add a 3 s delay with `LOOM_GRAPH_DELAY_MS`) | centred logo with pulse, then graph; pulse stops with reduced motion on |
+| M15 | Run an eval of `content_factory` with a failing step and a retry; open the generated report with the network off | the trace shows the graph card with ✓, ✗ missed and `×n` marks that match what happened; click nodes for details; the note about the inferred path is visible; the same node looks the same as in the panel; light and dark themes both readable |
 
-A reviewer other than the author runs M1–M14. Any failure blocks the gate.
+A reviewer other than the author runs M1–M15. Any failure blocks the gate.
 
 ---
 
@@ -249,10 +280,10 @@ A reviewer other than the author runs M1–M14. Any failure blocks the gate.
 |---|---|---|---|
 | **G0** | UI sign-off (task 0) | `ui.md` and `mockup.html` reviewed; open comments resolved | `evidence/G0-signoff.md` |
 | **G1** | core, tasks 1–6 | V1.\*, V2.\*, V3.\*, V9.1, V9.2, VS.4, VP.1, VP.2, VR.1–VR.3, VR.5, VR.6 | `evidence/G1-core.txt` (test output, coverage) |
-| **G2** | report reuse, tasks 7–8 | V4.\*, VG.1, VG.2, VG.4 | `evidence/G2-regression.txt` |
+| **G2** | report reuse and report graph, tasks 7–8 | V4.\*, V10.\*, VP.7, VG.1, VG.2, VG.4, M15 | `evidence/G2-regression.txt`, `evidence/G2-report-screens/` |
 | **G3** | extension logic, tasks 9–12 | V5.\*, V6.1–V6.10, V7.\*, V8.\*, VS.1–VS.3, VS.5, VP.3–VP.6, VR.4 | `evidence/G3-extension.txt`, screenshots in 3 themes |
 | **G4** | packaging, task 13 | V9.3–V9.7, VG.3 | `evidence/G4-package.txt`, `vsce ls` output |
-| **G5** | acceptance, task 14 | all of section 5 (M1–M14) by a second person; VG.5 sabotage run | `evidence/G5-manual.md`, `evidence/G5-sabotage.md` |
+| **G5** | acceptance, task 14 | all of section 5 (M1–M15) by a second person; VG.5 sabotage run | `evidence/G5-manual.md`, `evidence/G5-sabotage.md` |
 | **G6** | release | every check in sections 2–4 green on one commit; traceability (section 7) has no gaps | `evidence/G6-final.txt` |
 
 A gate that fails is fixed in the code, never by editing the check. If a check is wrong, change it in a
@@ -270,13 +301,15 @@ Every acceptance criterion maps to at least one check. G6 verifies this with a s
 | 1.1–1.8 | V1.1–V1.8 |
 | 2.1–2.9 | V2.1–V2.9 |
 | 3.1–3.7 | V3.1–V3.8 |
-| 4.1–4.3 | V4.1–V4.3 |
+| 4.1–4.4 | V4.1–V4.4 |
 | 5.1–5.5 | V5.1–V5.5 |
 | 6.1–6.10 | V6.1–V6.10, M2, M9, M11, M12, M14 |
 | 7.1–7.4 | V7.1–V7.4, M3, M4 |
 | 8.1–8.4 | V8.1–V8.4, M6, M7, M13 |
 | 9.1–9.7 | V9.1–V9.7 |
+| 10.1–10.14 | V10.1–V10.16, VP.7, M15 |
 | `ui.md` sections 3–10 | V6.1, V6.8–V6.10, M2–M5, M8 |
+| `ui.md` section 11 | V10.1–V10.7, V10.11, V10.15, V10.16, M15 |
 
 ---
 
@@ -285,7 +318,7 @@ Every acceptance criterion maps to at least one check. G6 verifies this with a s
 The feature is done when:
 1. Gates G0 to G6 have passed on one commit, with evidence saved.
 2. The sabotage run (VG.5) has been done and each deliberate break was caught by its named check.
-3. A person who did not write the code has completed M1–M14 and signed `evidence/G5-manual.md`.
+3. A person who did not write the code has completed M1–M15 and signed `evidence/G5-manual.md`.
 4. The `.vsix` installed in a clean VS Code opens the graph for the three sample scripts.
 5. No check was skipped, disabled or loosened to get green.
 
@@ -294,6 +327,7 @@ The feature is done when:
 ```
 .kiro/specs/loom-vscode-graph/evidence/
   G0-signoff.md        G1-core.txt          G2-regression.txt
+  G2-report-screens/{light,dark}/*.png
   G3-extension.txt     G3-screens/{light,dark,hc}/*.png
   G4-package.txt       G5-manual.md         G5-sabotage.md
   G6-final.txt         traceability.txt

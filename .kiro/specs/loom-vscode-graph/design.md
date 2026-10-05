@@ -108,12 +108,21 @@ Example JSON (abridged):
 
 ### 4. eval4j-report
 
-`WorkflowGraph.of(WorkflowDef)` calls `GraphBuilder` and maps `GraphNode` to `WorkflowTrace.Node`
-(dropping `source`/`call`), preserving ids, kinds, labels and bounds. Handler nodes and new node kinds
-are the one intended change: they only appear for scripts that use those statements, and the
-report's HTML already renders unknown kinds generically. If a report golden file for an existing script
-changes, that is a defect in the mapping, not an accepted diff — `WorkflowGraph.of` filters to the
-node kinds it produced before.
+`WorkflowGraph.of(WorkflowDef)` calls `GraphBuilder` and maps `GraphNode` to `WorkflowTrace.Node`,
+dropping `source` and `call` and keeping `attrs` (see section 6). For every statement the old code
+handled, ids, kinds, labels and bounds are unchanged. New kinds and handler nodes appear only for scripts
+that use those statements. Before this change they came out as a generic `statement` node, which the
+trace schema's `kind` list does not even contain (see section 6, schema). If a report golden file for a
+script that uses only the old kinds changes, that is a defect in the mapping, not an accepted diff.
+
+Facts about the report today that shape the design:
+- `dashboard.js` does not draw the graph. It uses node labels only to print the expected and actual path
+  as text rows (`traceView`), plus an agent-lane timeline.
+- `LoomTrace` infers `actualPath` and each event's `node` by mapping a delegation to the next statement
+  that delegates to the same agent. The overlay is only as exact as that inference, which is why the card
+  says so (Requirement 10.12).
+- `HtmlRenderer` inlines `dashboard.css` and `dashboard.js` into one HTML file, so the renderer must be a
+  plain JS file with no imports, no build step and no network access.
 
 ### 5. vscode-loom
 
@@ -127,8 +136,8 @@ New files:
 | `src/commands/showGraph.ts` | registers the command, resolves java/jar, spawns `weave graph`, 30 s timeout, parses JSON |
 | `src/views/GraphPanel.ts` | owns the `WebviewPanel`, message protocol, refresh, watchers |
 | `src/graph/model.ts` | TypeScript types mirroring the JSON, `parseGraph()` validating `version` |
-| `src/graph/layout.ts` | pure function: workflow → positioned boxes and routed edges (layered top-to-bottom; back-edges drawn on the side) |
-| `media/graph.js`, `media/graph.css` | webview renderer (SVG), pan/zoom, selection, legend, chips, details card |
+| `media/graph-render.js` | generated copy of the Shared_Renderer (section 6): layout, shapes, glyphs, Chip text, overlay |
+| `media/graph.js`, `media/graph.css` | panel glue only: toolbar, messages, selection, details card, theme variables; calls `graph-render.js` |
 | `media/loom-mark-128.jpg`, `media/loom-logo-320.jpg` | Logo_Assets (see `ui.md` section 10) |
 | `scripts/make-logo-assets.sh` | regenerates the Logo_Assets from `loom_logo.png` with ImageMagick |
 
@@ -158,6 +167,54 @@ State kept across refreshes: selected workflow name, transform (zoom/pan), colla
 **Settings.** `loom.graph.javaPath` (default `java`), `loom.graph.timeoutMs` (30000),
 `loom.graph.autoRefresh` (true).
 
+### 6. Shared renderer and the eval report
+
+**One drawing module.** `graph-render.js` is plain JavaScript (no imports, no build) with a small API:
+
+```js
+LoomGraph.layout(graph, opts)            // -> {nodes: [{id,x,y,w,h,...}], edges: [{d, label, lx, ly}], bounds}
+LoomGraph.chips(node)                    // -> [{t, v}] from node.attrs, formatted per ui.md 3.2
+LoomGraph.render(svgEl, graph, {
+  mode: 'panel' | 'report',
+  overlay: { states: {id: 'ok'|'missed'|'unexpected'|'taken'|'none'}, visits: {id: n}, traversed: [[a,b]] },
+  collapsed: Set, selected: id,
+  onSelect(id), onOpen(id)               // the host decides what these do
+})
+```
+
+Colours come from CSS custom properties (`--k-agent`, `--surface`, `--edge`, `--sel`, …). Each host defines
+them: the panel maps them to VS Code theme variables, the report to its own tokens (`--pass`, `--fail`,
+`--ink`, `--line`, `--surface`). The module holds all glyphs, shapes and Chip formatting, so Java never
+formats a chip: JSON carries raw `attrs`.
+
+**Where the source lives.** The canonical file is `loom/graph-render/graph-render.js`, with its tests
+(`node --test`). `scripts/sync-graph-render.sh` copies it to
+`loom/vscode-loom/media/graph-render.js` and
+`eval4j-report/src/main/resources/io/github/llm4j/evalreport/render/graph-render.js`, and
+`scripts/check-graph-render-sync.sh` fails when a copy differs from the canonical file. It runs in CI,
+and `eval4j-report` also has a unit test that compares its copy with the canonical file's hash.
+
+**Data into the report.**
+1. `WorkflowTrace.Node` (eval4j, engine neutral) gets an optional `Map<String,Object> attrs`. A
+   secondary 5-argument constructor keeps every existing caller compiling.
+2. `WorkflowGraph` in `eval4j-report` maps `GraphNode.attrs` through. `LoomTrace` serialises it with the
+   rest of the node.
+3. `trace.schema.json` (both copies, `spec/schema/` and `src/test/resources/schema/`) extends the node
+   `kind` enum with every kind the builder produces (`call`, `foreach`, `guardrail`, `rewind`, `decide`,
+   `observe`, `note`, `broadcast`, `run`, `unknown`) and the `statement` kind the old code already emitted,
+   and adds an optional `attrs` object. `additionalProperties: true` on nodes already allows this, so
+   old traces validate unchanged. The `kind` list stays closed so a typo is still caught.
+4. `dashboard.js` computes the Run_Overlay from `expectedPath`, `actualPath` and `events`:
+   `states` by set membership, `visits` by counting `actualPath`, `traversed` from consecutive pairs that
+   are edges. It then calls `LoomGraph.render(..., {mode: 'report', overlay})` inside a new
+   `graphCard(w)` in `traceView`, above the existing path rows.
+5. Per-node details come from `events` filtered by `event.node`, with duration from the first start and
+   last end event for that node, and spend from `w.spend` filtered by the node's agent (labelled "per agent",
+   since `SpendLine` has no node id).
+
+**Not done here.** Recording node ids in the run journal, so the path is exact instead of inferred. That is
+a larger Loom change; the overlay will pick it up unchanged when it exists.
+
 ## Error handling
 
 | Situation | Behaviour |
@@ -168,6 +225,7 @@ State kept across refreshes: selected workflow name, transform (zoom/pan), colla
 | import cycle | cycle skipped; warning in diagnostics |
 | call to unknown workflow | node drawn dashed, "unresolved" tooltip |
 | refresh failure | last good graph kept, "stale" banner |
+| report: no nodes / over 500 nodes / empty path | see `ui.md` 11.4 |
 | > 300 nodes | blocks collapsed by default |
 
 ## Testing strategy
@@ -179,7 +237,7 @@ State kept across refreshes: selected workflow name, transform (zoom/pan), colla
   `imports/parent.loom` fixtures.
 - **Report regression**: all existing `eval4j-report` tests unchanged and green.
 - **CLI**: exit codes, `--workflow`, stdout contains only JSON, no network or key access.
-- **Extension**: `parseGraph` rejects wrong `version`; `layout` has no overlapping boxes and routes every
+- **Shared renderer** (`node --test`): layout has no overlapping boxes and routes every
   edge; message protocol rejects `openSource` for files outside the closure; `@vscode/test-electron`
   smoke test opens the panel on a sample.
 

@@ -6,7 +6,8 @@ Three phases, each shippable on its own:
 
 1. **Core (Java).** Source lines, graph model/builder, import closure, `weave graph`. Usable from the
    CLI after this phase.
-2. **Report reuse.** `eval4j-report` switches to the shared builder with no output change.
+2. **Report reuse and report graph.** `eval4j-report` switches to the shared builder with no output change,
+   then draws the graph with a run overlay using the shared renderer.
 3. **VS Code.** Command, panel, navigation, refresh, packaging and docs.
 
 ---
@@ -78,13 +79,34 @@ Three phases, each shippable on its own:
 
 <!-- PHASE 2: eval4j-report -->
 
-- [ ] 7. Report reuse
+- [ ] 7. Report reuse and report graph
   - [ ] 7.1 `WorkflowGraph.of` delegates to `GraphBuilder`, maps to `WorkflowTrace.Node/Edge`
-    - _Requirements: 4.1_
+    - _Requirements: 4.1, 4.4_
   - [ ] 7.2 Run all `eval4j-report` tests unmodified; compare report output for existing scripts
     - _Requirements: 4.2_
   - [ ] 7.3 Confirm no dependency from loom to eval4j/eval4j-report (`mvn dependency:tree`)
     - _Requirements: 4.3_
+  - [ ] 7.4 `trace.schema.json` (both copies): extend node `kind` with all builder kinds and `statement`,
+        add optional `attrs`; schema tests for old traces (still valid), new kinds (valid) and a typo kind
+        (invalid)
+    - _Requirements: 10.9_
+  - [ ] 7.5 `WorkflowTrace.Node` gains optional `attrs` with a 5-argument constructor kept; `WorkflowGraph`
+        and `LoomTrace` carry `attrs` into the trace JSON
+    - _Requirements: 10.10_
+  - [ ] 7.6 Extract the Shared_Renderer to `loom/graph-render/graph-render.js` (layout, shapes, glyphs,
+        Chip text, overlay support) with `node --test` tests; `sync-graph-render.sh` and
+        `check-graph-render-sync.sh`; the extension (task 10) uses the generated copy
+    - _Requirements: 10.2, 10.14, 6.1, 6.2, 6.8_
+  - [ ] 7.7 `dashboard.js`: `graphCard(w)` in `traceView` with Run_Overlay (`states`, `visits`,
+        `traversed`), legend, details area, fallbacks (`ui.md` 11.1–11.4); map the renderer's CSS variables
+        to the report's tokens in `dashboard.css`
+    - _Requirements: 10.1, 10.3–10.7, 10.11, 10.12_
+  - [ ] 7.8 `HtmlRenderer` inlines `graph-render.js`; test that the output is one file with no
+        `http(s)://` resource and no `src`/`href` to another file
+    - _Requirements: 10.8_
+  - [ ] 7.9 Report fixtures and tests: all taken, one missed, one unexpected, loop visited 3 times, no
+        expected path, 500+ nodes, empty path; one report built from a real `content_factory` eval run
+    - _Requirements: 10.3–10.5, 10.11_
 
 - [ ] 8. **Checkpoint — full build**: `mvn -q verify` for the affected modules
 
@@ -100,11 +122,11 @@ Three phases, each shippable on its own:
     - _Requirements: 5.2, 5.3, 5.4_
 
 - [ ] 10. Layout and webview (follow `ui.md`)
-  - [ ] 10.1 `src/graph/layout.ts` (layering, branch columns, back-edge routing) + tests
-        (no overlaps, all edges routed)
+  - [ ] 10.1 Use the generated `media/graph-render.js` from task 7.6 (layering, branch columns,
+        back-edge routing); the extension adds no layout of its own
     - _Requirements: 6.1, 6.2, 9.3_
-  - [ ] 10.2 `media/graph.js` / `graph.css`: SVG render, shapes and colours per kind, legend,
-        theme variables, pan/zoom/fit, keyboard selector
+  - [ ] 10.2 `media/graph.js` / `graph.css`: panel glue around the renderer: toolbar, pan/zoom/fit,
+        legend, theme variables mapped to VS Code colours, keyboard selector
     - _Requirements: 6.1–6.4_
   - [ ] 10.3 `GraphPanel.ts`: webview with CSP + nonce, `localResourceRoots`, typed messages
     - _Requirements: 6.5, 5.5_

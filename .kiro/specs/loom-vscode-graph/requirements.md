@@ -7,13 +7,15 @@ file, runs **Loom: Show Workflow Graph**, and sees each workflow as a flowchart:
 parallel rounds, and calls into other workflows — including workflows defined in imported files.
 Clicking a node jumps to the source line. The diagram updates when the file is saved.
 
-It spans three places:
+It spans four places:
 
 1. **ai-agent4j-loom** gains a graph builder and a `weave graph` command that prints the graph as JSON
    or Mermaid. The builder lives here because the VS Code extension bundles `weave.jar`.
 2. **eval4j-report** keeps producing its report graph, but from the shared builder, so there is one
    definition of "the graph of a workflow".
 3. **vscode-loom** adds a webview panel that runs `weave graph` and draws the result.
+4. **eval4j-report** also *draws* the graph, with the run laid over it (path taken, missed and unexpected
+   steps, retries). The panel and the report use one drawing module, so a node looks the same in both.
 
 Decisions already taken:
 - **One source of truth.** The graph is built from the real parser's AST, not from regexes in
@@ -39,6 +41,11 @@ All changes are additive. Existing `weave` commands, the eval report and the Out
 - **Outline_View**: The existing "Workflow Outline" tree.
 - **Chip**: A small text badge on a node showing one attribute set on its statement (`retry 3 · 2s`).
 - **Details_Card**: The popover that shows an agent's settings for a focused or hovered node.
+- **Shared_Renderer**: The single plain-JavaScript module that lays out and draws a graph. It is used by
+  the Graph_Panel and by the eval report.
+- **Run_Overlay**: The state of each node and edge in one run: taken, missed, unexpected, not visited,
+  and how many times a node was visited.
+- **Report_Graph**: The graph card in the eval report's trace view.
 - **Logo_Assets**: The Loom mark and logo images derived from `loom/ai-agent4j-loom/loom_logo.png`.
 
 ---
@@ -124,6 +131,9 @@ in CI, docs and the extension.
 2. THE existing eval-report output SHALL be unchanged for existing scripts: same node ids, kinds,
    labels, edges and bounds. Existing `eval4j-report` tests SHALL pass unmodified.
 3. ai-agent4j-loom SHALL NOT depend on eval4j-report or eval4j.
+4. WHEN a script uses statements the report's graph did not know before (for example `call`, `foreach`,
+   `guardrail`), THE report's graph SHALL show them as their own node kinds, not as a generic
+   `statement`. See Requirement 10.9 for the schema change this needs.
 
 ### Requirement 5: Graph command in VS Code
 
@@ -210,3 +220,43 @@ in CI, docs and the extension.
 5. `.vsix` packaging SHALL include the webview assets, the Logo_Assets and the rebuilt `weave.jar`.
 6. THE extension manifest SHALL declare the Loom mark as the extension icon.
 7. A script SHALL regenerate the Logo_Assets from `loom_logo.png`.
+
+### Requirement 10: Graph in the eval report
+
+**User Story:** As someone reading an eval report, I want to see the workflow as a diagram with what
+happened in this run drawn on it, so I can tell at a glance where a run left the expected path.
+
+#### Acceptance Criteria
+
+1. THE eval report SHALL draw the graph of every `WORKFLOW` trace as a card in the trace view, above the
+   existing path rows, which stay as they are.
+2. THE Report_Graph SHALL be drawn by the Shared_Renderer, so that a node with the same kind and
+   attributes has the same shape, glyph, title, subtitle and Chips as in the Graph_Panel.
+3. THE Report_Graph SHALL apply a Run_Overlay computed from the trace's `expectedPath`, `actualPath` and
+   `events`: nodes on both paths are *taken as expected*, on the expected path only *missed*, on the actual
+   path only *unexpected*, and on neither *not visited*. Edges between consecutive nodes of the actual
+   path are drawn as *traversed*.
+4. WHEN a node appears more than once in `actualPath` (loop iterations, retried steps), THE node SHALL
+   show a visit count (`×3`).
+5. WHEN a trace has no `expectedPath`, THE overlay SHALL show only *taken* and *not visited*.
+6. Overlay state SHALL be carried by a glyph and text as well as colour, using the report's own colour
+   tokens, and SHALL stay readable in the report's light and dark themes.
+7. SELECTING a node SHALL show its details beside the graph: kind, title, attributes, agent, the events
+   mapped to it (time, type, text), its duration when start and end events exist, and the spend of its
+   agent, labelled as per agent.
+8. THE report SHALL remain one self-contained HTML file. THE Shared_Renderer SHALL be inlined by
+   `HtmlRenderer` like `dashboard.js`, SHALL need no build step in `eval4j-report`, and SHALL make no
+   network request.
+9. THE report's `trace.schema.json` SHALL accept every node kind the Graph_Builder produces and an
+   optional `attrs` object on a node. Both copies of the schema SHALL stay identical, and every trace that
+   validated before SHALL still validate.
+10. THE `WorkflowTrace.Node` record SHALL gain an optional `attrs` map without breaking existing callers.
+11. Large graphs SHALL behave as in Requirement 6.7 (collapse above 300 nodes). The report's own limit of
+    500 nodes per trace SHALL be respected, and a graph over it SHALL show the path rows with a note
+    instead of a diagram.
+12. THE Report_Graph SHALL say, in a one-line note, that the path is inferred from the order of
+    delegations, because the Loom bridge infers it today.
+13. THE Report_Graph SHALL NOT show the Loom logo in this version: eval4j is engine neutral, and its
+    report carries its own identity.
+14. THE Shared_Renderer file SHALL have one canonical source. Copies used by the extension and by the
+    report SHALL be generated from it, and a check SHALL fail the build when a copy differs.

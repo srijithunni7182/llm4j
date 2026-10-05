@@ -41,7 +41,8 @@ import tree (left) and the selected-node details (right). The canvas takes all s
 
 ## 3. Primitive catalogue
 
-Every Loom statement is one node. A node has a **shape** (what it is), a **title** (what it does), an
+Every Loom statement is one node. The same rules draw the node in the Graph_Panel and in the eval report
+(section 11), because both use the Shared_Renderer. A node has a **shape** (what it is), a **title** (what it does), an
 optional **subtitle** (who or what it uses), **chips** (attributes set on it) and **edges** (control flow).
 Kind is carried by shape and glyph as well as colour. The JSON carries every attribute below in
 `node.attrs` (design.md), so the panel never parses source text.
@@ -207,3 +208,66 @@ Rules:
   monochrome knot SVG for it is a follow-up and is not part of this change.
 - Derived files are produced by `scripts/make-logo-assets.sh` (ImageMagick `convert`), so they can be
   regenerated if the logo changes. Samples of the output are in `assets/`.
+
+## 11. Eval report variant
+
+The eval report draws the same graph (Shared_Renderer) inside its trace view. It is a static page, so
+there is no editor, no drill-down and no Mermaid copy. The existing path rows, timeline, spend table and
+event log stay where they are.
+
+```
+┌─ Trace: GenerateContent · workflow ─────────────────────────────────────────────────────┐
+│ Workflow graph                                  ⊖ ⊕ ⤢    Legend ▾                         │
+│ ┌────────────────────────────────────────────────────┐ ┌─────────────────────────────┐ │
+│ │                    ( Start )   ✓                    │ │ Selected: delegate           │ │
+│ │                        │                            │ │ Researcher · gpt-4           │ │
+│ │              ┌─────────────────┐ ✓ ×1               │ │ retry 3 · timeout 90s        │ │
+│ │              │ delegate        │                    │ │ 4.2 s · 3 events             │ │
+│ │              │ Researcher      │                    │ │ Agent spend: 1,420 tok       │ │
+│ │              └─────────────────┘                    │ │ (per agent, not per node)    │ │
+│ │                        ⋮                            │ │ 0.00 s  delegate_start  …    │ │
+│ │       ┌──────────┐        ┌──────────┐              │ │ 4.20 s  delegate_end    …    │ │
+│ │       │ note ✗ missed     │ call  ! unexpected      │ └─────────────────────────────┘ │
+│ └────────────────────────────────────────────────────┘                                  │
+│ Path is inferred from the order of delegations.                                           │
+│ Expected path  Start → delegate → …        Path taken  Start → delegate → …              │
+└──────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 11.1 Overlay states
+
+| State | Meaning | Mark (glyph and text) | Drawing |
+|---|---|---|---|
+| taken as expected | on `actualPath` and `expectedPath` | `✓` badge, tooltip "taken as expected" | normal fill; the report's pass colour on the badge |
+| missed | on `expectedPath` only | `✗ missed` chip | dashed outline, muted fill; fail colour on the chip |
+| unexpected | on `actualPath` only | `! unexpected` chip | solid outline in the warning colour |
+| taken (no expected path) | on `actualPath`, trace has no `expectedPath` | `●` badge | normal fill |
+| not visited | on neither path | none | 45 % opacity |
+| visit count | node appears n > 1 times in `actualPath` | `×n` chip | next to the badge |
+| traversed edge | consecutive pair in `actualPath` that is an edge | none | thicker line in the report's ink colour |
+| untraversed edge | any other edge | none | thin, 45 % opacity |
+
+Overlay marks use the report's tokens (`--pass`, `--fail`, `--good`, `--ink`, `--line`, `--surface`), so
+they follow the report's light and dark themes. Marks always have text or a glyph, never colour alone.
+
+### 11.2 Details area
+
+Clicking or focusing a node fills the details area (right of the graph, below it at narrow widths) with:
+kind and title, attributes as Chips, agent and model, the events mapped to that node (time, type, text),
+duration when both start and end events exist, and the agent's spend labelled "per agent". An empty
+selection shows "Select a node to see what happened there."
+
+### 11.3 Not in the report
+
+No drill-down into called workflows (the call node shows its callee name), no source navigation, no Mermaid
+copy, no diagnostics strip, no Loom logo (eval4j is engine neutral). Pan, zoom, Fit, Legend and keyboard
+focus work as in the panel.
+
+### 11.4 Fallbacks
+
+| Case | Drawing |
+|---|---|
+| trace has no graph nodes | no card; the path rows show as today |
+| graph over 500 nodes | a note "Graph too large to draw (n nodes)" and the path rows |
+| `actualPath` empty | graph with all nodes *not visited* and the note "No steps were recorded." |
+| event that could not be placed on a node | counted in a line "n events could not be placed on a step" |
