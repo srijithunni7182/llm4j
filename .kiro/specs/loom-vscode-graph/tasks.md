@@ -13,6 +13,10 @@ Three phases, each shippable on its own:
 
 ## Tasks
 
+- [ ] 0. UI design sign-off
+  - [ ] 0.1 Review `ui.md` and `mockup.html`; record changes before building the panel
+    - _Requirements: 6.1–6.7, 7.1–7.4_
+
 <!-- PHASE 1: ai-agent4j-loom -->
 
 - [ ] 1. Source lines in the AST
@@ -34,7 +38,11 @@ Three phases, each shippable on its own:
     - _Requirements: 1.3_
   - [ ] 2.4 Handler blocks (`on_failure`, `on_exhausted`, `on_violation`) using `StatementWalker.nested`
     - _Requirements: 1.4_
-  - [ ] 2.5 Unit tests per kind, alt/loop edge shape, id stability
+  - [ ] 2.5 `attrs` per node and `AgentInfo` per agent, from the AST (retry, backoff, timeout, expecting,
+        budget, max, parallel, rewind and checkpoint settings, decision level, agent settings)
+    - _Requirements: 1.7, 1.8_
+  - [ ] 2.6 Unit tests per kind, alt/loop edge shape, id stability, attrs present only when set
+    - _Requirements: 1.1–1.8, 9.1_
     - _Requirements: 1.1–1.6, 9.1_
 
 - [ ] 3. Import closure
@@ -91,7 +99,7 @@ Three phases, each shippable on its own:
         spawn, 30 s timeout, error messages
     - _Requirements: 5.2, 5.3, 5.4_
 
-- [ ] 10. Layout and webview
+- [ ] 10. Layout and webview (follow `ui.md`)
   - [ ] 10.1 `src/graph/layout.ts` (layering, branch columns, back-edge routing) + tests
         (no overlaps, all edges routed)
     - _Requirements: 6.1, 6.2, 9.3_
@@ -102,6 +110,12 @@ Three phases, each shippable on its own:
     - _Requirements: 6.5, 5.5_
   - [ ] 10.4 Diagnostics strip; collapse blocks above 300 nodes
     - _Requirements: 6.6, 6.7_
+  - [ ] 10.5 Primitive shapes, glyphs and Chips per `ui.md` section 3; `+n` overflow; Details_Card
+        for agents; approval glyph
+    - _Requirements: 6.8, 6.9_
+  - [ ] 10.6 Logo_Assets: `scripts/make-logo-assets.sh`, toolbar mark, tab `iconPath`, loading and
+        empty states with reduced-motion handling, high-contrast tile outline
+    - _Requirements: 6.10, 9.7_
 
 - [ ] 11. Navigation and imports
   - [ ] 11.1 `openSource` (validated against `files`), open beside
@@ -126,7 +140,8 @@ Three phases, each shippable on its own:
     - _Requirements: 9.3_
   - [ ] 13.2 `@vscode/test-electron` smoke test on a sample with imports
     - _Requirements: 9.3_
-  - [ ] 13.3 Rebuild `weave.jar` into `bin/`; include `media/**` in `files`; package `.vsix`
+  - [ ] 13.3 Rebuild `weave.jar` into `bin/`; include `media/**` (with Logo_Assets) in `files`; set
+        the manifest `icon`; package `.vsix`
     - _Requirements: 9.5_
   - [ ] 13.4 Docs: extension README, `weave graph` in the Loom docs
     - _Requirements: 9.4_

@@ -37,6 +37,9 @@ All changes are additive. Existing `weave` commands, the eval report and the Out
 - **Graph_Panel**: The VS Code webview that draws a Workflow_Graph.
 - **Graph_Command**: `weave graph <file>`.
 - **Outline_View**: The existing "Workflow Outline" tree.
+- **Chip**: A small text badge on a node showing one attribute set on its statement (`retry 3 · 2s`).
+- **Details_Card**: The popover that shows an agent's settings for a focused or hovered node.
+- **Logo_Assets**: The Loom mark and logo images derived from `loom/ai-agent4j-loom/loom_logo.png`.
 
 ---
 
@@ -61,6 +64,14 @@ tool that draws it agrees.
    joined by labelled edges (`failure`, `exhausted`, `violation`).
 5. THE node ids for a given workflow SHALL be stable across runs for an unchanged script.
 6. EACH Node SHALL carry a Source_Ref when the statement has a line, and SHALL omit it otherwise.
+7. EACH Node SHALL carry the attributes set on its statement in `attrs`: `retry`, `backoffMs`,
+   `timeoutMs`, `expecting`, `budget` (tokens, calls, cost, perCall, warnAt, window, whenExhausted),
+   `maxIterations`, `parallel`, `variable`, `args`, rewind `atMost`, `effects` and `carrying`, checkpoint
+   `startingWith`, guardrail `type`, decide `decision` and its `level`. Attributes that are not set SHALL
+   be absent, not null.
+8. THE graph result SHALL include, for every agent named by a node, the agent's `model`, `temperature`,
+   `persona`, tool, MCP, skill and knowledge names, `approve` list or `approveAll`, `budget`,
+   `maxIterations` and source line, and the script-level run budget.
 
 ### Requirement 2: Imports and calls
 
@@ -149,6 +160,14 @@ in CI, docs and the extension.
    a collapsible strip.
 7. WHEN a graph has more than 300 nodes, THE panel SHALL collapse nested blocks by default and offer
    expand/collapse per block.
+8. THE panel SHALL draw every primitive and attribute as specified in `ui.md` section 3: shape, title,
+   subtitle, Chips and extra edges per primitive, with at most three Chips per node and `+n` overflow.
+9. THE panel SHALL show a Details_Card with the agent's settings (model, tools, approval rules, budget)
+   on hover or keyboard focus of a node that names an agent, and SHALL mark nodes whose agent needs
+   approval.
+10. THE panel SHALL show the Loom logo in its toolbar, in its tab icon, and in its loading and empty
+    states, using bundled Logo_Assets as specified in `ui.md` section 10. The logo SHALL be used unaltered
+    and SHALL stay legible and correctly framed in light, dark and high-contrast themes.
 
 ### Requirement 7: Navigation and imports in the panel
 
@@ -188,4 +207,6 @@ in CI, docs and the extension.
    the JSON-to-layout step, and a smoke test that opens the panel for a sample file.
 4. THE extension README SHALL document the command and its settings; the Loom docs SHALL document
    `weave graph`.
-5. `.vsix` packaging SHALL include the webview assets and the rebuilt `weave.jar`.
+5. `.vsix` packaging SHALL include the webview assets, the Logo_Assets and the rebuilt `weave.jar`.
+6. THE extension manifest SHALL declare the Loom mark as the extension icon.
+7. A script SHALL regenerate the Logo_Assets from `loom_logo.png`.

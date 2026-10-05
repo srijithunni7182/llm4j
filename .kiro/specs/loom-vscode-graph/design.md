@@ -44,7 +44,12 @@ working.
 
 ```java
 record GraphNode(String id, String kind, String label, String agent, Integer bound,
-                 SourceRef source, CallLink call, boolean unresolved) {}
+                 SourceRef source, CallLink call, boolean unresolved,
+                 Map<String, Object> attrs) {}       // only attributes that are set
+record AgentInfo(String name, String model, Double temperature, String persona,
+                 List<String> tools, List<String> mcp, List<String> skills,
+                 List<String> knowledge, List<String> approve, boolean approveAll,
+                 Map<String, Object> budget, Integer maxIterations, SourceRef source) {}
 record GraphEdge(String from, String to, String label) {}
 record SourceRef(String file, int line) {}
 record CallLink(String workflow, String file) {}          // file null if unresolved
@@ -53,7 +58,8 @@ record WorkflowGraph(String name, String file, List<String> params,
 record ImportFile(String path, List<String> imports) {}
 record Diagnostic(String severity, String file, int line, String message) {}
 record GraphResult(int version, String entry, List<ImportFile> files,
-                   List<WorkflowGraph> workflows, List<Diagnostic> diagnostics) {}
+                   List<WorkflowGraph> workflows, List<AgentInfo> agents,
+                   Map<String, Object> runBudget, List<Diagnostic> diagnostics) {}
 ```
 
 `GraphBuilder.build(WorkflowDef, String file) -> WorkflowGraph` is the existing `WorkflowGraph.block`
@@ -111,6 +117,9 @@ node kinds it produced before.
 
 ### 5. vscode-loom
 
+Wireframes, node shapes, states and keyboard behaviour are specified in `ui.md`; `mockup.html` is the
+interactive reference.
+
 New files:
 
 | File | Role |
@@ -119,7 +128,9 @@ New files:
 | `src/views/GraphPanel.ts` | owns the `WebviewPanel`, message protocol, refresh, watchers |
 | `src/graph/model.ts` | TypeScript types mirroring the JSON, `parseGraph()` validating `version` |
 | `src/graph/layout.ts` | pure function: workflow → positioned boxes and routed edges (layered top-to-bottom; back-edges drawn on the side) |
-| `media/graph.js`, `media/graph.css` | webview renderer (SVG), pan/zoom, selection, legend |
+| `media/graph.js`, `media/graph.css` | webview renderer (SVG), pan/zoom, selection, legend, chips, details card |
+| `media/loom-mark-128.jpg`, `media/loom-logo-320.jpg` | Logo_Assets (see `ui.md` section 10) |
+| `scripts/make-logo-assets.sh` | regenerates the Logo_Assets from `loom_logo.png` with ImageMagick |
 
 **Rendering.** A small bundled layout (layering by longest path, one column per branch, loop
 back-edges routed on the right) drawn as SVG. This avoids a runtime dependency and any network access.
@@ -141,7 +152,7 @@ node's `source.line`. A new run aborts the previous child process (`AbortControl
 State kept across refreshes: selected workflow name, transform (zoom/pan), collapsed block ids.
 
 **Security.** `webview.options.localResourceRoots = [extension media dir]`; CSP
-`default-src 'none'; style-src ${cspSource}; script-src 'nonce-…'`. All label text is inserted with
+`default-src 'none'; img-src ${cspSource}; style-src ${cspSource}; script-src 'nonce-…'`. All label text is inserted with
 `textContent`, never `innerHTML`, because labels come from script content.
 
 **Settings.** `loom.graph.javaPath` (default `java`), `loom.graph.timeoutMs` (30000),
