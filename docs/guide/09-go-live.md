@@ -48,7 +48,7 @@ about 10 a minute) rather than hammering.
 
 ## Keys and secrets
 
-Environment variables (`env.NAME`) or an encrypted [secret store](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Secret-Store.md) (`secret.NAME`, `weave run --secrets <file>`; you choose and protect its path and master key) in scripts, `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` for the evaluation. Never in a script, a test or the repository; if a key is ever pasted somewhere shared, rotate it.
+The encrypted secret store is the default: a one-time setup of `weave secrets create`, `weave secrets set NAME` and `--secrets <file>` on `weave run` and `weave eval` (the templates' README spells it out, and an agent that follows the skill writes the same for your project). A tool's key is `secret.NAME` in the script. Environment variables (`env.NAME`) also work; `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` are what the evaluation judge reads. The store is described in the [secret store page](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Secret-Store.md); you choose and protect its path and master key. Never in a script, a test or the repository; if a key is ever pasted somewhere shared, rotate it.
 Secrets are scrubbed from results, traces, journals and audit logs.
 
 ## If you skipped evaluation

@@ -38,6 +38,8 @@ class SkillKitTest {
             Matcher m = Pattern.compile("weave ([a-z][a-z-]*)\\b([^`]*)").matcher(line);
             if (!m.find() || !root.getSubcommands().containsKey(m.group(1))) continue;
             CommandLine sub = root.getSubcommands().get(m.group(1));
+            Matcher nested = Pattern.compile("^\\s+([a-z]+)\\b").matcher(m.group(2));
+            if (nested.find() && sub.getSubcommands().containsKey(nested.group(1))) sub = sub.getSubcommands().get(nested.group(1));
             String rest = m.group(2).replaceAll("#.*", "");
             Matcher o = Pattern.compile("(--[a-z][a-z-]*)").matcher(rest);
             while (o.find()) if (!sub.getCommandSpec().optionsMap().containsKey(o.group(1))) missing.add(m.group(1) + " " + o.group(1));
@@ -74,6 +76,7 @@ class SkillKitTest {
     @Test
     void theSkillCoversTheKitQuestionsAndPitfalls() {
         String s = skill();
+        assertThat(s).contains("weave secrets create").contains("weave secrets set").contains("secret.NAME").contains("Never ask the user to paste a key");
         assertThat(s).contains("Do you want tests first?").contains("weave init").contains("Tests run: 0").contains("--no-env");
     }
 }

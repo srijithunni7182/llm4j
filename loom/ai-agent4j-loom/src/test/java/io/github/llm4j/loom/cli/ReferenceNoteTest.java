@@ -23,4 +23,21 @@ class ReferenceNoteTest {
     void theSkillTellsTheAgentToChangeWhatItCopies() {
         assertThat(Guide.skill().orElseThrow()).contains("reference to be modified");
     }
+
+    @Test
+    void everyTemplateReadmeTellsTheUserToKeepKeysInTheSecretStoreWithCommandsThatExist() throws IOException {
+        var root = WeaveCLI.commandLine();
+        var secrets = root.getSubcommands().get("secrets");
+        for (String t : new String[] {"pipeline", "approval", "classifier"}) {
+            try (InputStream in = getClass().getClassLoader().getResourceAsStream("templates/" + t + "/README.md")) {
+                String readme = new String(in.readAllBytes());
+                assertThat(readme).as(t).contains("Set up your keys").contains("weave secrets create --secrets").contains("weave secrets set GEMINI_API_KEY --secrets")
+                        .doesNotContain("in your environment");
+                for (String sub : new String[] {"create", "set", "list"}) assertThat(secrets.getSubcommands()).containsKey(sub);
+                assertThat(secrets.getSubcommands().get("set").getCommandSpec().optionsMap()).containsKey("--secrets");
+                assertThat(root.getSubcommands().get("run").getCommandSpec().optionsMap()).containsKey("--secrets");
+                assertThat(root.getSubcommands().get("eval").getCommandSpec().optionsMap()).containsKeys("--secrets", "--secrets-key-env");
+            }
+        }
+    }
 }
