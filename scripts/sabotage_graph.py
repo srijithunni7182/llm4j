@@ -38,7 +38,7 @@ SABOTAGES = [
      [(J + "graph/Redactor.java", "return text == null ? null : KEY_LIKE.matcher(text).replaceAll(MASK);", "return text;")],
      ("loom", "RedactorTest"), ["keyShapedTextIsMasked", "aKeyPastedIntoAPromptDoesNotAppearInTheJsonOrTheMermaid"], "VS.4"),
     ("S6", "Make weave graph reach for the environment",
-     [(J + "cli/GraphCommand.java", "GraphResult result = new GraphService().graph(c.script.toPath());", "env.env().apply(\"OPENAI_API_KEY\");\n        GraphResult result = new GraphService().graph(c.script.toPath());")],
+     [(J + "cli/GraphCommand.java", "GraphResult result = new GraphService().graph(c.script.toPath(), env.prompts());", "env.env().apply(\"OPENAI_API_KEY\");\n        GraphResult result = new GraphService().graph(c.script.toPath(), env.prompts());")],
      ("loom", "GraphCommandTest"), ["itNeverReachesForAModelAPersonASecretTheEnvironmentOrACommand"], "V3.4"),
     ("S7", "Report maps every node kind to the generic statement kind",
      [("eval4j-report/src/main/java/io/github/llm4j/evalreport/loom/WorkflowGraph.java", "node.id(), node.kind(), node.label(), node.agent(), node.bound(), withPlacement(node));", "node.id(), \"statement\", node.label(), node.agent(), node.bound(), withPlacement(node));")],
