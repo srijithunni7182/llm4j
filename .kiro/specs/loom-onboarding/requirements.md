@@ -80,3 +80,22 @@ what is not already in `loom-prompt-files` and `loom-weave-eval`.
    evaluation optional, the order of work, no reliance on `examples/`).
 2. A test checks that every command in the skill exists in `weave --help`, and every chapter it names exists.
 3. The skill's description and body are checked with a cold-start session (the exercise prompt in `findings.md`'s source) before release.
+
+### Requirement 10: It works without the repository (F4, and the session that had the repository open)
+
+The dogfooding session succeeded partly because the repository was open: the agent could read `docs/guide/`, the
+Hexamind example, the source and the tests. A first-time user has `weave.jar`, the extension and the skill, and nothing else.
+
+1. Everything the skill tells an agent to read or run exists in that kit. The skill names no repository path, no
+   `examples/` folder and no source file; it tells the agent to use `weave guide`, `weave init`, `weave --help`
+   and the jar's own documentation.
+2. `weave guide` prints every chapter, `LOOM_GUIDE.md` and `llms.txt` from inside the jar; the extension exposes the same text.
+3. The skill can be installed by itself (a plugin or a file the extension offers to copy into the project), and
+   tells the user how, so a person who does not have the repository still gets it.
+4. The skill's rule "check API names against the code" becomes "check against `weave --help`, `weave guide` and the
+   error messages", and the guide documents every Java type a sample uses, with its Maven coordinates and a minimal `pom` snippet.
+5. A scripted check runs in an empty directory with only `weave.jar` on the path: `weave init`, `weave check --no-env`,
+   `weave eval --mock`, `weave guide` for each chapter, and then fails if any step needs a file outside the directory or the jar.
+6. The acceptance run for this feature is a cold-start session (the exercise prompt, three requests) in an empty folder
+   with only the jar, the extension and the skill. The repository must not be reachable from it: no clone, no
+   parent directory with the source. Its feedback is compared with `findings.md`.

@@ -16,6 +16,7 @@ the spec that covers it. Status is **specified, not built**.
 | F8 | In the workflow the agent wrote, the answer to the `on_exhausted` human prompt is never read, so a declined unapproved script is still shown, labelled "Approved script". `weave check` and `weave audit` say nothing; the graph shows the problem | graph of the script: the exhausted branch merges into the success path | `loom-onboarding` R6 (check), `loom-weave-eval` (scenario in the guide) |
 | F9 | The audit counts "can send or act" per agent, so a script that a person will copy and run, authored from untyped web text, shows no effect | audit of the same script | `loom-onboarding` R7 |
 | F10 | `weave check` fails on a fresh checkout only because API keys are not set | 5 problems, all "not set" | `loom-onboarding` R6.3 |
+| F12 | The session had the repository open, so the agent could read the guide, the example, the source and the tests; a first-time user has only the jar, the extension and the skill | the skill names `docs/guide/` and `examples/` and says to check API names against the code | `loom-onboarding` R10 |
 | F11 | The reviewer shares the author's model; only one clarification round | the script | `loom-onboarding` R8 (guide advice) |
 
 ## What worked and must not regress

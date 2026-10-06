@@ -10,4 +10,5 @@
 - [ ] 8. `weave guide`; bundle the guide into the jar and the extension (R3.2)
 - [ ] 9. `scripts/doctor.sh` and the build notes (R5)
 - [ ] 10. Skill update as in `design.md` section 6, with the command-and-chapter test (R9.1, R9.2)
-- [ ] 11. Cold-start rerun of the three exercise requests against the finished work; compare with `findings.md`; record in `evidence/` (R9.3)
+- [ ] 10a. The kit: guide, templates and docs inside the jar; extension command to install the skill and the guide; skill free of repository paths; `scripts/verify-kit.sh` (R10.1 to R10.5)
+- [ ] 11. Cold-start rerun, in an empty folder with only the jar, the extension and the skill and no route to the repository (R10.6), of the three exercise requests against the finished work; compare with `findings.md`; record in `evidence/` (R9.3)

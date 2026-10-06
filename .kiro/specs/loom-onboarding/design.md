@@ -49,6 +49,16 @@ Planned changes to `SKILL.md`:
 10. **Never write a Java loader** for a script-only project; use `weave eval`.
 11. **Honest edges:** keep the existing list and add what is still unsupported once the specs land.
 
+## 7. The kit (R10)
+
+The kit is three things: `weave.jar`, the extension, the skill. The jar carries `/guide/*.md`, `LOOM_GUIDE.md`,
+`llms.txt` and `/templates`; `weave guide` and `weave init` read them. The extension bundles the same text and
+offers "Install the Loom skill in this project", which writes `.claude/skills/llm4j-workflow-guide/SKILL.md` and
+the guide next to it. The skill is rewritten so every path it names is one the kit has. The Java types the guide
+uses are listed with coordinates and a pom snippet in the build chapter, because there is no source tree to read.
+A script, `scripts/verify-kit.sh`, builds the kit and runs the empty-directory check in a directory with no
+access to the repository.
+
 ## Open questions
 
 1. `weave check --format json` shape: reuse the `diagnostics` array of `weave graph`? Proposed yes.
