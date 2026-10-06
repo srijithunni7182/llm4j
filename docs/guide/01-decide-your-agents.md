@@ -77,7 +77,7 @@ Not every step of a workflow should have a model behind it. Before you write a p
 
 The usual shape is **the model reads, the code decides and acts**: a support bot lets an agent extract `{order_id, amount}` from the customer's message, then a
 `RefundPolicy` task decides, then an `IssueRefund` task pays. A prompt-injected customer can fool the agent into saying "100000", but not the policy. A task needs no prompt, no
-temperature and no rubric: you test it like any function (see [Creating Tasks](../../ai-agent4j/wiki/Creating-Tasks.md)), so it costs nothing at stages 2 to 5.
+temperature and no rubric: you test it like any function (see [Creating Tasks](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Creating-Tasks.md)), so it costs nothing at stages 2 to 5.
 
 ## Worked example: Hexamind
 

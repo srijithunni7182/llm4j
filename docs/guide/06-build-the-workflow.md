@@ -6,7 +6,7 @@
 
 Building the workflow *after* the agents are tested means a failure is the workflow's fault, not an untested prompt's. In Loom each step is a
 named delegation with a trace event, a budget and a replay point, which is exactly what chapter 8's trajectory tests assert on.
-Reference: [Loom guide](../../loom/ai-agent4j-loom/LOOM_GUIDE.md).
+Reference: [Loom guide](https://github.com/srijithunni7182/llm4j/blob/main/loom/ai-agent4j-loom/LOOM_GUIDE.md).
 
 ## Order of work
 
@@ -50,7 +50,7 @@ workflow Collaborate(problem) {
 }
 ```
 
-Full script: [`hexamind.loom`](../../examples/hexamind-hub/eval/hexamind.loom).
+Full script: [`hexamind.loom`](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/hexamind.loom).
 
 ## Tasks: the steps with no model
 
@@ -74,7 +74,7 @@ workflow Refund(msg) {
 - Write each task as a `Task` (`Task.pure(...)` for a rule, `Task.changes(...)` for a payment, with an `EffectPolicy` saying whether the provider deduplicates by the idempotency key) and register it with
   `executor.setTaskRegistry(...)` or `META-INF/services/io.github.llm4j.agent.task.Task`. Unit-test it directly.
 - A task spends no tokens and does not count against the run budget; a task that changes things is **never repeated by a crash or a `retry`** unless it is idempotent.
-- Reference: [Loom guide, Tasks](../../loom/ai-agent4j-loom/LOOM_GUIDE.md#tasks-deterministic-steps-run).
+- Reference: [Loom guide, Tasks](https://github.com/srijithunni7182/llm4j/blob/main/loom/ai-agent4j-loom/LOOM_GUIDE.md#tasks-deterministic-steps-run).
 
 ## Things that bit us (so they do not bite you)
 

@@ -720,6 +720,7 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new GraphCommand())
                 .addSubcommand(new EvalCommand())
                 .addSubcommand(new InitCommand())
+                .addSubcommand(new GuideCommand())
                 .addSubcommand(new SecretCommands());
     }
 

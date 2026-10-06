@@ -4,6 +4,12 @@ A guided path from "which agents do I need?" to "my workflow runs against real A
 well-tested parts. Every chapter says what to do, why, shows a worked example from the **Hexamind Hub** (a real six-agent
 debate app evaluated end to end with llm4j), and ends with a **gate**: the check that tells you it is safe to move on.
 
+**Start from a template, not from an example.** `weave init pipeline` (or `approval`, `classifier`) creates a small, complete project with
+the script, its prompts as files, a golden dataset and a README, and everything in it runs free: `weave check --no-env`, `weave eval --mock`.
+The **Hexamind** examples in the chapters are a *case study*: a real six-agent app that runs its agents from Java and uses Loom for evaluation.
+They show what a large evaluation looks like, but they are not the shape to copy for a script-only workflow, and the files they link to are in
+the repository, not in the tools you installed (the links are web addresses for that reason).
+
 The rule that organises everything: **spend money last.** Each stage is first proved free (mocks, static checks), then run
 for real under a cap.
 
@@ -36,17 +42,17 @@ Skipping is not hidden: chapter 9 reminds you once that no evaluation exists, an
 
 ## The running example
 
-[`examples/hexamind-hub`](../../examples/hexamind-hub): six personas (a technical analyst, a market strategist, a
+[`examples/hexamind-hub`](https://github.com/srijithunni7182/llm4j/tree/main/examples/hexamind-hub): six personas (a technical analyst, a market strategist, a
 futurist, a research scientist, a customer advocate and an adversarial source-checker) debate a question in five rounds,
 a moderator checks whether the question contains a fabricated term, and a coordinator writes one consensus. The evaluation
-lives in [`eval/`](../../examples/hexamind-hub/eval): [SPEC](../../examples/hexamind-hub/eval/SPEC.md),
-[RUN-PLAN](../../examples/hexamind-hub/eval/RUN-PLAN.md), the [golden dataset](../../examples/hexamind-hub/eval/golden),
-the [Loom workflow](../../examples/hexamind-hub/eval/hexamind.loom) and `run-all.sh`.
+lives in [`eval/`](https://github.com/srijithunni7182/llm4j/tree/main/examples/hexamind-hub/eval): [SPEC](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/SPEC.md),
+[RUN-PLAN](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/RUN-PLAN.md), the [golden dataset](https://github.com/srijithunni7182/llm4j/tree/main/examples/hexamind-hub/eval/golden),
+the [Loom workflow](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/hexamind.loom) and `run-all.sh`.
 
 ## What you need
 
 - Java 17+, Maven, and the libraries: `ai-agent4j` (agents), `ai-agent4j-loom` (workflows), `eval4j` and `eval4j-report`
-  (evaluation and the dashboard). See the [eval4j quick start](../../eval4j/docs/QUICKSTART.md) for the dependencies.
+  (evaluation and the dashboard). See the [eval4j quick start](https://github.com/srijithunni7182/llm4j/blob/main/eval4j/docs/QUICKSTART.md) for the dependencies.
 - A model for the agents and a **different, ideally stronger,** model for the judge.
 - Keys in environment variables only, never in a file or the repository.
 

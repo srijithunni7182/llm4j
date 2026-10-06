@@ -40,7 +40,7 @@ A **journal** makes the run durable: re-running with the same journal replays fi
 
 ## Check the cost afterwards
 
-There is no `weave estimate`; keep a small cost model (calls x tokens x price) and compare. Hexamind's is [`cost_model.py`](../../examples/hexamind-hub/eval/cost_model.py): expected a full debate at
+There is no `weave estimate`; keep a small cost model (calls x tokens x price) and compare. Hexamind's is [`cost_model.py`](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/cost_model.py): expected a full debate at
 about 121 model calls, measured against the spend report. When reality and model disagree, change the model, not just the cap.
 
 Rate limits: a 429 with a short reset is waited out inside the call; a long one reaches Loom's `rate_limits`. A free-tier key will hit them: pace the calls (Hexamind's evaluation used
@@ -48,7 +48,7 @@ about 10 a minute) rather than hammering.
 
 ## Keys and secrets
 
-Environment variables (`env.NAME`) or an encrypted [secret store](../../ai-agent4j/wiki/Secret-Store.md) (`secret.NAME`, `weave run --secrets <file>`; you choose and protect its path and master key) in scripts, `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` for the evaluation. Never in a script, a test or the repository; if a key is ever pasted somewhere shared, rotate it.
+Environment variables (`env.NAME`) or an encrypted [secret store](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Secret-Store.md) (`secret.NAME`, `weave run --secrets <file>`; you choose and protect its path and master key) in scripts, `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` for the evaluation. Never in a script, a test or the repository; if a key is ever pasted somewhere shared, rotate it.
 Secrets are scrubbed from results, traces, journals and audit logs.
 
 ## If you skipped evaluation

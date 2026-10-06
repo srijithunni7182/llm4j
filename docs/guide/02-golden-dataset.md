@@ -79,15 +79,15 @@ Put at least one injection and one fabricated-premise case per agent: they are t
 ## Search-dependent cases need recorded results
 
 If an agent searches, give the case its snippets (`retrievalContext`, or a query-matched library such as
-[`search-fixtures.yaml`](../../examples/hexamind-hub/eval/golden/search-fixtures.yaml)). A search that returns nothing for a
+[`search-fixtures.yaml`](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/golden/search-fixtures.yaml)). A search that returns nothing for a
 real topic makes the agent loop to its iteration limit: you would be measuring broken search, not the agent. Fabricated terms
-should find nothing, on purpose. See `RecordedSearchTool` in [offline and budgeted runs](../../eval4j/docs/OFFLINE-AND-BUDGETED-RUNS.md).
+should find nothing, on purpose. See `RecordedSearchTool` in [offline and budgeted runs](https://github.com/srijithunni7182/llm4j/blob/main/eval4j/docs/OFFLINE-AND-BUDGETED-RUNS.md).
 
 ## Generating more
 
 `DatasetSynthesizer` can draft scenarios from your documents, a description or seeds; candidates pass a quality judge and
 de-duplication, so you may get fewer than requested. Review everything it writes before committing it
-([datasets guide](../../eval4j/docs/DATASETS.md)):
+([datasets guide](https://github.com/srijithunni7182/llm4j/blob/main/eval4j/docs/DATASETS.md)):
 
 ```java
 SynthesisResult result = DatasetSynthesizer.using(generatorClient)
@@ -99,7 +99,7 @@ EvalScenarios.toYaml(result.scenarios(), Path.of("src/test/resources/generated.y
 
 A test that loads every file and checks the conventions catches mistakes before they cost money: unique ids, known
 dimensions, known tool names, non-empty rubrics, every fabricated-premise case has a fixture. Hexamind's
-[`GoldenDatasetTest`](../../examples/hexamind-hub/src/test/java/io/github/llm4j/hexamind/eval/GoldenDatasetTest.java)
+[`GoldenDatasetTest`](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/src/test/java/io/github/llm4j/hexamind/eval/GoldenDatasetTest.java)
 does this for all 70 scenarios.
 
 ## Gate

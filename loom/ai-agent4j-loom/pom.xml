@@ -155,6 +155,32 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!-- The guide, the Loom reference and the skill travel inside the jar, so `weave guide` works with no repository (see weave guide). -->
+            <resource>
+                <directory>../../docs/guide</directory>
+                <targetPath>guide</targetPath>
+                <includes><include>*.md</include></includes>
+            </resource>
+            <resource>
+                <directory>.</directory>
+                <targetPath>guide</targetPath>
+                <includes><include>LOOM_GUIDE.md</include></includes>
+            </resource>
+            <resource>
+                <directory>../..</directory>
+                <targetPath>guide</targetPath>
+                <includes><include>llms.txt</include></includes>
+            </resource>
+            <resource>
+                <directory>../../.claude/skills/llm4j-workflow-guide</directory>
+                <targetPath>skill</targetPath>
+                <includes><include>SKILL.md</include></includes>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
