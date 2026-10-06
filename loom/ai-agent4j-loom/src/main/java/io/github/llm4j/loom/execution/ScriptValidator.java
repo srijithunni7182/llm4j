@@ -141,6 +141,7 @@ public class ScriptValidator {
         Checker c = new Checker(script, context);
         checkAgents(c);
         checkPromptFiles(c);
+        checkWorkflowLint(c);
         checkRouting(c);
         checkStatements(c);
         for (Consumer<Checker> extra : context.extraChecks) extra.accept(c);
@@ -158,6 +159,13 @@ public class ScriptValidator {
     }
 
     // ── checks ───────────────────────────────────────────────────────────────────────────────
+
+    /** Warnings about what a workflow stores and never reads (see {@link WorkflowLint}). */
+    private void checkWorkflowLint(Checker c) {
+        for (io.github.llm4j.loom.ast.WorkflowDef workflow : c.script().getWorkflows()) {
+            for (WorkflowLint.Finding f : WorkflowLint.check(workflow)) c.warn(f.line(), f.construct(), f.message());
+        }
+    }
 
     /** What is wrong with the prompt folder itself: files refused or ignored, and files no agent uses. */
     private void checkPromptFiles(Checker c) {

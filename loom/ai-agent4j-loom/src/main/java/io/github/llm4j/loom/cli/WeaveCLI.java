@@ -207,6 +207,15 @@ public class WeaveCLI implements Callable<Integer> {
         @Option(names = "--lenient", description = "Treat features that aren't supported yet as warnings.")
         private boolean lenient;
 
+        @Option(names = "--format", description = "text (default) or json: one JSON object with the problems in it, for tools (the editor reads this).", defaultValue = "text")
+        private String format;
+
+        @Option(names = "--no-env", description = "Check the script without keys: names that are not set in the environment are listed as 'not set yet' instead of being problems.")
+        private boolean noEnv;
+
+        @Option(names = "--strict", description = "Treat warnings as errors (exit 2), so a build can require a clean script.")
+        private boolean strict;
+
         @CommandLine.Mixin
         private SecretOptions secrets = new SecretOptions();
 
@@ -219,8 +228,17 @@ public class WeaveCLI implements Callable<Integer> {
             if (env == null) return 2;
             env = promptOptions.apply(env);
             if (env == null) return 2;
-            return check(scriptFile, lootFile, lenient, env);
+            if (!format.equals("text") && !format.equals("json")) {
+                System.err.println("Error: --format takes text or json.");
+                return 2;
+            }
+            return check(scriptFile, lootFile, new CheckSettings(lenient, format.equals("json"), noEnv, strict), env);
         }
+    }
+
+    /** What {@code weave check} was asked to do besides check. */
+    record CheckSettings(boolean lenient, boolean json, boolean noEnv, boolean strict) {
+        static final CheckSettings DEFAULT = new CheckSettings(false, false, false, false);
     }
 
     /**
@@ -228,16 +246,30 @@ public class WeaveCLI implements Callable<Integer> {
      * problem with its line; exit 0 when there are no errors, 2 otherwise. Never prints secret values.
      */
     static int check(File scriptFile, File lootFile, boolean lenient, WeaveEnv env) {
+        return check(scriptFile, lootFile, new CheckSettings(lenient, false, false, false), env);
+    }
+
+    private static final java.util.regex.Pattern NEEDS_KEY = java.util.regex.Pattern.compile("needs ([A-Za-z0-9_]+) in the environment");
+    private static final java.util.regex.Pattern LINE_OF = java.util.regex.Pattern.compile("line (\\d+)");
+
+    static int check(File scriptFile, File lootFile, CheckSettings settings, WeaveEnv env) {
         io.github.llm4j.loom.ast.LoomScript script;
         try {
             script = new LoomLoader().load(scriptFile.getAbsolutePath());
         } catch (Exception e) {
-            env.out().println("✗ " + scriptFile.getName() + ": " + e.getMessage());
+            if (settings.json()) {
+                var m = LINE_OF.matcher(String.valueOf(e.getMessage()));
+                int line = m.find() ? Integer.parseInt(m.group(1)) : 0;
+                env.out().println(checkJson(scriptFile, List.of(new JsonProblem("error", line, String.valueOf(e.getMessage()))), List.of()));
+            } else {
+                env.out().println("✗ " + scriptFile.getName() + ": " + e.getMessage());
+            }
             return 2;
         }
         ToolRegistry registry = new ToolRegistry();
         if (lootFile != null && lootFile.exists()) new LootLoader().loadIntoRegistry(lootFile.getAbsolutePath(), registry);
         LLMClientFactory models = env.models();
+        java.util.Set<String> notSetYet = new java.util.TreeSet<>();
         HarnessExecutor executor = new HarnessExecutor(script, registry, new LLMClientFactory() {
             @Override
             public io.github.llm4j.LLMClient createClient(String model) {
@@ -246,28 +278,80 @@ public class WeaveCLI implements Callable<Integer> {
 
             @Override
             public String problem(String model) {
-                return models.problem(model); // names and keys are checked; nothing is contacted
+                String problem = models.problem(model); // names and keys are checked; nothing is contacted
+                if (problem != null && settings.noEnv()) {
+                    var m = NEEDS_KEY.matcher(problem);
+                    if (m.find()) {
+                        notSetYet.add(m.group(1));
+                        return null;
+                    }
+                }
+                return problem;
             }
         });
-        executor.setLenient(lenient);
+        executor.setLenient(settings.lenient());
         executor.setBaseDir(scriptFile.getAbsoluteFile().getParentFile().toPath());
-        executor.setEnvLookup(env.env());
+        java.util.function.Function<String, String> lookup = env.env();
+        executor.setEnvLookup(settings.noEnv() ? name -> {
+            String value = lookup.apply(name);
+            if (value == null) {
+                notSetYet.add(name);
+                return "not-set-yet";
+            }
+            return value;
+        } : lookup);
         executor.setSecretStore(env.secrets());
         executor.setPromptCatalog(io.github.llm4j.loom.prompt.PromptSupport.catalog(script, scriptFile.toPath(), env.prompts()));
         executor.setHumanInterface(env.human()); // the CLI always has a console
         List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems =
                 new io.github.llm4j.loom.execution.ScriptValidator().validate(script, executor.validationContext());
-        long errors = problems.stream()
-                .filter(p -> p.severity() == io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR).count();
-        for (var p : problems) env.out().println((p.severity() == io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR
-                ? "✗ " : "⚠ ") + p);
+        var error = io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR;
+        long errors = problems.stream().filter(p -> p.severity() == error || settings.strict()).count();
+        if (settings.json()) {
+            List<JsonProblem> out = new ArrayList<>();
+            for (var p : problems) out.add(new JsonProblem(p.severity() == error || settings.strict() ? "error" : "warning", p.line(),
+                    (p.construct() == null ? "" : p.construct() + ": ") + p.message()));
+            env.out().println(checkJson(scriptFile, out, new ArrayList<>(notSetYet)));
+            return errors == 0 ? 0 : 2;
+        }
+        for (var p : problems) env.out().println((p.severity() == error || settings.strict() ? "✗ " : "⚠ ") + p);
+        if (!notSetYet.isEmpty()) env.out().println("ℹ not set yet (needed to run): " + String.join(", ", notSetYet));
         if (errors == 0) {
             env.out().println("✓ " + scriptFile.getName() + ": ready to run"
                     + (problems.isEmpty() ? "" : " (" + problems.size() + " warning" + (problems.size() == 1 ? "" : "s") + ")"));
             return 0;
         }
+        boolean keys = problems.stream().anyMatch(p -> p.message().contains("is not set") || p.message().contains("in the environment"));
+        if (keys && !settings.noEnv()) env.out().println("Some of these are names that are not set yet. Set them, or use --no-env to check the script without keys.");
         env.out().println(errors + " problem" + (errors == 1 ? "" : "s") + " in " + scriptFile.getName());
         return 2;
+    }
+
+    /** One problem as the JSON of {@code weave check --format json} carries it. */
+    private record JsonProblem(String severity, int line, String message) {}
+
+    /** The JSON object: version 1, whether the script is fine, the problems, and the names not set yet. Printed with exit 0 or 2, like the text form. */
+    private static String checkJson(File scriptFile, List<JsonProblem> problems, List<String> notSetYet) {
+        java.util.Map<String, Object> root = new java.util.LinkedHashMap<>();
+        root.put("version", 1);
+        root.put("file", scriptFile.getAbsolutePath());
+        root.put("ok", problems.stream().noneMatch(p -> p.severity().equals("error")));
+        List<java.util.Map<String, Object>> list = new ArrayList<>();
+        for (JsonProblem p : problems) {
+            java.util.Map<String, Object> d = new java.util.LinkedHashMap<>();
+            d.put("severity", p.severity());
+            d.put("file", scriptFile.getAbsolutePath());
+            d.put("line", p.line());
+            d.put("message", p.message());
+            list.add(d);
+        }
+        root.put("diagnostics", list);
+        root.put("notSetYet", notSetYet);
+        try {
+            return new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(root);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Command(name = "resume", description = "Resumes a paused run now, from its run directory.")
