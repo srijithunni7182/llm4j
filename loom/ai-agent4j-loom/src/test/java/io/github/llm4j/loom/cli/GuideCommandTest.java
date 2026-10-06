@@ -108,7 +108,7 @@ class GuideCommandTest {
         for (Guide.Page p : Guide.pages()) {
             assertThat(folder.resolve("references").resolve(p.resource().substring("guide/".length()))).as(p.name()).exists();
         }
-        assertThat(stdout()).contains("Installed the skill in").contains("14 files");
+        assertThat(stdout()).contains("Installed the skill in").contains((Guide.pages().size() + 1) + " files");
     }
 
     @Test

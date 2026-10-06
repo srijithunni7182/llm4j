@@ -43,6 +43,8 @@ weave eval main.loom --max-tokens 200000     # asks before it spends anything
 
 ## Make it yours
 
+`weave guide recipes` has tested, copy-and-paste changes (a different model for the editor, ask a person before publishing, add an agent, add a tool, mask personal data), each with a sentence you can give your coding agent.
+
 - Each agent's prompt is a markdown file in `prompts/`. Edit it, or add `prompts/researcher/v2.md` and compare with
   `weave run main.loom ... --prompt researcher@v1`.
 - Replace the cases in `eval/golden/` with requests you really expect, and what a good answer does.

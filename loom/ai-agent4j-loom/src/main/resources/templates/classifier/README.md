@@ -44,5 +44,7 @@ To compare two wordings of the prompt fairly, add `prompts/classifier/v2.md` and
 
 ## Make it yours
 
+`weave guide recipes` has tested, copy-and-paste changes (a different model for the editor, ask a person before publishing, add an agent, add a tool, mask personal data), each with a sentence you can give your coding agent.
+
 - Replace the tickets in `eval/golden/classifier.yaml` with real ones, and the labels in `main.loom` and `prompts/classifier.md`.
 - A judge model grades the `rubric` lines; use `--judge <model>` to name a different one from the model being judged.

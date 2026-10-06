@@ -48,5 +48,7 @@ weave run main.loom -i email="I was charged twice, 240 dollars. Please refund me
 
 ## Make it yours
 
+`weave guide recipes` has tested, copy-and-paste changes (a different model for the editor, ask a person before publishing, add an agent, add a tool, mask personal data), each with a sentence you can give your coding agent.
+
 - Change the approval limit in `prompts/triage.md`, and the cases in `eval/golden/` to emails you really get.
 - Prompts are markdown files in `prompts/`; keys go in the secret store (`weave secrets`), never in files.
