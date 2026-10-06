@@ -9,7 +9,7 @@
 - [x] 7. Graph: chip and source for navigation in JSON, Mermaid, renderer and report; sync the shared renderer (R7.1); Mermaid does not show per-step settings, so the chip is in JSON, the panel and the report
 - [x] 8. Extension: open the prompt file, "Create prompt file" quick fix, tests, README (R7.1, R7.2); "Create prompt file" is a command (Loom: Create Prompt File), not an automatic quick fix
 - [x] 9. Docs: `LOOM_GUIDE.md`, `llms.txt`, workflow-guide skill and `docs/guide/03`, `04`; both paths described (R7.3, R7.4)
-- [x] 10. A/B check: the same script run with two pins differs only in the prompt (R4.3); sample project `examples/…/prompts`; sample project `loom/ai-agent4j-loom/samples/newsletter`
+- [x] 10. A/B check: the same script run with two pins differs only in the prompt (R4.3); sample project `examples/…/prompts`; sample project `examples/newsletter`
 - [x] 11. Verification: traceability, sabotage for the traversal and identity rules, full regression; sabotage 11 of 11 caught (`scripts/sabotage_prompts.py`, evidence/sabotage.md)
 
 See `loom-onboarding` for the starter templates that create the `prompts/` layout and the skill update that describes both paths.

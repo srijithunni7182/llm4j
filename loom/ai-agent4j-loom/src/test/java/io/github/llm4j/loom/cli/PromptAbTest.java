@@ -37,7 +37,7 @@ class PromptAbTest {
         WeaveEnv env = new WeaveEnv(models, m -> "yes", sink, sink, Clock.systemUTC(), d -> { },
                 c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""), List.of("weave"), k -> "key")
                 .withPrompts(new PromptSettings(null, pins));
-        int code = WeaveCLI.run(Path.of("samples/newsletter/main.loom").toFile(), null, "Main", Map.of("topic", "home composting"),
+        int code = WeaveCLI.run(Path.of("../../examples/newsletter/main.loom").toFile(), null, "Main", Map.of("topic", "home composting"),
                 null, null, null, null, null, null, false, env);
         assertThat(code).isZero();
         return requests;

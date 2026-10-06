@@ -53,7 +53,7 @@ Decide this once, because the rest of the guide forks on it only in a few places
 
 Nothing in the script path needs Java code, and the folder format is the same on both, so you can start with a script and
 embed it later without moving a prompt. The Hexamind example in this guide uses the Java path with a YAML registry; the
-`samples/newsletter` project in `loom/ai-agent4j-loom` is the script path.
+`examples/newsletter` project is the script path.
 
 ```
 newsletter/

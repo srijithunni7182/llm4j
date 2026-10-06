@@ -829,7 +829,7 @@ agent Writer     { model: "gemini-2.5-flash"  prompt: "writer@v1"  system: "Keep
 - Editing a prompt file, or pinning another version, is a different agent as far as earned autonomy is concerned (a new evidence epoch), exactly as editing an inline prompt is.
 - Paths from a script or the command line can never reach a file outside the prompt folder. The text of a prompt is data: it is never read as Loom.
 
-`weave graph` and the editor graph show the prompt on each agent's steps (`researcher@v2`) and let you open the file; in VS Code, **Loom: Create Prompt File** creates the file for a `prompt:` you have written and not yet made. A runnable example is `samples/newsletter`.
+`weave graph` and the editor graph show the prompt on each agent's steps (`researcher@v2`) and let you open the file; in VS Code, **Loom: Create Prompt File** creates the file for a `prompt:` you have written and not yet made. A runnable example is `examples/newsletter`.
 
 From Java, `MarkdownFolderPromptRegistry` reads the same folder and implements `PromptRegistry`, so `HarnessExecutor.setPromptRegistry(...)` takes it; the YAML `FileSystemPromptRegistry` keeps working.
 

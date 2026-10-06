@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 /** The guide's prompt-file section and its sample are true (R7.3, R10 of loom-prompt-files). */
 class PromptDocTest {
 
-    static final Path SAMPLE = Path.of("samples/newsletter/main.loom");
+    static final Path SAMPLE = Path.of("../../examples/newsletter/main.loom");
 
     @Test
     void theGuideDescribesTheSyntaxTheOptionsAndTheSample() throws Exception {
@@ -21,14 +21,14 @@ class PromptDocTest {
 
         assertThat(guide).contains("### Prompt Files").contains("prompt: \"researcher\"").contains("prompt: \"id@v2\"").contains("--prompts <dir>")
                 .contains("--prompt researcher@v1").contains("prompts: \"./dir\"").contains("MarkdownFolderPromptRegistry")
-                .contains("Loom: Create Prompt File").contains("samples/newsletter");
+                .contains("Loom: Create Prompt File").contains("examples/newsletter");
     }
 
     @Test
     void llmsTxtMentionsPromptFilesAndTheSampleExists() throws Exception {
         assertThat(Files.readString(Path.of("../../llms.txt"))).contains("**Prompt files:**").contains("--prompt researcher@v1");
         assertThat(SAMPLE).exists();
-        assertThat(Path.of("samples/newsletter/prompts/researcher/v2.md")).exists();
+        assertThat(Path.of("../../examples/newsletter/prompts/researcher/v2.md")).exists();
     }
 
     @Test
