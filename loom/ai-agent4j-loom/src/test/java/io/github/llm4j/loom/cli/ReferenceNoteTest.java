@@ -40,4 +40,19 @@ class ReferenceNoteTest {
             }
         }
     }
+
+    @Test
+    void evalOpensTheSecretStoreItIsGivenAndFailsPlainlyWhenItCannot() throws Exception {
+        java.nio.file.Path dir = java.nio.file.Files.createTempDirectory("eval-secrets");
+        java.io.ByteArrayOutputStream err = new java.io.ByteArrayOutputStream();
+        java.io.PrintStream old = System.err;
+        System.setErr(new java.io.PrintStream(err, true));
+        try {
+            int code = WeaveCLI.commandLine().execute("eval", "x.loom", "--check", "--secrets", dir.resolve("none.store").toString(), "--secrets-key-env", "LOOM_NO_SUCH_MASTER_KEY_VARIABLE");
+            assertThat(code).isNotZero();
+            assertThat(err.toString()).doesNotContain("Unknown option").doesNotContain("Unmatched");
+        } finally {
+            System.setErr(old);
+        }
+    }
 }
