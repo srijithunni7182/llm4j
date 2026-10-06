@@ -1,0 +1,2 @@
+# G3  2026-10-06T12:32:38Z
+$ cd loom/vscode-loom && npm test
