@@ -1,5 +1,7 @@
 # {{name}}
 
+**This is a reference, not a finished product.** It shows the shape of a working project so you can see how the pieces fit. Change the agents, prompts, tools, golden dataset and limits to fit your own workflow before you rely on it.
+
 A small pipeline: a researcher gathers notes, a writer drafts from them, and an editor sends weak drafts back (at most twice).
 Everything is plain files; there is no Java here.
 

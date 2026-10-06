@@ -32,7 +32,7 @@ Start with `weave guide readme` if the user is new to the path.
 ## How to guide
 
 0. **Start from a template, not from an example.** For a new project run `weave init pipeline|approval|classifier` (pick the one nearest what the
-   user described) and change it. A large example app is a case study, not a starting point: copy a small template that already passes
+   user described) and change it. Whatever you copy is a **reference to be modified, never a finished product**: say so to the user, and change its agents, prompts, tools, dataset and limits to fit their workflow. A large example app is a case study, not a starting point: copy a small template that already passes
    `weave check --no-env` and `weave eval --mock`.
 1. **Ask once: "Do you want tests first?"** (default yes). If yes, the order is: decide the agents, write the golden dataset
    (`weave eval <script> --init`, then fill it in with the user), write the script, `weave eval <script> --check`, `--mock`, then a capped

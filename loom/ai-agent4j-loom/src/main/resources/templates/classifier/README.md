@@ -1,5 +1,7 @@
 # {{name}}
 
+**This is a reference, not a finished product.** It shows the shape of a working project so you can see how the pieces fit. Change the agents, prompts, tools, golden dataset and limits to fit your own workflow before you rely on it.
+
 Sorts a support ticket into `BUG`, `BILLING` or `FEATURE`, with a confidence. When the confidence is `LOW`, a person chooses
 the label. The golden dataset in `eval/golden` is the heart of this one: it is how you find out whether the labels are good, and
 whether they stay good after you change the prompt. There is no Java here.

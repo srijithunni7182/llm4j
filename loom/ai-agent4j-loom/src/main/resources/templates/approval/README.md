@@ -1,5 +1,7 @@
 # {{name}}
 
+**This is a reference, not a finished product.** It shows the shape of a working project so you can see how the pieces fit. Change the agents, prompts, tools, golden dataset and limits to fit your own workflow before you rely on it.
+
 Reads a customer email, drafts a reply, and **asks a person to approve** anything that moves money. The model never sends
 anything: the workflow ends with a reply for a person to use. There is no Java here.
 
