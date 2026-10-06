@@ -79,7 +79,8 @@ public final class WorkflowLint {
         else if (s instanceof BroadcastStmt b) name = b.getVariableName();
         else if (s instanceof CallStmt c) name = c.getResultVariable();
         else if (s instanceof DecideStmt d) name = d.getVariable();
-        if (name == null || name.isBlank() || name.startsWith("{") || name.startsWith("_")) return null;
+        // `result` is what a workflow hands back to the one that `call`s it, so it is used by the caller, not here
+        if (name == null || name.isBlank() || name.startsWith("{") || name.startsWith("_") || name.equals("result")) return null;
         return name;
     }
 

@@ -149,4 +149,10 @@ class WorkflowLintTest {
         assertThat(found).extracting(WorkflowLint.Finding::line).isSorted();
         assertThat(found).hasSize(2);
     }
+
+    @Test
+    void theVariableNamedResultIsWhatACalledWorkflowHandsBackSoItIsNotReportedAsUnused() {
+        assertThat(messages("workflow Sub(x) {\n    delegate \"do {x}\" to A -> result\n}\n")).isEmpty();
+        assertThat(messages("workflow Sub(x) {\n    delegate \"do {x}\" to A -> other\n}\n")).containsExactly("other is set here and never used");
+    }
 }

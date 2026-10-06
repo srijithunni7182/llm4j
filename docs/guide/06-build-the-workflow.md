@@ -170,6 +170,64 @@ In a Maven project the same classes go in `src/main/java` and the services file 
 - **Test each class directly** (plain JUnit: given this input, this output, including the refusal), then `weave check ... --loot ...` with the classes on the class path. `weave check` names a tool or task that cannot be found.
 - **Name result variables so they cannot be ordinary words in your text** (`slug_result`, not `slug`): a variable name is replaced everywhere in a string.
 
+## When the script gets long: split it into files
+
+A script past roughly **150 lines**, or one that mixes several concerns, is hard to read and harder to review, however good the graph view is. Split it **before** it
+becomes a wall, and tell the user how you split it. Loom composes files with `import` (brings in agents and workflows) and `call` (runs a workflow from another file).
+
+How to cut, in this order:
+
+1. **Entry file, short (under about 60 lines): imports, `budget`, `audit`, `rate_limits`, schedules, and the top-level workflow that reads like a table of contents** (one line per
+   phase). Someone opening it should see the whole story in one screen.
+2. **Agents in their own file** (`agents/team.loom`), one file per team if there are many. An agent is a definition; nothing runs when it is imported.
+3. **One file per phase or reusable sub-workflow** (`flows/review.loom`), named after what it does. A sub-workflow of more than about 40 lines is a candidate for its own file.
+4. **Prompts stay in `prompts/` files, tasks and tools stay in Java** (they were never in the script's way), so the scripts hold only the shape of the work.
+
+```loom file=split/main.loom
+import "agents/team.loom"
+import "flows/review.loom"
+
+budget { tokens: 200000  calls: 30 }
+
+workflow Main(topic) {
+    delegate "Write a short post about {topic}" to Writer -> first_draft
+    call ReviewLoop(draft_text = "{first_draft}") -> reviewed_post
+    note "Ready: {reviewed_post}"
+}
+```
+
+```loom file=split/agents/team.loom
+agent Writer { model: "gemini-2.5-flash"  system: "You write short, plain posts."  temperature: 0.7 }
+agent Editor { model: "gemini-2.5-flash"  system: "You review posts and say what to change."  temperature: 0.1 }
+```
+
+```loom file=split/flows/review.loom
+// The review loop: the editor reviews, the writer rewrites, at most twice. Returns the final post as `result`.
+workflow ReviewLoop(draft_text) {
+    loop until (review.verdict == "OK") max 2 {
+        delegate "Review this post:\n{draft_text}" to Editor -> review expecting { verdict: enum["OK", "REWRITE"], advice: string }
+        alt (review.verdict == "REWRITE") {
+            delegate "Rewrite the post. The editor says: {review.advice}\n\n{draft_text}" to Writer -> draft_text
+        }
+    }
+    delegate "Return this post exactly as it is:\n{draft_text}" to Writer -> result
+}
+```
+
+What to know before you cut (each of these has caught people out):
+
+- **`call` passes text and returns `result`.** The arguments arrive as text (a map is flattened to text), and what the caller gets back is the variable named `result` in the called
+  workflow, so make the last step of a sub-workflow the one that binds `-> result`. A sub-workflow has its own variables; it cannot see its caller's. `weave check` does not
+  warn that `result` is "never used" for this reason.
+- **One flat namespace.** Agent and workflow names are shared by every file that is imported; two files defining the same name do not fail, one silently wins. Give every
+  agent and workflow a name that is unique across the project (`ReviewLoop`, not `Review`), and never copy an agent into a second file.
+- **`budget`, `audit` and `rate_limits` go in the entry file only.** Imported files are merged first and the first one found wins, so a `budget` in an imported file would
+  override the entry file's, silently.
+- **Import paths are relative to the file that contains the `import`**, and a cycle (A imports B imports A) is refused.
+- **Check the split like any script**: `weave check main.loom --no-env`, and `weave graph main.loom` (the graph follows imports and draws a `call` as one step, the callee
+  as its own workflow; in VS Code, **Loom: Show Workflow Graph** on the entry file). A golden dataset and `weave eval` work on the entry file as before.
+- **Do not split just to split.** Two small files that always change together are one file. Split where a reader would want to open one thing and not the other.
+
 ## Things that bit us (so they do not bite you)
 
 - **Variable names are replaced everywhere in a string, braces or not.** A workflow parameter called `consensus` turned "Previous consensus: {consensus}"

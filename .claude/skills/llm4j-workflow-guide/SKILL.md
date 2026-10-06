@@ -98,6 +98,11 @@ Start with `weave guide readme` if the user is new to the path.
       `java -cp weave.jar:classes io.github.llm4j.loom.cli.WeaveCLI check main.loom --loot tools.loot --no-env` (chapter 6 has the complete example).
     - Name result variables so they cannot be ordinary words in a string (`slug_result`, not `slug`).
 
+11. **Keep each `.loom` file readable: split before it passes about 150 lines.** Entry file short (imports, `budget`, `audit`, `rate_limits`, and a top-level
+    workflow that reads like a table of contents); agents in `agents/*.loom`; one file per phase or reusable sub-workflow in `flows/*.loom`, run with `call`.
+    Remember: `call` passes text and hands back the variable named `result`; names are one flat namespace across files (make them unique); `budget` goes
+    in the entry file only. Check with `weave check` and `weave graph` on the entry file, and tell the user how you split it. Chapter 6 has the layout and a complete example.
+
 ## Things that look like success and are not
 
 - `Tests run: 0` in a Maven build. An old Surefire finds no JUnit 5 tests and says BUILD SUCCESS. The test module `weave init --with-java-tests`
