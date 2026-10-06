@@ -60,19 +60,23 @@ public final class RecordedSearchTool implements Tool {
      * A tool that answers from a YAML library, matching each query against the entries' patterns.
      */
     public static RecordedSearchTool fromYaml(String name, Path file) {
-        List<Entry> entries = new ArrayList<>();
         try {
-            JsonNode root = new ObjectMapper(new YAMLFactory()).readTree(file.toFile());
-            for (JsonNode n : root) {
-                List<String> s = new ArrayList<>();
-                n.path("snippets").forEach(x -> s.add(x.asText()));
-                entries.add(
-                        new Entry(
-                                Pattern.compile(n.path("match").asText(), Pattern.CASE_INSENSITIVE),
-                                s));
-            }
+            return fromEntries(name, new ObjectMapper(new YAMLFactory()).readTree(file.toFile()));
         } catch (IOException e) {
             throw new UncheckedIOException("cannot read " + file.toAbsolutePath(), e);
+        }
+    }
+
+    /**
+     * A tool that answers from entries already read: a list of {@code match} (a case-insensitive regex over the query) and {@code snippets}.
+     * Lets a caller keep several tools' entries in one file and hand each tool its own part.
+     */
+    public static RecordedSearchTool fromEntries(String name, JsonNode entriesNode) {
+        List<Entry> entries = new ArrayList<>();
+        for (JsonNode n : entriesNode) {
+            List<String> s = new ArrayList<>();
+            n.path("snippets").forEach(x -> s.add(x.asText()));
+            entries.add(new Entry(Pattern.compile(n.path("match").asText(), Pattern.CASE_INSENSITIVE), s));
         }
         return new RecordedSearchTool(name, entries, List.of());
     }

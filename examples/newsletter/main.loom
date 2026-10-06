@@ -1,6 +1,7 @@
 // newsletter: research a topic, draft an issue, have an editor send weak drafts back (at most twice).
 // Each agent's prompt is a markdown file in prompts/ (see prompts/researcher/v2.md); try:
 //   weave run main.loom -i topic="home composting" --prompt researcher@v1
+// Its golden dataset is in eval/golden; check the wiring for free with: weave eval main.loom --mock
 
 budget { tokens: 200000  calls: 30 }
 

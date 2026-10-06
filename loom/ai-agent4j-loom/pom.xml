@@ -20,7 +20,22 @@
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.10.2</junit.version>
+        <!-- One Jackson version for every Jackson artifact, the same as the other modules: a YAML parser from one release beside a core from
+             another fails at run time with NoSuchMethodError, and weave reads YAML (prompt front matter, datasets). -->
+        <jackson.version>2.21.3</jackson.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- Core ai-agent4j dependency -->
@@ -55,7 +70,13 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.17.0</version>
+        </dependency>
+
+        <!-- Golden datasets, judges and scenarios for `weave eval` -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>eval4j</artifactId>
+            <version>5.0</version>
         </dependency>
 
         <!-- Test Dependencies -->

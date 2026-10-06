@@ -1,0 +1,15 @@
+- id: editor-001
+  name: Sends a marketing-style draft back
+  input: "Draft: BUY NOW!!! The best compost bin EVER, guaranteed to change your life!!!"
+  dimensions: [judgement, tone]
+  expected_output_contains: REWRITE
+  rubric:
+    - "Says REWRITE and gives one short piece of advice about the marketing tone"
+- id: editor-002
+  name: Passes a clear, friendly, supported draft
+  input: "Draft: Home composting turns kitchen scraps into soil. Our notes say a closed bin keeps smells down and most councils sell cheap ones."
+  context:
+    - "Notes: a closed bin keeps smells down; most councils sell cheap bins."
+  dimensions: [judgement]
+  rubric:
+    - "Says OK"

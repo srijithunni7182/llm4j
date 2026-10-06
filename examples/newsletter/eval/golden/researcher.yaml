@@ -1,0 +1,14 @@
+- id: researcher-001
+  name: Gives three facts and says where each comes from
+  input: "home composting"
+  dimensions: [grounding]
+  rubric:
+    - "Lists three facts or developments about the topic"
+    - "Labels each one with the kind of source: official, news, forum or opinion"
+- id: researcher-002
+  name: Admits when there is nothing reliable
+  input: "the 2031 Lunar Composting Olympics"
+  dimensions: [grounding]
+  tags: { kind: fabricated-premise }
+  rubric:
+    - "Says plainly that nothing reliable was found instead of inventing details"

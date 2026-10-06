@@ -137,7 +137,7 @@ public final class PromptCatalog {
     }
 
     /** Up to three of {@code candidates} close to {@code wanted}, nearest first. */
-    static List<String> nearest(String wanted, Collection<String> candidates) {
+    public static List<String> nearest(String wanted, Collection<String> candidates) {
         List<String> sorted = new ArrayList<>(candidates);
         sorted.sort(Comparator.comparingInt((String c) -> distance(wanted, c)).thenComparing(c -> c));
         List<String> out = new ArrayList<>();
