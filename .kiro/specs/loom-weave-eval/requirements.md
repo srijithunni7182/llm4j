@@ -51,6 +51,10 @@ compares two prompt versions with nothing else changed.
 8. `weave eval --check` validates the dataset folder (names, fields, unknown dimensions, duplicate ids) without
    calling any model.
 
+9. Tools that read the outside world (search, HTTP) can be answered from fixtures in `eval/golden/fixtures.yaml`
+   (`RecordedSearchTool`'s format: `id`, `match`, `snippets`), so a script-only user gets deterministic, free
+   evaluation without writing a fixture tool. A query with no match finds nothing.
+
 ### Requirement 4: Evaluation is optional
 
 1. `weave run`, `weave check` and `weave audit` never require a dataset and never fail because there is none.

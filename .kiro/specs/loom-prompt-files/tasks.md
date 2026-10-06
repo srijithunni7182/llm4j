@@ -11,3 +11,5 @@
 - [ ] 9. Docs: `LOOM_GUIDE.md`, `llms.txt`, workflow-guide skill and `docs/guide/03`, `04`; both paths described (R7.3, R7.4)
 - [ ] 10. A/B check: the same script run with two pins differs only in the prompt (R4.3); sample project `examples/…/prompts`
 - [ ] 11. Verification: traceability, sabotage for the traversal and identity rules, full regression
+
+See `loom-onboarding` for the starter templates that create the `prompts/` layout and the skill update that describes both paths.
