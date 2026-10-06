@@ -51,6 +51,48 @@ about 10 a minute) rather than hammering.
 The encrypted secret store is the default: a one-time setup of `weave secrets create`, `weave secrets set NAME` and `--secrets <file>` on `weave run` and `weave eval` (the templates' README spells it out, and an agent that follows the skill writes the same for your project). A tool's key is `secret.NAME` in the script. Environment variables (`env.NAME`) also work; `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` are what the evaluation judge reads. The store is described in the [secret store page](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Secret-Store.md); you choose and protect its path and master key. Never in a script, a test or the repository; if a key is ever pasted somewhere shared, rotate it.
 Secrets are scrubbed from results, traces, journals and audit logs.
 
+
+### Keys in Google Secret Manager (or another vault)
+
+`weave` itself reads keys from the encrypted file store or the environment; it does not call a cloud vault. When keys must come from Google
+Secret Manager, AWS Secrets Manager, HashiCorp Vault or the like, the way to do it is a **small Java host that you (or an agent following the
+skill) write**: it implements `SecretStore` over the vault's client and hands it to the executor. The script does not change: models still find
+their usual key name, and a tool's key is still `api_key: secret.NAME`.
+
+```java
+/** Reads each secret from Google Secret Manager when it is asked for, so a rotated key is picked up without a restart. */
+final class GoogleSecretStore implements SecretStore {
+    private final SecretManagerServiceClient client;
+    private final String project;
+
+    GoogleSecretStore(SecretManagerServiceClient client, String project) { this.client = client; this.project = project; }
+
+    @Override public String resolve(String name) {
+        try {
+            return client.accessSecretVersion(SecretVersionName.of(project, name, "latest")).getPayload().getData().toStringUtf8();
+        } catch (NotFoundException e) {
+            throw new SecretNotFoundException(name);
+        }
+    }
+    @Override public boolean contains(String name) { try { resolve(name); return true; } catch (SecretNotFoundException e) { return false; } }
+    @Override public Set<String> names() { return Set.of(); }   // listing is not needed to resolve
+    @Override public Optional<SecretMetadata> metadata(String name) { return Optional.of(SecretMetadata.NONE); } // or allowing("api.example.com")
+}
+
+SecretStore secrets = new GoogleSecretStore(SecretManagerServiceClient.create(), "my-project");
+LoomScript script = new LoomLoader().load("workflow.loom");
+HarnessExecutor executor = new HarnessExecutor(script, new ToolRegistry(), new DefaultLLMClientFactory(System::getenv, secrets));
+executor.setSecretStore(secrets);          // `secret.NAME` in the script, and the models' keys, now come from the vault
+executor.initialize();
+executor.executeWorkflow("Main", Map.of("topic", "home composting"));
+executor.shutdown();
+```
+
+Put the host in its own Maven module with the vault's client library as a dependency, and give it the identity the platform provides (Application
+Default Credentials, workload identity); no key is written down anywhere. `SecretMetadata.allowing("host")` restricts a secret to the hosts it
+may be sent to. Use `ChainedSecretStore.of(vault, EnvSecretStore.system())` if some keys should fall back to the environment. Test the host with an in-memory
+store standing in for the vault, as the guide's own test does, and never with a real key.
+
 ## If you skipped evaluation
 
 If the README says `Evaluation: skipped`, this is the moment to say it once: **no evaluation of this workflow exists**, so nothing has

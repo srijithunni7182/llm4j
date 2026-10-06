@@ -67,7 +67,11 @@ Start with `weave guide readme` if the user is new to the path.
 
    In the script a model needs nothing (the built-in models find their usual key name in the store); a tool's key is written
    `api_key: secret.NAME` (never a literal; `weave check` refuses one). For unattended runs add `--secrets-key-env <VARIABLE>` or
-   `--secrets-key-file <file>`. Keep the store file out of version control. Never ask the user to paste a key into the chat; if one is pasted
+   `--secrets-key-file <file>`. Keep the store file out of version control.
+   **If the user wants keys fetched from a vault** (Google Secret Manager, AWS Secrets Manager, HashiCorp Vault), `weave` cannot do that and
+   you must not pretend it can: write a small Java host that implements `SecretStore` over the vault's client, passes it to
+   `new DefaultLLMClientFactory(System::getenv, store)` and to `executor.setSecretStore(store)`, then runs the workflow (chapter 9 has the
+   complete example). Put it in its own Maven module, use the platform's own identity, test it with an in-memory stand-in, and leave the script as it is. Never ask the user to paste a key into the chat; if one is pasted
    anyway, do not copy it anywhere, and tell them to rotate it. `weave check --no-env`, `graph`, `audit` and `eval --mock` need no key.
 8. **Treat failing checks as findings.** Read the case, fix the prompt or tool, re-run. Do not weaken a check to get green, and do not read
    results from fake models. A warning from `weave check` (a result that is never used, a question whose answer changes nothing) is usually a
