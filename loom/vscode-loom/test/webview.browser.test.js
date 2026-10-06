@@ -374,3 +374,72 @@ test('V8.1 collapse: blocks folded before a refresh stay folded', async (t) => {
   assert.equal(await p.page.locator('.lg-node').count(), before);
   await p.close();
 });
+
+/** Over four hundred steps in blocks, with their parents, as `weave graph` reports them. */
+function bigResult() {
+  const nodes = [{ id: 'start', kind: 'start', label: 'Start' }], edges = [];
+  let id = 0, exits = [['start', null]];
+  const file = '/p/big.loom';
+  const add = (kind, label, parent, branch, extra) => { const n = Object.assign({ id: 'n' + (++id), kind, label }, extra || {}); if (parent) { n.parent = parent; n.branch = branch; } nodes.push(n); return n; };
+  const link = (from, to, label) => edges.push(label ? { from, to, label } : { from, to });
+  for (let r = 0; r < 11; r++) {
+    const alt = add('alt', 'x?'); exits.forEach(([f, l]) => link(f, alt.id, l));
+    let prev = [alt.id, 'then'];
+    for (let i = 0; i < 12; i++) { const d = add('delegate', 'delegate A', alt.id, 'then', { agent: 'A' }); link(prev[0], d.id, prev[1]); prev = [d.id, null]; }
+    const loop = add('loop', 'loop until x', alt.id, 'then', { bound: 3 }); link(prev[0], loop.id, prev[1]);
+    let body = [loop.id, null];
+    for (let i = 0; i < 12; i++) { const n = add('note', 'inside', loop.id, 'body'); link(body[0], n.id, body[1]); body = [n.id, null]; }
+    link(body[0], loop.id, 'again');
+    let other = [alt.id, 'else'];
+    for (let i = 0; i < 12; i++) { const n = add('note', 'else', alt.id, 'else'); link(other[0], n.id, other[1]); other = [n.id, null]; }
+    exits = [[loop.id, 'done'], [other[0], null]];
+  }
+  nodes.push({ id: 'end', kind: 'end', label: 'End' });
+  exits.forEach(([f, l]) => link(f, 'end', l));
+  return { type: 'graph', workflow: 'Big', result: { version: 1, entry: file, files: [{ path: file, imports: [] }], agents: [], diagnostics: [], workflows: [{ name: 'Big', file, line: 1, params: [], nodes, edges }] } };
+}
+
+test('V6.7 and VP.4: a graph of over 400 steps opens folded to at most 300 and is drawn within 500 ms', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open();
+  const message = bigResult();
+  const total = message.result.workflows[0].nodes.length;
+  assert.ok(total > 400, 'fixture has ' + total);
+  const elapsed = await p.page.evaluate(async (m) => {
+    const t0 = performance.now();
+    window.postMessage(m, '*');
+    while (!document.querySelector('.lg-node')) { await new Promise((r) => requestAnimationFrame(r)); }
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    return performance.now() - t0;
+  }, message);
+  assert.ok(elapsed <= 500, 'first paint took ' + Math.round(elapsed) + ' ms');
+  const visible = await p.page.locator('.lg-node').count();
+  assert.ok(visible > 0 && visible <= 300, 'visible ' + visible);
+  assert.ok((await p.page.locator('.lg-chip-toggle').count()) > 0, 'folded blocks show how many steps they hold');
+
+  const toggle = p.page.locator('.lg-chip-toggle').first();
+  const hidden = Number((await toggle.textContent()).match(/\+(\d+) steps/)[1]);
+  await toggle.dispatchEvent('click');
+  await p.page.waitForTimeout(200);
+  assert.equal((await p.page.locator('.lg-node').count()) - visible, hidden, 'exactly the steps inside the block appear');
+  await p.close();
+});
+
+test('VP.5: panning and zooming a 400-step graph keeps the median frame at 20 ms or less', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open();
+  await p.send(bigResult());
+  await p.page.waitForSelector('.lg-node');
+  await p.page.evaluate(() => { window.__frames = []; const loop = () => { window.__frames.push(performance.now()); requestAnimationFrame(loop); }; requestAnimationFrame(loop); });
+  await p.page.mouse.move(500, 400);
+  await p.page.mouse.down();
+  await p.page.mouse.move(300, 300, { steps: 60 });
+  await p.page.mouse.up();
+  for (let i = 0; i < 20; i++) { await p.page.locator('#zoomIn').click(); }
+  const frames = await p.page.evaluate(() => window.__frames);
+  const deltas = frames.slice(1).map((t, i) => t - frames[i]).sort((a, b) => a - b);
+  const median = deltas[Math.floor(deltas.length / 2)];
+  assert.ok(deltas.length > 30, 'enough frames: ' + deltas.length);
+  assert.ok(median <= 20, 'median frame ' + median.toFixed(1) + ' ms');
+  await p.close();
+});

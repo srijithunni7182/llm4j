@@ -71,8 +71,9 @@ Kind is carried by shape and glyph as well as colour. The JSON carries every att
 
 ### 3.2 Attribute chips
 
-Chips sit on the node's bottom edge, at most three, in this priority: **timeout, retry, budget,
-expecting, max/parallel, effects, variable**. More than three collapses into `+n` (tooltip lists all).
+Chips sit in a row at the bottom of the node, in the order given for the primitive in the table above
+(for a delegate: timeout, retry, budget, expecting, variable). At most three are drawn; more collapse into
+`+n` (the details area lists all).
 
 | Attribute | Chip text | Notes |
 |---|---|---|
@@ -191,10 +192,10 @@ ground) appears in everything the extension opens.
 
 | Place | Asset | Size | Rule |
 |---|---|---|---|
-| Panel toolbar, left of the title | `media/loom-mark-128.jpg` (emblem only, cropped from the logo) | 28 px | sits on a 36 px rounded dark tile so it reads on light themes |
+| Panel toolbar, left of the title | `media/loom-mark-128.png` (emblem only, cropped from the logo) | 28 px | sits on a 36 px rounded dark tile so it reads on light themes |
 | Panel tab | same file via `WebviewPanel.iconPath` | tab size | one file for light and dark |
-| Loading and empty states | `media/loom-logo-320.jpg` (emblem and wordmark) | 160 px | centred above the message; glow pulse while loading |
-| Marketplace and extensions list | `package.json` `"icon"` → `media/loom-mark-128.jpg` | 128 px | |
+| Loading and empty states | `media/loom-logo-320.png` (emblem and wordmark) | 160 px | centred above the message; glow pulse while loading |
+| Marketplace and extensions list | `package.json` `"icon"` → `media/loom-mark-128.png` | 128 px | |
 | Diagnostics, banners, toasts | none | | the logo is not repeated on small UI |
 
 Rules:
@@ -269,5 +270,5 @@ focus work as in the panel.
 |---|---|
 | trace has no graph nodes | no card; the path rows show as today |
 | graph over 500 nodes | a note "Graph too large to draw (n nodes)" and the path rows |
-| `actualPath` empty | graph with all nodes *not visited* and the note "No steps were recorded." |
+| `actualPath` empty | steps on the expected path show as *missed*, all others as *not visited*, with the note "No steps were recorded." |
 | event that could not be placed on a node | counted in a line "n events could not be placed on a step" |

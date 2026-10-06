@@ -69,6 +69,29 @@
 
   /* ------------------------------------------------------------------ DOM */
 
+  /** Graphs are drawn when they scroll into view (a report can hold dozens), and all of them when the page is printed. */
+  var waiting = typeof Map === 'function' ? new Map() : null;
+  var observer = null;
+  function whenVisible(element, run) {
+    if (!root.IntersectionObserver || !waiting) { run(); return; }
+    if (!observer) {
+      observer = new root.IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) { return; }
+          observer.unobserve(entry.target);
+          var fn = waiting.get(entry.target);
+          waiting.delete(entry.target);
+          if (fn) { fn(); }
+        });
+      }, { rootMargin: '400px' });
+      if (root.addEventListener) {
+        root.addEventListener('beforeprint', function () { waiting.forEach(function (fn) { fn(); }); waiting.clear(); });
+      }
+    }
+    waiting.set(element, run);
+    observer.observe(element);
+  }
+
   function plainH(tag, attrs) {
     var el = document.createElement(tag), i;
     Object.keys(attrs || {}).forEach(function (k) {
@@ -131,7 +154,6 @@
       h('div', { class: 'lg-body' }, canvas, side), notes);
     function mount() {
       if (view) { return; }
-      if (!canvas.isConnected) { root.requestAnimationFrame(mount); return; }
       view = new root.LoomGraph.View(canvas, {
         onSelect: function (id) { clear(side); side.appendChild(detailsView(h, id ? details(w, id) : null)); }
       });
@@ -140,7 +162,11 @@
       if (root.ResizeObserver) { new root.ResizeObserver(function () { if (view && !view.userMoved) { view.fit(); } }).observe(canvas); }
     }
     function clear(el) { while (el.firstChild) { el.removeChild(el.firstChild); } }
-    root.requestAnimationFrame(mount);
+    function attach() {
+      if (!canvas.isConnected) { root.requestAnimationFrame(attach); return; }
+      whenVisible(canvas, mount);
+    }
+    root.requestAnimationFrame(attach);
     return card;
   }
 

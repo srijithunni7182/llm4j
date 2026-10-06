@@ -72,7 +72,19 @@ export function createFakeVscode(settings: Record<string, unknown>) {
         activeEditor: undefined as any,
         save: new FakeEvent<{ uri: { fsPath: string } }>(),
         selection: new FakeEvent<any>(),
+        activeEditorChanged: new FakeEvent<any>(),
+        channels: [] as Array<{ name: string; lines: string[] }>,
     };
+    class EventEmitter<T> {
+        private readonly inner = new FakeEvent<T>();
+        readonly event = this.inner.subscribe;
+        fire(value?: T): void { this.inner.fire(value as T); }
+    }
+    class TreeItem {
+        description?: string;
+        command?: unknown;
+        constructor(readonly label: string) {}
+    }
     class Position { constructor(readonly line: number, readonly character: number) {} }
     class Range { constructor(readonly start: Position, readonly end: Position) {} }
     const Uri = {
@@ -84,7 +96,7 @@ export function createFakeVscode(settings: Record<string, unknown>) {
         return Promise.resolve(state.answers.get(message.split('.')[0]) ?? state.answers.get('*'));
     };
     const vscode = {
-        Position, Range, Uri,
+        Position, Range, Uri, EventEmitter, TreeItem,
         ViewColumn: { Active: -1, Beside: -2, One: 1, Two: 2 },
         window: {
             get activeTextEditor() { return state.activeEditor; },
@@ -98,6 +110,12 @@ export function createFakeVscode(settings: Record<string, unknown>) {
             showInformationMessage: (message: string) => { state.infos.push(message); return Promise.resolve(undefined); },
             showTextDocument: (uri: { fsPath: string }, options: unknown) => { state.shown.push({ file: uri.fsPath, options }); return Promise.resolve(undefined); },
             onDidChangeTextEditorSelection: (listener: Listener<any>) => state.selection.subscribe(listener),
+            onDidChangeActiveTextEditor: (listener: Listener<any>) => state.activeEditorChanged.subscribe(listener),
+            createOutputChannel: (name: string) => {
+                const channel = { name, lines: [] as string[] };
+                state.channels.push(channel);
+                return { show: () => undefined, clear: () => { channel.lines.length = 0; }, appendLine: (l: string) => channel.lines.push(l), append: (t: string) => channel.lines.push(t) };
+            },
         },
         workspace: {
             getConfiguration: (section: string) => ({

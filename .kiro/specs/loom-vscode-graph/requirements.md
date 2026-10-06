@@ -254,9 +254,11 @@ happened in this run drawn on it, so I can tell at a glance where a run left the
    optional `attrs` object on a node. Both copies of the schema SHALL stay identical, and every trace that
    validated before SHALL still validate.
 10. THE `WorkflowTrace.Node` record SHALL gain an optional `attrs` map without breaking existing callers.
-11. Large graphs SHALL behave as in Requirement 6.7 (collapse above 300 nodes). The report's own limit of
-    500 nodes per trace SHALL be respected, and a graph over it SHALL show the path rows with a note
-    instead of a diagram.
+11. Large graphs SHALL behave as in Requirement 6.7 (collapse above 300 nodes). The report SHALL draw at
+    most 500 nodes per trace; a graph over that SHALL show the path rows with a note instead of a diagram.
+    The trace schema accepts up to 2,000 nodes so that such a trace is still valid.
+12a. THE report SHALL draw a graph when it scrolls into view, and every graph when the page is printed,
+    so a report with many workflows opens quickly.
 12. THE Report_Graph SHALL say, in a one-line note, that the path is inferred from the order of
     delegations, because the Loom bridge infers it today.
 13. THE Report_Graph SHALL NOT show the Loom logo in this version: eval4j is engine neutral, and its

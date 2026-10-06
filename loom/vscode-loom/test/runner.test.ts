@@ -36,7 +36,7 @@ test('the command line is java -jar weave.jar graph <file> --format json, one ar
     assert.deepEqual(calls[0], { command: 'java', args: ['-jar', '/ext/bin/weave.jar', 'graph', '/p/main.loom', '--format', 'json'] });
 });
 
-test('a file name with spaces and shell characters is still one argument', async () => {
+test('VR.1: a file name with spaces and shell characters is still one argument', async () => {
     const { r, calls, children } = runner();
     const nasty = '/p/my scripts/a; rm -rf ~ $(whoami) `x`.loom';
     await started(r, children, request({ file: nasty }));

@@ -1,0 +1,5 @@
+criteria in requirements.md: 71; named in the traceability table: 71
+check IDs in the matrix: 114
+check IDs named by a test: 114/114
+
+no gaps

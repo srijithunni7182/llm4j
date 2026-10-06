@@ -48,6 +48,9 @@ async function main() {
     page.on('console', (m) => { if (m.type() === 'error') { errors.push(m.text()); } });
     await page.goto(url);
     await page.waitForSelector('.lgcard .lg-node', { timeout: 15000 });
+    // graphs are drawn when they scroll into view: bring each card into view once so every graph is there to check
+    for (const c of await page.locator('.lgcard').all()) { await c.scrollIntoViewIfNeeded(); await page.waitForTimeout(40); }
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(400);
     const tag = '[' + scheme + '] ';
     const card = (id) => page.locator('.card', { has: page.locator('h3', { hasText: id }) }).first();

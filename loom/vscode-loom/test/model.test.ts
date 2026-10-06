@@ -13,7 +13,7 @@ test('the output of weave graph for every sample parses', () => {
     }
 });
 
-test('text that is not JSON is refused with a message that says so', () => {
+test('VS.3: text that is not JSON is refused with a message that says so', () => {
     assert.throws(() => parseGraph('Error: no such file'), (e: Error) => e instanceof GraphParseError && /did not print JSON/.test(e.message));
 });
 
@@ -23,7 +23,7 @@ test('JSON that is not an object is refused', () => {
     assert.throws(() => parseGraph('null'), /JSON object/);
 });
 
-test('another version is refused and the message says how to fix it', () => {
+test('VS.3: another version is refused and the message says how to fix it', () => {
     const wrong = valid();
     wrong.version = 2;
     assert.throws(() => parseGraph(JSON.stringify(wrong)), (e: Error) => /version 2/.test(e.message) && /needs 1/.test(e.message) && /Update the extension or weave.jar/.test(e.message));
@@ -49,7 +49,7 @@ test('a missing or mistyped field is named by its path', () => {
     assert.throws(() => parseGraph(JSON.stringify(badSeverity)), /severity should be "error" or "warning"/);
 });
 
-test('output over the limit is refused before it is parsed', () => {
+test('VS.3: output over the limit is refused before it is parsed', () => {
     const big = ' '.repeat(MAX_GRAPH_BYTES + 1);
     assert.throws(() => parseGraph(big), /larger than 8 MB/);
 });

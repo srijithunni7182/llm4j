@@ -111,7 +111,7 @@ IDs are `V<requirement>.<n>`. The tests that implement them are named in each he
 | ID | Scenario | Pass condition |
 |---|---|---|
 | V5.1 | extension manifest | command `loom.showGraph` declared; present in `commandPalette`, `editor/title` and `editor/context` menus, each with `when: resourceLangId == loom` |
-| V5.2 | smoke test on `content_factory/main.loom` | panel opens in `ViewColumn.Beside`; a spy shows one process started: `java -jar …/weave.jar graph <file> --format json` |
+| V5.2 | integration test on `content_factory/main.loom` with the real `weave.jar` and a stand-in for the `vscode` module | panel opens in `ViewColumn.Beside`; after the `java -version` check, a spy shows exactly one graph process: `java -jar …/weave.jar graph <file> --format json` |
 | V5.3a | `java` not on PATH | error notification with a **Open Settings** action; **no** panel created |
 | V5.3b | `weave.jar` missing | error notification; no panel created |
 | V5.4 | fake process that never exits | killed at 30 s (fake timers); message says it timed out; no panel left open |
@@ -189,7 +189,7 @@ IDs are `V<requirement>.<n>`. The tests that implement them are named in each he
 | V10.12 | any Loom trace card | the one-line note "Path is inferred from the order of delegations." is present |
 | V10.13 | rendered report | no Loom logo image or data URI for it anywhere in the HTML |
 | V10.14 | edit one copy of `graph-render.js` | `check-graph-render-sync.sh` and `GraphRenderSyncTest` both fail; restored, both pass |
-| V10.15 | `empty-path` / no graph nodes | empty path: all nodes not visited plus "No steps were recorded."; no nodes: no card and no error in the console |
+| V10.15 | `empty-path` / no graph nodes | empty path: steps on the expected path show as missed, the others as not visited, plus "No steps were recorded."; no nodes: no card and no error in the console |
 | V10.16 | `trace_with_unplaced_events` | the line "n events could not be placed on a step" shows the right n |
 
 ---

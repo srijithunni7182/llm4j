@@ -7,7 +7,7 @@ const { golden, workflow, agents, big } = require('./fixtures.js');
 const body = (svg) => svg.replace(/<style>[\s\S]*?<\/style>/, '');
 const hostile = '<img src=x onerror=alert(1)> "quoted" \'single\' </script> & more';
 
-test('text from a script is escaped everywhere it is drawn', () => {
+test('VS.1: text from a script is escaped everywhere it is drawn', () => {
   const g = { nodes: [
     { id: 'start', kind: 'start', label: 'Start' },
     { id: 'n1', kind: 'delegate', label: 'delegate ' + hostile, agent: hostile, attrs: { text: hostile, variable: hostile, expecting: hostile } },
@@ -145,8 +145,7 @@ test('expanding one block adds exactly its children', () => {
   const before = G.layout(g, {}, collapsed).nodes.length;
   const after = new Set(collapsed); after.delete(id);
   const expanded = G.layout(g, {}, after).nodes.length;
-  assert.ok(expanded > before);
-  assert.ok(expanded - before <= counts[id]);
+  assert.equal(expanded - before, counts[id], 'exactly the steps inside the block appear');
 });
 
 test('a collapsed block folds the edges in and out of it onto its container', () => {

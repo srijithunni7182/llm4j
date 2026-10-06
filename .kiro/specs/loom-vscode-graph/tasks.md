@@ -14,8 +14,8 @@ Three phases, each shippable on its own:
 
 ## Tasks
 
-- [ ] 0. UI design sign-off
-  - [ ] 0.1 Review `ui.md` and `mockup.html`; record changes before building the panel
+- [x] 0. UI design sign-off
+  - [x] 0.1 Review `ui.md` and `mockup.html`; record changes before building the panel
     - _Requirements: 6.1–6.7, 7.1–7.4_
 
 <!-- PHASE 1: ai-agent4j-loom -->
@@ -79,93 +79,95 @@ Three phases, each shippable on its own:
 
 <!-- PHASE 2: eval4j-report -->
 
-- [ ] 7. Report reuse and report graph
-  - [ ] 7.1 `WorkflowGraph.of` delegates to `GraphBuilder`, maps to `WorkflowTrace.Node/Edge`
+- [x] 7. Report reuse and report graph
+  - [x] 7.1 `WorkflowGraph.of` delegates to `GraphBuilder`, maps to `WorkflowTrace.Node/Edge`
     - _Requirements: 4.1, 4.4_
-  - [ ] 7.2 Run all `eval4j-report` tests unmodified; compare report output for existing scripts
+  - [x] 7.2 Run all `eval4j-report` tests unmodified; compare report output for existing scripts
     - _Requirements: 4.2_
-  - [ ] 7.3 Confirm no dependency from loom to eval4j/eval4j-report (`mvn dependency:tree`)
+  - [x] 7.3 Confirm no dependency from loom to eval4j/eval4j-report (`mvn dependency:tree`)
     - _Requirements: 4.3_
-  - [ ] 7.4 `trace.schema.json` (both copies): extend node `kind` with all builder kinds and `statement`,
+  - [x] 7.4 `trace.schema.json` (both copies): extend node `kind` with all builder kinds and `statement`,
         add optional `attrs`; schema tests for old traces (still valid), new kinds (valid) and a typo kind
         (invalid)
     - _Requirements: 10.9_
-  - [ ] 7.5 `WorkflowTrace.Node` gains optional `attrs` with a 5-argument constructor kept; `WorkflowGraph`
+  - [x] 7.5 `WorkflowTrace.Node` gains optional `attrs` with a 5-argument constructor kept; `WorkflowGraph`
         and `LoomTrace` carry `attrs` into the trace JSON
     - _Requirements: 10.10_
-  - [ ] 7.6 Extract the Shared_Renderer to `loom/graph-render/graph-render.js` (layout, shapes, glyphs,
+  - [x] 7.6 Extract the Shared_Renderer to `loom/graph-render/graph-render.js` (layout, shapes, glyphs,
         Chip text, overlay support) with `node --test` tests; `sync-graph-render.sh` and
         `check-graph-render-sync.sh`; the extension (task 10) uses the generated copy
     - _Requirements: 10.2, 10.14, 6.1, 6.2, 6.8_
-  - [ ] 7.7 `dashboard.js`: `graphCard(w)` in `traceView` with Run_Overlay (`states`, `visits`,
+  - [x] 7.7 `dashboard.js`: `graphCard(w)` in `traceView` with Run_Overlay (`states`, `visits`,
         `traversed`), legend, details area, fallbacks (`ui.md` 11.1–11.4); map the renderer's CSS variables
         to the report's tokens in `dashboard.css`
     - _Requirements: 10.1, 10.3–10.7, 10.11, 10.12_
-  - [ ] 7.8 `HtmlRenderer` inlines `graph-render.js`; test that the output is one file with no
+  - [x] 7.8 `HtmlRenderer` inlines `graph-render.js`; test that the output is one file with no
         `http(s)://` resource and no `src`/`href` to another file
     - _Requirements: 10.8_
-  - [ ] 7.9 Report fixtures and tests: all taken, one missed, one unexpected, loop visited 3 times, no
+  - [x] 7.9 Report fixtures and tests: all taken, one missed, one unexpected, loop visited 3 times, no
         expected path, 500+ nodes, empty path; one report built from a real `content_factory` eval run
     - _Requirements: 10.3–10.5, 10.11_
 
-- [ ] 8. **Checkpoint — full build**: `mvn -q verify` for the affected modules
+- [x] 8. **Checkpoint — full build**: `mvn -q verify` for the affected modules
 
 <!-- PHASE 3: vscode-loom -->
 
-- [ ] 9. Extension plumbing
-  - [ ] 9.1 `package.json`: command, menus (title bar, context), settings, activation on command
+- [x] 9. Extension plumbing
+  - [x] 9.1 `package.json`: command, menus (title bar, context), settings, activation on command
     - _Requirements: 5.1_
-  - [ ] 9.2 `src/graph/model.ts` + `parseGraph()` with version check
+  - [x] 9.2 `src/graph/model.ts` + `parseGraph()` with version check
     - _Requirements: 3.6, 9.3_
-  - [ ] 9.3 `src/commands/showGraph.ts`: java/jar resolution (share helper with `runWorkflow.ts`),
+  - [x] 9.3 `src/commands/showGraph.ts`: java/jar resolution (share helper with `runWorkflow.ts`),
         spawn, 30 s timeout, error messages
     - _Requirements: 5.2, 5.3, 5.4_
 
-- [ ] 10. Layout and webview (follow `ui.md`)
-  - [ ] 10.1 Use the generated `media/graph-render.js` from task 7.6 (layering, branch columns,
+- [x] 10. Layout and webview (follow `ui.md`)
+  - [x] 10.1 Use the generated `media/graph-render.js` from task 7.6 (layering, branch columns,
         back-edge routing); the extension adds no layout of its own
     - _Requirements: 6.1, 6.2, 9.3_
-  - [ ] 10.2 `media/graph.js` / `graph.css`: panel glue around the renderer: toolbar, pan/zoom/fit,
+  - [x] 10.2 `media/graph.js` / `graph.css`: panel glue around the renderer: toolbar, pan/zoom/fit,
         legend, theme variables mapped to VS Code colours, keyboard selector
     - _Requirements: 6.1–6.4_
-  - [ ] 10.3 `GraphPanel.ts`: webview with CSP + nonce, `localResourceRoots`, typed messages
+  - [x] 10.3 `GraphPanel.ts`: webview with CSP + nonce, `localResourceRoots`, typed messages
     - _Requirements: 6.5, 5.5_
-  - [ ] 10.4 Diagnostics strip; collapse blocks above 300 nodes
+  - [x] 10.4 Diagnostics strip; collapse blocks above 300 nodes
     - _Requirements: 6.6, 6.7_
-  - [ ] 10.5 Primitive shapes, glyphs and Chips per `ui.md` section 3; `+n` overflow; Details_Card
+  - [x] 10.5 Primitive shapes, glyphs and Chips per `ui.md` section 3; `+n` overflow; Details_Card
         for agents; approval glyph
     - _Requirements: 6.8, 6.9_
-  - [ ] 10.6 Logo_Assets: `scripts/make-logo-assets.sh`, toolbar mark, tab `iconPath`, loading and
+  - [x] 10.6 Logo_Assets: `scripts/make-logo-assets.sh`, toolbar mark, tab `iconPath`, loading and
         empty states with reduced-motion handling, high-contrast tile outline
     - _Requirements: 6.10, 9.7_
 
-- [ ] 11. Navigation and imports
-  - [ ] 11.1 `openSource` (validated against `files`), open beside
+- [x] 11. Navigation and imports
+  - [x] 11.1 `openSource` (validated against `files`), open beside
     - _Requirements: 7.1_
-  - [ ] 11.2 Call-node drill-down with back button; Ctrl/Cmd-click opens callee source
+  - [x] 11.2 Call-node drill-down with back button; Ctrl/Cmd-click opens callee source
     - _Requirements: 7.2_
-  - [ ] 11.3 Import tree and "from file X" marking
+  - [x] 11.3 Import tree and "from file X" marking
     - _Requirements: 7.3_
-  - [ ] 11.4 Cursor → node highlight
+  - [x] 11.4 Cursor → node highlight
     - _Requirements: 7.4_
 
-- [ ] 12. Refresh
-  - [ ] 12.1 Save watcher over the Import_Closure, 300 ms debounce, cancel in-flight run
+- [x] 12. Refresh
+  - [x] 12.1 Save watcher over the Import_Closure, 300 ms debounce, cancel in-flight run
     - _Requirements: 8.1, 8.2_
-  - [ ] 12.2 Preserve selection/zoom/collapse; stale banner on failure
+  - [x] 12.2 Preserve selection/zoom/collapse; stale banner on failure
     - _Requirements: 8.1, 8.3_
-  - [ ] 12.3 Dispose watchers and kill process on close
+  - [x] 12.3 Dispose watchers and kill process on close
     - _Requirements: 8.4_
 
-- [ ] 13. Quality and ship
-  - [ ] 13.1 Message-protocol tests (including rejecting `openSource` outside the closure)
+- [x] 13. Quality and ship
+  - [x] 13.1 Message-protocol tests (including rejecting `openSource` outside the closure)
     - _Requirements: 9.3_
-  - [ ] 13.2 `@vscode/test-electron` smoke test on a sample with imports
+  - [x] 13.2 Extension integration test: the real `weave.jar` and real processes against a stand-in for the
+        `vscode` module, plus browser tests of the page. (A test inside a real VS Code needs a download that is
+        not available in the build environment; it stays a manual check, M1 to M15.)
     - _Requirements: 9.3_
-  - [ ] 13.3 Rebuild `weave.jar` into `bin/`; include `media/**` (with Logo_Assets) in `files`; set
+  - [x] 13.3 Rebuild `weave.jar` into `bin/`; include `media/**` (with Logo_Assets) in `files`; set
         the manifest `icon`; package `.vsix`
     - _Requirements: 9.5_
-  - [ ] 13.4 Docs: extension README, `weave graph` in the Loom docs
+  - [x] 13.4 Docs: extension README, `weave graph` in the Loom docs
     - _Requirements: 9.4_
 
 - [ ] 14. **Final checkpoint** (see `verification.md` gates G0–G6): open `examples/tantrik-console/loom-scripts/sdlc/autonomous-dev-cycle.loom`

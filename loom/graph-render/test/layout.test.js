@@ -105,7 +105,7 @@ test('edges that name a node that is not there are ignored', () => {
   assert.equal(lay.routes.length, 0);
 });
 
-test('four hundred nodes lay out in under 300 ms and a thousand in under a second', () => {
+test('VP.3: four hundred nodes lay out in under 300 ms and a thousand in under a second', () => {
   const g400 = big(11, 12);
   assert.ok(g400.nodes.length >= 400, 'fixture has ' + g400.nodes.length);
   G.layout(g400, {});

@@ -96,7 +96,7 @@ async function until(condition: () => boolean, ms = 8000): Promise<void> {
 const contentFactory = path.join(samples, 'content_factory', 'main.loom');
 const twoWorkflows = path.join(__dirname, '..', '..', 'test', 'fixtures', 'two-workflows.loom');
 
-test('V5.2: the command opens the panel beside the editor and shows the graph from the real weave.jar', { skip }, async () => {
+test('V5.2/VS.5: the command opens the panel beside the editor and shows the graph from the real weave.jar', { skip }, async () => {
     const s = session();
     try {
         await s.run(contentFactory);
@@ -327,4 +327,43 @@ test('the LOOM_GRAPH_DELAY_MS hook holds the loading state long enough to see it
         await run;
         assert.equal(s.fake.state.panels[0].ofType('graph').length, 1);
     } finally { delete process.env.LOOM_GRAPH_DELAY_MS; s.restore(); }
+});
+
+test('VP.6: from a save to the redrawn graph takes at most 3.5 s, a JVM start included', { skip }, async () => {
+    const s = session();
+    try {
+        await s.run(contentFactory);
+        const panel = s.fake.state.panels[0];
+        const started = Date.now();
+        s.fake.state.save.fire({ uri: { fsPath: contentFactory } });
+        await until(() => panel.ofType('graph').length === 2, 6000);
+        const elapsed = Date.now() - started;
+        assert.ok(elapsed <= 3500, `the refresh took ${elapsed} ms`);
+    } finally { s.restore(); }
+});
+
+test('VG.3: the outline view and the run command behave as before', { skip }, async () => {
+    const s = session();
+    try {
+        const { WorkflowOutlineProvider } = require('../src/views/WorkflowOutlineProvider');
+        const { runWorkflowCommand } = require('../src/commands/runWorkflow');
+        const provider = new WorkflowOutlineProvider();
+        const text = 'import "x.loom"\nagent Researcher { model: "m" }\nworkflow Main() { note "a" }\nschedule Daily { cron: "0 7 * * *" }\nrouting Smart { strategy: fallback }\n';
+        const offsets = (needle: string) => text.indexOf(needle);
+        const document = { languageId: 'loom', getText: () => text, positionAt: (o: number) => new s.fake.vscode.Position(text.slice(0, o).split('\n').length - 1, 0), uri: { fsPath: '/p/a.loom' } };
+        s.fake.state.activeEditor = { document };
+        s.fake.state.activeEditorChanged.fire(s.fake.state.activeEditor);
+        const nodes = await provider.getChildren();
+        assert.deepEqual(nodes.map((n: any) => [n.kind, n.name]), [['agent', 'Researcher'], ['workflow', 'Main'], ['schedule', 'Daily'], ['routing', 'Smart']]);
+        assert.ok(offsets('agent') > 0);
+        assert.equal((await provider.getChildren(nodes[0])).length, 0);
+
+        s.fake.state.activeEditor = { document: { ...document, uri: { fsPath: '/p/readme.md' } } };
+        runWorkflowCommand({ asAbsolutePath: (p: string) => p });
+        assert.match(s.fake.state.errors[0].message, /not a \.loom file/);
+        assert.equal(s.spawns.length, 0);
+        s.fake.state.activeEditor = undefined;
+        runWorkflowCommand({ asAbsolutePath: (p: string) => p });
+        assert.match(s.fake.state.errors[1].message, /No active editor/);
+    } finally { s.restore(); }
 });

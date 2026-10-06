@@ -147,7 +147,7 @@ New files:
 | `src/graph/model.ts` | TypeScript types mirroring the JSON, `parseGraph()` validating `version` |
 | `media/graph-render.js` | generated copy of the Shared_Renderer (section 6): layout, shapes, glyphs, Chip text, overlay |
 | `media/graph.js`, `media/graph.css` | panel glue only: toolbar, messages, selection, details card, theme variables; calls `graph-render.js` |
-| `media/loom-mark-128.jpg`, `media/loom-logo-320.jpg` | Logo_Assets (see `ui.md` section 10) |
+| `media/loom-mark-128.png`, `media/loom-logo-320.png` | Logo_Assets (see `ui.md` section 10) |
 | `scripts/make-logo-assets.sh` | regenerates the Logo_Assets from `loom_logo.png` with ImageMagick |
 
 **Rendering.** A small bundled layout (layering by longest path, one column per branch, loop
@@ -168,6 +168,17 @@ that appear in `result.files`.
 `onDidChangeTextEditorSelection` (active entry file) sends `highlight` when the cursor's line matches a
 node's `source.line`. A new run aborts the previous child process (`AbortController` / `kill`).
 State kept across refreshes: selected workflow name, transform (zoom/pan), collapsed block ids.
+
+**Content-security policy and the renderer.** The webview may not run inline styles, so the renderer's
+markup carries no `style` attributes (it uses classes), `View` takes `embedCss: false`, and the page loads
+the same rules from `graph-render.css`, generated from the renderer by `sync-graph-render.sh`. Selecting a
+step toggles a class instead of redrawing, so a double-click still reaches the same element.
+
+**Testing without VS Code.** The behaviour (refresh, debounce, stale state, cursor sync, safe source
+opening) lives in `GraphPanelController`, which depends only on small interfaces (`PanelHost`, `Scheduler`,
+`GraphRunner`). `GraphPanel.ts` and `showGraph.ts` are a thin edge over the VS Code API and are tested with
+a stand-in `vscode` module, the real `weave.jar` and real processes; the page is tested in a browser with a
+stand-in `acquireVsCodeApi`. Opening the result in a real VS Code is a manual check (M1 to M15).
 
 **Security.** `webview.options.localResourceRoots = [extension media dir]`; CSP
 `default-src 'none'; img-src ${cspSource}; style-src ${cspSource}; script-src 'nonce-…'`. All label text is inserted with
@@ -213,7 +224,8 @@ and `eval4j-report` also has a unit test that compares its copy with the canonic
    `observe`, `note`, `broadcast`, `run`, `unknown`) and the `statement` kind the old code already emitted,
    and adds an optional `attrs` object. `additionalProperties: true` on nodes already allows this, so
    old traces validate unchanged. The `kind` list stays closed so a typo is still caught.
-4. `dashboard.js` computes the Run_Overlay from `expectedPath`, `actualPath` and `events`:
+4. The card draws a graph when it scrolls into view (an `IntersectionObserver`), and every graph when the page
+   is printed, so a report with dozens of workflows opens quickly. `graph-card.js` computes the Run_Overlay from `expectedPath`, `actualPath` and `events`:
    `states` by set membership, `visits` by counting `actualPath`, `traversed` from consecutive pairs that
    are edges. It then calls `LoomGraph.render(..., {mode: 'report', overlay})` inside a new
    `graphCard(w)` in `traceView`, above the existing path rows.

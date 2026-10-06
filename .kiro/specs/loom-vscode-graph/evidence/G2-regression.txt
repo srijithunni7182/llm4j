@@ -1,0 +1,42 @@
+# G2  2026-10-06T12:17:14Z
+$ mvn -q -pl eval4j,eval4j-report verify
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/imports/parent.loom
+Oct 06, 2026 12:18:25 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/imports/child.loom
+Oct 06, 2026 12:18:25 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/imports/parent.loom
+Oct 06, 2026 12:18:25 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/imports/child.loom
+Oct 06, 2026 12:18:25 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/routing-test.loom
+Oct 06, 2026 12:18:25 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/task/refund.loom
+Oct 06, 2026 12:18:25 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/tier2-test.loom
+Oct 06, 2026 12:18:25 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/test.loom
+Oct 06, 2026 12:18:25 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ctk/scripts/failing_test.loom
+Oct 06, 2026 12:18:25 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ctk/scripts/simple_test.loom
+Oct 06, 2026 12:18:25 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ctk/scripts/task_basic.loom
+Oct 06, 2026 12:18:25 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ctk/scripts/task_rejected.loom
+Oct 06, 2026 12:18:25 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/scripts/g5/digest.loom
+Oct 06, 2026 12:18:25 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/scripts/g5/refund.loom
+Oct 06, 2026 12:18:25 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/scripts/g5/report.loom
+eval4j-report: dashboard written to /tmp/junit-14945524517735254715/report/index.html
+Oct 06, 2026 12:18:26 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/graph/all_statements.loom
+eval4j-report: dashboard written to /tmp/junit-8076768939187249439/report/index.html
+Oct 06, 2026 12:18:26 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/graph/all_statements.loom
+eval4j-report: dashboard written to /tmp/junit-6318621420220698207/report/index.html
+eval4j-report: dashboard written to /tmp/junit-919918031144881820/report/index.html
+eval4j-report: could not render the dashboard: java.io.FileNotFoundException: /tmp/junit-919918031144881820/nothing/runs/x/run.json (No such file or directory)
+eval4j-report: dashboard written to /tmp/junit-1201821862703189804/report/index.html
+eval4j-report: dashboard written to /tmp/junit-10606446912264961969/report/index.html
