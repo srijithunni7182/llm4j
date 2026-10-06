@@ -1,6 +1,8 @@
 # weave eval: sabotage run
 
-Commit c1e41ef. Each row breaks one rule in the real sources, runs the checks that guard it, and records whether the named test failed. The sources are restored after every row.
+
+> The script that produced this table was removed once the evidence was recorded, because it matched exact source text and would need upkeep with every change. It is in git history at commit f2730e8 (scripts/sabotage_*.py).
+Commit f2730e8. Each row breaks one rule in the real sources, runs the checks that guard it, and records whether the named test failed. The sources are restored after every row.
 
 | ID | Requirement | What was broken | Test that must fail | Result |
 |---|---|---|---|---|

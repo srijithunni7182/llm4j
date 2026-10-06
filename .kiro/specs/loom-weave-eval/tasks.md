@@ -13,6 +13,6 @@ Depends on nothing; pairs with `loom-prompt-files` (tasks 3 and 4 there make `--
 - [x] 8. Docs: `LOOM_GUIDE.md`, `llms.txt`, skill (R7.1); Loom guide section 4, llms.txt, doc tests
 - [x] 9. Check that `run`, `check` and `audit` work with no dataset, no `eval/` and no prompts folder (R4.1, R4.4); tested (`r4_1_checkAndRunNeverNeedADatasetOrAnEvalFolder`)
 - [ ] 10. Extension command and summary (optional, R7.2); NOT DONE (optional in the spec): the extension command is left for a later release
-- [x] 11. Verification: traceability, sabotage (unjudged counted as passed; cap ignored; dataset required by `run`), full regression; sabotage 12 of 12 caught (`scripts/sabotage_eval.py`, evidence/sabotage.md)
+- [x] 11. Verification: traceability, sabotage (unjudged counted as passed; cap ignored; dataset required by `run`), full regression; sabotage 12 of 12 caught (the sabotage script, since removed (it is in git history at f2730e8), evidence/sabotage.md)
 
 See `loom-onboarding` for the templates (`weave init`), editor and `weave check` fixes, and the skill update that this feature depends on.
