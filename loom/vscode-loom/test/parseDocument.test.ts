@@ -125,3 +125,47 @@ test('every real sample and example .loom/.loot file parses without lex/parse er
         }
     }
 });
+
+// Finding F1 of the onboarding exercise: the editor reported "Unexpected character '%'" for `warn_at: 80%`, which
+// `weave check` accepts, because this scanner's character set had no percent sign.
+
+test('R1.3: a percent sign in a budget is not a lex error', () => {
+    const { errors } = parseDocument('budget { tokens: 400000  calls: 60  warn_at: 80% }');
+    assert.deepEqual(errors, []);
+});
+
+test('an apostrophe inside a word is not a lex error, one on its own is', () => {
+    assert.deepEqual(parseDocument("check 50% of cases with a person who doesn't see the proposal").errors, []);
+    assert.deepEqual(parseDocument("agent A { model: 'm' }").errors.map((e) => e.message), ["Unexpected character: '''", "Unexpected character: '''"]);
+});
+
+test('a character the language does not have is still reported where it is', () => {
+    const { errors } = parseDocument('agent A { model: "m" } @');
+    assert.deepEqual(errors.map((e) => [e.kind, e.message, e.line, e.col]), [['LexError', "Unexpected character: '@'", 0, 23]]);
+});
+
+test('R1.5: the editor scanner finds no lexical error in any script of the repository', () => {
+    const root = path.resolve(__dirname, '..', '..', '..', '..');
+    const files: string[] = [];
+    const walk = (dir: string): void => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            if (['node_modules', 'target', '.git', 'out', 'out-test'].includes(entry.name)) {
+                continue;
+            }
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory()) {
+                walk(full);
+            } else if (entry.name.endsWith('.loom')) {
+                files.push(full);
+            }
+        }
+    };
+    walk(root);
+    assert.ok(files.length > 20, `found ${files.length} scripts under ${root}`);
+    const problems = files.flatMap((file) =>
+        parseDocument(fs.readFileSync(file, 'utf8'))
+            .errors.filter((e) => e.kind === 'LexError')
+            .map((e) => `${path.relative(root, file)}:${e.line + 1}:${e.col + 1} ${e.message}`),
+    );
+    assert.deepEqual(problems, []);
+});

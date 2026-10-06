@@ -1,6 +1,6 @@
 # Implementation Plan: Onboarding
 
-- [ ] 1. One-line fix: accept `%` in the editor scanner, with a test using `warn_at: 80%` (R1.3)
+- [x] 1. One-line fix: accept `%` in the editor scanner, with a test using `warn_at: 80%` (R1.3). Also found and fixed by the repo-wide scan (R1.5): an apostrophe inside a word ("doesn't"), which `Lexer.java` accepts
 - [ ] 2. `weave check --format json` and `--no-env`; editor diagnostics from it; the all-repo `.loom` parity test (R1.1, R1.2, R1.4, R1.5, R6.3)
 - [ ] 3. New check warnings: unused variable, unused human answer, same-next-step after a decision, `--strict` (R6)
 - [ ] 4. Audit info finding for a person running untrusted-derived output (R7)
