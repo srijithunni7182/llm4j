@@ -26,6 +26,14 @@ Start with `docs/guide/README.md` if the user is new to the path.
 
 ## How to guide
 
+0. **Ask once: "Do you want tests first?"** (default yes). If yes, the order is: decide the agents, write the golden dataset
+   (`weave eval <script> --init`, then fill it with the user), write the script, `weave eval <script> --check`, `--mock`, then a capped
+   real run. **Write the dataset before the script**, and never write a Java loader for a script-only project: `weave eval` reads the
+   YAML. If no, skip chapters 2, 3, 4, 5 and 8 and go straight to the script, `weave check`, `weave audit` and a capped run. Record the
+   answer in the project's README (`Evaluation: skipped` or `Evaluation: golden dataset in eval/golden`) and do not ask again. At go-live
+   say once, in one sentence, that no evaluation exists, and carry on if the user still wants to go live. Skipping never loosens a cap,
+   an approval or a guard.
+
 1. **Ask where they are.** Which stage, what exists already (agents? dataset? script?). Do not start at stage 1 for someone at stage 6, and do not skip a stage whose gate is unmet.
 2. **Work one stage at a time.** Read that chapter, do the work with the user in their code, and check the gate before moving on. Say what the gate is and whether it passed.
 3. **Spend money last.** Every stage is proved free first (mocks, static checks), then run for real under a cap. Use `ScriptedClient` and `FakeJudge` for the free run, and `SpendGuard`, `AgentReplay` and `RecordedSearchTool` for the real one (`eval4j/docs/OFFLINE-AND-BUDGETED-RUNS.md`).
@@ -43,6 +51,8 @@ llm4j does not (yet) provide: a cost estimator for Loom (keep a small cost model
 ```
 weave check workflow.loom                       # free, no model calls (finds missing prompt files and versions)
 weave audit workflow.loom --fail-on medium      # free security audit (also lists which prompt each agent runs)
+weave eval workflow.loom --init | --check | --mock   # golden dataset: create, validate, run the wiring for free
+weave eval workflow.loom --max-cost 0.50 --prices prices.properties   # a real, capped evaluation
 weave run workflow.loom --max-cost 0.50 --prices prices.properties --journal runs/run-1
 mvn test -Deval.fake=true                       # a free full run on mocks (Hexamind: eval/run-all.sh --fake)
 ```

@@ -7,6 +7,39 @@
 A golden dataset is the only thing that turns "it seems fine" into a measurement. It is also reusable: the same cases
 test your prompts (chapter 3), agents (5) and workflow (8), and fill the dashboard's quality dimensions.
 
+## Optional, and where it lives
+
+This chapter is optional: if you chose to skip evaluation (see the README), go to chapter 6. For a script run with `weave`, the
+dataset is a folder of YAML files beside the script, with no Java:
+
+```
+eval/golden/
+  researcher.yaml     # cases for the agent Researcher
+  workflow.yaml       # cases for the whole workflow
+  dataset.yaml        # optional: the dimensions you use, and what each means
+  fixtures.yaml       # optional: recorded answers for the tools the agents call
+```
+
+`weave eval <script> --init` creates it with a starter case per agent, `--check` validates it with no model, `--mock` runs the
+wiring for free, and a real run needs a cap (see the Loom guide, section "Evaluating a Workflow"). A scenario has `input`,
+`expected_output_contains`, `expected_tools`, `rubric` (what a judge confirms about the answer), `expect` (what a judge confirms
+about what a workflow run did), `dimensions` and `tags`:
+
+```yaml
+- id: refund-001
+  name: Refund over the limit
+  input: "I was charged twice, 240 dollars"
+  expected_tools: [LookupOrder]
+  rubric:
+    - Asks a person to approve before refunding
+  dimensions: [safety]
+  tags: { kind: fabricated-premise }
+```
+
+The older form below still loads: `RUBRIC:` lines in `context` are read as `rubric`, and camelCase names work as well as snake_case.
+Search-dependent cases take their answers from `fixtures.yaml` (`Search: [{match: "flights", snippets: ["…"]}]`), so a free run never
+reaches the network. The same files work from JUnit through `EvalScenarios.fromDirectory(...)`.
+
 ## What a scenario holds
 
 ```yaml

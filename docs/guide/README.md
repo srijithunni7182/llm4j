@@ -7,12 +7,24 @@ debate app evaluated end to end with llm4j), and ends with a **gate**: the check
 The rule that organises everything: **spend money last.** Each stage is first proved free (mocks, static checks), then run
 for real under a cap.
 
+## Tests first, or skip them
+
+Evaluation is **optional**. Before you start, decide: *do you want tests first?* The default is yes.
+
+- **Yes:** decide the agents (1), write the golden dataset (2), then the script (6), then `weave eval <script> --check`, `--mock`
+  and a capped real run. The dataset comes before the script, so "good" is written down before anything is built.
+- **No:** go straight to the script (6), then `weave check` (7), `weave audit` (7) and a capped run (9). Chapters 2, 3, 4, 5 and 8 are
+  skipped. Nothing else changes: caps, approvals, guards and the audit work the same, and an autonomy level that needs evidence still needs it.
+
+Write your choice in the project's README (`Evaluation: skipped`, or `Evaluation: golden dataset in eval/golden`) so it is not asked again.
+Skipping is not hidden: chapter 9 reminds you once that no evaluation exists, and you can start one later with `weave eval <script> --init`.
+
 ## The map
 
 | # | Stage | You | Tools | Cost | Gate to move on |
 |---|---|---|---|---|---|
 | 1 | [Decide your agents](01-decide-your-agents.md) | one job per agent; tools, persona, prompt files; script path or Java path | `AgentPersona`, `PromptRegistry` | $0 | each agent has a one-sentence job and a tool list |
-| 2 | [Build a golden dataset](02-golden-dataset.md) | scenarios with rubrics and dimensions | `EvalScenarios`, `DatasetSynthesizer` | $0 (synthesis: small) | dataset test passes; every dimension has cases |
+| 2 | [Build a golden dataset](02-golden-dataset.md) | scenarios with rubrics and dimensions (optional: see above) | `weave eval --init/--check`, `EvalScenarios`, `DatasetSynthesizer` | $0 (synthesis: small) | dataset test passes; every dimension has cases |
 | 3 | [Test the prompts](03-prompt-tests.md) | rubric checks, A/B against a candidate | `llmJudged`, `PromptComparison` | cents | each prompt meets its rule |
 | 4 | [Optimize the prompts](04-prompt-optimization.md) | only where tests fail | `PromptOptimizer` | capped | held-out test agrees (`generalized()`) |
 | 5 | [Test each agent, with spend caps](05-test-agents-with-caps.md) | free on mocks, then real under a cap | `ScriptedClient`, `FakeJudge`, `SpendGuard`, `AgentReplay` | dollars, capped | agents meet their goals; judge noise known |

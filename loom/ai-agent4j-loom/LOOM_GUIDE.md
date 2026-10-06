@@ -127,6 +127,60 @@ Exit code 0 means a graph was produced, even when some imports were missing or a
 
 In VS Code, **Loom: Show Workflow Graph** draws the same graph beside the editor and follows your edits; see the extension's README. The eval4j report draws it too, with what each run did laid over it.
 
+### 4. Evaluating a Workflow (`eval`)
+
+`weave eval` runs a script's **golden dataset** against it and says what passed, what failed and what nothing judged. It needs no Java and no test project: the dataset is YAML files in a folder, and evaluation is optional. A script with no dataset runs, checks and audits exactly as before.
+
+```
+newsletter/
+  main.loom
+  eval/golden/
+    researcher.yaml      # cases for the agent Researcher (any capitalisation)
+    editor.yaml
+    workflow.yaml        # cases for the whole workflow (Main, or the one named with --workflow; or name the file after it: Main.yaml)
+    dataset.yaml         # optional: the quality dimensions this dataset uses, with what each means
+    fixtures.yaml        # optional: recorded answers for tools (see below)
+```
+
+```yaml
+- id: refund-001
+  name: Refund over the limit
+  input: "I was charged twice, 240 dollars"     # an agent's task; a workflow's first parameter
+  expected_output_contains: "approval"          # the answer holds this (any capitalisation)
+  expected_output: "…"                          # or: is exactly this
+  expected_tools: [LookupOrder]                 # these tools were used
+  rubric:                                       # a judge confirms each line about the answer
+    - Asks a person to approve before refunding
+  expect:                                       # (workflows) a judge confirms each line about what the run did
+    - The approval step ran before the refund step
+  context: ["background the judge may use"]
+  dimensions: [safety]                          # fill the report; with dataset.yaml they must be declared there
+  tags: { kind: refund }                        # or ["kind:refund"]; read back as typed values
+```
+
+```bash
+weave eval newsletter/main.loom --init            # create eval/golden with a starter case per agent and one for the workflow (never overwrites)
+weave eval newsletter/main.loom --check           # validate the dataset: no model is called
+weave eval newsletter/main.loom --mock            # run the wiring on a model that costs nothing
+weave eval newsletter/main.loom --max-tokens 200000 --yes   # a real run, capped, without asking first
+weave eval newsletter/main.loom --agent Editor --json results.json --report report.html
+weave eval newsletter/main.loom --prompt researcher@v1      # a fair A/B: the same dataset with only that prompt changed
+```
+
+- **Order of work.** Write the dataset first (what "good" means), then the script, then `--check`, then `--mock`, then a capped real run. The workflow guide does it in that order when you want tests, and skips straight to the script when you do not.
+- **A mock run checks the wiring, not the quality.** Every step gets a fixed, well-formed reply (a step that asks for JSON in a schema gets a value of that schema), every tool answers `[mock tool result]`, and nothing is spent. Content checks (`expected_output_contains`, `rubric`, …) are therefore reported as **unjudged**: a mock says nothing about content. A scenario fails in a mock run only when the run itself breaks.
+- **Passed, failed and unjudged are three counts.** A line nothing judged (a mock run, no judge model, a judge that failed) is never counted as met. The exit code is 0 when nothing failed, 1 when something did, 2 for a dataset or option problem.
+- **A real run needs a limit, and asks first.** It says how many scenarios and judge calls it expects and waits for a yes (`--yes` skips that). With no `--max-tokens`, `--max-calls` or `--max-cost` (the last needs `--prices`) it is capped at 500,000 tokens and says so. When the limit is reached the rest is reported as *not run*.
+- **Rubric and expect lines are judged by the agent's own model** unless `--judge <model>` names another (a different model from the one being judged is safer). A line scores as met at 0.7 on the judge's scale.
+- **A workflow's output** is what its last agent step produced; `expect` lines are judged against an account of the run, the steps in order.
+- **Tools without the outside world.** `fixtures.yaml` maps a tool name to entries (`match`: a case-insensitive pattern over the query; `snippets`: what it finds); a query that matches nothing finds nothing. In a real run a tool with fixtures answers from them; in a mock run every tool does. `human_prompt` and approvals are answered "yes".
+- `--report` writes one self-contained HTML page and `--json` the results; scenario text is escaped and nothing in the page runs.
+- Datasets written the older way still load: `RUBRIC:` and `EXPECT:` lines in `context` are read as `rubric` and `expect`, camelCase field names work as well as snake_case, and the same files work from JUnit through `EvalScenarios.fromDirectory(...)` / `EvalDataset.load(...)`.
+
+A runnable example is `examples/newsletter` (`weave eval examples/newsletter/main.loom --mock`).
+
+---
+
 ---
 
 ## 🤖 3. Deep Dive: Agent Configuration

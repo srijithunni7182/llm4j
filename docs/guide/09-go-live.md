@@ -51,6 +51,13 @@ about 10 a minute) rather than hammering.
 Environment variables (`env.NAME`) or an encrypted [secret store](../../ai-agent4j/wiki/Secret-Store.md) (`secret.NAME`, `weave run --secrets <file>`; you choose and protect its path and master key) in scripts, `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` for the evaluation. Never in a script, a test or the repository; if a key is ever pasted somewhere shared, rotate it.
 Secrets are scrubbed from results, traces, journals and audit logs.
 
+## If you skipped evaluation
+
+If the README says `Evaluation: skipped`, this is the moment to say it once: **no evaluation of this workflow exists**, so nothing has
+measured whether its answers are good, only that it runs and passes `weave check` and `weave audit`. You can carry on, and the caps and
+approvals above still apply. If you want a safety net after all, `weave eval <script> --init` creates a dataset in a minute, and
+`weave eval <script> --mock` is free.
+
 ## Gate
 
 The smoke run and the first real run cost about what the model said, no limit was hit unexpectedly, the audit trail and trace look right, and provider limits and caps are set.

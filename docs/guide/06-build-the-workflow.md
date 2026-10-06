@@ -8,6 +8,13 @@ Building the workflow *after* the agents are tested means a failure is the workf
 named delegation with a trace event, a budget and a replay point, which is exactly what chapter 8's trajectory tests assert on.
 Reference: [Loom guide](../../loom/ai-agent4j-loom/LOOM_GUIDE.md).
 
+## Order of work
+
+If you chose to have tests (the README's first question), the dataset comes **before** this script: decide the agents (chapter 1), write
+the dataset (chapter 2), write the script here, then run `weave eval <script> --check` and `weave eval <script> --mock`. If you chose to
+skip evaluation, write the script now and go to `weave check` (chapter 7). Either way, a script-only project needs no Java loader or test
+module: `weave eval` reads the YAML itself.
+
 ## Build it in this order
 
 1. **Personas and agents**, copied from chapter 1 (the tested prompts and temperatures, unchanged).
