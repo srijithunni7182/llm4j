@@ -57,6 +57,7 @@ the runtime always enforces.
 | LA13 | Indexed documents (they become context) | info | LLM04, LLM08 |
 | LA14 | A tool the audit can't see into (a Java class, a host-registered tool): assumed to do everything | low | LLM03, LLM06 |
 | LA15 | A provider sends its key to a custom `base_url` (medium for `env.`, low for `secret.`, where an `--allow-host` binding refuses other hosts) | medium / low | LLM02, LLM03 |
+| LA16 | An agent that writes programs (its persona or prompt says so) is given text that an agent reading the outside world produced, through a hand-off that is not typed: a person will run output written from untrusted text | info | LLM01, LLM05 |
 
 The audit reads the script only. It cannot see what Java, host-registered and MCP tools do, operating-system and
 database permissions, what is inside indexed documents or memory, or what agents actually produce. Use it with
