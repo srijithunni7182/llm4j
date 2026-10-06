@@ -80,7 +80,7 @@ def main():
                 text = path.read_text()
                 if old not in text:
                     raise SystemExit(f"{sid}: the code to break is not in {rel} any more: {old[:60]!r}")
-                originals[path] = text
+                originals.setdefault(path, text)
                 path.write_text(text.replace(old, new, 1))
             failed, output = check(kind, tests)
             caught = [e for e in expected if any(e in f for f in failed)]

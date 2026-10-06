@@ -47,7 +47,7 @@ compares two prompt versions with nothing else changed.
 5. `--mock` runs with the framework's mock model so a first run costs nothing. Without `--mock`, `--max-cost` is
    required, or a default cap applies, and the run stops with a clear message when the cap is reached.
 6. The exit code is 0 when everything judged passed, 1 when a scenario failed, 2 for usage errors.
-7. `--report FILE` writes the eval4j HTML report, including the workflow graph with the run overlay.
+7. `--report FILE` writes the results as a single self-contained HTML page (passed, failed and unjudged apart, every text escaped), and `--json FILE` writes them as JSON. The eval4j report with the workflow graph and run overlay is built by `eval4j-report`, which depends on this module, so `weave eval` does not produce it.
 8. `weave eval --check` validates the dataset folder (names, fields, unknown dimensions, duplicate ids) without
    calling any model.
 

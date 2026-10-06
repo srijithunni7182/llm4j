@@ -24,8 +24,9 @@ SABOTAGES = [
     ("E2", "Let unjudged outrank a failure when a scenario's checks are combined",
      [(J + "eval/Status.java", "return rank() >= other.rank() ? this : other;", "return ordinal() >= other.ordinal() ? this : other;")],
      ("loom", "EvalRunnerTest"), ["aFailureBeatsUnjudgedWhichBeatsAPass"], "R6.3"),
-    ("E3", "Ignore the limit: never stop when it is reached",
-     [(J + "cli/EvalCommand.java", "return (tokens != null && usedTokens() >= tokens) || (calls != null && usedCalls() >= calls) || (cost != null && usedCost().compareTo(cost) >= 0);", "return false;")],
+    ("E3", "Ignore the limit: neither give each scenario what is left nor stop when it is reached",
+     [(J + "cli/EvalCommand.java", "return (tokens != null && usedTokens() >= tokens) || (calls != null && usedCalls() >= calls) || (cost != null && usedCost().compareTo(cost) >= 0);", "return false;"),
+      (J + "cli/EvalCommand.java", "if (!c.mock) e.setBudgetOverrides(spend.remainingTokens(), spend.remainingCalls(), spend.remainingCost());", "")],
      ("loom", "EvalCommandTest"), ["r3_5_aLimitThatIsReachedStopsTheRunAndCountsWhatWasNotRun"], "R3.5"),
     ("E4", "Make weave check need a dataset",
      [(J + "cli/WeaveCLI.java", "        io.github.llm4j.loom.ast.LoomScript script;\n        try {\n            script = new LoomLoader().load(scriptFile.getAbsolutePath());\n        } catch (Exception e) {\n            env.out().println(\"✗ \" + scriptFile.getName()",
@@ -83,7 +84,7 @@ def main():
                 text = path.read_text()
                 if old not in text:
                     raise SystemExit(f"{sid}: the code to break is not in {rel} any more: {old[:60]!r}")
-                originals[path] = text
+                originals.setdefault(path, text)
                 path.write_text(text.replace(old, new, 1))
             failed, output = check(kind, tests)
             caught = [e for e in expected if any(e in f for f in failed)]
