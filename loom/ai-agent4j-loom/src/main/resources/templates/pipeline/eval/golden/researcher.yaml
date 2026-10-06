@@ -1,0 +1,14 @@
+- id: researcher-001
+  name: Gives three facts and says where each comes from
+  input: "a topic you know well"
+  dimensions: [grounding]
+  rubric:
+    - "Lists three facts or developments about the topic"
+    - "Says where each one comes from"
+- id: researcher-002
+  name: Admits when there is nothing reliable
+  input: "a made-up thing that does not exist"
+  dimensions: [grounding]
+  tags: { kind: fabricated-premise }
+  rubric:
+    - "Says plainly that nothing reliable was found instead of inventing details"

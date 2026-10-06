@@ -1,0 +1,38 @@
+// {{name}}: read a customer email, draft a reply, and have a person approve anything that moves money.
+// The model never sends anything: the workflow ends with a reply for a person to use. Next steps are in README.md.
+
+budget { tokens: 100000  calls: 20 }
+
+agent Triage {
+    model: "gemini-2.5-flash"
+    prompt: "triage"
+    temperature: 0.1
+    guard { pii: mask }          // card numbers and similar are masked before they reach the model
+}
+
+agent Drafter {
+    model: "gemini-2.5-flash"
+    prompt: "drafter"
+    temperature: 0.4
+    guard { pii: mask }
+}
+
+workflow Main(email) {
+    delegate "Classify this customer email:\n{email}" to Triage -> triage expecting {
+        kind: enum["REFUND", "BUG", "QUESTION"],
+        needs_approval: enum["YES", "NO"]
+    }
+
+    delegate "Draft a reply to this email.\nKind: {triage.kind}\nEmail:\n{email}" to Drafter -> reply
+
+    alt (triage.needs_approval == "YES") {
+        human_prompt "A refund over the limit needs your approval.\n\nDraft reply:\n{reply}\n\nApprove it? (yes/no)" -> decision
+        alt (decision == "yes") {
+            note "Approved. Reply ready to send:\n{reply}"
+        } else {
+            note "Not approved. Nothing was sent; a person should handle this one."
+        }
+    } else {
+        note "Reply ready to send:\n{reply}"
+    }
+}
