@@ -1,0 +1,3 @@
+workflow D() {
+    note "d"
+}

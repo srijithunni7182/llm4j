@@ -1,0 +1,13 @@
+%% workflow DailyDigest
+flowchart TD
+  start(["Start"])
+  n1["delegate Collector"]
+  n2["delegate Writer"]
+  n3["delegate Notifier"]
+  n4["note"]
+  end_(["End"])
+  start --> n1
+  n1 --> n2
+  n2 --> n3
+  n3 --> n4
+  n4 --> end_

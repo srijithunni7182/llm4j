@@ -726,7 +726,7 @@
         }));
       }
       var rew = w.rewinds ? h('p', { class: 'hint', text: w.rewinds + ' rewind' + (w.rewinds === 1 ? '' : 's') + (w.rewindCap != null ? ' of at most ' + w.rewindCap : '') }) : null;
-      return h('div', null, h('p', { class: 'hint', text: w.name }), exp.length ? h('div', { class: 'eyebrow', text: 'Expected path' }) : null, exp.length ? row(exp) : null,
+      return h('div', null, h('p', { class: 'hint', text: w.name }), window.EvalGraphCard ? window.EvalGraphCard.create(w, h) : null, exp.length ? h('div', { class: 'eyebrow', text: 'Expected path' }) : null, exp.length ? row(exp) : null,
         h('div', { class: 'eyebrow', style: 'margin-top:10px', text: 'Path taken' }), row(act, exp.length ? exp : null), rew,
         (w.events || []).length ? h('div', { class: 'eyebrow', style: 'margin-top:14px', text: 'Timeline (diamonds: guard, checkpoint, rewind, budget, decision, approval)' }) : null,
         (w.events || []).length ? timeline(w) : null,

@@ -1,0 +1,15 @@
+%% workflow ParentWorkflow
+flowchart TD
+  start(["Start"])
+  n1[["call ChildWorkflow"]]
+  end_(["End"])
+  start --> n1
+  n1 --> end_
+
+%% workflow ChildWorkflow
+flowchart TD
+  start(["Start"])
+  n1["note"]
+  end_(["End"])
+  start --> n1
+  n1 --> end_

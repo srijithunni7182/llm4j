@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "entry": "<root>/src/test/resources/imports/parent.loom",
+  "files": [
+    {
+      "path": "<root>/src/test/resources/imports/parent.loom",
+      "imports": [
+        "<root>/src/test/resources/imports/child.loom"
+      ]
+    },
+    {
+      "path": "<root>/src/test/resources/imports/child.loom",
+      "imports": [ ]
+    }
+  ],
+  "workflows": [
+    {
+      "name": "ParentWorkflow",
+      "file": "<root>/src/test/resources/imports/parent.loom",
+      "line": 8,
+      "params": [ ],
+      "nodes": [
+        {
+          "id": "start",
+          "kind": "start",
+          "label": "Start"
+        },
+        {
+          "id": "n1",
+          "kind": "call",
+          "label": "call ChildWorkflow",
+          "source": {
+            "file": "<root>/src/test/resources/imports/parent.loom",
+            "line": 9
+          },
+          "call": {
+            "workflow": "ChildWorkflow",
+            "file": "<root>/src/test/resources/imports/child.loom"
+          },
+          "attrs": {
+            "variable": "res"
+          }
+        },
+        {
+          "id": "end",
+          "kind": "end",
+          "label": "End"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "n1"
+        },
+        {
+          "from": "n1",
+          "to": "end"
+        }
+      ]
+    },
+    {
+      "name": "ChildWorkflow",
+      "file": "<root>/src/test/resources/imports/child.loom",
+      "line": 6,
+      "params": [ ],
+      "nodes": [
+        {
+          "id": "start",
+          "kind": "start",
+          "label": "Start"
+        },
+        {
+          "id": "n1",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/src/test/resources/imports/child.loom",
+            "line": 7
+          },
+          "attrs": {
+            "text": "Hello from child"
+          }
+        },
+        {
+          "id": "end",
+          "kind": "end",
+          "label": "End"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "n1"
+        },
+        {
+          "from": "n1",
+          "to": "end"
+        }
+      ]
+    }
+  ],
+  "agents": [ ],
+  "diagnostics": [ ]
+}

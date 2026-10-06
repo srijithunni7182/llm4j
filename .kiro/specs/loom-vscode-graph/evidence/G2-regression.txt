@@ -1,0 +1,88 @@
+# G2  2026-10-06T12:32:00Z
+$ mvn -q -pl eval4j,eval4j-report verify
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/imports/parent.loom
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/imports/child.loom
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/imports/parent.loom
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/imports/child.loom
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/routing-test.loom
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/task/refund.loom
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/tier2-test.loom
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/test.loom
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ctk/scripts/failing_test.loom
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ctk/scripts/simple_test.loom
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ctk/scripts/task_basic.loom
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ctk/scripts/task_rejected.loom
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/scripts/g5/digest.loom
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/scripts/g5/refund.loom
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/scripts/g5/report.loom
+eval4j-report: dashboard written to /tmp/junit-10118645685348238395/report/index.html
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/graph/all_statements.loom
+eval4j-report: dashboard written to /tmp/junit-14613120763534914007/report/index.html
+Oct 06, 2026 12:32:31 PM io.github.llm4j.loom.execution.LoomLoader loadRecursive
+INFO: Loading Loom script: /home/user/llm4j/loom/ai-agent4j-loom/src/test/resources/graph/all_statements.loom
+eval4j-report: dashboard written to /tmp/junit-3738220829545244309/report/index.html
+eval4j-report: dashboard written to /tmp/junit-8157622385352976724/report/index.html
+eval4j-report: could not render the dashboard: java.io.FileNotFoundException: /tmp/junit-8157622385352976724/nothing/runs/x/run.json (No such file or directory)
+eval4j-report: dashboard written to /tmp/junit-14700453906446105417/report/index.html
+eval4j-report: dashboard written to /tmp/junit-8431349916700251238/report/index.html
+exit=0
+$ bash scripts/check-graph-render-sync.sh
+graph-render copies are in sync
+exit=0
+$ cd loom/graph-render && node --test test/*.test.js
+  ...
+# Subtest: n21 rewind: title, subtitle, chips and shape follow the table
+ok 62 - n21 rewind: title, subtitle, chips and shape follow the table
+  ---
+  duration_ms: 0.104918
+  type: 'test'
+  ...
+# Subtest: n22 handoff: title, subtitle, chips and shape follow the table
+ok 63 - n22 handoff: title, subtitle, chips and shape follow the table
+  ---
+  duration_ms: 0.090076
+  type: 'test'
+  ...
+# Subtest: every statement kind in the fixture is covered by the table
+ok 64 - every statement kind in the fixture is covered by the table
+  ---
+  duration_ms: 0.302256
+  type: 'test'
+  ...
+# Subtest: the budget chip uses the warning style and an unbounded loop is flagged
+ok 65 - the budget chip uses the warning style and an unbounded loop is flagged
+  ---
+  duration_ms: 0.203887
+  type: 'test'
+  ...
+# Subtest: handlers are drawn as steps of their own, with the owner as parent
+ok 66 - handlers are drawn as steps of their own, with the owner as parent
+  ---
+  duration_ms: 5.085687
+  type: 'test'
+  ...
+1..66
+# tests 66
+# suites 0
+# pass 66
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5326.189145
+exit=0

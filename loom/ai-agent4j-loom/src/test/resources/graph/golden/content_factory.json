@@ -1,0 +1,175 @@
+{
+  "version": 1,
+  "entry": "<root>/samples/content_factory/main.loom",
+  "files": [
+    {
+      "path": "<root>/samples/content_factory/main.loom",
+      "imports": [
+        "<root>/samples/content_factory/primitives.loom"
+      ]
+    },
+    {
+      "path": "<root>/samples/content_factory/primitives.loom",
+      "imports": [ ]
+    }
+  ],
+  "workflows": [
+    {
+      "name": "GenerateContent",
+      "file": "<root>/samples/content_factory/main.loom",
+      "line": 4,
+      "params": [
+        "topic"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "kind": "start",
+          "label": "Start"
+        },
+        {
+          "id": "n1",
+          "kind": "delegate",
+          "label": "delegate Researcher",
+          "agent": "Researcher",
+          "source": {
+            "file": "<root>/samples/content_factory/main.loom",
+            "line": 5
+          },
+          "attrs": {
+            "variable": "research_data",
+            "text": "Research the latest trends for: {topic}"
+          }
+        },
+        {
+          "id": "n2",
+          "kind": "parallel",
+          "label": "in parallel: Copywriter",
+          "source": {
+            "file": "<root>/samples/content_factory/main.loom",
+            "line": 7
+          },
+          "attrs": {
+            "agents": [
+              "Copywriter"
+            ],
+            "branches": 2
+          }
+        },
+        {
+          "id": "n3",
+          "kind": "human_prompt",
+          "label": "ask a person",
+          "source": {
+            "file": "<root>/samples/content_factory/main.loom",
+            "line": 12
+          },
+          "attrs": {
+            "variable": "approval",
+            "text": "Review the content:\\n\\nLINKEDIN:\\n{linkedin_post}\\n\\nTWITTER:\\n{twitter_thread}\\n\\nApprove? (yes/no)"
+          }
+        },
+        {
+          "id": "n4",
+          "kind": "alt",
+          "label": "approval==yes?",
+          "source": {
+            "file": "<root>/samples/content_factory/main.loom",
+            "line": 14
+          },
+          "attrs": {
+            "condition": "approval==yes"
+          }
+        },
+        {
+          "id": "n5",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/samples/content_factory/main.loom",
+            "line": 15
+          },
+          "parent": "n4",
+          "branch": "then",
+          "attrs": {
+            "text": "Content approved. Ready for publishing."
+          }
+        },
+        {
+          "id": "n6",
+          "kind": "note",
+          "label": "note",
+          "source": {
+            "file": "<root>/samples/content_factory/main.loom",
+            "line": 17
+          },
+          "parent": "n4",
+          "branch": "else",
+          "attrs": {
+            "text": "Content rejected. Revision needed."
+          }
+        },
+        {
+          "id": "end",
+          "kind": "end",
+          "label": "End"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "n1"
+        },
+        {
+          "from": "n1",
+          "to": "n2"
+        },
+        {
+          "from": "n2",
+          "to": "n3"
+        },
+        {
+          "from": "n3",
+          "to": "n4"
+        },
+        {
+          "from": "n4",
+          "to": "n5",
+          "label": "then"
+        },
+        {
+          "from": "n4",
+          "to": "n6",
+          "label": "else"
+        },
+        {
+          "from": "n5",
+          "to": "end"
+        },
+        {
+          "from": "n6",
+          "to": "end"
+        }
+      ]
+    }
+  ],
+  "agents": [
+    {
+      "name": "Researcher",
+      "model": "gemini-3.5-flash",
+      "source": {
+        "file": "<root>/samples/content_factory/primitives.loom",
+        "line": 3
+      }
+    },
+    {
+      "name": "Copywriter",
+      "model": "llama3",
+      "source": {
+        "file": "<root>/samples/content_factory/primitives.loom",
+        "line": 8
+      }
+    }
+  ],
+  "diagnostics": [ ]
+}

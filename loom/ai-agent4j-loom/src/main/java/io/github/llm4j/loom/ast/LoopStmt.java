@@ -2,7 +2,7 @@ package io.github.llm4j.loom.ast;
 
 import java.util.List;
 
-public class LoopStmt implements Statement {
+public class LoopStmt extends LocatedStatement {
     private final String condition;
     private final List<Statement> body;
     /** Upper bound on iterations ({@code max N}); 0 = unbounded (the original behaviour). */

@@ -22,6 +22,17 @@ public final class CliProbe {
         return WeaveCLI.check(script, null, lenient, e);
     }
 
+    /** {@code weave graph} writing to {@code out}; nothing else is reachable from it. */
+    public static int graph(File script, String format, String workflow, PrintStream out) {
+        WeaveEnv e = new WeaveEnv(model -> { throw new IllegalStateException("no models in graph"); }, message -> "", out, out,
+                Clock.systemUTC(), d -> { }, c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""), List.of("weave"));
+        GraphCommand command = new GraphCommand();
+        command.script = script;
+        command.format = format;
+        command.workflow = workflow;
+        return GraphCommand.graph(command, e);
+    }
+
     /** {@code weave check} with a given client factory (to see which model names it accepts). */
     public static int check(File script, PrintStream out, Function<String, String> env,
                             io.github.llm4j.loom.execution.LLMClientFactory models) {

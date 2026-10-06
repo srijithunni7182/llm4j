@@ -1,6 +1,6 @@
 package io.github.llm4j.loom.ast;
 
-public class HandoffStmt implements Statement {
+public class HandoffStmt extends LocatedStatement {
     private final String payload;
     private final String targetAgent;
 

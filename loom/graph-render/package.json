@@ -1,0 +1,10 @@
+{
+  "name": "loom-graph-render",
+  "version": "1.0.0",
+  "private": true,
+  "description": "The one drawing module for Loom workflow graphs, used by the VS Code panel and the eval4j report.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}

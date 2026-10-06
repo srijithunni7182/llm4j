@@ -1,0 +1,5 @@
+// broken on purpose
+agent X { model: "m" }
+
+workflow Broken() {
+    delegate "x" to X }

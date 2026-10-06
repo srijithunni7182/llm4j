@@ -1,0 +1,8 @@
+// two workflows in one file
+workflow First() {
+    note "one"
+}
+
+workflow Second() {
+    note "two"
+}

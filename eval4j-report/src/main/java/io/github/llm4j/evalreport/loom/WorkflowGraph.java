@@ -1,51 +1,68 @@
 package io.github.llm4j.evalreport.loom;
 
 import io.github.llm4j.eval.export.WorkflowTrace;
-import io.github.llm4j.loom.ast.AltStmt;
-import io.github.llm4j.loom.ast.CheckpointStmt;
-import io.github.llm4j.loom.ast.DelegateStmt;
-import io.github.llm4j.loom.ast.HandoffStmt;
-import io.github.llm4j.loom.ast.HumanPromptStmt;
-import io.github.llm4j.loom.ast.LoopStmt;
-import io.github.llm4j.loom.ast.ParallelStmt;
-import io.github.llm4j.loom.ast.RunStmt;
-import io.github.llm4j.loom.ast.Statement;
 import io.github.llm4j.loom.ast.WorkflowDef;
+import io.github.llm4j.loom.graph.GraphBuilder;
+import io.github.llm4j.loom.graph.GraphEdge;
+import io.github.llm4j.loom.graph.GraphNode;
+import io.github.llm4j.loom.graph.Kinds;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
- * Builds the structure of a Loom workflow for the report: {@code start}, one node per statement in
- * pre-order ({@code n1}, {@code n2}, …, stable for a given script), and {@code end}. Edges follow
- * control flow: {@code alt} has a labelled edge into each branch, a {@code loop} has a back-edge
- * from its body and an exit edge.
+ * The structure of a Loom workflow for the report: {@code start}, one node per statement in pre-order
+ * ({@code n1}, {@code n2}, …, stable for a given script), and {@code end}.
+ *
+ * <p>The structure itself comes from {@link GraphBuilder}, the same builder the editor graph uses, so the report
+ * and the editor never disagree. This class only maps it to the neutral {@link WorkflowTrace} shape and works out,
+ * for each statement, where it sits (the enclosing {@code alt} and loop nodes) so a trace can be placed on it.
  */
 public final class WorkflowGraph {
 
     public static final String START = "start";
     public static final String END = "end";
 
+    /** Handler blocks hang off their owner; they are not branches the path has to enter. */
+    private static final Set<String> HANDLER_BRANCHES = Set.of("failure", "exhausted", "violation", "still fails", "blocked");
+
+    /** Node kinds whose block a statement can be inside of, for placing a trace. */
+    private static final Set<String> BLOCK_KINDS = Set.of(Kinds.ALT, Kinds.LOOP, Kinds.FOREACH);
+
     /** A statement node plus where it sits: the enclosing alt/loop nodes, outermost first. */
     record Slot(
             WorkflowTrace.Node node,
             List<String> ancestors,
-            java.util.Map<String, String> branches,
-            java.util.Set<String> agents,
+            Map<String, String> branches,
+            Set<String> agents,
             String task) {}
 
     final List<WorkflowTrace.Node> nodes = new ArrayList<>();
     final List<WorkflowTrace.Edge> edges = new ArrayList<>();
     final List<Slot> slots = new ArrayList<>();
-    private int counter;
+
+    private WorkflowGraph() {}
 
     public static WorkflowGraph of(WorkflowDef workflow) {
+        io.github.llm4j.loom.graph.WorkflowGraph built = new GraphBuilder().build(workflow, "");
+        Map<String, GraphNode> byId = new HashMap<>();
+        built.nodes().forEach(n -> byId.put(n.id(), n));
+
         WorkflowGraph g = new WorkflowGraph();
-        g.nodes.add(new WorkflowTrace.Node(START, "start", "Start", null, null));
-        List<String> exits = new ArrayList<>(List.of(START));
-        exits = g.block(workflow.getStatements(), exits, List.of(), java.util.Map.of(), null);
-        g.nodes.add(new WorkflowTrace.Node(END, "end", "End", null, null));
-        for (String e : exits) {
-            g.edges.add(new WorkflowTrace.Edge(e, END, null));
+        for (GraphNode node : built.nodes()) {
+            WorkflowTrace.Node mapped = new WorkflowTrace.Node(
+                    node.id(), node.kind(), node.label(), node.agent(), node.bound(), withPlacement(node));
+            g.nodes.add(mapped);
+            if (!node.kind().equals(Kinds.START) && !node.kind().equals(Kinds.END)) {
+                g.slots.add(slot(mapped, node, byId));
+            }
+        }
+        for (GraphEdge edge : built.edges()) {
+            g.edges.add(new WorkflowTrace.Edge(edge.from(), edge.to(), edge.label()));
         }
         return g;
     }
@@ -58,121 +75,42 @@ public final class WorkflowGraph {
         return List.copyOf(edges);
     }
 
-    /** Lays out a statement list; returns the nodes control leaves from. */
-    private List<String> block(
-            List<Statement> statements,
-            List<String> entries,
-            List<String> ancestors,
-            java.util.Map<String, String> branches,
-            String entryLabel) {
-        List<String> current = entries;
-        String label = entryLabel;
-        for (Statement st : statements) {
-            String id = "n" + (++counter);
-            WorkflowTrace.Node node = nodeFor(id, st);
-            nodes.add(node);
-            slots.add(new Slot(node, ancestors, branches, agentsOf(st), st instanceof RunStmt r ? r.getTaskName() : null));
-            for (String from : current) {
-                edges.add(new WorkflowTrace.Edge(from, id, label));
-            }
-            label = null;
-            List<String> inner = new ArrayList<>(ancestors);
-            if (st instanceof AltStmt alt) {
-                inner.add(id);
-                java.util.Map<String, String> thenB = new java.util.HashMap<>(branches);
-                thenB.put(id, "then");
-                java.util.Map<String, String> elseB = new java.util.HashMap<>(branches);
-                elseB.put(id, "else");
-                List<String> thenExit =
-                        alt.getIfBranch().isEmpty()
-                                ? List.of(id)
-                                : block(alt.getIfBranch(), List.of(id), inner, thenB, "then");
-                List<String> elseExit =
-                        alt.getElseBranch().isEmpty()
-                                ? List.of(id)
-                                : block(alt.getElseBranch(), List.of(id), inner, elseB, "else");
-                List<String> exits = new ArrayList<>(thenExit);
-                exits.addAll(elseExit);
-                current = exits;
-            } else if (st instanceof LoopStmt loop) {
-                inner.add(id);
-                List<String> bodyExit = block(loop.getBody(), List.of(id), inner, branches, null);
-                for (String b : bodyExit) {
-                    if (!b.equals(id)) {
-                        edges.add(new WorkflowTrace.Edge(b, id, "again"));
-                    }
-                }
-                current = List.of(id);
-            } else {
-                current = List.of(id);
-            }
+    /**
+     * The node's settings plus where it sits ({@code parent}, {@code branch}). A trace node has no field for the
+     * block it is in, and the report needs it to fold large blocks, so it travels with the settings.
+     */
+    private static Map<String, Object> withPlacement(GraphNode node) {
+        if (node.parent() == null) {
+            return node.attrs();
         }
-        return current;
+        Map<String, Object> merged = new LinkedHashMap<>(node.attrs());
+        merged.put("parent", node.parent());
+        if (node.branch() != null) {
+            merged.put("branch", node.branch());
+        }
+        return merged;
     }
 
-    /** The agents a parallel block delegates to: its node stands for the whole round. */
-    private static java.util.Set<String> agentsOf(Statement st) {
-        java.util.Set<String> out = new java.util.LinkedHashSet<>();
-        if (st instanceof ParallelStmt p) {
-            for (Statement c : p.getBody()) {
-                if (c instanceof DelegateStmt d) {
-                    out.add(d.getTargetAgent());
+    /** Walks up from a node through the blocks it is inside of, outermost first. */
+    private static Slot slot(WorkflowTrace.Node mapped, GraphNode node, Map<String, GraphNode> byId) {
+        List<String> ancestors = new ArrayList<>();
+        Map<String, String> branches = new HashMap<>();
+        GraphNode child = node;
+        while (child.parent() != null) {
+            GraphNode parent = byId.get(child.parent());
+            if (BLOCK_KINDS.contains(parent.kind()) && !HANDLER_BRANCHES.contains(child.branch())) {
+                ancestors.add(0, parent.id());
+                if (Kinds.ALT.equals(parent.kind())) {
+                    branches.put(parent.id(), child.branch());
                 }
             }
+            child = parent;
         }
-        return out;
-    }
-
-    private static WorkflowTrace.Node nodeFor(String id, Statement st) {
-        if (st instanceof DelegateStmt d) {
-            return new WorkflowTrace.Node(
-                    id, "delegate", "delegate " + d.getTargetAgent(), d.getTargetAgent(), null);
+        Set<String> agents = new LinkedHashSet<>();
+        if (node.attrs().get("agents") instanceof List<?> list) {
+            list.forEach(a -> agents.add(String.valueOf(a)));
         }
-        if (st instanceof RunStmt r) {
-            // a deterministic step: plain code, no agent
-            return new WorkflowTrace.Node(id, "task", "run " + r.getTaskName(), null, null);
-        }
-        if (st instanceof HandoffStmt h) {
-            return new WorkflowTrace.Node(
-                    id, "handoff", "handoff " + h.getTargetAgent(), h.getTargetAgent(), null);
-        }
-        if (st instanceof AltStmt a) {
-            return new WorkflowTrace.Node(id, "alt", cut(a.getCondition()) + "?", null, null);
-        }
-        if (st instanceof LoopStmt l) {
-            return new WorkflowTrace.Node(
-                    id,
-                    "loop",
-                    "loop until " + cut(l.getCondition()),
-                    null,
-                    l.getMaxIterations() > 0 ? l.getMaxIterations() : null);
-        }
-        if (st instanceof HumanPromptStmt) {
-            return new WorkflowTrace.Node(id, "human_prompt", "ask a person", null, null);
-        }
-        if (st instanceof CheckpointStmt c) {
-            return new WorkflowTrace.Node(
-                    id, "checkpoint", "checkpoint " + c.getName(), null, null);
-        }
-        if (st instanceof ParallelStmt) {
-            return new WorkflowTrace.Node(
-                    id, "parallel", "in parallel: " + String.join(", ", agentsOf(st)), null, null);
-        }
-        return new WorkflowTrace.Node(
-                id,
-                "statement",
-                st.getClass()
-                        .getSimpleName()
-                        .replace("Stmt", "")
-                        .toLowerCase(java.util.Locale.ROOT),
-                null,
-                null);
-    }
-
-    private static String cut(String s) {
-        if (s == null) {
-            return "";
-        }
-        return s.length() > 60 ? s.substring(0, 60) + "…" : s;
+        Object task = node.attrs().get("task");
+        return new Slot(mapped, ancestors, branches, agents, task == null ? null : String.valueOf(task));
     }
 }

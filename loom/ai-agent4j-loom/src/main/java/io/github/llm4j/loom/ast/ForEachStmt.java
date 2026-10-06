@@ -6,7 +6,7 @@ import java.util.List;
  * {@code for each item in list.path { ... }} — runs the body once per element, with {@code item}
  * bound to the element. {@code parallel for each} runs the iterations concurrently.
  */
-public class ForEachStmt implements Statement {
+public class ForEachStmt extends LocatedStatement {
     private final String itemName;
     private final String collectionPath;
     private final List<Statement> body;

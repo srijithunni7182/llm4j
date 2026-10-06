@@ -3,7 +3,7 @@ package io.github.llm4j.loom.ast;
 import java.util.ArrayList;
 import java.util.List;
 
-public class AltStmt implements Statement {
+public class AltStmt extends LocatedStatement {
     private final String condition;
     private final List<Statement> ifBranch = new ArrayList<>();
     private final List<Statement> elseBranch = new ArrayList<>();

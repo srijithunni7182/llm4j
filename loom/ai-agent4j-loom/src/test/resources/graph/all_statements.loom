@@ -1,0 +1,58 @@
+// every statement kind, each with the attributes the graph shows as chips
+agent Researcher { model: "gpt-4" }
+agent Copywriter { model: "gpt-4" }
+agent Critic { model: "gpt-4" output_schema: { choice: string, reasoning: string } }
+
+decision Refund {
+    proposed by:       Critic
+    choices:           approve, reject
+    ask:               support-lead
+    trust {
+        start at watch
+        never go above act
+        to suggest: after 5 cases, agreeing at least 50%
+        moving up is automatic
+    }
+}
+
+workflow Everything(topic) {
+    checkpoint collected starting with feedback = "none", round = "1"
+    delegate "Research {topic}" to Researcher -> research retry 3 backoff 2s timeout 90s budget 5000 tokens
+    run RefundPolicy(amount = 40) -> verdict retry 2 timeout 30s
+    broadcast "Review {research}" to [Critic, Copywriter] -> reviews budget 3000 tokens
+    parallel {
+        delegate "Draft A" to Copywriter -> a
+        delegate "Draft B" to Copywriter -> b
+    }
+    human_prompt "Approve?" -> approval
+    alt (approval == "yes") {
+        note "Approved"
+    } else {
+        observe "Rejected" {approval}
+    }
+    loop until (done == "yes") max 3 budget 2000 tokens {
+        delegate "Revise" to Copywriter -> draft
+    } on_exhausted {
+        note "gave up"
+    }
+    for each doc in docs {
+        delegate "Read {doc}" to Researcher -> out
+    }
+    parallel for each doc in docs budget 800 tokens {
+        delegate "Skim {doc}" to Researcher -> s
+    }
+    guardrail (PII) {
+        note "inside"
+    } on_violation {
+        note "blocked"
+    }
+    decide Refund -> choice
+    call Helper(topic = topic) -> helped
+    delegate "Review {draft}" to Critic -> review expecting { score: number, notes: string }
+    rewind to collected when (review.score < 7) at most 2 times carrying feedback = "{review.notes}"
+    handoff "escalate" to Critic
+}
+
+workflow Helper(topic) {
+    note "helping"
+}

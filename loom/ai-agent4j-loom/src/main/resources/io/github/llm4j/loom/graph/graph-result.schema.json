@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/srijithunni7182/llm4j/loom/graph-result.schema.json",
+  "title": "weave graph result (version 1)",
+  "description": "The workflows of a Loom script and its imports as nodes and edges, with the settings written on each statement.",
+  "type": "object",
+  "required": ["version", "entry", "files", "workflows", "agents", "diagnostics"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "entry": { "type": "string" },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "imports"],
+        "additionalProperties": false,
+        "properties": {
+          "path": { "type": "string" },
+          "imports": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "workflows": { "type": "array", "items": { "$ref": "#/$defs/workflow" } },
+    "agents": { "type": "array", "items": { "$ref": "#/$defs/agent" } },
+    "runBudget": { "$ref": "#/$defs/budget" },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "file", "line", "message"],
+        "additionalProperties": false,
+        "properties": {
+          "severity": { "enum": ["error", "warning"] },
+          "file": { "type": "string" },
+          "line": { "type": "integer", "minimum": 0 },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "required": ["file", "line"],
+      "additionalProperties": false,
+      "properties": { "file": { "type": "string" }, "line": { "type": "integer", "minimum": 1 } }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tokens": { "type": "integer" },
+        "calls": { "type": "integer" },
+        "cost": { "type": "string" },
+        "perCall": { "type": "integer" },
+        "warnAt": { "type": "number" },
+        "window": { "enum": ["minute", "hour", "day"] },
+        "whenExhausted": { "enum": ["stop", "suspend", "ask"] }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "required": ["name", "file", "params", "nodes", "edges"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "file": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "params": { "type": "array", "items": { "type": "string" } },
+        "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" } },
+        "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "kind", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "kind": {
+          "enum": ["start", "end", "delegate", "task", "handoff", "broadcast", "parallel", "alt", "loop", "foreach",
+                   "human_prompt", "checkpoint", "rewind", "call", "guardrail", "decide", "observe", "note", "unknown"]
+        },
+        "label": { "type": "string" },
+        "agent": { "type": "string" },
+        "bound": { "type": "integer", "minimum": 1 },
+        "source": { "$ref": "#/$defs/source" },
+        "call": {
+          "type": "object",
+          "required": ["workflow"],
+          "additionalProperties": false,
+          "properties": { "workflow": { "type": "string" }, "file": { "type": "string" } }
+        },
+        "unresolved": { "const": true },
+        "parent": { "type": "string" },
+        "branch": { "type": "string" },
+        "attrs": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" },
+            "variable": { "type": "string" },
+            "condition": { "type": "string" },
+            "retry": { "type": "integer", "minimum": 1 },
+            "backoffMs": { "type": "integer", "minimum": 1 },
+            "timeoutMs": { "type": "integer", "minimum": 1 },
+            "expecting": { "type": "string" },
+            "budget": { "$ref": "#/$defs/budget" },
+            "agents": { "type": "array", "items": { "type": "string" } },
+            "branches": { "type": "integer", "minimum": 1 },
+            "args": { "type": "integer", "minimum": 1 },
+            "task": { "type": "string" },
+            "item": { "type": "string" },
+            "collection": { "type": "string" },
+            "parallel": { "const": true },
+            "name": { "type": "string" },
+            "startingWith": { "type": "object", "additionalProperties": { "type": "string" } },
+            "target": { "type": "string" },
+            "atMost": { "type": "integer", "minimum": 1 },
+            "effects": { "enum": ["ask first", "keep", "repeat"] },
+            "carrying": { "type": "object", "additionalProperties": { "type": "string" } },
+            "type": { "type": "string" },
+            "decision": { "type": "string" },
+            "level": { "enum": ["watch", "suggest", "act"] }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "required": ["from", "to"],
+      "additionalProperties": false,
+      "properties": { "from": { "type": "string" }, "to": { "type": "string" }, "label": { "type": "string" } }
+    },
+    "agent": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "model": { "type": "string" },
+        "temperature": { "type": "number" },
+        "persona": { "type": "string" },
+        "tools": { "type": "array", "items": { "type": "string" } },
+        "mcp": { "type": "array", "items": { "type": "string" } },
+        "skills": { "type": "array", "items": { "type": "string" } },
+        "knowledge": { "type": "array", "items": { "type": "string" } },
+        "approve": { "type": "array", "items": { "type": "string" } },
+        "approveAll": { "const": true },
+        "budget": { "$ref": "#/$defs/budget" },
+        "maxIterations": { "type": "integer" },
+        "source": { "$ref": "#/$defs/source" }
+      }
+    }
+  }
+}

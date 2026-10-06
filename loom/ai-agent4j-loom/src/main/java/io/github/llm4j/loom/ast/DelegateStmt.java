@@ -3,7 +3,7 @@ package io.github.llm4j.loom.ast;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DelegateStmt implements Statement {
+public class DelegateStmt extends LocatedStatement {
     private final String payload;
     private final String targetAgent;
     private final String variableName;

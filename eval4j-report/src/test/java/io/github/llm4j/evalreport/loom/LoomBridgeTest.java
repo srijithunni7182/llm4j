@@ -102,7 +102,7 @@ class LoomBridgeTest {
                         "n2->n3:then",
                         "n2->n5:else",
                         "n4->n3:again",
-                        "n3->n6",
+                        "n3->n6:done",
                         "n5->n6",
                         "n6->end");
     }

@@ -15,6 +15,7 @@ public class LoomScript implements Node {
     private final List<PersonaDef> personas = new ArrayList<>();
     private final List<DecisionDef> decisions = new ArrayList<>();
     private final List<String> imports = new ArrayList<>();
+    private final List<Integer> importLines = new ArrayList<>();
     private AuditConfig auditConfig;
     private BudgetDef budget;
     private RateLimitDef rateLimits;
@@ -61,7 +62,13 @@ public class LoomScript implements Node {
     /** Decisions declared with {@code decision Name { … }}. */
     public List<DecisionDef> getDecisions() { return decisions; }
 
-    public void addImport(String path) { this.imports.add(path); }
+    public void addImport(String path) { addImport(path, 0); }
+    public void addImport(String path, int line) {
+        this.imports.add(path);
+        this.importLines.add(line);
+    }
+    /** The line of each import, in the order of {@link #getImports()}; 0 when unknown. */
+    public List<Integer> getImportLines() { return importLines; }
     public List<String> getImports() { return imports; }
 
     public void setAuditConfig(AuditConfig auditConfig) { this.auditConfig = auditConfig; }

@@ -1,0 +1,35 @@
+.lg-edge{fill:none;stroke:var(--lg-edge,#68708c);stroke-width:1.5;stroke-linejoin:round}
+.lg-edge.lg-dash{stroke-dasharray:5 4}
+.lg-edge.lg-trav{stroke:var(--lg-ink,var(--lg-fg,#1d2130));stroke-width:2.6}
+.lg-edge.lg-untrav{opacity:.45}
+.lg-elabel rect{fill:var(--lg-surface,#fff);stroke:var(--lg-line,#d6d9e5)}
+.lg-elabel text{fill:var(--lg-muted,#5a6177);font:10.5px var(--lg-mono,ui-monospace,Menlo,monospace);text-anchor:middle}
+.lg-arrow{fill:var(--lg-edge,#68708c)}
+.lg-node{cursor:pointer;outline:none}
+.lg-node.lg-agent{--k:var(--lg-blue,#2765cf)}.lg-node.lg-task{--k:var(--lg-teal,#0b827a)}.lg-node.lg-par{--k:var(--lg-green,#2a7f38)}
+.lg-node.lg-alt{--k:var(--lg-amber,#955f00)}.lg-node.lg-loop{--k:var(--lg-violet,#7140d0)}.lg-node.lg-call{--k:var(--lg-magenta,#b02c82)}
+.lg-node.lg-human{--k:var(--lg-orange,#c4501a)}.lg-node.lg-misc{--k:var(--lg-grey,#5f6678)}.lg-node.lg-bad{--k:var(--lg-red,#c93232)}
+.lg-shape{fill:color-mix(in srgb,var(--k) 12%,var(--lg-surface,#fff));stroke:var(--k);stroke-width:1.5}
+.lg-dashed .lg-shape{stroke-dasharray:5 3}
+.lg-node.lg-sel .lg-shape,.lg-node:focus-visible .lg-shape{stroke:var(--lg-sel,#5a54e0);stroke-width:3}
+.lg-bar{fill:var(--k)}.lg-dbl{stroke:var(--k);stroke-width:1.2;fill:none}
+.lg-title{fill:var(--lg-fg,#1d2130);font:600 12.5px var(--lg-font,system-ui,sans-serif)}
+.lg-sub{fill:var(--lg-muted,#5a6177);font:11px var(--lg-font,system-ui,sans-serif)}
+.lg-glyph{stroke:var(--k);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.lg-glyph .fill{fill:var(--k)}
+.lg-chipbox{fill:var(--lg-chip-bg,#eceff7);stroke:var(--lg-chip-line,#cfd4e3)}
+.lg-chiptx{fill:var(--lg-muted,#5a6177);font:10px var(--lg-mono,ui-monospace,Menlo,monospace)}
+.lg-chip-budget .lg-chipbox{stroke:var(--lg-amber,#955f00)}.lg-chip-budget .lg-chiptx{fill:var(--lg-amber,#955f00)}
+.lg-chip-warn .lg-chipbox{stroke:var(--lg-red,#c93232)}.lg-chip-warn .lg-chiptx{fill:var(--lg-red,#c93232)}
+.lg-chip-toggle .lg-chipbox{stroke:var(--lg-sel,#5a54e0)}.lg-chip-toggle .lg-chiptx{fill:var(--lg-sel,#5a54e0)}
+.lg-chip-muted .lg-chiptx{opacity:.7}
+.lg-chip-toggle{cursor:pointer}
+.lg-approve{--k:var(--lg-orange,#c4501a)}
+.lg-dim{opacity:.45}
+.lg-state-ok .lg-markbox{fill:var(--lg-good,#2a7f38)}.lg-state-taken .lg-markbox{fill:var(--lg-muted,#5a6177)}
+.lg-state-missed .lg-markbox,.lg-state-unexpected .lg-markbox{fill:var(--lg-surface,#fff)}
+.lg-state-missed .lg-markline{stroke:var(--lg-red,#c93232)}.lg-state-missed .lg-marktx{fill:var(--lg-red,#c93232)}
+.lg-state-unexpected .lg-markline{stroke:var(--lg-amber,#955f00)}.lg-state-unexpected .lg-marktx{fill:var(--lg-amber,#955f00)}
+.lg-state-ok .lg-marktx,.lg-state-taken .lg-marktx{fill:var(--lg-on-mark,#fff)}
+.lg-state-missed .lg-shape{stroke-dasharray:5 3;fill:var(--lg-surface,#fff)}.lg-state-unexpected .lg-shape{stroke:var(--lg-amber,#955f00);stroke-width:2.4}
+.lg-markline{fill:none;stroke-width:1.2}.lg-marktx{font:600 10px var(--lg-font,system-ui,sans-serif)}
+.lg-toggle{cursor:pointer}.lg-toggle circle{fill:var(--lg-surface,#fff);stroke:var(--lg-sel,#5a54e0)}.lg-toggle text{fill:var(--lg-sel,#5a54e0);font:700 11px var(--lg-font,system-ui,sans-serif);text-anchor:middle}

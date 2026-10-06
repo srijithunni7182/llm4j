@@ -1,0 +1,18 @@
+%% workflow GenerateContent
+flowchart TD
+  start(["Start"])
+  n1["delegate Researcher"]
+  n2["in parallel: Copywriter"]
+  n3[/"ask a person"/]
+  n4{{"approval==yes?"}}
+  n5["note"]
+  n6["note"]
+  end_(["End"])
+  start --> n1
+  n1 --> n2
+  n2 --> n3
+  n3 --> n4
+  n4 -->|then| n5
+  n4 -->|else| n6
+  n5 --> end_
+  n6 --> end_

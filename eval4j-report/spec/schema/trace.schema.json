@@ -39,23 +39,24 @@
           "properties": {
             "nodes": {
               "type": "array",
-              "maxItems": 500,
+              "maxItems": 2000,
               "items": {
                 "type": "object",
                 "required": ["id", "kind"],
                 "properties": {
                   "id": { "type": "string", "maxLength": 64 },
-                  "kind": { "enum": ["start", "end", "delegate", "task", "alt", "loop", "handoff", "human_prompt", "parallel", "checkpoint"] },
+                  "kind": { "enum": ["start", "end", "delegate", "task", "alt", "loop", "handoff", "human_prompt", "parallel", "checkpoint", "broadcast", "foreach", "rewind", "call", "guardrail", "decide", "observe", "note", "unknown", "statement"] },
                   "label": { "type": "string", "maxLength": 200 },
                   "agent": { "type": ["string", "null"], "maxLength": 128 },
-                  "bound": { "type": ["integer", "null"], "minimum": 1, "description": "For loops: the declared maximum iterations." }
+                  "bound": { "type": ["integer", "null"], "minimum": 1, "description": "For loops: the declared maximum iterations." },
+                  "attrs": { "type": "object", "description": "Settings written on the statement (retry, timeout, budget, ...) and, for a step inside a block, its parent step and branch. Optional; absent when none." }
                 },
                 "additionalProperties": true
               }
             },
             "edges": {
               "type": "array",
-              "maxItems": 2000,
+              "maxItems": 8000,
               "items": {
                 "type": "object",
                 "required": ["from", "to"],

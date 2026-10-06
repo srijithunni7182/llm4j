@@ -1,0 +1,15 @@
+%% workflow EvaluateProposal
+flowchart TD
+  start(["Start"])
+  n1["observe Proposal Ingested"]
+  n2["in parallel: CFO, CTO"]
+  n3["observe Analyses Complete"]
+  n4["delegate CEO"]
+  n5["handoff CEO"]
+  end_(["End"])
+  start --> n1
+  n1 --> n2
+  n2 --> n3
+  n3 --> n4
+  n4 --> n5
+  n5 --> end_

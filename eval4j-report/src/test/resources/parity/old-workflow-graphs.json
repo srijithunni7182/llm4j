@@ -1,0 +1,3712 @@
+{
+  "examples/getviral/src/main/resources/getviral/getviral.loom#GetViral" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "observe",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "statement",
+      "label" : "guardrail",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "examples/hexamind-hub/eval/hexamind.loom#Collaborate" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "observe",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "parallel",
+      "label" : "in parallel: Alex, Jordan, Sasha, Aris, Casey, Rahul",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "checkpoint",
+      "label" : "checkpoint round1",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "delegate",
+      "label" : "delegate Moderator",
+      "agent" : "Moderator",
+      "bound" : null
+    }, {
+      "id" : "n5",
+      "kind" : "alt",
+      "label" : "fabcheck.fabricated==YES?",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n6",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n7",
+      "kind" : "delegate",
+      "label" : "delegate Debunker",
+      "agent" : "Debunker",
+      "bound" : null
+    }, {
+      "id" : "n8",
+      "kind" : "parallel",
+      "label" : "in parallel: Alex, Jordan, Sasha, Aris, Casey, Rahul",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n9",
+      "kind" : "parallel",
+      "label" : "in parallel: Alex, Jordan, Sasha, Aris, Casey, Rahul",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n10",
+      "kind" : "parallel",
+      "label" : "in parallel: Alex, Jordan, Sasha, Aris, Casey, Rahul",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n11",
+      "kind" : "parallel",
+      "label" : "in parallel: Alex, Jordan, Sasha, Aris, Casey, Rahul",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n12",
+      "kind" : "delegate",
+      "label" : "delegate Coordinator",
+      "agent" : "Coordinator",
+      "bound" : null
+    }, {
+      "id" : "n13",
+      "kind" : "statement",
+      "label" : "observe",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n14",
+      "kind" : "handoff",
+      "label" : "handoff Coordinator",
+      "agent" : "Coordinator",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "n5",
+      "label" : null
+    }, {
+      "from" : "n5",
+      "to" : "n6",
+      "label" : "then"
+    }, {
+      "from" : "n6",
+      "to" : "n7",
+      "label" : null
+    }, {
+      "from" : "n5",
+      "to" : "n8",
+      "label" : "else"
+    }, {
+      "from" : "n8",
+      "to" : "n9",
+      "label" : null
+    }, {
+      "from" : "n9",
+      "to" : "n10",
+      "label" : null
+    }, {
+      "from" : "n10",
+      "to" : "n11",
+      "label" : null
+    }, {
+      "from" : "n11",
+      "to" : "n12",
+      "label" : null
+    }, {
+      "from" : "n7",
+      "to" : "n13",
+      "label" : null
+    }, {
+      "from" : "n12",
+      "to" : "n13",
+      "label" : null
+    }, {
+      "from" : "n13",
+      "to" : "n14",
+      "label" : null
+    }, {
+      "from" : "n14",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "examples/hexamind-hub/eval/hexamind.loom#Refine" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "parallel",
+      "label" : "in parallel: Alex, Jordan, Sasha, Aris, Casey, Rahul",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Coordinator",
+      "agent" : "Coordinator",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "handoff",
+      "label" : "handoff Coordinator",
+      "agent" : "Coordinator",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "examples/tantrik-console/loom-scripts/examples/code-review.loom#CodeReview" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "parallel",
+      "label" : "in parallel: CorrectnessReviewer, SecurityReviewer, PerformanceReviewer",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate ReviewConsolidator",
+      "agent" : "ReviewConsolidator",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "examples/tantrik-console/loom-scripts/examples/content-pipeline.loom#ContentPipeline" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Ideator",
+      "agent" : "Ideator",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Writer",
+      "agent" : "Writer",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "parallel",
+      "label" : "in parallel: Editor, SEOOptimizer",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "examples/tantrik-console/loom-scripts/examples/data-analysis.loom#DataAnalysis" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate DataAnalyst",
+      "agent" : "DataAnalyst",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate StatisticsExpert",
+      "agent" : "StatisticsExpert",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "delegate",
+      "label" : "delegate ReportWriter",
+      "agent" : "ReportWriter",
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "examples/tantrik-console/loom-scripts/examples/mock-demo.loom#MockDemo" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Planner",
+      "agent" : "Planner",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Executor",
+      "agent" : "Executor",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "examples/tantrik-console/loom-scripts/examples/research-summarizer.loom#ResearchAndSummarize" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Researcher",
+      "agent" : "Researcher",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Summarizer",
+      "agent" : "Summarizer",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "examples/tantrik-console/loom-scripts/sdlc/autonomous-dev-cycle.loom#AutonomousDevelopmentCycle" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate BusinessAnalyst",
+      "agent" : "BusinessAnalyst",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "delegate",
+      "label" : "delegate Architect",
+      "agent" : "Architect",
+      "bound" : null
+    }, {
+      "id" : "n5",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n6",
+      "kind" : "parallel",
+      "label" : "in parallel: TestArchitect, TechLead",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n7",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n8",
+      "kind" : "parallel",
+      "label" : "in parallel: SoftwareEngineer",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n9",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n10",
+      "kind" : "delegate",
+      "label" : "delegate BuildEngineer",
+      "agent" : "BuildEngineer",
+      "bound" : null
+    }, {
+      "id" : "n11",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n12",
+      "kind" : "parallel",
+      "label" : "in parallel: Reviewer, QA",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n13",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n14",
+      "kind" : "delegate",
+      "label" : "delegate SoftwareEngineer",
+      "agent" : "SoftwareEngineer",
+      "bound" : null
+    }, {
+      "id" : "n15",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n16",
+      "kind" : "handoff",
+      "label" : "handoff Terminal",
+      "agent" : "Terminal",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "n5",
+      "label" : null
+    }, {
+      "from" : "n5",
+      "to" : "n6",
+      "label" : null
+    }, {
+      "from" : "n6",
+      "to" : "n7",
+      "label" : null
+    }, {
+      "from" : "n7",
+      "to" : "n8",
+      "label" : null
+    }, {
+      "from" : "n8",
+      "to" : "n9",
+      "label" : null
+    }, {
+      "from" : "n9",
+      "to" : "n10",
+      "label" : null
+    }, {
+      "from" : "n10",
+      "to" : "n11",
+      "label" : null
+    }, {
+      "from" : "n11",
+      "to" : "n12",
+      "label" : null
+    }, {
+      "from" : "n12",
+      "to" : "n13",
+      "label" : null
+    }, {
+      "from" : "n13",
+      "to" : "n14",
+      "label" : null
+    }, {
+      "from" : "n14",
+      "to" : "n15",
+      "label" : null
+    }, {
+      "from" : "n15",
+      "to" : "n16",
+      "label" : null
+    }, {
+      "from" : "n16",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "examples/tantrik-console/tantrik-console-server/loom-scripts/examples/code-review.loom#CodeReview" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "parallel",
+      "label" : "in parallel: CorrectnessReviewer, SecurityReviewer, PerformanceReviewer",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate ReviewConsolidator",
+      "agent" : "ReviewConsolidator",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "examples/tantrik-console/tantrik-console-server/loom-scripts/examples/content-pipeline.loom#ContentPipeline" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Ideator",
+      "agent" : "Ideator",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Writer",
+      "agent" : "Writer",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "parallel",
+      "label" : "in parallel: Editor, SEOOptimizer",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "examples/tantrik-console/tantrik-console-server/loom-scripts/examples/data-analysis.loom#DataAnalysis" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate DataAnalyst",
+      "agent" : "DataAnalyst",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate StatisticsExpert",
+      "agent" : "StatisticsExpert",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "delegate",
+      "label" : "delegate ReportWriter",
+      "agent" : "ReportWriter",
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "examples/tantrik-console/tantrik-console-server/loom-scripts/examples/mock-demo.loom#MockDemo" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Planner",
+      "agent" : "Planner",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Executor",
+      "agent" : "Executor",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "examples/tantrik-console/tantrik-console-server/loom-scripts/examples/research-summarizer.loom#ResearchAndSummarize" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Researcher",
+      "agent" : "Researcher",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Summarizer",
+      "agent" : "Summarizer",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "examples/tantrik-console/tantrik-console-server/loom-scripts/sdlc/autonomous-dev-cycle.loom#AutonomousDevelopmentCycle" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate BusinessAnalyst",
+      "agent" : "BusinessAnalyst",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "delegate",
+      "label" : "delegate Architect",
+      "agent" : "Architect",
+      "bound" : null
+    }, {
+      "id" : "n5",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n6",
+      "kind" : "parallel",
+      "label" : "in parallel: TestArchitect, TechLead",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n7",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n8",
+      "kind" : "parallel",
+      "label" : "in parallel: SoftwareEngineer",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n9",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n10",
+      "kind" : "delegate",
+      "label" : "delegate BuildEngineer",
+      "agent" : "BuildEngineer",
+      "bound" : null
+    }, {
+      "id" : "n11",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n12",
+      "kind" : "parallel",
+      "label" : "in parallel: Reviewer, QA",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n13",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n14",
+      "kind" : "delegate",
+      "label" : "delegate SoftwareEngineer",
+      "agent" : "SoftwareEngineer",
+      "bound" : null
+    }, {
+      "id" : "n15",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n16",
+      "kind" : "handoff",
+      "label" : "handoff Terminal",
+      "agent" : "Terminal",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "n5",
+      "label" : null
+    }, {
+      "from" : "n5",
+      "to" : "n6",
+      "label" : null
+    }, {
+      "from" : "n6",
+      "to" : "n7",
+      "label" : null
+    }, {
+      "from" : "n7",
+      "to" : "n8",
+      "label" : null
+    }, {
+      "from" : "n8",
+      "to" : "n9",
+      "label" : null
+    }, {
+      "from" : "n9",
+      "to" : "n10",
+      "label" : null
+    }, {
+      "from" : "n10",
+      "to" : "n11",
+      "label" : null
+    }, {
+      "from" : "n11",
+      "to" : "n12",
+      "label" : null
+    }, {
+      "from" : "n12",
+      "to" : "n13",
+      "label" : null
+    }, {
+      "from" : "n13",
+      "to" : "n14",
+      "label" : null
+    }, {
+      "from" : "n14",
+      "to" : "n15",
+      "label" : null
+    }, {
+      "from" : "n15",
+      "to" : "n16",
+      "label" : null
+    }, {
+      "from" : "n16",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/samples/boardroom/main.loom#EvaluateProposal" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "observe",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "parallel",
+      "label" : "in parallel: CFO, CTO",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "statement",
+      "label" : "observe",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "delegate",
+      "label" : "delegate CEO",
+      "agent" : "CEO",
+      "bound" : null
+    }, {
+      "id" : "n5",
+      "kind" : "handoff",
+      "label" : "handoff CEO",
+      "agent" : "CEO",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "n5",
+      "label" : null
+    }, {
+      "from" : "n5",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/samples/content_factory/main.loom#GenerateContent" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Researcher",
+      "agent" : "Researcher",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "parallel",
+      "label" : "in parallel: Copywriter",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "human_prompt",
+      "label" : "ask a person",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "alt",
+      "label" : "approval==yes?",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n5",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n6",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "n5",
+      "label" : "then"
+    }, {
+      "from" : "n4",
+      "to" : "n6",
+      "label" : "else"
+    }, {
+      "from" : "n5",
+      "to" : "end",
+      "label" : null
+    }, {
+      "from" : "n6",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/samples/digest/core.loom#DailyDigest" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Collector",
+      "agent" : "Collector",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Writer",
+      "agent" : "Writer",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "delegate",
+      "label" : "delegate Notifier",
+      "agent" : "Notifier",
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/samples/digest/digest-slack.loom#DailyDigest" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Collector",
+      "agent" : "Collector",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Writer",
+      "agent" : "Writer",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "delegate",
+      "label" : "delegate Notifier",
+      "agent" : "Notifier",
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/samples/digest/digest-slack.loom#DailyDigestWithSlack" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "call",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Pinger",
+      "agent" : "Pinger",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/samples/digest/digest.loom#DailyDigest" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Collector",
+      "agent" : "Collector",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Writer",
+      "agent" : "Writer",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "delegate",
+      "label" : "delegate Notifier",
+      "agent" : "Notifier",
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/concurrency-test.loom#ConcurrencyTest" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "observe",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "parallel",
+      "label" : "in parallel: FastWorker",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "statement",
+      "label" : "observe",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/docs/depth_examples.loom#Main" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Helpline",
+      "agent" : "Helpline",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/docs/readme_examples.loom#Main" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "loop",
+      "label" : "loop until review.verdict==COMPLETE",
+      "agent" : null,
+      "bound" : 5
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Lead",
+      "agent" : "Lead",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "statement",
+      "label" : "foreach",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "delegate",
+      "label" : "delegate Writer",
+      "agent" : "Writer",
+      "bound" : null
+    }, {
+      "id" : "n5",
+      "kind" : "delegate",
+      "label" : "delegate Showrunner",
+      "agent" : "Showrunner",
+      "bound" : null
+    }, {
+      "id" : "n6",
+      "kind" : "statement",
+      "label" : "foreach",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n7",
+      "kind" : "delegate",
+      "label" : "delegate Writer",
+      "agent" : "Writer",
+      "bound" : null
+    }, {
+      "id" : "n8",
+      "kind" : "loop",
+      "label" : "loop until critique.verdict==OK",
+      "agent" : null,
+      "bound" : 5
+    }, {
+      "id" : "n9",
+      "kind" : "delegate",
+      "label" : "delegate Critic",
+      "agent" : "Critic",
+      "bound" : null
+    }, {
+      "id" : "n10",
+      "kind" : "alt",
+      "label" : "_budget.remaining<20000?",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n11",
+      "kind" : "delegate",
+      "label" : "delegate CheapWriter",
+      "agent" : "CheapWriter",
+      "bound" : null
+    }, {
+      "id" : "n12",
+      "kind" : "delegate",
+      "label" : "delegate Writer",
+      "agent" : "Writer",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n1",
+      "label" : "again"
+    }, {
+      "from" : "n1",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "n5",
+      "label" : null
+    }, {
+      "from" : "n5",
+      "to" : "n6",
+      "label" : null
+    }, {
+      "from" : "n6",
+      "to" : "n7",
+      "label" : null
+    }, {
+      "from" : "n7",
+      "to" : "n8",
+      "label" : null
+    }, {
+      "from" : "n8",
+      "to" : "n9",
+      "label" : null
+    }, {
+      "from" : "n9",
+      "to" : "n8",
+      "label" : "again"
+    }, {
+      "from" : "n8",
+      "to" : "n10",
+      "label" : null
+    }, {
+      "from" : "n10",
+      "to" : "n11",
+      "label" : "then"
+    }, {
+      "from" : "n10",
+      "to" : "n12",
+      "label" : "else"
+    }, {
+      "from" : "n11",
+      "to" : "end",
+      "label" : null
+    }, {
+      "from" : "n12",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/docs/resume_examples.loom#DailyDigest" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Writer",
+      "agent" : "Writer",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/frontier-test.loom#InternalCheck" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Auditor",
+      "agent" : "Auditor",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "delegate",
+      "label" : "delegate Secretary",
+      "agent" : "Secretary",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/frontier-test.loom#Main" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "call",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "alt",
+      "label" : "auditResult==VULNERABLE?",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "delegate",
+      "label" : "delegate Secretary",
+      "agent" : "Secretary",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : "then"
+    }, {
+      "from" : "n2",
+      "to" : "n4",
+      "label" : "else"
+    }, {
+      "from" : "n3",
+      "to" : "end",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/all_statements.loom#Everything" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "checkpoint",
+      "label" : "checkpoint collected",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Researcher",
+      "agent" : "Researcher",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "task",
+      "label" : "run RefundPolicy",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "statement",
+      "label" : "broadcast",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n5",
+      "kind" : "parallel",
+      "label" : "in parallel: Copywriter",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n6",
+      "kind" : "human_prompt",
+      "label" : "ask a person",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n7",
+      "kind" : "alt",
+      "label" : "approval==yes?",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n8",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n9",
+      "kind" : "statement",
+      "label" : "observe",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n10",
+      "kind" : "loop",
+      "label" : "loop until done==yes",
+      "agent" : null,
+      "bound" : 3
+    }, {
+      "id" : "n11",
+      "kind" : "delegate",
+      "label" : "delegate Copywriter",
+      "agent" : "Copywriter",
+      "bound" : null
+    }, {
+      "id" : "n12",
+      "kind" : "statement",
+      "label" : "foreach",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n13",
+      "kind" : "statement",
+      "label" : "foreach",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n14",
+      "kind" : "statement",
+      "label" : "guardrail",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n15",
+      "kind" : "statement",
+      "label" : "decide",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n16",
+      "kind" : "statement",
+      "label" : "call",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n17",
+      "kind" : "delegate",
+      "label" : "delegate Critic",
+      "agent" : "Critic",
+      "bound" : null
+    }, {
+      "id" : "n18",
+      "kind" : "statement",
+      "label" : "rewind",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n19",
+      "kind" : "handoff",
+      "label" : "handoff Critic",
+      "agent" : "Critic",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "n5",
+      "label" : null
+    }, {
+      "from" : "n5",
+      "to" : "n6",
+      "label" : null
+    }, {
+      "from" : "n6",
+      "to" : "n7",
+      "label" : null
+    }, {
+      "from" : "n7",
+      "to" : "n8",
+      "label" : "then"
+    }, {
+      "from" : "n7",
+      "to" : "n9",
+      "label" : "else"
+    }, {
+      "from" : "n8",
+      "to" : "n10",
+      "label" : null
+    }, {
+      "from" : "n9",
+      "to" : "n10",
+      "label" : null
+    }, {
+      "from" : "n10",
+      "to" : "n11",
+      "label" : null
+    }, {
+      "from" : "n11",
+      "to" : "n10",
+      "label" : "again"
+    }, {
+      "from" : "n10",
+      "to" : "n12",
+      "label" : null
+    }, {
+      "from" : "n12",
+      "to" : "n13",
+      "label" : null
+    }, {
+      "from" : "n13",
+      "to" : "n14",
+      "label" : null
+    }, {
+      "from" : "n14",
+      "to" : "n15",
+      "label" : null
+    }, {
+      "from" : "n15",
+      "to" : "n16",
+      "label" : null
+    }, {
+      "from" : "n16",
+      "to" : "n17",
+      "label" : null
+    }, {
+      "from" : "n17",
+      "to" : "n18",
+      "label" : null
+    }, {
+      "from" : "n18",
+      "to" : "n19",
+      "label" : null
+    }, {
+      "from" : "n19",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/all_statements.loom#Helper" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/diamond/a.loom#D" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/diamond/a.loom#B" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "call",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/diamond/a.loom#C" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/diamond/a.loom#A" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "call",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "statement",
+      "label" : "call",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/diamond/b.loom#D" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/diamond/b.loom#B" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "call",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/diamond/c.loom#D" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/diamond/c.loom#C" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/diamond/d.loom#D" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/duplicate_names/main.loom#Shared" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/duplicate_names/main.loom#Main" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "call",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/duplicate_names/one.loom#Shared" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/duplicate_names/two.loom#Shared" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/handlers.loom#Handlers" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "checkpoint",
+      "label" : "checkpoint first",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Researcher",
+      "agent" : "Researcher",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "task",
+      "label" : "run Lookup",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "loop",
+      "label" : "loop until done==yes",
+      "agent" : null,
+      "bound" : 2
+    }, {
+      "id" : "n5",
+      "kind" : "delegate",
+      "label" : "delegate Writer",
+      "agent" : "Writer",
+      "bound" : null
+    }, {
+      "id" : "n6",
+      "kind" : "statement",
+      "label" : "guardrail",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n7",
+      "kind" : "statement",
+      "label" : "rewind",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n8",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "n5",
+      "label" : null
+    }, {
+      "from" : "n5",
+      "to" : "n4",
+      "label" : "again"
+    }, {
+      "from" : "n4",
+      "to" : "n6",
+      "label" : null
+    }, {
+      "from" : "n6",
+      "to" : "n7",
+      "label" : null
+    }, {
+      "from" : "n7",
+      "to" : "n8",
+      "label" : null
+    }, {
+      "from" : "n8",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/recursive.loom#A" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "call",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/undefined_agent.loom#W" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Ghost",
+      "agent" : "Ghost",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/graph/unresolved_call.loom#W" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "call",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/hexamind-debate.loom#Collaborate" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Analyst",
+      "agent" : "Analyst",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "delegate",
+      "label" : "delegate Critic",
+      "agent" : "Critic",
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n5",
+      "kind" : "delegate",
+      "label" : "delegate Analyst",
+      "agent" : "Analyst",
+      "bound" : null
+    }, {
+      "id" : "n6",
+      "kind" : "delegate",
+      "label" : "delegate Critic",
+      "agent" : "Critic",
+      "bound" : null
+    }, {
+      "id" : "n7",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n8",
+      "kind" : "delegate",
+      "label" : "delegate Analyst",
+      "agent" : "Analyst",
+      "bound" : null
+    }, {
+      "id" : "n9",
+      "kind" : "delegate",
+      "label" : "delegate Critic",
+      "agent" : "Critic",
+      "bound" : null
+    }, {
+      "id" : "n10",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n11",
+      "kind" : "delegate",
+      "label" : "delegate Critic",
+      "agent" : "Critic",
+      "bound" : null
+    }, {
+      "id" : "n12",
+      "kind" : "delegate",
+      "label" : "delegate Analyst",
+      "agent" : "Analyst",
+      "bound" : null
+    }, {
+      "id" : "n13",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n14",
+      "kind" : "delegate",
+      "label" : "delegate Analyst",
+      "agent" : "Analyst",
+      "bound" : null
+    }, {
+      "id" : "n15",
+      "kind" : "delegate",
+      "label" : "delegate Critic",
+      "agent" : "Critic",
+      "bound" : null
+    }, {
+      "id" : "n16",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n17",
+      "kind" : "delegate",
+      "label" : "delegate Synthesizer",
+      "agent" : "Synthesizer",
+      "bound" : null
+    }, {
+      "id" : "n18",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n19",
+      "kind" : "handoff",
+      "label" : "handoff Synthesizer",
+      "agent" : "Synthesizer",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "n5",
+      "label" : null
+    }, {
+      "from" : "n5",
+      "to" : "n6",
+      "label" : null
+    }, {
+      "from" : "n6",
+      "to" : "n7",
+      "label" : null
+    }, {
+      "from" : "n7",
+      "to" : "n8",
+      "label" : null
+    }, {
+      "from" : "n8",
+      "to" : "n9",
+      "label" : null
+    }, {
+      "from" : "n9",
+      "to" : "n10",
+      "label" : null
+    }, {
+      "from" : "n10",
+      "to" : "n11",
+      "label" : null
+    }, {
+      "from" : "n11",
+      "to" : "n12",
+      "label" : null
+    }, {
+      "from" : "n12",
+      "to" : "n13",
+      "label" : null
+    }, {
+      "from" : "n13",
+      "to" : "n14",
+      "label" : null
+    }, {
+      "from" : "n14",
+      "to" : "n15",
+      "label" : null
+    }, {
+      "from" : "n15",
+      "to" : "n16",
+      "label" : null
+    }, {
+      "from" : "n16",
+      "to" : "n17",
+      "label" : null
+    }, {
+      "from" : "n17",
+      "to" : "n18",
+      "label" : null
+    }, {
+      "from" : "n18",
+      "to" : "n19",
+      "label" : null
+    }, {
+      "from" : "n19",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/imports/child.loom#ChildWorkflow" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/imports/parent.loom#ChildWorkflow" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/imports/parent.loom#ParentWorkflow" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "call",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/routing-test.loom#RoutingTest" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "statement",
+      "label" : "broadcast",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "alt",
+      "label" : "ready==true?",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n5",
+      "kind" : "delegate",
+      "label" : "delegate WorkerA",
+      "agent" : "WorkerA",
+      "bound" : null
+    }, {
+      "id" : "n6",
+      "kind" : "delegate",
+      "label" : "delegate WorkerB",
+      "agent" : "WorkerB",
+      "bound" : null
+    }, {
+      "id" : "n7",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n8",
+      "kind" : "loop",
+      "label" : "loop until done==true",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n9",
+      "kind" : "human_prompt",
+      "label" : "ask a person",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "n5",
+      "label" : "then"
+    }, {
+      "from" : "n4",
+      "to" : "n6",
+      "label" : "else"
+    }, {
+      "from" : "n5",
+      "to" : "n7",
+      "label" : null
+    }, {
+      "from" : "n6",
+      "to" : "n7",
+      "label" : null
+    }, {
+      "from" : "n7",
+      "to" : "n8",
+      "label" : null
+    }, {
+      "from" : "n8",
+      "to" : "n9",
+      "label" : null
+    }, {
+      "from" : "n9",
+      "to" : "n8",
+      "label" : "again"
+    }, {
+      "from" : "n8",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/task/refund.loom#Refund" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate Intake",
+      "agent" : "Intake",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "task",
+      "label" : "run RefundPolicy",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "alt",
+      "label" : "verdict.outcome==approved?",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "task",
+      "label" : "run IssueRefund",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n5",
+      "kind" : "human_prompt",
+      "label" : "ask a person",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : "then"
+    }, {
+      "from" : "n3",
+      "to" : "n5",
+      "label" : "else"
+    }, {
+      "from" : "n4",
+      "to" : "end",
+      "label" : null
+    }, {
+      "from" : "n5",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/src/test/resources/tier2-test.loom#Tier2Test" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "statement",
+      "label" : "guardrail",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ai-agent4j-loom/test.loom#Main" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate EchoBot",
+      "agent" : "EchoBot",
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ctk/scripts/failing_test.loom#FailingTest" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "delegate",
+      "label" : "delegate TestAgent",
+      "agent" : "TestAgent",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ctk/scripts/simple_test.loom#SimpleTest" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ctk/scripts/task_basic.loom#main" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "task",
+      "label" : "run RefundPolicy",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "alt",
+      "label" : "verdict.outcome==approved?",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "task",
+      "label" : "run IssueRefund",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "task",
+      "label" : "run Escalate",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : "then"
+    }, {
+      "from" : "n2",
+      "to" : "n4",
+      "label" : "else"
+    }, {
+      "from" : "n3",
+      "to" : "end",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "loom/ctk/scripts/task_rejected.loom#main" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "task",
+      "label" : "run RefundPolicy",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "alt",
+      "label" : "verdict.outcome==approved?",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "task",
+      "label" : "run IssueRefund",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "task",
+      "label" : "run Escalate",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : "then"
+    }, {
+      "from" : "n2",
+      "to" : "n4",
+      "label" : "else"
+    }, {
+      "from" : "n3",
+      "to" : "end",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "scripts/g5/digest.loom#Digest" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "human_prompt",
+      "label" : "ask a person",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "alt",
+      "label" : "go==yes?",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : "then"
+    }, {
+      "from" : "n2",
+      "to" : "n4",
+      "label" : "else"
+    }, {
+      "from" : "n3",
+      "to" : "end",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "scripts/g5/refund.loom#Triage" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "statement",
+      "label" : "decide",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "statement",
+      "label" : "note",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "end",
+      "label" : null
+    } ]
+  },
+  "scripts/g5/report.loom#Report" : {
+    "nodes" : [ {
+      "id" : "start",
+      "kind" : "start",
+      "label" : "Start",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n1",
+      "kind" : "checkpoint",
+      "label" : "checkpoint collected",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n2",
+      "kind" : "delegate",
+      "label" : "delegate Collector",
+      "agent" : "Collector",
+      "bound" : null
+    }, {
+      "id" : "n3",
+      "kind" : "delegate",
+      "label" : "delegate Analyst",
+      "agent" : "Analyst",
+      "bound" : null
+    }, {
+      "id" : "n4",
+      "kind" : "delegate",
+      "label" : "delegate Writer",
+      "agent" : "Writer",
+      "bound" : null
+    }, {
+      "id" : "n5",
+      "kind" : "delegate",
+      "label" : "delegate Reviewer",
+      "agent" : "Reviewer",
+      "bound" : null
+    }, {
+      "id" : "n6",
+      "kind" : "statement",
+      "label" : "rewind",
+      "agent" : null,
+      "bound" : null
+    }, {
+      "id" : "n7",
+      "kind" : "delegate",
+      "label" : "delegate Publisher",
+      "agent" : "Publisher",
+      "bound" : null
+    }, {
+      "id" : "end",
+      "kind" : "end",
+      "label" : "End",
+      "agent" : null,
+      "bound" : null
+    } ],
+    "edges" : [ {
+      "from" : "start",
+      "to" : "n1",
+      "label" : null
+    }, {
+      "from" : "n1",
+      "to" : "n2",
+      "label" : null
+    }, {
+      "from" : "n2",
+      "to" : "n3",
+      "label" : null
+    }, {
+      "from" : "n3",
+      "to" : "n4",
+      "label" : null
+    }, {
+      "from" : "n4",
+      "to" : "n5",
+      "label" : null
+    }, {
+      "from" : "n5",
+      "to" : "n6",
+      "label" : null
+    }, {
+      "from" : "n6",
+      "to" : "n7",
+      "label" : null
+    }, {
+      "from" : "n7",
+      "to" : "end",
+      "label" : null
+    } ]
+  }
+}

@@ -4,7 +4,7 @@ package io.github.llm4j.loom.ast;
  * AST node for an observation statement.
  * Logs and audits a specific variable or expression value at runtime.
  */
-public class ObserveStmt implements Statement {
+public class ObserveStmt extends LocatedStatement {
     private final String label;
     private final String expression;
 

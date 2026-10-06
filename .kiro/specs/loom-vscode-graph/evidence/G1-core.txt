@@ -1,0 +1,43 @@
+# G1  2026-10-06T12:29:23Z
+$ mvn -q -pl loom/ai-agent4j-loom -am verify -Djacoco.skip=false && python3 scripts/graph_coverage.py loom/ai-agent4j-loom/target/site/jacoco/jacoco.csv
+SEVERE: Exhausted retries for delegate to Editor
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
+INFO: Initialized Agent: Writer
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
+INFO: Initialized Agent: Editor
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor executeWorkflow
+INFO: Starting workflow: Main
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor executeStatement
+INFO: Human Prompt: Which angle for tides and moons?
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor executeDelegate
+INFO: Delegating to Editor (Attempt 1)
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor executeWorkflow
+INFO: Workflow completed: Main
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
+INFO: Initialized Agent: Scout
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor executeWorkflow
+INFO: Starting workflow: Main
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor executeDelegate
+INFO: Delegating to Scout (Attempt 1)
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor executeWorkflow
+INFO: Workflow completed: Main
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
+INFO: Initialized Agent: Scout
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
+INFO: Initialized Agent: Critic
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor executeWorkflow
+INFO: Starting workflow: Main
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor executeDelegate
+INFO: Delegating to Scout (Attempt 1)
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor executeDelegate
+INFO: Delegating to Critic (Attempt 1)
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor executeStatement
+INFO: Evaluating AltStmt condition [review.verdict==SHIP] -> true
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor executeStatement
+INFO: NOTE: shipping
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor executeDelegate
+INFO: Delegating to Scout (Attempt 1)
+Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor executeWorkflow
+INFO: Workflow completed: Main
+graph package: lines 98.0% (631/644), branches 86.9% (246/283)
+exit=0
