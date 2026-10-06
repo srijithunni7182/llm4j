@@ -40,16 +40,96 @@ A **journal** makes the run durable: re-running with the same journal replays fi
 
 ## Check the cost afterwards
 
-There is no `weave estimate`; keep a small cost model (calls x tokens x price) and compare. Hexamind's is [`cost_model.py`](../../examples/hexamind-hub/eval/cost_model.py): expected a full debate at
+There is no `weave estimate`; keep a small cost model (calls x tokens x price) and compare. Hexamind's is [`cost_model.py`](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/cost_model.py): expected a full debate at
 about 121 model calls, measured against the spend report. When reality and model disagree, change the model, not just the cap.
 
 Rate limits: a 429 with a short reset is waited out inside the call; a long one reaches Loom's `rate_limits`. A free-tier key will hit them: pace the calls (Hexamind's evaluation used
 about 10 a minute) rather than hammering.
 
+## An application with its own interface
+
+Loom runs the workflow; **the interface, the transcript view and the agents' surroundings are your application's.** (An agent following the skill
+writes that code in your project, in whatever UI you choose.) The host needs three things from the executor, and all three are there:
+
+```java
+HarnessExecutor executor = new HarnessExecutor(new LoomLoader().load("workflow.loom"), tools, clients);
+executor.addTraceListener(event -> ui.append(event));      // 1. the transcript (add it BEFORE initialize())
+executor.setHumanInterface(ui::askPerson);                 // 2. questions and approvals go to your screen
+executor.setJournal(journal);                              //    optional: lets a question wait for days (below)
+executor.initialize();
+executor.executeWorkflow("Main", Map.of("topic", topic));
+Object post = executor.getContext().getAll().get("post_text");   // 3. what the workflow made
+executor.shutdown();
+```
+
+1. **Transcript.** A `TraceEvent` has `type`, `agent`, `step`, `text`, `data` and `at`. The types a screen wants: `delegate_start` and `delegate_end`
+   (an agent began, and its answer), `thought`, `action` and `observation` (what an agent is thinking and which tool it calls), `note` (a message
+   the workflow wants shown), `approval`, `budget`, `guard`, `checkpoint`, `rewind`, `suspended`. Listeners run on the thread that runs the
+   workflow, so hand the event to your UI thread and return quickly; an exception in a listener is logged and does not stop the run.
+2. **Questions.** `human_prompt`, a tool that needs approval and a `decide` that asks all arrive at your `HumanInterface`. Override
+   `promptHuman(stepId, message, hints)` to learn what kind of question it is (`PROMPT`, `APPROVAL`, `DECIDE`), the choices to offer, and who it is for.
+   Return the answer to continue now. Or throw `RunSuspended(stepId, message)` to **pause without holding a thread**: show the question, and when the person
+   answers, call `journal.answer(stepId, answer)` and run `executeWorkflow` again with the same journal; the steps already done are replayed (the transcript
+   shows `delegate_replayed`, not a second model call) and the run goes on from the question.
+3. **Result.** `executor.getContext().getAll()` holds every variable the workflow set (`-> name`). Read the ones you need by name; an unset variable is
+   absent from the map.
+
+Keep the view separate from the workflow: the screen should not decide anything the script decides, and the script should not know there is a screen.
+Test the host with `MockModels`-style stand-ins and a scripted `HumanInterface`, the way the guide's own test does, before any real run.
+
 ## Keys and secrets
 
-Environment variables (`env.NAME`) or an encrypted [secret store](../../ai-agent4j/wiki/Secret-Store.md) (`secret.NAME`, `weave run --secrets <file>`; you choose and protect its path and master key) in scripts, `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` for the evaluation. Never in a script, a test or the repository; if a key is ever pasted somewhere shared, rotate it.
+The encrypted secret store is the default: a one-time setup of `weave secrets create`, `weave secrets set NAME` and `--secrets <file>` on `weave run` and `weave eval` (the templates' README spells it out, and an agent that follows the skill writes the same for your project). A tool's key is `secret.NAME` in the script. Environment variables (`env.NAME`) also work; `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` are what the evaluation judge reads. The store is described in the [secret store page](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Secret-Store.md); you choose and protect its path and master key. Never in a script, a test or the repository; if a key is ever pasted somewhere shared, rotate it.
 Secrets are scrubbed from results, traces, journals and audit logs.
+
+
+### Keys in Google Secret Manager (or another vault)
+
+`weave` itself reads keys from the encrypted file store or the environment; it does not call a cloud vault. When keys must come from Google
+Secret Manager, AWS Secrets Manager, HashiCorp Vault or the like, the way to do it is a **small Java host that you (or an agent following the
+skill) write**: it implements `SecretStore` over the vault's client and hands it to the executor. The script does not change: models still find
+their usual key name, and a tool's key is still `api_key: secret.NAME`.
+
+```java
+/** Reads each secret from Google Secret Manager when it is asked for, so a rotated key is picked up without a restart. */
+final class GoogleSecretStore implements SecretStore {
+    private final SecretManagerServiceClient client;
+    private final String project;
+
+    GoogleSecretStore(SecretManagerServiceClient client, String project) { this.client = client; this.project = project; }
+
+    @Override public String resolve(String name) {
+        try {
+            return client.accessSecretVersion(SecretVersionName.of(project, name, "latest")).getPayload().getData().toStringUtf8();
+        } catch (NotFoundException e) {
+            throw new SecretNotFoundException(name);
+        }
+    }
+    @Override public boolean contains(String name) { try { resolve(name); return true; } catch (SecretNotFoundException e) { return false; } }
+    @Override public Set<String> names() { return Set.of(); }   // listing is not needed to resolve
+    @Override public Optional<SecretMetadata> metadata(String name) { return Optional.of(SecretMetadata.NONE); } // or allowing("api.example.com")
+}
+
+SecretStore secrets = new GoogleSecretStore(SecretManagerServiceClient.create(), "my-project");
+LoomScript script = new LoomLoader().load("workflow.loom");
+HarnessExecutor executor = new HarnessExecutor(script, new ToolRegistry(), new DefaultLLMClientFactory(System::getenv, secrets));
+executor.setSecretStore(secrets);          // `secret.NAME` in the script, and the models' keys, now come from the vault
+executor.initialize();
+executor.executeWorkflow("Main", Map.of("topic", "home composting"));
+executor.shutdown();
+```
+
+Put the host in its own Maven module with the vault's client library as a dependency, and give it the identity the platform provides (Application
+Default Credentials, workload identity); no key is written down anywhere. `SecretMetadata.allowing("host")` restricts a secret to the hosts it
+may be sent to. Use `ChainedSecretStore.of(vault, EnvSecretStore.system())` if some keys should fall back to the environment. Test the host with an in-memory
+store standing in for the vault, as the guide's own test does, and never with a real key.
+
+## If you skipped evaluation
+
+If the README says `Evaluation: skipped`, this is the moment to say it once: **no evaluation of this workflow exists**, so nothing has
+measured whether its answers are good, only that it runs and passes `weave check` and `weave audit`. You can carry on, and the caps and
+approvals above still apply. If you want a safety net after all, `weave eval <script> --init` creates a dataset in a minute, and
+`weave eval <script> --mock` is free.
 
 ## Gate
 

@@ -59,6 +59,7 @@ public final class LoomTrace {
     /** Registers on the executor. Call before {@code executor.initialize()}. */
     public static LoomTrace attach(HarnessExecutor executor) {
         LoomTrace t = new LoomTrace();
+        t.promptLabels = agent -> executor.promptLabel(agent).orElse(null);
         executor.addTraceListener(t.listener());
         return t;
     }
@@ -77,6 +78,9 @@ public final class LoomTrace {
         };
     }
 
+    /** The prompt each agent runs ({@code researcher@v2}), shown on its steps; null for an agent with an inline prompt. */
+    private java.util.function.Function<String, String> promptLabels = agent -> null;
+
     public LoomTrace named(String workflowName) {
         this.name = workflowName;
         return this;
@@ -88,7 +92,7 @@ public final class LoomTrace {
      */
     public LoomTrace workflow(WorkflowDef def) {
         this.name = def.getName();
-        this.graph = WorkflowGraph.of(def);
+        this.graph = WorkflowGraph.of(def, promptLabels);
         return this;
     }
 

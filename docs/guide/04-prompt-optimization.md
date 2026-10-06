@@ -10,7 +10,7 @@ spends money. If one prompt fails one case, fix it by hand. Use the optimizer wh
 ## How
 
 `PromptOptimizer` rewrites a prompt from the reasons it failed, keeps a pool of candidates, and verifies the winner on scenarios it
-never trained on. It never writes your files: it hands back a patch.
+never trained on. It never writes your files: it hands back a patch. With prompt files, the patch is the text of a new version (`vN+1.md`) that you add beside the old one and compare with `--prompt`.
 
 ```java
 PromptOptimizer optimizer = PromptOptimizer.builder()
@@ -46,4 +46,4 @@ if (result.generalized()) { result.toPatch().applyTo(promptsDir); }
 
 `result.generalized()` is true: the sealed test split improved by a real margin, validation and test agree, no guardrail failed and the seed
 does not beat the winner on more test cases. If false, `result.verdict().reasons()` says why; do not apply the patch. Then re-run chapter 3's
-tests on the patched prompts. Details: [optimizer guide](../../eval4j/docs/OPTIMIZER.md).
+tests on the patched prompts. Details: [optimizer guide](https://github.com/srijithunni7182/llm4j/blob/main/eval4j/docs/OPTIMIZER.md).

@@ -52,7 +52,7 @@ Judges page shows how much the judge disagrees with itself. Read every other num
 ## Cost: model it, then measure it
 
 Keep a small cost model (calls x tokens x price) and compare it with the smoke test before the big run; Hexamind's is
-[`cost_model.py`](../../examples/hexamind-hub/eval/cost_model.py). Measured on the real run: a smoke case cost about $0.004, and one
+[`cost_model.py`](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/cost_model.py). Measured on the real run: a smoke case cost about $0.004, and one
 judge call about $0.005. A stage ceiling that is too tight fails the stages after it, so set ceilings from measured costs, with margin.
 A free-tier model key costs nothing; price it at `0, 0` so the cap counts only what you really pay.
 

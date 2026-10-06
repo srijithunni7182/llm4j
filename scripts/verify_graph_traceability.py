@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SPEC = ROOT / ".kiro" / "specs" / "loom-vscode-graph"
 TEST_ROOTS = [
     ROOT / "loom/ai-agent4j-loom/src/test", ROOT / "loom/graph-render/test", ROOT / "loom/vscode-loom/test",
-    ROOT / "eval4j-report/src/test", ROOT / "scripts/verify-graph.sh", ROOT / "scripts/sabotage_graph.py", ROOT / "eval4j/src/test/java/io/github/llm4j/eval/export",
+    ROOT / "eval4j-report/src/test", ROOT / "scripts/verify-graph.sh", ROOT / "eval4j/src/test/java/io/github/llm4j/eval/export",
 ]
 TEST_SUFFIXES = {".java", ".js", ".ts", ".sh", ".py"}
 

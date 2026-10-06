@@ -1,0 +1,9 @@
+- id: newsletter-001
+  name: A normal week
+  input: "home composting"
+  dimensions: [grounding, tone]
+  expect:
+    - "The researcher ran first, then the writer, then the editor"
+    - "The draft was rewritten at most twice"
+  rubric:
+    - "The finished issue is friendly, under 300 words and does not invent statistics"

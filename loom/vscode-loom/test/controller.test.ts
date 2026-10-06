@@ -259,3 +259,18 @@ test('a result that arrives after dispose is dropped', async () => {
     assert.equal(outcome.ok, false);
     assert.equal(s.host.posted.length, 0);
 });
+
+test('R7.1: the panel may open the prompt file of an agent, and no other file in the same folder', async () => {
+    const result = sampleResult();
+    result.agents = [{ name: 'Researcher', prompt: { ref: 'researcher', version: 'v2', file: '/p/prompts/researcher/v2.md' } }];
+    const s = setup();
+    const load = s.controller.load();
+    s.runner.finish(json(result));
+    await load;
+
+    s.controller.handle({ type: 'openSource', file: '/p/prompts/researcher/v2.md', line: 1, beside: true });
+    s.controller.handle({ type: 'openSource', file: '/p/prompts/researcher/v1.md', line: 1, beside: true });
+
+    assert.deepEqual(s.host.opened.map((o) => o.file), ['/p/prompts/researcher/v2.md']);
+    assert.equal(s.host.reports.length, 1);
+});

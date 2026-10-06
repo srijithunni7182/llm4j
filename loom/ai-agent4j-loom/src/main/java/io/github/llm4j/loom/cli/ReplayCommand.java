@@ -83,9 +83,13 @@ final class ReplayCommand implements Callable<Integer> {
     @Option(names = "--resume", description = "Carry on a replay that was cut short, by its id.")
     String resume;
 
+    @picocli.CommandLine.Mixin
+    PromptOptions promptOptions = new PromptOptions();
+
     @Override
     public Integer call() {
-        WeaveEnv env = WeaveEnv.system();
+        WeaveEnv env = promptOptions.apply(WeaveEnv.system());
+        if (env == null) return 2;
         return replay(this, env);
     }
 

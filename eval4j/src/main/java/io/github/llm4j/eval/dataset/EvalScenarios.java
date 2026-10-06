@@ -92,10 +92,49 @@ public final class EvalScenarios {
                     YAML_MAPPER
                             .getTypeFactory()
                             .constructCollectionType(List.class, EvalScenario.class);
-            return YAML_MAPPER.readValue(yaml, listType);
+            List<EvalScenario> read = YAML_MAPPER.readValue(yaml, listType);
+            return read == null ? List.of() : List.copyOf(read);
         } catch (IOException e) {
             throw new EvalDatasetException("Failed to parse golden dataset YAML", e);
         }
+    }
+
+    /**
+     * Reads {@code RUBRIC:} and {@code EXPECT:} lines in {@code context} as the {@code rubric} and {@code expect} fields, the way datasets were
+     * written before those fields existed. Only dataset folders ({@link EvalDataset}) are read this way; {@code fromYaml} returns {@code context} exactly as written. Lines already in the fields come first; the lines are removed from {@code context}.
+     */
+    static EvalScenario normalized(EvalScenario s) {
+        if (s.context() == null || s.context().stream().noneMatch(c -> c.startsWith("RUBRIC:") || c.startsWith("EXPECT:"))) {
+            return s;
+        }
+        List<String> context = new java.util.ArrayList<>();
+        List<String> rubric = new java.util.ArrayList<>(s.rubricLines());
+        List<String> expect = new java.util.ArrayList<>(s.expectLines());
+        for (String line : s.context()) {
+            if (line.startsWith("RUBRIC:")) rubric.add(line.substring("RUBRIC:".length()).strip());
+            else if (line.startsWith("EXPECT:")) expect.add(line.substring("EXPECT:".length()).strip());
+            else context.add(line);
+        }
+        return new EvalScenario(s.name(), s.input(), s.expectedOutputContains(), s.expectedOutput(), s.expectedTools(),
+                context.isEmpty() ? null : context, s.retrievalContext(), s.id(), s.dimensions(), s.tags(),
+                rubric.isEmpty() ? null : rubric, expect.isEmpty() ? null : expect);
+    }
+
+    /**
+     * Loads every dataset file in a folder, by file name without {@code .yaml}: {@code researcher.yaml} is {@code researcher}. The files
+     * {@code dataset.yaml} and {@code fixtures.yaml} are not scenario lists and are skipped. Use {@link EvalDataset#load(Path)} to also get
+     * the dimensions and what is wrong with the folder.
+     */
+    public static java.util.Map<String, List<EvalScenario>> fromDirectory(Path dir) {
+        if (!Files.isDirectory(dir)) {
+            throw new EvalDatasetException("Golden dataset folder not found: " + dir);
+        }
+        EvalDataset dataset = EvalDataset.load(dir);
+        var unreadable = dataset.problems().stream().filter(EvalDataset.Problem::fatal).findFirst();
+        if (unreadable.isPresent()) {
+            throw new EvalDatasetException(unreadable.get().toString());
+        }
+        return dataset.files();
     }
 
     /**

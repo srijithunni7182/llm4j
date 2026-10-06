@@ -13,8 +13,10 @@ import io.github.llm4j.loom.autonomy.Level;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A static security review of a Loom script: what each agent can reach, where the "lethal trifecta" (untrusted content, private data, a way out)
@@ -50,6 +52,7 @@ public final class SecurityAudit {
         }
         decisions(script, findings);
         rewinds(script, findings);
+        personRunsWhatIsWritten(script, profiles, findings);
 
         findings.sort(Comparator.comparing(Finding::severity).thenComparing(Finding::line).thenComparing(Finding::rule));
         return new AuditReport(name, profiles, findings, controls(script, profiles));
@@ -211,6 +214,65 @@ public final class SecurityAudit {
                     "Whatever is in " + k.getSource() + " is put in front of agents as context; a planted document can steer them.",
                     "Index only sources you control, and review what is added to them."));
         }
+    }
+
+    private static final java.util.regex.Pattern PROGRAM = java.util.regex.Pattern.compile("(?i)\\b(shell|bash|powershell|batch file|script|scripts|program|programs|source code|command line)\\b");
+    private static final java.util.regex.Pattern WRITES = java.util.regex.Pattern.compile("(?i)\\b(writes?|author(?:s|ed)?|generat(?:es?|ed)|produc(?:es?|ed)|draft(?:s|ed)?|creates?)\\b");
+
+    /**
+     * LA16: an agent that writes programs (its persona or its prompt says it writes scripts or code) is handed text that an agent reading the outside
+     * world produced, with no typed hand-off in between, and the workflow's result is something a person will read and run. The workflow itself
+     * does nothing, so no other rule fires; the risk is in what the person does next.
+     */
+    private static void personRunsWhatIsWritten(LoomScript script, List<AgentProfile> profiles, List<Finding> findings) {
+        Map<String, AgentProfile> byName = new LinkedHashMap<>();
+        profiles.forEach(p -> byName.put(p.agent(), p));
+        Set<String> authors = new LinkedHashSet<>();
+        for (AgentDef a : script.getAgents()) if (writesPrograms(a, script)) authors.add(a.getName());
+        if (authors.isEmpty()) return;
+        Set<String> reported = new LinkedHashSet<>();
+        for (io.github.llm4j.loom.ast.WorkflowDef w : script.getWorkflows()) {
+            Map<String, io.github.llm4j.loom.ast.DelegateStmt> produced = new LinkedHashMap<>();
+            io.github.llm4j.loom.ast.StatementWalker.walk(w.getStatements(), st -> {
+                if (!(st instanceof io.github.llm4j.loom.ast.DelegateStmt d) || d.hasDynamicTarget() || d.hasDynamicVariable()) return;
+                if (authors.contains(d.getTargetAgent()) && !reported.contains(d.getTargetAgent())) {
+                    AgentProfile author = byName.get(d.getTargetAgent());
+                    List<String> from = new ArrayList<>();
+                    if (author != null && !author.untrusted().isEmpty()) from.add(author.agent() + " itself (" + String.join(", ", author.untrusted()) + ")");
+                    for (var e : produced.entrySet()) {
+                        AgentProfile source = byName.get(e.getValue().getTargetAgent());
+                        boolean untypedHandOff = e.getValue().getExpecting() == null;
+                        boolean reads = java.util.regex.Pattern.compile("\\{" + java.util.regex.Pattern.quote(e.getKey()) + "[.}]").matcher(d.getPayload()).find();
+                        if (reads && untypedHandOff && source != null && !source.untrusted().isEmpty()) {
+                            from.add(source.agent() + " (" + String.join(", ", source.untrusted()) + ") through " + e.getKey());
+                        }
+                    }
+                    if (!from.isEmpty() && author != null) {
+                        reported.add(author.agent());
+                        findings.add(new Finding("LA16", Severity.INFO, List.of(Owasp.LLM01, Owasp.LLM05), author.agent(), author.line(),
+                                "A person will run output that was written from untrusted text",
+                                author.agent() + " writes programs, and it is given text from the outside world: " + String.join("; ", from)
+                                        + ". Nothing in this script runs what it writes, so a person will. Text it read can steer what the program does.",
+                                "Type the hand-off (expecting { ... }) so only fields reach the author, review the result with a different model, and keep the author free of tools."));
+                    }
+                }
+                produced.put(d.getVariableName(), d);
+            });
+        }
+    }
+
+    private static boolean writesPrograms(AgentDef agent, LoomScript script) {
+        StringBuilder text = new StringBuilder();
+        if (agent.getSystemPrompt() != null) text.append(agent.getSystemPrompt()).append('\n');
+        if (agent.getPersona() != null) {
+            for (io.github.llm4j.loom.ast.PersonaDef p : script.getPersonas()) {
+                if (!p.getName().equals(agent.getPersona())) continue;
+                for (String part : new String[] {p.getRole(), p.getExpertise(), p.getDescription()}) if (part != null) text.append(part).append('\n');
+                p.getConstraints().forEach(c -> text.append(c).append('\n'));
+            }
+        }
+        String all = text.toString();
+        return PROGRAM.matcher(all).find() && WRITES.matcher(all).find();
     }
 
     private static void decisions(LoomScript script, List<Finding> findings) {

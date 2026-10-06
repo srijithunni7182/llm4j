@@ -25,7 +25,16 @@ assertThat(out).is(
 ```
 
 3. **Assert the tools too** for prompts that need them: `usesTool("WebSearch")`. A prompt that stops the agent searching is a regression a text judge may miss.
-4. **A/B a candidate.** Put the rewrite in a second registry file and compare both orders (so position bias cancels):
+4. **A/B a candidate.** Put the rewrite in a second registry (or, with prompt files, a new version `vN.md` beside the old one)
+   and compare both orders (so position bias cancels). On the script path, `--prompt researcher@v1` and `--prompt researcher@v2`
+   run the same script with only that prompt different, and `weave eval` can score each run:
+
+```bash
+weave run newsletter/main.loom -i topic="home composting" --prompt researcher@v1 --journal runs/a
+weave run newsletter/main.loom -i topic="home composting" --prompt researcher@v2 --journal runs/b
+```
+
+From Java, the same comparison:
 
 ```java
 PromptComparison.Result result = PromptComparison.using(judgeClient)

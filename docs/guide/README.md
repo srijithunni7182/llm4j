@@ -4,15 +4,33 @@ A guided path from "which agents do I need?" to "my workflow runs against real A
 well-tested parts. Every chapter says what to do, why, shows a worked example from the **Hexamind Hub** (a real six-agent
 debate app evaluated end to end with llm4j), and ends with a **gate**: the check that tells you it is safe to move on.
 
+**Start from a template, not from an example.** `weave init pipeline` (or `approval`, `classifier`) creates a small, complete project with
+the script, its prompts as files, a golden dataset and a README, and everything in it runs free: `weave check --no-env`, `weave eval --mock`.
+The **Hexamind** examples in the chapters are a *case study*: a real six-agent app that runs its agents from Java and uses Loom for evaluation.
+They show what a large evaluation looks like, but they are not the shape to copy for a script-only workflow, and the files they link to are in
+the repository, not in the tools you installed (the links are web addresses for that reason).
+
 The rule that organises everything: **spend money last.** Each stage is first proved free (mocks, static checks), then run
 for real under a cap.
+
+## Tests first, or skip them
+
+Evaluation is **optional**. Before you start, decide: *do you want tests first?* The default is yes.
+
+- **Yes:** decide the agents (1), write the golden dataset (2), then the script (6), then `weave eval <script> --check`, `--mock`
+  and a capped real run. The dataset comes before the script, so "good" is written down before anything is built.
+- **No:** go straight to the script (6), then `weave check` (7), `weave audit` (7) and a capped run (9). Chapters 2, 3, 4, 5 and 8 are
+  skipped. Nothing else changes: caps, approvals, guards and the audit work the same, and an autonomy level that needs evidence still needs it.
+
+Write your choice in the project's README (`Evaluation: skipped`, or `Evaluation: golden dataset in eval/golden`) so it is not asked again.
+Skipping is not hidden: chapter 9 reminds you once that no evaluation exists, and you can start one later with `weave eval <script> --init`.
 
 ## The map
 
 | # | Stage | You | Tools | Cost | Gate to move on |
 |---|---|---|---|---|---|
-| 1 | [Decide your agents](01-decide-your-agents.md) | one job per agent; tools, persona, prompt ids | `AgentPersona`, `PromptRegistry` | $0 | each agent has a one-sentence job and a tool list |
-| 2 | [Build a golden dataset](02-golden-dataset.md) | scenarios with rubrics and dimensions | `EvalScenarios`, `DatasetSynthesizer` | $0 (synthesis: small) | dataset test passes; every dimension has cases |
+| 1 | [Decide your agents](01-decide-your-agents.md) | one job per agent; tools, persona, prompt files; script path or Java path | `AgentPersona`, `PromptRegistry` | $0 | each agent has a one-sentence job and a tool list |
+| 2 | [Build a golden dataset](02-golden-dataset.md) | scenarios with rubrics and dimensions (optional: see above) | `weave eval --init/--check`, `EvalScenarios`, `DatasetSynthesizer` | $0 (synthesis: small) | dataset test passes; every dimension has cases |
 | 3 | [Test the prompts](03-prompt-tests.md) | rubric checks, A/B against a candidate | `llmJudged`, `PromptComparison` | cents | each prompt meets its rule |
 | 4 | [Optimize the prompts](04-prompt-optimization.md) | only where tests fail | `PromptOptimizer` | capped | held-out test agrees (`generalized()`) |
 | 5 | [Test each agent, with spend caps](05-test-agents-with-caps.md) | free on mocks, then real under a cap | `ScriptedClient`, `FakeJudge`, `SpendGuard`, `AgentReplay` | dollars, capped | agents meet their goals; judge noise known |
@@ -24,17 +42,17 @@ for real under a cap.
 
 ## The running example
 
-[`examples/hexamind-hub`](../../examples/hexamind-hub): six personas (a technical analyst, a market strategist, a
+[`examples/hexamind-hub`](https://github.com/srijithunni7182/llm4j/tree/main/examples/hexamind-hub): six personas (a technical analyst, a market strategist, a
 futurist, a research scientist, a customer advocate and an adversarial source-checker) debate a question in five rounds,
 a moderator checks whether the question contains a fabricated term, and a coordinator writes one consensus. The evaluation
-lives in [`eval/`](../../examples/hexamind-hub/eval): [SPEC](../../examples/hexamind-hub/eval/SPEC.md),
-[RUN-PLAN](../../examples/hexamind-hub/eval/RUN-PLAN.md), the [golden dataset](../../examples/hexamind-hub/eval/golden),
-the [Loom workflow](../../examples/hexamind-hub/eval/hexamind.loom) and `run-all.sh`.
+lives in [`eval/`](https://github.com/srijithunni7182/llm4j/tree/main/examples/hexamind-hub/eval): [SPEC](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/SPEC.md),
+[RUN-PLAN](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/RUN-PLAN.md), the [golden dataset](https://github.com/srijithunni7182/llm4j/tree/main/examples/hexamind-hub/eval/golden),
+the [Loom workflow](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/hexamind.loom) and `run-all.sh`.
 
 ## What you need
 
 - Java 17+, Maven, and the libraries: `ai-agent4j` (agents), `ai-agent4j-loom` (workflows), `eval4j` and `eval4j-report`
-  (evaluation and the dashboard). See the [eval4j quick start](../../eval4j/docs/QUICKSTART.md) for the dependencies.
+  (evaluation and the dashboard). See the [eval4j quick start](https://github.com/srijithunni7182/llm4j/blob/main/eval4j/docs/QUICKSTART.md) for the dependencies.
 - A model for the agents and a **different, ideally stronger,** model for the judge.
 - Keys in environment variables only, never in a file or the repository.
 

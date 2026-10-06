@@ -1,0 +1,3 @@
+dimensions:
+  accuracy: The right label for a clear ticket
+  calibration: Says LOW when it is not sure

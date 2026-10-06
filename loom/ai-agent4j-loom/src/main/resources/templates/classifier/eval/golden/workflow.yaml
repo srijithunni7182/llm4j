@@ -1,0 +1,12 @@
+- id: workflow-001
+  name: A clear ticket is labelled without asking anyone
+  input: "I was charged twice for the March invoice."
+  dimensions: [accuracy]
+  expect:
+    - "No person was asked to choose a label"
+- id: workflow-002
+  name: A vague ticket is handed to a person
+  input: "It doesn't work. Fix it."
+  dimensions: [calibration]
+  expect:
+    - "A person was asked to choose the label"

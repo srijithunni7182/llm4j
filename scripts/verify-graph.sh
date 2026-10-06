@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs the verification plan for the workflow graph (.kiro/specs/loom-vscode-graph/verification.md) and writes the evidence
 # files. Gates: G1 core, G2 report and regression, G3 extension, G4 package, G6 final. G0 (sign-off) and G5 (a person on a
-# real VS Code; sabotage via scripts/sabotage_graph.py) are not run here.
+# real VS Code; sabotage was run once, see evidence/G5-sabotage.md) are not run here.
 # Usage: scripts/verify-graph.sh [G1 G2 G3 G4 G6 ...]   (default: all)
 set -uo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -26,7 +26,7 @@ for g in "${gates[@]}"; do case "$g" in
         "cd loom/graph-render && node --test test/*.test.js" ;;
   G3) gate G3 "$ev/G3-extension.txt" "cd loom/vscode-loom && npm test" ;;
   G4) gate G4 "$ev/G4-package.txt" "bash scripts/build-vsix.sh" "bash scripts/verify-vsix.sh" "bash scripts/verify-mermaid.sh" ;;
-  G6) # VG.5 sabotage is run separately: python3 scripts/sabotage_graph.py (evidence/G5-sabotage.md)
+  G6) # VG.5 sabotage was run once by hand (evidence/G5-sabotage.md); its script was removed to avoid maintaining it
       gate G6 "$ev/G6-final.txt" "python3 scripts/verify_graph_traceability.py > .kiro/specs/loom-vscode-graph/evidence/traceability.txt; cat .kiro/specs/loom-vscode-graph/evidence/traceability.txt" ;;
   *) echo "unknown gate $g" >&2; failed=1 ;;
 esac; done

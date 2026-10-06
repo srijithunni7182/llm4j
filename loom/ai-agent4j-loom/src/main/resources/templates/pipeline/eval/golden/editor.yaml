@@ -1,0 +1,13 @@
+- id: editor-001
+  name: Sends a marketing-style draft back
+  input: "Draft: BUY NOW!!! The best ever, guaranteed to change your life!!!"
+  dimensions: [judgement, tone]
+  expected_output_contains: REWRITE
+  rubric:
+    - "Says REWRITE and gives one short piece of advice about the tone"
+- id: editor-002
+  name: Passes a clear, friendly draft
+  input: "Draft: A short, friendly summary that only says what the notes say."
+  dimensions: [judgement]
+  rubric:
+    - "Says OK"

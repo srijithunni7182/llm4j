@@ -35,12 +35,22 @@ public final class AgentIdentity {
 
     /** The identity of the agent behind {@code decision}, as the script stands; {@code baseDir} resolves the files it reads. */
     public static String of(LoomScript script, DecisionDef decision, Path baseDir) {
+        return of(script, decision, baseDir, null);
+    }
+
+    /**
+     * As {@link #of(LoomScript, DecisionDef, Path)}, with the prompts the agent would run taken from {@code prompts}: the version and a hash of the
+     * text, so editing a prompt file (or pinning another version) is a different agent, as editing an inline prompt is.
+     */
+    public static String of(LoomScript script, DecisionDef decision, Path baseDir, io.github.llm4j.loom.prompt.PromptCatalog prompts) {
         AgentDef agent = script.getAgents().stream().filter(a -> a.getName().equals(decision.getAgent())).findFirst().orElse(null);
         StringBuilder b = new StringBuilder();
         if (agent == null) return sha("no agent " + decision.getAgent());
         line(b, "model", agent.getModel());
         line(b, "system", agent.getSystemPrompt());
         line(b, "template", agent.getSystemTemplate());
+        if (agent.getPrompt() != null) line(b, "prompt", agent.getPrompt() + promptContent(agent.getPrompt(), prompts));
+        if (agent.getSystemTemplate() != null && prompts != null) line(b, "template.content", promptContent(agent.getSystemTemplate(), prompts));
         line(b, "temperature", agent.getTemperature());
         line(b, "max_iterations", agent.getMaxIterations());
         line(b, "routing", agent.getRoutingPolicy());
@@ -83,6 +93,12 @@ public final class AgentIdentity {
         line(b, "decision.task", decision.getTask());
         decision.getDangerous().forEach(m -> line(b, "decision.dangerous", m.proposed() + ">" + m.decided()));
         return sha(b.toString());
+    }
+
+    /** {@code @vN#<hash of the text>} for the prompt a reference resolves to, or {@code @unresolved}. */
+    private static String promptContent(String reference, io.github.llm4j.loom.prompt.PromptCatalog prompts) {
+        if (prompts == null) return "";
+        return prompts.resolve(reference).map(r -> "@" + r.version() + "#" + sha(r.text())).orElse("@unresolved");
     }
 
     private static String optionValue(String key, ToolDef.OptionValue v) {

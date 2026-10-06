@@ -8,7 +8,21 @@ import java.util.List;
 import java.util.Map;
 
 /** The result of {@link SecurityAudit}: who can do what, what was found, and how it lines up with the OWASP Top 10 for LLM Applications. */
-public record AuditReport(String script, List<SecurityAudit.AgentProfile> agents, List<Finding> findings, Map<Owasp, List<String>> controls) {
+public record AuditReport(String script, List<SecurityAudit.AgentProfile> agents, List<Finding> findings, Map<Owasp, List<String>> controls,
+                          List<io.github.llm4j.loom.prompt.PromptUse> prompts) {
+
+    public AuditReport {
+        prompts = prompts == null ? List.of() : List.copyOf(prompts);
+    }
+
+    public AuditReport(String script, List<SecurityAudit.AgentProfile> agents, List<Finding> findings, Map<Owasp, List<String>> controls) {
+        this(script, agents, findings, controls, List.of());
+    }
+
+    /** The same report listing which prompt each agent would run (id, version and a hash, never the text). */
+    public AuditReport withPrompts(List<io.github.llm4j.loom.prompt.PromptUse> uses) {
+        return new AuditReport(script, agents, findings, controls, uses);
+    }
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -42,6 +56,15 @@ public record AuditReport(String script, List<SecurityAudit.AgentProfile> agents
                     .append(" | ").append(p.trifecta() ? "**yes**" : "no").append(" |\n");
         }
         b.append('\n');
+
+        if (!prompts.isEmpty()) {
+            b.append("## Prompts\n\n| Agent | Prompt | Version | Text hash |\n|---|---|---|---|\n");
+            for (var u : prompts) {
+                b.append("| ").append(u.agent()).append(" (line ").append(u.line()).append(") | ").append(u.reference()).append(" | ")
+                        .append(u.resolved() ? u.version() : "**not found**").append(" | ").append(u.resolved() ? u.hash() : "-").append(" |\n");
+            }
+            b.append('\n');
+        }
 
         b.append("## Findings\n\n");
         if (findings.isEmpty()) b.append("None.\n\n");
@@ -85,6 +108,19 @@ public record AuditReport(String script, List<SecurityAudit.AgentProfile> agents
             as.add(a);
         }
         m.put("agents", as);
+        if (!prompts.isEmpty()) {
+            List<Map<String, Object>> ps = new ArrayList<>();
+            for (var u : prompts) {
+                Map<String, Object> x = new LinkedHashMap<>();
+                x.put("agent", u.agent());
+                x.put("line", u.line());
+                x.put("prompt", u.reference());
+                x.put("version", u.version());
+                x.put("hash", u.hash());
+                ps.add(x);
+            }
+            m.put("prompts", ps);
+        }
         List<Map<String, Object>> fs = new ArrayList<>();
         for (Finding f : findings) {
             Map<String, Object> x = new LinkedHashMap<>();

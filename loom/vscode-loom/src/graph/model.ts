@@ -53,6 +53,8 @@ export interface AgentInfo {
     budget?: Record<string, unknown>;
     maxIterations?: number;
     source?: SourceRef;
+    /** The prompt file the agent runs, when it names one. */
+    prompt?: { ref: string; version?: string; file?: string };
 }
 
 export interface Diagnostic {
@@ -186,6 +188,12 @@ export function parseGraph(text: string): GraphResult {
             fail(`${at} should be an object`);
         }
         str(a.name, `${at}.name`);
+        if (a.prompt !== undefined) {
+            if (!isObject(a.prompt)) {
+                fail(`${at}.prompt should be an object`);
+            }
+            str(a.prompt.ref, `${at}.prompt.ref`);
+        }
         return a;
     });
     list(json.diagnostics, 'diagnostics', diagnostic);

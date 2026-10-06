@@ -16,6 +16,8 @@ public class LoomScript implements Node {
     private final List<DecisionDef> decisions = new ArrayList<>();
     private final List<String> imports = new ArrayList<>();
     private final List<Integer> importLines = new ArrayList<>();
+    private String promptsDir;
+    private int promptsDirLine;
     private AuditConfig auditConfig;
     private BudgetDef budget;
     private RateLimitDef rateLimits;
@@ -33,6 +35,11 @@ public class LoomScript implements Node {
     }
 
     public List<WorkflowDef> getWorkflows() { return workflows; }
+
+    /** The folder named by {@code prompts: "./prompts"}, relative to the script; null when the script does not name one. */
+    public String getPromptsDir() { return promptsDir; }
+    public int getPromptsDirLine() { return promptsDirLine; }
+    public void setPromptsDir(String dir, int line) { this.promptsDir = dir; this.promptsDirLine = line; }
 
     public void addMcpServer(McpServerDef mcp) { this.mcpServers.add(mcp); }
     public List<McpServerDef> getMcpServers() { return mcpServers; }

@@ -30,6 +30,24 @@ If a refresh fails (for example a syntax error), the last good graph stays and a
 
 The graph is built by `weave graph` from the bundled `weave.jar`, the same parser that runs your workflows, so it cannot drift from the language. It needs Java 17 or newer; nothing is run and no model is called.
 
+### Prompt files
+
+When an agent's prompt is a markdown file (`prompt: "researcher"` or `prompt: "researcher@v2"` in the script, from a `prompts/` folder beside it), its steps in the graph show the prompt as a chip (`researcher@v2`), the agent's details card shows it, and **Open prompt** on a selected step opens the file. The panel opens only the script, its imports and the prompt files of the agents it shows.
+
+**Loom: Create Prompt File** (Command Palette, for `.loom` files) creates the file for a `prompt:` you have written and not yet made: the one on the cursor's line, or the one you pick. It never overwrites a file. Prompt files are described in the Loom guide.
+
+## The guide and the agent skill
+
+**Loom: Open Guide** (Command Palette) shows a page of the written guide: where to start, the ten chapters, or the Loom reference. It comes from the `weave` jar inside this extension, so it works with no repository and no network.
+
+**Loom: Install the Loom Skill in This Project** writes the agent skill and the guide into `.claude/skills/llm4j-workflow-guide` in the folder you have open, so an AI coding agent that reads the project knows the path. It asks before it replaces an older copy.
+
+## Problems
+
+Loom files are checked with `weave check`, the language's own parser (the one that runs your workflows), so the editor and the command line cannot disagree. Its findings show as errors and warnings in the Problems panel and as squiggles, under the source `weave check`, when a `.loom` file is opened and saved. It checks the saved file, so unsaved edits are checked at your next save. A warning means the script runs but something is probably a mistake, for example a result that is stored and never read, or a question to a person whose answer changes nothing.
+
+A key that is not set yet (such as `GEMINI_API_KEY`) is not reported as a problem: the check does not need keys. If Java is missing you are told once, and the problems already shown stay as they were.
+
 ### Settings
 
 | Setting | Default | What it does |

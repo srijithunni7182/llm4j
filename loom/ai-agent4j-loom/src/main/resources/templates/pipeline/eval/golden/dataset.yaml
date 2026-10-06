@@ -1,0 +1,5 @@
+# The quality dimensions this dataset uses. A report shows every one of them, even when nothing evaluated it.
+dimensions:
+  grounding: Uses only what the notes support
+  tone: Friendly and plain, not marketing
+  judgement: The editor sends weak drafts back and passes good ones

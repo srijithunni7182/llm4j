@@ -22,6 +22,11 @@ public final class GraphService {
     private final CallResolver resolver = new CallResolver();
 
     public GraphResult graph(Path entryFile) {
+        return graph(entryFile, io.github.llm4j.loom.prompt.PromptSettings.NONE);
+    }
+
+    /** As {@link #graph(Path)}, with the prompt folder and pins a command line gave. */
+    public GraphResult graph(Path entryFile, io.github.llm4j.loom.prompt.PromptSettings prompts) {
         ImportClosure closure = loader.load(entryFile);
         List<Diagnostic> diagnostics = new ArrayList<>(closure.diagnostics());
         if (!closure.hasEntry()) {
@@ -46,9 +51,11 @@ public final class GraphService {
         diagnostics.addAll(resolution.diagnostics());
         AgentCatalog.Found found = AgentCatalog.describe(resolution.workflows(), agents);
         diagnostics.addAll(found.diagnostics());
+        PromptAnnotator.Annotated annotated = PromptAnnotator.annotate(
+                closure.scripts().get(closure.entry()), closure.entry(), prompts, resolution.workflows(), found.agents(), agents);
 
         List<String> discovery = closure.discovery().stream().map(Path::toString).toList();
-        List<WorkflowGraph> ordered = new ArrayList<>(resolution.workflows());
+        List<WorkflowGraph> ordered = new ArrayList<>(annotated.workflows());
         ordered.sort(Comparator.comparingInt(g -> discovery.indexOf(g.file())));
 
         List<ImportFile> files = new ArrayList<>();
@@ -61,7 +68,7 @@ public final class GraphService {
                 closure.entry().toString(),
                 files,
                 ordered,
-                found.agents(),
+                annotated.agents(),
                 runBudget(closure, runOrder),
                 diagnostics);
     }

@@ -49,11 +49,19 @@ export interface ParseResult {
 }
 
 /**
+ * The language lexer lets a word contain an apostrophe when a letter follows ("doesn't"); see `Lexer.java`, where a
+ * word continues over `'` or `-` followed by a letter. This is the same rule.
+ */
+function isWordApostrophe(line: string, col: number): boolean {
+    return line[col] === "'" && /[A-Za-z0-9_]/.test(line[col - 1] ?? '') && /[A-Za-z_]/.test(line[col + 1] ?? '');
+}
+
+/**
  * Characters that are valid anywhere in Loom source.
  * Anything outside this set is a LexError.
  * Requirements 3.3, 21.1
  */
-export const VALID_CHAR_RE = /[\w\s"{}()\[\],:+\->=<!./]/;
+export const VALID_CHAR_RE = /[\w\s"{}()\[\],:+%\->=<!./]/;
 
 /**
  * Lightweight structural scanner for Loom source.
@@ -114,7 +122,7 @@ export function parseDocument(text: string): ParseResult {
                 break;
             }
 
-            if (!VALID_CHAR_RE.test(ch)) {
+            if (!VALID_CHAR_RE.test(ch) && !isWordApostrophe(line, col)) {
                 errors.push({
                     kind: 'LexError',
                     message: `Unexpected character: '${ch}'`,

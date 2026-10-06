@@ -120,6 +120,13 @@ public final class GraphJson {
             out.put("budget", agent.budget());
         }
         put(out, "maxIterations", agent.maxIterations());
+        if (agent.prompt() != null) {
+            Map<String, Object> prompt = new LinkedHashMap<>();
+            prompt.put("ref", agent.prompt().ref());
+            put(prompt, "version", agent.prompt().version());
+            put(prompt, "file", agent.prompt().file());
+            out.put("prompt", prompt);
+        }
         if (agent.source() != null) {
             out.put("source", source(agent.source()));
         }

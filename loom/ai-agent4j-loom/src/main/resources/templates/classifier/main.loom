@@ -1,0 +1,25 @@
+// {{name}}: sort a support ticket into a label, and ask a person when the model is not sure.
+// The label comes with a confidence, so low-confidence tickets are never decided by guesswork. Next steps are in README.md.
+
+budget { tokens: 50000  calls: 10 }
+
+agent Classifier {
+    model: "gemini-2.5-flash"
+    prompt: "classifier"
+    temperature: 0.0
+    guard { pii: mask }
+}
+
+workflow Main(ticket) {
+    delegate "Classify this support ticket:\n{ticket}" to Classifier -> result expecting {
+        label: enum["BUG", "BILLING", "FEATURE"],
+        confidence: enum["LOW", "MEDIUM", "HIGH"]
+    }
+
+    alt (result.confidence == "LOW") {
+        human_prompt "The classifier is not sure about this ticket:\n{ticket}\n\nIts guess: {result.label}. Which label is right? (BUG, BILLING or FEATURE)" -> chosen
+        note "Label chosen by a person: {chosen}"
+    } else {
+        note "Label: {result.label} (confidence {result.confidence})"
+    }
+}

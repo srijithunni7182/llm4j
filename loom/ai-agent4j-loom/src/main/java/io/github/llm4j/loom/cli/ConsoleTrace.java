@@ -28,6 +28,7 @@ final class ConsoleTrace implements TraceListener {
             Map.entry(TraceEvent.GUARD, "🛡"),
             Map.entry(TraceEvent.VOICE, "🔊"),
             Map.entry(TraceEvent.SUSPENDED, "⏸"),
+            Map.entry(TraceEvent.NOTE, "📝"),
             Map.entry(TraceEvent.TOOL, "🧰"),
             Map.entry(TraceEvent.CHECKPOINT, "📍"),
             Map.entry(TraceEvent.REWIND, "⏪"),

@@ -16,6 +16,8 @@ public class AgentDef implements Node {
     private String persona;
     /** Optional: ID of a PromptTemplate in PromptRegistry; overrides inline system prompt. */
     private String systemTemplate;
+    /** Optional: a prompt file reference from {@code prompt: "id"} or {@code prompt: "id@v2"}. */
+    private String prompt;
     private final List<String> tools = new ArrayList<>();
     /** Names of mcp { } blocks whose tools are auto-bound to this agent. */
     private final List<String> mcpServers = new ArrayList<>();
@@ -62,6 +64,12 @@ public class AgentDef implements Node {
 
     public String getPersona() { return persona; }
     public void setPersona(String persona) { this.persona = persona; }
+
+    public String getPrompt() { return prompt; }
+    public void setPrompt(String prompt) { this.prompt = prompt; }
+
+    /** The prompt reference this agent uses: {@code prompt:} if given, else the older {@code system_template:}; null for neither. */
+    public String getPromptRef() { return prompt != null ? prompt : systemTemplate; }
 
     public String getSystemTemplate() { return systemTemplate; }
     public void setSystemTemplate(String systemTemplate) { this.systemTemplate = systemTemplate; }

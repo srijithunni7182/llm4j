@@ -51,7 +51,9 @@ class SecretDocsTest {
         for (Path doc : List.of(GUIDE, ROOT.resolve("docs/guide/09-go-live.md"))) {
             Matcher m = Pattern.compile("\\]\\(([^)#]*Secret-Store\\.md)").matcher(read(doc));
             assertThat(m.find()).as(doc + " links to the secret store page").isTrue();
-            assertThat(doc.getParent().resolve(m.group(1)).normalize()).exists();
+            String link = m.group(1);
+            String web = "https://github.com/srijithunni7182/llm4j/blob/main/"; // the guide links by web address so it reads the same inside the jar
+            assertThat(link.startsWith(web) ? ROOT.resolve(link.substring(web.length())) : doc.getParent().resolve(link).normalize()).exists();
         }
         assertThat(read(ROOT.resolve("ai-agent4j/wiki/Home.md"))).contains("Secret-Store.md");
         assertThat(read(ROOT.resolve("llms.txt"))).contains("Secret-Store.md");

@@ -51,6 +51,12 @@ public class LoomParser {
                 script.setBudget(parseBudgetBlock(false));
             } else if (isDecisionStart()) {
                 script.addDecision(parseDecision());
+            } else if (isNamedAttribute("prompts")) {
+                // Contextual: `prompts` stays usable as a variable name everywhere else.
+                Token keyword = advance();
+                advance(); // the colon
+                if (script.getPromptsDir() != null) throw error(keyword, "Only one prompts: folder can be named.");
+                script.setPromptsDir(consume(TokenType.STRING_LITERAL, "Expect a folder for prompts, e.g. prompts: \"./prompts\".").getValue(), keyword.getLine());
             } else if (isBlockKeyword("rate_limits")) {
                 Token keyword = advance();
                 if (script.getRateLimits() != null) throw error(keyword, "Only one rate_limits block is allowed.");
@@ -61,6 +67,12 @@ public class LoomParser {
         }
 
         return script;
+    }
+
+    /** True at an identifier with this name followed by a colon, such as {@code prompt:}; the word is not reserved anywhere else. */
+    private boolean isNamedAttribute(String name) {
+        return check(TokenType.IDENTIFIER) && name.equals(peek().getValue())
+                && tokens.size() > current + 1 && tokens.get(current + 1).getType() == TokenType.COLON;
     }
 
     private String parseImport() {
@@ -88,6 +100,16 @@ public class LoomParser {
                 consume(TokenType.COLON, "Expect ':' after system_template.");
                 Token tmpl = consume(TokenType.STRING_LITERAL, "Expect string literal for system_template id.");
                 agent.setSystemTemplate(tmpl.getValue());
+            } else if (isNamedAttribute("prompt")) {
+                Token keyword = advance();
+                advance(); // the colon
+                Token ref = consume(TokenType.STRING_LITERAL, "Expect a string for prompt, e.g. prompt: \"researcher\" or prompt: \"researcher@v2\".");
+                try {
+                    io.github.llm4j.loom.prompt.PromptRef.parse(ref.getValue());
+                } catch (IllegalArgumentException e) {
+                    throw error(keyword, e.getMessage());
+                }
+                agent.setPrompt(ref.getValue());
             } else if (match(TokenType.PERSONA)) {
                 consume(TokenType.COLON, "Expect ':' after persona.");
                 Token personaToken = check(TokenType.IDENTIFIER) ? advance()

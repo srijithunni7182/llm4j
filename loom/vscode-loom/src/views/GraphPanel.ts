@@ -18,7 +18,7 @@ export function readGraphSettings(): { javaPath: string; timeoutMs: number; auto
     };
 }
 
-class TimeoutScheduler implements Scheduler {
+export class TimeoutScheduler implements Scheduler {
     after(ms: number, run: () => void): TimerHandle {
         const handle = setTimeout(run, ms);
         return { cancel: () => clearTimeout(handle) };

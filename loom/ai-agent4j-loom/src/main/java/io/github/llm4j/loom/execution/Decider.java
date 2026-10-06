@@ -158,7 +158,7 @@ final class Decider {
     }
 
     private String identityOf(DecisionDef def) {
-        return identities.computeIfAbsent(def.getName(), n -> AgentIdentity.of(run.script(), def, run.baseDir()));
+        return identities.computeIfAbsent(def.getName(), n -> AgentIdentity.of(run.script(), def, run.baseDir(), run.promptCatalog()));
     }
 
     private static String text(Object o) {
