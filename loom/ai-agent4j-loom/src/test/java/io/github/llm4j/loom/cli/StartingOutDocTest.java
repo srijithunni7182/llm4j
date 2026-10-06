@@ -36,4 +36,16 @@ class StartingOutDocTest {
         }
         assertThat(List.of("init", "check", "guide")).allMatch(root.getSubcommands()::containsKey);
     }
+
+    @Test
+    void theReferenceTheIndexAndTheSkillDescribeExplainNextAndRecipes() throws Exception {
+        String guide = Files.readString(Path.of("LOOM_GUIDE.md"));
+        String llms = Files.readString(Path.of("../../llms.txt"));
+        String skill = Files.readString(Path.of("../../.claude/skills/llm4j-workflow-guide/SKILL.md"));
+
+        assertThat(guide).contains("weave explain main.loom").contains("weave next").contains("weave guide recipes").contains("rejects a `delegate` or `broadcast` to an agent the script does not define");
+        assertThat(llms).contains("weave explain script.loom").contains("weave next").contains("weave guide recipes");
+        assertThat(skill).contains("weave next").contains("weave explain").contains("weave guide recipes");
+        assertThat(WeaveCLI.commandLine().getSubcommands()).containsKeys("explain", "next");
+    }
 }

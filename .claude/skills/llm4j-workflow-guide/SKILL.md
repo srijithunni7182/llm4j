@@ -103,6 +103,10 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
     Remember: `call` passes text and hands back the variable named `result`; names are one flat namespace across files (make them unique); `budget` goes
     in the entry file only. Check with `weave check` and `weave graph` on the entry file, and tell the user how you split it. Chapter 6 has the layout and a complete example.
 
+12. **Know where the project stands, and show what you built.** In a project that already has files, run `weave next` first: it says what to do next, in order, and
+    it is free. After you change a script, run `weave explain <script>` and read the plain-English description back to the user, so they can confirm it is what they
+    meant before anything is run. Neither command calls a model. When the user asks how to change something, look in `weave guide recipes` for a tested pattern.
+
 ## Things that look like success and are not
 
 - `Tests run: 0` in a Maven build. An old Surefire finds no JUnit 5 tests and says BUILD SUCCESS. The test module `weave init --with-java-tests`
@@ -122,6 +126,8 @@ Java path. Say so when it matters instead of improvising.
 ## Useful commands
 
 ```
+weave next                                      # what to do next in this project, in order, free (a good first command in an existing project)
+weave explain workflow.loom                     # the script in plain English: show it to the user to confirm it does what they meant
 weave init pipeline my-workflow                 # a small, complete project: script, prompts as files, golden dataset, README
 weave check workflow.loom --no-env              # free, no model calls, no keys; finds missing prompts, unused results, bad names
 weave graph workflow.loom --format mermaid      # see the workflow (or Loom: Show Workflow Graph in VS Code)
