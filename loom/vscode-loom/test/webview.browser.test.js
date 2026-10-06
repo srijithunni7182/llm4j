@@ -443,3 +443,41 @@ test('VP.5: panning and zooming a 400-step graph keeps the median frame at 20 ms
   assert.ok(median <= 20, 'median frame ' + median.toFixed(1) + ' ms');
   await p.close();
 });
+
+test('R7.1: a step whose agent runs a prompt file shows the prompt in its chips and its card, and the selected step can open the file', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open();
+  const message = graph('content_factory');
+  const agentName = message.result.workflows[0].nodes.find((n) => n.id === 'n1').agent;
+  message.result.agents.find((a) => a.name === agentName).prompt = { ref: 'researcher', version: 'v2', file: '/p/prompts/researcher/v2.md' };
+  message.result.workflows[0].nodes.find((n) => n.id === 'n1').attrs = { ...(message.result.workflows[0].nodes.find((n) => n.id === 'n1').attrs || {}), prompt: 'researcher@v2' };
+  await p.send(message);
+
+  assert.match(await p.page.locator('.lg-node[data-id="n1"]').textContent(), /researcher@v2/);
+  await p.page.locator('.lg-node[data-id="n1"]').hover();
+  await p.page.waitForTimeout(100);
+  assert.match(await p.page.locator('#card').innerText(), /Prompt\s*researcher \(v2\)/);
+
+  await p.page.locator('.lg-node[data-id="n1"]').click();
+  await p.clearPosted();
+  await p.page.getByRole('button', { name: /Open prompt researcher/ }).click();
+  assert.deepEqual(await p.posted(), [{ type: 'openSource', file: '/p/prompts/researcher/v2.md', line: 1, beside: true }]);
+  assert.deepEqual(p.errors, []);
+  await p.close();
+});
+
+test('a prompt that does not resolve says so in the card and offers no file', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open();
+  const message = graph('content_factory');
+  const agentName = message.result.workflows[0].nodes.find((n) => n.id === 'n1').agent;
+  message.result.agents.find((a) => a.name === agentName).prompt = { ref: 'missing' };
+  await p.send(message);
+  await p.page.locator('.lg-node[data-id="n1"]').hover();
+  await p.page.waitForTimeout(100);
+
+  assert.match(await p.page.locator('#card').innerText(), /Prompt\s*missing \(not found\)/);
+  await p.page.locator('.lg-node[data-id="n1"]').click();
+  assert.equal(await p.page.getByRole('button', { name: /Open prompt/ }).count(), 0);
+  await p.close();
+});

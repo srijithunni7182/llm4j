@@ -48,12 +48,19 @@ public final class WorkflowGraph {
     private WorkflowGraph() {}
 
     public static WorkflowGraph of(WorkflowDef workflow) {
+        return of(workflow, agent -> null);
+    }
+
+    /** As {@link #of(WorkflowDef)}, with {@code promptLabels} giving the prompt (id and version) an agent runs, shown on its steps. */
+    public static WorkflowGraph of(WorkflowDef workflow, java.util.function.Function<String, String> promptLabels) {
         io.github.llm4j.loom.graph.WorkflowGraph built = new GraphBuilder().build(workflow, "");
         Map<String, GraphNode> byId = new HashMap<>();
         built.nodes().forEach(n -> byId.put(n.id(), n));
 
         WorkflowGraph g = new WorkflowGraph();
-        for (GraphNode node : built.nodes()) {
+        for (GraphNode graphNode : built.nodes()) {
+            String prompt = graphNode.agent() == null ? null : promptLabels.apply(graphNode.agent());
+            GraphNode node = prompt == null ? graphNode : graphNode.withAttr("prompt", prompt);
             WorkflowTrace.Node mapped = new WorkflowTrace.Node(
                     node.id(), node.kind(), node.label(), node.agent(), node.bound(), withPlacement(node));
             g.nodes.add(mapped);

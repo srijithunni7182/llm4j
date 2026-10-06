@@ -16,7 +16,8 @@ lines; an agent that "does everything" cannot be tested, and an agent with every
 3. **Fewest tools.** List the tools each agent may call. Fewer tools means a smaller attack surface and an easier test.
 4. **Temperature by role.** Low for a verifier (0.1 to 0.2), higher for an ideas role (0.9). Write down why.
 5. **Persona and prompts as data.** Use `AgentPersona` (or one of the ready-made `PersonaLibrary` personas) and keep prompt text
-   in a `PromptRegistry` file with versions, so you can test and change a prompt without touching code.
+   in files with versions, so you can test and change a prompt without touching code. Which files depends on how you run the
+   workflow (see "Two paths" below).
 
 ```java
 AgentPersona rahul = AgentPersona.builder()
@@ -37,6 +38,30 @@ prompts:
   agent_analyze:
     v1: "Analyze this problem as a {{role}}: {{problem}} ..."
     latest: "v1"
+```
+
+## Two paths: a script, or Java
+
+Decide this once, because the rest of the guide forks on it only in a few places.
+
+| | **Script path** (Loom is the runtime, run with `weave`) | **Java path** (agents built in Java, or Loom embedded in a Java host) |
+|---|---|---|
+| Where a prompt lives | a markdown file: `prompts/<id>.md` or `prompts/<id>/vN.md`, named in the script with `prompt: "id"` | the same files, read with `MarkdownFolderPromptRegistry`; or the older YAML file with `FileSystemPromptRegistry` |
+| Pinning a version | `prompt: "id@v2"`, or `--prompt id@v2` for one run | `registry.get(id, "v2")`, or `HarnessExecutor.setPromptRegistry(...)` |
+| Checking | `weave check` (missing files and versions, unused files), `weave audit` | the same commands on the script; your own tests on the agents |
+| Needs Java and Maven | no | yes |
+
+Nothing in the script path needs Java code, and the folder format is the same on both, so you can start with a script and
+embed it later without moving a prompt. The Hexamind example in this guide uses the Java path with a YAML registry; the
+`samples/newsletter` project in `loom/ai-agent4j-loom` is the script path.
+
+```
+newsletter/
+  main.loom                    agent Researcher { model: "..."  prompt: "researcher" }
+  prompts/
+    researcher/v1.md
+    researcher/v2.md
+    writer.md
 ```
 
 ## Agent or task?

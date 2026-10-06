@@ -9,7 +9,7 @@ You are walking a user through a proven path. The chapters are in `docs/guide/` 
 
 | # | Stage | Chapter | Gate before moving on |
 |---|---|---|---|
-| 1 | Decide the agents | `docs/guide/01-decide-your-agents.md` | each agent has a one-sentence job, a tool list, a temperature with a reason, prompt ids in a registry; every step that moves money or must be exact is a task (plain Java), not an agent |
+| 1 | Decide the agents | `docs/guide/01-decide-your-agents.md` | each agent has a one-sentence job, a tool list, a temperature with a reason, prompts in files (`prompts/` for a script, a registry for Java); every step that moves money or must be exact is a task (plain Java), not an agent |
 | 2 | Golden dataset | `docs/guide/02-golden-dataset.md` | the dataset test passes; every dimension covered; each agent has an injection and a fabricated-premise case |
 | 3 | Prompt tests | `docs/guide/03-prompt-tests.md` | each prompt meets its rule; candidates do not regress |
 | 4 | Prompt optimization | `docs/guide/04-prompt-optimization.md` | `result.generalized()` is true (skip the stage if prompts already pass) |
@@ -21,6 +21,8 @@ You are walking a user through a proven path. The chapters are in `docs/guide/` 
 | 10 | Best practices | `docs/guide/10-best-practices.md` | the readiness checklist is ticked |
 
 Start with `docs/guide/README.md` if the user is new to the path.
+
+**Two paths.** At stage 1 ask whether the workflow is a script run with `weave` (Loom is the runtime) or Java code (agents built in Java, or Loom embedded in a host). Prompts live in `prompts/` markdown files either way (`prompt: "id"` in the script; `MarkdownFolderPromptRegistry` from Java); only the Java path needs Maven and JUnit. A/B a prompt version on the script path with `weave run ... --prompt id@v2`.
 
 ## How to guide
 
@@ -39,8 +41,8 @@ llm4j does not (yet) provide: a cost estimator for Loom (keep a small cost model
 ## Useful commands
 
 ```
-weave check workflow.loom                       # free, no model calls
-weave audit workflow.loom --fail-on medium      # free security audit
+weave check workflow.loom                       # free, no model calls (finds missing prompt files and versions)
+weave audit workflow.loom --fail-on medium      # free security audit (also lists which prompt each agent runs)
 weave run workflow.loom --max-cost 0.50 --prices prices.properties --journal runs/run-1
 mvn test -Deval.fake=true                       # a free full run on mocks (Hexamind: eval/run-all.sh --fake)
 ```

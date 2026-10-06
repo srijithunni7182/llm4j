@@ -105,7 +105,7 @@
 
   /** The chips each kind can show, in the order they are drawn. */
   var CHIP_KINDS = {
-    delegate: ['timeout', 'retry', 'budget', 'expecting', 'variable'],
+    delegate: ['prompt', 'timeout', 'retry', 'budget', 'expecting', 'variable'],
     task: ['timeout', 'retry', 'variable'],
     broadcast: ['budget', 'variable'],
     parallel: ['branches'],
@@ -131,6 +131,7 @@
   function chipFor(key, node) {
     var a = attrsOf(node);
     switch (key) {
+      case 'prompt': return a.prompt ? { t: cut(String(a.prompt), 26), v: 'muted' } : null;
       case 'timeout': return a.timeoutMs ? { t: 'timeout ' + duration(a.timeoutMs) } : null;
       case 'retry': return a.retry ? { t: 'retry ' + a.retry + (a.backoffMs ? ' · ' + duration(a.backoffMs) : '') } : null;
       case 'budget': { var t = a.budget && budgetText(a.budget); return t ? { t: t, v: 'budget' } : null; }

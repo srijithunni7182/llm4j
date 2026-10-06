@@ -73,7 +73,7 @@ version prompts like code.
 
 ### Requirement 7: Tooling and docs
 
-1. The graph (JSON, Mermaid, panel, report) shows `prompt id@version` as a chip on an agent step, and the panel
+1. The graph (JSON, panel, report; Mermaid does not draw per-step settings) shows `prompt id@version` as a chip on an agent step, and the panel
    opens the prompt file from it.
 2. The VS Code extension offers a command to create a prompt file for an agent that names one that does not exist.
 3. `LOOM_GUIDE.md`, `llms.txt` and the workflow-guide skill describe both paths (script with prompt files, and Java

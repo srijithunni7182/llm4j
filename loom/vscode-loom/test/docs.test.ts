@@ -34,3 +34,16 @@ test('the README covers every node kind the panel draws', () => {
         assert.ok(readme.includes(word), word);
     }
 });
+
+test('the README documents the prompt-file features and the command that creates the file', () => {
+    const create = manifest.contributes.commands.find((c: { command: string }) => c.command === 'loom.createPromptFile');
+    assert.ok(create, 'the command is declared');
+    assert.ok(readme.includes(`**${create.title}**`), 'the command title is in the README');
+    assert.match(readme, /Open prompt/);
+    assert.match(readme, /never overwrites a file/);
+});
+
+test('the create command is offered in the palette only for .loom files', () => {
+    const entry = manifest.contributes.menus.commandPalette.find((m: { command: string }) => m.command === 'loom.createPromptFile');
+    assert.equal(entry.when, 'resourceLangId == loom');
+});

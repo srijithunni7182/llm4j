@@ -1,0 +1,23 @@
+// newsletter: research a topic, draft an issue, have an editor send weak drafts back (at most twice).
+// Each agent's prompt is a markdown file in prompts/ (see prompts/researcher/v2.md); try:
+//   weave run main.loom -i topic="home composting" --prompt researcher@v1
+
+budget { tokens: 200000  calls: 30 }
+
+agent Researcher { model: "gemini-2.5-flash"  prompt: "researcher"  temperature: 0.3 }
+agent Writer     { model: "gemini-2.5-flash"  prompt: "writer"      temperature: 0.7 }
+agent Editor     { model: "gemini-2.5-flash"  prompt: "editor"      temperature: 0.1 }
+
+workflow Main(topic) {
+    delegate "Background and recent news on: {topic}" to Researcher -> notes
+    delegate "Write this week's issue about {topic} from these notes:\n{notes}" to Writer -> draft
+
+    loop until (review.verdict == "OK") max 2 {
+        delegate "Review this draft:\n{draft}" to Editor -> review expecting { verdict: enum["OK", "REWRITE"], advice: string }
+        alt (review.verdict == "REWRITE") {
+            delegate "Rewrite the draft. The editor says: {review.advice}\n\n{draft}" to Writer -> draft
+        }
+    }
+
+    note "Issue ready:\n{draft}"
+}

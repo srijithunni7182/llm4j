@@ -11,7 +11,7 @@ for real under a cap.
 
 | # | Stage | You | Tools | Cost | Gate to move on |
 |---|---|---|---|---|---|
-| 1 | [Decide your agents](01-decide-your-agents.md) | one job per agent; tools, persona, prompt ids | `AgentPersona`, `PromptRegistry` | $0 | each agent has a one-sentence job and a tool list |
+| 1 | [Decide your agents](01-decide-your-agents.md) | one job per agent; tools, persona, prompt files; script path or Java path | `AgentPersona`, `PromptRegistry` | $0 | each agent has a one-sentence job and a tool list |
 | 2 | [Build a golden dataset](02-golden-dataset.md) | scenarios with rubrics and dimensions | `EvalScenarios`, `DatasetSynthesizer` | $0 (synthesis: small) | dataset test passes; every dimension has cases |
 | 3 | [Test the prompts](03-prompt-tests.md) | rubric checks, A/B against a candidate | `llmJudged`, `PromptComparison` | cents | each prompt meets its rule |
 | 4 | [Optimize the prompts](04-prompt-optimization.md) | only where tests fail | `PromptOptimizer` | capped | held-out test agrees (`generalized()`) |

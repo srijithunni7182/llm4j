@@ -192,13 +192,14 @@ export class GraphPanelController {
         return parseGraph(text);
     }
 
-    /** Files the panel may ask to open: the entry, its imports, files that have a problem reported, and the file of the last error. */
+    /** Files the panel may ask to open: the entry, its imports, files that have a problem reported, the file of the last error, and the prompt files of its agents. */
     private isKnown(file: string): boolean {
         return (
             samePath(this.options.entry, file) ||
             (this.errorFile !== undefined && samePath(this.errorFile, file)) ||
             !!this.current?.files.some((f) => samePath(f.path, file)) ||
-            !!this.current?.diagnostics.some((d) => samePath(d.file, file))
+            !!this.current?.diagnostics.some((d) => samePath(d.file, file)) ||
+            !!this.current?.agents.some((a) => a.prompt?.file !== undefined && samePath(a.prompt.file, file))
         );
     }
 

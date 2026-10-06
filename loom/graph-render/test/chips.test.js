@@ -103,3 +103,14 @@ test('subtitles follow the table in ui.md', () => {
   assert.equal(G.subtitle(node('call', {}, { call: { workflow: 'W' }, unresolved: true })), 'not found');
   assert.equal(G.subtitle(node('alt', {})), null);
 });
+
+test('a step whose agent runs a prompt file shows it first, as id@version', () => {
+  const n = node('delegate', { prompt: 'researcher@v2', variable: 'r', retry: 2 });
+  assert.deepEqual(texts(n), ['researcher@v2', 'retry 2', '→ r']);
+  assert.equal(G.chips(n)[0].v, 'muted');
+});
+
+test('a step with no prompt file shows no prompt chip, and a long id is cut', () => {
+  assert.deepEqual(texts(node('delegate', { retry: 2 })), ['retry 2']);
+  assert.ok(texts(node('delegate', { prompt: 'a-very-long-prompt-identifier@v12' }))[0].length <= 26);
+});

@@ -393,6 +393,12 @@ public class HarnessExecutor implements LoomEngine {
         traceListeners.add(listener);
     }
 
+    /** {@code researcher@v2} for the prompt the named agent runs, or empty when it runs an inline one or none resolves. */
+    public java.util.Optional<String> promptLabel(String agentName) {
+        return script.getAgents().stream().filter(a -> a.getName().equals(agentName)).findFirst()
+                .flatMap(this::promptUsed).map(io.github.llm4j.loom.prompt.PromptUse::label);
+    }
+
     /** The prompt file or registry prompt this agent runs, if it names one that resolves (the id, version and a hash of the text). */
     java.util.Optional<io.github.llm4j.loom.prompt.PromptUse> promptUsed(io.github.llm4j.loom.ast.AgentDef agent) {
         if (promptCatalog == null || agent.getPromptRef() == null) return java.util.Optional.empty();

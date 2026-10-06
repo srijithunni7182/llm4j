@@ -71,12 +71,20 @@
         "command": "loom.showGraph",
         "title": "Loom: Show Workflow Graph",
         "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "loom.createPromptFile",
+        "title": "Loom: Create Prompt File"
       }
     ],
     "menus": {
       "commandPalette": [
         {
           "command": "loom.showGraph",
+          "when": "resourceLangId == loom"
+        },
+        {
+          "command": "loom.createPromptFile",
           "when": "resourceLangId == loom"
         }
       ],

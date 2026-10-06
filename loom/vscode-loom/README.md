@@ -30,6 +30,12 @@ If a refresh fails (for example a syntax error), the last good graph stays and a
 
 The graph is built by `weave graph` from the bundled `weave.jar`, the same parser that runs your workflows, so it cannot drift from the language. It needs Java 17 or newer; nothing is run and no model is called.
 
+### Prompt files
+
+When an agent's prompt is a markdown file (`prompt: "researcher"` or `prompt: "researcher@v2"` in the script, from a `prompts/` folder beside it), its steps in the graph show the prompt as a chip (`researcher@v2`), the agent's details card shows it, and **Open prompt** on a selected step opens the file. The panel opens only the script, its imports and the prompt files of the agents it shows.
+
+**Loom: Create Prompt File** (Command Palette, for `.loom` files) creates the file for a `prompt:` you have written and not yet made: the one on the cursor's line, or the one you pick. It never overwrites a file. Prompt files are described in the Loom guide.
+
 ### Settings
 
 | Setting | Default | What it does |

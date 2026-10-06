@@ -1,7 +1,5 @@
 package io.github.llm4j.agent.prompt;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -35,7 +33,7 @@ import java.util.regex.Pattern;
  *   writer.md          (an id with one version; this is version v1)
  * </pre>
  *
- * <p>A file may start with a YAML front matter block ({@code description}, {@code variables}); the rest is the prompt
+ * <p>A file may start with a front matter block between {@code ---} lines ({@code description:} on one line, {@code variables:} as a list); the rest is the prompt
  * text, verbatim, with leading and trailing blank lines trimmed. The latest version of an id is its highest version
  * number. An id is lower-case letters, digits, {@code -} and {@code _}; a version is {@code v} and a whole number.
  *
@@ -57,8 +55,6 @@ public final class MarkdownFolderPromptRegistry implements PromptRegistry, AutoC
 
     /** Something in the folder that was ignored or refused. */
     public record Problem(Path file, String message) {}
-
-    private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
     private final Path root;
     private volatile Map<String, TreeMap<Integer, Entry>> prompts = Map.of();
@@ -215,15 +211,11 @@ public final class MarkdownFolderPromptRegistry implements PromptRegistry, AutoC
             var fm = FRONT_MATTER.matcher(content);
             if (fm.find()) {
                 try {
-                    Map<?, ?> meta = YAML.readValue(fm.group(1), Map.class);
-                    if (meta != null) {
-                        if (meta.get("description") != null) description = String.valueOf(meta.get("description"));
-                        if (meta.get("variables") instanceof List<?> list) {
-                            variables = list.stream().map(String::valueOf).toList();
-                        }
-                    }
-                } catch (IOException e) {
-                    issues.add(new Problem(file, "refused: the front matter is not valid YAML (" + firstLine(e.getMessage()) + ")"));
+                    var parsed = PromptFrontMatter.parse(fm.group(1));
+                    description = parsed.description();
+                    variables = parsed.variables();
+                } catch (PromptFrontMatter.Invalid e) {
+                    issues.add(new Problem(file, "refused: the front matter is not valid (" + e.getMessage() + ")"));
                     return;
                 }
                 content = content.substring(fm.end());
@@ -233,10 +225,6 @@ public final class MarkdownFolderPromptRegistry implements PromptRegistry, AutoC
         } catch (IOException e) {
             issues.add(new Problem(file, "cannot read: " + e.getMessage()));
         }
-    }
-
-    private static String firstLine(String s) {
-        return s == null ? "" : s.lines().findFirst().orElse("");
     }
 
     private void startWatching() {

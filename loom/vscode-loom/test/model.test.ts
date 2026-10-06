@@ -59,3 +59,11 @@ test('a graph with no workflows is valid', () => {
     empty.workflows = [];
     assert.equal(parseGraph(JSON.stringify(empty)).workflows.length, 0);
 });
+
+test('an agent may carry the prompt file it runs, and one without a reference is refused', () => {
+    const base = JSON.parse(golden('content_factory'));
+    base.agents = [{ name: 'A', prompt: { ref: 'researcher', version: 'v2', file: '/p/prompts/researcher/v2.md' } }];
+    assert.equal(parseGraph(JSON.stringify(base)).agents[0].prompt?.version, 'v2');
+    base.agents = [{ name: 'A', prompt: { version: 'v2' } }];
+    assert.throws(() => parseGraph(JSON.stringify(base)), /agents\[0\]\.prompt\.ref should be a string/);
+});

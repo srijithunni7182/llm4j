@@ -801,6 +801,40 @@ routing HighReliability {
 }
 ```
 
+### Prompt Files
+
+An agent's prompt can live in its own markdown file, in a folder next to the script, instead of inline in the script. That gives each prompt its own history, its own review, and versions you can compare. It works the same with `weave` and from a Java host; there is nothing to wire up.
+
+```
+newsletter/
+  main.loom
+  prompts/
+    researcher/v1.md          # a prompt with versions: <id>/<version>.md
+    researcher/v2.md
+    writer.md                 # a prompt with one version: <id>.md  (this is v1)
+    editor.md
+```
+
+```loom
+agent Researcher { model: "gemini-2.5-flash"  prompt: "researcher" }        // the latest version
+agent Writer     { model: "gemini-2.5-flash"  prompt: "writer@v1"  system: "Keep it under 300 words." }
+```
+
+- A prompt file is markdown. It may start with a front matter block (`description:` and `variables:`); the rest is the prompt, word for word. An id is lower-case letters, digits, `-` and `_`; a version is `v` and a number (`v10` is newer than `v9`).
+- `prompt: "id"` runs the **latest** version, `prompt: "id@v2"` pins one. If the agent also has `system:`, that text follows the file's. `system_template:` is the older name for `prompt:` and still works.
+- The folder is, in order: `--prompts <dir>` on the command line, a `prompts: "./dir"` line in the script (relative to the script), or a `prompts/` folder beside the script. Prompt files belong to the script you run; an imported file cannot choose the folder, but its agents use yours.
+- **Pin a version for one run** with `--prompt researcher@v1` (repeatable). It beats the version written in the script and nothing else changes, so two runs with different pins are a fair comparison. A run saved with `--journal` keeps its pins, so `weave resume` runs the same wording.
+- `weave check` tells you what is wrong: a prompt with no file (and the names nearest to it), a version that does not exist (and the ones that do), a folder that does not exist, a file it refuses (over 64 KB, or not UTF-8), and a warning for a file no agent uses. A script that says `prompt:` with no folder is an error that tells you how to supply one; it never runs with an empty prompt.
+- `weave audit` lists which prompt and version each agent would run, with a short hash of the text, never the text. A trace records the same on each agent's step (`prompt`), and a journaled run writes `prompts.json` in its run directory.
+- Editing a prompt file, or pinning another version, is a different agent as far as earned autonomy is concerned (a new evidence epoch), exactly as editing an inline prompt is.
+- Paths from a script or the command line can never reach a file outside the prompt folder. The text of a prompt is data: it is never read as Loom.
+
+`weave graph` and the editor graph show the prompt on each agent's steps (`researcher@v2`) and let you open the file; in VS Code, **Loom: Create Prompt File** creates the file for a `prompt:` you have written and not yet made. A runnable example is `samples/newsletter`.
+
+From Java, `MarkdownFolderPromptRegistry` reads the same folder and implements `PromptRegistry`, so `HarnessExecutor.setPromptRegistry(...)` takes it; the YAML `FileSystemPromptRegistry` keeps working.
+
+---
+
 ### Personas, Skills and Knowledge Graphs
 
 **Personas** can be declared in the script. An agent's `system:` prompt follows its persona:
@@ -819,7 +853,7 @@ agent Coach { model: "gemini-2.5-flash"  persona: Mentor  system: "Review the st
 
 - `persona:` looks for a persona declared in the script first, then for one of the `PersonaLibrary`
   personas (`technicalAnalyst`, `softwareDeveloper`, …).
-- An unknown persona is a load error, and so is a `system_template` with no prompt registry.
+- An unknown persona is a load error, and so is a `system_template` (or `prompt:`) with no prompt registry or prompt files.
 
 **Skills** can live at a URL:
 

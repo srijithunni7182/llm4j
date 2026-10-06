@@ -33,9 +33,13 @@ final class GraphCommand implements Callable<Integer> {
     @Option(names = "--workflow", description = "Only this workflow.")
     String workflow;
 
+    @picocli.CommandLine.Mixin
+    PromptOptions promptOptions = new PromptOptions();
+
     @Override
     public Integer call() {
-        return graph(this, WeaveEnv.system());
+        WeaveEnv env = promptOptions.apply(WeaveEnv.system());
+        return env == null ? 2 : graph(this, env);
     }
 
     static int graph(GraphCommand c, WeaveEnv env) {
@@ -43,7 +47,7 @@ final class GraphCommand implements Callable<Integer> {
             env.err().println("Error: --format takes json or mermaid.");
             return 2;
         }
-        GraphResult result = new GraphService().graph(c.script.toPath());
+        GraphResult result = new GraphService().graph(c.script.toPath(), env.prompts());
         if (!result.hasGraph()) {
             for (Diagnostic d : result.diagnostics()) {
                 env.err().println("Error: " + where(d) + d.message());

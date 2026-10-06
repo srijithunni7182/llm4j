@@ -46,4 +46,11 @@ public record GraphNode(
     public GraphNode withUnresolved(boolean isUnresolved) {
         return new GraphNode(id, kind, label, agent, bound, source, call, isUnresolved, parent, branch, attrs);
     }
+
+    /** The same node with one more setting shown on it. */
+    public GraphNode withAttr(String key, Object value) {
+        Map<String, Object> next = new LinkedHashMap<>(attrs);
+        next.put(key, value);
+        return new GraphNode(id, kind, label, agent, bound, source, call, unresolved, parent, branch, next);
+    }
 }

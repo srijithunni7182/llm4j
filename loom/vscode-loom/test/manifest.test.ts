@@ -62,10 +62,11 @@ test('the main entry point and the activation events are unchanged', () => {
     assert.deepEqual(manifest.activationEvents, ['onLanguage:loom', 'onLanguage:loot']);
 });
 
-test('the compiled extension registers both commands', () => {
+test('the compiled extension registers its commands', () => {
     const source = fs.readFileSync(path.join(root, 'src', 'extension.ts'), 'utf8');
     assert.match(source, /registerCommand\(\s*'loom\.runWorkflow'/);
     assert.match(source, /registerCommand\('loom\.showGraph'/);
+    assert.match(source, /registerCommand\('loom\.createPromptFile'/);
 });
 
 test('the webview page and scripts load nothing from outside the extension', () => {

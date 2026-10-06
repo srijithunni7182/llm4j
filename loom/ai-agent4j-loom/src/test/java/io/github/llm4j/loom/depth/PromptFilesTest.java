@@ -199,6 +199,18 @@ class PromptFilesTest {
         assertThat(seen).contains("agent Evil");
     }
 
+    @Test
+    void r1_3_frontMatterIsReadOnThisModulesClasspath() throws IOException {
+        // the registry reads front matter itself: a YAML library at a version that does not match the one beside it must not matter
+        prompt("r.md", "---\ndescription: Finds things\nvariables: [topic]\n---\nBody.");
+
+        var entry = new MarkdownFolderPromptRegistry(dir.resolve("prompts")).entry("r", "v1").orElseThrow();
+
+        assertThat(entry.description()).isEqualTo("Finds things");
+        assertThat(entry.variables()).containsExactly("topic");
+        assertThat(entry.text()).isEqualTo("Body.");
+    }
+
     // ── checking ────────────────────────────────────────────────────────────
 
     private String loadError(String agent, Map<String, String> pins, boolean withCatalog) {

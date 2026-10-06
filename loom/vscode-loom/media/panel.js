@@ -215,6 +215,10 @@
     if (node.kind === 'call' && node.call && !node.unresolved) {
       where.push(' ', el('button', { class: 'link', type: 'button', text: 'Open ' + node.call.workflow, onclick: function () { drill(node.call); } }));
     }
+    var promptAgent = node.agent && agentMap()[node.agent];
+    if (promptAgent && promptAgent.prompt && promptAgent.prompt.file) {
+      where.push(' ', el('button', { class: 'link', type: 'button', text: 'Open prompt ' + (promptAgent.prompt.ref || ''), onclick: function () { send({ type: 'openSource', file: promptAgent.prompt.file, line: 1, beside: true }); } }));
+    }
     if (where.length) { rows.push(el('dt', { text: 'Source' }), el('dd', null, where)); }
     box.appendChild(el('dl', null, rows));
   }
@@ -229,6 +233,7 @@
     function row(label, value) { if (value) { rows.push(el('dt', { text: label }), el('dd', { text: value })); } }
     row('Model', [agent.model, agent.temperature != null ? 'temp ' + agent.temperature : null].filter(Boolean).join(' · '));
     row('Persona', agent.persona);
+    row('Prompt', agent.prompt ? agent.prompt.ref + (agent.prompt.version ? ' (' + agent.prompt.version + ')' : ' (not found)') : '');
     row('Tools', (agent.tools || []).length ? agent.tools.join(', ') : 'none');
     row('Approval', agent.approveAll ? 'Needs approval for every tool' : (agent.approve || []).length ? 'Needs approval: ' + agent.approve.join(', ') : 'none');
     row('Budget', agent.budget && Object.keys(agent.budget).length ? budgetLine(agent.budget) : 'none');
