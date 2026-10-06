@@ -17,7 +17,7 @@ public final class Templates {
             new Template("pipeline", "agents in sequence with a bounded review loop (research, write, edit)", List.of(
                     "main.loom", "README.md",
                     "prompts/researcher/v1.md", "prompts/writer.md", "prompts/editor.md",
-                    "eval/golden/dataset.yaml", "eval/golden/researcher.yaml", "eval/golden/editor.yaml", "eval/golden/workflow.yaml")),
+                    "eval/golden/dataset.yaml", "eval/golden/researcher.yaml", "eval/golden/writer.yaml", "eval/golden/editor.yaml", "eval/golden/workflow.yaml")),
             new Template("approval", "a person approves a risky step; a spend cap and a personal-data guard (customer emails)", List.of(
                     "main.loom", "README.md",
                     "prompts/triage.md", "prompts/drafter.md",
