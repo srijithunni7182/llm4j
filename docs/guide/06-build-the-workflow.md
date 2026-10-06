@@ -76,6 +76,100 @@ workflow Refund(msg) {
 - A task spends no tokens and does not count against the run budget; a task that changes things is **never repeated by a crash or a `retry`** unless it is idempotent.
 - Reference: [Loom guide, Tasks](https://github.com/srijithunni7182/llm4j/blob/main/loom/ai-agent4j-loom/LOOM_GUIDE.md#tasks-deterministic-steps-run).
 
+## When something is missing: write it, do not leave a gap
+
+If the workflow needs a capability no built-in tool has, or a step that must always happen, **the agent building it writes that code** (you review it); it never leaves a
+placeholder or asks a model to pretend. There are two kinds, and the choice matters:
+
+| It is... | Write a | Because |
+|---|---|---|
+| Something an agent may *choose* to call, to look something up or compute | **custom tool** (`Tool` + a `.loot` file) | the model decides whether and when |
+| Something that **must** happen every time (a rule, a calculation, a record, a payment, a notification) | **task** (`Task` + a `run` step) | the script decides; no prompt can skip, repeat or change it |
+
+**Rule: a mandatory activity is a task run with `run`, never an agent and never a tool.** The only mandatory step that is not a task is asking a person (`human_prompt`, an
+approval), because that is what the human interface is for. If you find yourself writing "the agent must always call X", it is a task.
+
+A custom tool and a task, complete (these blocks are compiled and run by the repository's tests, so they are not pseudo-code):
+
+```java file=shop/WordCount.java
+package shop;
+
+import io.github.llm4j.agent.Tool;
+import java.util.Map;
+
+/** A tool an agent may call: counts the words in a text. */
+public class WordCount implements Tool {
+    @Override public String getName() { return "word_count"; }
+    @Override public String getDescription() { return "Counts the words in the text argument."; }
+    @Override public String execute(Map<String, Object> args) {
+        String text = String.valueOf(args.getOrDefault("text", "")).strip();
+        return String.valueOf(text.isEmpty() ? 0 : text.split("\\s+").length);
+    }
+}
+```
+
+```java file=shop/Slugify.java
+package shop;
+
+import io.github.llm4j.agent.task.Task;
+import io.github.llm4j.agent.task.TaskContext;
+import io.github.llm4j.agent.task.TaskEffect;
+import io.github.llm4j.agent.task.TaskResult;
+import java.util.Locale;
+
+/** A task the workflow must run: turns a title into a url slug. Same input, same output, free, and no prompt can change it. */
+public class Slugify implements Task {
+    @Override public String getName() { return "Slugify"; }
+    @Override public TaskEffect effect() { return TaskEffect.NONE; }   // NONE: pure; READS: only looks; CHANGES (the default): acts on the world
+    @Override public TaskResult run(TaskContext context) {
+        String title = context.requireArg("title", String.class);
+        String slug = title.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
+        return slug.isEmpty() ? TaskResult.rejected("the title has nothing to make a slug from") : TaskResult.value(slug);
+    }
+}
+```
+
+The files that connect them (a `.loot` line maps the name the script uses to the class; the services file lists tasks, one class per line):
+
+```text file=tools.loot
+WordCounter = shop.WordCount
+```
+
+```text file=META-INF/services/io.github.llm4j.agent.task.Task
+shop.Slugify
+```
+
+```loom file=main.loom
+agent Writer { model: "gemini-2.5-flash"  tools: [WordCounter] }
+
+workflow Main(title) {
+    run Slugify(title = title) -> slug_result
+    alt (slug_result.outcome == "ok") {
+        note "slug: {slug_result.value}"
+    } else {
+        note "cannot publish: {slug_result.reason}"
+    }
+}
+```
+
+Compile against the `weave` jar and run with the compiled classes beside it (the tool and the task have no other dependencies; `weave` alone cannot see your classes):
+
+```bash
+javac -cp weave.jar -d classes shop/*.java        # put META-INF/services/... under classes/ too
+java -cp weave.jar:classes io.github.llm4j.loom.cli.WeaveCLI check main.loom --loot tools.loot --no-env
+java -cp weave.jar:classes io.github.llm4j.loom.cli.WeaveCLI run main.loom --loot tools.loot -i title="Hello, World! 2026"
+```
+
+In a Maven project the same classes go in `src/main/java` and the services file in `src/main/resources`; run with the project's classes on the class path as above, or
+`weave package` to bundle them. Rules for what the agent writes:
+
+- **One class, one job, no secrets in code.** Keys come from the secret store; a tool that needs one takes it from its configuration, never a literal. Validate arguments and say what was wrong
+  (a tool returns the explanation as text; a task throws `TaskNotPerformed` or returns `rejected(...)`).
+- **A tool that acts on the world** (sends, writes, pays) overrides `requiresApproval(args)` to ask a person, and is listed in the agent's `approve: [Name]` in the script. If it must always happen, it is not a tool: make it a task.
+- **A task that changes things** says so (`Task.changes(...)` with an `EffectPolicy`, or the default `CHANGES`) and uses `ctx.idempotencyKey()` with the receiver, so a resumed run does not do it twice.
+- **Test each class directly** (plain JUnit: given this input, this output, including the refusal), then `weave check ... --loot ...` with the classes on the class path. `weave check` names a tool or task that cannot be found.
+- **Name result variables so they cannot be ordinary words in your text** (`slug_result`, not `slug`): a variable name is replaced everywhere in a string.
+
 ## Things that bit us (so they do not bite you)
 
 - **Variable names are replaced everywhere in a string, braces or not.** A workflow parameter called `consensus` turned "Previous consensus: {consensus}"

@@ -84,6 +84,20 @@ Start with `weave guide readme` if the user is new to the path.
 9. **Check names against the tools, not against source.** Before writing a sample use `weave <command> --help` and `weave guide loom`; the guide's
    samples are accurate but libraries move. Java types and Maven coordinates are in chapter 6.
 
+10. **If something is missing, write it; do not leave a gap or a placeholder.** The agent building the workflow writes the Java (the user reviews it), in
+    their project, and tests it:
+    - *A capability an agent may choose to call* is a **custom tool**: a class implementing `io.github.llm4j.agent.Tool`, mapped in a **`.loot` file**
+      (`WordCounter = shop.WordCount`), named in the agent's `tools: [...]`, run with `--loot tools.loot`. A tool that acts on the world asks first
+      (`requiresApproval`, and `approve: [Name]` in the script).
+    - *An activity that must happen every time* (a rule, a calculation, a record, a payment, a notification) is a **task**: a class implementing
+      `io.github.llm4j.agent.task.Task`, listed in `META-INF/services/io.github.llm4j.agent.task.Task`, used with `run Name(arg = value) -> result_var`.
+      **A mandatory activity is a task run with `run`, never an agent and never a tool** (a model can skip, repeat or be talked out of a step); the only
+      mandatory step that is not a task is asking a person (`human_prompt`, approvals). Say which one you chose and why.
+    - Give a task the right effect (`NONE`, `READS`, `CHANGES`) and an idempotency key for anything that changes the world. Unit-test each class directly,
+      then `weave check` with the classes on the class path. The `weave` jar alone does not see the project's classes: run
+      `java -cp weave.jar:classes io.github.llm4j.loom.cli.WeaveCLI check main.loom --loot tools.loot --no-env` (chapter 6 has the complete example).
+    - Name result variables so they cannot be ordinary words in a string (`slug_result`, not `slug`).
+
 ## Things that look like success and are not
 
 - `Tests run: 0` in a Maven build. An old Surefire finds no JUnit 5 tests and says BUILD SUCCESS. The test module `weave init --with-java-tests`
