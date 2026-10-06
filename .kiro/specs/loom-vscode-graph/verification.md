@@ -332,3 +332,18 @@ The feature is done when:
   G4-package.txt       G5-manual.md         G5-sabotage.md
   G6-final.txt         traceability.txt
 ```
+
+## 10. Status at hand-over
+
+| Gate | State | Evidence |
+|---|---|---|
+| G1 core | passed (graph package: 98.0 % lines, 86.6 % branches) | `evidence/G1-core.txt` |
+| G2 report and regression | passed | `evidence/G2-regression.txt` |
+| G3 extension logic | passed (fake `vscode` with the real `weave.jar`) | `evidence/G3-extension.txt` |
+| G4 package | passed (`.vsix` built, contents checked, bundled jar run, Mermaid parsed) | `evidence/G4-package.txt` |
+| G5 sabotage (VG.5) | all 14 breaks caught | `evidence/G5-sabotage.md` |
+| G6 traceability | 71 of 71 criteria, 114 of 114 check IDs named by a test or script | `evidence/G6-final.txt`, `evidence/traceability.txt` |
+
+Not done, and needs a person: **M1–M15 and task 14** (G5-manual, a second person on a real VS Code), and the
+`.vsix` smoke test in a clean VS Code (Definition of Done 3 and 4). VS Code could not be downloaded in the build
+environment, so no `@vscode/test-electron` run was possible. G0 (sign-off) is the user's.

@@ -1,2 +1,43 @@
 # G3  2026-10-06T12:32:38Z
 $ cd loom/vscode-loom && npm test
+  ...
+# Subtest: V6.4: text stays readable in light, dark and high-contrast themes
+ok 114 - V6.4: text stays readable in light, dark and high-contrast themes
+  ---
+  duration_ms: 573.022526
+  type: 'test'
+  ...
+# Subtest: the page never scrolls sideways, even at phone width
+ok 115 - the page never scrolls sideways, even at phone width
+  ---
+  duration_ms: 231.96379
+  type: 'test'
+  ...
+# Subtest: V8.1 collapse: blocks folded before a refresh stay folded
+ok 116 - V8.1 collapse: blocks folded before a refresh stay folded
+  ---
+  duration_ms: 385.543732
+  type: 'test'
+  ...
+# Subtest: V6.7 and VP.4: a graph of over 400 steps opens folded to at most 300 and is drawn within 500 ms
+ok 117 - V6.7 and VP.4: a graph of over 400 steps opens folded to at most 300 and is drawn within 500 ms
+  ---
+  duration_ms: 660.360441
+  type: 'test'
+  ...
+# Subtest: VP.5: panning and zooming a 400-step graph keeps the median frame at 20 ms or less
+ok 118 - VP.5: panning and zooming a 400-step graph keeps the median frame at 20 ms or less
+  ---
+  duration_ms: 2628.590726
+  type: 'test'
+  ...
+1..118
+# tests 118
+# suites 0
+# pass 118
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 20051.269814
+exit=0

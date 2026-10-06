@@ -1,0 +1,9 @@
+# G6  2026-10-06T12:34:01Z
+$ python3 scripts/verify_graph_traceability.py > .kiro/specs/loom-vscode-graph/evidence/traceability.txt; cat .kiro/specs/loom-vscode-graph/evidence/traceability.txt
+criteria in requirements.md: 71; named in the traceability table: 71
+check IDs in the matrix: 114
+check IDs named by a test: 114/114
+
+no gaps
+
+exit=0
