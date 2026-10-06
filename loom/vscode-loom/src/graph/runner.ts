@@ -57,10 +57,21 @@ export class WeaveGraphRunner implements GraphRunner {
     }
 
     run(request: GraphRequest): Promise<string> {
-        const args = ['-jar', this.options.jarPath, 'graph', request.file, '--format', request.format];
+        const args = ['graph', request.file, '--format', request.format];
         if (request.workflow !== undefined) {
             args.push('--workflow', request.workflow);
         }
+        return this.runWeave(args, request.signal, [0]);
+    }
+
+    /**
+     * Runs `java -jar weave.jar <args>` and returns what it printed. Every argument is one element of the array, never part of a
+     * shell string. An exit code not in `acceptedExits` is a {@link GraphExitError}; the process is killed when `signal` aborts or
+     * the timeout passes.
+     */
+    runWeave(weaveArgs: string[], signal: AbortSignal, acceptedExits: number[]): Promise<string> {
+        const args = ['-jar', this.options.jarPath, ...weaveArgs];
+        const request = { signal };
         return new Promise<string>((resolve, reject) => {
             if (request.signal.aborted) {
                 reject(new GraphAbortedError());
@@ -111,7 +122,7 @@ export class WeaveGraphRunner implements GraphRunner {
             });
             child.once('error', (e) => finish(() => reject(this.javaMissing(e))));
             child.once('exit', (code) =>
-                finish(() => (code === 0 ? resolve(Buffer.concat(out).toString('utf8')) : reject(new GraphExitError(code, stderr)))),
+                finish(() => (code !== null && acceptedExits.includes(code) ? resolve(Buffer.concat(out).toString('utf8')) : reject(new GraphExitError(code, stderr)))),
             );
         });
     }

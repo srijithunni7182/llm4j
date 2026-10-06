@@ -29,7 +29,10 @@ class PromptCliTest {
 
     static final String SCRIPT = """
             agent A { model: "test/m" prompt: "researcher" }
-            workflow Main() { delegate "go" to A -> out }
+            workflow Main() {
+                delegate "go" to A -> out
+                note "{out}"
+            }
             """;
 
     Path script(String source) throws Exception {

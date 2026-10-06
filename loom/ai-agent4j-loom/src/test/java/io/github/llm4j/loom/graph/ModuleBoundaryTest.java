@@ -9,20 +9,25 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
-/** V4.3: Loom does not depend on eval4j or its report, so the report can depend on Loom and the graph is built once. */
+/**
+ * V4.3, as amended by loom-weave-eval: Loom does not depend on the eval4j report (so the report can depend on Loom and the graph is built once), and
+ * it uses eval4j itself only for {@code weave eval}: nothing else in Loom, and never the graph, knows about it.
+ */
 class ModuleBoundaryTest {
 
     @Test
-    void thePomDeclaresNoEvalDependency() throws IOException {
+    void thePomDeclaresNoDependencyOnTheReport() throws IOException {
         String pom = Files.readString(Path.of("pom.xml"));
 
-        assertThat(pom).doesNotContain("<artifactId>eval4j").doesNotContain("eval4j-report");
+        assertThat(pom).doesNotContain("eval4j-report");
     }
 
     @Test
-    void noMainClassImportsEval4j() throws IOException {
+    void onlyTheEvalFeatureUsesEval4j() throws IOException {
         try (Stream<Path> files = Files.walk(Path.of("src/main/java"))) {
             String offenders = files.filter(p -> p.toString().endsWith(".java"))
+                    .filter(p -> !p.toString().replace('\\', '/').contains("/io/github/llm4j/loom/eval/"))
+                    .filter(p -> !p.toString().replace('\\', '/').endsWith("/cli/EvalCommand.java"))
                     .filter(p -> read(p).contains("io.github.llm4j.eval") || read(p).contains("io.github.llm4j.evalreport"))
                     .map(Path::toString)
                     .collect(Collectors.joining(", "));

@@ -231,57 +231,11 @@ const LOOM_KEYWORD_NAMES = Object.keys(LOOM_KEYWORDS);
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 /**
- * Validate a document and send diagnostics to the client.
- * Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3, 21.1, 21.2, 21.3
+ * The scanner no longer decides what is an error: problems come from `weave check`, the language's own parser, which the extension runs when a
+ * file is opened or saved (see `src/check`). This only clears what this server showed before, so nothing from the scanner lingers.
  */
 function validateDocument(doc: TextDocument): void {
-    const text = doc.getText();
-    const result = parseDocument(text);
-
-    const diagnostics: Diagnostic[] = [];
-
-    // ── Lex / Parse error diagnostics (severity: Error) ──────────────────────
-    for (const err of result.errors) {
-        const range: Range = {
-            start: Position.create(err.line, err.col),
-            end:   Position.create(err.line, err.endCol),
-        };
-        diagnostics.push({
-            severity: DiagnosticSeverity.Error,
-            range,
-            message: err.message,
-            source: err.kind === 'LexError' ? 'loom-lex' : 'loom-parse',
-        });
-    }
-
-    // ── Undefined agent reference diagnostics (severity: Warning) ────────────
-    // Only emit when there are no lex/parse errors (successful parse).
-    // Requirements: 4.1, 4.2, 4.3, 21.3
-    if (result.errors.length === 0) {
-        const definedAgents = new Set(
-            result.definitions
-                .filter(d => d.kind === 'agent')
-                .map(d => d.name)
-        );
-
-        for (const ref of result.agentRefs) {
-            if (!definedAgents.has(ref.name)) {
-                const range: Range = {
-                    start: Position.create(ref.line, ref.col),
-                    end:   Position.create(ref.line, ref.endCol),
-                };
-                diagnostics.push({
-                    severity: DiagnosticSeverity.Warning,
-                    range,
-                    message: `Undefined agent: '${ref.name}'`,
-                    source: 'loom-parse',
-                });
-            }
-        }
-    }
-
-    // Send diagnostics (empty array clears previous ones — Requirement 3.4)
-    connection.sendDiagnostics({ uri: doc.uri, diagnostics });
+    connection.sendDiagnostics({ uri: doc.uri, diagnostics: [] });
 }
 
 documents.onDidChangeContent(change => {
