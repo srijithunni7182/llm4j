@@ -42,7 +42,7 @@ class EvalDocTest {
         String skill = read("../../.claude/skills/llm4j-workflow-guide/SKILL.md");
 
         assertThat(skill).contains("Do you want tests first?").contains("Write the dataset before the script").contains("never write a Java loader")
-                .contains("Evaluation: skipped").contains("weave eval workflow.loom --init | --check | --mock");
+                .contains("Evaluation: skipped").contains("weave eval workflow.loom --init").contains("weave eval workflow.loom --check").contains("weave eval workflow.loom --mock");
     }
 
     @Test

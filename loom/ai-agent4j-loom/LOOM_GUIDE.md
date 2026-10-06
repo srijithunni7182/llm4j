@@ -179,6 +179,25 @@ weave eval newsletter/main.loom --prompt researcher@v1      # a fair A/B: the sa
 
 A runnable example is `examples/newsletter` (`weave eval examples/newsletter/main.loom --mock`).
 
+### 5. Starting, Checking and Reading the Guide (`init`, `check`, `guide`)
+
+Everything here works with the jar alone: no repository, no keys and no network.
+
+```bash
+weave init --list                      # the starter projects
+weave init pipeline my-workflow        # script, prompts as files, a golden dataset and a README, all passing the checks below
+weave init pipeline my-workflow --with-java-tests   # adds a Maven test module for the Java path (its build fails if it runs no tests)
+weave check my-workflow/main.loom --no-env          # parses and validates; calls no model and needs no keys
+weave check main.loom --format json                 # the same findings as data (the editor uses this to fill its Problems panel)
+weave check main.loom --strict                      # warnings fail the command too
+weave guide                            # the pages of this guide, from inside the jar
+weave guide 6                          # one chapter; also: readme, loom (this reference), llms
+weave guide --install-skill .          # the agent skill and the guide, into ./.claude/skills/llm4j-workflow-guide
+```
+
+`weave check` warns about a result that is never used, a human answer that changes nothing, and a decision whose branches go to the same
+next step. A warning is usually a real mistake in the workflow.
+
 ---
 
 ---

@@ -47,3 +47,11 @@ test('the create command is offered in the palette only for .loom files', () => 
     const entry = manifest.contributes.menus.commandPalette.find((m: { command: string }) => m.command === 'loom.createPromptFile');
     assert.equal(entry.when, 'resourceLangId == loom');
 });
+
+test('the README documents the guide commands by their titles', () => {
+    for (const id of ['loom.openGuide', 'loom.installSkill']) {
+        const command = manifest.contributes.commands.find((c: { command: string }) => c.command === id);
+        assert.ok(command, `${id} is in the manifest`);
+        assert.ok(readme.includes(`**${command.title}**`), `${command.title} is in the README`);
+    }
+});

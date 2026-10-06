@@ -67,6 +67,13 @@ test('the compiled extension registers its commands', () => {
     assert.match(source, /registerCommand\(\s*'loom\.runWorkflow'/);
     assert.match(source, /registerCommand\('loom\.showGraph'/);
     assert.match(source, /registerCommand\('loom\.createPromptFile'/);
+    assert.match(source, /registerGuideCommands\(context\)/);
+    const guide = fs.readFileSync(path.join(root, 'src', 'commands', 'guideCommands.ts'), 'utf8');
+    assert.match(guide, /registerCommand\('loom\.openGuide'/);
+    assert.match(guide, /registerCommand\('loom\.installSkill'/);
+    const titles = manifest.contributes.commands.map((c: { command: string; title: string }) => `${c.command}=${c.title}`);
+    assert.ok(titles.includes('loom.openGuide=Loom: Open Guide'));
+    assert.ok(titles.includes('loom.installSkill=Loom: Install the Loom Skill in This Project'));
 });
 
 test('the webview page and scripts load nothing from outside the extension', () => {

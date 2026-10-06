@@ -11,6 +11,7 @@ import { runWorkflowCommand } from './commands/runWorkflow';
 import { showGraphCommand } from './commands/showGraph';
 import { createPromptFileCommand } from './commands/createPromptFile';
 import { registerCheckDiagnostics } from './commands/checkDiagnostics';
+import { registerGuideCommands } from './commands/guideCommands';
 import { WorkflowOutlineProvider } from './views/WorkflowOutlineProvider';
 
 // Module-level client reference so deactivate() can stop it.
@@ -106,6 +107,7 @@ export function activate(context: vscode.ExtensionContext): void {
     // 3c. Problems from `weave check`, the language's own parser         //
     // ------------------------------------------------------------------ //
     registerCheckDiagnostics(context);
+    registerGuideCommands(context);
 
     // ------------------------------------------------------------------ //
     // 4. Workflow Outline tree view (Requirement 6.1)                    //

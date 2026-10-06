@@ -75,6 +75,14 @@
       {
         "command": "loom.createPromptFile",
         "title": "Loom: Create Prompt File"
+      },
+      {
+        "command": "loom.openGuide",
+        "title": "Loom: Open Guide"
+      },
+      {
+        "command": "loom.installSkill",
+        "title": "Loom: Install the Loom Skill in This Project"
       }
     ],
     "menus": {

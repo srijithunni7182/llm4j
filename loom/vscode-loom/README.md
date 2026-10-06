@@ -36,6 +36,12 @@ When an agent's prompt is a markdown file (`prompt: "researcher"` or `prompt: "r
 
 **Loom: Create Prompt File** (Command Palette, for `.loom` files) creates the file for a `prompt:` you have written and not yet made: the one on the cursor's line, or the one you pick. It never overwrites a file. Prompt files are described in the Loom guide.
 
+## The guide and the agent skill
+
+**Loom: Open Guide** (Command Palette) shows a page of the written guide: where to start, the ten chapters, or the Loom reference. It comes from the `weave` jar inside this extension, so it works with no repository and no network.
+
+**Loom: Install the Loom Skill in This Project** writes the agent skill and the guide into `.claude/skills/llm4j-workflow-guide` in the folder you have open, so an AI coding agent that reads the project knows the path. It asks before it replaces an older copy.
+
 ## Problems
 
 Loom files are checked with `weave check`, the language's own parser (the one that runs your workflows), so the editor and the command line cannot disagree. Its findings show as errors and warnings in the Problems panel and as squiggles, under the source `weave check`, when a `.loom` file is opened and saved. It checks the saved file, so unsaved edits are checked at your next save. A warning means the script runs but something is probably a mistake, for example a result that is stored and never read, or a question to a person whose answer changes nothing.

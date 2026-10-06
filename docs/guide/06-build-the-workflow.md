@@ -86,6 +86,8 @@ workflow Refund(msg) {
 - **Give each branch its own agent** when you need to tell the paths apart in a trace: Hexamind added a `Debunker` so the debunk path differs from the consensus path.
 - **Roles without tools** (moderator, coordinator) cannot be hijacked into acting; keep tools on the agents that need them.
 - **An agent that can call a payment tool can be talked into it.** Put the payment in a task the *workflow* runs after code has checked the rules. A task is never offered to a model.
+- **A green build that ran no tests is not green.** If Maven prints `Tests run: 0` and BUILD SUCCESS, an old Surefire found no JUnit 5 tests. `weave init <template> --with-java-tests` creates a test module that pins a working Surefire and fails a build that runs nothing; do the same in a pom you write.
+- **Building llm4j from source? A stale jar runs old code.** After you change a module, install it (`mvn -DskipTests -Djacoco.skip=true install`; `-Djacoco.skip=true` is needed with `-DskipTests`), or the next module compiles and tests against the jar from before. The repository's `scripts/doctor.sh` compares each installed jar with its sources and prints the command to run. If you only use the `weave` jar this does not apply.
 
 ## Gate
 
