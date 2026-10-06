@@ -11,14 +11,14 @@ agent Classifier {
 }
 
 workflow Main(ticket) {
-    delegate "Classify this support ticket:\n{ticket}" to Classifier -> result expecting {
+    delegate "Classify this support request:\n{ticket}" to Classifier -> result expecting {
         label: enum["BUG", "BILLING", "FEATURE"],
         confidence: enum["LOW", "MEDIUM", "HIGH"]
     }
 
     alt (result.confidence == "LOW") {
-        human_prompt "The classifier is not sure about this ticket:\n{ticket}\n\nIts guess: {result.label}. Which label is right? (BUG, BILLING or FEATURE)" -> chosen
-        note "Label chosen by a person: {chosen}"
+        human_prompt "The classifier is not sure about this request:\n{ticket}\n\nIts guess: {result.label}. Which label is right? (BUG, BILLING or FEATURE)" -> chosen_label
+        note "Label chosen by a person: {chosen_label}"
     } else {
         note "Label: {result.label} (confidence {result.confidence})"
     }

@@ -19,6 +19,11 @@ class WorkflowLintTest {
         return lint(body).stream().map(WorkflowLint.Finding::message).toList();
     }
 
+    /** Without the findings about a name that is also an ordinary word, for the tests that are about something else. */
+    private static List<WorkflowLint.Finding> withoutWordFindings(List<WorkflowLint.Finding> found) {
+        return found.stream().filter(f -> !f.message().contains("ordinary word")).toList();
+    }
+
     @Test
     void r6_1_aResultThatIsStoredAndNeverReadIsReportedWithItsLine() {
         var findings = lint("workflow W() {\n    delegate \"x\" to A -> unused\n    note \"done\"\n}\n");
@@ -47,8 +52,8 @@ class WorkflowLintTest {
 
     @Test
     void aVariableIsNotReadJustBecauseItsNameIsPartOfALongerWord() {
-        assertThat(messages("workflow W() {\n    delegate \"x\" to A -> draft\n    delegate \"the drafting phase, {drafts}\" to A -> other\n    note \"{other}\"\n}\n"))
-                .containsExactly("draft is set here and never used");
+        assertThat(withoutWordFindings(lint("workflow W() {\n    delegate \"x\" to A -> draft\n    delegate \"the drafting phase, {drafts}\" to A -> other\n    note \"{other}\"\n}\n")))
+                .extracting(WorkflowLint.Finding::message).containsExactly("draft is set here and never used");
     }
 
     @Test
@@ -103,7 +108,7 @@ class WorkflowLintTest {
                 }
                 """);
 
-        assertThat(found).singleElement().satisfies(f -> {
+        assertThat(withoutWordFindings(found)).singleElement().satisfies(f -> {
             assertThat(f.message()).contains("override").contains("whatever the person says");
             assertThat(f.line()).isEqualTo(8);
         });
@@ -154,5 +159,22 @@ class WorkflowLintTest {
     void theVariableNamedResultIsWhatACalledWorkflowHandsBackSoItIsNotReportedAsUnused() {
         assertThat(messages("workflow Sub(x) {\n    delegate \"do {x}\" to A -> result\n}\n")).isEmpty();
         assertThat(messages("workflow Sub(x) {\n    delegate \"do {x}\" to A -> other\n}\n")).containsExactly("other is set here and never used");
+    }
+
+    @Test
+    void aVariableNameWrittenAsAnOrdinaryWordInATextIsReported() {
+        var findings = messages("workflow W(topic) {\n    delegate \"Write about {topic}\" to A -> draft\n    delegate \"Review this draft:\\n{draft}\" to A -> verdict_text\n    note \"{verdict_text}\"\n}\n");
+
+        assertThat(findings).singleElement().asString().contains("the variable draft is also written as an ordinary word").contains("draft_text");
+    }
+
+    @Test
+    void aNameOnlyInsidePlaceholdersOrOnlyAsPartOfAPathIsFine() {
+        assertThat(messages("workflow W(topic) {\n    delegate \"Write about {topic}\" to A -> draft_text\n    delegate \"Review {draft_text}\" to A -> review_result expecting { verdict: string }\n    note \"{review_result.verdict}\"\n}\n")).isEmpty();
+    }
+
+    @Test
+    void aWorkflowParameterWrittenAsAWordIsReportedToo() {
+        assertThat(messages("workflow W(email) {\n    delegate \"Reply to this email: {email}\" to A -> reply_text\n    note \"{reply_text}\"\n}\n")).singleElement().asString().contains("the variable email");
     }
 }
