@@ -27,6 +27,14 @@ public final class Templates {
                     "prompts/classifier.md",
                     "eval/golden/dataset.yaml", "eval/golden/classifier.yaml", "eval/golden/workflow.yaml")));
 
+    /** The folder under /templates that holds the Maven test module added by {@code --with-java-tests}; it is not a template of its own. */
+    public static final String JAVA_TESTS = "_java-tests";
+
+    /** What {@code --with-java-tests} adds: a pom that runs JUnit 5 and fails when no test ran, a dataset test and a mock wiring test. */
+    public static final List<String> JAVA_TESTS_FILES = List.of(
+            "pom.xml", "src/test/README.md",
+            "src/test/java/starter/GoldenDatasetTest.java", "src/test/java/starter/ScriptWiringTest.java");
+
     private Templates() {}
 
     public static List<Template> all() {

@@ -122,8 +122,10 @@ class InitCommandTest {
             Path source = Path.of("src/main/resources/templates", t.name());
             assertThat(files(source)).as(t.name() + " files on disk and in the list").containsExactlyInAnyOrderElementsOf(t.files());
         }
-        assertThat(files(Path.of("src/main/resources/templates")).stream().map(f -> f.split("/")[0]).distinct().sorted().toList())
-                .isEqualTo(Templates.all().stream().map(Templates.Template::name).sorted().toList());
+        // the folders in the jar are the templates, and the one overlay that --with-java-tests adds
+        List<String> expected = new java.util.ArrayList<>(Templates.all().stream().map(Templates.Template::name).toList());
+        expected.add(Templates.JAVA_TESTS);
+        assertThat(files(Path.of("src/main/resources/templates")).stream().map(f -> f.split("/")[0]).distinct().sorted().toList()).isEqualTo(expected.stream().sorted().toList());
     }
 
     @Test
@@ -201,5 +203,63 @@ class InitCommandTest {
 
         assertThat(script).contains("human_prompt").contains("guard { pii: mask }");
         assertThat(Files.readString(dir.resolve("a/README.md"))).contains("The model never sends");
+    }
+
+    // ── --with-java-tests (R2.3, R4) ─────────────────────────────────────────
+
+    @Test
+    void r2_3_withJavaTestsAddsAMavenModuleAndTheOtherwiseJavaFreeProjectHasNone() throws Exception {
+        Path plain = dir.resolve("plain");
+        Path withTests = dir.resolve("My Project");
+
+        init("pipeline", plain.toString());
+        assertThat(init("pipeline", withTests.toString(), "--with-java-tests")).isZero();
+
+        assertThat(files(plain)).noneMatch(f -> f.equals("pom.xml") || f.endsWith(".java"));
+        assertThat(files(withTests)).contains("pom.xml", "src/test/README.md", "src/test/java/starter/GoldenDatasetTest.java", "src/test/java/starter/ScriptWiringTest.java", "main.loom");
+        assertThat(stdout()).contains("mvn test").contains("\"Tests run: 0\" is a failure");
+        assertThat(Files.readString(withTests.resolve("pom.xml"))).contains("<artifactId>my-project-tests</artifactId>").doesNotContain("{{");
+    }
+
+    @Test
+    void r4_2_thePomRunsJUnit5AndFailsAnEmptyRun() throws Exception {
+        init("classifier", dir.toString(), "--with-java-tests");
+        String pom = Files.readString(dir.resolve("pom.xml"));
+
+        assertThat(pom).contains("<artifactId>maven-surefire-plugin</artifactId>").contains("<version>3.2.5</version>").contains("<failIfNoTests>true</failIfNoTests>")
+                .contains("<artifactId>junit-jupiter</artifactId>").contains("<artifactId>ai-agent4j-loom</artifactId>");
+        assertThat(Files.readString(dir.resolve("src/test/README.md"))).contains("\"Tests run: 0\" is a failure").contains("failIfNoTests");
+    }
+
+    @Test
+    void theTestsUseTheEvalClassesNotAHandWrittenLoader() throws Exception {
+        init("classifier", dir.toString(), "--with-java-tests");
+        String dataset = Files.readString(dir.resolve("src/test/java/starter/GoldenDatasetTest.java"));
+        String wiring = Files.readString(dir.resolve("src/test/java/starter/ScriptWiringTest.java"));
+
+        assertThat(dataset).contains("DatasetFolder.plan").contains("EvalDataset.load").doesNotContain("Files.newInputStream").doesNotContain("EvalScenarios.fromYaml(");
+        assertThat(wiring).contains("MockModels").contains("EvalRunner").contains("Status.FAIL");
+    }
+
+    @Test
+    void r2_5_aPomAlreadyThereStopsEverythingIncludingTheBaseProject() throws Exception {
+        Files.writeString(dir.resolve("pom.xml"), "<project/>");
+
+        assertThat(init("pipeline", dir.toString(), "--with-java-tests")).isEqualTo(2);
+
+        assertThat(err.toString()).contains("pom.xml");
+        assertThat(files(dir)).containsExactly("pom.xml");
+    }
+
+    @Test
+    void theArtifactIdIsALowerCaseDashedName() {
+        assertThat(InitCommand.artifactId("My Project!")).isEqualTo("my-project");
+        assertThat(InitCommand.artifactId("acme_digest.v2")).isEqualTo("acme-digest-v2");
+        assertThat(InitCommand.artifactId("!!!")).isEqualTo("workflow");
+    }
+
+    @Test
+    void theOverlayFilesInTheJarAreTheOnesListed() throws Exception {
+        assertThat(files(Path.of("src/main/resources/templates/" + Templates.JAVA_TESTS))).containsExactlyInAnyOrderElementsOf(Templates.JAVA_TESTS_FILES);
     }
 }

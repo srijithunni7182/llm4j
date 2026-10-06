@@ -31,25 +31,39 @@ public final class TemplateWriter {
         }
     }
 
+    /** Some files of one template folder. */
+    public record Part(String template, List<String> files) {}
+
     /** Writes {@code files} of {@code template} (a folder name under /templates) into {@code dir}. */
     public static Result write(String template, List<String> files, Path dir, Map<String, String> variables) throws IOException {
+        return write(List.of(new Part(template, files)), dir, variables);
+    }
+
+    /**
+     * Writes several parts into {@code dir} as one: if any file of any part is already there, nothing is written, so a project is never half made.
+     */
+    public static Result write(List<Part> parts, Path dir, Map<String, String> variables) throws IOException {
         Path root = dir.toAbsolutePath().normalize();
         List<String> conflicts = new ArrayList<>();
-        for (String file : files) {
-            Path target = root.resolve(file).normalize();
-            if (!target.startsWith(root)) throw new IllegalArgumentException("a template file may not leave the folder: " + file);
-            if (Files.exists(target)) conflicts.add(file);
-            if (read(template, file) == null) throw new IllegalStateException("the template " + template + " has no file " + file + " (a broken jar?)");
+        for (Part part : parts) {
+            for (String file : part.files()) {
+                Path target = root.resolve(file).normalize();
+                if (!target.startsWith(root)) throw new IllegalArgumentException("a template file may not leave the folder: " + file);
+                if (Files.exists(target) && !conflicts.contains(file)) conflicts.add(file);
+                if (read(part.template(), file) == null) throw new IllegalStateException("the template " + part.template() + " has no file " + file + " (a broken jar?)");
+            }
         }
         if (!conflicts.isEmpty()) return new Result(List.of(), conflicts);
         List<String> created = new ArrayList<>();
-        for (String file : files) {
-            String text = read(template, file);
-            for (var v : variables.entrySet()) text = text.replace("{{" + v.getKey() + "}}", v.getValue());
-            Path target = root.resolve(file).normalize();
-            Files.createDirectories(target.getParent());
-            Files.writeString(target, text, StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.CREATE_NEW);
-            created.add(file);
+        for (Part part : parts) {
+            for (String file : part.files()) {
+                String text = read(part.template(), file);
+                for (var v : variables.entrySet()) text = text.replace("{{" + v.getKey() + "}}", v.getValue());
+                Path target = root.resolve(file).normalize();
+                Files.createDirectories(target.getParent());
+                Files.writeString(target, text, StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.CREATE_NEW);
+                created.add(file);
+            }
         }
         return new Result(created, List.of());
     }

@@ -28,6 +28,9 @@ final class InitCommand implements Callable<Integer> {
     @Option(names = "--list", description = "List the templates.")
     boolean list;
 
+    @Option(names = "--with-java-tests", description = "Also add a Maven test module (pom.xml, a dataset test and a wiring test) for people who want JUnit. Not needed for weave eval.")
+    boolean withJavaTests;
+
     @Option(names = "--name", paramLabel = "<name>", description = "The project's name, written into its files (default: the folder's name).")
     String name;
 
@@ -53,7 +56,9 @@ final class InitCommand implements Callable<Integer> {
         String project = c.name != null ? c.name : target.getFileName() == null ? found.get().name() : target.getFileName().toString();
         TemplateWriter.Result result;
         try {
-            result = TemplateWriter.write(found.get().name(), found.get().files(), target, Map.of("name", project));
+            List<TemplateWriter.Part> parts = new java.util.ArrayList<>(List.of(new TemplateWriter.Part(found.get().name(), found.get().files())));
+            if (c.withJavaTests) parts.add(new TemplateWriter.Part(Templates.JAVA_TESTS, Templates.JAVA_TESTS_FILES));
+            result = TemplateWriter.write(parts, target, Map.of("name", project, "artifact", artifactId(project)));
         } catch (java.io.IOException e) {
             env.err().println("Error: could not create the project: " + e.getMessage());
             return 2;
@@ -70,7 +75,14 @@ final class InitCommand implements Callable<Integer> {
         env.out().println("Next, from that folder (nothing costs money until you run it for real):");
         env.out().println("  weave check main.loom --no-env");
         env.out().println("  weave eval main.loom --mock");
+        if (c.withJavaTests) env.out().println("  mvn test                              (the Java tests; \"Tests run: 0\" is a failure, and the build says so)");
         env.out().println("The README says how to set your model's key and run it.");
         return 0;
+    }
+
+    /** A Maven artifactId from a project name: lower-case letters, digits and dashes. */
+    static String artifactId(String project) {
+        String id = project.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-+|-+$", "");
+        return id.isEmpty() ? "workflow" : id;
     }
 }
