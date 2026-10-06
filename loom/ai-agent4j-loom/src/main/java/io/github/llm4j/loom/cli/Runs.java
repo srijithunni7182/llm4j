@@ -90,6 +90,7 @@ final class Runs {
             executor.setBaseDir(scriptFile.getAbsoluteFile().getParentFile().toPath());
             executor.setEnvLookup(env.env());
             executor.setSecretStore(env.secrets());
+            executor.setPromptCatalog(io.github.llm4j.loom.prompt.PromptSupport.catalog(script, scriptFile.toPath(), spec.prompts()));
             executor.setClock(env.clock());
             executor.setSleeper(env.sleeper());
             if (spec.prices() != null) executor.setPriceTable(io.github.llm4j.budget.PriceTable.load(Path.of(spec.prices())));
@@ -126,6 +127,7 @@ final class Runs {
                 }
             }
             executor.initialize();
+            if (runDir != null) writePromptManifest(runDir, executor, script);
         } catch (Exception e) {
             env.err().println("❌ Could not start: " + e.getMessage());
             return new Result(1, null, null, e.getMessage());
@@ -220,5 +222,23 @@ final class Runs {
     /** The resume trigger id for a run directory run by {@code weave run --journal}. */
     static String resumeTriggerId(Path runDir) {
         return Trigger.resumeId(runDir.toAbsolutePath().normalize().toString());
+    }
+
+    /** {@code prompts.json} in the run directory: which prompt (id, version, a hash of its text) each agent ran, for the run record. */
+    private static void writePromptManifest(Path runDir, HarnessExecutor executor, LoomScript script) throws java.io.IOException {
+        var catalog = executor.promptCatalog();
+        if (catalog == null) return;
+        var uses = catalog.usesOf(script);
+        if (uses.isEmpty()) return;
+        java.util.List<java.util.Map<String, Object>> rows = new java.util.ArrayList<>();
+        for (var u : uses) {
+            java.util.Map<String, Object> row = new java.util.LinkedHashMap<>();
+            row.put("agent", u.agent());
+            row.put("prompt", u.reference());
+            row.put("version", u.version());
+            row.put("hash", u.hash());
+            rows.add(row);
+        }
+        java.nio.file.Files.writeString(runDir.resolve("prompts.json"), new com.fasterxml.jackson.databind.ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(rows));
     }
 }

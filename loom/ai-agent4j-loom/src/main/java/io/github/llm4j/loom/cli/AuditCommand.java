@@ -29,9 +29,13 @@ final class AuditCommand implements Callable<Integer> {
     @Option(names = "--fail-on", description = "Exit 1 when a finding is at least this severe: high (default), medium, low, info or none.", defaultValue = "high")
     String failOn;
 
+    @picocli.CommandLine.Mixin
+    PromptOptions promptOptions = new PromptOptions();
+
     @Override
     public Integer call() {
-        return audit(this, WeaveEnv.system());
+        WeaveEnv env = promptOptions.apply(WeaveEnv.system());
+        return env == null ? 2 : audit(this, env);
     }
 
     static int audit(AuditCommand c, WeaveEnv env) {
@@ -56,6 +60,8 @@ final class AuditCommand implements Callable<Integer> {
             return 2;
         }
         AuditReport report = SecurityAudit.audit(loaded, c.script.getName());
+        var catalog = io.github.llm4j.loom.prompt.PromptSupport.catalog(loaded, c.script.toPath(), env.prompts());
+        if (catalog != null) report = report.withPrompts(catalog.usesOf(loaded));
         String text = c.format.equals("json") ? report.json() : report.markdown();
         env.out().println(text);
         if (c.out != null) {

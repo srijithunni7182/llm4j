@@ -50,6 +50,13 @@ public final class ReplayEngine {
     private final CaseSource source;
     private final Candidates candidates;
     private final Clock clock;
+    private java.util.function.BiFunction<LoomScript, Path, io.github.llm4j.loom.prompt.PromptCatalog> promptCatalogs = (loaded, file) -> null;
+
+    /** Where a candidate's prompts come from, so its identity counts the prompt text as the executor that runs it will. */
+    public ReplayEngine promptCatalogs(java.util.function.BiFunction<LoomScript, Path, io.github.llm4j.loom.prompt.PromptCatalog> catalogs) {
+        this.promptCatalogs = catalogs;
+        return this;
+    }
 
     /** @param replays the directory replays are kept in, {@code <store>/autonomy/<decision>/replays} */
     public ReplayEngine(Ledger ledger, Path replays, CaseSource source, Candidates candidates, Clock clock) {
@@ -98,7 +105,8 @@ public final class ReplayEngine {
         plan.put("id", id);
         plan.put("decision", decision);
         plan.put("candidate", options.candidate().toString());
-        plan.put("candidateIdentity", AgentIdentity.of(script, def, options.candidate().toAbsolutePath().getParent()));
+        plan.put("candidateIdentity", AgentIdentity.of(script, def, options.candidate().toAbsolutePath().getParent(),
+                promptCatalogs.apply(script, options.candidate().toAbsolutePath())));
         plan.put("scope", options.scope());
         plan.put("since", options.since() == null ? null : options.since().toString());
         plan.put("limit", options.limit());

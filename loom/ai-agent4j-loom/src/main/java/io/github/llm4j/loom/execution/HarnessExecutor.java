@@ -55,7 +55,7 @@ public class HarnessExecutor implements LoomEngine {
     private final VariableContext context;
     private HumanInterface humanInterface;
     private AuditLogger auditLogger = new NoOpAuditLogger();
-    private PromptRegistry promptRegistry;
+    private io.github.llm4j.loom.prompt.PromptCatalog promptCatalog;
     private final String sessionId = UUID.randomUUID().toString();
     private MemoryEngine memoryEngine = new TranscriptAccumulationEngine();
 
@@ -167,7 +167,15 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     public void setHumanInterface(HumanInterface humanInterface) { this.humanInterface = humanInterface; }
-    public void setPromptRegistry(PromptRegistry promptRegistry) { this.promptRegistry = promptRegistry; }
+    /** Supplies prompts for {@code prompt:} and {@code system_template:} from any registry (a host's own, or a folder of markdown files). */
+    public void setPromptRegistry(PromptRegistry promptRegistry) {
+        this.promptCatalog = promptRegistry == null ? null : new io.github.llm4j.loom.prompt.PromptCatalog(promptRegistry, java.util.Map.of());
+    }
+
+    /** Supplies prompts with versions pinned for this run (see {@code weave --prompt}). */
+    public void setPromptCatalog(io.github.llm4j.loom.prompt.PromptCatalog promptCatalog) { this.promptCatalog = promptCatalog; }
+
+    public io.github.llm4j.loom.prompt.PromptCatalog promptCatalog() { return promptCatalog; }
     public void setAuditLogger(AuditLogger auditLogger) {
         this.auditLogger = new HoldingAuditLogger(auditLogger != null ? auditLogger : new NoOpAuditLogger(), decider);
     }
@@ -385,6 +393,12 @@ public class HarnessExecutor implements LoomEngine {
         traceListeners.add(listener);
     }
 
+    /** The prompt file or registry prompt this agent runs, if it names one that resolves (the id, version and a hash of the text). */
+    java.util.Optional<io.github.llm4j.loom.prompt.PromptUse> promptUsed(io.github.llm4j.loom.ast.AgentDef agent) {
+        if (promptCatalog == null || agent.getPromptRef() == null) return java.util.Optional.empty();
+        return promptCatalog.usesOf(script).stream().filter(u -> u.agent().equals(agent.getName()) && u.resolved()).findFirst();
+    }
+
     boolean tracing() {
         return !traceListeners.isEmpty();
     }
@@ -557,7 +571,7 @@ public class HarnessExecutor implements LoomEngine {
                 .lenient(lenient)
                 .humanInterface(humanInterface != null)
                 .baseDir(baseDir)
-                .templates(promptRegistry == null ? null : id -> promptRegistry.get(id).isPresent())
+                .prompts(promptCatalog)
                 .check(this::checkAgentSettings)
                 .check(this::checkToolsAndApprovals)
                 .check(this::checkKnowledge)
@@ -1579,7 +1593,7 @@ public class HarnessExecutor implements LoomEngine {
 
     /**
      * Resolves the effective system prompt for an agent, in priority order:
-     * 1. {@code system_template} id → looked up from PromptRegistry
+     * 1. {@code prompt} / {@code system_template} → looked up from the prompt catalog, followed by {@code system}
      * 2. {@code persona} name       → looked up from PersonaLibrary via reflection
      * 3. Inline {@code system}      → used verbatim
      */
@@ -1590,14 +1604,16 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     private String basePrompt(AgentDef agentDef) {
-        // Priority 1: system_template
-        if (agentDef.getSystemTemplate() != null && promptRegistry != null) {
-            return promptRegistry.get(agentDef.getSystemTemplate())
-                .map(t -> t.getTemplate())
-                .orElseGet(() -> {
-                    log.warning("system_template '" + agentDef.getSystemTemplate() + "' not found in PromptRegistry — falling back.");
-                    return fallbackSystemPrompt(agentDef);
-                });
+        // A prompt file (prompt:) or registry template (system_template:) is the base; the agent's own system: follows it.
+        String ref = agentDef.getPromptRef();
+        if (ref != null && promptCatalog != null) {
+            var resolved = promptCatalog.resolve(ref);
+            if (resolved.isPresent()) {
+                String system = fallbackSystemPrompt(agentDef);
+                return system.isBlank() ? resolved.get().text() : resolved.get().text() + "\n\n" + system;
+            }
+            log.warning("prompt '" + ref + "' not found — falling back."); // load-time checks report this first
+            return fallbackSystemPrompt(agentDef);
         }
 
         // Persona (declared in the script, else PersonaLibrary), followed by the agent's own system prompt
@@ -1816,7 +1832,13 @@ public class HarnessExecutor implements LoomEngine {
                 return;
             }
         }
-        trace(TraceEvent.DELEGATE_START, agentName, resolvedPayload, Map.of("variable", variableName));
+        Map<String, Object> startData = new java.util.LinkedHashMap<>();
+        startData.put("variable", variableName);
+        promptUsed(agentDef).ifPresent(u -> {
+            startData.put("prompt", u.label());
+            startData.put("promptHash", u.hash());
+        });
+        trace(TraceEvent.DELEGATE_START, agentName, resolvedPayload, startData);
         
         // A step's own `expecting { ... }` schema wins over the agent's output_schema.
         io.github.llm4j.loom.ast.SchemaDef schema = del.getExpecting() != null ? del.getExpecting() : agentDef.getOutputSchema();

@@ -39,7 +39,7 @@ public class ScriptValidator {
         boolean lenient;
         boolean humanInterface;
         java.nio.file.Path baseDir = java.nio.file.Path.of("").toAbsolutePath();
-        java.util.function.Predicate<String> templates;
+        io.github.llm4j.loom.prompt.PromptCatalog prompts;
         final List<Consumer<Checker>> extraChecks = new ArrayList<>();
 
         public Context registeredTools(Set<String> names) {
@@ -84,9 +84,9 @@ public class ScriptValidator {
             return this;
         }
 
-        /** Which {@code system_template} ids exist; null when there is no prompt registry. */
-        public Context templates(java.util.function.Predicate<String> exists) {
-            this.templates = exists;
+        /** The prompts the script's {@code prompt:} references resolve against; null when there is no catalog. */
+        public Context prompts(io.github.llm4j.loom.prompt.PromptCatalog prompts) {
+            this.prompts = prompts;
             return this;
         }
 
@@ -140,6 +140,7 @@ public class ScriptValidator {
     public List<Problem> validate(LoomScript script, Context context) {
         Checker c = new Checker(script, context);
         checkAgents(c);
+        checkPromptFiles(c);
         checkRouting(c);
         checkStatements(c);
         for (Consumer<Checker> extra : context.extraChecks) extra.accept(c);
@@ -158,6 +159,33 @@ public class ScriptValidator {
 
     // ── checks ───────────────────────────────────────────────────────────────────────────────
 
+    /** What is wrong with the prompt folder itself: files refused or ignored, and files no agent uses. */
+    private void checkPromptFiles(Checker c) {
+        var catalog = c.context().prompts;
+        if (catalog == null || catalog.folder().isEmpty()) return;
+        var folder = catalog.folder().get();
+        int line = c.script().getPromptsDirLine();
+        for (var problem : folder.problems()) {
+            String text = problem.file().getFileName() + ": " + problem.message();
+            if (problem.message().startsWith("ignored")) c.warn(line, "prompt files", text);
+            else c.error(line, "prompt files", text);
+        }
+        java.util.Set<String> used = new java.util.HashSet<>();
+        for (AgentDef a : c.script().getAgents()) {
+            if (a.getPromptRef() == null) continue;
+            try {
+                used.add(io.github.llm4j.loom.prompt.PromptRef.parse(a.getPromptRef()).id());
+            } catch (IllegalArgumentException e) {
+                // a bad reference is reported by the parser
+            }
+        }
+        for (String id : folder.ids()) {
+            if (!used.contains(id)) {
+                c.warn(line, "prompt files", "prompt " + id + " is not used by any agent (" + folder.root().relativize(folder.latest(id).orElseThrow().file()) + ")");
+            }
+        }
+    }
+
     private void checkAgents(Checker c) {
         LoomScript s = c.script();
         for (AgentDef a : s.getAgents()) {
@@ -167,12 +195,14 @@ public class ScriptValidator {
                 c.error(a.getLine(), who, "persona " + a.getPersona() + " is not defined: declare it (persona "
                         + a.getPersona() + " { role: \"…\" }) or use a built-in one " + LIBRARY_PERSONAS);
             }
-            if (a.getSystemTemplate() != null) {
-                if (c.context().templates == null) {
-                    c.error(a.getLine(), who, "system_template " + a.getSystemTemplate()
-                            + " needs a prompt registry (HarnessExecutor.setPromptRegistry); use system: \"…\" in scripts");
-                } else if (!c.context().templates.test(a.getSystemTemplate())) {
-                    c.error(a.getLine(), who, "system_template " + a.getSystemTemplate() + " is not in the prompt registry");
+            String ref = a.getPromptRef();
+            if (ref != null) {
+                String attr = a.getPrompt() != null ? "prompt" : "system_template";
+                if (c.context().prompts == null) {
+                    c.error(a.getLine(), who, attr + " " + ref + " needs a prompt registry or prompt files: create a prompts/ folder next to the script, name one with prompts: \"./dir\" or --prompts, or use system: \"…\"");
+                } else {
+                    String problem = c.context().prompts.problemWith(ref, attr);
+                    if (problem != null) c.error(a.getLine(), who, problem);
                 }
             }
             for (String kb : a.getKnowledgeBases()) {

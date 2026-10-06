@@ -98,6 +98,7 @@ final class AutonomySupport {
             ToolRegistry registry = new ToolRegistry();
             HarnessExecutor executor = new HarnessExecutor(loaded, registry, env.models());
             executor.setBaseDir(baseDir);
+            executor.setPromptCatalog(io.github.llm4j.loom.prompt.PromptSupport.catalog(loaded, script, env.prompts()));
             executor.setEnvLookup(env.env());
             executor.setSecretStore(env.secrets());
             executor.setClock(env.clock());
@@ -108,7 +109,8 @@ final class AutonomySupport {
     }
 
     static ReplayEngine engine(Path store, String decision, WeaveEnv env) {
-        return new ReplayEngine(ledger(store), dir(store).resolve(Names.check(decision)).resolve("replays"), source(), candidates(env), env.clock());
+        return new ReplayEngine(ledger(store), dir(store).resolve(Names.check(decision)).resolve("replays"), source(), candidates(env), env.clock())
+                .promptCatalogs((loaded, file) -> io.github.llm4j.loom.prompt.PromptSupport.catalog(loaded, file, env.prompts()));
     }
 
     /** What a changed agent is replayed with when its decision says {@code test it on past cases}. */

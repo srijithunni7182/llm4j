@@ -82,6 +82,9 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin
         private SecretOptions secrets = new SecretOptions();
 
+        @CommandLine.Mixin
+        private PromptOptions promptOptions = new PromptOptions();
+
         @Override
         public Integer call() throws Exception {
             if (!scriptFile.exists()) {
@@ -89,6 +92,8 @@ public class WeaveCLI implements Callable<Integer> {
                 return 1;
             }
             WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
+            if (env == null) return 2;
+            env = promptOptions.apply(env);
             if (env == null) return 2;
             return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, prices,
                     journal == null ? null : journal.toPath(), store == null ? null : store.toPath(), waitForResume,
@@ -150,7 +155,7 @@ public class WeaveCLI implements Callable<Integer> {
         RunSpec spec = new RunSpec(scriptFile.getAbsolutePath(), lootFile == null ? null : lootFile.getAbsolutePath(),
                 workflowName, inputs, maxTokens, maxCalls, maxCost,
                 pricesFile == null ? null : pricesFile.getAbsolutePath(), storeDir == null ? null : storeDir.toString(),
-                lenient, trace);
+                lenient, trace).withPrompts(env.prompts());
         if (runDir != null) spec.write(runDir);
         Runs.Result result = Runs.execute(spec.withStopAt(stopAt).withMaxRewinds(maxRewinds), runDir, null, env);
         if (result.exit() == 4 && wait && runDir != null && result.resumeAt() != null) {
@@ -205,9 +210,14 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin
         private SecretOptions secrets = new SecretOptions();
 
+        @CommandLine.Mixin
+        private PromptOptions promptOptions = new PromptOptions();
+
         @Override
         public Integer call() {
             WeaveEnv env = secrets.apply(WeaveEnv.system(), Prompts.console());
+            if (env == null) return 2;
+            env = promptOptions.apply(env);
             if (env == null) return 2;
             return check(scriptFile, lootFile, lenient, env);
         }
@@ -243,6 +253,7 @@ public class WeaveCLI implements Callable<Integer> {
         executor.setBaseDir(scriptFile.getAbsoluteFile().getParentFile().toPath());
         executor.setEnvLookup(env.env());
         executor.setSecretStore(env.secrets());
+        executor.setPromptCatalog(io.github.llm4j.loom.prompt.PromptSupport.catalog(script, scriptFile.toPath(), env.prompts()));
         executor.setHumanInterface(env.human()); // the CLI always has a console
         List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems =
                 new io.github.llm4j.loom.execution.ScriptValidator().validate(script, executor.validationContext());
