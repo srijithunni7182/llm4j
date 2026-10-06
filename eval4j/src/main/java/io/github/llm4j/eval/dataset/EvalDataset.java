@@ -67,7 +67,7 @@ public record EvalDataset(Path dir, Map<String, List<EvalScenario>> files, Map<S
                 continue;
             } else {
                 try (InputStream in = Files.newInputStream(file)) {
-                    files.put(stem, EvalScenarios.fromYaml(in));
+                    files.put(stem, EvalScenarios.fromYaml(in).stream().map(EvalScenarios::normalized).toList());
                 } catch (IOException | EvalDatasetException e) {
                     problems.add(new Problem(name, null, "cannot be read: " + rootMessage(e), true));
                 }

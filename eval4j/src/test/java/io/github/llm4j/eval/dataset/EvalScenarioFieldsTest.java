@@ -11,7 +11,15 @@ import org.junit.jupiter.api.Test;
 class EvalScenarioFieldsTest {
 
     private static List<EvalScenario> read(String yaml) {
-        return EvalScenarios.fromYaml(new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8)));
+        return EvalScenarios.fromYaml(new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8))).stream().map(EvalScenarios::normalized).toList();
+    }
+
+    @Test
+    void fromYamlLeavesContextExactlyAsWrittenSoOlderCodeKeepsWorking() {
+        EvalScenario s = EvalScenarios.fromYaml(new ByteArrayInputStream("- name: x\n  input: y\n  context: [\"RUBRIC: kept\"]\n".getBytes(StandardCharsets.UTF_8))).get(0);
+
+        assertThat(s.context()).containsExactly("RUBRIC: kept");
+        assertThat(s.rubric()).isNull();
     }
 
     @Test

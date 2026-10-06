@@ -93,7 +93,7 @@ public final class EvalScenarios {
                             .getTypeFactory()
                             .constructCollectionType(List.class, EvalScenario.class);
             List<EvalScenario> read = YAML_MAPPER.readValue(yaml, listType);
-            return read == null ? List.of() : read.stream().map(EvalScenarios::normalized).toList();
+            return read == null ? List.of() : List.copyOf(read);
         } catch (IOException e) {
             throw new EvalDatasetException("Failed to parse golden dataset YAML", e);
         }
@@ -101,7 +101,7 @@ public final class EvalScenarios {
 
     /**
      * Reads {@code RUBRIC:} and {@code EXPECT:} lines in {@code context} as the {@code rubric} and {@code expect} fields, the way datasets were
-     * written before those fields existed. Lines already in the fields come first; the lines are removed from {@code context}.
+     * written before those fields existed. Only dataset folders ({@link EvalDataset}) are read this way; {@code fromYaml} returns {@code context} exactly as written. Lines already in the fields come first; the lines are removed from {@code context}.
      */
     static EvalScenario normalized(EvalScenario s) {
         if (s.context() == null || s.context().stream().noneMatch(c -> c.startsWith("RUBRIC:") || c.startsWith("EXPECT:"))) {
