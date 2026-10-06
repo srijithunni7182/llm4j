@@ -1386,7 +1386,9 @@ public class HarnessExecutor implements LoomEngine {
         } else if (stmt instanceof io.github.llm4j.loom.ast.DecideStmt decide) {
             decider.decide(decide);
         } else if (stmt instanceof NoteStmt note) {
-            log.info("NOTE: " + resolvePayload(note.getMessage()));
+            String noteText = resolvePayload(note.getMessage());
+            log.info("NOTE: " + noteText);
+            trace(TraceEvent.NOTE, null, noteText, null);
         } else if (stmt instanceof io.github.llm4j.loom.ast.RunStmt run) {
             taskRunner.run(run);
         } else if (stmt instanceof DelegateStmt del) {

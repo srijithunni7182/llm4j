@@ -46,6 +46,37 @@ about 121 model calls, measured against the spend report. When reality and model
 Rate limits: a 429 with a short reset is waited out inside the call; a long one reaches Loom's `rate_limits`. A free-tier key will hit them: pace the calls (Hexamind's evaluation used
 about 10 a minute) rather than hammering.
 
+## An application with its own interface
+
+Loom runs the workflow; **the interface, the transcript view and the agents' surroundings are your application's.** (An agent following the skill
+writes that code in your project, in whatever UI you choose.) The host needs three things from the executor, and all three are there:
+
+```java
+HarnessExecutor executor = new HarnessExecutor(new LoomLoader().load("workflow.loom"), tools, clients);
+executor.addTraceListener(event -> ui.append(event));      // 1. the transcript (add it BEFORE initialize())
+executor.setHumanInterface(ui::askPerson);                 // 2. questions and approvals go to your screen
+executor.setJournal(journal);                              //    optional: lets a question wait for days (below)
+executor.initialize();
+executor.executeWorkflow("Main", Map.of("topic", topic));
+Object post = executor.getContext().getAll().get("post_text");   // 3. what the workflow made
+executor.shutdown();
+```
+
+1. **Transcript.** A `TraceEvent` has `type`, `agent`, `step`, `text`, `data` and `at`. The types a screen wants: `delegate_start` and `delegate_end`
+   (an agent began, and its answer), `thought`, `action` and `observation` (what an agent is thinking and which tool it calls), `note` (a message
+   the workflow wants shown), `approval`, `budget`, `guard`, `checkpoint`, `rewind`, `suspended`. Listeners run on the thread that runs the
+   workflow, so hand the event to your UI thread and return quickly; an exception in a listener is logged and does not stop the run.
+2. **Questions.** `human_prompt`, a tool that needs approval and a `decide` that asks all arrive at your `HumanInterface`. Override
+   `promptHuman(stepId, message, hints)` to learn what kind of question it is (`PROMPT`, `APPROVAL`, `DECIDE`), the choices to offer, and who it is for.
+   Return the answer to continue now. Or throw `RunSuspended(stepId, message)` to **pause without holding a thread**: show the question, and when the person
+   answers, call `journal.answer(stepId, answer)` and run `executeWorkflow` again with the same journal; the steps already done are replayed (the transcript
+   shows `delegate_replayed`, not a second model call) and the run goes on from the question.
+3. **Result.** `executor.getContext().getAll()` holds every variable the workflow set (`-> name`). Read the ones you need by name; an unset variable is
+   absent from the map.
+
+Keep the view separate from the workflow: the screen should not decide anything the script decides, and the script should not know there is a screen.
+Test the host with `MockModels`-style stand-ins and a scripted `HumanInterface`, the way the guide's own test does, before any real run.
+
 ## Keys and secrets
 
 The encrypted secret store is the default: a one-time setup of `weave secrets create`, `weave secrets set NAME` and `--secrets <file>` on `weave run` and `weave eval` (the templates' README spells it out, and an agent that follows the skill writes the same for your project). A tool's key is `secret.NAME` in the script. Environment variables (`env.NAME`) also work; `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` are what the evaluation judge reads. The store is described in the [secret store page](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Secret-Store.md); you choose and protect its path and master key. Never in a script, a test or the repository; if a key is ever pasted somewhere shared, rotate it.

@@ -45,6 +45,11 @@ Start with `weave guide readme` if the user is new to the path.
    or Loom embedded in a host). Prompts live in `prompts/` markdown files either way (`prompt: "id"` in the script; `MarkdownFolderPromptRegistry`
    from Java). Only the Java path needs Maven and JUnit; `weave init <template> --with-java-tests` adds a test module that works. Compare two
    wordings of a prompt on the script path with `--prompt id@v1` and `--prompt id@v2`.
+   **If the user is building an application with a screen** (a web page, a desktop app, a chat window with a transcript), the workflow stays a
+   `.loom` file and the application is Java code you write in their project: a host that attaches `addTraceListener` for the transcript (before
+   `initialize()`), a `HumanInterface` that asks the person through their screen (throwing `RunSuspended` when the answer comes later, then
+   `journal.answer` and run again), and reads results from `executor.getContext().getAll()`. The interface itself is theirs and in the stack
+   they choose; the section "An application with its own interface" in chapter 9 has the pattern. Keep decisions in the script, not the screen.
 3. **Ask where they are, in plain words.** Which stage, what exists already (agents? dataset? script?). Do not start at stage 1 for someone at
    stage 6. When the user describes what they want loosely, ask the questions a good guide asks (what goes in, what comes out, who approves what,
    what must never happen), one or two at a time, in their words, not the framework's.
