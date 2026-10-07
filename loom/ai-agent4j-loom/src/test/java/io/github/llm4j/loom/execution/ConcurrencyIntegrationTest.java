@@ -4,6 +4,7 @@ import io.github.llm4j.loom.ast.LoomScript;
 import io.github.llm4j.loom.parser.LoomParser;
 import io.github.llm4j.loom.lexer.Lexer;
 import io.github.llm4j.loom.runtime.*;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -12,6 +13,7 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@Tag("integration")
 public class ConcurrencyIntegrationTest {
 
     @Test

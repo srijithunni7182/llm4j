@@ -11,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+@Tag("fragile")
 class LazyLoadingTest {
 
     private static List<String> classLoadLines(String mode) throws Exception {

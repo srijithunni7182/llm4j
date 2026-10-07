@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.Tag;
 
 class PromptPatchTest {
 
@@ -90,6 +91,7 @@ class PromptPatchTest {
     }
 
     /** The diff must be a real, applicable patch: check it with git when git is available. */
+    @Tag("fragile") // runs git
     @Test
     void theDiffAppliesCleanlyWithGit(@TempDir Path dir) throws Exception {
         String before = "You are a helpful assistant.\nAnswer briefly.\nNever guess.\n";

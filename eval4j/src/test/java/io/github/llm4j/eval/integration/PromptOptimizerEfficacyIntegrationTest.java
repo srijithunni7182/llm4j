@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -45,6 +46,7 @@ import org.junit.jupiter.api.Test;
  * Never fails on a threshold miss — the report is the deliverable. Datasets are synthetic and
  * author-made.
  */
+@Tag("integration")
 class PromptOptimizerEfficacyIntegrationTest {
 
     private static final List<String> LABELS =

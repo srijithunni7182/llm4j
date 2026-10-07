@@ -21,6 +21,7 @@ import io.github.llm4j.provider.ollama.OllamaProvider;
 import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.Test;
  * set. Skipped, not failed, without a key. Assertions check direction with lenient margins, never
  * exact scores. Judge calls are cached under {@code target/eval4j-live-cache} to limit spend.
  */
+@Tag("integration")
 class Eval4jParityIntegrationTest {
 
     private static LLMClient judge;

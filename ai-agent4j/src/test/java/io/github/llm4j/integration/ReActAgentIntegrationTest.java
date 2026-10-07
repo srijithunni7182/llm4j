@@ -13,6 +13,7 @@ import io.github.llm4j.agent.tools.EchoTool;
 import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.provider.google.GoogleProvider;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Tag;
 
 /**
  * Integration tests for ReAct Agent with real Google Gemini API. These tests verify the agent can
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.*;
  * makes reasonable attempts rather than exact outputs.
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@Tag("integration")
 class ReActAgentIntegrationTest {
 
     private static LLMClient client;

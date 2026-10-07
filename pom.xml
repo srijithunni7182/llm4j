@@ -9,9 +9,39 @@
     <version>5.0</version>
     <packaging>pom</packaging>
 
-    <name>llm4j Parent Aggregator</name>
-    <description>Root Maven aggregator for llm4j modules and showcase applications.</description>
+    <name>llm4j Parent</name>
+    <description>Parent of the llm4j libraries: shared build, test and release configuration.</description>
+    <url>https://github.com/srijithunni7182/llm4j</url>
 
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>srijithunni7182</id>
+            <name>Srijith Unni</name>
+            <email>srijithunni7182@gmail.com</email>
+            <url>https://github.com/srijithunni7182</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/srijithunni7182/llm4j.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/srijithunni7182/llm4j.git</developerConnection>
+        <url>https://github.com/srijithunni7182/llm4j</url>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/srijithunni7182/llm4j/issues</url>
+    </issueManagement>
+
+    <!-- The libraries published to Maven Central. Everything else (engram, tantrik, the example applications) is built only with -Pextended. -->
     <modules>
         <module>ai-agent4j</module>
         <module>ai-agent4j-addons</module>
@@ -19,13 +49,230 @@
         <module>eval4j</module>
         <module>eval4j-report</module>
         <module>loom/ai-agent4j-loom</module>
-        <module>engram</module>
-        <module>tantrik</module>
-        <module>examples/hexamind-hub</module>
-        <module>examples/tantrik-console/tantrik-console-server</module>
-        <module>examples/nirmaan-yantra/nirmaan-yantra-server</module>
-        <module>examples/kingini</module>
-        <module>examples/gmail-mcp-app</module>
-        <module>examples/getviral</module>
     </modules>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>17</maven.compiler.release>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+
+        <!--
+            Which tests run. The default build runs only fast, hermetic tests. A test is tagged with JUnit 5 @Tag:
+              integration  needs something outside the JVM (a database, a local model server) or exercises several modules end to end
+              fragile      depends on wall-clock time, an external program (git, javac, node), the operating system or the checkout's layout
+              live         calls a real provider API with a real key (and costs money)
+            -Pextended runs integration and fragile too (and builds engram, tantrik and the examples); -Plive runs only the live ones.
+        -->
+        <test.groups></test.groups>
+        <test.excluded>live,integration,fragile</test.excluded>
+
+        <!-- -DskipTests also skips the coverage report and rules (they have no test data to check) -->
+        <skipTests>false</skipTests>
+        <jacoco.skip>${skipTests}</jacoco.skip>
+
+        <!-- false: a release is uploaded and left for you to review in the Central Portal; pass -Dcentral.autoPublish=true to publish at once -->
+        <central.autoPublish>false</central.autoPublish>
+    </properties>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.12.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.2.5</version>
+                    <configuration>
+                        <groups>${test.groups}</groups>
+                        <excludedGroups>${test.excluded}</excludedGroups>
+                        <systemPropertyVariables>
+                            <user.language>en</user.language>
+                        </systemPropertyVariables>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>0.8.12</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.3.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.12.0</version>
+                    <configuration>
+                        <doclint>none</doclint>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>3.2.8</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonatype.central</groupId>
+                    <artifactId>central-publishing-maven-plugin</artifactId>
+                    <version>0.11.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-shade-plugin</artifactId>
+                    <version>3.6.2</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.4.1</version>
+                </plugin>
+                <!-- Run on demand: mvn spotless:check, mvn dependency-check:check -DnvdApiKey=... -->
+                <plugin>
+                    <groupId>com.diffplug.spotless</groupId>
+                    <artifactId>spotless-maven-plugin</artifactId>
+                    <version>2.43.0</version>
+                    <configuration>
+                        <java>
+                            <googleJavaFormat>
+                                <version>1.17.0</version>
+                                <style>AOSP</style>
+                            </googleJavaFormat>
+                        </java>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.owasp</groupId>
+                    <artifactId>dependency-check-maven</artifactId>
+                    <version>9.0.9</version>
+                    <configuration>
+                        <nvdApiKey>${nvdApiKey}</nvdApiKey>
+                        <nvdApiDelay>8000</nvdApiDelay>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+            <!-- Coverage report in target/site/jacoco after the tests. A module that wants a minimum adds its own check execution. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals><goal>report</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <!-- mvn -Pextended verify: the slow and environment-dependent tests too, and engram, tantrik and the example applications -->
+            <id>extended</id>
+            <properties>
+                <test.excluded>live</test.excluded>
+            </properties>
+            <modules>
+                <module>engram</module>
+                <module>tantrik</module>
+                <module>examples/hexamind-hub</module>
+                <module>examples/tantrik-console/tantrik-console-server</module>
+                <module>examples/nirmaan-yantra/nirmaan-yantra-server</module>
+                <module>examples/kingini</module>
+                <module>examples/gmail-mcp-app</module>
+                <module>examples/getviral</module>
+            </modules>
+        </profile>
+
+        <profile>
+            <!-- mvn -Plive verify: only the live tests, against real provider APIs, for whichever keys are set -->
+            <id>live</id>
+            <properties>
+                <test.groups>live</test.groups>
+                <test.excluded></test.excluded>
+            </properties>
+        </profile>
+
+        <profile>
+            <!--
+                mvn -Prelease verify    : builds the sources and javadoc jars and signs everything (add -Dgpg.skip=true to check without a key)
+                mvn -Prelease deploy    : uploads one bundle of every module to the Central Portal
+                The tests are NOT skipped: a release is gated on the default (hermetic) tests.
+            -->
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals><goal>jar-no-fork</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals><goal>jar</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals><goal>sign</goal></goals>
+                                <configuration>
+                                    <!-- the passphrase comes from the MAVEN_GPG_PASSPHRASE environment variable -->
+                                    <gpgArguments>
+                                        <arg>--pinentry-mode</arg>
+                                        <arg>loopback</arg>
+                                    </gpgArguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>${central.autoPublish}</autoPublish>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

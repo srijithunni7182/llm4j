@@ -2,6 +2,7 @@ package io.github.llm4j.eval.integration;
 
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
  * {@code target/calibration-round1.md}. Never fails on a threshold miss - the report is the
  * deliverable. See {@link CalibrationRunner} for the caveat about author-labelled data.
  */
+@Tag("integration")
 class CalibrationStudyIntegrationTest {
 
     @Test

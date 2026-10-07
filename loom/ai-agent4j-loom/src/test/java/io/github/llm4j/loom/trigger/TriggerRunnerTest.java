@@ -11,9 +11,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** Verification plan V7.1–V7.5, V7.8–V7.13, V7.18 on the in-memory store. */
+@Tag("fragile")
 class TriggerRunnerTest {
 
     static final Trigger.Target DIGEST = new Trigger.StartWorkflow("digest.loom", "DailyDigest", Map.of("topic", "AI"));

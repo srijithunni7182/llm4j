@@ -9,12 +9,14 @@ import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.provider.google.GoogleProvider;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Tag;
 
 /**
  * Integration tests for Google Gemini provider. These tests make real API calls and require
  * GOOGLE_API_KEY to be set.
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@Tag("integration")
 class GoogleIntegrationTest {
 
     private static LLMClient client;

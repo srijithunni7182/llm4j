@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /** The guide's "Generic Tools" section is checked against the code: every example loads, every command runs. */
+@Tag("fragile")
 class GuideExamplesTest {
 
     static final Path GUIDE = Path.of("LOOM_GUIDE.md");

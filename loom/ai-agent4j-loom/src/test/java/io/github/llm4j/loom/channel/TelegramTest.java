@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /** Telegram, against a local stand-in for the Bot API (spec loom-remote-answers R3). */
+@Tag("fragile")
 class TelegramTest {
 
     @TempDir
