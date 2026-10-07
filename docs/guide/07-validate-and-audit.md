@@ -11,7 +11,9 @@ weave check hexamind.loom          # exit 0: no errors, 2: errors
 It runs every load-time check **without calling a model**: undefined persona, tool or model; a missing provider key; `approve:` naming a tool the agent
 does not have; a literal credential; duplicate declarations; bad rewind or checkpoint rules. For `run` steps: a task name that is not registered (the message lists the ones that are),
 and `retry` on a task that changes things and is not idempotent (it could repeat a payment). Errors print with their source line. Your task jars must be on the class path (or `executor.setTaskRegistry(...)` called) for these checks to know your tasks.
-Hexamind: `✓ hexamind.loom: ready to run`. (It does not flag unused variables or a missing budget; the audit does the latter.)
+Hexamind: `✓ hexamind.loom: ready to run`. (It warns about a variable that is set and never used, and about a person's answer nothing reads; the audit flags a missing budget.)
+
+**What the model check covers.** `weave check` confirms each model name belongs to a provider it knows and that the key for it is set. It cannot know whether the exact model id exists: `gemini-2.5-pr` passes. `weave explain main.loom` prints every model name in plain words; read it back before the first real run, because a mistyped id fails only on the first paid call.
 
 ## Audit: `weave audit`
 

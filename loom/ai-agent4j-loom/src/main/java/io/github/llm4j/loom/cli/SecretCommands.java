@@ -22,7 +22,7 @@ import picocli.CommandLine.Parameters;
  * consumer's: nothing here has a default, and protecting the file (an ACL) is the consumer's job. A secret's value is never an argument (it would
  * land in shell history and the process list): it is typed at the console without echo, or piped in with {@code --stdin}. Nothing prints a value.
  */
-@Command(name = "secrets", description = "Manages an encrypted secret store: create, set, list, remove, import-env, rekey. Values are never printed or taken from arguments.",
+@Command(name = "secrets", mixinStandardHelpOptions = true, description = "Manages an encrypted secret store: create, set, list, remove, import-env, rekey. Values are never printed or taken from arguments.",
         subcommands = {SecretCommands.Create.class, SecretCommands.Set.class, SecretCommands.ListNames.class, SecretCommands.Remove.class,
                 SecretCommands.ImportEnv.class, SecretCommands.Rekey.class})
 final class SecretCommands implements Callable<Integer> {

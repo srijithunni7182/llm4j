@@ -1081,8 +1081,9 @@ Task issue = Task.changes("IssueRefund", new EffectPolicy(EffectPolicy.OnUnknown
 
 - **`TaskContext`** holds the named `args()` the script passed, a read-only copy of the workflow's `variables()` (readable by dotted path:
   `ctx.variable("request.order_id")`), the `stepId()` and the `idempotencyKey()`. Everything in it is an immutable deep copy: a task cannot change
-  workflow state behind the runtime's back, which is what keeps runs replayable. `arg(name, Type)` and `requireArg(name, Type)` convert numbers and
-  numeric strings; a missing or unusable argument throws `TaskNotPerformed`.
+  workflow state behind the runtime's back, which is what keeps runs replayable. `arg(name, Type)` returns `null` when the argument is absent, and `requireArg(name, Type)` throws
+  `TaskNotPerformed` when it is absent; both convert numbers and numeric strings, and both throw `TaskNotPerformed` for a value that cannot be converted
+  to the type (for example text where a number is wanted).
 - **`TaskResult`** is `outcome` (default `ok`), optional `reason`, optional `value`, and optional data entries. `TaskResult.ok()`, `.value(x)`,
   `.rejected("why")`, `.outcome("needs_review")`, then `.reason(..)`, `.with(key, value)`, `.withValue(..)`. Values must be JSON-safe
   (strings, numbers, booleans, null, maps with string keys, lists), because the result is written to the run journal.

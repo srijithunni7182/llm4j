@@ -73,6 +73,9 @@ final class InitCommand implements Callable<Integer> {
         result.created().forEach(f -> env.out().println("  " + f));
         env.out().println();
         env.out().println("Next, from that folder (nothing costs money until you run it for real):");
+        if (!target.toAbsolutePath().normalize().equals(java.nio.file.Path.of("").toAbsolutePath().normalize())) {
+            env.out().println("  cd " + target);
+        }
         env.out().println("  weave check main.loom --no-env");
         env.out().println("  weave eval main.loom --mock");
         if (c.withJavaTests) env.out().println("  mvn test                              (the Java tests; \"Tests run: 0\" is a failure, and the build says so)");

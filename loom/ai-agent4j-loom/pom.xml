@@ -142,7 +142,8 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-nop</artifactId>
             <version>2.0.16</version>
-            <scope>test</scope>
+            <!-- Optional, so it is in the weave jar (no "no SLF4J provider" warnings on a command line) but not forced on a project that uses Loom as a library -->
+            <optional>true</optional>
         </dependency>
 
         <!-- CLI Support -->

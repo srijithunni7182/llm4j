@@ -46,6 +46,9 @@ final class EvalCommand implements Callable<Integer> {
     @Option(names = {"-l", "--loot"}, description = "The .loot tool mapping file, for a script that uses your own tools (a real run calls them; --mock does not).")
     File lootFile;
 
+    @Option(names = "--verbose", description = "Show what each agent is doing as it runs (by default only the result is shown).")
+    boolean verbose;
+
     @Option(names = "--dataset", paramLabel = "<dir>", description = "The folder of dataset files (default: eval/golden beside the script).")
     File dataset;
 
@@ -106,6 +109,17 @@ final class EvalCommand implements Callable<Integer> {
     }
 
     static int eval(EvalCommand c, WeaveEnv env) {
+        java.util.logging.Logger loom = java.util.logging.Logger.getLogger("io.github.llm4j.loom");
+        java.util.logging.Level before = loom.getLevel();
+        if (!c.verbose) loom.setLevel(java.util.logging.Level.WARNING); // the progress lines would bury the report
+        try {
+            return evaluate(c, env);
+        } finally {
+            loom.setLevel(before);
+        }
+    }
+
+    private static int evaluate(EvalCommand c, WeaveEnv env) {
         if (c.check && c.init) {
             env.err().println("Error: --check and --init cannot be used together.");
             return 2;
