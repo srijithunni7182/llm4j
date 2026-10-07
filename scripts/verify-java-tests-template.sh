@@ -22,8 +22,10 @@ mvn -q -B test 2>&1 | tail -n 15
 mvn -B test 2>&1 | grep -E "Tests run:.*Fail" | tail -n 3
 [ -f target/eval4j/report/index.html ] || { echo "FAIL: mvn test did not write the eval4j dashboard (target/eval4j/report/index.html)"; exit 1; }
 echo "   the eval4j dashboard was written"
+grep -q "Verifier · \|Writer · \|Researcher · \|Triage · \|Classifier · \|Main · " target/eval4j/report/evaluations.csv || { echo "FAIL: the dashboard rows do not name the agent or workflow they test"; head -n 5 target/eval4j/report/evaluations.csv; exit 1; }
+echo "   each dashboard row names the agent or workflow it tests"
 echo "== with test classes that run nothing, mvn test must FAIL"
-rm -f src/test/java/starter/*.java
+find src/test/java -name '*.java' -delete
 printf 'package starter;\nclass EmptyTest { }\n' > src/test/java/starter/EmptyTest.java
 if mvn -q -B test >"$work/empty.log" 2>&1; then
   echo "FAIL: a build with no tests passed"; tail -n 15 "$work/empty.log"; exit 1

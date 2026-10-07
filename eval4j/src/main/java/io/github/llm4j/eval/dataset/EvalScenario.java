@@ -45,7 +45,29 @@ public record EvalScenario(
         @JsonDeserialize(using = InputsDeserializer.class) Map<String, String> inputs,
         @JsonAlias("expected_output_not_contains")
         @com.fasterxml.jackson.annotation.JsonFormat(with = com.fasterxml.jackson.annotation.JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
-        List<String> expectedOutputNotContains) {
+        List<String> expectedOutputNotContains,
+        @JsonAlias("expected_min_words") Integer expectedMinWords,
+        @JsonAlias("expected_max_words") Integer expectedMaxWords) {
+
+    /** The fourteen-field form, before {@code expected_min_words} and {@code expected_max_words}. */
+    public EvalScenario(
+            String name,
+            String input,
+            String expectedOutputContains,
+            String expectedOutput,
+            List<String> expectedTools,
+            List<String> context,
+            List<String> retrievalContext,
+            String id,
+            List<String> dimensions,
+            List<String> tags,
+            List<String> rubric,
+            List<String> expect,
+            Map<String, String> inputs,
+            List<String> expectedOutputNotContains) {
+        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, rubric, expect, inputs,
+                expectedOutputNotContains, null, null);
+    }
 
     /** The thirteen-field form, before {@code expected_output_not_contains}. */
     public EvalScenario(
@@ -62,7 +84,7 @@ public record EvalScenario(
             List<String> rubric,
             List<String> expect,
             Map<String, String> inputs) {
-        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, rubric, expect, inputs, null);
+        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, rubric, expect, inputs, null, null, null);
     }
 
     /** What the answer must never contain (any capitalisation): a deterministic check, no judge, never null. */
@@ -86,7 +108,7 @@ public record EvalScenario(
             List<String> tags,
             List<String> rubric,
             List<String> expect) {
-        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, rubric, expect, null, null);
+        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, rubric, expect, null, null, null, null);
     }
 
     /** The named parameters of a workflow with several, never null; empty when {@code input} alone says everything. */

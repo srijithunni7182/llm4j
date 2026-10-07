@@ -172,6 +172,8 @@ public final class EvalRunner {
             if (s.expectedOutputContains() != null) checks.add(new ScenarioResult.Check("answer contains", s.expectedOutputContains(), Status.UNJUDGED, MOCK_NOTE));
             if (s.expectedOutput() != null) checks.add(new ScenarioResult.Check("answer is", s.expectedOutput(), Status.UNJUDGED, MOCK_NOTE));
             for (String never : s.mustNotContain()) checks.add(new ScenarioResult.Check("answer never contains", never, Status.UNJUDGED, MOCK_NOTE));
+            if (s.expectedMinWords() != null) checks.add(new ScenarioResult.Check("answer has at least", s.expectedMinWords() + " words", Status.UNJUDGED, MOCK_NOTE));
+            if (s.expectedMaxWords() != null) checks.add(new ScenarioResult.Check("answer has at most", s.expectedMaxWords() + " words", Status.UNJUDGED, MOCK_NOTE));
             if (s.expectedTools() != null && !s.expectedTools().isEmpty()) checks.add(new ScenarioResult.Check("tools used", String.join(", ", s.expectedTools()), Status.UNJUDGED, MOCK_NOTE));
             return;
         }
@@ -183,6 +185,15 @@ public final class EvalRunner {
             boolean ok = !answer.toLowerCase(Locale.ROOT).contains(never.toLowerCase(Locale.ROOT));
             // the failure does not repeat the answer: what it must never contain is what it would be repeating (a card number, a name)
             checks.add(new ScenarioResult.Check("answer never contains", never, ok ? Status.PASS : Status.FAIL, ok ? null : "the answer contains it"));
+        }
+        int words = answer.isBlank() ? 0 : answer.strip().split("\\s+").length;
+        if (s.expectedMinWords() != null) {
+            boolean ok = words >= s.expectedMinWords();
+            checks.add(new ScenarioResult.Check("answer has at least", s.expectedMinWords() + " words", ok ? Status.PASS : Status.FAIL, ok ? null : "the answer has " + words + " words"));
+        }
+        if (s.expectedMaxWords() != null) {
+            boolean ok = words <= s.expectedMaxWords();
+            checks.add(new ScenarioResult.Check("answer has at most", s.expectedMaxWords() + " words", ok ? Status.PASS : Status.FAIL, ok ? null : "the answer has " + words + " words"));
         }
         if (s.expectedOutput() != null) {
             boolean ok = answer.strip().equals(s.expectedOutput().strip());

@@ -26,6 +26,7 @@ may not be here, so never send the user to a repository path and never ask them 
 | 8 | Trajectory tests (optional) | `docs/guide/08-trajectory-tests.md` | path, branch, round-count and budget-stop tests pass for free |
 | 9 | Go live | `docs/guide/09-go-live.md` | smoke and first real run within about twice the cost model; limits set |
 | 10 | Best practices | `docs/guide/10-best-practices.md` | the readiness checklist is ticked |
+| 11 | Build the test examples with the user | `docs/guide/11-build-the-dataset-with-the-user.md` | every agent: the user answered the five quality questions, countable things are checked by code, no silent gaps |
 
 Start with `weave guide readme` if the user is new to the path. When the user wants to change a starter, `weave guide recipes` has tested before-and-after changes (a different model, ask a person before publishing, escalate when a loop gives up, add an agent, add a tool, mask personal data); use them as patterns and give the user the matching "Ask your agent" sentence.
 
@@ -43,7 +44,7 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
    folder by hand, and never rearrange the layout: `weave init <template> --flat` makes the older flat folder if the user really wants one.
 1. **Ask once: "Do you want tests first?"** (default yes). If yes, the order is: decide the agents, write the golden dataset
    (`weave eval <script> --init`, then fill it in with the user), write the script, `weave eval <script> --check`, `--mock`, then a capped
-   real run. **Write the dataset before the script**, and **never write a Java loader or a test module for the dataset**: the project
+   real run. **Write the dataset before the script, and write it WITH the user, not for them**: read `weave guide 11` and run that conversation (teach in plain words, ask five short questions per agent, collect their real example requests, show samples and ask good-or-bad, read the list back, only then write the file), and **never write a Java loader or a test module for the dataset**: the project
    from `weave init` already has the JUnit tests that run it (`mvn test`), and `weave eval` reads the same YAML. If no, skip stages 2, 3, 4, 5 and 8 and go straight to the script, `weave check`, `weave audit` and a
    capped run. Record the answer in the project's README (`Evaluation: skipped` or `Evaluation: golden dataset in <its folder>`) and do not ask
    again. At go-live say once, in one sentence, that no evaluation exists, and carry on if the user still wants to go live. Skipping never
@@ -56,7 +57,13 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
    `.loom` file and the application is Java code you write in their project: a host that attaches `addTraceListener` for the transcript (before
    `initialize()`), a `HumanInterface` that asks the person through their screen (throwing `RunSuspended` when the answer comes later, then
    `journal.answer` and run again), and reads results from `executor.getContext().getAll()`. The interface itself is theirs and in the stack
-   they choose; the section "An application with its own interface" in chapter 9 has the pattern. Keep decisions in the script, not the screen.
+   they choose; the section "An application with its own interface" in chapter 9, and its part "Plugging the host into the workflow", have complete, compiling code for the `HumanInterface` (waiting for the person's answer, or pausing the run) and for the keys. Keep decisions in the script, not the screen.
+2b. **Turn the request into hard requirements, in plain words, and say which are checked by code.** Right after you understand the request, list each measurable
+   thing the user asked for ("at least 500 words", "at most 2 rounds", "always asks a person before saving", "never shows a card number") and mark it
+   **checked by code** or **judged by a model**. Anything countable or exact is code: a length is `expected_min_words` / `expected_max_words` in the dataset (a fixed check; a mock run
+   leaves it unjudged), a forbidden text is `expected_output_not_contains`, a step that must always happen is a task or a `run`, not a prompt. Write the prompt wording to match the number
+   ("at least 500 words", not "about 500") and ask if a limit is a minimum or a maximum when it is not clear. A requirement that is only in a prompt is a wish, not a requirement. Do not call the build done until each
+   code-checked one has a scenario that fails when it is broken and passes when it is kept, and read at least one real answer (under an agreed cap) before saying the content is right.
 3. **Ask where they are, in plain words.** Which stage, what exists already (agents? dataset? script?). Do not start at stage 1 for someone at
    stage 6. When the user describes what they want loosely, ask the questions a good guide asks (what goes in, what comes out, who approves what,
    what must never happen), one or two at a time, in their words, not the framework's.
@@ -72,6 +79,7 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
      `weave init` writes `.env.example` and a `.gitignore` that already ignores `.env`; tell the user to run `cp .env.example .env` and put the key after the `=`. `weave run`,
      `weave check`, `weave eval` and `weave next` read it and say which names they found (never the values); a variable already set in their shell wins. `weave`
      refuses a `.env` that git tracks. A judge from another provider needs that provider's key in the same file.
+   - **An application you write for the user** (a web page, a desktop or chat app; a Java host that runs the workflow): this is the deployer case even on their own laptop. The app's model key comes from the **secret store** (`weave secrets create`, `weave secrets set NAME`; in the host, `EncryptedFileSecretStore` with a master key from an environment variable) or from environment variables the platform sets. **Never put it in `.env` or `.env.example`**: `.env` is only for `weave` run by a developer, and for the model that judges evaluations. Chapter 9, "Plugging the host into the workflow", has the complete code.
    - **Someone deploying the application** (a server, shared or production keys): the **secret store** (`weave secrets create`, `weave secrets set NAME`, then `--secrets <file>`
      on `weave run`; unattended runs add `--secrets-key-env <VARIABLE>`) or, for a vault, the Java host in chapter 9. **Never the project's `.env` on a server.**
 
@@ -119,15 +127,16 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
     - tell the user to run `weave check <deployed entry>` (without `--no-env`) on the target machine, then `weave audit --fail-on medium`, then a capped smoke run to a test sink before the real recipients.
 
 14. **Round up before you talk about money.** When the workflow is built and the free checks pass, finish the job in this order. Do not end on "the next step costs money".
-    a. **Build it.** Run `mvn test` (the project's own build) and say the result in one line ("13 tests, 0 failures"). `Tests run: 0` is a failure.
+    a. **Build it.** Run `mvn test` (the project's own build, **without `-q`** so the totals show) and say the result in one line ("13 tests, 0 failures"). `Tests run: 0` is a failure.
     b. **Write `PROJECT_REPORT.md`** at the project root, from the template below, and tell the user where it is. Take the facts from the tools, not from memory:
        `weave explain <script>` for the steps, `weave graph <script> --format mermaid` for the picture, `weave audit <script>` for the safety summary.
     c. **Open the eval4j dashboard.** `mvn test` wrote `target/eval4j/report/index.html`. Open it for the user in their browser (`open` on macOS, `xdg-open` on Linux,
        `start` on Windows); if you cannot open a window, give the full path and say so. Tell them what they are looking at: **Wiring 100%** means every example ran through
        the workflow end to end on a fake model; **Safety** and **Tone** (the dataset's quality dimensions) read "Declared, not evaluated" because only a real, capped run judges
        them; the large percentage at the top is the wiring only, not the quality. Offer `weave graph` or the editor's **Loom: Show Workflow Graph** to look at the workflow itself.
+    c2. **Update the project's `README.md`** so it matches what now exists (the agents, the checks, the commands, where the report is) and ticks off the stages done.
     d. **Then, last, how to set up and run it for real.** Write it in the report and say it in chat, in this order, and run none of it without a yes: what a run costs and what stops
-       it (the script's `budget`, `--max-tokens`, the provider's own spending limit); getting a key from the provider; `cp .env.example .env` and the user typing the key after the
+       it (the script's `budget`, `--max-tokens`, the provider's own spending limit); getting a key from the provider; run `cp .env.example .env` for the user (it only copies a template; do not open the result) and have the user type the key after the
        `=` (never ask for it in chat, never print `.env`); `weave check <script>` without `--no-env`; one capped run (`weave run <script> -i name="..." --max-tokens 50000`);
        the capped real evaluation (`weave eval <script> --max-tokens 200000 --report target/eval-report.html`, which says what it will do and asks first); and, when they are happy,
        how to put it on a server (`weave guide 9`: the secret store, not `.env`).
@@ -154,6 +163,22 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
     <the steps from (d), with this project's real commands and cap>
     ```
 
+## Show the stages as a checklist
+
+At the start, and again after every stage, print a short checklist in the chat and tick what is done, so the user always sees where they are and what is left:
+
+```
+[x] Understand the request and the hard requirements
+[x] Agents decided
+[ ] Test examples written with you
+[ ] Workflow script written and checked (free)
+[ ] Free practice run and audit
+[ ] Build, report and dashboard
+[ ] Real run (costs money: only with your yes)
+```
+
+Adjust the lines to the project; never tick a line that was not actually done.
+
 ## Explain as you go
 
 The user may be new to all of this, so before each stage say, in one or two plain sentences: what you are about to do, why, what they will see, and whether it costs
@@ -161,8 +186,10 @@ anything. After it, say what it proved and what it did not (a mock run proves th
 
 Explain the golden dataset once, when you first write or show it, because a YAML file does not look like a test: each scenario is an example request plus checks.
 Some checks are fixed and decided by code (`expected_output_contains`, `expected_output_not_contains` for something that must never appear, such as a card number,
-and `expected_tools`); others are lines a second model grades (`rubric`, `expect`), which are useful but not perfect. A mock run decides none of them (they come out
+`expected_min_words` / `expected_max_words` for a length, and `expected_tools`); others are lines a second model grades (`rubric`, `expect`), which are useful but not perfect. A mock run decides none of them (they come out
 unjudged); a real run does, under a cap you agree first. Offer `weave graph` to look at the workflow whenever its shape changes.
+
+When you open the eval4j dashboard, **read it before you describe it**: say what is actually on the screen (how many rows, that each row is named "<agent or workflow> · <example>", that every check in a mock run is the wiring check, and which quality dimensions have no results). Never describe a dashboard from this file's wording alone.
 
 ## Things that look like success and are not
 

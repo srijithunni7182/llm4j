@@ -88,6 +88,9 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin
         private PromptOptions promptOptions = new PromptOptions();
 
+        @CommandLine.Mixin
+        private ClassesOptions classesOptions = new ClassesOptions();
+
         @Override
         public Integer call() throws Exception {
             if (!scriptFile.exists()) {
@@ -95,7 +98,7 @@ public class WeaveCLI implements Callable<Integer> {
                 return 1;
             }
             WeaveEnv env = envFile.apply(WeaveEnv.system().withAskVia(askVia), scriptFile.toPath());
-            if (env == null) return 2;
+            if (env == null || !classesOptions.apply(scriptFile.toPath(), env)) return 2;
             env = secrets.apply(env, Prompts.console());
             if (env == null) return 2;
             env = promptOptions.apply(env);
@@ -230,10 +233,13 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin
         private PromptOptions promptOptions = new PromptOptions();
 
+        @CommandLine.Mixin
+        private ClassesOptions classesOptions = new ClassesOptions();
+
         @Override
         public Integer call() {
             WeaveEnv env = envFile.apply(WeaveEnv.system(), scriptFile.toPath());
-            if (env == null) return 2;
+            if (env == null || !classesOptions.apply(scriptFile.toPath(), env)) return 2;
             env = secrets.apply(env, Prompts.console());
             if (env == null) return 2;
             env = promptOptions.apply(env);
@@ -278,6 +284,9 @@ public class WeaveCLI implements Callable<Integer> {
         }
         ToolRegistry registry = new ToolRegistry();
         if (lootFile != null && lootFile.exists()) new LootLoader().loadIntoRegistry(lootFile.getAbsolutePath(), registry);
+        java.util.List<String> keyWarnings = new java.util.ArrayList<>();
+        java.util.List<String> keyNames = EnvExampleCheck.namesWithValues(scriptFile.toPath());
+        if (!keyNames.isEmpty()) keyWarnings.add(EnvExampleCheck.warning(keyNames));
         java.util.List<String> reachProblems = lootFile != null && lootFile.exists() ? LootLoader.reachProblems(lootFile.toPath()) : java.util.List.of();
         LLMClientFactory models = env.models();
         java.util.Set<String> notSetYet = new java.util.TreeSet<>();
@@ -319,21 +328,23 @@ public class WeaveCLI implements Callable<Integer> {
         // With --no-env a name that is not set stands in as "not-set-yet", which is not an address or a number: what the stand-in breaks is already said as "not set yet".
         if (settings.noEnv()) problems = problems.stream().filter(p -> !p.message().contains("not-set-yet")).toList();
         var error = io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR;
-        long errors = problems.stream().filter(p -> p.severity() == error || settings.strict()).count() + reachProblems.size();
+        long errors = problems.stream().filter(p -> p.severity() == error || settings.strict()).count() + reachProblems.size() + (settings.strict() ? keyWarnings.size() : 0);
         if (settings.json()) {
             List<JsonProblem> out = new ArrayList<>();
             for (String r : reachProblems) out.add(new JsonProblem("error", 0, r));
+            for (String w : keyWarnings) out.add(new JsonProblem(settings.strict() ? "error" : "warning", 0, w));
             for (var p : problems) out.add(new JsonProblem(p.severity() == error || settings.strict() ? "error" : "warning", p.line(),
                     (p.construct() == null ? "" : p.construct() + ": ") + p.message()));
             env.out().println(checkJson(scriptFile, out, new ArrayList<>(notSetYet)));
             return errors == 0 ? 0 : 2;
         }
         for (String r : reachProblems) env.out().println("✗ " + r);
+        for (String w : keyWarnings) env.out().println((settings.strict() ? "✗ " : "⚠ ") + w);
         for (var p : problems) env.out().println((p.severity() == error || settings.strict() ? "✗ " : "⚠ ") + p);
         if (!notSetYet.isEmpty()) env.out().println("ℹ not set yet (needed to run): " + String.join(", ", notSetYet));
         if (errors == 0) {
             env.out().println("✓ " + scriptFile.getName() + ": ready to run"
-                    + (problems.isEmpty() ? "" : " (" + problems.size() + " warning" + (problems.size() == 1 ? "" : "s") + ")"));
+                    + (problems.size() + keyWarnings.size() == 0 ? "" : " (" + (problems.size() + keyWarnings.size()) + " warning" + (problems.size() + keyWarnings.size() == 1 ? "" : "s") + ")"));
             env.out().println("  next: weave next says what to do now; weave guide recipes has tested changes to copy");
             return 0;
         }
@@ -717,7 +728,24 @@ public class WeaveCLI implements Callable<Integer> {
     static CommandLine commandLine() {
         CommandLine cli = build();
         helpEverywhere(cli);
+        cli.setExecutionStrategy(WeaveCLI::executeQuietly);
         return cli;
+    }
+
+    /** Commands that run for a while and report as they go keep Loom's progress lines; every other command prints only its own answer. */
+    private static final java.util.Set<String> PROGRESS = java.util.Set.of("run", "resume", "tick", "daemon");
+
+    private static int executeQuietly(CommandLine.ParseResult parseResult) {
+        java.util.logging.Logger loom = java.util.logging.Logger.getLogger("io.github.llm4j.loom");
+        java.util.logging.Level before = loom.getLevel();
+        String command = parseResult.hasSubcommand() ? parseResult.subcommand().commandSpec().name() : "";
+        boolean quiet = !PROGRESS.contains(command) && !"info".equalsIgnoreCase(System.getenv("WEAVE_LOG"));
+        if (quiet) loom.setLevel(java.util.logging.Level.WARNING); // "Loading Loom script" on every command buried the answers; WEAVE_LOG=info brings them back
+        try {
+            return new CommandLine.RunLast().execute(parseResult);
+        } finally {
+            loom.setLevel(before);
+        }
     }
 
     /** Every command, and every command under it, answers {@code --help} and {@code -h} with its usage and exit code 0. */

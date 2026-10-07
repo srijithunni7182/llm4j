@@ -32,7 +32,7 @@ public final class Templates {
 
     /** What {@code --with-java-tests} adds: a pom that runs JUnit 5 and fails when no test ran, a dataset test and a mock wiring test. */
     public static final List<String> JAVA_TESTS_FILES = List.of(
-            "pom.xml", "src/test/README.md",
+            "pom.xml", "src/test/README.md", "src/test/resources/logging.properties",
             "src/test/java/starter/Project.java", "src/test/java/starter/GoldenDatasetTest.java", "src/test/java/starter/ScriptWiringTest.java");
 
     /**

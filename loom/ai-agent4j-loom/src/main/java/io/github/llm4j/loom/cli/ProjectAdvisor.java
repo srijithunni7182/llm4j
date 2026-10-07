@@ -45,6 +45,13 @@ final class ProjectAdvisor {
                     "A warning is usually a real mistake in the workflow (a result never used, a name that is also a word in a prompt).", "weave check " + file + " --no-env --strict"));
         }
 
+        java.util.List<String> keysInTemplate = EnvExampleCheck.namesWithValues(script);
+        if (!keysInTemplate.isEmpty()) {
+            steps.add(new Step("Move the key out of .env.example: it holds a value for " + String.join(", ", keysInTemplate),
+                    ".env.example is a template that gets committed, so a key in it is shared with everyone who sees the project. .env is the file git ignores.",
+                    "cp .env.example .env        (then empty the value in .env.example)"));
+        }
+
         Path golden = io.github.llm4j.loom.init.ProjectLayout.dataset(script);
         boolean skipped = readme(dir).contains("Evaluation: skipped");
         EvalDataset dataset = Files.isDirectory(golden) ? EvalDataset.load(golden) : null;

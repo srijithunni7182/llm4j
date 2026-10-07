@@ -21,7 +21,8 @@ final class TaskChecks {
                 if (task == null) {
                     c.error(r.getLine(), construct, "unknown task; register it with TaskRegistry.register(...) or list its class in "
                             + "META-INF/services/io.github.llm4j.agent.task.Task"
-                            + (c.context().tasks().isEmpty() ? " (no tasks are registered)" : " (known tasks: " + String.join(", ", c.context().tasks().names()) + ")"));
+                            + (c.context().tasks().isEmpty() ? " (no tasks are registered)" : " (known tasks: " + String.join(", ", c.context().tasks().names()) + ")")
+                            + ". weave sees only the classes on its class path: for a task you wrote in Java, build the project (mvn compile; weave then looks in target/classes) or pass --classes <dir>");
                     return;
                 }
                 boolean repeatable = task.effect() != TaskEffect.CHANGES || task.policy().idempotent()

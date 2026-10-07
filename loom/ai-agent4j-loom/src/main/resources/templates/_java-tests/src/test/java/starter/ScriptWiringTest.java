@@ -67,7 +67,7 @@ class ScriptWiringTest {
         DatasetFolder.Plan plan = plan();
         assertThat(plan.problems()).as("problems in the golden dataset").isEmpty();
         EvalRunner runner = new EvalRunner(ScriptWiringTest::executor, null, name -> null, true);
-        EvalRun.get().declareDataset("golden", "Golden dataset", DATASET.toString(), plan.targets().stream().flatMap(t -> t.scenarios().stream()).toList());
+        EvalRun.get().declareDataset("golden", "Golden dataset", DATASET.toString(), plan.targets().stream().flatMap(t -> t.scenarios().stream().map(s -> labelled(t.name(), s))).toList());
 
         List<DynamicTest> tests = new ArrayList<>();
         for (DatasetFolder.Target target : plan.targets()) {
@@ -90,6 +90,13 @@ class ScriptWiringTest {
             }
         }
         return tests.stream();
+    }
+
+    /** The same scenario named after the agent or workflow it tests ("Verifier · Flags a false claim"), so the dashboard says whose test each row is. */
+    private static EvalScenario labelled(String target, EvalScenario s) {
+        String own = s.name() != null ? s.name() : s.id() != null ? s.id() : "scenario";
+        return new EvalScenario(target + " · " + own, s.input(), s.expectedOutputContains(), s.expectedOutput(), s.expectedTools(), s.context(), s.retrievalContext(),
+                s.id(), s.dimensions(), s.tags(), s.rubric(), s.expect(), s.inputs(), s.expectedOutputNotContains(), s.expectedMinWords(), s.expectedMaxWords());
     }
 
     @Test
