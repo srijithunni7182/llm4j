@@ -33,7 +33,18 @@ public final class Templates {
     /** What {@code --with-java-tests} adds: a pom that runs JUnit 5 and fails when no test ran, a dataset test and a mock wiring test. */
     public static final List<String> JAVA_TESTS_FILES = List.of(
             "pom.xml", "src/test/README.md",
-            "src/test/java/starter/GoldenDatasetTest.java", "src/test/java/starter/ScriptWiringTest.java");
+            "src/test/java/starter/Project.java", "src/test/java/starter/GoldenDatasetTest.java", "src/test/java/starter/ScriptWiringTest.java");
+
+    /**
+     * Where a starter file goes in a Maven project: the script and its prompts are resources of the program ({@code src/main/resources}), the golden
+     * dataset is a resource of its tests ({@code src/test/resources}); the pom, the Java tests, the README and the key files are already where Maven
+     * and a person expect them. The templates themselves stay flat: this is the only place the two layouts differ.
+     */
+    public static String mavenLayout(String file) {
+        if (file.equals("main.loom") || file.startsWith("prompts/")) return "src/main/resources/" + file;
+        if (file.startsWith("eval/")) return "src/test/resources/" + file;
+        return file;
+    }
 
     private Templates() {}
 

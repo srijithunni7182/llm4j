@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.UnaryOperator;
 
 /** Copies a template into a folder, filling in {@code {{name}}}, and never overwrites a file: if any file is already there, nothing is written. */
 public final class TemplateWriter {
@@ -57,11 +58,19 @@ public final class TemplateWriter {
      * Writes several parts into {@code dir} as one: if any file of any part is already there, nothing is written, so a project is never half made.
      */
     public static Result write(List<Part> parts, Path dir, Map<String, String> variables) throws IOException {
+        return write(parts, dir, variables, UnaryOperator.identity());
+    }
+
+    /**
+     * As {@link #write(List, Path, Map)}, with {@code layout} deciding where each file goes (it gets the file's name in the template, with
+     * {@code dot-} already turned into a dot, and returns the path to write): the same templates make a flat folder or a Maven project.
+     */
+    public static Result write(List<Part> parts, Path dir, Map<String, String> variables, UnaryOperator<String> layout) throws IOException {
         Path root = dir.toAbsolutePath().normalize();
         List<String> conflicts = new ArrayList<>();
         for (Part part : parts) {
             for (String file : part.files()) {
-                String name = targetName(file);
+                String name = layout.apply(targetName(file));
                 Path target = root.resolve(name).normalize();
                 if (!target.startsWith(root)) throw new IllegalArgumentException("a template file may not leave the folder: " + file);
                 // an existing .gitignore is added to, never a conflict
@@ -75,7 +84,7 @@ public final class TemplateWriter {
             for (String file : part.files()) {
                 String text = read(part.template(), file);
                 for (var v : variables.entrySet()) text = text.replace("{{" + v.getKey() + "}}", v.getValue());
-                String name = targetName(file);
+                String name = layout.apply(targetName(file));
                 Path target = root.resolve(name).normalize();
                 Files.createDirectories(target.getParent());
                 if (isGitignore(name) && Files.exists(target)) {

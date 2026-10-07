@@ -715,6 +715,20 @@ public class WeaveCLI implements Callable<Integer> {
 
     /** The command line as {@code weave} runs it: every command registered. */
     static CommandLine commandLine() {
+        CommandLine cli = build();
+        helpEverywhere(cli);
+        return cli;
+    }
+
+    /** Every command, and every command under it, answers {@code --help} and {@code -h} with its usage and exit code 0. */
+    private static void helpEverywhere(CommandLine cli) {
+        for (CommandLine sub : cli.getSubcommands().values()) {
+            if (!sub.getCommandSpec().mixinStandardHelpOptions()) sub.getCommandSpec().mixinStandardHelpOptions(true);
+            helpEverywhere(sub);
+        }
+    }
+
+    private static CommandLine build() {
         return new CommandLine(new WeaveCLI())
                 .addSubcommand(new RunCommand())
                 .addSubcommand(new CheckCommand())

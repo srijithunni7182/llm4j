@@ -41,7 +41,7 @@ class CommandLineFixesTest {
 
         String text = out.toString();
         assertThat(text).contains("  cd " + dir.resolve("brandpost"));
-        assertThat(text.indexOf("  cd ")).isLessThan(text.indexOf("weave check main.loom --no-env"));
+        assertThat(text.indexOf("  cd ")).isLessThan(text.indexOf("weave check src/main/resources/main.loom --no-env"));
     }
 
     @Test
@@ -62,5 +62,34 @@ class CommandLineFixesTest {
         assertThat(EvalCommand.eval(c, env)).isEqualTo(2);
         assertThat(loom.getLevel()).isEqualTo(before);
         assertThat(c.verbose).isFalse();
+    }
+
+    @Test
+    void everyCommandAnswersHelpWithItsUsageAndExitCodeZero() {
+        CommandLine root = WeaveCLI.commandLine();
+        java.util.List<String[]> commands = new java.util.ArrayList<>();
+        collect(root, new String[0], commands);
+        assertThat(commands).hasSizeGreaterThan(20);
+        for (String[] path : commands) {
+            String[] args = java.util.Arrays.copyOf(path, path.length + 1);
+            args[path.length] = "--help";
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            ByteArrayOutputStream err = new ByteArrayOutputStream();
+            CommandLine cli = WeaveCLI.commandLine();
+            cli.setOut(new java.io.PrintWriter(out, true));
+            cli.setErr(new java.io.PrintWriter(err, true));
+            assertThat(cli.execute(args)).as(String.join(" ", args)).isZero();
+            assertThat(out.toString()).as(String.join(" ", args)).contains("Usage:");
+            assertThat(err.toString()).as(String.join(" ", args)).doesNotContain("Unknown option");
+        }
+    }
+
+    private static void collect(CommandLine cli, String[] path, java.util.List<String[]> into) {
+        for (var e : cli.getSubcommands().entrySet()) {
+            String[] next = java.util.Arrays.copyOf(path, path.length + 1);
+            next[path.length] = e.getKey();
+            into.add(next);
+            collect(e.getValue(), next, into);
+        }
     }
 }

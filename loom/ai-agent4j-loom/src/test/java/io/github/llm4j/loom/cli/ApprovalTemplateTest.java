@@ -37,7 +37,8 @@ class ApprovalTemplateTest {
         project = dir.resolve("p" + (++projects));
         new CommandLine(c).parseArgs("approval", project.toString());
         assertThat(InitCommand.init(c, env)).isZero();
-        Path main = project.resolve("main.loom");
+        Path main = io.github.llm4j.loom.init.ProjectLayout.script(project);
+        assertThat(main).as("a Maven project").isEqualTo(project.resolve("src/main/resources/main.loom"));
         LoomScript script = new LoomLoader().load(main.toString());
         run = new ScriptedRun(project);
         run.replies(modelReplies);
@@ -84,7 +85,7 @@ class ApprovalTemplateTest {
     @Test
     void theTriagePromptDoesNotLetTheModelDecideWhoApproves() throws Exception {
         started();
-        String prompt = java.nio.file.Files.readString(project.resolve("prompts/triage.md"));
+        String prompt = java.nio.file.Files.readString(project.resolve("src/main/resources/prompts/triage.md"));
         assertThat(prompt).doesNotContain("needs_approval").contains("never decide").contains("amount");
     }
 }

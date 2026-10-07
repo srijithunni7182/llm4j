@@ -37,7 +37,7 @@ class NextCommandTest {
 
     private Path starter(String template) {
         Path project = dir.resolve(template);
-        assertThat(WeaveCLI.commandLine().execute("init", template, project.toString())).isZero();
+        assertThat(WeaveCLI.commandLine().execute("init", template, project.toString(), "--flat")).isZero();
         return project;
     }
 

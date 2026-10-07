@@ -29,7 +29,7 @@ class InitKeyFilesTest {
     void everyStarterWritesAnEnvExampleWithItsKeyNamesAndAGitignoreThatIgnoresTheRealFile() throws Exception {
         for (String t : new String[] {"pipeline", "approval", "classifier"}) {
             Path p = dir.resolve(t);
-            assertThat(run(new ByteArrayOutputStream(), "init", t, p.toString())).isZero();
+            assertThat(run(new ByteArrayOutputStream(), "init", t, p.toString(), "--flat")).isZero();
 
             assertThat(Files.readString(p.resolve(".env.example"))).as(t).contains("GEMINI_API_KEY=").contains("cp .env.example .env");
             assertThat(Files.readAllLines(p.resolve(".gitignore"))).as(t).contains(".env", ".env.*", "!.env.example", "*.store");
@@ -43,7 +43,7 @@ class InitKeyFilesTest {
         Files.writeString(p.resolve(".gitignore"), "target/\n.env\n");
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        assertThat(run(out, "init", "pipeline", p.toString())).isZero();
+        assertThat(run(out, "init", "pipeline", p.toString(), "--flat")).isZero();
 
         assertThat(Files.readAllLines(p.resolve(".gitignore"))).contains("target/", ".env", ".env.*", "!.env.example", "*.store");
         assertThat(Files.readAllLines(p.resolve(".gitignore")).stream().filter(".env"::equals).count()).as("no line is repeated").isEqualTo(1);
@@ -53,7 +53,7 @@ class InitKeyFilesTest {
     @Test
     void theExampleFileCopiedAsIsDoesNotHideAKeyThatIsSetInTheShell() throws Exception {
         Path p = dir.resolve("copy");
-        run(new ByteArrayOutputStream(), "init", "pipeline", p.toString());
+        run(new ByteArrayOutputStream(), "init", "pipeline", p.toString(), "--flat");
         Path env = Files.copy(p.resolve(".env.example"), p.resolve(".env"));
         Files.setPosixFilePermissions(env, PosixFilePermissions.fromString("rw-------"));
 
@@ -64,7 +64,7 @@ class InitKeyFilesTest {
     void nextSaysToCopyTheExampleThenToFillItInAndThenNothingAboutKeys() throws Exception {
         org.junit.jupiter.api.Assumptions.assumeTrue(System.getenv("GEMINI_API_KEY") == null, "the shell already has the key");
         Path p = dir.resolve("n");
-        run(new ByteArrayOutputStream(), "init", "pipeline", p.toString());
+        run(new ByteArrayOutputStream(), "init", "pipeline", p.toString(), "--flat");
 
         ByteArrayOutputStream first = new ByteArrayOutputStream();
         run(first, "next", p.toString());
