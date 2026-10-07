@@ -56,14 +56,6 @@
             <artifactId>ai-agent4j-tools</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- Its test helpers (echo server, scripted SMTP server, recording context) -->
-        <dependency>
-            <groupId>io.github.srijithunni7182</groupId>
-            <artifactId>ai-agent4j-tools</artifactId>
-            <version>${project.version}</version>
-            <type>test-jar</type>
-            <scope>test</scope>
-        </dependency>
 
         <!-- The JDBC driver of the sql tool. Optional, so the library does not push it onto anyone; the runnable weave jar (the cli classifier) includes it. -->
         <dependency>

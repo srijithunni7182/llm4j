@@ -91,18 +91,6 @@
 
     <build>
         <plugins>
-            <!-- The test helpers (a scripted SMTP server, an echo server, a recording context) are shared with other modules' tests -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>tests-jar</id>
-                        <phase>${tests.jar.phase}</phase>
-                        <goals><goal>test-jar</goal></goals>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
