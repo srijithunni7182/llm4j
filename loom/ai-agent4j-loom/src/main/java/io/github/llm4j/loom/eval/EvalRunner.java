@@ -100,13 +100,52 @@ public final class EvalRunner {
     // ── a workflow ───────────────────────────────────────────────────────────────────────────
 
     public ScenarioResult workflow(String file, String workflow, String firstParameter, EvalScenario s, String judgeModel) {
+        return workflow(file, workflow, firstParameter == null ? List.of() : List.of(firstParameter), s, judgeModel);
+    }
+
+    /**
+     * What is wrong with how a scenario gives a workflow its parameters, or null: a name the workflow does not have, a parameter given twice,
+     * or one it has but nothing supplies. {@code input:} is the first parameter; {@code inputs:} gives any by name. A first parameter with
+     * nothing supplied is the empty text, as it always was.
+     */
+    public static String inputProblem(String workflow, List<String> parameters, EvalScenario s) {
+        Map<String, String> named = s.namedInputs();
+        for (String name : named.keySet()) {
+            if (!parameters.contains(name)) {
+                return "inputs." + name + ": workflow " + workflow + " has no parameter " + name
+                        + (parameters.isEmpty() ? " (it takes none)" : " (it has " + String.join(", ", parameters) + ")");
+            }
+        }
+        if (!parameters.isEmpty() && s.input() != null && named.containsKey(parameters.get(0))) {
+            return "both input: and inputs." + parameters.get(0) + " give " + parameters.get(0) + ", the first parameter of " + workflow + "; use one";
+        }
+        for (int i = 1; i < parameters.size(); i++) {
+            if (!named.containsKey(parameters.get(i))) {
+                return "workflow " + workflow + " needs " + parameters.get(i) + ": give it under inputs: { " + parameters.get(i) + ": ... }";
+            }
+        }
+        return null;
+    }
+
+    private static Map<String, String> workflowInputs(List<String> parameters, EvalScenario s) {
+        Map<String, String> out = new java.util.LinkedHashMap<>();
+        if (!parameters.isEmpty()) {
+            String first = parameters.get(0);
+            out.put(first, s.input() != null ? s.input() : s.namedInputs().getOrDefault(first, ""));
+        }
+        s.namedInputs().forEach(out::putIfAbsent);
+        return out;
+    }
+
+    public ScenarioResult workflow(String file, String workflow, List<String> parameters, EvalScenario s, String judgeModel) {
+        String bad = inputProblem(workflow, parameters, s);
+        if (bad != null) return finish("workflow", workflow, file, s, new ArrayList<>(), null, bad);
         List<ScenarioResult.Check> checks = new ArrayList<>();
         HarnessExecutor executor = null;
         List<TraceEvent> events = new java.util.concurrent.CopyOnWriteArrayList<>();
         try {
             executor = executors.create(e -> e.addTraceListener(events::add));
-            Map<String, String> inputs = firstParameter == null ? Map.of() : Map.of(firstParameter, s.input() == null ? "" : s.input());
-            executor.executeWorkflow(workflow, inputs);
+            executor.executeWorkflow(workflow, workflowInputs(parameters, s));
             String output = lastResult(executor, events);
             Set<String> tools = new HashSet<>();
             events.stream().filter(e -> TraceEvent.ACTION.equals(e.type()) && e.data().get("tool") != null).forEach(e -> tools.add(String.valueOf(e.data().get("tool"))));

@@ -30,6 +30,7 @@ class EvalCommandTest {
     final ByteArrayOutputStream err = new ByteArrayOutputStream();
     final AtomicInteger clients = new AtomicInteger();
     final List<String> modelsAsked = Collections.synchronizedList(new ArrayList<>());
+    final List<String> everythingSent = Collections.synchronizedList(new ArrayList<>());
     String answerToTheQuestion = "yes";
     BiFunction<String, String, String> reply = (model, system) -> "```json\n{\"thought\": \"t\", \"final_answer\": \"The answer is 36.\"}\n```";
 
@@ -64,6 +65,7 @@ class EvalCommandTest {
             modelsAsked.add(model);
             return new LLMClient() {
                 @Override public LLMResponse chat(LLMRequest request) {
+                    everythingSent.add(request.getMessages().stream().map(m -> String.valueOf(m.getContent())).collect(java.util.stream.Collectors.joining("\n")));
                     return LLMResponse.builder().content(reply.apply(model, request.getMessages().get(0).getContent())).model(model).tokenUsage(10, 5, 15).build();
                 }
                 @Override public Stream<LLMResponse> chatStream(LLMRequest request) { return Stream.of(chat(request)); }
@@ -403,5 +405,84 @@ class EvalCommandTest {
         assertThat(WeaveCLI.run(s.toFile(), null, "Main", java.util.Map.of("topic", "x"), null, null, null, null, null, null, false, env())).isZero();
 
         assertThat(dir.resolve("eval")).doesNotExist();
+    }
+
+    // ── workflows with several parameters ───────────────────────────────────────────────
+
+    static final String TWO_PARAMETERS = """
+            agent Writer { model: "m-help" system: "You write." }
+            workflow Main(topic, platform) {
+                delegate "Write about {topic} for {platform}" to Writer -> post
+            }
+            """;
+
+    int runTwoParameters(String yaml, String... args) throws Exception {
+        Files.writeString(dir.resolve("main.loom"), TWO_PARAMETERS);
+        dataset("workflow.yaml", yaml);
+        List<String> all = new ArrayList<>();
+        all.add(dir.resolve("main.loom").toString());
+        all.addAll(List.of(args));
+        return EvalCommand.eval(command(all.toArray(String[]::new)), env());
+    }
+
+    @Test
+    void aWorkflowWithSeveralParametersGetsEachOneByNameAndTheTaskCarriesThemAll() throws Exception {
+        reply = (model, system) -> "```json\n{\"thought\": \"t\", \"final_answer\": \"done\"}\n```";
+        String yaml = """
+                - id: w-1
+                  inputs: { topic: pricing, platform: linkedin }
+                  expect: ["it wrote a post"]
+                """;
+        assertThat(runTwoParameters(yaml, "--check")).isZero();
+        assertThat(runTwoParameters(yaml, "--mock")).isZero();
+        out.reset();
+        assertThat(runTwoParameters(yaml, "--yes", "--max-tokens", "100000")).isNotEqualTo(2);
+        assertThat(String.join("\n", everythingSent)).contains("Write about pricing for linkedin");
+    }
+
+    @Test
+    void inputIsTheFirstParameterAndInputsGivesTheRest() throws Exception {
+        String yaml = """
+                - id: w-1
+                  input: pricing
+                  inputs: { platform: linkedin }
+                """;
+        assertThat(runTwoParameters(yaml, "--check")).isZero();
+    }
+
+    @Test
+    void aParameterNobodySuppliesAnUnknownNameAndAClashAreSaidBeforeAnythingRuns() throws Exception {
+        assertThat(runTwoParameters("- id: w-1\n  input: pricing\n", "--check")).isEqualTo(2);
+        assertThat(output()).contains("workflow Main needs platform").contains("inputs: { platform: ... }");
+
+        out.reset();
+        err.reset();
+        assertThat(runTwoParameters("- id: w-1\n  inputs: { topic: a, platform: b, channel: c }\n", "--check")).isEqualTo(2);
+        assertThat(output()).contains("inputs.channel: workflow Main has no parameter channel").contains("it has topic, platform");
+
+        out.reset();
+        err.reset();
+        assertThat(runTwoParameters("- id: w-1\n  input: x\n  inputs: { topic: a, platform: b }\n", "--check")).isEqualTo(2);
+        assertThat(output()).contains("both input: and inputs.topic");
+    }
+
+    @Test
+    void aMappingWhereTextIsExpectedIsExplainedNotShownAsAParserException() throws Exception {
+        assertThat(runTwoParameters("- id: w-1\n  input: { topic: a, platform: b }\n", "--check")).isEqualTo(2);
+        assertThat(output()).contains("input: must be text").contains("inputs: { name: value, ... }").doesNotContain("Cannot deserialize").doesNotContain("JsonToken");
+
+        out.reset();
+        err.reset();
+        assertThat(runTwoParameters("- id: w-1\n  inputs: linkedin\n", "--check")).isEqualTo(2);
+        assertThat(output()).contains("inputs: must be a mapping");
+    }
+
+    @Test
+    void anAgentScenarioTakesTextOnly() throws Exception {
+        Files.writeString(dir.resolve("main.loom"), TWO_PARAMETERS);
+        dataset("writer.yaml", "- id: a-1\n  input: hi\n  inputs: { topic: a }\n");
+        int code = EvalCommand.eval(command(dir.resolve("main.loom").toString(), "--check"), env());
+        assertThat(code).isEqualTo(2);
+        assertThat(output()).contains("inputs: is for a workflow's parameters");
     }
 }

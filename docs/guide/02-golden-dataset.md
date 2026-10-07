@@ -23,7 +23,16 @@ eval/golden/
 `weave eval <script> --init` creates it with a starter case per agent, `--check` validates it with no model, `--mock` runs the
 wiring for free, and a real run needs a cap (see the Loom guide, section "Evaluating a Workflow"). A scenario has `input`,
 `expected_output_contains`, `expected_tools`, `rubric` (what a judge confirms about the answer), `expect` (what a judge confirms
-about what a workflow run did), `dimensions` and `tags`:
+about what a workflow run did), `dimensions` and `tags`. A workflow that takes several parameters gets them by name in `inputs:`
+(`input:` alone is its first parameter, or an agent's task, and is always text):
+
+```yaml
+- id: post-001
+  inputs: { topic: "our new pricing", platform: linkedin }   # workflow Main(topic, platform)
+  expect: ["a post was written for linkedin"]
+```
+
+`weave eval --check` tells you before anything runs if a name is not a parameter of the workflow, one is given twice, or one is missing.
 
 ```yaml
 - id: refund-001

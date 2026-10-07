@@ -123,6 +123,17 @@ final class EvalCommand implements Callable<Integer> {
 
         DatasetFolder.Plan plan = DatasetFolder.plan(script, dir, c.workflow);
         List<String> problems = new ArrayList<>(plan.problems());
+        for (DatasetFolder.Target t : plan.targets()) {
+            for (EvalScenario s : t.scenarios()) {
+                String label = t.file() + (s.id() != null ? " " + s.id() : s.name() != null ? " " + s.name() : "");
+                if (t.isAgent()) {
+                    if (!s.namedInputs().isEmpty()) problems.add(label + ": inputs: is for a workflow's parameters; an agent's task is input:");
+                } else {
+                    String bad = EvalRunner.inputProblem(t.name(), parameters(script, t.name()), s);
+                    if (bad != null) problems.add(label + ": " + bad);
+                }
+            }
+        }
         Fixtures fixtures = Fixtures.none();
         try {
             fixtures = Fixtures.read(dir);
@@ -252,7 +263,7 @@ final class EvalCommand implements Callable<Integer> {
                 }
                 ScenarioResult r = t.isAgent()
                         ? runner.agent(t.file(), t.name(), s)
-                        : runner.workflow(t.file(), t.name(), firstParameter(script, t.name()), s, firstModel);
+                        : runner.workflow(t.file(), t.name(), parameters(script, t.name()), s, firstModel);
                 results.add(r);
                 env.out().println(EvalReport.mark(r.status()) + " " + t.name() + " · " + r.label());
                 if (runner.stoppedByLimit() || spend.exhausted()) stopped = "a limit was reached (" + spend.describe() + ")";
@@ -272,9 +283,9 @@ final class EvalCommand implements Callable<Integer> {
         return run.exitCode();
     }
 
-    private static String firstParameter(LoomScript script, String workflow) {
+    static List<String> parameters(LoomScript script, String workflow) {
         return script.getWorkflows().stream().filter(w -> w.getName().equals(workflow)).findFirst()
-                .map(WorkflowDef::getParameters).filter(p -> !p.isEmpty()).map(p -> p.get(0)).orElse(null);
+                .map(w -> List.copyOf(w.getParameters())).orElse(List.of());
     }
 
     private static String firstName(LoomScript script) {

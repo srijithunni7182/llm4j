@@ -146,6 +146,7 @@ newsletter/
 - id: refund-001
   name: Refund over the limit
   input: "I was charged twice, 240 dollars"     # an agent's task; a workflow's first parameter
+  inputs: { platform: linkedin }                # a workflow's other parameters, by name (with input: for the first)
   expected_output_contains: "approval"          # the answer holds this (any capitalisation)
   expected_output: "…"                          # or: is exactly this
   expected_tools: [LookupOrder]                 # these tools were used

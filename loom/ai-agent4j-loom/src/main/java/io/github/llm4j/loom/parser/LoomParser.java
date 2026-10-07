@@ -80,6 +80,21 @@ public class LoomParser {
         return pathToken.getValue();
     }
 
+    private static final java.util.List<String> AGENT_SETTINGS = java.util.List.of("model", "system", "system_template", "prompt", "persona", "tools",
+            "mcp_servers", "skills", "memory", "voice", "guard", "routing", "knowledge", "output_schema", "approve", "max_iterations", "temperature", "budget");
+
+    /** What to say when something that is not a setting turns up inside an agent: the word itself, what an agent can have, and the nearest guess. */
+    private static String unknownAgentSetting(Token t) {
+        String all = String.join(", ", AGENT_SETTINGS);
+        if (t.getType() != TokenType.IDENTIFIER) {
+            return "Unexpected " + (t.getValue() == null || t.getValue().isBlank() ? t.getType().toString() : "\"" + t.getValue() + "\"")
+                    + " inside an agent; an agent can have: " + all + ".";
+        }
+        java.util.List<String> near = io.github.llm4j.loom.prompt.PromptCatalog.nearest(t.getValue(), AGENT_SETTINGS);
+        return "\"" + t.getValue() + "\" is not something an agent can have. An agent can have: " + all + "."
+                + (near.isEmpty() ? "" : " Did you mean " + String.join(" or ", near) + "?");
+    }
+
     private AgentDef parseAgent() {
         Token nameToken = consume(TokenType.IDENTIFIER, "Expect agent name.");
         AgentDef agent = new AgentDef(nameToken.getValue());
@@ -213,7 +228,7 @@ public class LoomParser {
                 if (agent.getBudget() != null) throw error(keyword, "An agent can have only one budget block.");
                 agent.setBudget(parseBudgetBlock(true));
             } else {
-                throw error(peek(), "Unexpected token in agent body: " + peek().getType());
+                throw error(peek(), unknownAgentSetting(peek()));
             }
         }
 

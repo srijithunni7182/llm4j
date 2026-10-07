@@ -25,12 +25,13 @@ import java.util.Map;
  * }
  * }</pre>
  *
- * <p>Every field besides {@code input} is optional and may be {@code null} — a test decides which
+ * <p>A workflow with several parameters takes them by name in {@code inputs:} ({@code input} alone is its first parameter or an agent's task).
+ * Every field besides {@code input} (or {@code inputs}) is optional and may be {@code null} — a test decides which
  * fields a given dataset actually needs to check.
  */
 public record EvalScenario(
         String name,
-        String input,
+        @JsonDeserialize(using = InputDeserializer.class) String input,
         @JsonAlias("expected_output_contains") String expectedOutputContains,
         @JsonAlias("expected_output") String expectedOutput,
         @JsonAlias("expected_tools") List<String> expectedTools,
@@ -40,7 +41,32 @@ public record EvalScenario(
         List<String> dimensions,
         @JsonDeserialize(using = TagsDeserializer.class) List<String> tags,
         List<String> rubric,
-        List<String> expect) {
+        List<String> expect,
+        @JsonDeserialize(using = InputsDeserializer.class) Map<String, String> inputs) {
+
+    /**
+     * The twelve-field form, before {@code inputs}: a scenario whose workflow takes one parameter (or an agent's task) is just {@code input}.
+     */
+    public EvalScenario(
+            String name,
+            String input,
+            String expectedOutputContains,
+            String expectedOutput,
+            List<String> expectedTools,
+            List<String> context,
+            List<String> retrievalContext,
+            String id,
+            List<String> dimensions,
+            List<String> tags,
+            List<String> rubric,
+            List<String> expect) {
+        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, rubric, expect, null);
+    }
+
+    /** The named parameters of a workflow with several, never null; empty when {@code input} alone says everything. */
+    public Map<String, String> namedInputs() {
+        return inputs == null ? Map.of() : inputs;
+    }
 
     /**
      * Everything but the judged expectations: the ten-field form. {@code rubric} and {@code expect} are what a judge is asked to
@@ -58,7 +84,7 @@ public record EvalScenario(
             String id,
             List<String> dimensions,
             List<String> tags) {
-        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, null, null);
+        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, null, null, null);
     }
 
     /**
@@ -119,6 +145,6 @@ public record EvalScenario(
      */
     @Override
     public String toString() {
-        return name != null ? name : input;
+        return name != null ? name : input != null ? input : String.valueOf(namedInputs());
     }
 }

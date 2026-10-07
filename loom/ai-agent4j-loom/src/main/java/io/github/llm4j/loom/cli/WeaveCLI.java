@@ -18,7 +18,7 @@ import java.util.concurrent.Callable;
 import java.util.jar.*;
 import java.util.zip.*;
 
-@Command(name = "weave", mixinStandardHelpOptions = true, version = "weave 1.0",
+@Command(name = "weave", mixinStandardHelpOptions = true, versionProvider = WeaveCLI.BuildVersion.class,
         description = "Loom Orchestration CLI - Weave workflows into executable reality.")
 public class WeaveCLI implements Callable<Integer> {
 
@@ -743,5 +743,31 @@ public class WeaveCLI implements Callable<Integer> {
 
     public static void main(String[] args) {
         System.exit(commandLine().execute(args));
+    }
+
+    /**
+     * {@code weave --version}: the version and when this jar was built, from its manifest, so a jar that is older than a script (or than
+     * the one beside it) can be recognized. Run from classes (a test or an IDE) it says so.
+     */
+    static final class BuildVersion implements CommandLine.IVersionProvider {
+        @Override
+        public String[] getVersion() {
+            Package p = WeaveCLI.class.getPackage();
+            String version = p == null ? null : p.getImplementationVersion();
+            String built = null;
+            try {
+                java.net.URL url = WeaveCLI.class.getResource("WeaveCLI.class");
+                if (url != null && url.toString().startsWith("jar:")) {
+                    String jar = url.toString().substring(0, url.toString().indexOf("!/") + 2);
+                    try (java.io.InputStream in = new java.net.URL(jar + "META-INF/MANIFEST.MF").openStream()) {
+                        built = new java.util.jar.Manifest(in).getMainAttributes().getValue("Build-Time");
+                    }
+                }
+            } catch (java.io.IOException | RuntimeException e) {
+                built = null;
+            }
+            if (version == null) return new String[] {"weave (run from classes, not a built jar)"};
+            return new String[] {"weave " + version + (built == null ? "" : " (built " + built + ")")};
+        }
     }
 }
