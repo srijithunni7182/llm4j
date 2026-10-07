@@ -51,6 +51,9 @@ pipeline {
             steps {
                 // integration and fragile tests, engram, tantrik and the example applications
                 sh 'mvn -B -fae -Pextended verify'
+                dir('loom/ctk') {
+                    sh 'mvn -B test'
+                }
             }
         }
 

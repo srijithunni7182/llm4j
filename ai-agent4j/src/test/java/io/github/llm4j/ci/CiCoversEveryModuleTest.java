@@ -13,25 +13,56 @@ import org.junit.jupiter.api.Test;
 
 /**
  * CI-03: a module that has tests must be built and tested by both pipelines, so a new module (or an old one nobody wired up, as Loom once was)
- * cannot silently skip CI. Examples are compiled by a separate smoke job, and modules being retired are listed below.
+ * cannot silently skip CI. Both pipelines build from the root, so a module is covered when the root pom lists it (directly, in the
+ * {@code extended} profile, or through an aggregator it lists); a module outside the root build must be named by a pipeline step of its own.
  */
 class CiCoversEveryModuleTest {
 
     private static final Path ROOT = Path.of("..").toAbsolutePath().normalize();
 
-    /** Not expected in the test pipelines: apps (compiled by the smoke job) and modules being removed. */
-    private static final Set<String> EXEMPT_PREFIXES = Set.of("examples/", "tantrik");
+    /** Not expected in the test pipelines: modules being removed. (The example applications and tantrik are built and tested with -Pextended.) */
+    private static final Set<String> EXEMPT_PREFIXES = Set.of();
 
     @Test
     void everyModuleWithTestsIsTestedByGitHubActionsAndJenkins() throws IOException {
         String workflow = Files.readString(ROOT.resolve(".github/workflows/build-and-deploy.yml"));
         String jenkins = Files.readString(ROOT.resolve("Jenkinsfile"));
         List<String> missing = new ArrayList<>();
+        Set<String> reactor = reactorModules();
         for (String module : modulesWithTests()) {
-            if (!coveredBy(workflow, "working-directory: ", module)) missing.add(module + " is not tested by .github/workflows/build-and-deploy.yml");
-            if (!coveredBy(jenkins, "dir('", module)) missing.add(module + " is not tested by the Jenkinsfile");
+            if (reactor.contains(module)) continue; // built by the root build below
+            if (!coveredBy(workflow, "working-directory: ", module)) missing.add(module + " is not in the root build and not tested by .github/workflows/build-and-deploy.yml");
+            if (!coveredBy(jenkins, "dir('", module)) missing.add(module + " is not in the root build and not tested by the Jenkinsfile");
         }
-        assertTrue(missing.isEmpty(), "add these to CI: " + missing);
+        assertTrue(missing.isEmpty(), "add these to the root pom or to CI: " + missing);
+    }
+
+    @Test
+    void bothPipelinesBuildTheRootDefaultAndTheExtendedProfile() throws IOException {
+        for (String file : new String[] {".github/workflows/build-and-deploy.yml", "Jenkinsfile"}) {
+            String pipeline = Files.readString(ROOT.resolve(file));
+            assertTrue(pipeline.contains("mvn -B verify"), file + " runs the default build from the root");
+            assertTrue(pipeline.contains("-Pextended verify"), file + " runs the extended profile from the root");
+            assertTrue(pipeline.contains("-Prelease"), file + " checks or performs a release build");
+        }
+    }
+
+    /** Every module the root pom builds: its {@code <modules>}, the ones of its {@code extended} profile, and what the aggregators among them list. */
+    private static Set<String> reactorModules() throws IOException {
+        Set<String> out = new java.util.TreeSet<>();
+        java.util.ArrayDeque<String> pending = new java.util.ArrayDeque<>();
+        pending.add("");
+        while (!pending.isEmpty()) {
+            String dir = pending.poll();
+            Path pom = ROOT.resolve(dir).resolve("pom.xml");
+            if (!Files.isRegularFile(pom)) continue;
+            var m = java.util.regex.Pattern.compile("<module>([^<]+)</module>").matcher(Files.readString(pom));
+            while (m.find()) {
+                String child = (dir.isEmpty() ? "" : dir + "/") + m.group(1).trim();
+                if (out.add(child)) pending.add(child);
+            }
+        }
+        return out;
     }
 
     @Test
