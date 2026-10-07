@@ -47,7 +47,8 @@ Every release runs the default tests; `-Prelease` never skips them. Slow tests (
    Publishing is permanent. Once you trust the flow, tick `auto_publish` when starting the workflow by hand, or pass
    `-Dcentral.autoPublish=true`.
 5. Central syncs in 10–30 minutes; then the artifacts appear at `search.maven.org` and are resolvable from any build.
-6. Attach `ai-agent4j-loom-<version>-cli.jar` to the GitHub release (the workflow keeps it as the `weave-cli-jar` artifact of the
+6. Publish the VS Code extension separately: [PUBLISHING_VSCODE.md](PUBLISHING_VSCODE.md) (it bundles the `cli` jar).
+7. Attach `ai-agent4j-loom-<version>-cli.jar` to the GitHub release (the workflow keeps it as the `weave-cli-jar` artifact of the
    *Release check* job) so people can download `weave` without Maven.
 
 ## From your own machine

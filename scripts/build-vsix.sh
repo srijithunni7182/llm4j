@@ -19,5 +19,5 @@ echo "== compiling and packaging the extension"
 cd "$ext"
 npm ci --no-audit --no-fund >/dev/null
 npm run compile >/dev/null
-npx --yes @vscode/vsce@3.2.1 package --skip-license --allow-missing-repository 2>&1 | tail -n 5
+npx --yes @vscode/vsce@3.2.1 package 2>&1 | tail -n 5
 ls -1 "$ext"/*.vsix
