@@ -19,7 +19,7 @@ for a in "$@"; do
     --skip-skill) skill=0 ;;
     --skip-extension) ext=0 ;;
     --dry-run) dry=1 ;;
-    -h|--help) sed -n 2,12p "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n 2,10p "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $a (see --help)" >&2; exit 2 ;;
   esac
 done
