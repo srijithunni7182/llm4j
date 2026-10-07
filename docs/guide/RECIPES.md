@@ -1,7 +1,7 @@
 # Recipes: change the starter to do what you want
 
 Every recipe below is a small, tested change to the **`pipeline`** starter (`weave init pipeline my-workflow`). Each says what you get, shows the exact lines to find and what to
-put in their place, and gives the sentence to give your coding agent if you would rather ask than edit. After any change run `weave check main.loom --no-env`; it is
+put in their place, and gives the sentence to give your coding agent if you would rather ask than edit. The file names below are the script and prompts of the starter; in the Maven project `weave init` makes, they sit under `src/main/resources/` (`src/main/resources/main.loom`, `src/main/resources/prompts/writer.md`). After any change run `weave check <the script> --no-env`; it is
 free and tells you if the change broke something. (A test applies every recipe to a fresh starter and runs the check, so the lines here are the real ones.)
 
 Recipes that need Java code (a new tool, a step that must always run), splitting a long script, keys, and putting a screen on a workflow are in chapters 6 and 9

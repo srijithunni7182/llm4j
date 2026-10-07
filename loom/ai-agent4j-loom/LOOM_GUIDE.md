@@ -146,8 +146,10 @@ newsletter/
 - id: refund-001
   name: Refund over the limit
   input: "I was charged twice, 240 dollars"     # an agent's task; a workflow's first parameter
+  inputs: { platform: linkedin }                # a workflow's other parameters, by name (with input: for the first)
   expected_output_contains: "approval"          # the answer holds this (any capitalisation)
   expected_output: "…"                          # or: is exactly this
+  expected_output_not_contains: ["4111"]        # the answer never holds these (a fixed check, no judge; one text or a list)
   expected_tools: [LookupOrder]                 # these tools were used
   rubric:                                       # a judge confirms each line about the answer
     - Asks a person to approve before refunding
@@ -185,9 +187,9 @@ Everything here works with the jar alone: no repository, no keys and no network.
 
 ```bash
 weave init --list                      # the starter projects
-weave init pipeline my-workflow        # script, prompts as files, a golden dataset and a README, all passing the checks below
-weave init pipeline my-workflow --with-java-tests   # adds a Maven test module for the Java path (its build fails if it runs no tests)
-weave check my-workflow/main.loom --no-env          # parses and validates; calls no model and needs no keys
+weave init pipeline my-workflow        # a Maven project: the script and prompts in src/main/resources, the golden dataset in src/test/resources/eval/golden, JUnit tests in src/test/java, a README; all passing the checks below
+weave init pipeline my-workflow --flat # the older flat folder (main.loom, prompts/, eval/golden); add --with-java-tests for the pom and the JUnit tests
+weave check my-workflow/src/main/resources/main.loom --no-env   # parses and validates; calls no model and needs no keys
 weave check main.loom --format json                 # the same findings as data (the editor uses this to fill its Problems panel)
 weave check main.loom --strict                      # warnings fail the command too
 weave guide                            # the pages of this guide, from inside the jar
@@ -255,8 +257,10 @@ models aren't available yet: ai-agent4j has no provider for them.
 tool Search   { use: serpapi  api_key: env.SERPAPI_KEY }
 tool Web      { use: duckduckgo }
 tool Petstore { use: openapi  spec: "specs/petstore.json"  auth_header: "X-API-Key"  auth_value: env.PETSTORE_KEY }
-tool Invoices { use: class  class: "com.acme.tools.InvoiceTool" }     // any no-arg Tool on the classpath
+tool Invoices { use: class  class: "com.acme.tools.InvoiceTool"  reach: reads }     // any no-arg Tool on the classpath
 ```
+
+For your own (`class`) tools, `reach:` says what the tool does to the outside world for `weave audit`, which never loads your code: `none`, `reads`, `fetches`, `writes` or `sends`. Without it the audit assumes the worst. A tool mapped in a `.loot` file takes the same word as a line `Name.reach = reads`, read by `weave audit --loot tools.loot`.
 
 | `use:` | Options |
 |---|---|
@@ -1078,8 +1082,9 @@ Task issue = Task.changes("IssueRefund", new EffectPolicy(EffectPolicy.OnUnknown
 
 - **`TaskContext`** holds the named `args()` the script passed, a read-only copy of the workflow's `variables()` (readable by dotted path:
   `ctx.variable("request.order_id")`), the `stepId()` and the `idempotencyKey()`. Everything in it is an immutable deep copy: a task cannot change
-  workflow state behind the runtime's back, which is what keeps runs replayable. `arg(name, Type)` and `requireArg(name, Type)` convert numbers and
-  numeric strings; a missing or unusable argument throws `TaskNotPerformed`.
+  workflow state behind the runtime's back, which is what keeps runs replayable. `arg(name, Type)` returns `null` when the argument is absent, and `requireArg(name, Type)` throws
+  `TaskNotPerformed` when it is absent; both convert numbers and numeric strings, and both throw `TaskNotPerformed` for a value that cannot be converted
+  to the type (for example text where a number is wanted).
 - **`TaskResult`** is `outcome` (default `ok`), optional `reason`, optional `value`, and optional data entries. `TaskResult.ok()`, `.value(x)`,
   `.rejected("why")`, `.outcome("needs_review")`, then `.reason(..)`, `.with(key, value)`, `.withValue(..)`. Values must be JSON-safe
   (strings, numbers, booleans, null, maps with string keys, lists), because the result is written to the run journal.

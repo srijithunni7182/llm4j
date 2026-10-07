@@ -18,7 +18,7 @@ import java.util.concurrent.Callable;
 import java.util.jar.*;
 import java.util.zip.*;
 
-@Command(name = "weave", mixinStandardHelpOptions = true, version = "weave 1.0",
+@Command(name = "weave", mixinStandardHelpOptions = true, versionProvider = WeaveCLI.BuildVersion.class,
         description = "Loom Orchestration CLI - Weave workflows into executable reality.")
 public class WeaveCLI implements Callable<Integer> {
 
@@ -278,6 +278,7 @@ public class WeaveCLI implements Callable<Integer> {
         }
         ToolRegistry registry = new ToolRegistry();
         if (lootFile != null && lootFile.exists()) new LootLoader().loadIntoRegistry(lootFile.getAbsolutePath(), registry);
+        java.util.List<String> reachProblems = lootFile != null && lootFile.exists() ? LootLoader.reachProblems(lootFile.toPath()) : java.util.List.of();
         LLMClientFactory models = env.models();
         java.util.Set<String> notSetYet = new java.util.TreeSet<>();
         HarnessExecutor executor = new HarnessExecutor(script, registry, new LLMClientFactory() {
@@ -318,19 +319,22 @@ public class WeaveCLI implements Callable<Integer> {
         // With --no-env a name that is not set stands in as "not-set-yet", which is not an address or a number: what the stand-in breaks is already said as "not set yet".
         if (settings.noEnv()) problems = problems.stream().filter(p -> !p.message().contains("not-set-yet")).toList();
         var error = io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR;
-        long errors = problems.stream().filter(p -> p.severity() == error || settings.strict()).count();
+        long errors = problems.stream().filter(p -> p.severity() == error || settings.strict()).count() + reachProblems.size();
         if (settings.json()) {
             List<JsonProblem> out = new ArrayList<>();
+            for (String r : reachProblems) out.add(new JsonProblem("error", 0, r));
             for (var p : problems) out.add(new JsonProblem(p.severity() == error || settings.strict() ? "error" : "warning", p.line(),
                     (p.construct() == null ? "" : p.construct() + ": ") + p.message()));
             env.out().println(checkJson(scriptFile, out, new ArrayList<>(notSetYet)));
             return errors == 0 ? 0 : 2;
         }
+        for (String r : reachProblems) env.out().println("✗ " + r);
         for (var p : problems) env.out().println((p.severity() == error || settings.strict() ? "✗ " : "⚠ ") + p);
         if (!notSetYet.isEmpty()) env.out().println("ℹ not set yet (needed to run): " + String.join(", ", notSetYet));
         if (errors == 0) {
             env.out().println("✓ " + scriptFile.getName() + ": ready to run"
                     + (problems.isEmpty() ? "" : " (" + problems.size() + " warning" + (problems.size() == 1 ? "" : "s") + ")"));
+            env.out().println("  next: weave next says what to do now; weave guide recipes has tested changes to copy");
             return 0;
         }
         boolean keys = problems.stream().anyMatch(p -> p.message().contains("is not set") || p.message().contains("in the environment"));
@@ -711,6 +715,20 @@ public class WeaveCLI implements Callable<Integer> {
 
     /** The command line as {@code weave} runs it: every command registered. */
     static CommandLine commandLine() {
+        CommandLine cli = build();
+        helpEverywhere(cli);
+        return cli;
+    }
+
+    /** Every command, and every command under it, answers {@code --help} and {@code -h} with its usage and exit code 0. */
+    private static void helpEverywhere(CommandLine cli) {
+        for (CommandLine sub : cli.getSubcommands().values()) {
+            if (!sub.getCommandSpec().mixinStandardHelpOptions()) sub.getCommandSpec().mixinStandardHelpOptions(true);
+            helpEverywhere(sub);
+        }
+    }
+
+    private static CommandLine build() {
         return new CommandLine(new WeaveCLI())
                 .addSubcommand(new RunCommand())
                 .addSubcommand(new CheckCommand())
@@ -740,5 +758,31 @@ public class WeaveCLI implements Callable<Integer> {
 
     public static void main(String[] args) {
         System.exit(commandLine().execute(args));
+    }
+
+    /**
+     * {@code weave --version}: the version and when this jar was built, from its manifest, so a jar that is older than a script (or than
+     * the one beside it) can be recognized. Run from classes (a test or an IDE) it says so.
+     */
+    static final class BuildVersion implements CommandLine.IVersionProvider {
+        @Override
+        public String[] getVersion() {
+            Package p = WeaveCLI.class.getPackage();
+            String version = p == null ? null : p.getImplementationVersion();
+            String built = null;
+            try {
+                java.net.URL url = WeaveCLI.class.getResource("WeaveCLI.class");
+                if (url != null && url.toString().startsWith("jar:")) {
+                    String jar = url.toString().substring(0, url.toString().indexOf("!/") + 2);
+                    try (java.io.InputStream in = new java.net.URL(jar + "META-INF/MANIFEST.MF").openStream()) {
+                        built = new java.util.jar.Manifest(in).getMainAttributes().getValue("Build-Time");
+                    }
+                }
+            } catch (java.io.IOException | RuntimeException e) {
+                built = null;
+            }
+            if (version == null) return new String[] {"weave (run from classes, not a built jar)"};
+            return new String[] {"weave " + version + (built == null ? "" : " (built " + built + ")")};
+        }
     }
 }

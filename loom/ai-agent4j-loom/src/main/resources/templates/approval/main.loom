@@ -1,5 +1,6 @@
-// {{name}}: read a customer email, draft a reply, and have a person approve anything that moves money.
-// The model never sends anything: the workflow ends with a reply for a person to use. Next steps are in README.md.
+// {{name}}: read a customer email, draft a reply, and have a person approve any refund over 100 dollars.
+// The model only reads and drafts; it never decides who needs approval. The 100-dollar rule is plain script logic below,
+// so no wording in an email can talk the model into skipping it. Next steps are in README.md.
 
 budget { tokens: 100000  calls: 20 }
 
@@ -20,19 +21,33 @@ agent Drafter {
 workflow Main(email) {
     delegate "Classify this customer message:\n{email}" to Triage -> triage expecting {
         kind: enum["REFUND", "BUG", "QUESTION"],
-        needs_approval: enum["YES", "NO"]
+        amount: number,
+        amount_stated: enum["YES", "NO"]
     }
 
     delegate "Write an answer for this customer.\nKind: {triage.kind}\nMessage:\n{email}" to Drafter -> reply_text
 
-    alt (triage.needs_approval == "YES") {
-        human_prompt "A refund over the limit needs your approval.\n\nDraft reply:\n{reply_text}\n\nApprove it? (yes/no)" -> decision
-        alt (decision == "yes") {
-            note "Approved. Reply ready to send:\n{reply_text}"
+    alt (triage.kind == "REFUND") {
+        alt (triage.amount_stated == "YES") {
+            alt (triage.amount > 100) {
+                call AskPerson(reply_text=reply_text, why="The refund is over the 100 dollar limit.") -> result
+            } else {
+                note "A refund at or under the 100 dollar limit. Reply ready to send:\n{reply_text}"
+            }
         } else {
-            note "Not approved. Nothing was sent; a person should handle this one."
+            call AskPerson(reply_text=reply_text, why="No amount could be read from the email.") -> result
         }
     } else {
         note "Reply ready to send:\n{reply_text}"
+    }
+}
+
+// Any refund the script cannot clear by its own rule goes to a person: an unreadable amount is treated as over the limit.
+workflow AskPerson(reply_text, why) {
+    human_prompt "{why} It needs your approval.\n\nDraft reply:\n{reply_text}\n\nApprove it? (yes/no)" -> decision
+    alt (decision == "yes") {
+        note "Approved. Reply ready to send:\n{reply_text}"
+    } else {
+        note "Not approved. Nothing was sent; a person should handle this one."
     }
 }

@@ -32,8 +32,8 @@ final class ProjectAdvisor {
 
     static List<Step> advise(Path script, LoomScript loaded, CheckResult check, AuditReport audit) {
         List<Step> steps = new ArrayList<>();
-        String file = script.getFileName().toString();
-        Path dir = script.toAbsolutePath().getParent();
+        String file = io.github.llm4j.loom.init.ProjectLayout.shown(script);
+        Path dir = io.github.llm4j.loom.init.ProjectLayout.root(script);
 
         if (!check.loaded() || !check.errors().isEmpty()) {
             steps.add(new Step("Fix what stops the script from being valid: " + first(check.errors(), 2),
@@ -45,7 +45,7 @@ final class ProjectAdvisor {
                     "A warning is usually a real mistake in the workflow (a result never used, a name that is also a word in a prompt).", "weave check " + file + " --no-env --strict"));
         }
 
-        Path golden = dir.resolve("eval").resolve("golden");
+        Path golden = io.github.llm4j.loom.init.ProjectLayout.dataset(script);
         boolean skipped = readme(dir).contains("Evaluation: skipped");
         EvalDataset dataset = Files.isDirectory(golden) ? EvalDataset.load(golden) : null;
         boolean hasDataset = dataset != null && !dataset.files().isEmpty();
@@ -110,8 +110,8 @@ final class ProjectAdvisor {
             why.append(given).append(" is not a file or a folder.");
             return null;
         }
-        Path main = given.resolve("main.loom");
-        if (Files.isRegularFile(main)) return main;
+        Path main = io.github.llm4j.loom.init.ProjectLayout.script(given);
+        if (main != null) return main;
         try (Stream<Path> s = Files.list(given)) {
             List<Path> loom = s.filter(p -> p.toString().endsWith(".loom")).sorted().toList();
             if (loom.size() == 1) return loom.get(0);

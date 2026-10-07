@@ -34,16 +34,23 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
 0. **Start from a template, not from an example.** For a new project run `weave init pipeline|approval|classifier` (pick the one nearest what the
    user described) and change it. Whatever you copy is a **reference to be modified, never a finished product**: say so to the user, and change its agents, prompts, tools, dataset and limits to fit their workflow. A large example app is a case study, not a starting point: copy a small template that already passes
    `weave check --no-env` and `weave eval --mock`.
+   `weave init <template> <dir>` makes a **Maven project**. Right after it runs, tell the user in plain words what each part is for, using the paths the command
+   printed: `src/main/resources/main.loom` is the workflow and `src/main/resources/prompts/` its prompts (they travel with the program);
+   `src/test/resources/eval/golden/` is the **golden dataset, which is the eval tests**: example requests and what a good answer does;
+   `src/test/java/starter/` are eval4j JUnit tests that run every scenario of that dataset as its own test case, on a model that costs nothing (`mvn test`);
+   `pom.xml` builds it; `.env.example` is where a key goes (copy it to `.env`, which git ignores). The commands take the script's path:
+   `weave check src/main/resources/main.loom --no-env`, and `weave next` from the project root says what to do next. Never copy files out of a scratch
+   folder by hand, and never rearrange the layout: `weave init <template> --flat` makes the older flat folder if the user really wants one.
 1. **Ask once: "Do you want tests first?"** (default yes). If yes, the order is: decide the agents, write the golden dataset
    (`weave eval <script> --init`, then fill it in with the user), write the script, `weave eval <script> --check`, `--mock`, then a capped
-   real run. **Write the dataset before the script**, and **never write a Java loader or a test module for a script-only project**:
-   `weave eval` reads the YAML itself. If no, skip stages 2, 3, 4, 5 and 8 and go straight to the script, `weave check`, `weave audit` and a
-   capped run. Record the answer in the project's README (`Evaluation: skipped` or `Evaluation: golden dataset in eval/golden`) and do not ask
+   real run. **Write the dataset before the script**, and **never write a Java loader or a test module for the dataset**: the project
+   from `weave init` already has the JUnit tests that run it (`mvn test`), and `weave eval` reads the same YAML. If no, skip stages 2, 3, 4, 5 and 8 and go straight to the script, `weave check`, `weave audit` and a
+   capped run. Record the answer in the project's README (`Evaluation: skipped` or `Evaluation: golden dataset in <its folder>`) and do not ask
    again. At go-live say once, in one sentence, that no evaluation exists, and carry on if the user still wants to go live. Skipping never
    loosens a cap, an approval or a guard.
-2. **Two paths.** Ask whether the workflow is a script run with `weave` (Loom is the runtime; no Java, no Maven) or Java code (agents built in Java,
+2. **Two paths.** Ask whether the workflow is a script run with `weave` (Loom is the runtime; you write no Java for the workflow itself) or Java code (agents built in Java,
    or Loom embedded in a host). Prompts live in `prompts/` markdown files either way (`prompt: "id"` in the script; `MarkdownFolderPromptRegistry`
-   from Java). Only the Java path needs Maven and JUnit; `weave init <template> --with-java-tests` adds a test module that works. Compare two
+   from Java). Maven and JUnit come with the project `weave init` makes (its tests run the dataset); your own Java (tasks, tools, a host) goes in `src/main/java` of that same project. Compare two
    wordings of a prompt on the script path with `--prompt id@v1` and `--prompt id@v2`.
    **If the user is building an application with a screen** (a web page, a desktop app, a chat window with a transcript), the workflow stays a
    `.loom` file and the application is Java code you write in their project: a host that attaches `addTraceListener` for the transcript (before
@@ -111,9 +118,55 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
       email, `allow_paths` and `methods` for `http`, a writable persistent folder for `file`, installed programs for `shell`, and a **read-only database user** for `sql`;
     - tell the user to run `weave check <deployed entry>` (without `--no-env`) on the target machine, then `weave audit --fail-on medium`, then a capped smoke run to a test sink before the real recipients.
 
+14. **Round up before you talk about money.** When the workflow is built and the free checks pass, finish the job in this order. Do not end on "the next step costs money".
+    a. **Build it.** Run `mvn test` (the project's own build) and say the result in one line ("13 tests, 0 failures"). `Tests run: 0` is a failure.
+    b. **Write `PROJECT_REPORT.md`** at the project root, from the template below, and tell the user where it is. Take the facts from the tools, not from memory:
+       `weave explain <script>` for the steps, `weave graph <script> --format mermaid` for the picture, `weave audit <script>` for the safety summary.
+    c. **Open the eval4j dashboard.** `mvn test` wrote `target/eval4j/report/index.html`. Open it for the user in their browser (`open` on macOS, `xdg-open` on Linux,
+       `start` on Windows); if you cannot open a window, give the full path and say so. Tell them what they are looking at: **Wiring 100%** means every example ran through
+       the workflow end to end on a fake model; **Safety** and **Tone** (the dataset's quality dimensions) read "Declared, not evaluated" because only a real, capped run judges
+       them; the large percentage at the top is the wiring only, not the quality. Offer `weave graph` or the editor's **Loom: Show Workflow Graph** to look at the workflow itself.
+    d. **Then, last, how to set up and run it for real.** Write it in the report and say it in chat, in this order, and run none of it without a yes: what a run costs and what stops
+       it (the script's `budget`, `--max-tokens`, the provider's own spending limit); getting a key from the provider; `cp .env.example .env` and the user typing the key after the
+       `=` (never ask for it in chat, never print `.env`); `weave check <script>` without `--no-env`; one capped run (`weave run <script> -i name="..." --max-tokens 50000`);
+       the capped real evaluation (`weave eval <script> --max-tokens 200000 --report target/eval-report.html`, which says what it will do and asks first); and, when they are happy,
+       how to put it on a server (`weave guide 9`: the secret store, not `.env`).
+
+    Template for `PROJECT_REPORT.md` (fill every section; say "none" rather than dropping one):
+
+    ```markdown
+    # <project>: what was built
+    ## What you asked for
+    <their request, in their words, and the changes of mind along the way>
+    ## What was built
+    | Agent | Model | What it does | Tools | Guards |
+    |---|---|---|---|---|
+    ## How it works
+    <the mermaid graph from weave graph, then the numbered steps from weave explain>
+    ## What keeps it safe
+    <the budget; personal-data guards; who approves what, and the rule that decides it; the audit result: findings and why each is acceptable>
+    ## What was checked, and what was not
+    - Build: <mvn test result>. Golden dataset: <n> scenarios in <folder>. The mock run proves the wiring only.
+    - Not yet evaluated: <the quality dimensions>. No real model has been called and nothing has been spent.
+    ## Where things are
+    <the tree, one line per file or folder>
+    ## Set up and run it for real
+    <the steps from (d), with this project's real commands and cap>
+    ```
+
+## Explain as you go
+
+The user may be new to all of this, so before each stage say, in one or two plain sentences: what you are about to do, why, what they will see, and whether it costs
+anything. After it, say what it proved and what it did not (a mock run proves the wiring only; a green `weave check` proves the script is well formed, not that it is good).
+
+Explain the golden dataset once, when you first write or show it, because a YAML file does not look like a test: each scenario is an example request plus checks.
+Some checks are fixed and decided by code (`expected_output_contains`, `expected_output_not_contains` for something that must never appear, such as a card number,
+and `expected_tools`); others are lines a second model grades (`rubric`, `expect`), which are useful but not perfect. A mock run decides none of them (they come out
+unjudged); a real run does, under a cap you agree first. Offer `weave graph` to look at the workflow whenever its shape changes.
+
 ## Things that look like success and are not
 
-- `Tests run: 0` in a Maven build. An old Surefire finds no JUnit 5 tests and says BUILD SUCCESS. The test module `weave init --with-java-tests`
+- `Tests run: 0` in a Maven build. An old Surefire finds no JUnit 5 tests and says BUILD SUCCESS. The test setup `weave init`
   creates pins a working Surefire and fails an empty run; if you write a pom yourself, do the same.
 - A mock run with all green. It proves the wiring only.
 - An unjudged line in `weave eval`. Nothing confirmed it.
@@ -134,7 +187,7 @@ Java path. Say so when it matters instead of improvising.
 ```
 weave next                                      # what to do next in this project, in order, free (a good first command in an existing project)
 weave explain workflow.loom                     # the script in plain English: show it to the user to confirm it does what they meant
-weave init pipeline my-workflow                 # a small, complete project: script, prompts as files, golden dataset, README
+weave init pipeline my-workflow                 # a small, complete Maven project: script and prompts in src/main/resources, golden dataset in src/test/resources, JUnit tests, README
 weave check workflow.loom --no-env              # free, no model calls, no keys; finds missing prompts, unused results, bad names
 weave graph workflow.loom --format mermaid      # see the workflow (or Loom: Show Workflow Graph in VS Code)
 weave audit workflow.loom --fail-on medium      # free security audit (also lists which prompt each agent runs)

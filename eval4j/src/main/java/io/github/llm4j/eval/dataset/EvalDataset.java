@@ -90,7 +90,7 @@ public record EvalDataset(Path dir, Map<String, List<EvalScenario>> files, Map<S
             String file = entry.getKey() + ".yaml";
             for (EvalScenario s : entry.getValue()) {
                 String label = s.id() != null ? s.id() : s.name();
-                if (s.input() == null || s.input().isBlank()) {
+                if ((s.input() == null || s.input().isBlank()) && s.namedInputs().isEmpty()) {
                     problems.add(new Problem(file, label, "has no input", false));
                 }
                 if (s.id() != null) {

@@ -5,9 +5,12 @@
 # scripts/weave, scripts/weave.cmd (launchers that run the bundled jar; Java 17 or newer is the only prerequisite).
 # The skill and references come from the jar itself (weave guide --install-skill), so the jar and the skill can never disagree.
 set -euo pipefail
+# a jar path given relative to where you are must be resolved before this script moves to the repository root
+given="${1:-}"
+[ -z "$given" ] || given="$(cd "$(dirname "$given")" 2>/dev/null && pwd)/$(basename "$given")"
 cd "$(dirname "$0")/.."
 root="$PWD"
-jar="${1:-$(ls "$root"/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar 2>/dev/null | head -n 1)}"
+jar="${given:-$(ls "$root"/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar 2>/dev/null | head -n 1)}"
 [ -f "$jar" ] || { echo "no weave jar: build it first (mvn -DskipTests package) or pass its path" >&2; exit 2; }
 OUT="$root/dist/llm4j-workflow-guide"
 rm -rf "$OUT" "$OUT.zip" "$root/dist/.stage"; mkdir -p "$root/dist/.stage"

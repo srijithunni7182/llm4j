@@ -36,12 +36,20 @@ public final class SecurityAudit {
     }
 
     public static AuditReport audit(LoomScript script, String name) {
+        return audit(script, name, Map.of());
+    }
+
+    /**
+     * As {@link #audit(LoomScript, String)}, with what the {@code .loot} file declares tools reach ({@code Name.reach = reads}); the audit never loads
+     * the tools' classes, so a tool the script does not define is believed only if the file says what it reaches.
+     */
+    public static AuditReport audit(LoomScript script, String name, Map<String, String> lootReach) {
         Map<String, ToolDef> tools = new LinkedHashMap<>();
         for (ToolDef t : script.getTools()) tools.put(t.getName(), t);
         List<Finding> findings = new ArrayList<>();
         List<AgentProfile> profiles = new ArrayList<>();
 
-        for (AgentDef a : script.getAgents()) profiles.add(agent(a, script, tools, findings));
+        for (AgentDef a : script.getAgents()) profiles.add(agent(a, script, tools, lootReach, findings));
         toolSettings(script, findings);
         supplyChain(script, findings);
         providerEndpoints(script, findings);
@@ -58,7 +66,7 @@ public final class SecurityAudit {
         return new AuditReport(name, profiles, findings, controls(script, profiles));
     }
 
-    private static AgentProfile agent(AgentDef a, LoomScript script, Map<String, ToolDef> tools, List<Finding> findings) {
+    private static AgentProfile agent(AgentDef a, LoomScript script, Map<String, ToolDef> tools, Map<String, String> lootReach, List<Finding> findings) {
         List<String> untrusted = new ArrayList<>();
         List<String> privateData = new ArrayList<>();
         List<String> outward = new ArrayList<>();
@@ -66,7 +74,9 @@ public final class SecurityAudit {
         List<String> unapprovedOutward = new ArrayList<>();
         for (String toolName : a.getTools()) {
             ToolDef def = tools.get(toolName);
-            Capabilities c = def != null ? Capabilities.of(def) : Capabilities.ofName(toolName);
+            Capabilities c = def != null ? Capabilities.of(def)
+                    : lootReach.containsKey(toolName) ? Capabilities.fromReach(lootReach.get(toolName), "Tool " + toolName + " from the .loot file")
+                    : Capabilities.ofName(toolName);
             boolean approved = a.isApproveAll() || a.getApprove().contains(toolName);
             boolean unattendedShell = def != null && "shell".equals(def.getKind()) && "true".equals(Capabilities.opt(def, "unattended"));
             if (c.untrusted()) untrusted.add(toolName);
@@ -80,6 +90,11 @@ public final class SecurityAudit {
                 findings.add(new Finding("LA14", Severity.LOW, List.of(Owasp.LLM03, Owasp.LLM06), a.getName() + " / " + toolName, a.getLine(),
                         "A tool the audit can't see into", toolName + ": " + c.note() + ". The audit assumes it reads untrusted content, reaches private data and acts.",
                         "Review its code, give it the narrowest credentials, and put it under approve: unless you are sure it only reads."));
+            }
+            if (c.known() && c.note().contains("declared reach:")) {
+                findings.add(new Finding("LA15", Severity.INFO, List.of(Owasp.LLM03, Owasp.LLM06), a.getName() + " / " + toolName, a.getLine(),
+                        "A tool whose reach is its author's word", toolName + ": " + c.note() + ".",
+                        "Read the tool's code once and confirm it does no more than it declares; the audit takes the declaration as written."));
             }
             if (c.effect() && !approved) {
                 Severity s = unattendedShell ? Severity.HIGH : c.outward() ? Severity.MEDIUM : Severity.LOW;

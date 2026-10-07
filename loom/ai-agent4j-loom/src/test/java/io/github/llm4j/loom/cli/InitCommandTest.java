@@ -29,7 +29,16 @@ class InitCommandTest {
                 c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""), List.of("weave"), k -> null);
     }
 
+    /** {@code weave init} as the older flat layout (most tests are about what a starter says, not where its files go). */
     int init(String... args) {
+        List<String> all = new java.util.ArrayList<>(List.of(args));
+        if (!all.contains("--list") && !all.contains("--maven-default")) all.add("--flat");
+        all.remove("--maven-default");
+        return initAs(all.toArray(String[]::new));
+    }
+
+    /** {@code weave init} exactly as typed: the default is a Maven project. */
+    int initAs(String... args) {
         InitCommand c = new InitCommand();
         new CommandLine(c).parseArgs(args);
         return InitCommand.init(c, env());
@@ -177,7 +186,7 @@ class InitCommandTest {
 
             assertThat(files(project)).as(t.name()).anyMatch(f -> f.startsWith("prompts/")).anyMatch(f -> f.startsWith("eval/golden/")).noneMatch(f -> f.endsWith(".java") || f.equals("pom.xml"));
             assertThat(readme).as(t.name()).contains("weave check main.loom --no-env").contains("weave eval main.loom --mock").contains("Evaluation: golden dataset in `eval/golden`")
-                    .containsIgnoringCase("no Java here");
+                    .contains("mvn test");
             assertThat(Files.readString(project.resolve("main.loom"))).as(t.name()).contains("budget {").contains("prompt: \"");
         }
     }
@@ -218,7 +227,7 @@ class InitCommandTest {
         assertThat(files(plain)).noneMatch(f -> f.equals("pom.xml") || f.endsWith(".java"));
         assertThat(files(withTests)).contains("pom.xml", "src/test/README.md", "src/test/java/starter/GoldenDatasetTest.java", "src/test/java/starter/ScriptWiringTest.java", "main.loom");
         assertThat(stdout()).contains("mvn test").contains("\"Tests run: 0\" is a failure");
-        assertThat(Files.readString(withTests.resolve("pom.xml"))).contains("<artifactId>my-project-tests</artifactId>").doesNotContain("{{");
+        assertThat(Files.readString(withTests.resolve("pom.xml"))).contains("<artifactId>my-project</artifactId>").doesNotContain("{{");
     }
 
     @Test
@@ -261,5 +270,77 @@ class InitCommandTest {
     @Test
     void theOverlayFilesInTheJarAreTheOnesListed() throws Exception {
         assertThat(files(Path.of("src/main/resources/templates/" + Templates.JAVA_TESTS))).containsExactlyInAnyOrderElementsOf(Templates.JAVA_TESTS_FILES);
+    }
+
+    // ── the default: a Maven project ──────────────────────────────────────────────
+
+    @Test
+    void theDefaultIsAMavenProjectWithTheWorkflowAndPromptsAsMainResourcesAndTheDatasetAsTestResources() throws Exception {
+        Path project = dir.resolve("support-replies");
+        assertThat(initAs("approval", project.toString())).isZero();
+
+        assertThat(files(project)).contains("pom.xml", "README.md", ".gitignore", ".env.example",
+                "src/main/resources/main.loom", "src/main/resources/prompts/triage.md", "src/main/resources/prompts/drafter.md",
+                "src/test/resources/eval/golden/dataset.yaml", "src/test/resources/eval/golden/triage.yaml", "src/test/resources/eval/golden/workflow.yaml",
+                "src/test/java/starter/GoldenDatasetTest.java", "src/test/java/starter/ScriptWiringTest.java", "src/test/java/starter/Project.java");
+        assertThat(files(project)).noneMatch(f -> f.equals("main.loom") || f.startsWith("prompts/") || f.startsWith("eval/"));
+        assertThat(stdout()).contains("weave check src/main/resources/main.loom --no-env").contains("mvn test").contains("Where things are:").contains("src/test/resources/eval/golden");
+        assertThat(Files.readString(project.resolve("pom.xml"))).contains("<artifactId>support-replies</artifactId>").doesNotContain("{{");
+        assertThat(Files.readString(project.resolve(".gitignore"))).contains(".env").contains("target/");
+    }
+
+    @Test
+    void theReadmeNamesTheRealPathsOfWhicheverLayoutWasMade() throws Exception {
+        Path maven = dir.resolve("m");
+        Path flat = dir.resolve("f");
+        assertThat(initAs("pipeline", maven.toString())).isZero();
+        assertThat(initAs("pipeline", flat.toString(), "--flat")).isZero();
+
+        String m = Files.readString(maven.resolve("README.md"));
+        assertThat(m).contains("weave check src/main/resources/main.loom --no-env").contains("src/test/resources/eval/golden").contains("src/main/resources/prompts/").doesNotContain("{{");
+        String f = Files.readString(flat.resolve("README.md"));
+        assertThat(f).contains("weave check main.loom --no-env").contains("`eval/golden/`").contains("`prompts/`").doesNotContain("{{");
+    }
+
+    @Test
+    void flatKeepsTheOlderFolderAndHasNoJavaUnlessAskedFor() throws Exception {
+        Path flat = dir.resolve("f");
+        assertThat(initAs("approval", flat.toString(), "--flat")).isZero();
+        assertThat(files(flat)).contains("main.loom", "prompts/triage.md", "eval/golden/workflow.yaml").noneMatch(f -> f.equals("pom.xml") || f.endsWith(".java"));
+        assertThat(stdout()).contains("weave check main.loom --no-env").doesNotContain("Where things are:");
+
+        Path flatWithTests = dir.resolve("g");
+        assertThat(initAs("approval", flatWithTests.toString(), "--flat", "--with-java-tests")).isZero();
+        assertThat(files(flatWithTests)).contains("main.loom", "pom.xml", "src/test/java/starter/ScriptWiringTest.java");
+    }
+
+    @Test
+    void weaveFindsTheDatasetAndTheScriptInAMavenProjectWithNoExtraFlags() throws Exception {
+        Path project = dir.resolve("p");
+        assertThat(initAs("approval", project.toString())).isZero();
+        Path script = project.resolve("src/main/resources/main.loom");
+        Path golden = project.resolve("src/test/resources/eval/golden");
+
+        assertThat(io.github.llm4j.loom.eval.DatasetFolder.locate(script, null)).isEqualTo(golden);
+        assertThat(io.github.llm4j.loom.init.ProjectLayout.root(script)).isEqualTo(project);
+        assertThat(io.github.llm4j.loom.init.ProjectLayout.script(project)).isEqualTo(script);
+        assertThat(io.github.llm4j.loom.init.ProjectLayout.shown(script)).isEqualTo("src/main/resources/main.loom");
+        assertThat(io.github.llm4j.loom.init.ProjectLayout.envFile(script)).isEqualTo(project.resolve(".env"));
+
+        // a new dataset for a project that has none goes where Maven expects it
+        java.nio.file.Files.walk(golden).sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+        assertThat(io.github.llm4j.loom.eval.DatasetFolder.locate(script, null)).isEqualTo(golden);
+    }
+
+    @Test
+    void aFlatProjectIsStillFoundWhereItAlwaysWas() throws Exception {
+        Path project = dir.resolve("flat");
+        assertThat(initAs("approval", project.toString(), "--flat")).isZero();
+        Path script = project.resolve("main.loom");
+
+        assertThat(io.github.llm4j.loom.eval.DatasetFolder.locate(script, null)).isEqualTo(project.resolve("eval/golden"));
+        assertThat(io.github.llm4j.loom.init.ProjectLayout.root(script)).isEqualTo(project);
+        assertThat(io.github.llm4j.loom.init.ProjectLayout.shown(script)).isEqualTo("main.loom");
+        assertThat(io.github.llm4j.loom.init.ProjectLayout.envFile(script)).isEqualTo(project.resolve(".env"));
     }
 }

@@ -11,7 +11,7 @@ import picocli.CommandLine.Option;
 final class EnvFileOptions {
 
     @Option(names = "--env-file", paramLabel = "<file>",
-            description = "Read keys from this file (NAME=value lines) instead of the .env beside the script. For development: keep it out of git.")
+            description = "Read keys from this file (NAME=value lines) instead of the .env beside the script (or at the project root). For development: keep it out of git.")
     File file;
 
     @Option(names = "--no-env-file", description = "Do not read a .env file, even if one is beside the script.")
@@ -20,8 +20,7 @@ final class EnvFileOptions {
     /** The environment with the keys of the file added, or null (after saying why) when the file is refused. */
     WeaveEnv apply(WeaveEnv env, Path script) {
         if (none) return env;
-        Path dir = script.toAbsolutePath().normalize().getParent();
-        Path chosen = file != null ? file.toPath() : dir.resolve(".env");
+        Path chosen = file != null ? file.toPath() : io.github.llm4j.loom.init.ProjectLayout.envFile(script);
         if (file == null && !java.nio.file.Files.isRegularFile(chosen)) return env;
         return EnvFile.apply(env, chosen, file != null);
     }

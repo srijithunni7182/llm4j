@@ -58,8 +58,30 @@ public record Capabilities(boolean untrusted, boolean privateData, boolean outwa
             case "openapi" -> new Capabilities(true, true, true, true, true, "any operation in " + opt(t, "spec"));
             case "knowledge_graph" -> new Capabilities(false, true, false, !"true".equals(opt(t, "read_only")), true, "a knowledge graph");
             case "skill_registry" -> new Capabilities(true, false, false, false, true, "skills fetched from " + opt(t, "url"));
-            case "class" -> unknown("Java class " + opt(t, "class") + ": the audit can't see what it does");
+            case "class" -> declared(t);
             default -> unknown("tool kind \"" + kind + "\" is not one the audit knows");
+        };
+    }
+
+    /**
+     * A tool of the author's own. The audit never loads or runs it, so it believes only what the script says: {@code reach:} in the tool's entry.
+     * Without one it assumes the worst. A declaration is the author's word, and the note says so.
+     */
+    private static Capabilities declared(ToolDef t) {
+        return fromReach(opt(t, "reach"), "Java class " + opt(t, "class"));
+    }
+
+    /** The capabilities a tool's author declared ({@code reach:} in the script, or {@code Name.reach} in the .loot file); null reach means undeclared. */
+    static Capabilities fromReach(String reach, String cls) {
+        if (reach == null) return unknown(cls + ": the audit can't see what it does (say what it reaches with reach: none | reads | fetches | writes | sends)");
+        String by = cls + ", declared reach: " + reach + " (the author's word; the audit does not check it)";
+        return switch (reach) {
+            case "none" -> new Capabilities(false, false, false, false, true, by);
+            case "reads" -> new Capabilities(false, true, false, false, true, by);
+            case "fetches" -> new Capabilities(true, false, false, false, true, by);
+            case "writes" -> new Capabilities(false, true, false, true, true, by);
+            case "sends" -> new Capabilities(false, true, true, true, true, by);
+            default -> unknown(cls + ": reach: " + reach + " is not one of none, reads, fetches, writes, sends");
         };
     }
 

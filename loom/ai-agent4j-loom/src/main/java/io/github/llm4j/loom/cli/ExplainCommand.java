@@ -19,6 +19,9 @@ final class ExplainCommand implements Callable<Integer> {
     @Parameters(index = "0", description = "The .loom script.")
     File script;
 
+    @Option(names = {"-l", "--loot"}, description = "Accepted so the same options work for check, audit, eval and explain; explain describes the script and does not load your tools.")
+    java.io.File lootFile;
+
     @Option(names = "--workflow", description = "Only this workflow.")
     String workflow;
 

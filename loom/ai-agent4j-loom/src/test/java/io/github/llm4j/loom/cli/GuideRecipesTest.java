@@ -50,7 +50,7 @@ class GuideRecipesTest {
         for (var recipe : recipes.entrySet()) {
             Path dir = root.resolve(recipe.getKey());
             ByteArrayOutputStream sink = new ByteArrayOutputStream();
-            assertThat(run(new PrintStream(sink, true), "init", "pipeline", dir.toString())).as(sink.toString()).isZero();
+            assertThat(run(new PrintStream(sink, true), "init", "pipeline", dir.toString(), "--flat")).as(sink.toString()).isZero();
             Path script = dir.resolve("main.loom");
             String text = Files.readString(script);
 

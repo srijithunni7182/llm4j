@@ -25,6 +25,8 @@ weave="$skill/scripts/weave"
 "$weave" --version >/dev/null
 "$weave" guide >/dev/null
 "$weave" init pipeline "$work/project/app" >/dev/null
-"$weave" check "$work/project/app/main.loom" --no-env >/dev/null 2>&1
-"$weave" eval "$work/project/app/main.loom" --mock >/dev/null 2>&1
+script="$work/project/app/src/main/resources/main.loom"
+[ -f "$script" ] || { echo "weave init did not make src/main/resources/main.loom" >&2; exit 1; }
+"$weave" check "$script" --no-env >/dev/null 2>&1 || { echo "weave check failed on the starter" >&2; exit 1; }
+"$weave" eval "$script" --mock >/dev/null 2>&1 || { echo "weave eval --mock failed on the starter" >&2; exit 1; }
 echo "ok: the skill package works from an empty folder with its bundled weave"

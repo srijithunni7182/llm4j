@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: help build test test-extended test-live smoke-apps release-check skill-package verify format-check
+.PHONY: help build test test-extended test-live smoke-apps release-check skill-package quick verify format-check
 
 help:
 	@echo "Targets:"
@@ -10,6 +10,7 @@ help:
 	@echo "  make test-live      - Only the live tests, against real provider APIs (needs keys, costs money)"
 	@echo "  make smoke-apps     - Compile engram, tantrik and the example applications (no tests)"
 	@echo "  make skill-package  - Build dist/llm4j-workflow-guide.zip: the skill with its references and the weave jar, and check it from an empty folder"
+	@echo "  make quick          - Build and test the core libraries (no live, integration or fragile tests, no examples), package the skill, build and install the VS Code extension"
 	@echo "  make release-check  - Build the sources and javadoc jars exactly as a release does, without signing"
 	@echo "  make format-check   - Check formatting for core and addons"
 
@@ -32,6 +33,9 @@ smoke-apps:
 
 release-check:
 	mvn -q -Prelease -Dgpg.skip=true verify
+
+quick:
+	scripts/quick-build.sh
 
 skill-package:
 	mvn -q -DskipTests package -pl loom/ai-agent4j-loom -am

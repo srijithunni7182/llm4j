@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Tests for {{name}}, for people who want JUnit. `weave eval` does not need any of this: it reads eval/golden by itself. -->
+<!--
+    {{name}}: a Loom workflow project.
+      src/main/resources            the workflow (main.loom) and its prompts: they travel with the program
+      src/test/resources/eval/golden  the golden dataset (example requests and what a good answer does)
+      src/test/java                 eval4j JUnit tests: each golden scenario is its own test case, on a model that costs nothing
+    `weave` reads the same files, so `weave check`, `weave eval` and `mvn test` always agree.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>example</groupId>
-    <artifactId>{{artifact}}-tests</artifactId>
+    <artifactId>{{artifact}}</artifactId>
     <version>1.0</version>
     <packaging>jar</packaging>
 
@@ -17,10 +23,16 @@
     </properties>
 
     <dependencies>
-        <!-- Loom, with the dataset and evaluation classes the tests use (the same jar as weave) -->
+        <!-- Loom, with the dataset and evaluation classes the tests use. Your own Java code (tasks, tools, a screen) goes in src/main/java and uses it too. -->
         <dependency>
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>ai-agent4j-loom</artifactId>
+            <version>5.0</version>
+        </dependency>
+        <!-- With this on the test classpath, `mvn test` also writes the eval4j dashboard: target/eval4j/report/index.html -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>eval4j-report</artifactId>
             <version>5.0</version>
             <scope>test</scope>
         </dependency>

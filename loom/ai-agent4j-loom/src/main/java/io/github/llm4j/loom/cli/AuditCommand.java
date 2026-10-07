@@ -20,6 +20,9 @@ final class AuditCommand implements Callable<Integer> {
     @Parameters(index = "0", description = "The .loom script.")
     File script;
 
+    @Option(names = {"-l", "--loot"}, description = "The .loot tool mapping file: its Name.reach lines say what your own tools reach (the audit never loads their classes).")
+    File lootFile;
+
     @Option(names = "--format", description = "md (default) or json.", defaultValue = "md")
     String format;
 
@@ -59,7 +62,20 @@ final class AuditCommand implements Callable<Integer> {
             env.err().println("Error: " + c.script + " could not be read: " + e.getMessage());
             return 2;
         }
-        AuditReport report = SecurityAudit.audit(loaded, c.script.getName());
+        java.util.Map<String, String> reach = java.util.Map.of();
+        if (c.lootFile != null) {
+            if (!c.lootFile.exists()) {
+                env.err().println("Error: " + c.lootFile + " does not exist.");
+                return 2;
+            }
+            java.util.List<String> problems = io.github.llm4j.loom.execution.LootLoader.reachProblems(c.lootFile.toPath());
+            if (!problems.isEmpty()) {
+                problems.forEach(p -> env.err().println("Error: " + p));
+                return 2;
+            }
+            reach = io.github.llm4j.loom.execution.LootLoader.reaches(c.lootFile.toPath());
+        }
+        AuditReport report = SecurityAudit.audit(loaded, c.script.getName(), reach);
         var catalog = io.github.llm4j.loom.prompt.PromptSupport.catalog(loaded, c.script.toPath(), env.prompts());
         if (catalog != null) report = report.withPrompts(catalog.usesOf(loaded));
         String text = c.format.equals("json") ? report.json() : report.markdown();

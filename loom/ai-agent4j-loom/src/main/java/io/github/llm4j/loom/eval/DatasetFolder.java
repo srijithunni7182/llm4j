@@ -39,11 +39,10 @@ public final class DatasetFolder {
 
     private DatasetFolder() {}
 
-    /** {@code eval/golden} beside the script, unless a folder is given. */
+    /** {@code eval/golden} beside the script (or {@code src/test/resources/eval/golden} in a Maven project), unless a folder is given. */
     public static Path locate(Path scriptFile, Path given) {
         if (given != null) return given.toAbsolutePath().normalize();
-        Path base = scriptFile.toAbsolutePath().getParent();
-        return base.resolve("eval").resolve("golden").normalize();
+        return io.github.llm4j.loom.init.ProjectLayout.dataset(scriptFile);
     }
 
     /** Reads the folder and matches its files to the script. {@code workflowChoice} (may be null) says which workflow {@code workflow.yaml} is for. */

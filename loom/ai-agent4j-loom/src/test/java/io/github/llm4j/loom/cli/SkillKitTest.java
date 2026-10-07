@@ -66,9 +66,10 @@ class SkillKitTest {
 
     @Test
     void theInstalledSkillSendsNobodyToTheRepository() {
+        // `mvn test` is fine: it is the build of the project weave init makes. Only the framework repository's own build lines are out.
         String installed = Guide.skill().orElseThrow();
         assertThat(installed).doesNotContain("docs/guide/").contains("references/");
-        for (String repoOnly : List.of("examples/", "eval4j/src", "loom/ai-agent4j", "eval/run-all", "mvn test", "hexamind-hub", "samples/", "scripts/")) {
+        for (String repoOnly : List.of("examples/", "eval4j/src", "loom/ai-agent4j", "eval/run-all", "mvn -pl", "mvn -q -pl", "hexamind-hub", "samples/", "scripts/")) {
             assertThat(installed).as(repoOnly).doesNotContain(repoOnly);
         }
     }

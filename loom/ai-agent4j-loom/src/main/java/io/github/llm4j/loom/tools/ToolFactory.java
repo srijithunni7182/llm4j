@@ -46,6 +46,9 @@ public final class ToolFactory {
 
     /** The option every kind accepts: text added to what the model is told about the tool. */
     static final String DESCRIPTION = "description";
+    /** What your own (class) tool reaches, for {@code weave audit}: none, reads, fetches, writes or sends. The audit never loads your code, so it reads this. */
+    public static final String REACH = "reach";
+    public static final Set<String> REACHES = Set.of("none", "reads", "fetches", "writes", "sends");
     /** {@code replay: allow} lets a tool run when a past case is replayed; it is the runtime's option, not the tool's. */
     static final String REPLAY = "replay";
 
@@ -209,6 +212,11 @@ public final class ToolFactory {
         for (Map.Entry<String, ToolDef.OptionValue> e : def.getOptions().entrySet()) {
             String key = e.getKey();
             if (key.equals(DESCRIPTION)) continue;
+            if (key.equals(REACH)) {
+                if (!kind.name().equals("class")) out.add("reach: is for your own tools (use: class); " + kind.name() + " already tells the audit what it reaches");
+                else if (!REACHES.contains(e.getValue().value())) out.add("reach: must be one of " + String.join(", ", new java.util.TreeSet<>(REACHES)) + ", not " + e.getValue().value());
+                continue;
+            }
             if (key.equals(REPLAY)) {
                 if (!e.getValue().value().equals("allow") && !e.getValue().value().equals("simulate")) out.add("replay: must be allow or simulate, not " + e.getValue().value());
                 continue;
@@ -291,6 +299,7 @@ public final class ToolFactory {
         Map<String, String> options = resolve(kind, def, env);
         String description = options.remove(DESCRIPTION);
         options.remove(REPLAY);
+        options.remove(REACH);
         Tool tool = kind.create(def.getName(), options, baseDir, context);
         if (tool instanceof Effectful effectful) tool = new EffectTool(effectful, context);
         if (description != null) tool = new DescribedTool(tool, description);

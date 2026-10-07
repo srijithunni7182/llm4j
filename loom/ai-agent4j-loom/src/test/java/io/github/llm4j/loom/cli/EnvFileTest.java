@@ -142,7 +142,7 @@ class EnvFileTest {
     void checkOfAStarterNeedsTheKeyAndFindsItInTheEnvFileBesideTheScript() throws Exception {
         org.junit.jupiter.api.Assumptions.assumeTrue(System.getenv("GEMINI_API_KEY") == null, "the shell already has the key");
         Path project = dir.resolve("p");
-        assertThat(run("init", "pipeline", project.toString())).isZero();
+        assertThat(run("init", "pipeline", project.toString(), "--flat")).isZero();
         out.reset();
         err.reset();
 
@@ -165,7 +165,7 @@ class EnvFileTest {
     void anExplicitEnvFileCanBeNamed() throws Exception {
         org.junit.jupiter.api.Assumptions.assumeTrue(System.getenv("GEMINI_API_KEY") == null, "the shell already has the key");
         Path project = dir.resolve("q");
-        assertThat(run("init", "classifier", project.toString())).isZero();
+        assertThat(run("init", "classifier", project.toString(), "--flat")).isZero();
         Path keys = write("elsewhere.env", "GEMINI_API_KEY=" + SECRET + "\n");
         out.reset();
         err.reset();

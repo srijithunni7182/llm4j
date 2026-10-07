@@ -43,6 +43,12 @@ final class EvalCommand implements Callable<Integer> {
     @Parameters(index = "0", description = "The .loom script.")
     File script;
 
+    @Option(names = {"-l", "--loot"}, description = "The .loot tool mapping file, for a script that uses your own tools (a real run calls them; --mock does not).")
+    File lootFile;
+
+    @Option(names = "--verbose", description = "Show what each agent is doing as it runs (by default only the result is shown).")
+    boolean verbose;
+
     @Option(names = "--dataset", paramLabel = "<dir>", description = "The folder of dataset files (default: eval/golden beside the script).")
     File dataset;
 
@@ -103,6 +109,17 @@ final class EvalCommand implements Callable<Integer> {
     }
 
     static int eval(EvalCommand c, WeaveEnv env) {
+        java.util.logging.Logger loom = java.util.logging.Logger.getLogger("io.github.llm4j.loom");
+        java.util.logging.Level before = loom.getLevel();
+        if (!c.verbose) loom.setLevel(java.util.logging.Level.WARNING); // the progress lines would bury the report
+        try {
+            return evaluate(c, env);
+        } finally {
+            loom.setLevel(before);
+        }
+    }
+
+    private static int evaluate(EvalCommand c, WeaveEnv env) {
         if (c.check && c.init) {
             env.err().println("Error: --check and --init cannot be used together.");
             return 2;
@@ -120,6 +137,17 @@ final class EvalCommand implements Callable<Integer> {
 
         DatasetFolder.Plan plan = DatasetFolder.plan(script, dir, c.workflow);
         List<String> problems = new ArrayList<>(plan.problems());
+        for (DatasetFolder.Target t : plan.targets()) {
+            for (EvalScenario s : t.scenarios()) {
+                String label = t.file() + (s.id() != null ? " " + s.id() : s.name() != null ? " " + s.name() : "");
+                if (t.isAgent()) {
+                    if (!s.namedInputs().isEmpty()) problems.add(label + ": inputs: is for a workflow's parameters; an agent's task is input:");
+                } else {
+                    String bad = EvalRunner.inputProblem(t.name(), parameters(script, t.name()), s);
+                    if (bad != null) problems.add(label + ": " + bad);
+                }
+            }
+        }
         Fixtures fixtures = Fixtures.none();
         try {
             fixtures = Fixtures.read(dir);
@@ -201,6 +229,7 @@ final class EvalCommand implements Callable<Integer> {
         EvalRunner.Executors executors = beforeInitialize -> {
             LoomScript fresh = new LoomLoader().load(scriptFile.toString());
             ToolRegistry registry = new ToolRegistry();
+            if (c.lootFile != null && c.lootFile.exists()) new io.github.llm4j.loom.execution.LootLoader().loadIntoRegistry(c.lootFile.getAbsolutePath(), registry);
             fx.apply(fresh, registry, c.mock);
             HarnessExecutor e = new HarnessExecutor(fresh, registry, models);
             e.setHumanInterface(m -> "yes");
@@ -248,7 +277,7 @@ final class EvalCommand implements Callable<Integer> {
                 }
                 ScenarioResult r = t.isAgent()
                         ? runner.agent(t.file(), t.name(), s)
-                        : runner.workflow(t.file(), t.name(), firstParameter(script, t.name()), s, firstModel);
+                        : runner.workflow(t.file(), t.name(), parameters(script, t.name()), s, firstModel);
                 results.add(r);
                 env.out().println(EvalReport.mark(r.status()) + " " + t.name() + " · " + r.label());
                 if (runner.stoppedByLimit() || spend.exhausted()) stopped = "a limit was reached (" + spend.describe() + ")";
@@ -268,9 +297,9 @@ final class EvalCommand implements Callable<Integer> {
         return run.exitCode();
     }
 
-    private static String firstParameter(LoomScript script, String workflow) {
+    static List<String> parameters(LoomScript script, String workflow) {
         return script.getWorkflows().stream().filter(w -> w.getName().equals(workflow)).findFirst()
-                .map(WorkflowDef::getParameters).filter(p -> !p.isEmpty()).map(p -> p.get(0)).orElse(null);
+                .map(w -> List.copyOf(w.getParameters())).orElse(List.of());
     }
 
     private static String firstName(LoomScript script) {

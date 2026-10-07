@@ -55,7 +55,7 @@ class CheckOptionsTest {
         int code = WeaveCLI.check(script(FINE), null, false, env(k -> null, open()));
 
         assertThat(code).isZero();
-        assertThat(out.toString().strip()).isEqualTo("✓ main.loom: ready to run");
+        assertThat(out.toString().strip()).startsWith("✓ main.loom: ready to run").contains("weave next").contains("weave guide recipes");
     }
 
     @Test
