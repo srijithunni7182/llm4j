@@ -8,7 +8,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 template="${1:-pipeline}"
 echo "== installing the current Loom into the local Maven repository"
 mvn -q -f "$root/pom.xml" -pl ai-agent4j,eval4j,loom/ai-agent4j-loom -DskipTests -Djacoco.skip=true install
-jar="$(ls "$root"/loom/ai-agent4j-loom/target/ai-agent4j-loom-*.jar | grep -v '/original-' | head -n 1)"
+jar="$(ls "$root"/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar | head -n 1)"
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 echo "== weave init $template --with-java-tests"
 java -jar "$jar" init "$template" "$work/project" --with-java-tests >/dev/null

@@ -6,9 +6,11 @@ import io.github.llm4j.loom.ast.LoomScript;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** VP.1, VP.2: how long drawing takes. A breach is a failure. */
+@Tag("fragile")
 class GraphPerfTest {
 
     /** Over 400 statements in nested blocks: 10 rounds of an alt with a loop, delegates and notes inside. */

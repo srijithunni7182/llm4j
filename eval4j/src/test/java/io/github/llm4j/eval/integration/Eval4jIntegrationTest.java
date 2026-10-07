@@ -13,6 +13,7 @@ import io.github.llm4j.config.LLMConfig;
 import io.github.llm4j.eval.judge.LlmJudgePresets;
 import io.github.llm4j.provider.google.GoogleProvider;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.Test;
  * agent/judge behavior rather than exact wording — the same philosophy as {@code
  * ReActAgentIntegrationTest} in ai-agent4j.
  */
+@Tag("integration")
 class Eval4jIntegrationTest {
 
     private static LLMClient client;

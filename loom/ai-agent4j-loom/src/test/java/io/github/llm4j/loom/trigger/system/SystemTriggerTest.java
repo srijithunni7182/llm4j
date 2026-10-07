@@ -15,10 +15,12 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /** Verification plan V9.1–V9.11: each backend's plan, checked without touching the machine. */
+@Tag("fragile")
 class SystemTriggerTest {
 
     @TempDir

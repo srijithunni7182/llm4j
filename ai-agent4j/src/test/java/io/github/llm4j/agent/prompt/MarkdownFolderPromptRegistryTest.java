@@ -7,10 +7,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /** Prompt files, requirements R1, R5 and R6.1 of .kiro/specs/loom-prompt-files. */
+@Tag("fragile")
 class MarkdownFolderPromptRegistryTest {
 
     @TempDir Path dir;

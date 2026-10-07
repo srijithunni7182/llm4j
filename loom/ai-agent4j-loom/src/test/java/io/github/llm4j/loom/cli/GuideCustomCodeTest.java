@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.tools.ToolProvider;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.io.TempDir;
  * Chapter 6 tells an agent to write a custom tool (with a .loot file) and a task (with a services file) when something is missing. Its code is
  * not pseudo-code: this extracts every {@code file=} block, compiles the Java, and runs the tool and the task through the real executor.
  */
+@Tag("fragile")
 class GuideCustomCodeTest {
 
     private static Map<String, String> blocks() throws Exception {

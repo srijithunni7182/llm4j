@@ -8,10 +8,12 @@ import io.github.llm4j.loom.runtime.RunJournal;
 import io.github.llm4j.loom.travel.RunTravel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /** Where tasks meet the rest of the operator tooling: the run timeline and script drift checks. */
+@Tag("integration")
 class TaskIntegrationTest {
 
     @TempDir

@@ -205,11 +205,13 @@ class KnowledgeTest {
     }
 
     @Test
-    void v5_11b_addonEmbeddingsAreRecognised() {
+    void v5_11b_addonEmbeddingsNeedTheirEnginesOnTheClasspath() {
+        // The addons engines (onnxruntime, DJL) are optional dependencies, so the weave jar does not carry them: a script that names one
+        // gets a message saying what to add, not a NoClassDefFoundError at run time.
         io.github.llm4j.loom.knowledge.DefaultEmbeddingFactory f = new io.github.llm4j.loom.knowledge.DefaultEmbeddingFactory(k -> null);
-        assertThat(f.problem("onnx/model.onnx|tokenizer.json")).isNull(); // the addons module is a Loom dependency
-        assertThat(f.problem("onnx/model.onnx")).contains("onnx/<model.onnx>|<tokenizer.json>");
-        assertThat(f.problem("djl/djl://ai.djl.huggingface/x")).isNull();
+        assertThat(f.problem("onnx/model.onnx|tokenizer.json")).contains("needs the ai-agent4j-addons module and its onnxruntime dependency");
+        assertThat(f.problem("djl/djl://ai.djl.huggingface/x")).contains("needs the ai-agent4j-addons module and its ai.djl dependencies");
+        assertThatThrownBy(() -> f.create("onnx/model.onnx|tokenizer.json")).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("onnxruntime");
     }
 
     @Test

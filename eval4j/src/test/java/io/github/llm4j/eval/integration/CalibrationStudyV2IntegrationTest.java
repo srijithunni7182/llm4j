@@ -2,6 +2,7 @@ package io.github.llm4j.eval.integration;
 
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Test;
  * {@code EVAL4J_ANTHROPIC_API_KEY}; writes {@code target/calibration-round2.md} (override the file
  * with {@code EVAL4J_CALIBRATION_OUT}). Never fails on a threshold miss.
  */
+@Tag("integration")
 class CalibrationStudyV2IntegrationTest {
 
     @Test

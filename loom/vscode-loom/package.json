@@ -4,9 +4,35 @@
   "description": "VS Code extension for Loom DSL (.loom and .loot files). Provides syntax highlighting, LSP diagnostics, workflow outline, a workflow graph, and run command.",
   "version": "1.0.0",
   "publisher": "srijithunni7182",
+  "homepage": "https://github.com/srijithunni7182/llm4j/tree/main/loom",
+  "bugs": {
+    "url": "https://github.com/srijithunni7182/llm4j/issues"
+  },
   "repository": {
     "url": "https://github.com/srijithunni7182/llm4j"
   },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "loom",
+    "llm",
+    "ai agents",
+    "agents",
+    "workflow",
+    "dsl",
+    "llm4j",
+    "weave",
+    "eval"
+  ],
+  "galleryBanner": {
+    "color": "#1f2430",
+    "theme": "dark"
+  },
+  "qna": "https://github.com/srijithunni7182/llm4j/issues",
   "license": "Apache-2.0",
   "engines": {
     "vscode": "^1.85.0"
@@ -172,7 +198,7 @@
     "compile": "tsc -p ./",
     "pretest": "tsc -p tsconfig.test.json",
     "test": "node --test out-test/test/*.test.js test/*.browser.test.js",
-    "vscode:prepublish": "npm run compile"
+    "vscode:prepublish": "npm run compile && node -e \"require('fs').accessSync('bin/weave.jar')\" || (echo 'bin/weave.jar is missing: run scripts/build-vsix.sh from the repository root' && exit 1)"
   },
   "icon": "media/loom-mark-128.png"
 }

@@ -21,6 +21,7 @@ import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 @EnabledOnOs({OS.LINUX, OS.MAC})
+@Tag("fragile")
 class ShellToolTest {
 
     @TempDir

@@ -11,10 +11,12 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Clock;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /** A developer's keys in a .env beside the script: read, never printed, the shell wins, and a file git tracks is refused. */
+@Tag("fragile")
 class EnvFileTest {
 
     @TempDir Path dir;

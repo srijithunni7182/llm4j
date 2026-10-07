@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /** Real runs that ask a person through a channel: pause, answer, resume (spec loom-remote-answers R1, R2, R4, R5). */
+@Tag("fragile")
 class ChannelRunTest {
 
     @TempDir

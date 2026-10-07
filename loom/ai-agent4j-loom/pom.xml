@@ -4,21 +4,20 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.github.srijithunni7182</groupId>
+    <parent>
+        <groupId>io.github.srijithunni7182</groupId>
+        <artifactId>llm4j-parent</artifactId>
+        <version>5.0</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
     <artifactId>ai-agent4j-loom</artifactId>
-    <version>5.0</version>
     <packaging>jar</packaging>
 
     <name>AI Agent4J Loom</name>
     <description>Lexer, Parser, and Compiler for the Loom Agent Orchestration DSL.</description>
 
     <properties>
-        <!-- Tests tagged "live" call real provider APIs: never in a default build (run with -Plive). -->
-        <live.groups></live.groups>
-        <live.excluded>live</live.excluded>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <junit.version>5.10.2</junit.version>
         <!-- One Jackson version for every Jackson artifact, the same as the other modules: a YAML parser from one release beside a core from
              another fails at run time with NoSuchMethodError, and weave reads YAML (prompt front matter, datasets). -->
@@ -42,28 +41,36 @@
         <dependency>
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>ai-agent4j</artifactId>
-            <version>5.0</version>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>ai-agent4j-addons</artifactId>
-            <version>5.0</version>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- The tools a script can declare: webhook, email, http, file, shell, sql -->
         <dependency>
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>ai-agent4j-tools</artifactId>
-            <version>5.0</version>
+            <version>${project.version}</version>
         </dependency>
         <!-- Its test helpers (echo server, scripted SMTP server, recording context) -->
         <dependency>
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>ai-agent4j-tools</artifactId>
-            <version>5.0</version>
+            <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
+        </dependency>
+
+        <!-- The JDBC driver of the sql tool. Optional, so the library does not push it onto anyone; the runnable weave jar (the cli classifier) includes it. -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.2</version>
+            <optional>true</optional>
         </dependency>
 
         <!-- JSON Processing (Jackson) from Core -->
@@ -76,7 +83,7 @@
         <dependency>
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>eval4j</artifactId>
-            <version>5.0</version>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Test Dependencies -->
@@ -183,22 +190,8 @@
         </resources>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.2.5</version>
-                <configuration>
-                    <groups>${live.groups}</groups>
-                    <excludedGroups>${live.excluded}</excludedGroups>
-                    <systemPropertyVariables>
-                        <user.language>en</user.language>
-                    </systemPropertyVariables>
-                </configuration>
-            </plugin>
-            <!-- Compiler Plugin -->
-            <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.12</version>
                 <executions>
                     <execution>
                         <id>prepare-agent</id>
@@ -295,15 +288,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.12.1</version>
-                <configuration>
-                    <source>17</source>
-                    <target>17</target>
-                </configuration>
-            </plugin>
             
             <!-- Copy Dependencies -->
             <plugin>
@@ -325,11 +309,10 @@
                 </executions>
             </plugin>
 
-            <!-- Shade Plugin for Fat JAR -->
+            <!-- The runnable weave jar: every dependency inside, as the cli classifier -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.1</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -337,6 +320,10 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <!-- The library jar (what Maven Central serves) stays small; the runnable weave jar is ai-agent4j-loom-<version>-cli.jar -->
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>cli</shadedClassifierName>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>io.github.llm4j.loom.cli.WeaveCLI</mainClass>
@@ -358,15 +345,4 @@
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <profile>
-            <!-- mvn -Plive verify: the live suite against real APIs, for whichever keys are set -->
-            <id>live</id>
-            <properties>
-                <live.groups>live</live.groups>
-                <live.excluded></live.excluded>
-            </properties>
-        </profile>
-    </profiles>
 </project>

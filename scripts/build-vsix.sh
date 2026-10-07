@@ -7,7 +7,7 @@ ext="$root/loom/vscode-loom"
 
 echo "== building weave.jar"
 mvn -q -f "$root/pom.xml" -pl loom/ai-agent4j-loom -am -DskipTests package
-jar="$(ls "$root"/loom/ai-agent4j-loom/target/ai-agent4j-loom-*.jar | grep -v '/original-' | head -n 1)"
+jar="$(ls "$root"/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar | head -n 1)"
 mkdir -p "$ext/bin"
 cp "$jar" "$ext/bin/weave.jar"
 
@@ -19,5 +19,5 @@ echo "== compiling and packaging the extension"
 cd "$ext"
 npm ci --no-audit --no-fund >/dev/null
 npm run compile >/dev/null
-npx --yes @vscode/vsce@3.2.1 package --skip-license --allow-missing-repository 2>&1 | tail -n 5
+npx --yes @vscode/vsce@3.2.1 package 2>&1 | tail -n 5
 ls -1 "$ext"/*.vsix

@@ -66,6 +66,17 @@
             <artifactId>ai-agent4j-addons</artifactId>
             <version>${llm4j.version}</version>
         </dependency>
+        <!-- ai-agent4j-addons marks its heavy engines optional: this application names the ones it uses -->
+        <dependency>
+            <groupId>com.microsoft.onnxruntime</groupId>
+            <artifactId>onnxruntime</artifactId>
+            <version>1.18.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.pgvector</groupId>
+            <artifactId>pgvector</artifactId>
+            <version>0.1.6</version>
+        </dependency>
         <dependency>
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>ai-agent4j-loom</artifactId>

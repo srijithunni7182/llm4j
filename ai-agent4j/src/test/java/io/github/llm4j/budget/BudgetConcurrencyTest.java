@@ -18,10 +18,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.RepetitionInfo;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 /** Verification plan, Requirement 2.7 (V2.7a–c) and the determinism criterion. */
+@Tag("fragile")
 class BudgetConcurrencyTest {
 
     /** V2.7a, repeated with 20 seeds for the determinism criterion. */

@@ -16,9 +16,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** Verification plan V3.1–V3.7. */
+@Tag("fragile")
 class WindowedBudgetTest {
 
     private final MutableClock clock = new MutableClock();
