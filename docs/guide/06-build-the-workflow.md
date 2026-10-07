@@ -129,10 +129,11 @@ public class Slugify implements Task {
 }
 ```
 
-The files that connect them (a `.loot` line maps the name the script uses to the class; the services file lists tasks, one class per line):
+The files that connect them (a `.loot` line maps the name the script uses to the class, and an optional `Name.reach` line tells `weave audit` what the tool reaches: `none`, `reads`, `fetches`, `writes` or `sends`; the services file lists tasks, one class per line):
 
 ```text file=tools.loot
 WordCounter = shop.WordCount
+WordCounter.reach = none
 ```
 
 ```text file=META-INF/services/io.github.llm4j.agent.task.Task

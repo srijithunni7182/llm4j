@@ -255,8 +255,10 @@ models aren't available yet: ai-agent4j has no provider for them.
 tool Search   { use: serpapi  api_key: env.SERPAPI_KEY }
 tool Web      { use: duckduckgo }
 tool Petstore { use: openapi  spec: "specs/petstore.json"  auth_header: "X-API-Key"  auth_value: env.PETSTORE_KEY }
-tool Invoices { use: class  class: "com.acme.tools.InvoiceTool" }     // any no-arg Tool on the classpath
+tool Invoices { use: class  class: "com.acme.tools.InvoiceTool"  reach: reads }     // any no-arg Tool on the classpath
 ```
+
+For your own (`class`) tools, `reach:` says what the tool does to the outside world for `weave audit`, which never loads your code: `none`, `reads`, `fetches`, `writes` or `sends`. Without it the audit assumes the worst. A tool mapped in a `.loot` file takes the same word as a line `Name.reach = reads`, read by `weave audit --loot tools.loot`.
 
 | `use:` | Options |
 |---|---|

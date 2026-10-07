@@ -43,6 +43,9 @@ final class EvalCommand implements Callable<Integer> {
     @Parameters(index = "0", description = "The .loom script.")
     File script;
 
+    @Option(names = {"-l", "--loot"}, description = "The .loot tool mapping file, for a script that uses your own tools (a real run calls them; --mock does not).")
+    File lootFile;
+
     @Option(names = "--dataset", paramLabel = "<dir>", description = "The folder of dataset files (default: eval/golden beside the script).")
     File dataset;
 
@@ -201,6 +204,7 @@ final class EvalCommand implements Callable<Integer> {
         EvalRunner.Executors executors = beforeInitialize -> {
             LoomScript fresh = new LoomLoader().load(scriptFile.toString());
             ToolRegistry registry = new ToolRegistry();
+            if (c.lootFile != null && c.lootFile.exists()) new io.github.llm4j.loom.execution.LootLoader().loadIntoRegistry(c.lootFile.getAbsolutePath(), registry);
             fx.apply(fresh, registry, c.mock);
             HarnessExecutor e = new HarnessExecutor(fresh, registry, models);
             e.setHumanInterface(m -> "yes");

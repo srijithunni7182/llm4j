@@ -278,6 +278,7 @@ public class WeaveCLI implements Callable<Integer> {
         }
         ToolRegistry registry = new ToolRegistry();
         if (lootFile != null && lootFile.exists()) new LootLoader().loadIntoRegistry(lootFile.getAbsolutePath(), registry);
+        java.util.List<String> reachProblems = lootFile != null && lootFile.exists() ? LootLoader.reachProblems(lootFile.toPath()) : java.util.List.of();
         LLMClientFactory models = env.models();
         java.util.Set<String> notSetYet = new java.util.TreeSet<>();
         HarnessExecutor executor = new HarnessExecutor(script, registry, new LLMClientFactory() {
@@ -318,14 +319,16 @@ public class WeaveCLI implements Callable<Integer> {
         // With --no-env a name that is not set stands in as "not-set-yet", which is not an address or a number: what the stand-in breaks is already said as "not set yet".
         if (settings.noEnv()) problems = problems.stream().filter(p -> !p.message().contains("not-set-yet")).toList();
         var error = io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR;
-        long errors = problems.stream().filter(p -> p.severity() == error || settings.strict()).count();
+        long errors = problems.stream().filter(p -> p.severity() == error || settings.strict()).count() + reachProblems.size();
         if (settings.json()) {
             List<JsonProblem> out = new ArrayList<>();
+            for (String r : reachProblems) out.add(new JsonProblem("error", 0, r));
             for (var p : problems) out.add(new JsonProblem(p.severity() == error || settings.strict() ? "error" : "warning", p.line(),
                     (p.construct() == null ? "" : p.construct() + ": ") + p.message()));
             env.out().println(checkJson(scriptFile, out, new ArrayList<>(notSetYet)));
             return errors == 0 ? 0 : 2;
         }
+        for (String r : reachProblems) env.out().println("✗ " + r);
         for (var p : problems) env.out().println((p.severity() == error || settings.strict() ? "✗ " : "⚠ ") + p);
         if (!notSetYet.isEmpty()) env.out().println("ℹ not set yet (needed to run): " + String.join(", ", notSetYet));
         if (errors == 0) {

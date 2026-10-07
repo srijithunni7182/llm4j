@@ -40,6 +40,16 @@ LLM Top 10 coverage table. The rules:
 | LA11 | a rewind that repeats side effects |
 | LA12 | a `file` tool that may overwrite |
 | LA13 / LA14 | indexed documents (info) / opaque Java or host tools |
+| LA15 | a tool whose reach is its author's declaration (info): read its code once to confirm |
+
+**Your own tools.** The audit never loads or runs your Java, so it cannot see what a custom tool does and assumes the worst (it reads untrusted content, reaches private data and acts), which is a high finding as soon as the agent also has any other tool. Say what the tool really reaches, in the `.loot` file next to the class mapping, and give the file to the audit: `weave audit main.loom --loot tools.loot`.
+
+```text file=tools.loot
+BannedPhraseChecker = shop.BannedPhraseChecker
+BannedPhraseChecker.reach = reads
+```
+
+`reach` is one of `none` (computes only), `reads` (looks up data of its own, changes nothing), `fetches` (reads content from outside, such as a web page), `writes` (changes data of its own) or `sends` (reaches outside, or acts). It is your word and the audit does not check it, so the report lists the tool (LA15) for someone to confirm against the code. A tool declared in the script (`tool X { use: class  class: "..."  reach: reads }`) takes the same word. A tool with no declaration stays at the worst case.
 
 `weave audit` counts the deterministic task steps in the controls it reports (excessive agency): steps no model decides. It cannot see what a task's Java does; review those like any code.
 

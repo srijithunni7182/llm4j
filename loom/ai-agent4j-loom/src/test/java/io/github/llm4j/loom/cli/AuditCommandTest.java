@@ -76,4 +76,59 @@ class AuditCommandTest {
         assertThat(err.toString()).contains("--format").contains("--fail-on").contains("could not be read");
         assertThat(WeaveCLI.commandLine().getSubcommands()).containsKey("audit");
     }
+
+    static final String WITH_OWN_TOOL = """
+            budget { tokens: 1000 }
+            agent A { model: "m"  system: "s"  tools: [web_search, Checker] }
+            workflow Main(q) { delegate "{q}" to A -> r }
+            """;
+
+    AuditCommand withLoot(String loot) throws Exception {
+        AuditCommand c = command(WITH_OWN_TOOL, "md", "high");
+        Path l = dir.resolve("tools.loot");
+        Files.writeString(l, loot);
+        c.lootFile = l.toFile();
+        return c;
+    }
+
+    @Test
+    void anOwnToolIsAssumedToDoEverythingUntilItsLootEntryDeclaresWhatItReaches() throws Exception {
+        assertThat(AuditCommand.audit(command(WITH_OWN_TOOL, "md", "high"), env())).as("no declaration: the trifecta, a high finding").isEqualTo(1);
+
+        out.reset();
+        assertThat(AuditCommand.audit(withLoot("Checker = io.github.llm4j.loom.cli.AuditCommandTest$Probe\nChecker.reach = reads\n"), env())).isZero();
+        assertThat(out.toString()).doesNotContain("LA14").contains("Checker").contains("declared reach: reads");
+    }
+
+    @Test
+    void aWordThatIsNotOneOfTheFiveOrADeclarationForAnUnmappedToolIsRefused() throws Exception {
+        assertThat(AuditCommand.audit(withLoot("Checker = x.Y\nChecker.reach = harmless\n"), env())).isEqualTo(2);
+        assertThat(err.toString()).contains("Checker.reach must be one of").contains("harmless");
+
+        err.reset();
+        assertThat(AuditCommand.audit(withLoot("Other.reach = reads\n"), env())).isEqualTo(2);
+        assertThat(err.toString()).contains("Other is not mapped to a class");
+
+        err.reset();
+        AuditCommand missing = command(WITH_OWN_TOOL, "md", "high");
+        missing.lootFile = dir.resolve("nothing.loot").toFile();
+        assertThat(AuditCommand.audit(missing, env())).isEqualTo(2);
+        assertThat(err.toString()).contains("nothing.loot does not exist");
+    }
+
+    @Test
+    void aReachLineIsNotLoadedAsATool() throws Exception {
+        Path l = dir.resolve("mapped.loot");
+        Files.writeString(l, "Checker = io.github.llm4j.loom.cli.AuditCommandTest$Probe\nChecker.reach = reads\n");
+        io.github.llm4j.loom.execution.ToolRegistry registry = new io.github.llm4j.loom.execution.ToolRegistry();
+        new io.github.llm4j.loom.execution.LootLoader().loadIntoRegistry(l.toString(), registry);
+        assertThat(registry.names()).as("the reach line is a declaration, not a tool").containsExactly("Checker");
+        assertThat(io.github.llm4j.loom.execution.LootLoader.reaches(l)).containsExactly(java.util.Map.entry("Checker", "reads"));
+    }
+
+    public static final class Probe implements io.github.llm4j.agent.Tool {
+        public String getName() { return "checker"; }
+        public String getDescription() { return "d"; }
+        public String execute(java.util.Map<String, Object> args) { return "ok"; }
+    }
 }
