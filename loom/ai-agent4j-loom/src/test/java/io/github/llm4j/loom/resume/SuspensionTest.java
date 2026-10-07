@@ -408,11 +408,13 @@ class SuspensionTest {
 
     @Test
     void n1_aPausedRunHoldsNoThread() {
+        // Only threads that appeared during this run count: the JVM is shared with other tests, whose own workers may still be inside the executor.
+        java.util.Set<Thread> before = new java.util.HashSet<>(Thread.getAllStackTraces().keySet());
         LimitScript run = new LimitScript(THREE_STEPS, durable(), clock,
                 LimitScript.limitedUntil(clock, "Drafter", Instant.parse("2026-09-27T11:00:00Z")));
         assertThatThrownBy(run::run).isInstanceOf(RunSuspended.class);
         Thread.getAllStackTraces().forEach((thread, stack) -> {
-            if (thread == Thread.currentThread()) return;
+            if (thread == Thread.currentThread() || before.contains(thread)) return;
             for (StackTraceElement frame : stack) {
                 assertThat(frame.getClassName()).as("thread %s", thread.getName())
                         .doesNotStartWith("io.github.llm4j.loom.execution.HarnessExecutor");
