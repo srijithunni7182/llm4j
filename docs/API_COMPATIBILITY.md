@@ -21,8 +21,8 @@ The following packages are considered public and stable targets for consumers:
 - `io.github.llm4j.mcp`
 
 eval4j's `io.github.llm4j.eval.dataset.EvalScenario` is a record that grows by adding components at the end. Each time it does, the previous constructor stays
-(the 7-, 10-, 12- and 13-argument forms all still compile and behave as before), and a new accessor has a safe default (`namedInputs()` and `mustNotContain()` are never
-null). Code that builds a scenario with `new EvalScenario(...)` or reads its accessors is unaffected; code that destructures the record by its full component list
+(the 7-, 10-, 12-, 13- and 14-argument forms all still compile and behave as before), and a new accessor has a safe default (`namedInputs()` and `mustNotContain()` are never
+null; `expectedMinWords()` and `expectedMaxWords()` are null when no limit is set). Code that builds a scenario with `new EvalScenario(...)` or reads its accessors is unaffected; code that destructures the record by its full component list
 (pattern matching) is the one case that must change.
 
 Internal implementation details may change without notice, especially:
