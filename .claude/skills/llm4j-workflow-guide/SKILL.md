@@ -66,7 +66,7 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
      `weave check`, `weave eval` and `weave next` read it and say which names they found (never the values); a variable already set in their shell wins. `weave`
      refuses a `.env` that git tracks. A judge from another provider needs that provider's key in the same file.
    - **Someone deploying the application** (a server, shared or production keys): the **secret store** (`weave secrets create`, `weave secrets set NAME`, then `--secrets <file>`
-     on `weave run`; unattended runs add `--secrets-key-env <VARIABLE>`) or, for a vault, the Java host in chapter 9. **Never a `.env` on a server.**
+     on `weave run`; unattended runs add `--secrets-key-env <VARIABLE>`) or, for a vault, the Java host in chapter 9. **Never the project's `.env` on a server.**
 
    In the script a model needs nothing (the built-in models find their usual key name); a tool's key is written `api_key: env.NAME` or `secret.NAME` (never a literal;
    `weave check` refuses one). **Never read, open, print or paste the contents of `.env`, and never ask the user to paste a key into the chat**; if one is pasted anyway,
@@ -102,6 +102,14 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
 12. **Know where the project stands, and show what you built.** In a project that already has files, run `weave next` first: it says what to do next, in order, and
     it is free. After you change a script, run `weave explain <script>` and read the plain-English description back to the user, so they can confirm it is what they
     meant before anything is run. Neither command calls a model. When the user asks how to change something, look in `weave guide recipes` for a tested pattern.
+
+13. **If any agent uses a built-in tool (`webhook`, `email`, `http`, `file`, `shell`, `sql`), prepare it for deployment.** Write a "Deploying" section in the project's README with one line per name the
+    script needs (get them from `weave check <entry> --no-env`, "not set yet"): what it is for and how the deployer sets it. Then, from chapter 9 ("Built-in tools when deployed"):
+    - keep a **development entry** (email `outbox:` instead of SMTP, a test webhook URL) and a **deployed entry** that import the same workflows; tools are declared in the entry file;
+    - every credential, webhook URL and SMTP password is `env.NAME` or `secret.NAME` and is supplied by the service's environment, the secret store or a vault host, **never the project's `.env`**;
+    - settle approvals for a workflow nobody watches (`approve:` needs `--ask-via` or a host `HumanInterface`; a `shell` tool needs `approve:` or `unattended: true`), a durable `--journal`, `max_per_run` for
+      email, `allow_paths` and `methods` for `http`, a writable persistent folder for `file`, installed programs for `shell`, and a **read-only database user** for `sql`;
+    - tell the user to run `weave check <deployed entry>` (without `--no-env`) on the target machine, then `weave audit --fail-on medium`, then a capped smoke run to a test sink before the real recipients.
 
 ## Things that look like success and are not
 

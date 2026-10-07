@@ -88,7 +88,7 @@ class InitKeyFilesTest {
         String skill = Files.readString(Path.of("../../.claude/skills/llm4j-workflow-guide/SKILL.md"));
 
         assertThat(chapter).contains("## Keys and secrets: two different people").contains("cp .env.example .env").contains("`weave` refuses a `.env` that git tracks")
-                .contains("Never a `.env` there").contains("weave secrets create --secrets /etc/myapp/keys.store");
+                .contains("Never the project's `.env` there").contains("weave secrets create --secrets /etc/myapp/keys.store");
         assertThat(skill).contains("**Keys: two different people, two different answers. Ask which one this is.**").contains("A developer running the workflow").contains("Someone deploying the application");
         assertThat(Files.readString(Path.of("LOOM_GUIDE.md"))).contains("**Keys for a developer's machine** go in a `.env` file beside the script");
     }

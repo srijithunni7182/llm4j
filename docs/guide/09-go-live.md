@@ -90,7 +90,7 @@ found (never the values), and let a variable already set in your shell win. `wea
 `git rm --cached .env` and rotate them), warns when it is not ignored or other users can read it, and `--env-file <file>` / `--no-env-file` choose another file or none.
 A judge model from another provider (`weave eval --judge ...`) needs that provider's key in the same file. If a key is ever pasted somewhere shared, rotate it.
 
-**Someone deploying the application** (a server, shared or production keys). Never a `.env` there. Use the encrypted secret store, a one-time setup:
+**Someone deploying the application** (a server, shared or production keys). Never the project's `.env` there. Use the encrypted secret store, a one-time setup:
 
 ```bash
 weave secrets create --secrets /etc/myapp/keys.store
@@ -141,6 +141,73 @@ executor.shutdown();
 Put the host in its own Maven module with the vault's client library as a dependency, and give it the identity the platform provides (Application
 Default Credentials, workload identity); no key is written down anywhere. `SecretMetadata.allowing("host")` restricts a secret to the hosts it
 may be sent to. Use `ChainedSecretStore.of(vault, EnvSecretStore.system())` if some keys should fall back to the environment. Write tests for the host in the application's own stack, with a stand-in for the vault and never a real key; they run with the project's build, not `weave`.
+
+## Built-in tools when deployed (webhook, email, http, file, shell, sql)
+
+If any agent uses one of the built-in tools, the workflow needs more than keys when it goes live: where each credential comes from, who approves, what survives a restart, and a free
+check on the machine it will run on. **The agent that built the workflow writes this down as a "Deploying" section in the project's README**, one line per name the script needs, saying
+what it is for and how to set it. The names come from the script itself: `weave check main.loom --no-env` lists them under "not set yet", and it is free.
+
+**One entry file per environment, the same workflows underneath.** Tools are declared once in the file you run, so a development entry and a deployed entry can differ in one block and
+share every agent and workflow (`import`; see the chapter on splitting files):
+
+```loom file=deploy/flows/digest.loom
+agent Notifier { model: "gemini-2.5-flash"  system: "You write the daily digest and send it by email."  tools: [Mail] }
+
+workflow Digest(topic_text) {
+    delegate "Write and send a short digest about {topic_text}" to Notifier -> sent_text
+    note "{sent_text}"
+}
+```
+
+```loom file=deploy/dev.loom
+import "flows/digest.loom"
+
+budget { tokens: 50000  calls: 10 }
+
+// Development: each message is written to outbox/ as an .eml file and nothing is sent.
+tool Mail { use: email  outbox: "outbox"  from: "digest@example.com"  to: "team@example.com" }
+```
+
+```loom file=deploy/prod.loom
+import "flows/digest.loom"
+
+budget { tokens: 50000  calls: 10 }
+
+// Deployed: real mail; the server and the credentials come from the environment or the secret store, never from this file.
+tool Mail {
+    use: email
+    host: env.SMTP_HOST  port: 587  security: starttls
+    username: env.SMTP_USER  password: env.SMTP_PASSWORD
+    from: "Digest <digest@example.com>"
+    to: env.DIGEST_TO
+    max_per_run: 5
+}
+```
+
+Run the development entry until it behaves, then `weave check prod.loom --no-env` shows `DIGEST_TO`, `GEMINI_API_KEY` (the model's own key), `SMTP_HOST`, `SMTP_PASSWORD` and `SMTP_USER` as the names the deployer must supply. The development entry needs only the model's key.
+
+**What to settle for every tool, whatever its kind:**
+
+1. **Credentials are `env.NAME` or `secret.NAME`**, never literals (a literal is a load error), and the webhook URL counts as a credential. At deploy they come from the service's environment
+   (a systemd `EnvironmentFile`, a container secret, a platform secret injected as variables), from the encrypted secret store (`--secrets`), or from a vault through a Java host (above).
+   Scheduled runs started by the operating system (`weave triggers install`) do not see your shell: give them an environment file outside the project, `chmod 600`, with `--env-file`.
+   Never the project's `.env`.
+2. **Approvals need somebody to answer.** An agent with `approve: [...]` on a deployed workflow has no console: choose how a person is asked (`--ask-via telegram`, or a host that supplies
+   a `HumanInterface`; see "Answering from a phone" in the Loom reference). A `shell` tool must be under `approve:` or say `unattended: true`, or the script does not load.
+3. **Use a durable journal** (`--journal <folder>`). Tools that change something (`webhook`, `email`, `shell`, `file` writes, `http` other than GET) are recorded, so a restart does not
+   send the message twice; with the in-memory journal that holds only within one process.
+4. **Check on the machine it will run on, without `--no-env`:** `weave check prod.loom` fails naming every variable that is not set there; it contacts nothing and costs nothing. Then
+   `weave audit prod.loom --fail-on medium`, then a capped smoke run that goes to a test sink first (the email `outbox`, a test webhook URL), then the real recipients.
+
+| Tool | Supply when deployed | Decide | Watch out for |
+|---|---|---|---|
+| `webhook` | `url: env.NAME`: the URL is the secret, so make one per environment | `format` (slack, discord, teams, json); `retries`; `idempotency: true` if the receiver removes duplicates | https only; no private or metadata addresses unless `allow_private`; behind a proxy the address check covers only what Loom resolves |
+| `email` | SMTP `host`, `port`, `security`, `username`, `password`; a `from` address the provider lets you send as | fixed `to` or `allow_to`; `max_per_run`; `outbox` while developing | needs STARTTLS or SSL; Gmail API and OAuth are not covered (use an MCP server) |
+| `http` | `base_url`; `auth_value` as a secret | `allow_paths`; `methods` (put `approve:` on any that is not GET); `hosts` | the agent chooses only a path below `base_url` |
+| `file` | a `root` folder the service can write, inside the script's directory | `mode`; `allow` patterns; `overwrite` | the folder must survive a restart (a volume); hidden files, the journal and the trigger store are refused |
+| `shell` | every program in `allow` installed on the host's `PATH` (looked up at load: a container image must contain them) | `approve:` or `unattended: true`; `env_pass`; run as a user that can do little harm | not supported on Windows; an allowed program is trusted with any arguments |
+| `sql` | `url`, `user`, `password` as secrets; the JDBC driver (PostgreSQL ships in the `weave` jar, others go on the class path) | `max_rows` | give it a database user that is itself read-only: the checks guard mistakes, not a determined attacker |
 
 ## If you skipped evaluation
 

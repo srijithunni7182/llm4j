@@ -315,6 +315,8 @@ public class WeaveCLI implements Callable<Integer> {
         executor.setHumanInterface(env.human()); // the CLI always has a console
         List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems =
                 new io.github.llm4j.loom.execution.ScriptValidator().validate(script, executor.validationContext());
+        // With --no-env a name that is not set stands in as "not-set-yet", which is not an address or a number: what the stand-in breaks is already said as "not set yet".
+        if (settings.noEnv()) problems = problems.stream().filter(p -> !p.message().contains("not-set-yet")).toList();
         var error = io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR;
         long errors = problems.stream().filter(p -> p.severity() == error || settings.strict()).count();
         if (settings.json()) {
