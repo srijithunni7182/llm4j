@@ -72,7 +72,7 @@ workflow Refund(msg) {
 ```
 
 - Write each task as a `Task` (`Task.pure(...)` for a rule, `Task.changes(...)` for a payment, with an `EffectPolicy` saying whether the provider deduplicates by the idempotency key) and register it with
-  `executor.setTaskRegistry(...)` or `META-INF/services/io.github.llm4j.agent.task.Task`. Unit-test it directly.
+  `executor.setTaskRegistry(...)` or `META-INF/services/io.github.llm4j.agent.task.Task`. (Tests for the task are yours, in your own project.)
 - A task spends no tokens and does not count against the run budget; a task that changes things is **never repeated by a crash or a `retry`** unless it is idempotent.
 - Reference: [Loom guide, Tasks](https://github.com/srijithunni7182/llm4j/blob/main/loom/ai-agent4j-loom/LOOM_GUIDE.md#tasks-deterministic-steps-run).
 
@@ -167,7 +167,7 @@ In a Maven project the same classes go in `src/main/java` and the services file 
   (a tool returns the explanation as text; a task throws `TaskNotPerformed` or returns `rejected(...)`).
 - **A tool that acts on the world** (sends, writes, pays) overrides `requiresApproval(args)` to ask a person, and is listed in the agent's `approve: [Name]` in the script. If it must always happen, it is not a tool: make it a task.
 - **A task that changes things** says so (`Task.changes(...)` with an `EffectPolicy`, or the default `CHANGES`) and uses `ctx.idempotencyKey()` with the receiver, so a resumed run does not do it twice.
-- **Test each class directly** (plain JUnit: given this input, this output, including the refusal), then `weave check ... --loot ...` with the classes on the class path. `weave check` names a tool or task that cannot be found.
+- **What Loom checks is the connection**: `weave check ... --loot ...` with the classes on the class path names a tool or task that cannot be found. Tests for tasks, tools, an application's screen, or any other code a developer or an agent writes are the developer's, in their own project and test framework; Loom neither provides a harness for them nor checks them. Write them in the project's own stack when it has one.
 - **Name result variables so they cannot be ordinary words in your text** (`slug_result`, not `slug`): a variable name is replaced everywhere in a string.
 
 ## When the script gets long: split it into files

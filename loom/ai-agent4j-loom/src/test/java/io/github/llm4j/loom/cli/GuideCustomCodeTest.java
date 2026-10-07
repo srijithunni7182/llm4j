@@ -115,4 +115,13 @@ class GuideCustomCodeTest {
         String skill = Files.readString(Path.of("../../.claude/skills/llm4j-workflow-guide/SKILL.md"));
         assertThat(skill).contains("mandatory").contains("`run`").contains(".loot").contains("META-INF/services/io.github.llm4j.agent.task.Task");
     }
+
+    @Test
+    void theGuideSkillAndTestModuleSayTestsForDeveloperCodeAreTheDevelopersNotLooms() throws Exception {
+        String scope = "are the developer's, in their own project and test framework; Loom neither provides a harness for them nor checks them";
+        assertThat(Files.readString(Path.of("../../docs/guide/06-build-the-workflow.md"))).contains(scope);
+        assertThat(Files.readString(Path.of("../../.claude/skills/llm4j-workflow-guide/SKILL.md"))).contains(scope).contains("Loom's responsibility ends at the workflow");
+        assertThat(Files.readString(Path.of("src/main/resources/templates/_java-tests/src/test/README.md"))).contains("Tests for your own tasks, tools or screen are yours to add");
+        assertThat(Files.readString(Path.of("../../docs/guide/09-go-live.md"))).contains("Tests for the host and its screen are the application's, in its own stack; Loom does not provide or check them.");
+    }
 }

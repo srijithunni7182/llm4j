@@ -31,7 +31,7 @@ Lessons from building and evaluating Hexamind, in the order they would have save
 ## Readiness checklist
 
 - [ ] Each agent: one job, listed tools, tested prompt, temperature with a reason
-- [ ] Every step that moves money or must be exact is a task, unit-tested, with an `EffectPolicy` (idempotent or not) and an approval where a person should decide
+- [ ] Every step that moves money or must be exact is a task, with an `EffectPolicy` (idempotent or not) and an approval where a person should decide
 - [ ] Golden dataset passes its own test; every dimension covered; injection and fabricated cases present
 - [ ] Prompt tests pass; candidates do not regress; optimizer patches only if `generalized()`
 - [ ] Agent tests meet their goals; judge noise measured; costs measured and modelled

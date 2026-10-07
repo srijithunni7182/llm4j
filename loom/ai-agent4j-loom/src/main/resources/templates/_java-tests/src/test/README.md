@@ -12,5 +12,7 @@ mvn test
 - `ScriptWiringTest` runs every scenario against the script on a model that costs nothing (the same as `weave eval --mock`), and fails when
   a run breaks. It does not judge answers: that needs a real model and `weave eval` with a cap.
 
+These cover the workflow's own dataset and wiring only. Tests for your own tasks, tools or screen are yours to add in your own project; this module does not run or check them.
+
 **"Tests run: 0" is a failure, not a success.** An old Maven Surefire plugin finds no JUnit 5 tests and says `BUILD SUCCESS`. This pom pins
 Surefire 3.2.5 and sets `failIfNoTests`, so a build that finds test classes and runs none fails with "No tests were executed!".
