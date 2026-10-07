@@ -57,7 +57,7 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
    `.loom` file and the application is Java code you write in their project: a host that attaches `addTraceListener` for the transcript (before
    `initialize()`), a `HumanInterface` that asks the person through their screen (throwing `RunSuspended` when the answer comes later, then
    `journal.answer` and run again), and reads results from `executor.getContext().getAll()`. The interface itself is theirs and in the stack
-   they choose; the section "Plugging the host into the workflow" in chapter 9 has complete, compiling code for the `HumanInterface` (waiting for the person's answer, or pausing the run) and for the keys. Keep decisions in the script, not the screen.
+   they choose; the section "An application with its own interface" in chapter 9, and its part "Plugging the host into the workflow", have complete, compiling code for the `HumanInterface` (waiting for the person's answer, or pausing the run) and for the keys. Keep decisions in the script, not the screen.
 2b. **Turn the request into hard requirements, in plain words, and say which are checked by code.** Right after you understand the request, list each measurable
    thing the user asked for ("at least 500 words", "at most 2 rounds", "always asks a person before saving", "never shows a card number") and mark it
    **checked by code** or **judged by a model**. Anything countable or exact is code: a length is `expected_min_words` / `expected_max_words` in the dataset (a fixed check; a mock run
