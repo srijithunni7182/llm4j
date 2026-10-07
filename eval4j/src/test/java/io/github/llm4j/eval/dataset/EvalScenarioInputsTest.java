@@ -61,4 +61,19 @@ class EvalScenarioInputsTest {
         EvalDataset d = load("- id: a\n  inputs: { topic: x }\n  rubric: [\"RUBRIC-FREE\"]\n");
         assertThat(d.all().get(0).namedInputs()).containsExactly(Map.entry("topic", "x"));
     }
+
+    @Test
+    void expectedOutputNotContainsTakesOneTextOrAList() throws IOException {
+        assertThat(load("- id: a\n  input: x\n  expected_output_not_contains: \"4111\"\n").all().get(0).mustNotContain()).containsExactly("4111");
+        assertThat(load("- id: a\n  input: x\n  expected_output_not_contains: [\"4111\", \"jane@example.com\"]\n").all().get(0).mustNotContain())
+                .containsExactly("4111", "jane@example.com");
+        assertThat(load("- id: a\n  input: x\n").all().get(0).mustNotContain()).isEmpty();
+    }
+
+    @Test
+    void theThirteenFieldFormStillWorks() {
+        EvalScenario s = new EvalScenario("n", "in", null, null, null, null, null, "id", null, null, null, null, Map.of("a", "b"));
+        assertThat(s.mustNotContain()).isEmpty();
+        assertThat(s.namedInputs()).containsEntry("a", "b");
+    }
 }

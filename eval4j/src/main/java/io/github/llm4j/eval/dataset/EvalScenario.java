@@ -42,7 +42,33 @@ public record EvalScenario(
         @JsonDeserialize(using = TagsDeserializer.class) List<String> tags,
         List<String> rubric,
         List<String> expect,
-        @JsonDeserialize(using = InputsDeserializer.class) Map<String, String> inputs) {
+        @JsonDeserialize(using = InputsDeserializer.class) Map<String, String> inputs,
+        @JsonAlias("expected_output_not_contains")
+        @com.fasterxml.jackson.annotation.JsonFormat(with = com.fasterxml.jackson.annotation.JsonFormat.Feature.ACCEPT_SINGLE_VALUE_AS_ARRAY)
+        List<String> expectedOutputNotContains) {
+
+    /** The thirteen-field form, before {@code expected_output_not_contains}. */
+    public EvalScenario(
+            String name,
+            String input,
+            String expectedOutputContains,
+            String expectedOutput,
+            List<String> expectedTools,
+            List<String> context,
+            List<String> retrievalContext,
+            String id,
+            List<String> dimensions,
+            List<String> tags,
+            List<String> rubric,
+            List<String> expect,
+            Map<String, String> inputs) {
+        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, rubric, expect, inputs, null);
+    }
+
+    /** What the answer must never contain (any capitalisation): a deterministic check, no judge, never null. */
+    public List<String> mustNotContain() {
+        return expectedOutputNotContains == null ? List.of() : expectedOutputNotContains;
+    }
 
     /**
      * The twelve-field form, before {@code inputs}: a scenario whose workflow takes one parameter (or an agent's task) is just {@code input}.
@@ -60,7 +86,7 @@ public record EvalScenario(
             List<String> tags,
             List<String> rubric,
             List<String> expect) {
-        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, rubric, expect, null);
+        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, rubric, expect, null, null);
     }
 
     /** The named parameters of a workflow with several, never null; empty when {@code input} alone says everything. */
@@ -84,7 +110,7 @@ public record EvalScenario(
             String id,
             List<String> dimensions,
             List<String> tags) {
-        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, null, null, null);
+        this(name, input, expectedOutputContains, expectedOutput, expectedTools, context, retrievalContext, id, dimensions, tags, null, null, null, null);
     }
 
     /**

@@ -334,6 +334,7 @@ public class WeaveCLI implements Callable<Integer> {
         if (errors == 0) {
             env.out().println("✓ " + scriptFile.getName() + ": ready to run"
                     + (problems.isEmpty() ? "" : " (" + problems.size() + " warning" + (problems.size() == 1 ? "" : "s") + ")"));
+            env.out().println("  next: weave next says what to do now; weave guide recipes has tested changes to copy");
             return 0;
         }
         boolean keys = problems.stream().anyMatch(p -> p.message().contains("is not set") || p.message().contains("in the environment"));

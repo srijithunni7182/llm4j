@@ -22,7 +22,7 @@ eval/golden/
 
 `weave eval <script> --init` creates it with a starter case per agent, `--check` validates it with no model, `--mock` runs the
 wiring for free, and a real run needs a cap (see the Loom guide, section "Evaluating a Workflow"). A scenario has `input`,
-`expected_output_contains`, `expected_tools`, `rubric` (what a judge confirms about the answer), `expect` (what a judge confirms
+`expected_output_contains`, `expected_output_not_contains` (text the answer must never hold: a fixed check, no judge), `expected_tools`, `rubric` (what a judge confirms about the answer), `expect` (what a judge confirms
 about what a workflow run did), `dimensions` and `tags`. A workflow that takes several parameters gets them by name in `inputs:`
 (`input:` alone is its first parameter, or an agent's task, and is always text):
 

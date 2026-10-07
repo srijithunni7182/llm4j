@@ -63,7 +63,7 @@ class ExplainCommandTest {
     void whereAPersonIsAskedAndWhatIsMaskedIsSaid() throws Exception {
         String text = explain(starter("approval").toString()).out();
 
-        assertThat(text).contains("personal data mask").contains("A person is asked: \"A refund over the limit needs your approval.")
+        assertThat(text).contains("personal data mask").contains("A person is asked: \"{why} It needs your approval.")
                 .contains("A person is asked at 1 step.").contains("- Otherwise:");
     }
 

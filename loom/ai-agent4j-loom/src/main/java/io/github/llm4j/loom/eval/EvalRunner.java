@@ -171,12 +171,18 @@ public final class EvalRunner {
         if (mock) {
             if (s.expectedOutputContains() != null) checks.add(new ScenarioResult.Check("answer contains", s.expectedOutputContains(), Status.UNJUDGED, MOCK_NOTE));
             if (s.expectedOutput() != null) checks.add(new ScenarioResult.Check("answer is", s.expectedOutput(), Status.UNJUDGED, MOCK_NOTE));
+            for (String never : s.mustNotContain()) checks.add(new ScenarioResult.Check("answer never contains", never, Status.UNJUDGED, MOCK_NOTE));
             if (s.expectedTools() != null && !s.expectedTools().isEmpty()) checks.add(new ScenarioResult.Check("tools used", String.join(", ", s.expectedTools()), Status.UNJUDGED, MOCK_NOTE));
             return;
         }
         if (s.expectedOutputContains() != null) {
             boolean ok = answer.toLowerCase(Locale.ROOT).contains(s.expectedOutputContains().toLowerCase(Locale.ROOT));
             checks.add(new ScenarioResult.Check("answer contains", s.expectedOutputContains(), ok ? Status.PASS : Status.FAIL, ok ? null : "the answer was: " + cut(answer)));
+        }
+        for (String never : s.mustNotContain()) {
+            boolean ok = !answer.toLowerCase(Locale.ROOT).contains(never.toLowerCase(Locale.ROOT));
+            // the failure does not repeat the answer: what it must never contain is what it would be repeating (a card number, a name)
+            checks.add(new ScenarioResult.Check("answer never contains", never, ok ? Status.PASS : Status.FAIL, ok ? null : "the answer contains it"));
         }
         if (s.expectedOutput() != null) {
             boolean ok = answer.strip().equals(s.expectedOutput().strip());

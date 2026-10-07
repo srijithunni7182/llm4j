@@ -28,7 +28,7 @@ final class InitCommand implements Callable<Integer> {
     @Option(names = "--list", description = "List the templates.")
     boolean list;
 
-    @Option(names = "--with-java-tests", description = "Also add a Maven test module (pom.xml, a dataset test and a wiring test) for people who want JUnit. Not needed for weave eval.")
+    @Option(names = "--with-java-tests", description = "Also add a Maven test module (pom.xml, a dataset test and a wiring test) for people who want JUnit. It repeats the free checks of weave eval --check and --mock and does not add a test against a real model; not needed for weave eval.")
     boolean withJavaTests;
 
     @Option(names = "--name", paramLabel = "<name>", description = "The project's name, written into its files (default: the folder's name).")

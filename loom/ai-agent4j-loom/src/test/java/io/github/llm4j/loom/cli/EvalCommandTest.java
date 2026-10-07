@@ -485,4 +485,26 @@ class EvalCommandTest {
         assertThat(code).isEqualTo(2);
         assertThat(output()).contains("inputs: is for a workflow's parameters");
     }
+
+    // ── a fixed check that a word never appears ───────────────────────────────
+
+    @Test
+    void anAnswerThatMustNeverContainSomethingFailsWithoutRepeatingTheAnswer() throws Exception {
+        dataset("helper.yaml", "- id: h-1\n  input: q\n  expected_output_not_contains: [\"4111\"]\n- id: h-2\n  input: q\n  expected_output_not_contains: \"nothing-like-this\"\n");
+        reply = (model, system) -> "```json\n{\"thought\": \"t\", \"final_answer\": \"Your card 4111 is fine.\"}\n```";
+
+        int code = run("--yes", "--max-tokens", "100000", "--agent", "Helper");
+
+        assertThat(code).isEqualTo(1);
+        String text = output();
+        assertThat(text).contains("answer never contains").contains("4111").contains("the answer contains it");
+        assertThat(text).as("the failure does not echo the answer it is about").doesNotContain("Your card 4111 is fine");
+    }
+
+    @Test
+    void inAMockRunTheNeverContainsCheckIsNotJudgedBecauseTheAnswerIsFixed() throws Exception {
+        dataset("helper.yaml", "- id: h-1\n  input: q\n  expected_output_not_contains: [\"4111\"]\n");
+        assertThat(run("--mock", "--agent", "Helper")).isZero();
+        assertThat(output()).contains("mock run").doesNotContain("PASS");
+    }
 }

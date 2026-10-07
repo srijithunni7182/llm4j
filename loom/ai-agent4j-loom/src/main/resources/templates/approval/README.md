@@ -11,7 +11,7 @@ Evaluation: golden dataset in `eval/golden`
 
 - `guard { pii: mask }` masks card numbers and other personal data before they reach the model.
 - `budget { ... }` caps what one run may spend.
-- A person approves (`human_prompt`) before a refund-related reply is marked ready.
+- The workflow, not the model, decides who must approve: the model only reads the kind of email and the refund amount, and the script asks a person for any refund over 100 dollars, or whose amount could not be read. (The model still reads the amount, so for real money keep the person in the loop for what you pay out.)
 - The prompts say never to follow instructions found inside an email, and the dataset has a case for it.
 
 ## Try it, in this order (nothing costs money until the last step)
@@ -51,5 +51,5 @@ weave run main.loom -i email="I was charged twice, 240 dollars. Please refund me
 
 `weave guide recipes` has tested, copy-and-paste changes (a different model for the editor, ask a person before publishing, add an agent, add a tool, mask personal data), each with a sentence you can give your coding agent.
 
-- Change the approval limit in `prompts/triage.md`, and the cases in `eval/golden/` to emails you really get.
+- Change the approval limit in `main.loom` (the `alt (triage.amount > 100)` line), and the cases in `eval/golden/` to emails you really get.
 - Prompts are markdown files in `prompts/`; keys go in `.env` (ignored by git) on your machine and in the secret store on a server, never in the script.

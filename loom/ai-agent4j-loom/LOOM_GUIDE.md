@@ -149,6 +149,7 @@ newsletter/
   inputs: { platform: linkedin }                # a workflow's other parameters, by name (with input: for the first)
   expected_output_contains: "approval"          # the answer holds this (any capitalisation)
   expected_output: "…"                          # or: is exactly this
+  expected_output_not_contains: ["4111"]        # the answer never holds these (a fixed check, no judge; one text or a list)
   expected_tools: [LookupOrder]                 # these tools were used
   rubric:                                       # a judge confirms each line about the answer
     - Asks a person to approve before refunding
