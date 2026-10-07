@@ -129,6 +129,21 @@ public class Slugify implements Task {
 }
 ```
 
+A task is plain Java, so test it without any model: build a small `TaskContext` and call `run`.
+
+```java
+@Test
+void slugifyMakesAUrlSlug() throws Exception {
+    TaskContext context = new TaskContext() {
+        @Override public Map<String, Object> args() { return Map.of("title", "Home Composting: 5 Tips!"); }
+        @Override public Map<String, Object> variables() { return Map.of(); }
+        @Override public String stepId() { return "test"; }
+        @Override public String idempotencyKey() { return "test"; }
+    };
+    assertThat(new Slugify().run(context).value()).isEqualTo("home-composting-5-tips");
+}
+```
+
 The files that connect them (a `.loot` line maps the name the script uses to the class, and an optional `Name.reach` line tells `weave audit` what the tool reaches: `none`, `reads`, `fetches`, `writes` or `sends`; the services file lists tasks, one class per line):
 
 ```text file=tools.loot
@@ -241,6 +256,8 @@ What to know before you cut (each of these has caught people out):
 - **An agent that can call a payment tool can be talked into it.** Put the payment in a task the *workflow* runs after code has checked the rules. A task is never offered to a model.
 - **A green build that ran no tests is not green.** If Maven prints `Tests run: 0` and BUILD SUCCESS, an old Surefire found no JUnit 5 tests. The pom that `weave init <template>` creates pins a working Surefire and fails a build that runs nothing; do the same in a pom you write.
 - **Building llm4j from source? A stale jar runs old code.** After you change a module, install it (`mvn -DskipTests -Djacoco.skip=true install`; `-Djacoco.skip=true` is needed with `-DskipTests`), or the next module compiles and tests against the jar from before. The repository's `scripts/doctor.sh` compares each installed jar with its sources and prints the command to run. If you only use the `weave` jar this does not apply.
+
+> **Words are compared exactly.** A branch like `alt (decision == "yes")` is true only for the text `yes`: not `Yes`, not `yes `. Whatever sends the answer (a button, a person typing) must send exactly the words the script compares, and the script's comment should say which.
 
 ## Gate
 

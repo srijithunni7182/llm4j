@@ -38,7 +38,7 @@ final class NextCommand implements Callable<Integer> {
         StringBuilder why = new StringBuilder();
         Path script = ProjectAdvisor.find((c.where == null ? new File(".") : c.where).toPath().toAbsolutePath().normalize(), why);
         if (script == null) {
-            env.err().println("Error: " + why);
+            env.err().println(why);
             return 2;
         }
         String file = script.getFileName().toString();

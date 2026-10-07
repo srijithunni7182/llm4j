@@ -127,15 +127,16 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
     - tell the user to run `weave check <deployed entry>` (without `--no-env`) on the target machine, then `weave audit --fail-on medium`, then a capped smoke run to a test sink before the real recipients.
 
 14. **Round up before you talk about money.** When the workflow is built and the free checks pass, finish the job in this order. Do not end on "the next step costs money".
-    a. **Build it.** Run `mvn test` (the project's own build) and say the result in one line ("13 tests, 0 failures"). `Tests run: 0` is a failure.
+    a. **Build it.** Run `mvn test` (the project's own build, **without `-q`** so the totals show) and say the result in one line ("13 tests, 0 failures"). `Tests run: 0` is a failure.
     b. **Write `PROJECT_REPORT.md`** at the project root, from the template below, and tell the user where it is. Take the facts from the tools, not from memory:
        `weave explain <script>` for the steps, `weave graph <script> --format mermaid` for the picture, `weave audit <script>` for the safety summary.
     c. **Open the eval4j dashboard.** `mvn test` wrote `target/eval4j/report/index.html`. Open it for the user in their browser (`open` on macOS, `xdg-open` on Linux,
        `start` on Windows); if you cannot open a window, give the full path and say so. Tell them what they are looking at: **Wiring 100%** means every example ran through
        the workflow end to end on a fake model; **Safety** and **Tone** (the dataset's quality dimensions) read "Declared, not evaluated" because only a real, capped run judges
        them; the large percentage at the top is the wiring only, not the quality. Offer `weave graph` or the editor's **Loom: Show Workflow Graph** to look at the workflow itself.
+    c2. **Update the project's `README.md`** so it matches what now exists (the agents, the checks, the commands, where the report is) and ticks off the stages done.
     d. **Then, last, how to set up and run it for real.** Write it in the report and say it in chat, in this order, and run none of it without a yes: what a run costs and what stops
-       it (the script's `budget`, `--max-tokens`, the provider's own spending limit); getting a key from the provider; `cp .env.example .env` and the user typing the key after the
+       it (the script's `budget`, `--max-tokens`, the provider's own spending limit); getting a key from the provider; run `cp .env.example .env` for the user (it only copies a template; do not open the result) and have the user type the key after the
        `=` (never ask for it in chat, never print `.env`); `weave check <script>` without `--no-env`; one capped run (`weave run <script> -i name="..." --max-tokens 50000`);
        the capped real evaluation (`weave eval <script> --max-tokens 200000 --report target/eval-report.html`, which says what it will do and asks first); and, when they are happy,
        how to put it on a server (`weave guide 9`: the secret store, not `.env`).
@@ -161,6 +162,22 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
     ## Set up and run it for real
     <the steps from (d), with this project's real commands and cap>
     ```
+
+## Show the stages as a checklist
+
+At the start, and again after every stage, print a short checklist in the chat and tick what is done, so the user always sees where they are and what is left:
+
+```
+[x] Understand the request and the hard requirements
+[x] Agents decided
+[ ] Test examples written with you
+[ ] Workflow script written and checked (free)
+[ ] Free practice run and audit
+[ ] Build, report and dashboard
+[ ] Real run (costs money: only with your yes)
+```
+
+Adjust the lines to the project; never tick a line that was not actually done.
 
 ## Explain as you go
 

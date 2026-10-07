@@ -7,6 +7,8 @@
 A golden dataset is the only thing that turns "it seems fine" into a measurement. It is also reusable: the same cases
 test your prompts (chapter 3), agents (5) and workflow (8), and fill the dashboard's quality dimensions.
 
+> Writing the dataset with the user, in plain words, is its own chapter: [11](11-build-the-dataset-with-the-user.md).
+
 ## Optional, and where it lives
 
 This chapter is optional: if you chose to skip evaluation (see the README), go to chapter 6. For a script run with `weave`, the
@@ -45,32 +47,11 @@ about what a workflow run did), `dimensions` and `tags`. A workflow that takes s
   tags: { kind: fabricated-premise }
 ```
 
-The older form below still loads: `RUBRIC:` lines in `context` are read as `rubric`, and camelCase names work as well as snake_case.
-Search-dependent cases take their answers from `fixtures.yaml` (`Search: [{match: "flights", snippets: ["…"]}]`), so a free run never
-reaches the network. The same files work from JUnit through `EvalScenarios.fromDirectory(...)`.
-
-## What a scenario holds
-
-```yaml
-- id: alex-02
-  name: 'Alex: debunks a fabricated premise'
-  input: Evaluate the Quantum Lattice Ledger (QLL-7) consensus protocol for adoption in a mid-size bank.
-  expectedTools: [WebSearch]
-  context:
-  - 'RUBRIC: Searches for ''QLL-7'', finds nothing, and says plainly that it could not verify that it exists.'
-  - 'RUBRIC: Does NOT invent features, dates, vendors or a rollout plan for it.'
-  retrievalContext:
-  - 'Search results for ''QLL-7'': no relevant results found.'
-  dimensions: [fact-checking]
-  tags: [agent:alex, family:reasoning, kind:fabricated-premise]
-```
-
-`RUBRIC:` lines are what the judge grades; `dimensions` fill the report; `retrievalContext` is the recorded search
-the agent is shown (and the grounding judge sees). Unknown fields are rejected, so typos fail loudly.
+Search-dependent cases take their answers from `fixtures.yaml` (`Search: [{match: "flights", snippets: ["…"]}]`), so a free run never reaches the network. The same files work from JUnit through `EvalScenarios.fromDirectory(...)`. Unknown fields are rejected, so a typo fails loudly. (Older files that wrote `RUBRIC:` lines inside `context`, or camelCase names, still load.)
 
 ## Which cases to write
 
-Cover the *kinds* of situation, not just the happy path. Hexamind uses eight per agent:
+Cover the *kinds* of situation, not just the happy path. Eight kinds worth having for each agent:
 
 | Kind | Tests |
 |---|---|
@@ -106,10 +87,7 @@ EvalScenarios.toYaml(result.scenarios(), Path.of("src/test/resources/generated.y
 
 ## Test the dataset itself (free)
 
-A test that loads every file and checks the conventions catches mistakes before they cost money: unique ids, known
-dimensions, known tool names, non-empty rubrics, every fabricated-premise case has a fixture. Hexamind's
-[`GoldenDatasetTest`](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/src/test/java/io/github/llm4j/hexamind/eval/GoldenDatasetTest.java)
-does this for all 70 scenarios.
+The project from `weave init` already has this test (`GoldenDatasetTest`): it loads every file and catches mistakes before they cost money: unique ids, known dimensions, known tool names, non-empty rubrics, every fabricated-premise case has a fixture.
 
 ## Gate
 
