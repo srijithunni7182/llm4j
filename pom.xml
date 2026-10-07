@@ -76,6 +76,9 @@
 
         <!-- false: a release is uploaded and left for you to review in the Central Portal; pass -Dcentral.autoPublish=true to publish at once -->
         <central.autoPublish>false</central.autoPublish>
+
+        <!-- the phase that builds the tools test-jar; the release profile turns it off -->
+        <tests.jar.phase>package</tests.jar.phase>
     </properties>
 
     <build>
@@ -225,6 +228,10 @@
                 The tests are NOT skipped: a release is gated on the default (hermetic) tests.
             -->
             <id>release</id>
+            <properties>
+                <!-- the tools module's shared test helpers are for this repository's own tests: not built, so not uploaded -->
+                <tests.jar.phase>none</tests.jar.phase>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
