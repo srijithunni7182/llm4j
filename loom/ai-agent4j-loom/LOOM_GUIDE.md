@@ -297,7 +297,9 @@ knowledge Handbook {
 - **Indexing** happens when the script loads. With a file `store`, later loads only re-embed files that
   changed, drop files that were removed, and rebuild if the embedding model or chunking changes.
 - **Embeddings**: `gemini/<model>` uses `GEMINI_API_KEY`. `onnx/<model.onnx>|<tokenizer.json>` and
-  `djl/<url>` run locally with the addons module. Hosts can plug in their own with `setEmbeddingFactory`.
+  `djl/<url>` run locally; the `weave` jar does not carry those engines (they are large), so the host puts the
+  `ai-agent4j-addons` jar and the engine it uses (onnxruntime, or the DJL engines) on the classpath. Without them the script
+  fails to load with a message saying what is missing. Hosts can plug in their own with `setEmbeddingFactory`.
 - **Cost**: embedding calls are not LLM calls and are not charged to budgets. The audit log records a
   `knowledge_indexed` event with files, chunks and how many were embedded.
 

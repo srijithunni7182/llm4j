@@ -44,19 +44,28 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.17.0</version>
+            <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
-            <version>2.17.0</version>
+            <version>${jackson.version}</version>
         </dependency>
 
+        <!--
+            The engines below are OPTIONAL: they bring native libraries of well over 100 MB, so a project that only wants the core
+            interfaces does not pay for them. Add the one you use to your own pom:
+              ONNX embeddings:  com.microsoft.onnxruntime:onnxruntime
+              DJL embeddings:   ai.djl:api, ai.djl.huggingface:tokenizers and an engine (ai.djl.pytorch:pytorch-engine or ai.djl.onnxruntime:onnxruntime-engine)
+              pgvector store:   org.postgresql:postgresql and com.pgvector:pgvector
+              Pinecone store:   io.pinecone:pinecone-client
+        -->
         <!-- Local Embedding: ONNX Runtime -->
         <dependency>
             <groupId>com.microsoft.onnxruntime</groupId>
             <artifactId>onnxruntime</artifactId>
             <version>${onnxruntime.version}</version>
+        <optional>true</optional>
         </dependency>
 
         <!-- Local Embedding: DJL (Deep Java Library) -->
@@ -64,23 +73,27 @@
             <groupId>ai.djl</groupId>
             <artifactId>api</artifactId>
             <version>${djl.version}</version>
+        <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>ai.djl.pytorch</groupId>
             <artifactId>pytorch-engine</artifactId>
             <version>${djl.version}</version>
             <scope>runtime</scope>
+        <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>ai.djl.onnxruntime</groupId>
             <artifactId>onnxruntime-engine</artifactId>
             <version>${djl.version}</version>
             <scope>runtime</scope>
+        <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>ai.djl.huggingface</groupId>
             <artifactId>tokenizers</artifactId>
             <version>${djl.version}</version>
+        <optional>true</optional>
         </dependency>
 
         <!-- Persistence: PostgreSQL & PGVector -->
@@ -88,11 +101,13 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <version>${postgresql.version}</version>
+        <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>com.pgvector</groupId>
             <artifactId>pgvector</artifactId>
             <version>${pgvector.version}</version>
+        <optional>true</optional>
         </dependency>
 
         <!-- Persistence: Pinecone -->
@@ -100,6 +115,7 @@
             <groupId>io.pinecone</groupId>
             <artifactId>pinecone-client</artifactId>
             <version>${pinecone.version}</version>
+        <optional>true</optional>
         </dependency>
 
         <!-- Testing -->

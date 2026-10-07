@@ -26,7 +26,7 @@ check_module eval4j eval4j
 check_module loom/ai-agent4j-loom ai-agent4j-loom
 
 bundled="$root/loom/vscode-loom/bin/weave.jar"
-built="$(ls "$root"/loom/ai-agent4j-loom/target/ai-agent4j-loom-*.jar 2>/dev/null | grep -v '/original-' | head -n 1)"
+built="$(ls "$root"/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar 2>/dev/null | head -n 1)"
 if [ -f "$bundled" ]; then
   if [ -n "$built" ] && [ "$(stat -c %Y "$bundled")" -lt "$(stat -c %Y "$built")" ]; then echo "STALE    the extension's bin/weave.jar is older than $built"; stale=1
   elif [ "$(stat -c %Y "$bundled")" -lt "$(newest "$root/loom/ai-agent4j-loom")" ]; then echo "STALE    the extension's bin/weave.jar is older than the Loom sources"; stale=1
@@ -38,7 +38,7 @@ if [ "$stale" -ne 0 ]; then
 
 Fix (builds and installs all three modules without running their tests; -Djacoco.skip is needed with -DskipTests):
   mvn -DskipTests -Djacoco.skip=true -pl ai-agent4j,eval4j,loom/ai-agent4j-loom install
-  cp loom/ai-agent4j-loom/target/ai-agent4j-loom-$version.jar loom/vscode-loom/bin/weave.jar
+  cp loom/ai-agent4j-loom/target/ai-agent4j-loom-$version-cli.jar loom/vscode-loom/bin/weave.jar
 FIX
   exit 1
 fi

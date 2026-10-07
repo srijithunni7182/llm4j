@@ -65,6 +65,14 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- The JDBC driver of the sql tool. Optional, so the library does not push it onto anyone; the runnable weave jar (the cli classifier) includes it. -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.2</version>
+            <optional>true</optional>
+        </dependency>
+
         <!-- JSON Processing (Jackson) from Core -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

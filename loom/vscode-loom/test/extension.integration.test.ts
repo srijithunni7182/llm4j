@@ -23,7 +23,7 @@ function findJar(): string | undefined {
         return bundled;
     }
     const target = path.join(repo, 'loom', 'ai-agent4j-loom', 'target');
-    const built = fs.existsSync(target) ? fs.readdirSync(target).find((f) => /^ai-agent4j-loom-.*\.jar$/.test(f) && !f.startsWith('original-')) : undefined;
+    const built = fs.existsSync(target) ? fs.readdirSync(target).find((f) => /^ai-agent4j-loom-.*-cli\.jar$/.test(f)) : undefined;
     return built ? path.join(target, built) : undefined;
 }
 

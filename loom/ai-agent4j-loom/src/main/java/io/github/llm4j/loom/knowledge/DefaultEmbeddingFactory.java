@@ -13,6 +13,10 @@ public final class DefaultEmbeddingFactory implements EmbeddingFactory {
 
     private static final String ONNX = "io.github.llm4j.agent.rag.embedding.OnnxEmbeddingProvider";
     private static final String DJL = "io.github.llm4j.agent.rag.embedding.DjlEmbeddingProvider";
+    /** The engines are optional in ai-agent4j-addons, so the provider class can be present while its engine is not. */
+    private static final String ONNX_ENGINE = "ai.onnxruntime.OrtException";
+    private static final String DJL_ENGINE = "ai.djl.repository.zoo.Criteria";
+    private static final String NEEDS = " needs the ai-agent4j-addons module and its ";
 
     private final Function<String, String> env;
     private final io.github.llm4j.secret.SecretStore secrets;
@@ -37,10 +41,10 @@ public final class DefaultEmbeddingFactory implements EmbeddingFactory {
                 boolean stored = secrets != null && secrets.contains("GEMINI_API_KEY");
                 return !stored && (key == null || key.isBlank()) ? "embedding " + model + " needs GEMINI_API_KEY (an environment variable or a secret)" : null;
             case "onnx":
-                if (!onClasspath(ONNX)) return "embedding " + model + " needs the ai-agent4j-addons module on the classpath";
+                if (!onClasspath(ONNX) || !onClasspath(ONNX_ENGINE)) return "embedding " + model + NEEDS + "onnxruntime dependency on the classpath";
                 return model.substring(5).contains("|") ? null : "onnx embeddings are written onnx/<model.onnx>|<tokenizer.json>";
             case "djl":
-                return onClasspath(DJL) ? null : "embedding " + model + " needs the ai-agent4j-addons module on the classpath";
+                return onClasspath(DJL) && onClasspath(DJL_ENGINE) ? null : "embedding " + model + NEEDS + "ai.djl dependencies on the classpath";
             default:
                 return "unknown embedding model \"" + model + "\"; use gemini/<model>, onnx/<model>|<tokenizer> or djl/<url>";
         }

@@ -4,7 +4,7 @@
 # Fails if any of that needs a file from the repository. Usage: scripts/verify-kit.sh [path/to/weave.jar]
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-jar="${1:-$(ls "$root"/loom/ai-agent4j-loom/target/ai-agent4j-loom-*.jar | grep -v '/original-' | head -n 1)}"
+jar="${1:-$(ls "$root"/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar | head -n 1)}"
 [ -f "$jar" ] || { echo "no weave jar: build it with mvn -DskipTests -Djacoco.skip=true package"; exit 2; }
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/kit" "$work/empty"
