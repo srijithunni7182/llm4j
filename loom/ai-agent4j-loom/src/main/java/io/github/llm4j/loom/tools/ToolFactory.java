@@ -109,7 +109,7 @@ public final class ToolFactory {
         register(simple("datetime", Set.of(), Set.of(), Set.of(), (n, o, dir) -> new DateTimeTool()));
         register(simple("current_time", Set.of(), Set.of(), Set.of(), (n, o, dir) -> new CurrentTimeTool()));
         register(simple("class", Set.of("class"), Set.of(), Set.of(), (n, o, dir) -> {
-            Class<?> c = Class.forName(o.get("class"));
+            Class<?> c = Class.forName(o.get("class"), true, io.github.llm4j.loom.init.ProjectClasses.loader());
             if (!Tool.class.isAssignableFrom(c)) {
                 throw new IllegalArgumentException(o.get("class") + " does not implement io.github.llm4j.agent.Tool");
             }

@@ -42,7 +42,7 @@ public class LootLoader {
             String toolName = key.toString().trim();
             String fqcn = value.toString().trim();
             try {
-                Class<?> clazz = Class.forName(fqcn);
+                Class<?> clazz = Class.forName(fqcn, true, io.github.llm4j.loom.init.ProjectClasses.loader());
                 if (Tool.class.isAssignableFrom(clazz)) {
                     Tool toolInstance = (Tool) clazz.getDeclaredConstructor().newInstance();
                     registry.register(toolName, toolInstance);

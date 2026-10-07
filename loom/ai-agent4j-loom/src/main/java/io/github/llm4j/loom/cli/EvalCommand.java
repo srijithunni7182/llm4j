@@ -100,9 +100,13 @@ final class EvalCommand implements Callable<Integer> {
     @Mixin
     EnvFileOptions envFile = new EnvFileOptions();
 
+    @Mixin
+    ClassesOptions classesOptions = new ClassesOptions();
+
     @Override
     public Integer call() {
         WeaveEnv env = envFile.apply(WeaveEnv.system(), script.toPath());
+        if (env != null && !classesOptions.apply(script.toPath(), env)) return 2;
         env = env == null ? null : secrets.apply(env, Prompts.console());
         env = env == null ? null : promptOptions.apply(env);
         return env == null ? 2 : eval(this, env);
@@ -111,7 +115,7 @@ final class EvalCommand implements Callable<Integer> {
     static int eval(EvalCommand c, WeaveEnv env) {
         java.util.logging.Logger loom = java.util.logging.Logger.getLogger("io.github.llm4j.loom");
         java.util.logging.Level before = loom.getLevel();
-        if (!c.verbose) loom.setLevel(java.util.logging.Level.WARNING); // the progress lines would bury the report
+        loom.setLevel(c.verbose ? java.util.logging.Level.INFO : java.util.logging.Level.WARNING); // the progress lines would bury the report
         try {
             return evaluate(c, env);
         } finally {
