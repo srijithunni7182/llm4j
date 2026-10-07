@@ -75,7 +75,7 @@ executor.shutdown();
    absent from the map.
 
 Keep the view separate from the workflow: the screen should not decide anything the script decides, and the script should not know there is a screen.
-Tests for the host and its screen are the application's, in its own stack; Loom does not provide or check them. Run the workflow itself free first (`weave eval --mock`) before any real run.
+The agent writes tests for the host and its screen too, in the application's own stack and run by its own build, not with `weave`. Run the workflow itself free first (`weave eval --mock`) before any real run.
 
 ## Keys and secrets: two different people
 
@@ -140,8 +140,7 @@ executor.shutdown();
 
 Put the host in its own Maven module with the vault's client library as a dependency, and give it the identity the platform provides (Application
 Default Credentials, workload identity); no key is written down anywhere. `SecretMetadata.allowing("host")` restricts a secret to the hosts it
-may be sent to. Use `ChainedSecretStore.of(vault, EnvSecretStore.system())` if some keys should fall back to the environment. Tests for the host are yours, in your own stack, and
-should never use a real key.
+may be sent to. Use `ChainedSecretStore.of(vault, EnvSecretStore.system())` if some keys should fall back to the environment. Write tests for the host in the application's own stack, with a stand-in for the vault and never a real key; they run with the project's build, not `weave`.
 
 ## If you skipped evaluation
 

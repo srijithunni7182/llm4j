@@ -73,7 +73,7 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
    do not copy it anywhere and tell them to rotate it. `weave check --no-env`, `graph`, `audit`, `explain`, `next` and `eval --mock` need no key.
    **If the user wants keys fetched from a vault** (Google Secret Manager, AWS Secrets Manager, HashiCorp Vault), `weave` cannot do that and you must not pretend it can: write a
    small Java host that implements `SecretStore` over the vault's client, passes it to `new DefaultLLMClientFactory(System::getenv, store)` and to `executor.setSecretStore(store)`,
-   then runs the workflow (chapter 9 has the complete example). Put it in its own Maven module, use the platform's own identity, and leave the script as it is.
+   then runs the workflow (chapter 9 has the complete example). Put it in its own Maven module, use the platform's own identity, test it with an in-memory stand-in for the vault (never a real key), and leave the script as it is.
 8. **Treat failing checks as findings.** Read the case, fix the prompt or tool, re-run. Do not weaken a check to get green, and do not read
    results from fake models. A warning from `weave check` (a result that is never used, a question whose answer changes nothing) is usually a
    real mistake in the workflow: fix it or say why it is fine.
@@ -90,7 +90,7 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
       **A mandatory activity is a task run with `run`, never an agent and never a tool** (a model can skip, repeat or be talked out of a step); the only
       mandatory step that is not a task is asking a person (`human_prompt`, approvals). Say which one you chose and why.
     - Give a task the right effect (`NONE`, `READS`, `CHANGES`) and an idempotency key for anything that changes the world. Loom checks only the wiring: `weave check`
-      with the classes on the class path. Tests for tasks, tools, an application's screen, or any other code a developer or an agent writes are the developer's, in their own project and test framework; Loom neither provides a harness for them nor checks them. Write them if the project has a test setup, but do not build Loom-specific test scaffolding for them. The `weave` jar alone does not see the project's classes: run
+      with the classes on the class path. Tests for tasks, tools, an application's screen, or any other code a developer or an agent writes are still written (by the agent, as part of writing the code) with the project's own test framework and run by the project's own build (Maven, npm, and so on); `weave` does not run, provide a harness for, or check them. Write unit tests for every tool, task, host and screen you write, as part of writing it (given this input, this output, including the refusal), and do not use `weave` or build Loom-specific scaffolding for them. The `weave` jar alone does not see the project's classes: run
       `java -cp weave.jar:classes io.github.llm4j.loom.cli.WeaveCLI check main.loom --loot tools.loot --no-env` (chapter 6 has the complete example).
     - Name result variables so they cannot be ordinary words in a string (`slug_result`, not `slug`).
 
@@ -113,7 +113,7 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
 
 ## Be honest about the edges
 
-Loom's responsibility ends at the workflow: its script, its prompts, its golden dataset, and what `weave check`, `weave audit` and `weave eval` verify. Tests for tasks, tools, an application's screen, or any other code a developer or an agent writes are the developer's, in their own project and test framework; Loom neither provides a harness for them nor checks them.
+Loom's responsibility ends at the workflow: its script, its prompts, its golden dataset, and what `weave check`, `weave audit` and `weave eval` verify. Tests for tasks, tools, an application's screen, or any other code a developer or an agent writes are still written (by the agent, as part of writing the code) with the project's own test framework and run by the project's own build (Maven, npm, and so on); `weave` does not run, provide a harness for, or check them.
 
 llm4j does not (yet) provide: a cost estimator for Loom (keep a small cost model and compare it with the measured spend report); detection of
 prompt injection (defence is architectural, so write hostile cases and assert on tools used and the trace); ready-made PII-leak or red-team
