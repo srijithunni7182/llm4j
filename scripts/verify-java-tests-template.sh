@@ -20,6 +20,8 @@ java -jar "$jar" next >/dev/null 2>&1 || true
 echo "== mvn test (must pass)"
 mvn -q -B test 2>&1 | tail -n 15
 mvn -B test 2>&1 | grep -E "Tests run:.*Fail" | tail -n 3
+[ -f target/eval4j/report/index.html ] || { echo "FAIL: mvn test did not write the eval4j dashboard (target/eval4j/report/index.html)"; exit 1; }
+echo "   the eval4j dashboard was written"
 echo "== with test classes that run nothing, mvn test must FAIL"
 rm -f src/test/java/starter/*.java
 printf 'package starter;\nclass EmptyTest { }\n' > src/test/java/starter/EmptyTest.java

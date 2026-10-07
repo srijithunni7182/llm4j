@@ -29,6 +29,13 @@
             <artifactId>ai-agent4j-loom</artifactId>
             <version>5.0</version>
         </dependency>
+        <!-- With this on the test classpath, `mvn test` also writes the eval4j dashboard: target/eval4j/report/index.html -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>eval4j-report</artifactId>
+            <version>5.0</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

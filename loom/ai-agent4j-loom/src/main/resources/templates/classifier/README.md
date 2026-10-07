@@ -7,7 +7,7 @@ the label. The golden dataset in `{{golden}}` is the heart of this one: it is ho
 whether they stay good after you change the prompt. There is no Java to write here: the workflow is the script, and the Java tests only run the dataset.
 
 The workflow is `{{script}}`, its prompts are in `{{prompts}}/`, and the golden dataset (the eval tests: example requests and what a good answer does) is in `{{golden}}/`.
-In a Maven project `mvn test` runs every scenario of the dataset as its own JUnit test, on a model that costs nothing.
+In a Maven project `mvn test` runs every scenario of the dataset as its own JUnit test, on a model that costs nothing and writes the eval4j dashboard to `target/eval4j/report/index.html` (open it in a browser: it reports the wiring as passed and the quality dimensions as not yet evaluated, which a real, capped run changes).
 
 Evaluation: golden dataset in `{{golden}}`
 
