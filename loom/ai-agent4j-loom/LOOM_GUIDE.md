@@ -187,9 +187,9 @@ Everything here works with the jar alone: no repository, no keys and no network.
 
 ```bash
 weave init --list                      # the starter projects
-weave init pipeline my-workflow        # script, prompts as files, a golden dataset and a README, all passing the checks below
-weave init pipeline my-workflow --with-java-tests   # adds a Maven test module for the Java path (its build fails if it runs no tests)
-weave check my-workflow/main.loom --no-env          # parses and validates; calls no model and needs no keys
+weave init pipeline my-workflow        # a Maven project: the script and prompts in src/main/resources, the golden dataset in src/test/resources/eval/golden, JUnit tests in src/test/java, a README; all passing the checks below
+weave init pipeline my-workflow --flat # the older flat folder (main.loom, prompts/, eval/golden); add --with-java-tests for the pom and the JUnit tests
+weave check my-workflow/src/main/resources/main.loom --no-env   # parses and validates; calls no model and needs no keys
 weave check main.loom --format json                 # the same findings as data (the editor uses this to fill its Problems panel)
 weave check main.loom --strict                      # warnings fail the command too
 weave guide                            # the pages of this guide, from inside the jar

@@ -91,8 +91,8 @@ It covers an agent's answer and a workflow's final answer.
 
 In Java, `AgentAssertions.assertThat(result).doesNotHaveFinalAnswerContaining("PWNED")` does the same for an agent result inside a JUnit test (chapter 5 shows how
 to get one), and `WorkflowAssertions` checks the trajectory of a run: `callsOnlyAllowedTools(...)`, `noSecretsInTrace()` ([chapter 8](08-trajectory-tests.md) shows how to get the trace).
-Those need a Maven test module; `weave init <template> --with-java-tests` adds one, but only with the free structure and wiring checks that `weave eval --check` and `--mock`
-already give. It does not add a hostile case against a real model: write that one yourself.
+
+The project `weave init <template>` makes is a Maven project with JUnit tests already in it, but they only run the golden dataset on a model that costs nothing, which `weave eval --check` and `--mock` already do. They do not add a hostile case against a real model: write that one yourself, or use `expected_output_not_contains` above.
 
 eval4j has no ready-made PII-leak or red-team assertions yet; a hostile case, a fixed `expected_output_not_contains`, deterministic checks on tools and the trace,
 and a judged rubric is the supported way today.

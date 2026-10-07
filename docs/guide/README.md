@@ -4,8 +4,9 @@ A guided path from "which agents do I need?" to "my workflow runs against real A
 well-tested parts. Every chapter says what to do, why, shows a worked example from the **Hexamind Hub** (a real six-agent
 debate app evaluated end to end with llm4j), and ends with a **gate**: the check that tells you it is safe to move on.
 
-**Start from a template, not from an example.** `weave init pipeline` (or `approval`, `classifier`) creates a small, complete project with
-the script, its prompts as files, a golden dataset and a README, and everything in it runs free: `weave check --no-env`, `weave eval --mock`.
+**Start from a template, not from an example.** `weave init pipeline` (or `approval`, `classifier`) creates a small, complete Maven project:
+the script and its prompts as files in `src/main/resources`, the golden dataset (the eval tests) in `src/test/resources/eval/golden`, JUnit tests that run every scenario
+(`mvn test`) and a README. Everything in it runs free: `weave check src/main/resources/main.loom --no-env`, `weave eval ... --mock`, `mvn test`.
 The **Hexamind** examples in the chapters are a *case study*: a real six-agent app that runs its agents from Java and uses Loom for evaluation.
 They show what a large evaluation looks like, but they are not the shape to copy for a script-only workflow, and the files they link to are in
 the repository, not in the tools you installed (the links are web addresses for that reason).
