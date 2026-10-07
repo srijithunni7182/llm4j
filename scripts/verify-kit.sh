@@ -14,22 +14,26 @@ cd "$work/empty"
 weave() { env -i PATH="$PATH" HOME="$work/empty" java -jar "$work/kit/weave.jar" "$@"; }
 fail() { echo "FAIL: $*"; exit 1; }
 
-echo "== every template: init, check --no-env, eval --check, eval --mock, audit"
+echo "== every template: init, check --no-env, eval --check, eval --mock, audit, explain, next"
 for t in pipeline approval classifier; do
   weave init "$t" "$t-project" >/dev/null || fail "init $t"
+  [ -f "$t-project/.env.example" ] || fail "$t has no .env.example"
+  grep -qx '.env' "$t-project/.gitignore" || fail "$t does not ignore .env"
   script="$(ls "$t-project"/*.loom | head -n 1)"
   weave check "$script" --no-env >/dev/null || fail "check $t"
   weave eval "$script" --check >/dev/null || fail "eval --check $t"
   weave eval "$script" --mock >/dev/null || fail "eval --mock $t"
   weave audit "$script" --fail-on high >/dev/null || fail "audit $t"
+  weave explain "$script" >/dev/null || fail "explain $t"
+  weave next "$t-project" >/dev/null || fail "next $t"
   echo "   $t ok"
 done
 
 echo "== every guide page prints"
-for p in readme 1 2 3 4 5 6 7 8 9 10 loom llms; do
+for p in readme 1 2 3 4 5 6 7 8 9 10 recipes loom llms; do
   [ "$(weave guide "$p" | wc -c)" -gt 200 ] || fail "weave guide $p is empty"
 done
-echo "   13 pages ok"
+echo "   14 pages ok"
 
 echo "== the skill installs, points only at what it installs, and names no repository path"
 weave guide --install-skill "$work/empty/skill-project" >/dev/null || fail "install-skill"

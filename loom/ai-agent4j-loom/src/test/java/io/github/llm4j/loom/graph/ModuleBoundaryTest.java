@@ -27,7 +27,7 @@ class ModuleBoundaryTest {
         try (Stream<Path> files = Files.walk(Path.of("src/main/java"))) {
             String offenders = files.filter(p -> p.toString().endsWith(".java"))
                     .filter(p -> !p.toString().replace('\\', '/').contains("/io/github/llm4j/loom/eval/"))
-                    .filter(p -> !p.toString().replace('\\', '/').endsWith("/cli/EvalCommand.java"))
+                    .filter(p -> !p.toString().replace('\\', '/').endsWith("/cli/EvalCommand.java") && !p.toString().replace('\\', '/').endsWith("/cli/ProjectAdvisor.java"))
                     .filter(p -> read(p).contains("io.github.llm4j.eval") || read(p).contains("io.github.llm4j.evalreport"))
                     .map(Path::toString)
                     .collect(Collectors.joining(", "));

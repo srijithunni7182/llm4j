@@ -36,6 +36,10 @@ When an agent's prompt is a markdown file (`prompt: "researcher"` or `prompt: "r
 
 **Loom: Create Prompt File** (Command Palette, for `.loom` files) creates the file for a `prompt:` you have written and not yet made: the one on the cursor's line, or the one you pick. It never overwrites a file. Prompt files are described in the Loom guide.
 
+## Snippets
+
+Type a keyword in a `.loom` file and press Tab to get the whole statement with its blanks: `agent`, `agent-guard`, `delegate`, `delegate-expecting`, `loop`, `alt`, `alt-else`, `human-prompt`, `approval`, `run`, `call`, `workflow`, `budget`, `tool`, `tool-class`, `note`, `parallel`, `on-failure`, `import`. Each one's description says the habit it encodes (a loop always has a `max`, variable names that are not ordinary words, prompts as files). A test types each snippet with its default values and checks the result with `weave`.
+
 ## The guide and the agent skill
 
 **Loom: Open Guide** (Command Palette) shows a page of the written guide: where to start, the ten chapters, or the Loom reference. It comes from the `weave` jar inside this extension, so it works with no repository and no network.

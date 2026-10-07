@@ -295,6 +295,7 @@ public class ScriptValidator {
                 walk(g.getBody(), c);
                 walk(g.getOnViolation(), c);
             } else if (st instanceof DelegateStmt d) {
+                knownAgent(c, d.getLine(), "delegate", d.getTargetAgent());
                 walk(d.getOnFailure(), c);
             } else if (st instanceof RunStmt r) {
                 walk(r.getOnFailure(), c);
@@ -309,8 +310,20 @@ public class ScriptValidator {
                 walk(a.getElseBranch(), c);
             } else if (st instanceof ParallelStmt p) {
                 walk(p.getBody(), c);
+            } else if (st instanceof io.github.llm4j.loom.ast.BroadcastStmt b) {
+                b.getTargetAgents().forEach(a -> knownAgent(c, b.getLine(), "broadcast", a));
             }
         }
+    }
+
+    /** A delegate or broadcast that names an agent the script does not define fails mid-run (a handoff may end a path with a name that is no agent, so it is not checked), after the earlier steps have spent money; say so before the run. */
+    private void knownAgent(Checker c, int line, String step, String agent) {
+        if (agent == null || agent.isBlank() || agent.startsWith("{")) return; // chosen by the data at run time
+        List<String> known = c.script().getAgents().stream().map(a -> a.getName()).toList();
+        if (known.contains(agent)) return;
+        List<String> near = io.github.llm4j.loom.prompt.PromptCatalog.nearest(agent, known);
+        c.error(line, step + " " + agent, "there is no agent named " + agent + (near.isEmpty() ? "" : "; did you mean " + String.join(", ", near) + "?")
+                + " Agents defined: " + (known.isEmpty() ? "none" : String.join(", ", known)) + ".");
     }
 
     // ── shared helpers (also used by the executor) ──────────────────────────────────────────

@@ -29,6 +29,8 @@ class RepositoryScriptsTest {
         try (Stream<Path> all = Files.walk(repo)) {
             scripts = all.filter(p -> p.toString().endsWith(".loom"))
                     .filter(p -> !p.toString().contains("/target/") && !p.toString().contains("/node_modules/"))
+                    // scripts that are deliberately wrong: a graph fixture with an agent that is not defined, and a script made to fail
+                    .filter(p -> !p.toString().endsWith("graph/undefined_agent.loom") && !p.toString().endsWith("ctk/scripts/failing_test.loom"))
                     .sorted().toList();
         }
         assertThat(scripts).hasSizeGreaterThan(5);

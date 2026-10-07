@@ -1,0 +1,164 @@
+{
+  "agent": {
+    "prefix": "agent",
+    "body": [
+      "agent ${1:Writer} {",
+      "\tmodel: \"${2:gemini-2.5-flash}\"",
+      "\tprompt: \"${3:writer}\"        // prompts/${3:writer}.md beside the script",
+      "\ttemperature: ${4:0.3}",
+      "}"
+    ],
+    "description": "An agent whose prompt is a markdown file in prompts/. Low temperature for exact work, higher for writing."
+  },
+  "agent-private": {
+    "prefix": "agent-guard",
+    "body": [
+      "agent ${1:Writer} {",
+      "\tmodel: \"${2:gemini-2.5-flash}\"",
+      "\tprompt: \"${3:writer}\"",
+      "\ttemperature: ${4:0.3}",
+      "\tguard { pii: mask }          // personal data is masked before it reaches the model",
+      "}"
+    ],
+    "description": "An agent that never sees personal data (card numbers, e-mail addresses and the like are masked first)."
+  },
+  "delegate": {
+    "prefix": "delegate",
+    "body": [
+      "delegate \"${1:Write a short post from the notes}\" to ${2:Writer} -> ${3:answer_text}"
+    ],
+    "description": "Ask an agent and keep the answer. Name the variable so it cannot be an ordinary word in your text (answer_text, not answer): a variable's name is replaced everywhere in a string."
+  },
+  "delegate-shape": {
+    "prefix": "delegate-expecting",
+    "body": [
+      "delegate \"${1:Review this post}\" to ${2:Editor} -> ${3:review_result} expecting { verdict: enum[\"${4:OK}\", \"${5:REWRITE}\"], advice: string }"
+    ],
+    "description": "Ask an agent for an answer in a fixed shape, so a later step can branch on a field (review_result.verdict)."
+  },
+  "loop": {
+    "prefix": "loop",
+    "body": [
+      "loop until (${1:review_result.verdict} == \"${2:OK}\") max ${3:2} {",
+      "\t$0",
+      "}"
+    ],
+    "description": "A bounded loop. Always give it a max; add on_exhausted { ... } to ask a person when it gives up."
+  },
+  "alt": {
+    "prefix": "alt",
+    "body": [
+      "alt (${1:review_result.verdict} == \"${2:REWRITE}\") {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Do something only when a condition holds."
+  },
+  "alt-else": {
+    "prefix": "alt-else",
+    "body": [
+      "alt (${1:review_result.verdict} == \"${2:REWRITE}\") {",
+      "\t$3",
+      "} else {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Two ways: one when the condition holds, another when it does not."
+  },
+  "human-prompt": {
+    "prefix": "human-prompt",
+    "body": [
+      "human_prompt \"${1:Publish this? (yes/no)}\" -> ${2:publish_answer}"
+    ],
+    "description": "Ask a person and keep the answer. Use the answer afterwards (an alt on it); a question whose answer changes nothing is flagged by weave check."
+  },
+  "approval": {
+    "prefix": "approval",
+    "body": [
+      "human_prompt \"${1:Publish this? (yes/no)}\" -> ${2:publish_answer}",
+      "alt (${2:publish_answer} == \"yes\") {",
+      "\tnote \"${3:Published.}\"",
+      "} else {",
+      "\tnote \"${4:Not published: a person declined.}\"",
+      "}"
+    ],
+    "description": "Ask a person, and do different things for yes and no."
+  },
+  "run": {
+    "prefix": "run",
+    "body": [
+      "run ${1:SlugifyTitle}(${2:title} = ${3:topic_text}) -> ${4:task_result}"
+    ],
+    "description": "Run a task: plain Java with no model, for anything that must always happen exactly (a rule, a calculation, a payment). Read task_result.outcome and task_result.value afterwards."
+  },
+  "call": {
+    "prefix": "call",
+    "body": [
+      "call ${1:Analyze}(${2:topic_text}=\"${3:the topic}\") -> ${4:analysis_text}"
+    ],
+    "description": "Run a workflow from another file or the same one. It gets text arguments and hands back its variable named result."
+  },
+  "workflow": {
+    "prefix": "workflow",
+    "body": [
+      "workflow ${1:Main}(${2:topic_text}) {",
+      "\t$0",
+      "}"
+    ],
+    "description": "A workflow: the steps that run, in order."
+  },
+  "budget": {
+    "prefix": "budget",
+    "body": [
+      "budget { tokens: ${1:200000}  calls: ${2:30} }"
+    ],
+    "description": "A limit for a whole run. Put it in the entry file only, never in an imported file."
+  },
+  "tool": {
+    "prefix": "tool",
+    "body": [
+      "tool ${1:Search} { use: ${2|duckduckgo,calculator,datetime|} }"
+    ],
+    "description": "Declare a tool agents may use (then list it in an agent's tools: [...])."
+  },
+  "tool-class": {
+    "prefix": "tool-class",
+    "body": [
+      "tool ${1:WordCounter} { use: class  class: \"${2:shop.WordCount}\" }"
+    ],
+    "description": "A custom tool: a Java class implementing Tool, on the class path."
+  },
+  "note": {
+    "prefix": "note",
+    "body": [
+      "note \"${1:Ready: the answer}\""
+    ],
+    "description": "Show a message (it also reaches an application's transcript)."
+  },
+  "parallel": {
+    "prefix": "parallel",
+    "body": [
+      "parallel {",
+      "\t$0",
+      "}"
+    ],
+    "description": "Run the steps inside at the same time."
+  },
+  "on-failure": {
+    "prefix": "on-failure",
+    "body": [
+      "on_failure {",
+      "\tnote \"${1:It failed}: {_error}\"",
+      "\t$0",
+      "}"
+    ],
+    "description": "What to do when the step before it fails."
+  },
+  "import": {
+    "prefix": "import",
+    "body": [
+      "import \"${1:agents/team.loom}\""
+    ],
+    "description": "Bring in the agents and workflows of another file (paths are relative to this file)."
+  }
+}

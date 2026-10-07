@@ -25,18 +25,19 @@ class ReferenceNoteTest {
     }
 
     @Test
-    void everyTemplateReadmeTellsTheUserToKeepKeysInTheSecretStoreWithCommandsThatExist() throws IOException {
+    void everyTemplateReadmeSeparatesTheDeveloperKeyFileFromTheDeployersSecretStoreAndTheCommandsExist() throws IOException {
         var root = WeaveCLI.commandLine();
         var secrets = root.getSubcommands().get("secrets");
         for (String t : new String[] {"pipeline", "approval", "classifier"}) {
             try (InputStream in = getClass().getClassLoader().getResourceAsStream("templates/" + t + "/README.md")) {
                 String readme = new String(in.readAllBytes());
-                assertThat(readme).as(t).contains("Set up your keys").contains("weave secrets create --secrets").contains("weave secrets set GEMINI_API_KEY --secrets")
-                        .doesNotContain("in your environment");
+                assertThat(readme).as(t).contains("## Set up your key (on your machine)").contains("cp .env.example .env").contains("ignored by git")
+                        .contains("## Deploying this to a server?").contains("secret store").contains("weave guide 9");
+                assertThat(readme).as(t).doesNotContain("put them in the secret store");
                 for (String sub : new String[] {"create", "set", "list"}) assertThat(secrets.getSubcommands()).containsKey(sub);
-                assertThat(secrets.getSubcommands().get("set").getCommandSpec().optionsMap()).containsKey("--secrets");
-                assertThat(root.getSubcommands().get("run").getCommandSpec().optionsMap()).containsKey("--secrets");
-                assertThat(root.getSubcommands().get("eval").getCommandSpec().optionsMap()).containsKeys("--secrets", "--secrets-key-env");
+                assertThat(root.getSubcommands().get("run").getCommandSpec().optionsMap()).containsKeys("--secrets", "--env-file", "--no-env-file");
+                assertThat(root.getSubcommands().get("eval").getCommandSpec().optionsMap()).containsKeys("--secrets", "--secrets-key-env", "--env-file", "--no-env-file");
+                assertThat(root.getSubcommands().get("check").getCommandSpec().optionsMap()).containsKeys("--env-file", "--no-env-file");
             }
         }
     }

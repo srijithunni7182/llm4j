@@ -55,3 +55,10 @@ test('the README documents the guide commands by their titles', () => {
         assert.ok(readme.includes(`**${command.title}**`), `${command.title} is in the README`);
     }
 });
+
+test('the README lists every snippet prefix', () => {
+    const snippets = JSON.parse(fs.readFileSync(path.join(root, 'snippets', 'loom.code-snippets'), 'utf8'));
+    for (const s of Object.values(snippets) as { prefix: string }[]) {
+        assert.ok(readme.includes('`' + s.prefix + '`'), `${s.prefix} is in the README`);
+    }
+});

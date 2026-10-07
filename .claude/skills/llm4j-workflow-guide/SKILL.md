@@ -27,7 +27,7 @@ may not be here, so never send the user to a repository path and never ask them 
 | 9 | Go live | `docs/guide/09-go-live.md` | smoke and first real run within about twice the cost model; limits set |
 | 10 | Best practices | `docs/guide/10-best-practices.md` | the readiness checklist is ticked |
 
-Start with `weave guide readme` if the user is new to the path.
+Start with `weave guide readme` if the user is new to the path. When the user wants to change a starter, `weave guide recipes` has tested before-and-after changes (a different model, ask a person before publishing, escalate when a loop gives up, add an agent, add a tool, mask personal data); use them as patterns and give the user the matching "Ask your agent" sentence.
 
 ## How to guide
 
@@ -58,26 +58,22 @@ Start with `weave guide readme` if the user is new to the path.
    whether it passed.
 5. **Spend money last.** Every stage is proved free first (mocks, static checks), then run for real under a cap. A mock run (`--mock`) checks the
    wiring, not the quality: content checks show as *unjudged*, and unjudged is never a pass.
-6. **Before any real run, confirm:** provider-side spending limits are set, the cap is below them, keys are in environment variables, and the
+6. **Before any real run, confirm:** provider-side spending limits are set, the cap is below them, the key is in `.env` (developer) or the secret store (deployer), and the
    free run is green. Ask; do not assume. Never run a paid stage the user has not agreed to.
-7. **Keys go in the secret store, never in files, scripts, tests or the repository.** When the workflow needs a real run, write the setup
-   instructions for the user as part of the project (the README's "Set up your keys" section, which the templates already have): which key each
-   model and tool needs (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, a search tool's key), then these commands, for them to run themselves:
+7. **Keys: two different people, two different answers. Ask which one this is.**
+   - **A developer running the workflow and its evaluations on their own machine** (including an LLM as judge): a **`.env` file beside the script**, ignored by git.
+     `weave init` writes `.env.example` and a `.gitignore` that already ignores `.env`; tell the user to run `cp .env.example .env` and put the key after the `=`. `weave run`,
+     `weave check`, `weave eval` and `weave next` read it and say which names they found (never the values); a variable already set in their shell wins. `weave`
+     refuses a `.env` that git tracks. A judge from another provider needs that provider's key in the same file.
+   - **Someone deploying the application** (a server, shared or production keys): the **secret store** (`weave secrets create`, `weave secrets set NAME`, then `--secrets <file>`
+     on `weave run`; unattended runs add `--secrets-key-env <VARIABLE>`) or, for a vault, the Java host in chapter 9. **Never the project's `.env` on a server.**
 
-   ```
-   weave secrets create --secrets ~/.loom/keys.store        # they choose a passphrase
-   weave secrets set GEMINI_API_KEY --secrets ~/.loom/keys.store   # they type the key; it is not shown
-   weave run workflow.loom --secrets ~/.loom/keys.store     # also on weave eval
-   ```
-
-   In the script a model needs nothing (the built-in models find their usual key name in the store); a tool's key is written
-   `api_key: secret.NAME` (never a literal; `weave check` refuses one). For unattended runs add `--secrets-key-env <VARIABLE>` or
-   `--secrets-key-file <file>`. Keep the store file out of version control.
-   **If the user wants keys fetched from a vault** (Google Secret Manager, AWS Secrets Manager, HashiCorp Vault), `weave` cannot do that and
-   you must not pretend it can: write a small Java host that implements `SecretStore` over the vault's client, passes it to
-   `new DefaultLLMClientFactory(System::getenv, store)` and to `executor.setSecretStore(store)`, then runs the workflow (chapter 9 has the
-   complete example). Put it in its own Maven module, use the platform's own identity, test it with an in-memory stand-in, and leave the script as it is. Never ask the user to paste a key into the chat; if one is pasted
-   anyway, do not copy it anywhere, and tell them to rotate it. `weave check --no-env`, `graph`, `audit` and `eval --mock` need no key.
+   In the script a model needs nothing (the built-in models find their usual key name); a tool's key is written `api_key: env.NAME` or `secret.NAME` (never a literal;
+   `weave check` refuses one). **Never read, open, print or paste the contents of `.env`, and never ask the user to paste a key into the chat**; if one is pasted anyway,
+   do not copy it anywhere and tell them to rotate it. `weave check --no-env`, `graph`, `audit`, `explain`, `next` and `eval --mock` need no key.
+   **If the user wants keys fetched from a vault** (Google Secret Manager, AWS Secrets Manager, HashiCorp Vault), `weave` cannot do that and you must not pretend it can: write a
+   small Java host that implements `SecretStore` over the vault's client, passes it to `new DefaultLLMClientFactory(System::getenv, store)` and to `executor.setSecretStore(store)`,
+   then runs the workflow (chapter 9 has the complete example). Put it in its own Maven module, use the platform's own identity, test it with an in-memory stand-in for the vault (never a real key), and leave the script as it is.
 8. **Treat failing checks as findings.** Read the case, fix the prompt or tool, re-run. Do not weaken a check to get green, and do not read
    results from fake models. A warning from `weave check` (a result that is never used, a question whose answer changes nothing) is usually a
    real mistake in the workflow: fix it or say why it is fine.
@@ -93,8 +89,8 @@ Start with `weave guide readme` if the user is new to the path.
       `io.github.llm4j.agent.task.Task`, listed in `META-INF/services/io.github.llm4j.agent.task.Task`, used with `run Name(arg = value) -> result_var`.
       **A mandatory activity is a task run with `run`, never an agent and never a tool** (a model can skip, repeat or be talked out of a step); the only
       mandatory step that is not a task is asking a person (`human_prompt`, approvals). Say which one you chose and why.
-    - Give a task the right effect (`NONE`, `READS`, `CHANGES`) and an idempotency key for anything that changes the world. Unit-test each class directly,
-      then `weave check` with the classes on the class path. The `weave` jar alone does not see the project's classes: run
+    - Give a task the right effect (`NONE`, `READS`, `CHANGES`) and an idempotency key for anything that changes the world. Loom checks only the wiring: `weave check`
+      with the classes on the class path. Tests for tasks, tools, an application's screen, or any other code a developer or an agent writes are still written (by the agent, as part of writing the code) with the project's own test framework and run by the project's own build (Maven, npm, and so on); `weave` does not run, provide a harness for, or check them. Write unit tests for every tool, task, host and screen you write, as part of writing it (given this input, this output, including the refusal), and do not use `weave` or build Loom-specific scaffolding for them. The `weave` jar alone does not see the project's classes: run
       `java -cp weave.jar:classes io.github.llm4j.loom.cli.WeaveCLI check main.loom --loot tools.loot --no-env` (chapter 6 has the complete example).
     - Name result variables so they cannot be ordinary words in a string (`slug_result`, not `slug`).
 
@@ -102,6 +98,18 @@ Start with `weave guide readme` if the user is new to the path.
     workflow that reads like a table of contents); agents in `agents/*.loom`; one file per phase or reusable sub-workflow in `flows/*.loom`, run with `call`.
     Remember: `call` passes text and hands back the variable named `result`; names are one flat namespace across files (make them unique); `budget` goes
     in the entry file only. Check with `weave check` and `weave graph` on the entry file, and tell the user how you split it. Chapter 6 has the layout and a complete example.
+
+12. **Know where the project stands, and show what you built.** In a project that already has files, run `weave next` first: it says what to do next, in order, and
+    it is free. After you change a script, run `weave explain <script>` and read the plain-English description back to the user, so they can confirm it is what they
+    meant before anything is run. Neither command calls a model. When the user asks how to change something, look in `weave guide recipes` for a tested pattern.
+
+13. **If any agent uses a built-in tool (`webhook`, `email`, `http`, `file`, `shell`, `sql`), prepare it for deployment.** Write a "Deploying" section in the project's README with one line per name the
+    script needs (get them from `weave check <entry> --no-env`, "not set yet"): what it is for and how the deployer sets it. Then, from chapter 9 ("Built-in tools when deployed"):
+    - keep a **development entry** (email `outbox:` instead of SMTP, a test webhook URL) and a **deployed entry** that import the same workflows; tools are declared in the entry file;
+    - every credential, webhook URL and SMTP password is `env.NAME` or `secret.NAME` and is supplied by the service's environment, the secret store or a vault host, **never the project's `.env`**;
+    - settle approvals for a workflow nobody watches (`approve:` needs `--ask-via` or a host `HumanInterface`; a `shell` tool needs `approve:` or `unattended: true`), a durable `--journal`, `max_per_run` for
+      email, `allow_paths` and `methods` for `http`, a writable persistent folder for `file`, installed programs for `shell`, and a **read-only database user** for `sql`;
+    - tell the user to run `weave check <deployed entry>` (without `--no-env`) on the target machine, then `weave audit --fail-on medium`, then a capped smoke run to a test sink before the real recipients.
 
 ## Things that look like success and are not
 
@@ -113,6 +121,8 @@ Start with `weave guide readme` if the user is new to the path.
 
 ## Be honest about the edges
 
+Loom's responsibility ends at the workflow: its script, its prompts, its golden dataset, and what `weave check`, `weave audit` and `weave eval` verify. Tests for tasks, tools, an application's screen, or any other code a developer or an agent writes are still written (by the agent, as part of writing the code) with the project's own test framework and run by the project's own build (Maven, npm, and so on); `weave` does not run, provide a harness for, or check them.
+
 llm4j does not (yet) provide: a cost estimator for Loom (keep a small cost model and compare it with the measured spend report); detection of
 prompt injection (defence is architectural, so write hostile cases and assert on tools used and the trace); ready-made PII-leak or red-team
 assertions in eval4j; or visibility into what Java or MCP tools, or your own tasks, do in `weave audit` (it reads the script only; review task
@@ -122,6 +132,8 @@ Java path. Say so when it matters instead of improvising.
 ## Useful commands
 
 ```
+weave next                                      # what to do next in this project, in order, free (a good first command in an existing project)
+weave explain workflow.loom                     # the script in plain English: show it to the user to confirm it does what they meant
 weave init pipeline my-workflow                 # a small, complete project: script, prompts as files, golden dataset, README
 weave check workflow.loom --no-env              # free, no model calls, no keys; finds missing prompts, unused results, bad names
 weave graph workflow.loom --format mermaid      # see the workflow (or Loom: Show Workflow Graph in VS Code)

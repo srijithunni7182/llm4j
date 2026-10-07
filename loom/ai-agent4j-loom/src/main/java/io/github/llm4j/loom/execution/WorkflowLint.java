@@ -6,6 +6,7 @@ import io.github.llm4j.loom.ast.CallStmt;
 import io.github.llm4j.loom.ast.DecideStmt;
 import io.github.llm4j.loom.ast.DelegateStmt;
 import io.github.llm4j.loom.ast.HumanPromptStmt;
+import io.github.llm4j.loom.ast.NoteStmt;
 import io.github.llm4j.loom.ast.Statement;
 import io.github.llm4j.loom.ast.StatementWalker;
 import io.github.llm4j.loom.ast.WorkflowDef;
@@ -68,8 +69,36 @@ public final class WorkflowLint {
                 findings.add(new Finding(s.getLine(), who, "both answers to the question lead to the same steps, so the question changes nothing"));
             }
         }
+        findings.addAll(wordsThatAreVariables(workflow, all, who));
         findings.sort(java.util.Comparator.comparingInt(Finding::line));
         return findings;
+    }
+
+    private static final Pattern PLACEHOLDER = Pattern.compile("\\{[^{}\\s]+}");
+
+    /**
+     * A variable's name is also replaced where it is written as a plain word in a prompt, a question or a note (the older bare-name form), so a
+     * variable called {@code draft} turns "Review this draft" into "Review this <the whole draft>". Reported once per variable, where it first happens.
+     */
+    private static List<Finding> wordsThatAreVariables(WorkflowDef workflow, List<Statement> all, String who) {
+        java.util.Set<String> names = new java.util.LinkedHashSet<>(workflow.getParameters());
+        for (Statement s : all) {
+            String name = assigned(s);
+            if (name != null) names.add(name);
+        }
+        List<Finding> out = new ArrayList<>();
+        for (String name : names) {
+            if (name == null || name.length() < 2 || name.startsWith("_") || name.startsWith("{")) continue;
+            for (Statement s : all) {
+                String payload = s instanceof DelegateStmt d ? d.getPayload() : s instanceof BroadcastStmt b ? b.getPayload()
+                        : s instanceof HumanPromptStmt h ? h.getMessage() : s instanceof NoteStmt n ? n.getMessage() : null;
+                if (payload != null && PLACEHOLDER.matcher(payload).replaceAll("").contains(name)) {
+                    out.add(new Finding(s.getLine(), who, "the variable " + name + " is also written as an ordinary word here, and the word is replaced by the variable's value; rename the variable (for example " + name + "_text)"));
+                    break;
+                }
+            }
+        }
+        return out;
     }
 
     private static String assigned(Statement s) {

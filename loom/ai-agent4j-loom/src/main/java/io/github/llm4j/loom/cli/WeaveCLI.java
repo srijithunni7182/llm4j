@@ -83,6 +83,9 @@ public class WeaveCLI implements Callable<Integer> {
         private SecretOptions secrets = new SecretOptions();
 
         @CommandLine.Mixin
+        private EnvFileOptions envFile = new EnvFileOptions();
+
+        @CommandLine.Mixin
         private PromptOptions promptOptions = new PromptOptions();
 
         @Override
@@ -91,7 +94,9 @@ public class WeaveCLI implements Callable<Integer> {
                 System.err.println("Error: Script file not found: " + scriptFile);
                 return 1;
             }
-            WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
+            WeaveEnv env = envFile.apply(WeaveEnv.system().withAskVia(askVia), scriptFile.toPath());
+            if (env == null) return 2;
+            env = secrets.apply(env, Prompts.console());
             if (env == null) return 2;
             env = promptOptions.apply(env);
             if (env == null) return 2;
@@ -220,11 +225,16 @@ public class WeaveCLI implements Callable<Integer> {
         private SecretOptions secrets = new SecretOptions();
 
         @CommandLine.Mixin
+        private EnvFileOptions envFile = new EnvFileOptions();
+
+        @CommandLine.Mixin
         private PromptOptions promptOptions = new PromptOptions();
 
         @Override
         public Integer call() {
-            WeaveEnv env = secrets.apply(WeaveEnv.system(), Prompts.console());
+            WeaveEnv env = envFile.apply(WeaveEnv.system(), scriptFile.toPath());
+            if (env == null) return 2;
+            env = secrets.apply(env, Prompts.console());
             if (env == null) return 2;
             env = promptOptions.apply(env);
             if (env == null) return 2;
@@ -305,6 +315,8 @@ public class WeaveCLI implements Callable<Integer> {
         executor.setHumanInterface(env.human()); // the CLI always has a console
         List<io.github.llm4j.loom.execution.ScriptValidator.Problem> problems =
                 new io.github.llm4j.loom.execution.ScriptValidator().validate(script, executor.validationContext());
+        // With --no-env a name that is not set stands in as "not-set-yet", which is not an address or a number: what the stand-in breaks is already said as "not set yet".
+        if (settings.noEnv()) problems = problems.stream().filter(p -> !p.message().contains("not-set-yet")).toList();
         var error = io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR;
         long errors = problems.stream().filter(p -> p.severity() == error || settings.strict()).count();
         if (settings.json()) {
@@ -718,6 +730,8 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new ReplayCommand())
                 .addSubcommand(new AuditCommand())
                 .addSubcommand(new GraphCommand())
+                .addSubcommand(new ExplainCommand())
+                .addSubcommand(new NextCommand())
                 .addSubcommand(new EvalCommand())
                 .addSubcommand(new InitCommand())
                 .addSubcommand(new GuideCommand())

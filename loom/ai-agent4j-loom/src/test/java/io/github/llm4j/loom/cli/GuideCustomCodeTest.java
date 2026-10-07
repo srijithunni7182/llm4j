@@ -115,4 +115,14 @@ class GuideCustomCodeTest {
         String skill = Files.readString(Path.of("../../.claude/skills/llm4j-workflow-guide/SKILL.md"));
         assertThat(skill).contains("mandatory").contains("`run`").contains(".loot").contains("META-INF/services/io.github.llm4j.agent.task.Task");
     }
+
+    @Test
+    void theGuideAndSkillSayTheAgentStillWritesTestsForItsCodeButWithTheProjectsOwnBuildAndNotWeave() throws Exception {
+        String scope = "are still written (by the agent, as part of writing the code) with the project's own test framework and run by the project's own build (Maven, npm, and so on); `weave` does not run, provide a harness for, or check them";
+        assertThat(Files.readString(Path.of("../../docs/guide/06-build-the-workflow.md"))).contains(scope);
+        String skill = Files.readString(Path.of("../../.claude/skills/llm4j-workflow-guide/SKILL.md"));
+        assertThat(skill).contains(scope).contains("Loom's responsibility ends at the workflow").contains("Write unit tests for every tool, task, host and screen you write");
+        assertThat(Files.readString(Path.of("src/main/resources/templates/_java-tests/src/test/README.md"))).contains("written in your own project and run by its own build; `weave` and this module do not run or check them");
+        assertThat(Files.readString(Path.of("../../docs/guide/09-go-live.md"))).contains("The agent writes tests for the host and its screen too, in the application's own stack and run by its own build, not with `weave`.");
+    }
 }

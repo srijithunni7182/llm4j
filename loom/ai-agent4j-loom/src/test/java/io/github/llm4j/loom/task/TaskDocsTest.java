@@ -69,7 +69,8 @@ class TaskDocsTest {
             for (String block : taskBlocks(doc)) {
                 var problems = new ScriptValidator().validate(TaskParseTest.parse(block),
                         new ScriptValidator.Context().tasks(tasks).registeredTools(Set.of()).humanInterface(true));
-                assertThat(problems).as(doc + ":\n" + block).noneMatch(p -> p.severity() == ScriptValidator.Severity.ERROR);
+                // the snippets are fragments: the agents they delegate to are defined elsewhere in the page
+                assertThat(problems).as(doc + ":\n" + block).noneMatch(p -> p.severity() == ScriptValidator.Severity.ERROR && !p.message().contains("there is no agent named"));
             }
         }
     }

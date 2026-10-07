@@ -193,7 +193,19 @@ weave check main.loom --strict                      # warnings fail the command 
 weave guide                            # the pages of this guide, from inside the jar
 weave guide 6                          # one chapter; also: readme, loom (this reference), llms
 weave guide --install-skill .          # the agent skill and the guide, into ./.claude/skills/llm4j-workflow-guide
+weave guide recipes                    # tested, copy-and-paste changes to the starter, each with a sentence for your coding agent
+weave explain main.loom                # the script in plain English: which agent is asked what, where a person is asked, what can spend money
+weave next                             # what to do next in this project, in order, with the command for each step
 ```
+
+**Keys for a developer's machine** go in a `.env` file beside the script (`cp .env.example .env`): `NAME=value` lines, read by `run`, `check`, `eval` and `next`, which say which names
+they found and never the values. A variable already set in the shell wins. `--env-file <file>` reads another file and `--no-env-file` none. `weave` refuses a `.env` that git tracks, and
+warns when it is not in `.gitignore` or other users can read it. A deployed application uses the secret store instead (see [Secrets](#secrets-the-secret-store)).
+
+`weave explain` and `weave next` are free: neither calls a model nor reads a key, and the same project gives the same words. `explain` only states what the script
+says. `next` looks at the files (a script that does not check, no golden dataset yet, an agent with no cases, no budget, audit findings) and the free checks, then
+lists the steps in the order the guide works: make it valid, decide about tests, cover every agent, limit it, review its reach, prove the wiring with `--mock`, and only
+then spend (keys, then a capped real run). `weave check` also rejects a `delegate` or `broadcast` to an agent the script does not define.
 
 `weave check` warns about a result that is never used, a human answer that changes nothing, and a decision whose branches go to the same
 next step. A warning is usually a real mistake in the workflow.

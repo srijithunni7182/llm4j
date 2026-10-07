@@ -131,13 +131,20 @@
           "description": "Redraw the workflow graph when the script or a file it imports is saved."
         }
       }
-    }
+    },
+    "snippets": [
+      {
+        "language": "loom",
+        "path": "./snippets/loom.code-snippets"
+      }
+    ]
   },
   "files": [
     "out/**/*",
     "media/**/*",
     "bin/**/*",
     "syntaxes/**/*",
+    "snippets/**/*",
     "language-configuration.json",
     "node_modules/vscode-languageclient/**/*",
     "node_modules/vscode-languageserver/**/*",

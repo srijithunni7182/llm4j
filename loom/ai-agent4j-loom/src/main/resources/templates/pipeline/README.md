@@ -17,23 +17,24 @@ weave eval main.loom --check          # the golden dataset is valid
 weave eval main.loom --mock           # the wiring runs end to end, on a model that costs nothing
 ```
 
-## Set up your keys (once; put them in the secret store, not in files)
+## Set up your key (on your machine)
 
 Checking, graphing, auditing and `--mock` runs need no key. A real run needs your model's key (for `gemini-2.5-flash`, `GEMINI_API_KEY`).
-Keep it in an encrypted store, outside this folder's version control:
 
 ```bash
-weave secrets create --secrets ~/.loom/keys.store                  # asks you to choose a passphrase
-weave secrets set GEMINI_API_KEY --secrets ~/.loom/keys.store      # asks you to type the key (it is not shown)
-weave secrets list --secrets ~/.loom/keys.store                    # names only, never values
+cp .env.example .env        # then open .env and put your key after GEMINI_API_KEY=
 ```
 
-Then add `--secrets ~/.loom/keys.store` to `weave run` and `weave eval` (it asks for the passphrase; for unattended runs give
-`--secrets-key-env <VARIABLE>` or `--secrets-key-file <file>` instead). Built-in models find their usual key name in the store first.
-A tool that needs a key (a search tool, say) is written `api_key: secret.NAME` in the script and stored the same way. The script
-never holds a key. If a key is ever pasted somewhere shared, rotate it.
+`.env` is ignored by git (`weave init` added it to `.gitignore`), so it is never committed. `weave run` and `weave eval` read it from this folder and say which
+names they found (never the values). A variable already set in your shell wins over the file. If you judge with another provider's model, add that key there too.
+If git tracks `.env`, `weave` refuses to use it.
 
-To run it for real, with your keys in the store (above), change the `model:`
+## Deploying this to a server?
+
+Do not use `.env` there. Put the keys in the secret store (`weave secrets create`, `weave secrets set`, then `--secrets <file>` on `weave run`) or in a vault your host
+code reads (a Java `SecretStore`): `weave guide 9` explains both.
+
+To run it for real, with your key in `.env` (above), change the `model:`
 lines if you use another provider, then:
 
 ```bash
@@ -43,7 +44,9 @@ weave eval main.loom --max-tokens 200000     # asks before it spends anything
 
 ## Make it yours
 
+`weave guide recipes` has tested, copy-and-paste changes (a different model for the editor, ask a person before publishing, add an agent, add a tool, mask personal data), each with a sentence you can give your coding agent.
+
 - Each agent's prompt is a markdown file in `prompts/`. Edit it, or add `prompts/researcher/v2.md` and compare with
   `weave run main.loom ... --prompt researcher@v1`.
 - Replace the cases in `eval/golden/` with requests you really expect, and what a good answer does.
-- Keys never go in files: use `weave secrets`.
+- Keys stay in `.env` (ignored by git), never in the script or the prompts.

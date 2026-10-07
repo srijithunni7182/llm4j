@@ -18,21 +18,21 @@ agent Drafter {
 }
 
 workflow Main(email) {
-    delegate "Classify this customer email:\n{email}" to Triage -> triage expecting {
+    delegate "Classify this customer message:\n{email}" to Triage -> triage expecting {
         kind: enum["REFUND", "BUG", "QUESTION"],
         needs_approval: enum["YES", "NO"]
     }
 
-    delegate "Draft a reply to this email.\nKind: {triage.kind}\nEmail:\n{email}" to Drafter -> reply
+    delegate "Write an answer for this customer.\nKind: {triage.kind}\nMessage:\n{email}" to Drafter -> reply_text
 
     alt (triage.needs_approval == "YES") {
-        human_prompt "A refund over the limit needs your approval.\n\nDraft reply:\n{reply}\n\nApprove it? (yes/no)" -> decision
+        human_prompt "A refund over the limit needs your approval.\n\nDraft reply:\n{reply_text}\n\nApprove it? (yes/no)" -> decision
         alt (decision == "yes") {
-            note "Approved. Reply ready to send:\n{reply}"
+            note "Approved. Reply ready to send:\n{reply_text}"
         } else {
             note "Not approved. Nothing was sent; a person should handle this one."
         }
     } else {
-        note "Reply ready to send:\n{reply}"
+        note "Reply ready to send:\n{reply_text}"
     }
 }
