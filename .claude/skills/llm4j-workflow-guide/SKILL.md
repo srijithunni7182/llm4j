@@ -26,12 +26,13 @@ may not be here, so never send the user to a repository path and never ask them 
 | 8 | Trajectory tests (optional) | `docs/guide/08-trajectory-tests.md` | path, branch, round-count and budget-stop tests pass for free |
 | 9 | Go live | `docs/guide/09-go-live.md` | smoke and first real run within about twice the cost model; limits set |
 | 10 | Best practices | `docs/guide/10-best-practices.md` | the readiness checklist is ticked |
+| 11 | Build the test examples with the user | `docs/guide/11-build-the-dataset-with-the-user.md` | every agent: the user answered the five quality questions, countable things are checked by code, no silent gaps |
 
 Start with `weave guide readme` if the user is new to the path. When the user wants to change a starter, `weave guide recipes` has tested before-and-after changes (a different model, ask a person before publishing, escalate when a loop gives up, add an agent, add a tool, mask personal data); use them as patterns and give the user the matching "Ask your agent" sentence.
 
 ## How to guide
 
-0. **Start from a template, not from an example.** For a new project run `weave init pipeline|approval|classifier|web` (pick the one nearest what the
+0. **Start from a template, not from an example.** For a new project run `weave init pipeline|approval|classifier` (pick the one nearest what the
    user described) and change it. Whatever you copy is a **reference to be modified, never a finished product**: say so to the user, and change its agents, prompts, tools, dataset and limits to fit their workflow. A large example app is a case study, not a starting point: copy a small template that already passes
    `weave check --no-env` and `weave eval --mock`.
    `weave init <template> <dir>` makes a **Maven project**. Right after it runs, tell the user in plain words what each part is for, using the paths the command
@@ -43,7 +44,7 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
    folder by hand, and never rearrange the layout: `weave init <template> --flat` makes the older flat folder if the user really wants one.
 1. **Ask once: "Do you want tests first?"** (default yes). If yes, the order is: decide the agents, write the golden dataset
    (`weave eval <script> --init`, then fill it in with the user), write the script, `weave eval <script> --check`, `--mock`, then a capped
-   real run. **Write the dataset before the script**, and **never write a Java loader or a test module for the dataset**: the project
+   real run. **Write the dataset before the script, and write it WITH the user, not for them**: read `weave guide 11` and run that conversation (teach in plain words, ask five short questions per agent, collect their real example requests, show samples and ask good-or-bad, read the list back, only then write the file), and **never write a Java loader or a test module for the dataset**: the project
    from `weave init` already has the JUnit tests that run it (`mvn test`), and `weave eval` reads the same YAML. If no, skip stages 2, 3, 4, 5 and 8 and go straight to the script, `weave check`, `weave audit` and a
    capped run. Record the answer in the project's README (`Evaluation: skipped` or `Evaluation: golden dataset in <its folder>`) and do not ask
    again. At go-live say once, in one sentence, that no evaluation exists, and carry on if the user still wants to go live. Skipping never
@@ -56,7 +57,7 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
    `.loom` file and the application is Java code you write in their project: a host that attaches `addTraceListener` for the transcript (before
    `initialize()`), a `HumanInterface` that asks the person through their screen (throwing `RunSuspended` when the answer comes later, then
    `journal.answer` and run again), and reads results from `executor.getContext().getAll()`. The interface itself is theirs and in the stack
-   they choose; the section "An application with its own interface" in chapter 9 has the pattern. Keep decisions in the script, not the screen.
+   they choose; the section "Plugging the host into the workflow" in chapter 9 has complete, compiling code for the `HumanInterface` (waiting for the person's answer, or pausing the run) and for the keys. Keep decisions in the script, not the screen.
 2b. **Turn the request into hard requirements, in plain words, and say which are checked by code.** Right after you understand the request, list each measurable
    thing the user asked for ("at least 500 words", "at most 2 rounds", "always asks a person before saving", "never shows a card number") and mark it
    **checked by code** or **judged by a model**. Anything countable or exact is code: a length is `expected_min_words` / `expected_max_words` in the dataset (a fixed check; a mock run
@@ -78,6 +79,7 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
      `weave init` writes `.env.example` and a `.gitignore` that already ignores `.env`; tell the user to run `cp .env.example .env` and put the key after the `=`. `weave run`,
      `weave check`, `weave eval` and `weave next` read it and say which names they found (never the values); a variable already set in their shell wins. `weave`
      refuses a `.env` that git tracks. A judge from another provider needs that provider's key in the same file.
+   - **An application you write for the user** (a web page, a desktop or chat app; a Java host that runs the workflow): this is the deployer case even on their own laptop. The app's model key comes from the **secret store** (`weave secrets create`, `weave secrets set NAME`; in the host, `EncryptedFileSecretStore` with a master key from an environment variable) or from environment variables the platform sets. **Never put it in `.env` or `.env.example`**: `.env` is only for `weave` run by a developer, and for the model that judges evaluations. Chapter 9, "Plugging the host into the workflow", has the complete code.
    - **Someone deploying the application** (a server, shared or production keys): the **secret store** (`weave secrets create`, `weave secrets set NAME`, then `--secrets <file>`
      on `weave run`; unattended runs add `--secrets-key-env <VARIABLE>`) or, for a vault, the Java host in chapter 9. **Never the project's `.env` on a server.**
 

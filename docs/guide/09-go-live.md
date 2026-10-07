@@ -74,10 +74,144 @@ executor.shutdown();
 3. **Result.** `executor.getContext().getAll()` holds every variable the workflow set (`-> name`). Read the ones you need by name; an unset variable is
    absent from the map.
 
-`weave init web` makes a working example of exactly this: a Maven project with a small web page, a host that shows the run and forwards the approval question to the page, a save step written as a task, and a spend line. Start from it instead of a blank file; `sh run.sh --mock` runs it for free. (A built-in tool such as `web_search` works in a host the same way it does under `weave`: the executor resolves it.)
-
 Keep the view separate from the workflow: the screen should not decide anything the script decides, and the script should not know there is a screen.
 The agent writes tests for the host and its screen too, in the application's own stack and run by its own build, not with `weave`. Run the workflow itself free first (`weave eval --mock`) before any real run.
+
+## Plugging the host into the workflow
+
+This is the part an application needs, and the only part that is yours to write. The example below is a complete class that compiles as it stands. It runs `Main(topic)` on its own thread, shows what happens, and **asks the person through your screen** whenever the script has a `human_prompt`, an approval or a `decide`. Your screen (a web page, a desktop window, a chat) only calls `start`, `state` and `answer`.
+
+<!-- compiles -->
+```java
+package host;
+
+import io.github.llm4j.loom.execution.DefaultLLMClientFactory;
+import io.github.llm4j.loom.execution.HarnessExecutor;
+import io.github.llm4j.loom.execution.LLMClientFactory;
+import io.github.llm4j.loom.execution.LoomLoader;
+import io.github.llm4j.loom.execution.ToolRegistry;
+import io.github.llm4j.loom.execution.TraceEvent;
+import io.github.llm4j.loom.runtime.HumanInterface;
+import io.github.llm4j.secret.EncryptedFileSecretStore;
+import io.github.llm4j.secret.MasterKey;
+import io.github.llm4j.secret.SecretStore;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
+/** One run of a workflow, as a screen sees it: a status, a transcript, a question waiting for a person, the spend so far, and the result. */
+public final class WorkflowRun {
+
+    private final Path script;
+    private final LLMClientFactory models;
+    private final SecretStore secrets;
+    private final List<String> transcript = new ArrayList<>();
+    private volatile String status = "idle";               // idle, running, waiting, done, failed
+    private volatile String question;                      // what the person is being asked, while status is "waiting"
+    private volatile CompletableFuture<String> reply;      // completed when the person answers
+    private volatile HarnessExecutor executor;
+
+    /** The model key comes from a secret store, never from a file in the project. The master key is read from the environment variable named here. */
+    public static WorkflowRun open(Path script, Path storeFile, String masterKeyVariable) {
+        SecretStore store = EncryptedFileSecretStore.open(storeFile, MasterKey.fromEnv(masterKeyVariable));
+        return new WorkflowRun(script, new DefaultLLMClientFactory(System::getenv, store), store);
+    }
+
+    public WorkflowRun(Path script, LLMClientFactory models, SecretStore secrets) {
+        this.script = script;
+        this.models = models;
+        this.secrets = secrets;
+    }
+
+    /** Starts the workflow on its own thread. Returns false when a run is already going. */
+    public synchronized boolean start(String topic) {
+        if (status.equals("running") || status.equals("waiting")) return false;
+        transcript.clear();
+        status = "running";
+        Thread thread = new Thread(() -> run(topic), "workflow-run");
+        thread.setDaemon(true);
+        thread.start();
+        return true;
+    }
+
+    private void run(String topic) {
+        try {
+            var loaded = new LoomLoader().load(script.toAbsolutePath().toString());
+            HarnessExecutor exec = new HarnessExecutor(loaded, new ToolRegistry(), models);
+            exec.setSecretStore(secrets);
+            exec.setBaseDir(script.toAbsolutePath().getParent());
+            exec.addTraceListener(this::onEvent);          // add listeners BEFORE initialize()
+            exec.setHumanInterface(new HumanInterface() {  // called on the thread that runs the workflow
+                @Override
+                public String promptHuman(String message) {
+                    CompletableFuture<String> answer = new CompletableFuture<>();
+                    reply = answer;
+                    question = message;
+                    status = "waiting";                    // the screen sees this and shows the question
+                    String text = answer.join();           // this thread waits here; nothing else is blocked
+                    question = null;
+                    status = "running";
+                    return text;                           // the script compares it exactly: tell your screen to send "yes", not "Yes"
+                }
+            });
+            executor = exec;
+            exec.initialize();
+            exec.executeWorkflow("Main", Map.of("topic", topic));
+            exec.shutdown();
+            status = "done";
+        } catch (Exception e) {
+            line("failed: " + e.getMessage());
+            status = "failed";
+        }
+    }
+
+    private void onEvent(TraceEvent event) {
+        if (event.type().equals("note")) line(event.text());
+        else if (event.type().equals("delegate_start")) line(event.agent() + " is working");
+    }
+
+    private synchronized void line(String text) {
+        transcript.add(text);
+    }
+
+    /** The person's answer to the question being asked. False when nothing is being asked. */
+    public boolean answer(String text) {
+        CompletableFuture<String> waiting = reply;
+        if (waiting == null || waiting.isDone() || !status.equals("waiting")) return false;
+        return waiting.complete(text);
+    }
+
+    /** Everything a screen shows, as plain values it can turn into JSON. */
+    public synchronized Map<String, Object> state() {
+        Map<String, Object> state = new LinkedHashMap<>();
+        state.put("status", status);
+        state.put("question", question);
+        state.put("transcript", List.copyOf(transcript));
+        HarnessExecutor running = executor;
+        if (running != null) {
+            var spent = running.spend().total();       // what the models have cost so far
+            state.put("calls", spent.calls());
+            state.put("tokens", spent.tokens());
+            state.put("cost", spent.cost() == null ? null : spent.cost().toPlainString());
+        }
+        return state;
+    }
+}
+```
+
+How it fits together:
+
+- **Who waits.** `promptHuman` runs on the workflow's own thread. Blocking there is fine and is the simplest way: the screen thread is never blocked. `answer(...)` from the screen completes the wait and the workflow carries on.
+- **What the screen sends back is text the script reads.** A script that says `alt (decision == "yes")` needs exactly `yes`. Make the buttons send the words the script expects, and say so in the script's own comment.
+- **Which question is it.** The three-argument `promptHuman(stepId, message, hints)` tells you the kind (`PROMPT`, `APPROVAL`, `DECIDE`), the choices to offer as buttons, and who it is for. Override it instead when you want buttons rather than a text box.
+- **When the person may answer tomorrow.** Do not block. Throw `new RunSuspended(stepId, message)` from `promptHuman(stepId, message, hints)`, keep the run's journal (`exec.setJournal(new FileRunJournal(path))`), and show the question. When the person answers, call `journal.answer(stepId, answer)` and run `executeWorkflow` again with the same journal: finished steps replay for free and the run goes on from the question.
+- **Spend.** `executor.spend().total()` gives calls, tokens and, when a price table is set (`setPriceTable`), cost. Show it. Put the real limit in the script's `budget { ... }` and in the provider's dashboard; the screen only displays.
+- **Built-in tools** such as `web_search` work in a host exactly as under `weave`: the executor resolves them. Your own Java tasks are found through `META-INF/services/io.github.llm4j.agent.task.Task`.
+- **Keys.** `WorkflowRun.open(...)` reads the model key from an encrypted store (`weave secrets create` and `weave secrets set GEMINI_API_KEY --secrets <file>` make it) with the master key in an environment variable the platform sets. The project's `.env` and `.env.example` are for `weave` on a developer's machine and for the model that judges evaluations, not for the application.
+- **Tests for the host** use the free model (`io.github.llm4j.loom.eval.MockModels`) and a temporary output folder; answer the question with the same calls the screen makes (`start`, wait for `status` to be `waiting`, `answer("yes")`, wait for `done`). Run the free tests before any real run.
 
 ## Keys and secrets: two different people
 

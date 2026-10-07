@@ -19,7 +19,7 @@ import picocli.CommandLine.Parameters;
 @Command(name = "init", description = "Creates a starter project: a Maven project with the script and its prompts in src/main/resources, the golden dataset and eval4j JUnit tests under src/test, and a README. Run 'weave init --list' to see the templates.")
 final class InitCommand implements Callable<Integer> {
 
-    @Parameters(index = "0", arity = "0..1", paramLabel = "<template>", description = "pipeline, approval, classifier or web.")
+    @Parameters(index = "0", arity = "0..1", paramLabel = "<template>", description = "pipeline, approval or classifier.")
     String template;
 
     @Parameters(index = "1", arity = "0..1", paramLabel = "<dir>", description = "Where to create it (default: a folder named after the template, here).")
@@ -55,10 +55,6 @@ final class InitCommand implements Callable<Integer> {
                     + " Run weave init --list to see them.");
             return 2;
         }
-        if (c.flat && Templates.mavenOnly(found.get().name())) {
-            env.err().println("Error: the " + found.get().name() + " template has Java code, so it is a Maven project. Leave out --flat.");
-            return 2;
-        }
         Path target = (c.dir != null ? c.dir.toPath() : Path.of(found.get().name())).toAbsolutePath().normalize();
         String project = c.name != null ? c.name : target.getFileName() == null ? found.get().name() : target.getFileName().toString();
         TemplateWriter.Result result;
@@ -90,7 +86,6 @@ final class InitCommand implements Callable<Integer> {
             env.out().println("  cd " + target);
         }
         String script = c.flat ? "main.loom" : "src/main/resources/main.loom";
-        if (Templates.mavenOnly(found.get().name())) env.out().println("  mvn compile                           (the workflow runs a task written in Java: weave finds it in target/classes)");
         env.out().println("  weave check " + script + " --no-env");
         env.out().println("  weave eval " + script + " --mock");
         if (c.withJavaTests || !c.flat) env.out().println("  mvn test                              (the same scenarios as JUnit tests; \"Tests run: 0\" is a failure, and the build says so)");
@@ -99,7 +94,6 @@ final class InitCommand implements Callable<Integer> {
             env.out().println("Where things are: the workflow and its prompts are in src/main/resources (they travel with the program), the golden dataset is in");
             env.out().println("src/test/resources/eval/golden, and the JUnit tests that run it are in src/test/java.");
         }
-        if (Templates.mavenOnly(found.get().name())) env.out().println("  sh run.sh --mock                      (the page at http://localhost:8080, on a model that costs nothing)");
         env.out().println("The README says how to set your model's key and run it.");
         return 0;
     }

@@ -24,12 +24,6 @@ mvn -B test 2>&1 | grep -E "Tests run:.*Fail" | tail -n 3
 echo "   the eval4j dashboard was written"
 grep -q "Verifier · \|Writer · \|Researcher · \|Triage · \|Classifier · \|Main · " target/eval4j/report/evaluations.csv || { echo "FAIL: the dashboard rows do not name the agent or workflow they test"; head -n 5 target/eval4j/report/evaluations.csv; exit 1; }
 echo "   each dashboard row names the agent or workflow it tests"
-if [ -f src/main/java/web/App.java ]; then
-  echo "== the web template: build it, then weave checks and evaluates the workflow with its task found in target/classes"
-  mvn -q -B compile
-  java -jar "$jar" check src/main/resources/main.loom --no-env --no-env-file | tail -n 3
-  java -jar "$jar" eval src/main/resources/main.loom --mock --no-env-file | tail -n 4
-fi
 echo "== with test classes that run nothing, mvn test must FAIL"
 find src/test/java -name '*.java' -delete
 printf 'package starter;\nclass EmptyTest { }\n' > src/test/java/starter/EmptyTest.java
