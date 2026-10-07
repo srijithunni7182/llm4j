@@ -31,7 +31,7 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
 
 ## How to guide
 
-0. **Start from a template, not from an example.** For a new project run `weave init pipeline|approval|classifier` (pick the one nearest what the
+0. **Start from a template, not from an example.** For a new project run `weave init pipeline|approval|classifier|web` (pick the one nearest what the
    user described) and change it. Whatever you copy is a **reference to be modified, never a finished product**: say so to the user, and change its agents, prompts, tools, dataset and limits to fit their workflow. A large example app is a case study, not a starting point: copy a small template that already passes
    `weave check --no-env` and `weave eval --mock`.
    `weave init <template> <dir>` makes a **Maven project**. Right after it runs, tell the user in plain words what each part is for, using the paths the command
@@ -57,6 +57,12 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
    `initialize()`), a `HumanInterface` that asks the person through their screen (throwing `RunSuspended` when the answer comes later, then
    `journal.answer` and run again), and reads results from `executor.getContext().getAll()`. The interface itself is theirs and in the stack
    they choose; the section "An application with its own interface" in chapter 9 has the pattern. Keep decisions in the script, not the screen.
+2b. **Turn the request into hard requirements, in plain words, and say which are checked by code.** Right after you understand the request, list each measurable
+   thing the user asked for ("at least 500 words", "at most 2 rounds", "always asks a person before saving", "never shows a card number") and mark it
+   **checked by code** or **judged by a model**. Anything countable or exact is code: a length is `expected_min_words` / `expected_max_words` in the dataset (a fixed check; a mock run
+   leaves it unjudged), a forbidden text is `expected_output_not_contains`, a step that must always happen is a task or a `run`, not a prompt. Write the prompt wording to match the number
+   ("at least 500 words", not "about 500") and ask if a limit is a minimum or a maximum when it is not clear. A requirement that is only in a prompt is a wish, not a requirement. Do not call the build done until each
+   code-checked one has a scenario that fails when it is broken and passes when it is kept, and read at least one real answer (under an agreed cap) before saying the content is right.
 3. **Ask where they are, in plain words.** Which stage, what exists already (agents? dataset? script?). Do not start at stage 1 for someone at
    stage 6. When the user describes what they want loosely, ask the questions a good guide asks (what goes in, what comes out, who approves what,
    what must never happen), one or two at a time, in their words, not the framework's.
@@ -161,8 +167,10 @@ anything. After it, say what it proved and what it did not (a mock run proves th
 
 Explain the golden dataset once, when you first write or show it, because a YAML file does not look like a test: each scenario is an example request plus checks.
 Some checks are fixed and decided by code (`expected_output_contains`, `expected_output_not_contains` for something that must never appear, such as a card number,
-and `expected_tools`); others are lines a second model grades (`rubric`, `expect`), which are useful but not perfect. A mock run decides none of them (they come out
+`expected_min_words` / `expected_max_words` for a length, and `expected_tools`); others are lines a second model grades (`rubric`, `expect`), which are useful but not perfect. A mock run decides none of them (they come out
 unjudged); a real run does, under a cap you agree first. Offer `weave graph` to look at the workflow whenever its shape changes.
+
+When you open the eval4j dashboard, **read it before you describe it**: say what is actually on the screen (how many rows, that each row is named "<agent or workflow> · <example>", that every check in a mock run is the wiring check, and which quality dimensions have no results). Never describe a dashboard from this file's wording alone.
 
 ## Things that look like success and are not
 

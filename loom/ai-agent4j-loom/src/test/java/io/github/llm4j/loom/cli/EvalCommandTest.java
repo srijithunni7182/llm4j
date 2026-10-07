@@ -507,4 +507,22 @@ class EvalCommandTest {
         assertThat(run("--mock", "--agent", "Helper")).isZero();
         assertThat(output()).contains("mock run").doesNotContain("PASS");
     }
+
+    @Test
+    void aShortAnswerFailsTheMinimumWordsCheckAndSaysHowShortItWas() throws Exception {
+        dataset("helper.yaml", "- id: h-1\n  input: q\n  expected_min_words: 500\n");
+        reply = (model, system) -> "```json\n{\"thought\": \"t\", \"final_answer\": \"only five words in here\"}\n```";
+
+        int code = run("--yes", "--max-tokens", "100000", "--agent", "Helper");
+
+        assertThat(code).isEqualTo(1);
+        assertThat(output()).contains("answer has at least").contains("500 words").contains("the answer has 5 words");
+    }
+
+    @Test
+    void inAMockRunTheWordCountIsNotJudged() throws Exception {
+        dataset("helper.yaml", "- id: h-1\n  input: q\n  expected_min_words: 500\n");
+        assertThat(run("--mock", "--agent", "Helper")).isZero();
+        assertThat(output()).contains("mock run").doesNotContain("PASS");
+    }
 }

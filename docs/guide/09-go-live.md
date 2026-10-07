@@ -74,6 +74,8 @@ executor.shutdown();
 3. **Result.** `executor.getContext().getAll()` holds every variable the workflow set (`-> name`). Read the ones you need by name; an unset variable is
    absent from the map.
 
+`weave init web` makes a working example of exactly this: a Maven project with a small web page, a host that shows the run and forwards the approval question to the page, a save step written as a task, and a spend line. Start from it instead of a blank file; `sh run.sh --mock` runs it for free. (A built-in tool such as `web_search` works in a host the same way it does under `weave`: the executor resolves it.)
+
 Keep the view separate from the workflow: the screen should not decide anything the script decides, and the script should not know there is a screen.
 The agent writes tests for the host and its screen too, in the application's own stack and run by its own build, not with `weave`. Run the workflow itself free first (`weave eval --mock`) before any real run.
 

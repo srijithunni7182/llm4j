@@ -117,7 +117,8 @@ public final class EvalScenarios {
         }
         return new EvalScenario(s.name(), s.input(), s.expectedOutputContains(), s.expectedOutput(), s.expectedTools(),
                 context.isEmpty() ? null : context, s.retrievalContext(), s.id(), s.dimensions(), s.tags(),
-                rubric.isEmpty() ? null : rubric, expect.isEmpty() ? null : expect, s.inputs(), s.expectedOutputNotContains());
+                rubric.isEmpty() ? null : rubric, expect.isEmpty() ? null : expect, s.inputs(), s.expectedOutputNotContains(),
+                s.expectedMinWords(), s.expectedMaxWords());
     }
 
     /**

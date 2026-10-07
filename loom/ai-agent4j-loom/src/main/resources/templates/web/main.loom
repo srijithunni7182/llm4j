@@ -1,0 +1,23 @@
+// {{name}}: a person types a topic in the web page, an agent writes an article, the person approves it in the page, and only then is it saved.
+// The model only writes. "Ask a person first" and "save to disk" are steps of this script, so no wording in a prompt can skip them.
+// Next steps are in README.md.
+
+budget { tokens: 60000  calls: 10 }
+
+agent Writer {
+    model: "gemini-2.5-flash"
+    prompt: "writer"
+    temperature: 0.5
+}
+
+workflow Main(topic) {
+    delegate "Write the article about: {topic}" to Writer -> draft
+
+    human_prompt "Approve this article?\n\n{draft}\n\nAnswer yes to save it, or no to throw it away." -> decision
+    alt (decision == "yes") {
+        run SaveMarkdown(title = topic, content = draft) -> saved
+        note "Saved to {saved.value}"
+    } else {
+        note "Not approved. Nothing was saved."
+    }
+}

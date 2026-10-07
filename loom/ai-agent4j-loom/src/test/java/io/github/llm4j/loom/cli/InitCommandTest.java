@@ -140,6 +140,7 @@ class InitCommandTest {
     @Test
     void r2_4_everyTemplatePassesTheStrictCheckTheAuditTheGraphAndAMockEvaluationWithNoKeysAndNoModel() throws Exception {
         for (Templates.Template t : Templates.all()) {
+            if (Templates.mavenOnly(t.name())) continue;   // has Java code: no flat form; WebTemplateTest covers it
             Path project = dir.resolve(t.name());
             out.reset();
             assertThat(init(t.name(), project.toString())).as(t.name() + " init").isZero();
@@ -180,6 +181,7 @@ class InitCommandTest {
     @Test
     void everyTemplateHasPromptsAsFilesAGoldenDatasetAndAReadmeThatSaysHowToRunIt() throws Exception {
         for (Templates.Template t : Templates.all()) {
+            if (Templates.mavenOnly(t.name())) continue;
             Path project = dir.resolve("p-" + t.name());
             init(t.name(), project.toString());
             String readme = Files.readString(project.resolve("README.md"));
@@ -191,11 +193,60 @@ class InitCommandTest {
         }
     }
 
+    private String captured = "";
+
+    /** The real command line, as a person types it (so --classes and target/classes apply), with what it printed kept in {@code captured}. */
+    private int weave(String... args) {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        PrintStream oldOut = System.out;
+        PrintStream oldErr = System.err;
+        System.setOut(new PrintStream(buffer, true));
+        System.setErr(new PrintStream(buffer, true));
+        try {
+            CommandLine cli = WeaveCLI.commandLine();
+            cli.setOut(new java.io.PrintWriter(buffer, true));
+            return cli.execute(args);
+        } finally {
+            System.setOut(oldOut);
+            System.setErr(oldErr);
+            captured = buffer.toString();
+        }
+    }
+
+    @Test
+    void theWebTemplateIsAMavenProjectWhoseWorkflowChecksAndEvaluatesOnceItsTaskIsBuilt() throws Exception {
+        Path project = dir.resolve("web");
+        assertThat(init("web", project.toString())).as("--flat is refused: the template has Java code").isEqualTo(2);
+        assertThat(initAs("web", project.toString())).as(stdout()).isZero();
+        assertThat(files(project)).contains("pom.xml", "run.sh", "src/main/java/web/App.java", "src/main/java/web/SaveMarkdown.java", "src/main/resources/main.loom",
+                "src/main/resources/web/index.html", "src/test/java/web/WebHostTest.java", "src/test/resources/eval/golden/workflow.yaml");
+
+        // build it the way `mvn compile` does, so that weave finds the task in target/classes
+        Path classes = project.resolve("target/classes");
+        java.nio.file.Files.createDirectories(classes);
+        java.nio.file.Files.createDirectories(classes.resolve("META-INF/services"));
+        java.nio.file.Files.copy(project.resolve("src/main/resources/META-INF/services/io.github.llm4j.agent.task.Task"), classes.resolve("META-INF/services/io.github.llm4j.agent.task.Task"));
+        var javac = javax.tools.ToolProvider.getSystemJavaCompiler();
+        assertThat(javac.run(null, null, null, "-cp", System.getProperty("java.class.path"), "-d", classes.toString(),
+                project.resolve("src/main/java/web/App.java").toString(), project.resolve("src/main/java/web/Session.java").toString(),
+                project.resolve("src/main/java/web/SaveMarkdown.java").toString())).as("the web host compiles against Loom").isZero();
+
+        ClassLoader before = Thread.currentThread().getContextClassLoader();
+        try {
+            Path main = project.resolve("src/main/resources/main.loom");
+            assertThat(weave("check", main.toString(), "--no-env", "--no-env-file")).as("check: " + captured).isZero();
+            assertThat(weave("eval", main.toString(), "--mock", "--no-env-file")).as("eval --mock: " + captured).isZero();
+            assertThat(captured).contains("0 failed").contains("answer has at least");
+        } finally {
+            Thread.currentThread().setContextClassLoader(before);
+        }
+    }
+
     @Test
     void r2_5_noTemplateHoldsAKeyOrAKeyShapedString() throws Exception {
         for (Templates.Template t : Templates.all()) {
             Path project = dir.resolve("k-" + t.name());
-            init(t.name(), project.toString());
+            initAs(t.name(), project.toString());
             for (String f : files(project)) {
                 assertThat(Files.readString(project.resolve(f))).as(t.name() + "/" + f)
                         .doesNotContainPattern("(?i)(api[_-]?key|secret|token)\\s*[:=]\\s*[\"']?[A-Za-z0-9_\\-]{16,}")

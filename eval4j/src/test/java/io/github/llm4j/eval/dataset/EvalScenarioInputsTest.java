@@ -76,4 +76,12 @@ class EvalScenarioInputsTest {
         assertThat(s.mustNotContain()).isEmpty();
         assertThat(s.namedInputs()).containsEntry("a", "b");
     }
+
+    @Test
+    void wordLimitsAreReadFromTheDataset() throws IOException {
+        EvalScenario s = load("- id: a\n  input: x\n  expected_min_words: 500\n  expected_max_words: 900\n").all().get(0);
+        assertThat(s.expectedMinWords()).isEqualTo(500);
+        assertThat(s.expectedMaxWords()).isEqualTo(900);
+        assertThat(load("- id: a\n  input: x\n").all().get(0).expectedMinWords()).isNull();
+    }
 }

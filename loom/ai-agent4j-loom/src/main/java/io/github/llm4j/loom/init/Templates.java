@@ -25,7 +25,19 @@ public final class Templates {
             new Template("classifier", "one agent that labels things, asks a person when it is unsure, and a golden dataset to measure it", List.of(
                     "main.loom", "README.md", "dot-gitignore", "dot-env.example",
                     "prompts/classifier.md",
-                    "eval/golden/dataset.yaml", "eval/golden/classifier.yaml", "eval/golden/workflow.yaml")));
+                    "eval/golden/dataset.yaml", "eval/golden/classifier.yaml", "eval/golden/workflow.yaml")),
+            new Template("web", "a small web page in front of a workflow: you type a topic, approve the draft in the page, then it is saved (Java host)", List.of(
+                    "main.loom", "README.md", "dot-gitignore", "dot-env.example", "run.sh",
+                    "prompts/writer.md",
+                    "eval/golden/dataset.yaml", "eval/golden/workflow.yaml",
+                    "src/main/java/web/App.java", "src/main/java/web/Session.java", "src/main/java/web/SaveMarkdown.java",
+                    "src/main/resources/META-INF/services/io.github.llm4j.agent.task.Task", "src/main/resources/web/index.html",
+                    "src/test/java/web/WebHostTest.java")));
+
+    /** Starters that hold Java code and so only make sense as a Maven project: {@code --flat} is refused for them. */
+    public static boolean mavenOnly(String name) {
+        return name.equalsIgnoreCase("web");
+    }
 
     /** The folder under /templates that holds the Maven test module added by {@code --with-java-tests}; it is not a template of its own. */
     public static final String JAVA_TESTS = "_java-tests";

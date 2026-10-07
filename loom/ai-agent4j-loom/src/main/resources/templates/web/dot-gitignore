@@ -1,0 +1,11 @@
+# Keys never go in version control.
+.env
+.env.*
+!.env.example
+*.store
+
+# Maven build output
+target/
+
+# What the program saved
+output/
