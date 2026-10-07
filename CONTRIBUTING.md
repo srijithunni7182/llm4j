@@ -23,7 +23,7 @@ Thanks for contributing. This document applies to the full monorepo.
 - Integration tests should be added for provider/protocol edge cases.
 - Follow naming:
   - `*Test.java` for unit tests
-  - `*IntegrationTest.java` for profile-gated tests
+  - tag slow tests with JUnit `@Tag("integration")` or `@Tag("fragile")` (they run with `mvn -Pextended verify`; see docs/TESTING_STRATEGY.md)
 
 See `docs/TESTING_STRATEGY.md` for execution model and CI mapping.
 
