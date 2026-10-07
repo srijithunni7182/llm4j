@@ -76,7 +76,8 @@ class SkillKitTest {
     @Test
     void theSkillCoversTheKitQuestionsAndPitfalls() {
         String s = skill();
-        assertThat(s).contains("weave secrets create").contains("weave secrets set").contains("secret.NAME").contains("Never ask the user to paste a key");
+        assertThat(s).contains("weave secrets create").contains("weave secrets set").contains("secret.NAME").contains("never ask the user to paste a key into the chat")
+                .contains(".env").contains("cp .env.example .env").contains("Never a `.env` on a server").contains("Never read, open, print or paste the contents of `.env`");
         assertThat(s).contains("Do you want tests first?").contains("weave init").contains("Tests run: 0").contains("--no-env");
     }
 }

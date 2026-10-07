@@ -198,6 +198,10 @@ weave explain main.loom                # the script in plain English: which agen
 weave next                             # what to do next in this project, in order, with the command for each step
 ```
 
+**Keys for a developer's machine** go in a `.env` file beside the script (`cp .env.example .env`): `NAME=value` lines, read by `run`, `check`, `eval` and `next`, which say which names
+they found and never the values. A variable already set in the shell wins. `--env-file <file>` reads another file and `--no-env-file` none. `weave` refuses a `.env` that git tracks, and
+warns when it is not in `.gitignore` or other users can read it. A deployed application uses the secret store instead (see [Secrets](#secrets-the-secret-store)).
+
 `weave explain` and `weave next` are free: neither calls a model nor reads a key, and the same project gives the same words. `explain` only states what the script
 says. `next` looks at the files (a script that does not check, no golden dataset yet, an agent with no cases, no budget, audit findings) and the free checks, then
 lists the steps in the order the guide works: make it valid, decide about tests, cover every agent, limit it, review its reach, prove the wiring with `--mock`, and only

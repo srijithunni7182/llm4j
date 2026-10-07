@@ -83,6 +83,9 @@ public class WeaveCLI implements Callable<Integer> {
         private SecretOptions secrets = new SecretOptions();
 
         @CommandLine.Mixin
+        private EnvFileOptions envFile = new EnvFileOptions();
+
+        @CommandLine.Mixin
         private PromptOptions promptOptions = new PromptOptions();
 
         @Override
@@ -91,7 +94,9 @@ public class WeaveCLI implements Callable<Integer> {
                 System.err.println("Error: Script file not found: " + scriptFile);
                 return 1;
             }
-            WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
+            WeaveEnv env = envFile.apply(WeaveEnv.system().withAskVia(askVia), scriptFile.toPath());
+            if (env == null) return 2;
+            env = secrets.apply(env, Prompts.console());
             if (env == null) return 2;
             env = promptOptions.apply(env);
             if (env == null) return 2;
@@ -220,11 +225,16 @@ public class WeaveCLI implements Callable<Integer> {
         private SecretOptions secrets = new SecretOptions();
 
         @CommandLine.Mixin
+        private EnvFileOptions envFile = new EnvFileOptions();
+
+        @CommandLine.Mixin
         private PromptOptions promptOptions = new PromptOptions();
 
         @Override
         public Integer call() {
-            WeaveEnv env = secrets.apply(WeaveEnv.system(), Prompts.console());
+            WeaveEnv env = envFile.apply(WeaveEnv.system(), scriptFile.toPath());
+            if (env == null) return 2;
+            env = secrets.apply(env, Prompts.console());
             if (env == null) return 2;
             env = promptOptions.apply(env);
             if (env == null) return 2;

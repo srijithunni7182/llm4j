@@ -83,8 +83,19 @@ final class ProjectAdvisor {
                     "Free: every step gets a fixed reply. It checks the connections, not the quality (content checks come out unjudged).", "weave eval " + file + " --mock"));
         }
         if (!check.keysNotSet().isEmpty()) {
-            steps.add(new Step("Put the keys a real run needs in the secret store: " + String.join(", ", check.keysNotSet()),
-                    "Keys never go in files. The README's \"Set up your keys\" shows the commands.", "weave secrets set " + check.keysNotSet().iterator().next() + " --secrets <your store file>"));
+            String names = String.join(", ", check.keysNotSet());
+            boolean example = Files.isRegularFile(dir.resolve(".env.example"));
+            boolean envThere = Files.isRegularFile(dir.resolve(".env"));
+            if (example && !envThere) {
+                steps.add(new Step("Put the key a real run needs in a .env file: copy .env.example to .env and fill in " + names,
+                        ".env is for your machine and is ignored by git. A server uses the secret store instead (weave guide 9).", "cp .env.example .env"));
+            } else if (envThere) {
+                steps.add(new Step("Add " + names + " to .env (it is not set there or in your shell)",
+                        ".env is for your machine and is ignored by git. weave reads it when you run or evaluate here.", null));
+            } else {
+                steps.add(new Step("Create a .env file beside the script with " + names + "=<your key>, and add .env to .gitignore",
+                        "Keys never go in the script or the prompts. A server uses the secret store instead (weave guide 9).", null));
+            }
         }
         steps.add(new Step(hasDataset ? "Run it for real, capped" : "Run it once for real, capped",
                 "This is the first step that costs money. It states what it will do and asks before it spends.",

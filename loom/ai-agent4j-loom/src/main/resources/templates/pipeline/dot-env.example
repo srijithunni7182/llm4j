@@ -1,0 +1,11 @@
+# Your keys, for running and evaluating this project on your own machine.
+#   1. Copy this file to .env        (cp .env.example .env)
+#   2. Put your key after the = sign
+# .env is ignored by git, so it is never committed. weave reads it when you run or evaluate here.
+# A variable already set in your shell wins over this file. Empty lines are ignored.
+
+# Needed for the models in main.loom (gemini-2.5-flash):
+GEMINI_API_KEY=
+
+# If you judge with another provider (weave eval --judge claude-haiku-4-5-20251001), add its key too:
+# ANTHROPIC_API_KEY=

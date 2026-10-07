@@ -17,6 +17,8 @@ fail() { echo "FAIL: $*"; exit 1; }
 echo "== every template: init, check --no-env, eval --check, eval --mock, audit, explain, next"
 for t in pipeline approval classifier; do
   weave init "$t" "$t-project" >/dev/null || fail "init $t"
+  [ -f "$t-project/.env.example" ] || fail "$t has no .env.example"
+  grep -qx '.env' "$t-project/.gitignore" || fail "$t does not ignore .env"
   script="$(ls "$t-project"/*.loom | head -n 1)"
   weave check "$script" --no-env >/dev/null || fail "check $t"
   weave eval "$script" --check >/dev/null || fail "eval --check $t"

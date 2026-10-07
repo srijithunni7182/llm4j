@@ -25,7 +25,7 @@ Replace with:
 agent Editor     { model: "claude-haiku-4-5-20251001"  prompt: "editor"      temperature: 0.1 }
 ```
 
-You now need that provider's key too (`weave secrets set ANTHROPIC_API_KEY`, see the README's "Set up your keys").
+You now need that provider's key too: add `ANTHROPIC_API_KEY=` to your `.env` (the starter's `.env.example` shows where).
 
 ## Ask a person before anything is published
 

@@ -53,9 +53,9 @@ class NextCommandTest {
         List<String> steps = numbered(o.out());
         assertThat(steps).hasSize(3);
         assertThat(steps.get(0)).contains("Run the whole dataset on mock models");
-        assertThat(steps.get(1)).contains("secret store").contains("GEMINI_API_KEY");
+        assertThat(steps.get(1)).contains(".env").contains("GEMINI_API_KEY");
         assertThat(steps.get(2)).contains("Run it for real, capped");
-        assertThat(o.out()).contains("$ weave eval main.loom --mock").contains("$ weave eval main.loom --max-tokens");
+        assertThat(o.out()).contains("$ weave eval main.loom --mock").contains("$ cp .env.example .env").contains("$ weave eval main.loom --max-tokens");
     }
 
     @Test

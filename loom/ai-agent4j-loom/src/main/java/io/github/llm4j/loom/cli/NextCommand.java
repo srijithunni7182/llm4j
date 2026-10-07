@@ -48,7 +48,9 @@ final class NextCommand implements Callable<Integer> {
         } catch (Exception e) {
             return print(env, file, ProjectAdvisor.advise(script, null, new ProjectAdvisor.CheckResult(false, List.of(String.valueOf(e.getMessage())), List.of(), Set.of()), null));
         }
-        ProjectAdvisor.CheckResult check = check(script, env);
+        WeaveEnv withKeys = new EnvFileOptions().apply(env, script);
+        if (withKeys == null) return 2;
+        ProjectAdvisor.CheckResult check = check(script, withKeys);
         AuditReport audit = SecurityAudit.audit(loaded, file);
         return print(env, file, ProjectAdvisor.advise(script, loaded, check, audit));
     }

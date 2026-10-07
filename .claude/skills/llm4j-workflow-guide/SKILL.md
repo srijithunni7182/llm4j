@@ -58,26 +58,22 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
    whether it passed.
 5. **Spend money last.** Every stage is proved free first (mocks, static checks), then run for real under a cap. A mock run (`--mock`) checks the
    wiring, not the quality: content checks show as *unjudged*, and unjudged is never a pass.
-6. **Before any real run, confirm:** provider-side spending limits are set, the cap is below them, keys are in environment variables, and the
+6. **Before any real run, confirm:** provider-side spending limits are set, the cap is below them, the key is in `.env` (developer) or the secret store (deployer), and the
    free run is green. Ask; do not assume. Never run a paid stage the user has not agreed to.
-7. **Keys go in the secret store, never in files, scripts, tests or the repository.** When the workflow needs a real run, write the setup
-   instructions for the user as part of the project (the README's "Set up your keys" section, which the templates already have): which key each
-   model and tool needs (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, a search tool's key), then these commands, for them to run themselves:
+7. **Keys: two different people, two different answers. Ask which one this is.**
+   - **A developer running the workflow and its evaluations on their own machine** (including an LLM as judge): a **`.env` file beside the script**, ignored by git.
+     `weave init` writes `.env.example` and a `.gitignore` that already ignores `.env`; tell the user to run `cp .env.example .env` and put the key after the `=`. `weave run`,
+     `weave check`, `weave eval` and `weave next` read it and say which names they found (never the values); a variable already set in their shell wins. `weave`
+     refuses a `.env` that git tracks. A judge from another provider needs that provider's key in the same file.
+   - **Someone deploying the application** (a server, shared or production keys): the **secret store** (`weave secrets create`, `weave secrets set NAME`, then `--secrets <file>`
+     on `weave run`; unattended runs add `--secrets-key-env <VARIABLE>`) or, for a vault, the Java host in chapter 9. **Never a `.env` on a server.**
 
-   ```
-   weave secrets create --secrets ~/.loom/keys.store        # they choose a passphrase
-   weave secrets set GEMINI_API_KEY --secrets ~/.loom/keys.store   # they type the key; it is not shown
-   weave run workflow.loom --secrets ~/.loom/keys.store     # also on weave eval
-   ```
-
-   In the script a model needs nothing (the built-in models find their usual key name in the store); a tool's key is written
-   `api_key: secret.NAME` (never a literal; `weave check` refuses one). For unattended runs add `--secrets-key-env <VARIABLE>` or
-   `--secrets-key-file <file>`. Keep the store file out of version control.
-   **If the user wants keys fetched from a vault** (Google Secret Manager, AWS Secrets Manager, HashiCorp Vault), `weave` cannot do that and
-   you must not pretend it can: write a small Java host that implements `SecretStore` over the vault's client, passes it to
-   `new DefaultLLMClientFactory(System::getenv, store)` and to `executor.setSecretStore(store)`, then runs the workflow (chapter 9 has the
-   complete example). Put it in its own Maven module, use the platform's own identity, test it with an in-memory stand-in, and leave the script as it is. Never ask the user to paste a key into the chat; if one is pasted
-   anyway, do not copy it anywhere, and tell them to rotate it. `weave check --no-env`, `graph`, `audit` and `eval --mock` need no key.
+   In the script a model needs nothing (the built-in models find their usual key name); a tool's key is written `api_key: env.NAME` or `secret.NAME` (never a literal;
+   `weave check` refuses one). **Never read, open, print or paste the contents of `.env`, and never ask the user to paste a key into the chat**; if one is pasted anyway,
+   do not copy it anywhere and tell them to rotate it. `weave check --no-env`, `graph`, `audit`, `explain`, `next` and `eval --mock` need no key.
+   **If the user wants keys fetched from a vault** (Google Secret Manager, AWS Secrets Manager, HashiCorp Vault), `weave` cannot do that and you must not pretend it can: write a
+   small Java host that implements `SecretStore` over the vault's client, passes it to `new DefaultLLMClientFactory(System::getenv, store)` and to `executor.setSecretStore(store)`,
+   then runs the workflow (chapter 9 has the complete example). Put it in its own Maven module, use the platform's own identity, test it with an in-memory stand-in, and leave the script as it is.
 8. **Treat failing checks as findings.** Read the case, fix the prompt or tool, re-run. Do not weaken a check to get green, and do not read
    results from fake models. A warning from `weave check` (a result that is never used, a question whose answer changes nothing) is usually a
    real mistake in the workflow: fix it or say why it is fine.

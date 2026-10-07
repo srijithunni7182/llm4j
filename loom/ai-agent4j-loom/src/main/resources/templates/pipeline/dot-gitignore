@@ -1,0 +1,5 @@
+# Keys never go in version control.
+.env
+.env.*
+!.env.example
+*.store

@@ -15,15 +15,15 @@ public final class Templates {
 
     private static final List<Template> ALL = List.of(
             new Template("pipeline", "agents in sequence with a bounded review loop (research, write, edit)", List.of(
-                    "main.loom", "README.md",
+                    "main.loom", "README.md", "dot-gitignore", "dot-env.example",
                     "prompts/researcher/v1.md", "prompts/writer.md", "prompts/editor.md",
                     "eval/golden/dataset.yaml", "eval/golden/researcher.yaml", "eval/golden/writer.yaml", "eval/golden/editor.yaml", "eval/golden/workflow.yaml")),
             new Template("approval", "a person approves a risky step; a spend cap and a personal-data guard (customer emails)", List.of(
-                    "main.loom", "README.md",
+                    "main.loom", "README.md", "dot-gitignore", "dot-env.example",
                     "prompts/triage.md", "prompts/drafter.md",
                     "eval/golden/dataset.yaml", "eval/golden/triage.yaml", "eval/golden/drafter.yaml", "eval/golden/workflow.yaml")),
             new Template("classifier", "one agent that labels things, asks a person when it is unsure, and a golden dataset to measure it", List.of(
-                    "main.loom", "README.md",
+                    "main.loom", "README.md", "dot-gitignore", "dot-env.example",
                     "prompts/classifier.md",
                     "eval/golden/dataset.yaml", "eval/golden/classifier.yaml", "eval/golden/workflow.yaml")));
 

@@ -68,6 +68,13 @@ record WeaveEnv(LLMClientFactory models, HumanInterface human, PrintStream out, 
                 Clock.systemDefaultZone(), Sleeper.SYSTEM, CommandRunner.SYSTEM, selfCommand());
     }
 
+    /** The same, finding environment variables through {@code lookup} (the models are rebuilt to use it). */
+    WeaveEnv withEnvLookup(java.util.function.Function<String, String> lookup) {
+        LLMClientFactory factory = models instanceof io.github.llm4j.loom.execution.DefaultLLMClientFactory
+                ? new io.github.llm4j.loom.execution.DefaultLLMClientFactory(lookup, secrets) : models;
+        return new WeaveEnv(factory, human, out, err, clock, sleeper, commands, weave, lookup, askVia, secrets, prompts);
+    }
+
     WeaveEnv withWeave(List<String> command) {
         return new WeaveEnv(models, human, out, err, clock, sleeper, commands, command, env, askVia, secrets, prompts);
     }

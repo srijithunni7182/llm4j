@@ -77,11 +77,30 @@ executor.shutdown();
 Keep the view separate from the workflow: the screen should not decide anything the script decides, and the script should not know there is a screen.
 Test the host with `MockModels`-style stand-ins and a scripted `HumanInterface`, the way the guide's own test does, before any real run.
 
-## Keys and secrets
+## Keys and secrets: two different people
 
-The encrypted secret store is the default: a one-time setup of `weave secrets create`, `weave secrets set NAME` and `--secrets <file>` on `weave run` and `weave eval` (the templates' README spells it out, and an agent that follows the skill writes the same for your project). A tool's key is `secret.NAME` in the script. Environment variables (`env.NAME`) also work; `GEMINI_API_KEY` / `ANTHROPIC_API_KEY` are what the evaluation judge reads. The store is described in the [secret store page](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Secret-Store.md); you choose and protect its path and master key. Never in a script, a test or the repository; if a key is ever pasted somewhere shared, rotate it.
-Secrets are scrubbed from results, traces, journals and audit logs.
+**A developer running the workflow and its evaluations on their own machine** (including an LLM as judge). Use a `.env` file beside the script:
 
+```bash
+cp .env.example .env        # then put your key after GEMINI_API_KEY=
+```
+
+`weave init` writes `.env.example` and a `.gitignore` that ignores `.env`. `weave run`, `weave check`, `weave eval` and `weave next` read the file, say which names they
+found (never the values), and let a variable already set in your shell win. `weave` refuses a `.env` that git tracks (its keys are already in the history: remove it with
+`git rm --cached .env` and rotate them), warns when it is not ignored or other users can read it, and `--env-file <file>` / `--no-env-file` choose another file or none.
+A judge model from another provider (`weave eval --judge ...`) needs that provider's key in the same file. If a key is ever pasted somewhere shared, rotate it.
+
+**Someone deploying the application** (a server, shared or production keys). Never a `.env` there. Use the encrypted secret store, a one-time setup:
+
+```bash
+weave secrets create --secrets /etc/myapp/keys.store
+weave secrets set GEMINI_API_KEY --secrets /etc/myapp/keys.store
+weave run workflow.loom --secrets /etc/myapp/keys.store --secrets-key-env MYAPP_MASTER_KEY
+```
+
+A tool's key is `secret.NAME` in the script; you choose and protect the store's path and master key. Environment variables (`env.NAME`) also work. The store is described in the
+[secret store page](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Secret-Store.md). Secrets are scrubbed from results, traces, journals and audit logs. When the keys must
+come from a cloud vault instead, see the next section.
 
 ### Keys in Google Secret Manager (or another vault)
 
