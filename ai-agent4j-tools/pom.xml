@@ -20,7 +20,7 @@
     <properties>
         <junit.version>5.10.2</junit.version>
         <!-- the same Jackson as the core, so a project that uses both gets one version -->
-        <jackson.version>2.21.3</jackson.version>
+        <jackson.version>2.21.7</jackson.version>
     </properties>
 
     <dependencies>
