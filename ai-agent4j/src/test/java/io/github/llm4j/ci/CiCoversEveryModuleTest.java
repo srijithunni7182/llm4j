@@ -20,7 +20,7 @@ class CiCoversEveryModuleTest {
 
     private static final Path ROOT = Path.of("..").toAbsolutePath().normalize();
 
-    /** Not expected in the test pipelines: modules being removed. (The example applications and tantrik are built and tested with -Pextended.) */
+    /** Not expected in the test pipelines: modules being removed. (The example applications is built and tested with -Pextended.) */
     private static final Set<String> EXEMPT_PREFIXES = Set.of();
 
     @Test

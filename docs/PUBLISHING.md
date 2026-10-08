@@ -12,7 +12,7 @@ One command from the repository root builds, tests, signs and uploads **six libr
 | `eval4j`, `eval4j-report` | evaluation library and its reports |
 | `ai-agent4j-loom` | Loom: the thin library jar, plus the runnable `weave` jar as the `cli` classifier |
 
-Not published: `engram`, `tantrik` and the example applications (they are built only with `-Pextended`).
+Not published: `engram` and the example applications (they are built only with `-Pextended`).
 
 Every release runs the default tests; `-Prelease` never skips them. Slow tests (`integration`, `fragile`) run with `-Pextended`
 (see [TESTING_STRATEGY.md](TESTING_STRATEGY.md)) and are worth one run before you tag.

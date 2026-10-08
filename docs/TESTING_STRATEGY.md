@@ -7,7 +7,7 @@ The default build is fast and hermetic, and it is what a release is gated on. Ev
 | Command | What runs |
 |---|---|
 | `mvn verify` (`make test`) | Every test that is not tagged below, plus the coverage rules. No network, no database, no real model, no external program. |
-| `mvn -Pextended verify` (`make test-extended`) | The default tests **and** the `integration` and `fragile` tests, plus the modules that are not published: `engram`, `tantrik` and the example applications with their tests. |
+| `mvn -Pextended verify` (`make test-extended`) | The default tests **and** the `integration` and `fragile` tests, plus the modules that are not published: `engram` and the example applications with their tests. |
 | `mvn -Plive verify` (`make test-live`) | Only the `live` tests, which call real provider APIs with real keys and cost money. |
 | `mvn -Prelease -Dgpg.skip=true verify` (`make release-check`) | The default build, plus the sources and javadoc jars a release uploads. |
 

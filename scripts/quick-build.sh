@@ -4,7 +4,7 @@
 #   scripts/quick-build.sh [--no-install] [--skip-skill] [--skip-extension] [--dry-run]
 #
 # 1. mvn install of the six published libraries (ai-agent4j, addons, tools, eval4j, eval4j-report, Loom). The default build already leaves out every
-#    test tagged live, integration or fragile, and the examples, engram and tantrik are not part of it. The libraries are installed into ~/.m2 so a
+#    test tagged live, integration or fragile, and the examples and engram are not part of it. The libraries are installed into ~/.m2 so a
 #    project made by `weave init` can build against them (its pom depends on them, and they are not on Maven Central yet).
 # 2. the skill package: dist/llm4j-workflow-guide.zip (with the weave jar), checked from an empty folder.
 # 3. the VS Code extension: loom/vscode-loom/vscode-loom-<version>.vsix (with the weave jar), installed with `code --install-extension` unless --no-install.

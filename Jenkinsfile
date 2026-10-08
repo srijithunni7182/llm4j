@@ -49,7 +49,7 @@ pipeline {
         stage('Extended tests') {
             when { triggeredBy 'TimerTrigger' }
             steps {
-                // integration and fragile tests, engram, tantrik and the example applications
+                // integration and fragile tests, engram and the example applications
                 sh 'mvn -B -fae -Pextended verify'
                 dir('loom/ctk') {
                     sh 'mvn -B test'

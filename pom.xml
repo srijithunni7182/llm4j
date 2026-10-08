@@ -41,7 +41,7 @@
         <url>https://github.com/srijithunni7182/llm4j/issues</url>
     </issueManagement>
 
-    <!-- The libraries published to Maven Central. Everything else (engram, tantrik, the example applications) is built only with -Pextended. -->
+    <!-- The libraries published to Maven Central. Everything else (engram, the example applications) is built only with -Pextended. -->
     <modules>
         <module>ai-agent4j</module>
         <module>ai-agent4j-addons</module>
@@ -62,7 +62,7 @@
               integration  needs something outside the JVM (a database, a local model server) or exercises several modules end to end
               fragile      depends on wall-clock time, an external program (git, javac, node), the operating system or the checkout's layout
               live         calls a real provider API with a real key (and costs money)
-            -Pextended runs integration and fragile too (and builds engram, tantrik and the examples); -Plive runs only the live ones.
+            -Pextended runs integration and fragile too (and builds engram and the examples); -Plive runs only the live ones.
         -->
         <test.groups></test.groups>
         <test.excluded>live,integration,fragile</test.excluded>
@@ -193,16 +193,14 @@
 
     <profiles>
         <profile>
-            <!-- mvn -Pextended verify: the slow and environment-dependent tests too, and engram, tantrik and the example applications -->
+            <!-- mvn -Pextended verify: the slow and environment-dependent tests too, and engram and the example applications -->
             <id>extended</id>
             <properties>
                 <test.excluded>live</test.excluded>
             </properties>
             <modules>
                 <module>engram</module>
-                <module>tantrik</module>
                 <module>examples/hexamind-hub</module>
-                <module>examples/tantrik-console/tantrik-console-server</module>
                 <module>examples/nirmaan-yantra/nirmaan-yantra-server</module>
                 <module>examples/kingini</module>
                 <module>examples/gmail-mcp-app</module>
