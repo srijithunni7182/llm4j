@@ -24,7 +24,7 @@
         <assertj.version>3.27.7</assertj.version>
         <junit.version>6.1.0</junit.version>
         <mockito.version>5.23.0</mockito.version>
-        <jackson.version>2.21.3</jackson.version>
+        <jackson.version>2.21.7</jackson.version>
     
     </properties>
 
