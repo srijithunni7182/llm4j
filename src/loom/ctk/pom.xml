@@ -19,7 +19,7 @@
         <java.version>17</java.version>
         
         <!-- Dependency Versions -->
-        <jackson.version>2.16.1</jackson.version>
+        <jackson.version>2.18.11</jackson.version>
         <junit.version>5.10.1</junit.version>
     </properties>
 
