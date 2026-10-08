@@ -33,6 +33,7 @@ public final class Guide {
             new Page("9", "Go live: real APIs, budgets, cost checks", "guide/09-go-live.md"),
             new Page("10", "Best practices and checklist", "guide/10-best-practices.md"),
             new Page("11", "Build the test examples together with the user", "guide/11-build-the-dataset-with-the-user.md"),
+            new Page("12", "Java quick reference: the imports and calls you need", "guide/12-java-quick-reference.md"),
             new Page("recipes", "Recipes: change the starter to do what you want", "guide/RECIPES.md"),
             new Page("loom", "The Loom reference: every statement, option and command", "guide/LOOM_GUIDE.md"),
             new Page("llms", "A one-page index of the framework, for tools and agents", "guide/llms.txt"));

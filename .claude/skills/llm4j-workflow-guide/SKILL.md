@@ -26,6 +26,7 @@ may not be here, so never send the user to a repository path and never ask them 
 | 8 | Trajectory tests (optional) | `docs/guide/08-trajectory-tests.md` | path, branch, round-count and budget-stop tests pass for free |
 | 9 | Go live | `docs/guide/09-go-live.md` | smoke and first real run within about twice the cost model; limits set |
 | 10 | Best practices | `docs/guide/10-best-practices.md` | the readiness checklist is ticked |
+| 12 | Java quick reference (imports and calls) | `docs/guide/12-java-quick-reference.md` | read it before writing any Java; never open a jar or run `javap` to find a class or method |
 | 11 | Build the test examples with the user | `docs/guide/11-build-the-dataset-with-the-user.md` | every agent: the user answered the five quality questions, countable things are checked by code, no silent gaps |
 
 Start with `weave guide readme` if the user is new to the path. When the user wants to change a starter, `weave guide recipes` has tested before-and-after changes (a different model, ask a person before publishing, escalate when a loop gives up, add an agent, add a tool, mask personal data); use them as patterns and give the user the matching "Ask your agent" sentence.

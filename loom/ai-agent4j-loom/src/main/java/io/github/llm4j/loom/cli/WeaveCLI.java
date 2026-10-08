@@ -348,6 +348,15 @@ public class WeaveCLI implements Callable<Integer> {
         for (String w : keyWarnings) env.out().println((settings.strict() ? "✗ " : "⚠ ") + w);
         for (var p : problems) env.out().println((p.severity() == error || settings.strict() ? "✗ " : "⚠ ") + p);
         if (!notSetYet.isEmpty()) env.out().println("ℹ not set yet (needed to run): " + String.join(", ", notSetYet));
+        java.util.Set<String> codeSteps = new java.util.TreeSet<>();
+        for (var workflow : script.getWorkflows()) {
+            io.github.llm4j.loom.ast.StatementWalker.walk(workflow.getStatements(), st -> {
+                if (st instanceof io.github.llm4j.loom.ast.RunStmt r) codeSteps.add(r.getTaskName());
+            });
+        }
+        if (!codeSteps.isEmpty()) {
+            env.out().println("ℹ the code inside " + String.join(", ", codeSteps) + " is not read by weave check or weave audit: only its own Java tests check it (weave guide 6)");
+        }
         if (errors == 0) {
             env.out().println("✓ " + scriptFile.getName() + ": ready to run"
                     + (problems.size() + keyWarnings.size() == 0 ? "" : " (" + (problems.size() + keyWarnings.size()) + " warning" + (problems.size() + keyWarnings.size() == 1 ? "" : "s") + ")"));

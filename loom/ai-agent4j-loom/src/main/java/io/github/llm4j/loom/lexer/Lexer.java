@@ -148,7 +148,10 @@ public class Lexer {
                 } else if (isAlpha(c)) {
                     identifier();
                 } else {
-                    throw new RuntimeException("Unexpected character '" + c + "' at line " + line);
+                    String hint = c == '&' || c == '|'
+                            ? ". A condition is one comparison (== != > >= < <=): there is no && or ||; nest alt blocks instead (weave guide loom, \"Conditions\")"
+                            : "";
+                    throw new RuntimeException("Unexpected character '" + c + "' at line " + line + hint);
                 }
                 break;
         }

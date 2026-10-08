@@ -207,7 +207,7 @@ public class ScriptValidator {
             if (ref != null) {
                 String attr = a.getPrompt() != null ? "prompt" : "system_template";
                 if (c.context().prompts == null) {
-                    c.error(a.getLine(), who, attr + " " + ref + " needs a prompt registry or prompt files: create a prompts/ folder next to the script, name one with prompts: \"./dir\" or --prompts, or use system: \"…\"");
+                    c.error(a.getLine(), who, attr + " " + ref + " needs a prompt registry or prompt files: create a prompts/ folder next to the script, name one with prompts: \"./dir\" or --prompts, or use system: \"…\". If the folder is there and you load the script from Java (a test or your own program), weave's prompt catalog is not built for you: call executor.setPromptCatalog(PromptSupport.catalog(script, scriptFile, PromptSettings.NONE)) before initialize() (weave guide api)");
                 } else {
                     String problem = c.context().prompts.problemWith(ref, attr);
                     if (problem != null) c.error(a.getLine(), who, problem);

@@ -27,4 +27,27 @@ class CheckMissingFileTest {
         }
         assertThat(out.toString()).contains("there is no file at").contains("src/src/main.loom");
     }
+
+    @Test
+    void aScriptWithCodeStepsSaysThatTheCodeInsideThemIsNotChecked() throws Exception {
+        Path script = dir.resolve("main.loom");
+        java.nio.file.Files.writeString(script, "workflow Main(text) {\n    run Slugify(title = text) -> slug\n    note \"{slug}\"\n}\n");
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        PrintStream old = System.out;
+        System.setOut(new PrintStream(out, true));
+        try {
+            CommandLine cli = WeaveCLI.commandLine();
+            cli.setOut(new java.io.PrintWriter(out, true));
+            cli.execute("check", script.toString(), "--no-env", "--no-env-file");
+        } finally {
+            System.setOut(old);
+        }
+        assertThat(out.toString()).contains("the code inside Slugify is not read by weave check or weave audit");
+    }
+
+    @Test
+    void anAndInAConditionExplainsThatThereIsNoAnd() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new io.github.llm4j.loom.lexer.Lexer("alt (a == \"x\" && b == \"y\") { }").tokenize())
+                .hasMessageContaining("Unexpected character '&'").hasMessageContaining("there is no && or ||").hasMessageContaining("nest alt blocks");
+    }
 }
