@@ -177,4 +177,33 @@ class WorkflowLintTest {
     void aWorkflowParameterWrittenAsAWordIsReportedToo() {
         assertThat(messages("workflow W(email) {\n    delegate \"Reply to this email: {email}\" to A -> reply_text\n    note \"{reply_text}\"\n}\n")).singleElement().asString().contains("the variable email");
     }
+
+    @Test
+    void aLoopWhoseConditionIsTrueBeforeTheFirstRoundIsReported() {
+        var found = messages("""
+                workflow W() {
+                    delegate "x" to A -> check
+                    loop until (check != "blocked") max 2 { delegate "again" to A -> check }
+                    note "{check}"
+                }
+                """);
+        assertThat(found).isEmpty(); // check is set before the loop: its value is known when the condition is first tested
+
+        assertThat(messages("""
+                workflow W() {
+                    loop until (verdict != "blocked") max 2 { delegate "again" to A -> verdict }
+                    note "{verdict}"
+                }
+                """)).singleElement().asString().contains("this loop never runs").contains("tested before the first round").contains("verdict");
+    }
+
+    @Test
+    void aLoopThatStopsOnAValueTheLoopSetsIsFine() {
+        assertThat(messages("""
+                workflow W() {
+                    loop until (verdict == "OK") max 2 { delegate "again" to A -> verdict }
+                    note "{verdict}"
+                }
+                """)).isEmpty();
+    }
 }

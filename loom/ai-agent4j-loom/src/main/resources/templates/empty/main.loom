@@ -1,0 +1,15 @@
+// {{name}}: a starting point with nothing in it to delete. One agent and one workflow; rename them, add agents, and change the prompt.
+// Next steps are in README.md.
+
+budget { tokens: 50000  calls: 10 }
+
+agent Helper {
+    model: "gemini-2.5-flash"
+    prompt: "helper"
+    temperature: 0.3
+}
+
+workflow Main(request) {
+    delegate "{request}" to Helper -> answer
+    note "{answer}"
+}

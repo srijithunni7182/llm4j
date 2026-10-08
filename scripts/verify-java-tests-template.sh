@@ -22,8 +22,20 @@ mvn -q -B test 2>&1 | tail -n 15
 mvn -B test 2>&1 | grep -E "Tests run:.*Fail" | tail -n 3
 [ -f target/eval4j/report/index.html ] || { echo "FAIL: mvn test did not write the eval4j dashboard (target/eval4j/report/index.html)"; exit 1; }
 echo "   the eval4j dashboard was written"
-grep -q "Verifier · \|Writer · \|Researcher · \|Triage · \|Classifier · \|Main · " target/eval4j/report/evaluations.csv || { echo "FAIL: the dashboard rows do not name the agent or workflow they test"; head -n 5 target/eval4j/report/evaluations.csv; exit 1; }
-echo "   each dashboard row names the agent or workflow it tests"
+python3 -I - "$PWD" <<'PY' || { echo "FAIL: the eval4j dashboard does not list every agent properly"; exit 1; }
+import json, re, sys
+root = sys.argv[1]
+page = open(root + "/target/eval4j/report/index.html", encoding="utf-8").read()
+data = json.loads(re.search(r'<script[^>]*type="application/json"[^>]*>(.*?)</script>', page, re.S).group(1))
+script = open(root + "/src/main/resources/main.loom", encoding="utf-8").read()
+agents = re.findall(r'^\s*agent\s+([A-Za-z_][A-Za-z0-9_]*)', script, re.M)
+assert agents, "no agents found in main.loom"
+families = {f["id"]: [x["id"] for x in f["facets"]] for f in data["families"]}
+missing = [a for a in agents if a not in families.get("agents", [])]
+assert not missing, "agents missing from the dashboard's Agents group (one card each is expected): %s; it has %s" % (missing, families)
+assert "Main" in families.get("workflows", []), "the Main workflow has no card; the dashboard has %s" % families
+print("   the dashboard has one card per agent (%s) and one for the workflow" % ", ".join(agents))
+PY
 echo "== with test classes that run nothing, mvn test must FAIL"
 find src/test/java -name '*.java' -delete
 printf 'package starter;\nclass EmptyTest { }\n' > src/test/java/starter/EmptyTest.java

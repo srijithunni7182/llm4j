@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.DynamicTest.dynamicTest;
 
 import io.github.llm4j.eval.dataset.EvalScenario;
 import io.github.llm4j.eval.export.EvalChecks;
+import io.github.llm4j.eval.export.EvalStatus;
+import io.github.llm4j.eval.export.Evaluation;
 import io.github.llm4j.eval.export.EvalRun;
 import io.github.llm4j.eval.export.MetricRef;
 import io.github.llm4j.eval.report.EvalReportExtension;
@@ -37,8 +39,14 @@ import org.junit.jupiter.api.TestFactory;
 @ExtendWith(EvalReportExtension.class)
 class ScriptWiringTest {
 
-    /** What this test records in the dashboard: a deterministic check, under the "wiring" dimension and not under the dataset's quality dimensions. */
-    private static final MetricRef RUNS_TO_THE_END = MetricRef.assertion("runs-to-the-end", "Runs to the end", "workflows", "wiring", "wiring");
+    /**
+     * What this test records in the dashboard: a deterministic check under the "wiring" dimension (never under the dataset's quality dimensions), filed
+     * under the group "agents" or "workflows" and, inside it, under the agent or workflow itself, so the dashboard shows one card per agent.
+     * Each target needs its own metric id: two targets sharing one id all land in the group registered first.
+     */
+    private static MetricRef wiring(String target, boolean agent) {
+        return MetricRef.assertion(target.toLowerCase(java.util.Locale.ROOT) + "-runs-to-the-end", "Runs to the end", agent ? "agents" : "workflows", target, "wiring");
+    }
 
     private static final Path SCRIPT = Project.script();
     private static final Path DATASET = Project.dataset();
@@ -49,6 +57,7 @@ class ScriptWiringTest {
         Fixtures.none().apply(script, tools, true);
         HarnessExecutor e = new HarnessExecutor(script, tools, new MockModels());
         e.setHumanInterface(message -> "yes");
+        e.setSimulateTasks(true);   // a free test must not save, send or pay: tasks that change things are described, not run
         e.setBaseDir(SCRIPT.getParent());
         e.setEnvLookup(name -> "mock");
         e.setPromptCatalog(PromptSupport.catalog(script, SCRIPT, PromptSettings.NONE));
@@ -81,7 +90,7 @@ class ScriptWiringTest {
                         ScenarioResult r = target.isAgent()
                                 ? runner.agent(target.file(), target.name(), scenario)
                                 : runner.workflow(target.file(), target.name(), parameters, scenario, null);
-                        EvalChecks.check(RUNS_TO_THE_END,
+                        EvalChecks.check(wiring(target.name(), target.isAgent()),
                                 () -> assertThat(r.status()).as(target.name() + " " + r.label() + ": " + r.error()).isNotEqualTo(Status.FAIL));
                     } finally {
                         EvalRun.get().unbind();
@@ -89,7 +98,24 @@ class ScriptWiringTest {
                 }));
             }
         }
+        // An agent (or the Main workflow) with no examples must still be listed, so a gap is visible in the dashboard and not just absent from it
+        java.util.Set<String> covered = plan.targets().stream().map(DatasetFolder.Target::name).collect(java.util.stream.Collectors.toSet());
+        script.getAgents().stream().map(a -> a.getName()).filter(n -> !covered.contains(n)).forEach(n -> tests.add(noExamples(n, true)));
+        if (!covered.contains("Main") && script.getWorkflows().stream().anyMatch(w -> w.getName().equals("Main"))) tests.add(noExamples("Main", false));
         return tests.stream();
+    }
+
+    /** Records "not evaluated: no examples written" for a target, under its own card. It does not fail the build: it makes the gap visible. */
+    private static DynamicTest noExamples(String target, boolean agent) {
+        return dynamicTest(target + " · no examples written", () -> {
+            EvalRun.get().bindTest("ScriptWiringTest", target + " no examples written");
+            try {
+                EvalRun.get().record(Evaluation.builder(wiring(target, agent)).status(EvalStatus.NOT_EVALUATED)
+                        .reason("no examples are written for " + target + " in the golden dataset (add some: weave guide 11)"));
+            } finally {
+                EvalRun.get().unbind();
+            }
+        });
     }
 
     /** The same scenario named after the agent or workflow it tests ("Verifier · Flags a false claim"), so the dashboard says whose test each row is. */

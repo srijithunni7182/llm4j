@@ -221,6 +221,7 @@ final class EvalCommand implements Callable<Integer> {
             }
             env.out().println("This will make real model calls: " + scenarios + " scenario" + (scenarios == 1 ? "" : "s") + ", at least one agent call each, and up to "
                     + judgedLines + " judge call" + (judgedLines == 1 ? "" : "s") + ". Use --mock to check the wiring for free.");
+            if (judgedLines > 0) env.out().println(judgeLine(script, targets, c.judge, env));
             if (!c.yes && !env.human().promptHuman("Run it? (yes/no)").strip().toLowerCase().startsWith("y")) {
                 env.out().println("Cancelled; nothing was run.");
                 return 2;
@@ -237,6 +238,7 @@ final class EvalCommand implements Callable<Integer> {
             fx.apply(fresh, registry, c.mock);
             HarnessExecutor e = new HarnessExecutor(fresh, registry, models);
             e.setHumanInterface(m -> "yes");
+            if (c.mock) e.setSimulateTasks(true);   // a free run must not save, send or pay: tasks that change things are described, not run
             e.setBaseDir(scriptFile.getParent());
             e.setEnvLookup(c.mock ? name -> "mock" : env.env());
             e.setSecretStore(env.secrets());
@@ -419,5 +421,37 @@ final class EvalCommand implements Callable<Integer> {
         }
         Files.writeString(file, content);
         made.add(file.getFileName().toString());
+    }
+
+    /**
+     * Who grades the plain-sentence checks and with which key, said before anything is spent: the agent's own model unless {@code --judge} names
+     * another, so a person is never surprised that the same model (and key) marks its own work, or that a second provider's key is needed.
+     */
+    static String judgeLine(LoomScript script, List<DatasetFolder.Target> targets, String judge, WeaveEnv env) {
+        java.util.Set<String> models = new java.util.TreeSet<>();
+        for (DatasetFolder.Target t : targets) {
+            boolean judged = t.scenarios().stream().anyMatch(s -> !s.rubricLines().isEmpty() || !s.expectLines().isEmpty());
+            if (!judged) continue;
+            if (judge != null) models.add(judge);
+            else if (t.isAgent()) script.getAgents().stream().filter(a -> a.getName().equals(t.name())).findFirst().ifPresent(a -> models.add(a.getModel()));
+            else script.getAgents().forEach(a -> models.add(a.getModel()));
+        }
+        List<String> parts = new java.util.ArrayList<>();
+        for (String m : models) {
+            String problem = m == null ? null : env.models().problem(m);
+            java.util.regex.Matcher key = problem == null ? null : java.util.regex.Pattern.compile("needs ([A-Z0-9_]+)").matcher(problem);
+            String keyName = key != null && key.find() ? key.group(1) : keyFor(m);
+            parts.add(m + (keyName == null ? "" : " using " + keyName + (problem != null ? " (NOT FOUND: " + problem + ")" : " (found)")));
+        }
+        return "Judge: " + String.join("; ", parts) + (judge == null ? ". The agent's own model grades its own answers, with the same key, and those calls count toward the cost; --judge <model> names another (safer)." : ".");
+    }
+
+    private static String keyFor(String model) {
+        if (model == null) return null;
+        String m = model.toLowerCase(java.util.Locale.ROOT);
+        if (m.startsWith("gemini")) return "GEMINI_API_KEY";
+        if (m.startsWith("claude")) return "ANTHROPIC_API_KEY";
+        if (m.startsWith("sarvam")) return "SARVAM_API_KEY";
+        return null;
     }
 }

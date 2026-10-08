@@ -156,4 +156,15 @@ class ReaderAndBaselineTest {
         assertThat(new RunStore(tmp).load("RUN-EEEEEE", false).warnings())
                 .anyMatch(w -> w.contains("appears twice"));
     }
+
+    @Test
+    void theSummarySaysHowManyResultsWereCarriedOverFromEarlierRuns(@TempDir Path tmp) throws Exception {
+        String carried =
+                "{\"seq\":1,\"key\":\"k_1\",\"caseId\":\"c_1\",\"metric\":\"m\",\"kind\":\"ASSERTION\",\"status\":\"EVALUATED\",\"source\":\"CARRIED\",\"evaluatedInRun\":\"r0\",\"score\":1.0,\"passed\":true}\n";
+        bundle(tmp, "RUN-FFFFFF", "main", "2026-01-01T00:00:00Z", "COMPLETE", carried);
+        var m = EvalReport.build(new RunStore(tmp), null, null, true, ReportConfig.defaults());
+        assertThat(MarkdownSummary.summary(m)).contains("1 of these results were carried over from earlier runs").contains("mvn clean test");
+        bundle(tmp, "RUN-GGGGGG", "main", "2026-01-02T00:00:00Z", "COMPLETE", E1);
+        assertThat(MarkdownSummary.summary(EvalReport.build(new RunStore(tmp), "RUN-GGGGGG", null, true, ReportConfig.defaults()))).doesNotContain("carried over");
+    }
 }

@@ -1,0 +1,7 @@
+# Replace this example with a real request from the person who will use the workflow (weave guide 11 explains how to write them together).
+- id: workflow-001
+  name: A normal request
+  input: "Say hello in one short sentence."
+  dimensions: [accuracy]
+  rubric:
+    - "Answers the request in plain words"

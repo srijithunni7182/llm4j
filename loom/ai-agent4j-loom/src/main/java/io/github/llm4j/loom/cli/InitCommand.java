@@ -19,7 +19,7 @@ import picocli.CommandLine.Parameters;
 @Command(name = "init", description = "Creates a starter project: a Maven project with the script and its prompts in src/main/resources, the golden dataset and eval4j JUnit tests under src/test, and a README. Run 'weave init --list' to see the templates.")
 final class InitCommand implements Callable<Integer> {
 
-    @Parameters(index = "0", arity = "0..1", paramLabel = "<template>", description = "pipeline, approval or classifier.")
+    @Parameters(index = "0", arity = "0..1", paramLabel = "<template>", description = "pipeline, approval, classifier or empty.")
     String template;
 
     @Parameters(index = "1", arity = "0..1", paramLabel = "<dir>", description = "Where to create it (default: a folder named after the template, here).")

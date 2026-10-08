@@ -44,7 +44,7 @@ public final class EvalReport {
         b.append(String.format("%d passed, %d failed, %d unjudged", run.count(Status.PASS), run.count(Status.FAIL), run.count(Status.UNJUDGED)));
         if (run.notRun() > 0) b.append(", ").append(run.notRun()).append(" not run");
         BigDecimal cost = run.cost();
-        b.append(run.mock() ? "; mock run, nothing was spent" : cost == null ? "" : "; cost $" + cost.setScale(4, java.math.RoundingMode.HALF_UP).toPlainString());
+        b.append(run.mock() ? "; mock run, nothing was spent and tasks that change things were described, not run" : cost == null ? "" : "; cost $" + cost.setScale(4, java.math.RoundingMode.HALF_UP).toPlainString());
         if (run.stoppedBecause() != null) b.append("\nStopped early: ").append(run.stoppedBecause());
         if (run.count(Status.UNJUDGED) > 0) {
             b.append("\nUnjudged means nothing confirmed it (").append(run.mock() ? "a mock run does not judge" : "no judge ran or it failed")

@@ -65,7 +65,7 @@ final class TaskRunner {
 
         TaskEffect effect = task.effect();
         boolean changes = effect == TaskEffect.CHANGES;
-        if (executor.simulating() && changes) {
+        if (executor.simulatingTasks() && changes) {
             // described, not performed: nobody is asked to approve it, and nothing is recorded as done
             Map<String, Object> simulated = Map.of("outcome", "simulated");
             executor.setVariable(variable, simulated);

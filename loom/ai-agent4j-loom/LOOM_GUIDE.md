@@ -171,7 +171,7 @@ weave eval newsletter/main.loom --prompt researcher@v1      # a fair A/B: the sa
 ```
 
 - **Order of work.** Write the dataset first (what "good" means), then the script, then `--check`, then `--mock`, then a capped real run. The workflow guide does it in that order when you want tests, and skips straight to the script when you do not.
-- **A mock run checks the wiring, not the quality.** Every step gets a fixed, well-formed reply (a step that asks for JSON in a schema gets a value of that schema), every tool answers `[mock tool result]`, and nothing is spent. Content checks (`expected_output_contains`, `rubric`, …) are therefore reported as **unjudged**: a mock says nothing about content. A scenario fails in a mock run only when the run itself breaks.
+- **A mock run checks the wiring, not the quality.** Every step gets a fixed, well-formed reply (a step that asks for JSON in a schema gets a value of that schema), every tool answers `[mock tool result]`, a task that changes things (`TaskEffect.CHANGES`, the default) is described and **not run** (its result has the outcome `simulated`; a task that only reads or is pure, `NONE` or `READS`, does run), approvals and `human_prompt` are answered `yes`, and nothing is spent. So a branch that needs a task's real result takes its other path in a mock run. Content checks (`expected_output_contains`, `rubric`, …) are therefore reported as **unjudged**: a mock says nothing about content. A scenario fails in a mock run only when the run itself breaks.
 - **Passed, failed and unjudged are three counts.** A line nothing judged (a mock run, no judge model, a judge that failed) is never counted as met. The exit code is 0 when nothing failed, 1 when something did, 2 for a dataset or option problem.
 - **A real run needs a limit, and asks first.** It says how many scenarios and judge calls it expects and waits for a yes (`--yes` skips that). With no `--max-tokens`, `--max-calls` or `--max-cost` (the last needs `--prices`) it is capped at 500,000 tokens and says so. When the limit is reached the rest is reported as *not run*.
 - **Rubric and expect lines are judged by the agent's own model** unless `--judge <model>` names another (a different model from the one being judged is safer). A line scores as met at 0.7 on the judge's scale.
@@ -1086,8 +1086,7 @@ Task issue = Task.changes("IssueRefund", new EffectPolicy(EffectPolicy.OnUnknown
   workflow state behind the runtime's back, which is what keeps runs replayable. `arg(name, Type)` returns `null` when the argument is absent, and `requireArg(name, Type)` throws
   `TaskNotPerformed` when it is absent; both convert numbers and numeric strings, and both throw `TaskNotPerformed` for a value that cannot be converted
   to the type (for example text where a number is wanted).
-- **`TaskResult`** is `outcome` (default `ok`), optional `reason`, optional `value`, and optional data entries. `TaskResult.ok()`, `.value(x)`,
-  `.rejected("why")`, `.outcome("needs_review")`, then `.reason(..)`, `.with(key, value)`, `.withValue(..)`. Values must be JSON-safe
+- **`TaskResult`** is `outcome` (default `ok`), optional `reason`, optional `value`, and optional data entries. The starters are static: `TaskResult.ok()`, `TaskResult.value(x)`, `TaskResult.rejected("why")`, `TaskResult.outcome("needs_review")`. Add to a result you already have with `.reason(..)`, `.with(key, value)`, `.withValue(..)`. **`.value(x)` is a starter, not an adder**: `TaskResult.outcome("timeout").value(x)` compiles, ignores the outcome and returns `ok`; write `.withValue(x)` there (the project from `weave init` compiles with `-Xlint:static`, which warns about it). Values must be JSON-safe
   (strings, numbers, booleans, null, maps with string keys, lists), because the result is written to the run journal.
 - **`TaskEffect`** says what the task does to the outside world: `NONE` (pure computation), `READS` (observes, changes nothing) or `CHANGES`.
   **The default is `CHANGES`**, the safe assumption, matching how a tool of unknown kind is treated: it is not run in a simulation and is never
@@ -1310,6 +1309,14 @@ loop until (review.verdict == "COMPLETE") max 5 {
     note "Still incomplete after {_loopRounds} rounds"
 }
 ```
+
+**When the condition is tested.** `loop until (cond)` tests the condition **before every round, the first included**. So the variable it reads must already mean something at the start, or the loop must stop on a value its body sets. `until (review.verdict == "OK")` is fine: unset is not `OK`, so round 1 runs. `until (check.outcome != "blocked")` is not: unset is "not blocked", so the condition is true at once and **the loop never runs**. `weave check` warns about that case ("this loop never runs"). Put the stop value in the condition (`== "OK"`) or run the step once before the loop.
+
+### Conditions (`alt`, `loop until`)
+A condition is **one comparison**: a variable (or `name.field` path) on the left, a literal on the right, with `==`, `!=`, `>`, `>=`, `<` or `<=`; or a bare variable that is the text `true`. Text is compared exactly (`"yes"` is not `"Yes"`); two numbers are compared as numbers. **There is no `&&`, `||` or `not`**: write nested `alt` blocks (and `else`) instead, and the right-hand side is always a literal, never another variable. An unset variable is the empty text.
+
+### Where a budget bites
+A `budget` (or `--max-tokens` / `--max-calls` / `--max-cost`) is checked **before each model call**. It stops the next model call, not a task or a tool that is already running or about to run, so a step that changes the world (a `run` task, a tool) is not prevented by a cap that the next agent call would hit. If something must happen even when the money runs out, show its result straight away (a `note` right after the `run`) and make the model steps after it optional.
 
 ### Durable Runs (no new syntax)
 Every step with side effects (a `delegate`, a `human_prompt`, a `broadcast`) records its result in a

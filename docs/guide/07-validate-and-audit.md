@@ -69,8 +69,8 @@ tool  Ops      { use: shell allow: "df, du"  timeout: 20s }
 ```
 
 Split an agent that would hold the trifecta into two (one reads, one acts) and put `approve:` on the one that acts. The
-[securing-workflows guide](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/securing-workflows.md) walks nine steps with a worked example; the
-[OWASP mapping](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/owasp-llm-top-10.md) is honest about gaps.
+[securing-workflows guide](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/securing-workflows.md) *(repository only)* walks nine steps with a worked example; the
+[OWASP mapping](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/owasp-llm-top-10.md) *(repository only)* is honest about gaps.
 
 ## Test injection yourself (there is no detector)
 

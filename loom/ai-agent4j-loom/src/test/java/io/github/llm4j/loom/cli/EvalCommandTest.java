@@ -206,6 +206,20 @@ class EvalCommandTest {
     // ── a real run ───────────────────────────────────────────────────────────
 
     @Test
+    void aRealRunSaysWhoGradesAndWithWhichKeyBeforeAskingToSpend() throws Exception {
+        dataset("helper.yaml", "- {id: h-1, name: a, input: q, rubric: [Is right]}\n");
+        answerToTheQuestion = "no";
+
+        run();
+        assertThat(out.toString()).contains("Judge: m-help").contains("grades its own answers").contains("--judge <model> names another");
+
+        out.reset();
+        answerToTheQuestion = "no";
+        run("--judge", "claude-haiku-4-5-20251001");
+        assertThat(out.toString()).contains("Judge: claude-haiku-4-5-20251001 using ANTHROPIC_API_KEY").doesNotContain("grades its own answers");
+    }
+
+    @Test
     void r6_1_aRealRunSaysWhatItWillDoAndAsksFirst_andNoMeansNothingRuns() throws Exception {
         dataset("helper.yaml", "- {id: h-1, name: a, input: q, expected_output_contains: \"36\", rubric: [Is right]}\n");
         answerToTheQuestion = "no";
