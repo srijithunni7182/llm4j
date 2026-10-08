@@ -71,7 +71,7 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
    Show Workflow Graph** in VS Code) to see the workflow, `weave check --no-env`, `weave audit`, `weave eval --mock`. Say what the gate is and
    whether it passed.
 5. **Spend money last.** Every stage is proved free first (mocks, static checks), then run for real under a cap. A mock run (`--mock`) checks the
-   wiring, not the quality: content checks show as *unjudged*, and unjudged is never a pass.
+   wiring, not the quality (and a code step that changes things is described, not run; approvals are answered yes): content checks show as *unjudged*, and unjudged is never a pass.
 6. **Before any real run, confirm:** provider-side spending limits are set, the cap is below them, the key is in `.env` (developer) or the secret store (deployer), and the
    free run is green. Ask; do not assume. Never run a paid stage the user has not agreed to.
    **Before the first paid evaluation, also say who grades the plain-sentence checks and with which key**: unless `--judge <model>` names another, the agent's own model grades its own answers, with the same key, and those calls are part of the cost. Ask "should the same model grade, or a different one?", name the key the choice needs, and read the `Judge:` line `weave eval` prints before it asks to spend.
@@ -138,7 +138,7 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
     c2. **Update the project's `README.md`** so it matches what now exists (the agents, the checks, the commands, where the report is) and ticks off the stages done.
     d. **Then, last, how to set up and run it for real.** Write it in the report and say it in chat, in this order, and run none of it without a yes: what a run costs and what stops
        it (the script's `budget`, `--max-tokens`, the provider's own spending limit); getting a key from the provider; once the user has chosen the route (step 7), set it up: for `.env`, ask first, then run `cp .env.example .env` (it only copies a template; do not open the result) and have the user type the key after the
-       `=`; for the secret store, give them `weave secrets create` and `weave secrets set NAME` to run themselves (it asks for the value without showing it). Never ask for the key in chat, never print `.env`; `weave check <script>` without `--no-env`; one capped run (`weave run <script> -i name="..." --max-tokens 50000`);
+       `=`; for the secret store, give them `weave secrets create` and `weave secrets set NAME` to run themselves (it asks for the value without showing it). never ask for it in chat, never print `.env`; `weave check <script>` without `--no-env`; one capped run (`weave run <script> -i name="..." --max-tokens 50000`);
        tell them who grades (see step 6) and then the capped real evaluation (`weave eval <script> --max-tokens 200000 --report target/eval-report.html`, which says what it will do and asks first); and, when they are happy,
        how to put it on a server (`weave guide 9`: the secret store, not `.env`).
 

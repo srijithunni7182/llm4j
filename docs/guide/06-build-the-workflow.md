@@ -6,7 +6,7 @@
 
 Building the workflow *after* the agents are tested means a failure is the workflow's fault, not an untested prompt's. In Loom each step is a
 named delegation with a trace event, a budget and a replay point, which is exactly what chapter 8's trajectory tests assert on.
-Reference: [Loom guide](https://github.com/srijithunni7182/llm4j/blob/main/loom/ai-agent4j-loom/LOOM_GUIDE.md).
+Reference: the Loom guide, `weave guide loom`.
 
 ## Order of work
 
@@ -50,7 +50,7 @@ workflow Collaborate(problem) {
 }
 ```
 
-Full script: [`hexamind.loom`](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/hexamind.loom).
+Full script: [`hexamind.loom`](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/hexamind.loom) *(repository only)*.
 
 ## Tasks: the steps with no model
 
@@ -74,7 +74,7 @@ workflow Refund(msg) {
 - Write each task as a `Task` (`Task.pure(...)` for a rule, `Task.changes(...)` for a payment, with an `EffectPolicy` saying whether the provider deduplicates by the idempotency key) and register it with
   `executor.setTaskRegistry(...)` or `META-INF/services/io.github.llm4j.agent.task.Task`. (The agent writes unit tests for the task too, in the project's own framework, run by its own build; not with `weave`.)
 - A task spends no tokens and does not count against the run budget; a task that changes things is **never repeated by a crash or a `retry`** unless it is idempotent.
-- Reference: [Loom guide, Tasks](https://github.com/srijithunni7182/llm4j/blob/main/loom/ai-agent4j-loom/LOOM_GUIDE.md#tasks-deterministic-steps-run).
+- Reference: `weave guide loom`, the section "Tasks".
 
 ## When something is missing: write it, do not leave a gap
 
@@ -143,6 +143,65 @@ void slugifyMakesAUrlSlug() throws Exception {
     assertThat(new Slugify().run(context).value()).isEqualTo("home-composting-5-tips");
 }
 ```
+
+## A task that must check something (a safety rule)
+
+When a requirement says "mandatorily check that X never happens" ("the script must not delete data", "no refund over the limit"), it is a task, never a prompt: a model can be talked out of a rule, code cannot. Build it in this shape:
+
+1. **Allow, do not deny.** List what is acceptable and approve only that. A list of forbidden things always has a hole (`nice -n 5 rm -rf *` starts with a harmless word). Use a short deny list only to decide between *blocked* and *ask a person*.
+2. **Three outcomes, not two:** `approved` (everything is on the allow list), `blocked` (something clearly forbidden), `needs_review` (anything else: when unsure, ask). The script sends `needs_review` to a `human_prompt` and `blocked` nowhere.
+3. **Read the text, do not trust it.** Reject lines that use shell tricks (`;`, `&`, `|`, backticks, `$`, redirects, wildcards) rather than trying to understand them.
+4. **Write a table of cases and test every row**, including the sneaky ones. A test table of 15 to 30 rows (input, expected outcome) is how the rule is reviewed: show the user the table in plain words, not the Java.
+5. **Say what no tool can see.** `weave audit` does not look inside a task, so this code is the one part of the project that nothing but its own tests checks. Say so to the user.
+
+A small version of the pattern (compile-checked, and the table below is its test):
+
+<!-- compiles -->
+```java
+package safety;
+
+import io.github.llm4j.agent.task.Task;
+import io.github.llm4j.agent.task.TaskContext;
+import io.github.llm4j.agent.task.TaskEffect;
+import io.github.llm4j.agent.task.TaskResult;
+import java.util.Set;
+
+/** Approves a read-only diagnostic script; blocks the clearly destructive; asks a person about everything else. */
+public final class CheckScript implements Task {
+
+    private static final Set<String> ALLOWED = Set.of("echo", "ls", "cat", "df", "du", "uname", "uptime", "free", "journalctl", "ps", "head", "tail", "grep");
+    private static final Set<String> FORBIDDEN = Set.of("rm", "dd", "mkfs", "shred", "truncate", "sudo", "kill", "chmod", "chown", "mv");
+    private static final String TRICKS = ";&|`$<>(){}*?~\\";
+
+    @Override public String getName() { return "CheckScript"; }
+
+    @Override public TaskEffect effect() { return TaskEffect.NONE; }   // pure: same text, same answer, no side effects
+
+    @Override
+    public TaskResult run(TaskContext context) {
+        String script = String.valueOf(context.requireArg("script"));
+        boolean unsure = false;
+        for (String raw : script.split("\n")) {
+            String line = raw.strip();
+            if (line.isEmpty() || line.startsWith("#")) continue;
+            String first = line.split("\\s+")[0];
+            if (FORBIDDEN.contains(first)) return TaskResult.outcome("blocked").reason("line starts with " + first + ": " + line);
+            boolean tricks = line.chars().anyMatch(c -> TRICKS.indexOf(c) >= 0);
+            if (!ALLOWED.contains(first) || tricks) unsure = true;
+        }
+        return unsure ? TaskResult.outcome("needs_review").reason("a line is not on the allow list or uses shell syntax") : TaskResult.ok();
+    }
+}
+```
+
+| Script line | Outcome |
+|---|---|
+| `df -h` , `uptime`, `# a comment` | `ok` |
+| `ls /var/log \| head` | `needs_review` (a pipe) |
+| `rm -rf /tmp/x` | `blocked` |
+| `nice -n 5 rm -rf *` | `needs_review` (`nice` is not on the list, and `*` is syntax): the person sees it, nothing runs on its own |
+| `sudo systemctl restart x` | `blocked` |
+| `cat /etc/hosts; rm x` | `needs_review` (`;`): never silently approved |
 
 The files that connect them (a `.loot` line maps the name the script uses to the class, and an optional `Name.reach` line tells `weave audit` what the tool reaches: `none`, `reads`, `fetches`, `writes` or `sends`; the services file lists tasks, one class per line):
 

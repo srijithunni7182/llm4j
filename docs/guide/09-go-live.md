@@ -40,7 +40,7 @@ A **journal** makes the run durable: re-running with the same journal replays fi
 
 ## Check the cost afterwards
 
-There is no `weave estimate`; keep a small cost model (calls x tokens x price) and compare. Hexamind's is [`cost_model.py`](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/cost_model.py): expected a full debate at
+There is no `weave estimate`; keep a small cost model (calls x tokens x price) and compare. Hexamind's is [`cost_model.py`](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/cost_model.py) *(repository only)*: expected a full debate at
 about 121 model calls, measured against the spend report. When reality and model disagree, change the model, not just the cap.
 
 Rate limits: a 429 with a short reset is waited out inside the call; a long one reaches Loom's `rate_limits`. A free-tier key will hit them: pace the calls (Hexamind's evaluation used
@@ -55,6 +55,7 @@ writes that code in your project, in whatever UI you choose.) The host needs thr
 HarnessExecutor executor = new HarnessExecutor(new LoomLoader().load("workflow.loom"), tools, clients);
 executor.addTraceListener(event -> ui.append(event));      // 1. the transcript (add it BEFORE initialize())
 executor.setHumanInterface(ui::askPerson);                 // 2. questions and approvals go to your screen
+executor.setPromptCatalog(PromptSupport.catalog(script, scriptFile, PromptSettings.NONE));   //    needed when agents use prompt files (`weave` does this for you)
 executor.setJournal(journal);                              //    optional: lets a question wait for days (below)
 executor.initialize();
 executor.executeWorkflow("Main", Map.of("topic", topic));
@@ -91,6 +92,8 @@ import io.github.llm4j.loom.execution.LLMClientFactory;
 import io.github.llm4j.loom.execution.LoomLoader;
 import io.github.llm4j.loom.execution.ToolRegistry;
 import io.github.llm4j.loom.execution.TraceEvent;
+import io.github.llm4j.loom.prompt.PromptSettings;
+import io.github.llm4j.loom.prompt.PromptSupport;
 import io.github.llm4j.loom.runtime.HumanInterface;
 import io.github.llm4j.secret.EncryptedFileSecretStore;
 import io.github.llm4j.secret.MasterKey;
@@ -143,6 +146,7 @@ public final class WorkflowRun {
             HarnessExecutor exec = new HarnessExecutor(loaded, new ToolRegistry(), models);
             exec.setSecretStore(secrets);
             exec.setBaseDir(script.toAbsolutePath().getParent());
+            exec.setPromptCatalog(PromptSupport.catalog(loaded, script, PromptSettings.NONE));   // without it a script that uses prompt files does not load
             exec.addTraceListener(this::onEvent);          // add listeners BEFORE initialize()
             exec.setHumanInterface(new HumanInterface() {  // called on the thread that runs the workflow
                 @Override
@@ -235,7 +239,7 @@ weave run workflow.loom --secrets /etc/myapp/keys.store --secrets-key-env MYAPP_
 ```
 
 A tool's key is `secret.NAME` in the script; you choose and protect the store's path and master key. Environment variables (`env.NAME`) also work. The store is described in the
-[secret store page](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Secret-Store.md). Secrets are scrubbed from results, traces, journals and audit logs. When the keys must
+[secret store page](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Secret-Store.md) *(repository only)*. Secrets are scrubbed from results, traces, journals and audit logs. When the keys must
 come from a cloud vault instead, see the next section.
 
 ### Keys in Google Secret Manager (or another vault)
