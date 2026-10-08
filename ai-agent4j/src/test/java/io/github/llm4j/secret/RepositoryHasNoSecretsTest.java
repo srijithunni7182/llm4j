@@ -81,7 +81,7 @@ class RepositoryHasNoSecretsTest {
     void noFileInTheRepositoryContainsACredentialShapedString() throws IOException {
         assertTrue(Files.isDirectory(ROOT.resolve("ai-agent4j")), "the test must run from a module directory of the repository: " + ROOT);
         List<String> problems = new ArrayList<>();
-        try (Stream<Path> walk = Files.walk(ROOT)) {
+        try (Stream<Path> walk = candidateFiles()) {
             walk.filter(Files::isRegularFile).filter(p -> notSkipped(p)).forEach(p -> {
                 String name = p.getFileName().toString();
                 int dot = name.lastIndexOf('.');
@@ -97,6 +97,29 @@ class RepositoryHasNoSecretsTest {
             });
         }
         assertEquals(List.of(), problems, "a credential-shaped string is committed; remove it and rotate the credential");
+    }
+
+    /**
+     * The files that are, or could become, part of the repository: tracked plus untracked-but-not-ignored. A git-ignored file such as a local
+     * secrets.sh can never be committed, so it is not scanned; CI checks out committed files only, so it sees exactly what would ship. Without
+     * git (a source tarball) every file under the root is scanned.
+     */
+    private static Stream<Path> candidateFiles() throws IOException {
+        try {
+            Process git = new ProcessBuilder("git", "-C", ROOT.toString(), "ls-files", "-z", "--cached", "--others", "--exclude-standard")
+                    .redirectErrorStream(false).start();
+            byte[] out = git.getInputStream().readAllBytes();
+            if (git.waitFor() == 0) {
+                List<Path> files = new ArrayList<>();
+                for (String rel : new String(out, StandardCharsets.UTF_8).split("\0")) if (!rel.isEmpty()) files.add(ROOT.resolve(rel));
+                return files.stream();
+            }
+        } catch (IOException e) {
+            // git not installed
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        return Files.walk(ROOT);
     }
 
     private static boolean notSkipped(Path p) {
