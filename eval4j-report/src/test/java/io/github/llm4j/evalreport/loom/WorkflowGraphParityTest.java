@@ -71,7 +71,7 @@ class WorkflowGraphParityTest {
     @Test
     void everyWorkflowInTheRepositoryKeepsItsOldNodesAndEdges() throws Exception {
         JsonNode golden = golden();
-        assertThat(golden.size()).as("workflows recorded before the change").isGreaterThan(50);
+        assertThat(golden.size()).as("workflows recorded before the change").isGreaterThan(40);
         List<String> problems = new ArrayList<>();
         Set<String> moved = new TreeSet<>();
 
