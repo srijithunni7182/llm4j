@@ -270,6 +270,12 @@ public class WeaveCLI implements Callable<Integer> {
 
     static int check(File scriptFile, File lootFile, CheckSettings settings, WeaveEnv env) {
         io.github.llm4j.loom.ast.LoomScript script;
+        if (!scriptFile.isFile()) {
+            String why = "there is no file at " + scriptFile.getAbsolutePath() + ". Check the path (weave next, run in the project folder, says where the script is)";
+            if (settings.json()) env.out().println(checkJson(scriptFile, List.of(new JsonProblem("error", 0, why)), List.of()));
+            else env.out().println("✗ " + scriptFile.getName() + ": " + why);
+            return 2;
+        }
         try {
             script = new LoomLoader().load(scriptFile.getAbsolutePath());
         } catch (Exception e) {

@@ -38,7 +38,10 @@ import org.junit.jupiter.api.TestFactory;
 class ScriptWiringTest {
 
     /** What this test records in the dashboard: a deterministic check, under the "wiring" dimension and not under the dataset's quality dimensions. */
-    private static final MetricRef RUNS_TO_THE_END = MetricRef.assertion("runs-to-the-end", "Runs to the end", "workflows", "wiring", "wiring");
+    private static final MetricRef WORKFLOW_RUNS_TO_THE_END = MetricRef.assertion("runs-to-the-end", "Runs to the end", "workflows", "wiring", "wiring");
+
+    /** Agents get their own group in the dashboard. A different id is needed: two groups under one metric id all land in the first group registered. */
+    private static final MetricRef AGENT_RUNS_TO_THE_END = MetricRef.assertion("agent-runs-to-the-end", "Agent runs to the end", "agents", "wiring", "wiring");
 
     private static final Path SCRIPT = Project.script();
     private static final Path DATASET = Project.dataset();
@@ -49,6 +52,7 @@ class ScriptWiringTest {
         Fixtures.none().apply(script, tools, true);
         HarnessExecutor e = new HarnessExecutor(script, tools, new MockModels());
         e.setHumanInterface(message -> "yes");
+        e.setSimulateTasks(true);   // a free test must not save, send or pay: tasks that change things are described, not run
         e.setBaseDir(SCRIPT.getParent());
         e.setEnvLookup(name -> "mock");
         e.setPromptCatalog(PromptSupport.catalog(script, SCRIPT, PromptSettings.NONE));
@@ -81,7 +85,7 @@ class ScriptWiringTest {
                         ScenarioResult r = target.isAgent()
                                 ? runner.agent(target.file(), target.name(), scenario)
                                 : runner.workflow(target.file(), target.name(), parameters, scenario, null);
-                        EvalChecks.check(RUNS_TO_THE_END,
+                        EvalChecks.check(target.isAgent() ? AGENT_RUNS_TO_THE_END : WORKFLOW_RUNS_TO_THE_END,
                                 () -> assertThat(r.status()).as(target.name() + " " + r.label() + ": " + r.error()).isNotEqualTo(Status.FAIL));
                     } finally {
                         EvalRun.get().unbind();

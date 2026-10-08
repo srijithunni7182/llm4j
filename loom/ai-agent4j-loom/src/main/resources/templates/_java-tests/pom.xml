@@ -59,6 +59,11 @@
                 <version>3.12.1</version>
                 <configuration>
                     <release>17</release>
+                    <!-- warns when a static method is called on an instance, such as TaskResult.outcome("x").value(y), which silently drops the outcome -->
+                    <showWarnings>true</showWarnings>
+                    <compilerArgs>
+                        <arg>-Xlint:static</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>

@@ -89,6 +89,14 @@ class EvalDatasetTest {
     }
 
     @Test
+    void aListWhereOneTextIsExpectedNamesTheScenarioAndTheField() throws IOException {
+        write("a.yaml", "- id: a-1\n  input: x\n- id: a-2\n  input: y\n  expected_output_contains: [\"one\", \"two\"]\n");
+
+        assertThat(EvalDataset.load(dir).problems()).singleElement().satisfies(p ->
+                assertThat(p.message()).contains("scenario 2").contains("field expected_output_contains").contains("takes one text, not a list"));
+    }
+
+    @Test
     void anUnknownKeyInAScenarioIsAProblemNotASilentIgnore() throws IOException {
         write("a.yaml", "- name: n\n  input: x\n  rubrik: [typo]\n");
 

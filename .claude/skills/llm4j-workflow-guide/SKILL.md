@@ -32,7 +32,7 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
 
 ## How to guide
 
-0. **Start from a template, not from an example.** For a new project run `weave init pipeline|approval|classifier` (pick the one nearest what the
+0. **Start from a template, not from an example.** For a new project run `weave init pipeline|approval|classifier|empty` (`empty` has nothing from a sample to delete; otherwise delete the sample's leftover agents, prompts and examples as soon as you rename the project, and tell the user which you removed and why) (pick the one nearest what the
    user described) and change it. Whatever you copy is a **reference to be modified, never a finished product**: say so to the user, and change its agents, prompts, tools, dataset and limits to fit their workflow. A large example app is a case study, not a starting point: copy a small template that already passes
    `weave check --no-env` and `weave eval --mock`.
    `weave init <template> <dir>` makes a **Maven project**. Right after it runs, tell the user in plain words what each part is for, using the paths the command
@@ -42,14 +42,14 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
    `pom.xml` builds it; `.env.example` is where a key goes (copy it to `.env`, which git ignores). The commands take the script's path:
    `weave check src/main/resources/main.loom --no-env`, and `weave next` from the project root says what to do next. Never copy files out of a scratch
    folder by hand, and never rearrange the layout: `weave init <template> --flat` makes the older flat folder if the user really wants one.
-1. **Ask once: "Do you want tests first?"** (default yes). If yes, the order is: decide the agents, write the golden dataset
+1. **Ask once: "Do you want tests first?"** (default yes). If yes, the order is: decide the agents, write the golden dataset (the project from `weave init` comes first: `weave eval --check` needs a script and the folders, so run `weave init`, then write the examples, then change the script; red checks before the script exists are expected, and say so)
    (`weave eval <script> --init`, then fill it in with the user), write the script, `weave eval <script> --check`, `--mock`, then a capped
    real run. **Write the dataset before the script, and write it WITH the user, not for them**: read `weave guide 11` and run that conversation (teach in plain words, ask five short questions per agent, collect their real example requests, show samples and ask good-or-bad, read the list back, only then write the file), and **never write a Java loader or a test module for the dataset**: the project
    from `weave init` already has the JUnit tests that run it (`mvn test`), and `weave eval` reads the same YAML. If no, skip stages 2, 3, 4, 5 and 8 and go straight to the script, `weave check`, `weave audit` and a
    capped run. Record the answer in the project's README (`Evaluation: skipped` or `Evaluation: golden dataset in <its folder>`) and do not ask
    again. At go-live say once, in one sentence, that no evaluation exists, and carry on if the user still wants to go live. Skipping never
    loosens a cap, an approval or a guard.
-2. **Two paths.** Ask whether the workflow is a script run with `weave` (Loom is the runtime; you write no Java for the workflow itself) or Java code (agents built in Java,
+2. **Two paths.** (Skip this question when a template already settled it: a project from `weave init` is the script path.) Ask whether the workflow is a script run with `weave` (Loom is the runtime; you write no Java for the workflow itself) or Java code (agents built in Java,
    or Loom embedded in a host). Prompts live in `prompts/` markdown files either way (`prompt: "id"` in the script; `MarkdownFolderPromptRegistry`
    from Java). Maven and JUnit come with the project `weave init` makes (its tests run the dataset); your own Java (tasks, tools, a host) goes in `src/main/java` of that same project. Compare two
    wordings of a prompt on the script path with `--prompt id@v1` and `--prompt id@v2`.
@@ -74,7 +74,8 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
    wiring, not the quality: content checks show as *unjudged*, and unjudged is never a pass.
 6. **Before any real run, confirm:** provider-side spending limits are set, the cap is below them, the key is in `.env` (developer) or the secret store (deployer), and the
    free run is green. Ask; do not assume. Never run a paid stage the user has not agreed to.
-7. **Keys: two different people, two different answers. Ask which one this is.**
+   **Before the first paid evaluation, also say who grades the plain-sentence checks and with which key**: unless `--judge <model>` names another, the agent's own model grades its own answers, with the same key, and those calls are part of the cost. Ask "should the same model grade, or a different one?", name the key the choice needs, and read the `Judge:` line `weave eval` prints before it asks to spend.
+7. **Keys: two different people, two different answers. Ask which one this is, in these words, before giving any key advice: "Will you run this yourself on this laptop with `weave`, or is it a program or server that will use it?" Then show both routes side by side and let the user choose** (the project's README has both): `.env` for `weave` on their own machine; `weave secrets create`, `weave secrets set NAME`, then `--secrets <file>` on `weave run` and `weave eval` for a program or server. Never offer only one. **Never put a key in `.env.example`** (it is committed). When you rewrite the project's README, keep its key section (both routes and the judge note).
    - **A developer running the workflow and its evaluations on their own machine** (including an LLM as judge): a **`.env` file beside the script**, ignored by git.
      `weave init` writes `.env.example` and a `.gitignore` that already ignores `.env`; tell the user to run `cp .env.example .env` and put the key after the `=`. `weave run`,
      `weave check`, `weave eval` and `weave next` read it and say which names they found (never the values); a variable already set in their shell wins. `weave`
@@ -114,11 +115,11 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
     Remember: `call` passes text and hands back the variable named `result`; names are one flat namespace across files (make them unique); `budget` goes
     in the entry file only. Check with `weave check` and `weave graph` on the entry file, and tell the user how you split it. Chapter 6 has the layout and a complete example.
 
-12. **Know where the project stands, and show what you built.** In a project that already has files, run `weave next` first: it says what to do next, in order, and
+12. **Know where the project stands, and show what you built.** After `weave explain`, read its plain-English text back to the user and ask whether it is what they meant, before you build on it. In a project that already has files, run `weave next` first: it says what to do next, in order, and
     it is free. After you change a script, run `weave explain <script>` and read the plain-English description back to the user, so they can confirm it is what they
     meant before anything is run. Neither command calls a model. When the user asks how to change something, look in `weave guide recipes` for a tested pattern.
 
-13. **If any agent uses a built-in tool (`webhook`, `email`, `http`, `file`, `shell`, `sql`), prepare it for deployment.** Write a "Deploying" section in the project's README with one line per name the
+13. **Do this as soon as any agent uses a built-in tool, not at the end** (it is easy to skip: a `shell` tool counts). If any agent uses a built-in tool (`webhook`, `email`, `http`, `file`, `shell`, `sql`), prepare it for deployment.** Write a "Deploying" section in the project's README with one line per name the
     script needs (get them from `weave check <entry> --no-env`, "not set yet"): what it is for and how the deployer sets it. Then, from chapter 9 ("Built-in tools when deployed"):
     - keep a **development entry** (email `outbox:` instead of SMTP, a test webhook URL) and a **deployed entry** that import the same workflows; tools are declared in the entry file;
     - every credential, webhook URL and SMTP password is `env.NAME` or `secret.NAME` and is supplied by the service's environment, the secret store or a vault host, **never the project's `.env`**;
@@ -133,12 +134,12 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
     c. **Open the eval4j dashboard.** `mvn test` wrote `target/eval4j/report/index.html`. Open it for the user in their browser (`open` on macOS, `xdg-open` on Linux,
        `start` on Windows); if you cannot open a window, give the full path and say so. Tell them what they are looking at: **Wiring 100%** means every example ran through
        the workflow end to end on a fake model; **Safety** and **Tone** (the dataset's quality dimensions) read "Declared, not evaluated" because only a real, capped run judges
-       them; the large percentage at the top is the wiring only, not the quality. Offer `weave graph` or the editor's **Loom: Show Workflow Graph** to look at the workflow itself.
+       them; the large percentage at the top is the wiring only, not the quality. Offer `weave graph` or the editor's **Loom: Show Workflow Graph** to look at the workflow itself. **There are two reports, and users mix them up: say which is which.** The dashboard from `mvn test` (`target/eval4j/report/index.html`) groups the free wiring checks, with the agents in their own group and each row named "<agent or workflow> · <example>". The page from `weave eval <script> --agent <Name> --report page.html` (or `--report` for everything on one page) lists, for one agent or the whole workflow, each example and each check on it. If the user asks for "the eval report per agent", that is the second one: run it for each agent and open them. If a number looks too high after you changed a check, run `mvn clean test` (old results of a renamed check are carried over and the summary says how many).
     c2. **Update the project's `README.md`** so it matches what now exists (the agents, the checks, the commands, where the report is) and ticks off the stages done.
     d. **Then, last, how to set up and run it for real.** Write it in the report and say it in chat, in this order, and run none of it without a yes: what a run costs and what stops
-       it (the script's `budget`, `--max-tokens`, the provider's own spending limit); getting a key from the provider; run `cp .env.example .env` for the user (it only copies a template; do not open the result) and have the user type the key after the
-       `=` (never ask for it in chat, never print `.env`); `weave check <script>` without `--no-env`; one capped run (`weave run <script> -i name="..." --max-tokens 50000`);
-       the capped real evaluation (`weave eval <script> --max-tokens 200000 --report target/eval-report.html`, which says what it will do and asks first); and, when they are happy,
+       it (the script's `budget`, `--max-tokens`, the provider's own spending limit); getting a key from the provider; once the user has chosen the route (step 7), set it up: for `.env`, ask first, then run `cp .env.example .env` (it only copies a template; do not open the result) and have the user type the key after the
+       `=`; for the secret store, give them `weave secrets create` and `weave secrets set NAME` to run themselves (it asks for the value without showing it). Never ask for the key in chat, never print `.env`; `weave check <script>` without `--no-env`; one capped run (`weave run <script> -i name="..." --max-tokens 50000`);
+       tell them who grades (see step 6) and then the capped real evaluation (`weave eval <script> --max-tokens 200000 --report target/eval-report.html`, which says what it will do and asks first); and, when they are happy,
        how to put it on a server (`weave guide 9`: the secret store, not `.env`).
 
     Template for `PROJECT_REPORT.md` (fill every section; say "none" rather than dropping one):

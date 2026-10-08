@@ -69,6 +69,7 @@ public class HarnessExecutor implements LoomEngine {
     /** True when the script has a checkpoint or a rewind: only then does the run keep what it needs to go back (the question behind each answer). */
     private boolean rewindsUsed;
     private boolean simulate;
+    private boolean simulateTasks;
     /** The id of the step this thread is executing: its position in the script (stable across runs). */
     private final ThreadLocal<String> step = ThreadLocal.withInitial(() -> "");
     /** Counts delegates started on this thread, so a retried delegate's tool calls are numbered afresh. */
@@ -221,6 +222,9 @@ public class HarnessExecutor implements LoomEngine {
     String resolve(String text) { return resolvePayload(text); }
     boolean rewindsUsed() { return rewindsUsed; }
     boolean simulating() { return simulate; }
+
+    /** True when tasks that change things are described and not run: a simulated run, or a mock evaluation. */
+    boolean simulatingTasks() { return simulate || simulateTasks; }
     /** True when a budget has refused a call or has nothing left: a rewind would only spend what isn't there. */
     boolean overBudget() { return budgeting && (anyRefused(null) || (runBudget != null && runBudget.exhausted())); }
     // ---- what the Decider needs ---------------------------------------------------------------------------------------
@@ -330,6 +334,12 @@ public class HarnessExecutor implements LoomEngine {
         if (stopAt != null && (stopAt.equals(point) || stopAt.equals(Generations.strip(point)))) throw new io.github.llm4j.loom.runtime.RunStopped(point);
     }
     public void setSimulate(boolean simulate) { this.simulate = simulate; }
+
+    /**
+     * Describe, and do not run, the tasks that change things ({@code TaskEffect.CHANGES}), while tools and models behave as they are given. A mock
+     * evaluation uses this, so a free run cannot save a file, send a message or pay.
+     */
+    public void setSimulateTasks(boolean simulateTasks) { this.simulateTasks = simulateTasks; }
     public void setMaxRewinds(int max) { rewinder.setMaxRewinds(max); }
     void runHandler(List<Statement> handler, String key) { runBlock(handler, key); }
 

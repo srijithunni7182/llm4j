@@ -125,9 +125,27 @@ public record EvalDataset(Path dir, Map<String, List<EvalScenario>> files, Map<S
     }
 
     private static String rootMessage(Throwable e) {
+        for (Throwable c = e; c != null; c = c.getCause() == c ? null : c.getCause()) {
+            if (c instanceof com.fasterxml.jackson.databind.JsonMappingException jm && !jm.getPath().isEmpty()) return located(jm);
+        }
         Throwable t = e;
         while (t.getCause() != null && t.getCause() != t) t = t.getCause();
         String m = t.getMessage();
         return m == null ? t.getClass().getSimpleName() : m.lines().findFirst().orElse(m);
+    }
+
+    /** "scenario 3, field expected_output_contains: this field takes one text, not a list": where in the file, and what to change. */
+    private static String located(com.fasterxml.jackson.databind.JsonMappingException e) {
+        String scenario = null;
+        String field = null;
+        for (var ref : e.getPath()) {
+            if (ref.getFieldName() != null) field = ref.getFieldName();
+            else if (ref.getIndex() >= 0 && scenario == null) scenario = String.valueOf(ref.getIndex() + 1);
+        }
+        String what = e.getOriginalMessage();
+        if (what != null && what.contains("from Array value")) what = "this field takes one text, not a list";
+        else if (what != null && what.contains("from Object value")) what = "this field takes one text, not a mapping";
+        else what = what == null ? "has the wrong shape" : what.lines().findFirst().orElse(what);
+        return (scenario == null ? "" : "scenario " + scenario + ", ") + (field == null ? "" : "field " + field.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase(java.util.Locale.ROOT) + ": ") + what;
     }
 }

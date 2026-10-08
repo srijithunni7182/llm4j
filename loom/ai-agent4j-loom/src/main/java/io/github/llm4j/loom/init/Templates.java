@@ -25,7 +25,11 @@ public final class Templates {
             new Template("classifier", "one agent that labels things, asks a person when it is unsure, and a golden dataset to measure it", List.of(
                     "main.loom", "README.md", "dot-gitignore", "dot-env.example",
                     "prompts/classifier.md",
-                    "eval/golden/dataset.yaml", "eval/golden/classifier.yaml", "eval/golden/workflow.yaml")));
+                    "eval/golden/dataset.yaml", "eval/golden/classifier.yaml", "eval/golden/workflow.yaml")),
+            new Template("empty", "nothing from a sample project to delete: one agent, one workflow, one example", List.of(
+                    "main.loom", "README.md", "dot-gitignore", "dot-env.example",
+                    "prompts/helper.md",
+                    "eval/golden/dataset.yaml", "eval/golden/workflow.yaml")));
 
     /** The folder under /templates that holds the Maven test module added by {@code --with-java-tests}; it is not a template of its own. */
     public static final String JAVA_TESTS = "_java-tests";

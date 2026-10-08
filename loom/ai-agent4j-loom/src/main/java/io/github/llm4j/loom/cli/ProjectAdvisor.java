@@ -87,7 +87,7 @@ final class ProjectAdvisor {
         }
         if (hasDataset) {
             steps.add(new Step("Run the whole dataset on mock models to prove the wiring",
-                    "Free: every step gets a fixed reply. It checks the connections, not the quality (content checks come out unjudged).", "weave eval " + file + " --mock"));
+                    "Free: every step gets a fixed reply, and a code step that changes things is described, not run. It checks the connections, not the quality (content checks come out unjudged).", "weave eval " + file + " --mock"));
         }
         if (!check.keysNotSet().isEmpty()) {
             String names = String.join(", ", check.keysNotSet());

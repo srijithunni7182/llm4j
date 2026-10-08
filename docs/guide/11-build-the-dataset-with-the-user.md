@@ -24,6 +24,15 @@ Every agent can be good or bad in five ways. Ask about each one, for each agent,
 
 Rule of thumb: **if a number or an exact word can settle it, it is a check by code** (free, exact, same every time). **If it needs reading, a second model reads it** (it costs a little and is not perfect). Never use the second model for something code can count.
 
+## The fast path (when the user just says "yes")
+
+Many people answer closed questions with "yes" and skip open ones. Do not pretend that is their standard. Offer the shortcut openly, and name every guess as a guess:
+
+1. Write all five qualities for **all** agents yourself, in plain sentences, in one message, marked **"my guesses"**.
+2. Ask for two things only: "Which of these is wrong or missing?" and "Give me one real request you would send, and one that worries you."
+3. Treat a bare "yes" as "no objection yet", not as agreement. Say once at the end: "These examples are mostly my guesses; the first real run will show which ones matter. Tell me when a result looks wrong and I will add it as an example."
+4. Anything the user volunteered themselves (a limit, "never full logs", "ask me first") is theirs: mark it as such, and make it a check by code whenever it can be counted.
+
 ## The conversation, step by step
 
 Do this one agent at a time. For a workflow with four agents, that is four short conversations, not one long one.

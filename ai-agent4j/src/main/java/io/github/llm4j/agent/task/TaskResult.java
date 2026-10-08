@@ -49,7 +49,11 @@ public final class TaskResult {
         return ok().withAll(data);
     }
 
-    /** Outcome {@code ok} with a single {@code value}. */
+    /**
+     * Outcome {@code ok} with a single {@code value}. This is a <b>static</b> starter: write {@code TaskResult.value(x)}. Called on an existing result
+     * ({@code TaskResult.outcome("timeout").value(x)}) it still compiles but ignores that result and returns a new {@code ok} one; to add a value to
+     * a result use {@link #withValue(Object)}.
+     */
     public static TaskResult value(Object value) {
         return ok().withValue(value);
     }

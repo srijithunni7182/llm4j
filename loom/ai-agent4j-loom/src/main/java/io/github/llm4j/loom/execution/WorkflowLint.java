@@ -70,8 +70,36 @@ public final class WorkflowLint {
             }
         }
         findings.addAll(wordsThatAreVariables(workflow, all, who));
+        findings.addAll(loopsThatNeverRun(workflow, all, who));
         findings.sort(java.util.Comparator.comparingInt(Finding::line));
         return findings;
+    }
+
+    /**
+     * A {@code loop until (…)} tests its condition before every round, the first included. When the condition reads a variable that nothing sets
+     * before the loop (it is set inside the loop, or nowhere) and the condition is already true with that variable unset (as {@code x != "v"}
+     * is), the loop body never runs. Reported once per such loop.
+     */
+    private static List<Finding> loopsThatNeverRun(WorkflowDef workflow, List<Statement> all, String who) {
+        List<Finding> out = new ArrayList<>();
+        for (Statement s : all) {
+            if (!(s instanceof io.github.llm4j.loom.ast.LoopStmt loop) || loop.getCondition() == null) continue;
+            String condition = loop.getCondition().strip();
+            String root = condition.split("\\s*(==|!=|>=|<=|>|<)", 2)[0].strip().split("\\.")[0].strip();
+            if (root.isEmpty() || !root.matches("[A-Za-z_][A-Za-z0-9_]*") || workflow.getParameters().contains(root)) continue;
+            List<Statement> inside = new ArrayList<>();
+            StatementWalker.walk(loop.getBody(), inside::add);
+            boolean setBefore = false;
+            for (Statement t : all) {
+                if (t != loop && !inside.contains(t) && t.getLine() < loop.getLine() && root.equals(assigned(t))) setBefore = true;
+            }
+            if (setBefore) continue;
+            if (io.github.llm4j.loom.runtime.ConditionEvaluator.evaluate(condition, new io.github.llm4j.loom.runtime.DefaultVariableContext())) {
+                out.add(new Finding(loop.getLine(), who, "this loop never runs: it is tested before the first round, " + root
+                        + " has no value yet, and the condition (" + condition + ") is already true. Stop on a value the loop sets (for example == \"OK\"), or set " + root + " before the loop"));
+            }
+        }
+        return out;
     }
 
     private static final Pattern PLACEHOLDER = Pattern.compile("\\{[^{}\\s]+}");

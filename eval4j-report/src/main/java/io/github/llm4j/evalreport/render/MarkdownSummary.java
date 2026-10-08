@@ -36,6 +36,10 @@ public final class MarkdownSummary {
             sb.append(", ").append(m.overall().notEvaluated()).append(" not evaluated");
         }
         sb.append(". Pass rate ").append(pct(m.overall().rate())).append(".\n");
+        if (m.evidence() != null && m.evidence().carried() > 0) {
+            sb.append("\n**").append(m.evidence().carried()).append(" of these results were carried over from earlier runs, not run now.** ")
+                    .append("If a check was renamed or removed, its old results still count; `mvn clean test` rebuilds the report from this run only.\n");
+        }
         if (m.weighted().rate() != null) {
             sb.append("\nPriority-weighted pass rate ")
                     .append(pct(m.weighted().rate()))
