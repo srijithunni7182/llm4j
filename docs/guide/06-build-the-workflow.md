@@ -50,7 +50,7 @@ workflow Collaborate(problem) {
 }
 ```
 
-Full script: [`hexamind.loom`](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/hexamind.loom) *(repository only)*.
+Full script: [`hexamind.loom`](https://github.com/srijithunni7182/llm4j/blob/main/src/examples/hexamind-hub/eval/hexamind.loom) *(repository only)*.
 
 ## Tasks: the steps with no model
 

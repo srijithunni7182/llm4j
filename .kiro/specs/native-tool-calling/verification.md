@@ -9,7 +9,7 @@ Companion to [design.md](design.md) and [test-strategy.md](test-strategy.md). St
 | G1 | Specs written, every ID has a row | design, test strategy, this plan | section 2 |
 | G2 | Whole reactor compiles (examples included) | `mvn -q -o -DskipTests -Djacoco.skip=true compile` | exit 0 |
 | G3 | New tests | `mvn -pl ai-agent4j test -Dtest='io.github.llm4j.toolcalling.*Test,CiCoversEveryModuleTest'` | 70 tests pass (model 12, provider wire 12, agent 19, text tolerance 17, confidence 6, end to end 2, CI guard 2) |
-| G4 | Full regression, each touched module | `mvn -o -pl <module> verify` | ai-agent4j 853 (2 skipped, as before); addons 17; loom/ai-agent4j-loom 819 (1 skipped, as before) incl. jacoco rules; eval4j 466; eval4j-report 46; loom/ctk 30; ai-agent4j-tools 381 and engram 9 in the root-reactor run. 0 failures, 0 errors |
+| G4 | Full regression, each touched module | `mvn -o -pl <module> verify` | ai-agent4j 853 (2 skipped, as before); addons 17; src/loom/ai-agent4j-loom 819 (1 skipped, as before) incl. jacoco rules; eval4j 466; eval4j-report 46; src/loom/ctk 30; ai-agent4j-tools 381 and engram 9 in the root-reactor run. 0 failures, 0 errors |
 | G5 | No keys needed | every gate above ran with no provider key in the environment | same |
 | G6 | Negative controls | section 3 | each of the 6 controls made its named tests fail |
 | G7 | Real services | `LiveNativeToolCallingTest` (L12, L13) | **not run**: they need Gemini/Claude keys and are skipped without them; written and compiled, to be run by the maintainer with `-Plive` |

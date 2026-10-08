@@ -9,9 +9,9 @@ Companion to [design.md](design.md) and [test-strategy.md](test-strategy.md). A 
 | G1 | Specs written and consistent | review of design, test strategy and this plan | every requirement ID has a row in section 2 |
 | G2 | Compiles, whole reactor | `mvn -q -DskipTests -Djacoco.skip=true compile` (all modules, examples included) | exit 0, no errors |
 | G3 | New API tests | `mvn -pl ai-agent4j test -Dtest='io.github.llm4j.agent.task.*Test'` | 23 tests pass (TaskTest 5, TaskContextTest 6, TaskResultTest 7, TaskRegistryTest 5) |
-| G4 | New Loom tests | `mvn -pl loom/ai-agent4j-loom test -Dtest='io.github.llm4j.loom.task.*Test'` | all pass (section 6) |
-| G5 | Full regression, each touched module | `mvn -pl <module> verify` | ai-agent4j: 680 tests (2 skipped, as before). loom/ai-agent4j-loom: 799 (1 skipped, as before), including the jacoco coverage rules. eval4j: 466. eval4j-report: 46. 0 failures, 0 errors, nothing newly skipped |
-| G6 | CTK | `cd loom/ctk && mvn test`, plus `TaskCtkConformanceTest` | CTK: 30 tests pass (24 existing, 6 new). The Java runtime's trace equals both canonical task traces |
+| G4 | New Loom tests | `mvn -pl src/loom/ai-agent4j-loom test -Dtest='io.github.llm4j.loom.task.*Test'` | all pass (section 6) |
+| G5 | Full regression, each touched module | `mvn -pl <module> verify` | ai-agent4j: 680 tests (2 skipped, as before). src/loom/ai-agent4j-loom: 799 (1 skipped, as before), including the jacoco coverage rules. eval4j: 466. eval4j-report: 46. 0 failures, 0 errors, nothing newly skipped |
+| G6 | CTK | `cd src/loom/ctk && mvn test`, plus `TaskCtkConformanceTest` | CTK: 30 tests pass (24 existing, 6 new). The Java runtime's trace equals both canonical task traces |
 | G7 | No keys needed | G5 and G6 run with `GOOGLE_API_KEY`, `SERPAPI_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` and `SARVAM_API_KEY` unset (none is set in this environment) | same results |
 | G8 | Docs | `TaskDocsTest`, `SecurityDocTest`, link checks, read-through | green; every document in section 4 updated |
 | G9 | Negative control | section 3 | each of the 5 controls made its named test fail |
@@ -81,12 +81,12 @@ Each was applied temporarily to the implementation (or, for 5, to the test), the
 
 ## 4. Documentation checklist (INT-07)
 
-- [x] `loom/ai-agent4j-loom/LOOM_GUIDE.md`: "Tasks: deterministic steps (`run`)" section (agent-or-task table, writing, registering, syntax, failure and crash behaviour, checks, testing), primitive list, Java bridge
-- [x] `loom/ai-agent4j-loom/README.md`: `run` in the primitive table
-- [x] `loom/ai-agent4j-loom/WHY_LOOM.md`: "Code where it must be code"
-- [x] `loom/ai-agent4j-loom/LOOM_PROMPT.md`: "Deterministic Task (no model)" entry for language models
-- [x] `llms.txt` and `ai-agent4j/llms.txt`: `Task`, `run`, link to the new wiki page
-- [x] `ai-agent4j/wiki/Creating-Tasks.md` (new), `Home.md`, `Creating-Custom-Tools.md`: the Java API
+- [x] `src/loom/ai-agent4j-loom/LOOM_GUIDE.md`: "Tasks: deterministic steps (`run`)" section (agent-or-task table, writing, registering, syntax, failure and crash behaviour, checks, testing), primitive list, Java bridge
+- [x] `src/loom/ai-agent4j-loom/README.md`: `run` in the primitive table
+- [x] `src/loom/ai-agent4j-loom/WHY_LOOM.md`: "Code where it must be code"
+- [x] `src/loom/ai-agent4j-loom/LOOM_PROMPT.md`: "Deterministic Task (no model)" entry for language models
+- [x] `llms.txt` and `src/ai-agent4j/llms.txt`: `Task`, `run`, link to the new wiki page
+- [x] `src/ai-agent4j/wiki/Creating-Tasks.md` (new), `Home.md`, `Creating-Custom-Tools.md`: the Java API
 - [x] `docs/guide/01-decide-your-agents.md`: "Agent or task?"
 - [x] `docs/guide/06-build-the-workflow.md`: "Tasks: the steps with no model"
 - [x] `docs/guide/07-validate-and-audit.md`: `weave check` rules for tasks, audit note
@@ -96,8 +96,8 @@ Each was applied temporarily to the implementation (or, for 5, to the test), the
 - [x] `docs/security/securing-workflows.md`: "Or take the model out of it: tasks", patterns to avoid
 - [x] `docs/articles/LOOM_ARTICLE.md`: primitive table and count
 - [x] `README.md` (root): Loom feature list
-- [x] `loom/ctk/README.md`: task steps in the CTK
-- [x] `loom/vscode-loom` grammar: nothing to change; `run` is already a keyword in the grammar (checked by `TaskDocsTest#docsMentionTasks`)
+- [x] `src/loom/ctk/README.md`: task steps in the CTK
+- [x] `src/loom/vscode-loom` grammar: nothing to change; `run` is already a keyword in the grammar (checked by `TaskDocsTest#docsMentionTasks`)
 
 ## 5. Iteration log
 
@@ -113,7 +113,7 @@ Each row is one run of a gate and what it found. Failures were fixed in the impl
 | 6 | G4 run | `missingArgumentFailsClosed` extended | **defect found while reviewing**: an unset variable reads as `""` in Loom (`DefaultVariableContext.getVariable`), so `a = never_set` would have handed the task an empty string (fail open). The executor now checks the variable exists and the path resolves; tests cover `never_set`, `never_set.field` and `x.y.z` |
 | 7 | G4 others | mostly first time | validation 8/8 (also through the `weave check` / `weave run` CLI path), retry and approval 11/11, concurrency 3/3, refund scenario 10/10, all first time; simulate 3 of 4: the failure was a wrong test assumption (an unset variable reads as empty text, not null) (**test** bug). Because passing first time proves little, the five negative controls in section 3 were run |
 | 8 | G5 eval4j, report | pass | `eval4j-report` needed the changed `eval4j` and loom jars installed first (`-Djacoco.skip=true`, because the loom module's jacoco `check` fails when tests are skipped) |
-| 9 | G6 CTK | baseline broken before this change | `loom/ctk/pom.xml` pointed at `../ai-agent4j/target/...`, a path that stopped existing when the repository moved into `loom/`; changed to `../../ai-agent4j/target/...` so the kit's own tests (24) run again. The kit's runner is a stub (`executeScript` returns an empty trace), so the Java runtime is held to the canonical task traces by `TaskCtkConformanceTest` |
+| 9 | G6 CTK | baseline broken before this change | `src/loom/ctk/pom.xml` pointed at `../ai-agent4j/target/...`, a path that stopped existing when the repository moved into `src/loom/`; changed to `../../ai-agent4j/target/...` so the kit's own tests (24) run again. The kit's runner is a stub (`executeScript` returns an empty trace), so the Java runtime is held to the canonical task traces by `TaskCtkConformanceTest` |
 | 10 | G5 regression 1 | loom 790 of 791 | `RepositoryScriptsTest` (every `.loom` file in the repository must pass `weave check`) rejected the new CTK scripts: `Escalate` is not a registered task. It already stands in for host-supplied tools; it now stands in for host-supplied tasks the same way (**test** updated) |
 | 11 | G5 verify + G2 | loom 791 pass, jacoco rules pass, reactor compiles | none |
 | 12 | review | 3 defects found by reading the executor | (a) the effect claim's lock was held while an `on_failure` block ran, so one branch's handler could stall other parallel branches; (b) a `timeout` did not interrupt the task (`CompletableFuture.cancel` does not interrupt), so a payment could complete after its step had failed; (c) approval was requested for a task a simulation would not run. Each got a **failing test first** (all three confirmed failing), then the fix: claim under the lock and act outside it; `ExecutorService.submit` + `Future.cancel(true)`; simulate check before approval |

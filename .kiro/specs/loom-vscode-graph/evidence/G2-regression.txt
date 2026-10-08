@@ -44,7 +44,7 @@ exit=0
 $ bash scripts/check-graph-render-sync.sh
 graph-render copies are in sync
 exit=0
-$ cd loom/graph-render && node --test test/*.test.js
+$ cd src/loom/graph-render && node --test test/*.test.js
   ...
 # Subtest: n21 rewind: title, subtitle, chips and shape follow the table
 ok 62 - n21 rewind: title, subtitle, chips and shape follow the table

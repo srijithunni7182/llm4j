@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Gate G5: real `weave` processes against stand-in services. Writes transcripts to evidence/g5/.
 #   scripts/g5/run_g5.sh [R1 R2 R3 R4 R5]     (default: all)
-# Needs the classes built (mvn -pl loom/ai-agent4j-loom compile); it copies the dependencies to target/lib itself.
+# Needs the classes built (mvn -pl src/loom/ai-agent4j-loom compile); it copies the dependencies to target/lib itself.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 ROOT=$(pwd)
-MODULE=$ROOT/loom/ai-agent4j-loom
+MODULE=$ROOT/src/loom/ai-agent4j-loom
 OUT=$ROOT/.kiro/specs/loom-generic-tools/evidence/g5
 WORK=$(mktemp -d)
 PORT=${G5_PORT:-8765}

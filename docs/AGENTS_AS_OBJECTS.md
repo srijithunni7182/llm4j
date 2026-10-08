@@ -28,9 +28,9 @@ In llm4j, every part of an AI system maps onto something a Java developer alread
 
 | AI concept | In llm4j, it's… |
 |---|---|
-| A language model | An `LLMClient` interface. Gemini, Sarvam, Ollama and Claude sit behind [one contract](../ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md), so switching is one line. |
+| A language model | An `LLMClient` interface. Gemini, Sarvam, Ollama and Claude sit behind [one contract](../src/ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md), so switching is one line. |
 | A tool the model can use | A class that implements `Tool`, with a name, a description and an `execute` method. |
-| A prompt | A versioned resource in a [`PromptRegistry`](../ai-agent4j/wiki/Prompt-Registry-Guide.md), or a Markdown [skill](../ai-agent4j/wiki/Agent-Skills-Guide.md) on the classpath. Not a string buried in code. |
+| A prompt | A versioned resource in a [`PromptRegistry`](../src/ai-agent4j/wiki/Prompt-Registry-Guide.md), or a Markdown [skill](../src/ai-agent4j/wiki/Agent-Skills-Guide.md) on the classpath. Not a string buried in code. |
 | An agent | An immutable object built with a builder, from a client, tools, skills, memory and a budget. |
 | A risky action | `requiresApproval(args)` on the tool, and an `ApprovalCallback` that a person answers. |
 | A spending limit | A `Budget` value object, checked before every model call. |
@@ -74,7 +74,7 @@ ReActAgent support = ReActAgent.builder()
 AgentResult result = support.run("Customer 42 was charged twice for order A-17.");
 ```
 
-And it's tested like any other object, with [eval4j](../eval4j/):
+And it's tested like any other object, with [eval4j](../src/eval4j/):
 
 ```java
 assertThat(support.run(question))

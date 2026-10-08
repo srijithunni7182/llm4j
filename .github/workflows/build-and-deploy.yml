@@ -73,7 +73,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: weave-cli-jar
-        path: loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar
+        path: src/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar
 
   extended-tests:
     name: Extended tests (integration, fragile, examples)
@@ -94,7 +94,7 @@ jobs:
 
     - name: Test Loom CTK
       run: mvn -B test
-      working-directory: loom/ctk
+      working-directory: src/loom/ctk
 
     - name: Upload test reports
       if: always()

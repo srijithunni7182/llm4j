@@ -9,9 +9,9 @@ Companion to [design.md](design.md) and [test-strategy.md](test-strategy.md). St
 | G1 | Specs written and consistent | design, test strategy and this plan | every requirement ID has a row in section 2 |
 | G2 | Compiles, whole reactor (examples included) | `mvn -q -o -DskipTests -Djacoco.skip=true compile` | exit 0 |
 | G3 | New core tests | `mvn -pl ai-agent4j test -Dtest='io.github.llm4j.secret.*Test'` | 103 tests pass (names, stores and refs, master key, encrypted file, provider, tools and config, repository scan) |
-| G4 | New Loom tests | `mvn -pl loom/ai-agent4j-loom test -Dtest='SecretsLoomTest,SecretCommandsTest,SecretDocsTest'` | 20 tests pass |
-| G5 | Full regression, each touched module | `mvn -o -pl <module> verify` | ai-agent4j: 783 tests (2 skipped, as before). ai-agent4j-addons: 17. loom/ai-agent4j-loom: 819 (1 skipped, as before), including the jacoco rules. eval4j: 466. eval4j-report: 46. 0 failures, 0 errors |
-| G6 | CTK | `cd loom/ctk && mvn -o test` | 30 tests pass |
+| G4 | New Loom tests | `mvn -pl src/loom/ai-agent4j-loom test -Dtest='SecretsLoomTest,SecretCommandsTest,SecretDocsTest'` | 20 tests pass |
+| G5 | Full regression, each touched module | `mvn -o -pl <module> verify` | ai-agent4j: 783 tests (2 skipped, as before). ai-agent4j-addons: 17. src/loom/ai-agent4j-loom: 819 (1 skipped, as before), including the jacoco rules. eval4j: 466. eval4j-report: 46. 0 failures, 0 errors |
+| G6 | CTK | `cd src/loom/ctk && mvn -o test` | 30 tests pass |
 | G7 | No keys needed | all of the above run with no provider key in the environment | same results |
 | G8 | Repository hygiene | `RepositoryHasNoSecretsTest`; scan for `AIza`, `sk-ant-`, `AKIA` shapes | 0 matches |
 | G9 | Negative controls | section 3 | each of the 5 controls made its named tests fail |

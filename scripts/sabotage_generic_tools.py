@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET
 
 from loomgen import MODULE, REPORT_DIRS, ROOT, SPEC, TOOLS, tagged_methods
 
-MAIN = "ai-agent4j-tools/src/main/java/io/github/llm4j/tools/"   # paths are relative to the repository root
+MAIN = "src/ai-agent4j-tools/src/main/java/io/github/llm4j/tools/"   # paths are relative to the repository root
 G = MAIN
 
 SABOTAGES = [

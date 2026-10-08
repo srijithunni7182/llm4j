@@ -87,7 +87,7 @@ Sarvam and Ollama are run as you have keys. The results are recorded per provide
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...        # plus GEMINI_API_KEY / SARVAM_API_KEY / OLLAMA_BASE_URL if you have them
-mvn -pl ai-agent4j,loom/ai-agent4j-loom -Plive verify
+mvn -pl ai-agent4j,src/loom/ai-agent4j-loom -Plive verify
 ```
 
 **Expected cost**:
@@ -112,7 +112,7 @@ Every provider is capped by its 60,000-token budget.
 | Anthropic | ✅ | Full live suite, L1–L11 |
 
 **L: live, Anthropic, run 2026-09-29** with `claude-opus-5-5` and `claude-haiku-4-5`
-(`mvn -pl ai-agent4j,loom/ai-agent4j-loom -Plive test`):
+(`mvn -pl ai-agent4j,src/loom/ai-agent4j-loom -Plive test`):
 
 | # | `claude-opus-5-5` | `claude-haiku-4-5` |
 |---|---|---|

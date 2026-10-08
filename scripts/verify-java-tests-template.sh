@@ -7,8 +7,8 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 template="${1:-pipeline}"
 echo "== installing the current Loom into the local Maven repository"
-mvn -q -f "$root/pom.xml" -pl loom/ai-agent4j-loom -am -DskipTests -Djacoco.skip=true install
-jar="$(ls "$root"/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar | head -n 1)"
+mvn -q -f "$root/pom.xml" -pl src/loom/ai-agent4j-loom -am -DskipTests -Djacoco.skip=true install
+jar="$(ls "$root"/src/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar | head -n 1)"
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 echo "== weave init $template (a Maven project)"
 java -jar "$jar" init "$template" "$work/project" >/dev/null

@@ -1,5 +1,5 @@
 # G3  2026-10-06T12:32:38Z
-$ cd loom/vscode-loom && npm test
+$ cd src/loom/vscode-loom && npm test
   ...
 # Subtest: V6.4: text stays readable in light, dark and high-contrast themes
 ok 114 - V6.4: text stays readable in light, dark and high-contrast themes

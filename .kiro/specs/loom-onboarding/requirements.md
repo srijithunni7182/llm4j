@@ -77,7 +77,7 @@ what is not already in `loom-prompt-files` and `loom-weave-eval`.
 ### Requirement 9: The skill
 
 1. `.claude/skills/llm4j-workflow-guide/SKILL.md` is updated as specified in `design.md` (cold start, templates first,
-   evaluation optional, the order of work, no reliance on `examples/`).
+   evaluation optional, the order of work, no reliance on `src/examples/`).
 2. A test checks that every command in the skill exists in `weave --help`, and every chapter it names exists.
 3. The skill's description and body are checked with a cold-start session (the exercise prompt in `findings.md`'s source) before release.
 
@@ -87,7 +87,7 @@ The dogfooding session succeeded partly because the repository was open: the age
 Hexamind example, the source and the tests. A first-time user has `weave.jar`, the extension and the skill, and nothing else.
 
 1. Everything the skill tells an agent to read or run exists in that kit. The skill names no repository path, no
-   `examples/` folder and no source file; it tells the agent to use `weave guide`, `weave init`, `weave --help`
+   `src/examples/` folder and no source file; it tells the agent to use `weave guide`, `weave init`, `weave --help`
    and the jar's own documentation.
 2. `weave guide` prints every chapter, `LOOM_GUIDE.md` and `llms.txt` from inside the jar; the extension exposes the same text.
 3. The skill can be installed by itself (a plugin or a file the extension offers to copy into the project), and

@@ -4,7 +4,7 @@
 # Fails if any of that needs a file from the repository. Usage: scripts/verify-kit.sh [path/to/weave.jar]
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-jar="${1:-$(ls "$root"/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar | head -n 1)}"
+jar="${1:-$(ls "$root"/src/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar | head -n 1)}"
 [ -f "$jar" ] || { echo "no weave jar: build it with mvn -DskipTests -Djacoco.skip=true package"; exit 2; }
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/kit" "$work/empty"
@@ -42,6 +42,6 @@ weave guide --install-skill "$work/empty/skill-project" >/dev/null || fail "inst
 skill="$work/empty/skill-project/.claude/skills/llm4j-workflow-guide"
 [ -f "$skill/SKILL.md" ] || fail "no SKILL.md"
 for ref in $(grep -o 'references/[0-9a-z-]*\.md' "$skill/SKILL.md" | sort -u); do [ -f "$skill/$ref" ] || fail "the skill names $ref and it was not installed"; done
-if grep -nE 'docs/guide/|examples/|eval4j/src|loom/ai-agent4j|hexamind-hub|scripts/' "$skill/SKILL.md"; then fail "the installed skill names a repository path"; fi
+if grep -nE 'docs/guide/|src/examples/|src/eval4j/src|src/loom/ai-agent4j|hexamind-hub|scripts/' "$skill/SKILL.md"; then fail "the installed skill names a repository path"; fi
 echo "   skill ok"
 echo "ok: the kit works from the jar alone"

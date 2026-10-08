@@ -7,7 +7,7 @@
 #    test tagged live, integration or fragile, and the examples and engram are not part of it. The libraries are installed into ~/.m2 so a
 #    project made by `weave init` can build against them (its pom depends on them, and they are not on Maven Central yet).
 # 2. the skill package: dist/llm4j-workflow-guide.zip (with the weave jar), checked from an empty folder.
-# 3. the VS Code extension: loom/vscode-loom/vscode-loom-<version>.vsix (with the weave jar), installed with `code --install-extension` unless --no-install.
+# 3. the VS Code extension: src/loom/vscode-loom/vscode-loom-<version>.vsix (with the weave jar), installed with `code --install-extension` unless --no-install.
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
@@ -42,9 +42,9 @@ fi
 if [ "$ext" = 1 ]; then
   step "3/3 the VS Code extension"
   run scripts/build-vsix.sh
-  vsix="$(ls -t loom/vscode-loom/vscode-loom-*.vsix 2>/dev/null | head -n 1 || true)"
+  vsix="$(ls -t src/loom/vscode-loom/vscode-loom-*.vsix 2>/dev/null | head -n 1 || true)"
   if [ "$dry" = 1 ]; then
-    echo "   (dry run) code --install-extension loom/vscode-loom/vscode-loom-<version>.vsix --force"
+    echo "   (dry run) code --install-extension src/loom/vscode-loom/vscode-loom-<version>.vsix --force"
   elif [ "$install_ext" = 0 ]; then
     echo "   not installed (--no-install). To install: code --install-extension $vsix --force"
   elif ! command -v code >/dev/null 2>&1; then
@@ -60,5 +60,5 @@ fi
 echo
 echo "done in $((SECONDS - started)) s:"
 [ "$dry" = 1 ] && exit 0
-ls -1 dist/llm4j-workflow-guide.zip loom/vscode-loom/vscode-loom-*.vsix 2>/dev/null | sed 's/^/   /' || true
-echo "   weave jar: $(ls loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar | head -n 1)"
+ls -1 dist/llm4j-workflow-guide.zip src/loom/vscode-loom/vscode-loom-*.vsix 2>/dev/null | sed 's/^/   /' || true
+echo "   weave jar: $(ls src/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar | head -n 1)"

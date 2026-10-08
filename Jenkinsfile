@@ -40,7 +40,7 @@ pipeline {
 
         stage('Code Quality') {
             steps {
-                sh 'mvn -B -pl ai-agent4j,ai-agent4j-addons,eval4j,eval4j-report spotless:check'
+                sh 'mvn -B -pl src/ai-agent4j,src/ai-agent4j-addons,src/eval4j,src/eval4j-report spotless:check'
                 // Dependency check is not run on every build (NVD rate limits). On demand:
                 //   mvn org.owasp:dependency-check-maven:check -DnvdApiKey=$NVD_API_KEY
             }
@@ -51,7 +51,7 @@ pipeline {
             steps {
                 // integration and fragile tests, engram and the example applications
                 sh 'mvn -B -fae -Pextended verify'
-                dir('loom/ctk') {
+                dir('src/loom/ctk') {
                     sh 'mvn -B test'
                 }
             }

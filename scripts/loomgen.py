@@ -5,8 +5,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = ROOT / ".kiro" / "specs" / "loom-generic-tools"
-MODULE = ROOT / "loom" / "ai-agent4j-loom"          # the Loom runtime: scripts, executor, the CLI
-TOOLS = ROOT / "ai-agent4j-tools"                    # the tools library
+MODULE = ROOT / "src" / "loom" / "ai-agent4j-loom"          # the Loom runtime: scripts, executor, the CLI
+TOOLS = ROOT / "src" / "ai-agent4j-tools"                    # the tools library
 TEST_DIR = MODULE / "src" / "test" / "java" / "io" / "github" / "llm4j" / "loom" / "generic"
 TOOLS_TEST_DIR = TOOLS / "src" / "test" / "java" / "io" / "github" / "llm4j" / "tools"
 REPORT_DIRS = [MODULE / "target" / "surefire-reports", TOOLS / "target" / "surefire-reports"]

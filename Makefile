@@ -38,9 +38,9 @@ quick:
 	scripts/quick-build.sh
 
 skill-package:
-	mvn -q -DskipTests package -pl loom/ai-agent4j-loom -am
+	mvn -q -DskipTests package -pl src/loom/ai-agent4j-loom -am
 	scripts/package-skill.sh
 	scripts/verify-skill-package.sh
 
 format-check:
-	mvn -q -pl ai-agent4j,ai-agent4j-addons spotless:check
+	mvn -q -pl src/ai-agent4j,src/ai-agent4j-addons spotless:check

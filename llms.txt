@@ -13,38 +13,38 @@ Key facts:
 ## Start here
 
 - [README](https://github.com/srijithunni7182/llm4j/blob/main/README.md): the stack, an agent as an object, showcases, getting started
-- [Quick start](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Getting-Started.md): a first agent in five minutes
+- [Quick start](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Getting-Started.md): a first agent in five minutes
 - [Security overview](https://github.com/srijithunni7182/llm4j/blob/main/SECURITY.md): threat model, principles, limits, how to report a vulnerability
 - [Security: building blocks](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/building-blocks.md), [securing a Loom workflow](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/securing-workflows.md), [`weave audit`](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/weave-audit.md), [OWASP Top 10 for LLM Applications and the gaps](https://github.com/srijithunni7182/llm4j/blob/main/docs/security/owasp-llm-top-10.md)
-- [LOOM_PROMPT.md](https://github.com/srijithunni7182/llm4j/blob/main/loom/ai-agent4j-loom/LOOM_PROMPT.md): the Loom language for language models; how to write correct scripts
+- [LOOM_PROMPT.md](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_PROMPT.md): the Loom language for language models; how to write correct scripts
 
 ## ai-agent4j (core library, about 440 KB)
 
-- [README](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/README.md): ReAct agents, tools, memory, RAG, personas, skills, voice, budgets
-- [ReAct Agent Guide](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/ReAct-Agent-Guide.md): the plan, action and observation loop; approvals; events
-- [Providers and the Uniform Contract](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md): switching models by name; what every provider guarantees
-- [Creating Custom Tools](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Creating-Custom-Tools.md): the `Tool` interface, `requiresApproval`, effect contracts (`Effectful`, `EffectJournal`)
-- [Native Tool Calling](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Native-Tool-Calling.md): `ReActAgent.toolCalling(AUTO|NATIVE|TEXT)`, `Tool.getParametersSchema()` / `ToolSchema`, `LLMRequest.tools`, `LLMResponse.getToolCalls()`; Gemini and Claude use structured tool calls, Sarvam and Ollama the text protocol
-- [Secret Store](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Secret-Store.md): `SecretStore`, `SecretRef`, `EncryptedFileSecretStore`, `MasterKey`; providers and tools fetch keys per request; Loom `secret.NAME` and `weave secrets`
-- [Creating Tasks](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Creating-Tasks.md): the `Task` interface, deterministic steps with no model (`TaskContext`, `TaskResult`, `TaskRegistry`); run from Loom with `run`
-- [Budgets and Rate Limits](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Budgets-and-Rate-Limits.md): `Budget` caps checked before each call; parsing provider 429s into exact reset times
-- [MCP Integration](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/MCP-Integration.md) and [OpenAPI Tool](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/OpenAPI-Tool.md): tools from MCP servers and REST specs
-- [Memory and Persistence](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Memory-and-Persistence.md), [Semantic Memory](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/SEMANTIC_MEMORY.md), [RAG](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/RAG-Support.md), [Knowledge Graphs](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Knowledge-Graphs.md)
-- [Agent Skills](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Agent-Skills-Guide.md), [Personas](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Agent-Personas.md), [Prompt Registry](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/Prompt-Registry-Guide.md)
-- [xAI: Beyond Black Boxes](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md): audit trails, PII masking (`MaskingLLMClient`), bias monitoring, confidence
-- [Module llms.txt](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/llms.txt): the core library in more detail
+- [README](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/README.md): ReAct agents, tools, memory, RAG, personas, skills, voice, budgets
+- [ReAct Agent Guide](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/ReAct-Agent-Guide.md): the plan, action and observation loop; approvals; events
+- [Providers and the Uniform Contract](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Providers-and-the-Uniform-Contract.md): switching models by name; what every provider guarantees
+- [Creating Custom Tools](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Creating-Custom-Tools.md): the `Tool` interface, `requiresApproval`, effect contracts (`Effectful`, `EffectJournal`)
+- [Native Tool Calling](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Native-Tool-Calling.md): `ReActAgent.toolCalling(AUTO|NATIVE|TEXT)`, `Tool.getParametersSchema()` / `ToolSchema`, `LLMRequest.tools`, `LLMResponse.getToolCalls()`; Gemini and Claude use structured tool calls, Sarvam and Ollama the text protocol
+- [Secret Store](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Secret-Store.md): `SecretStore`, `SecretRef`, `EncryptedFileSecretStore`, `MasterKey`; providers and tools fetch keys per request; Loom `secret.NAME` and `weave secrets`
+- [Creating Tasks](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Creating-Tasks.md): the `Task` interface, deterministic steps with no model (`TaskContext`, `TaskResult`, `TaskRegistry`); run from Loom with `run`
+- [Budgets and Rate Limits](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Budgets-and-Rate-Limits.md): `Budget` caps checked before each call; parsing provider 429s into exact reset times
+- [MCP Integration](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/MCP-Integration.md) and [OpenAPI Tool](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/OpenAPI-Tool.md): tools from MCP servers and REST specs
+- [Memory and Persistence](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Memory-and-Persistence.md), [Semantic Memory](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/SEMANTIC_MEMORY.md), [RAG](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/RAG-Support.md), [Knowledge Graphs](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Knowledge-Graphs.md)
+- [Agent Skills](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Agent-Skills-Guide.md), [Personas](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Agent-Personas.md), [Prompt Registry](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/Prompt-Registry-Guide.md)
+- [xAI: Beyond Black Boxes](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md): audit trails, PII masking (`MaskingLLMClient`), bias monitoring, confidence
+- [Module llms.txt](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/llms.txt): the core library in more detail
 
 ## ai-agent4j-tools (tools built for a hostile caller)
 
-- [Tools documentation](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j-tools/docs/README.md): `webhook` (Slack, Discord, Teams), `email`, `http`, `file`, `shell` and read-only `sql`. Each has allow-lists, internal-address blocking, size and time caps, and secrets scrubbed from results. A journal makes sure a crash never repeats a send. Use them from Java or from Loom.
-- [Safety model](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j-tools/docs/safety.md): what a hostile call tries, what stops it, and what the tools don't do
-- [Writing a tool](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j-tools/docs/writing-a-tool.md): building your own on the same contracts
+- [Tools documentation](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j-tools/docs/README.md): `webhook` (Slack, Discord, Teams), `email`, `http`, `file`, `shell` and read-only `sql`. Each has allow-lists, internal-address blocking, size and time caps, and secrets scrubbed from results. A journal makes sure a crash never repeats a send. Use them from Java or from Loom.
+- [Safety model](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j-tools/docs/safety.md): what a hostile call tries, what stops it, and what the tools don't do
+- [Writing a tool](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j-tools/docs/writing-a-tool.md): building your own on the same contracts
 
 ## Loom (workflows that run for days)
 
-- [Loom overview](https://github.com/srijithunni7182/llm4j/blob/main/loom/ai-agent4j-loom/README.md) and [Why Loom?](https://github.com/srijithunni7182/llm4j/blob/main/loom/ai-agent4j-loom/WHY_LOOM.md): long-running, unattended workflows; comparison with LangGraph
-- [Language guide](https://github.com/srijithunni7182/llm4j/blob/main/loom/ai-agent4j-loom/LOOM_GUIDE.md): every statement and command, with examples checked by tests
-- [Budgets, Pausing and Scheduling](https://github.com/srijithunni7182/llm4j/blob/main/loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md): budgets, rate-limit pauses, schedules and triggers that survive restarts
+- [Loom overview](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/README.md) and [Why Loom?](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/WHY_LOOM.md): long-running, unattended workflows; comparison with LangGraph
+- [Language guide](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/LOOM_GUIDE.md): every statement and command, with examples checked by tests
+- [Budgets, Pausing and Scheduling](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md): budgets, rate-limit pauses, schedules and triggers that survive restarts
 - [Agentic workflows with Loom and Engram](https://github.com/srijithunni7182/llm4j/blob/main/docs/AGENTIC_WORKFLOWS_GUIDE.md)
 
 Language at a glance:
@@ -55,31 +55,31 @@ Language at a glance:
 - **Earned autonomy:** `decision Name { proposed by, choices, group cases by, dangerous mistake, ask, trust { start at watch, never go above suggest, to suggest: after N cases, agreeing at least P%, ... } }` with `decide Name -> verdict`. The agent moves `watch` → `suggest` → `act` on a blind, statistically conservative record, and back down. `weave autonomy status | history | promote | demote | freeze | outcome` operates it, and `weave replay` tests a changed prompt or model on past cases with nothing sent.
 - **Answering from a phone:** `--ask-via telegram` (or `<store>/channel.json`) sends questions and approvals to a chat; only allowlisted users can answer, and approvals need the question's code. `weave questions` and `weave answer` do the same from a terminal; `weave tick` or `weave daemon` resume the run.
 - **Commands:** `weave run | check | resume | tick | daemon | triggers | schedule | package | timeline | rewind | reset | fork | autonomy | replay | questions | answer | audit | graph | explain | next | eval | init | guide | secrets`.
-- **Prompt files:** an agent's prompt can be a markdown file: `prompt: "researcher"` (latest) or `prompt: "researcher@v2"`, from `prompts/<id>.md` or `prompts/<id>/vN.md` beside the script (or `prompts: "./dir"`, or `--prompts dir`). `--prompt researcher@v1` pins a version for one run, for a fair A/B. `weave check` finds missing files and versions; `weave audit` lists which prompt each agent runs. Example: `examples/newsletter`.
-- **Evaluation:** `weave eval script.loom` runs a golden dataset (`eval/golden/<agent>.yaml`, `workflow.yaml`, optional `dataset.yaml` and `fixtures.yaml`) and reports passed, failed and unjudged; `--init` creates a starter, `--check` validates with no model, `--mock` runs the wiring for free (content checks are then unjudged), a real run needs a cap and asks first. Scenarios: `input`, `expected_output_contains`, `expected_tools`, `rubric`, `expect`, `dimensions`, `tags`. Evaluation is optional. Example: `examples/newsletter/eval/golden`.
+- **Prompt files:** an agent's prompt can be a markdown file: `prompt: "researcher"` (latest) or `prompt: "researcher@v2"`, from `prompts/<id>.md` or `prompts/<id>/vN.md` beside the script (or `prompts: "./dir"`, or `--prompts dir`). `--prompt researcher@v1` pins a version for one run, for a fair A/B. `weave check` finds missing files and versions; `weave audit` lists which prompt each agent runs. Example: `src/examples/newsletter`.
+- **Evaluation:** `weave eval script.loom` runs a golden dataset (`eval/golden/<agent>.yaml`, `workflow.yaml`, optional `dataset.yaml` and `fixtures.yaml`) and reports passed, failed and unjudged; `--init` creates a starter, `--check` validates with no model, `--mock` runs the wiring for free (content checks are then unjudged), a real run needs a cap and asks first. Scenarios: `input`, `expected_output_contains`, `expected_tools`, `rubric`, `expect`, `dimensions`, `tags`. Evaluation is optional. Example: `src/examples/newsletter/eval/golden`.
 - **Starting out:** `weave init pipeline|approval|classifier <dir>` creates a small working project (script, prompts as files, golden dataset, README); `--with-java-tests` adds a Maven test module for the Java path. `weave check script.loom --no-env` validates with no model and no keys (`--format json`, `--strict`). `weave guide [page]` prints the guide from inside the jar (chapters 1 to 10, `readme`, `loom`, `llms`); `weave guide --install-skill` adds the agent skill to a project; `weave guide recipes` has tested changes to the starter. For a developer's own machine, keys go in a gitignored `.env` beside the script (`weave init` writes `.env.example` and `.gitignore`; `run`, `check`, `eval` and `next` read it; `--env-file`, `--no-env-file`); a deployed application uses the secret store. `weave explain script.loom` describes a script in plain English and `weave next` says what to do next in a project; both are free (no model, no key).
 - **Workflow graph:** `weave graph script.loom` prints the workflows of a script and its imports as nodes and edges (JSON, or `--format mermaid`), with the settings written on each step. It runs nothing and needs no keys.
 - **Security review:** `weave audit script.loom` reports what each agent can reach. It flags one agent that holds untrusted content, private data and a way out; it also flags unapproved effects and risky settings, mapping every finding to the OWASP Top 10 for LLM Applications (2025). It exits 1 on a high finding.
 
 ## Other modules
 
-- [Engram](https://github.com/srijithunni7182/llm4j/blob/main/engram/engram-core/README.md): long-term memory as extracted facts and a short per-turn briefing instead of a growing transcript
-- [Addons](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j-addons/README.md): local embeddings (ONNX, DJL) and persistent vector stores (pgvector, Pinecone)
-- [eval4j](https://github.com/srijithunni7182/llm4j/blob/main/eval4j/README.md): AssertJ assertions on what agents did; LLM-as-judge conditions (correctness, groundedness, hallucination, bias, toxicity); YAML datasets; pass-rate thresholds; prompt optimisation; all in `mvn test`
-- [eval4j-report](https://github.com/srijithunni7182/llm4j/blob/main/eval4j-report/README.md): free, local dashboard for eval4j runs: quality dimensions with goals, run comparison with judge noise, cost-aware profiles, agent traces, Loom trajectories; one self-contained HTML file plus a CSP-safe static edition
-- [Loom CTK](https://github.com/srijithunni7182/llm4j/blob/main/loom/ctk/README.md): conformance tests for Loom runtimes
-- [VS Code extension](https://github.com/srijithunni7182/llm4j/blob/main/loom/vscode-loom/README.md): syntax, hover help and checks for `.loom` files
+- [Engram](https://github.com/srijithunni7182/llm4j/blob/main/src/engram/engram-core/README.md): long-term memory as extracted facts and a short per-turn briefing instead of a growing transcript
+- [Addons](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j-addons/README.md): local embeddings (ONNX, DJL) and persistent vector stores (pgvector, Pinecone)
+- [eval4j](https://github.com/srijithunni7182/llm4j/blob/main/src/eval4j/README.md): AssertJ assertions on what agents did; LLM-as-judge conditions (correctness, groundedness, hallucination, bias, toxicity); YAML datasets; pass-rate thresholds; prompt optimisation; all in `mvn test`
+- [eval4j-report](https://github.com/srijithunni7182/llm4j/blob/main/src/eval4j-report/README.md): free, local dashboard for eval4j runs: quality dimensions with goals, run comparison with judge noise, cost-aware profiles, agent traces, Loom trajectories; one self-contained HTML file plus a CSP-safe static edition
+- [Loom CTK](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ctk/README.md): conformance tests for Loom runtimes
+- [VS Code extension](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/vscode-loom/README.md): syntax, hover help and checks for `.loom` files
 
 ## Examples
 
-- [GetViral](https://github.com/srijithunni7182/llm4j/blob/main/examples/getviral/README.md): twelve agents, one Loom workflow, every module; one idea in, a ready-to-post pack for X, Instagram Reels and YouTube out
-- [Hexamind Hub](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/README.md): six agents with distinct personalities debating a problem live
-- [Nirmaan Yantra](https://github.com/srijithunni7182/llm4j/blob/main/examples/nirmaan-yantra/README.md): an autonomous software factory from a one-line prompt
-- [Kingini](https://github.com/srijithunni7182/llm4j/blob/main/examples/kingini/README.md): a voice-first companion in Malayalam on Sarvam
-- [Daily digest sample](https://github.com/srijithunni7182/llm4j/blob/main/loom/ai-agent4j-loom/samples/digest/digest.loom): a scheduled Loom workflow using the generic tools
+- [GetViral](https://github.com/srijithunni7182/llm4j/blob/main/src/examples/getviral/README.md): twelve agents, one Loom workflow, every module; one idea in, a ready-to-post pack for X, Instagram Reels and YouTube out
+- [Hexamind Hub](https://github.com/srijithunni7182/llm4j/blob/main/src/examples/hexamind-hub/README.md): six agents with distinct personalities debating a problem live
+- [Nirmaan Yantra](https://github.com/srijithunni7182/llm4j/blob/main/src/examples/nirmaan-yantra/README.md): an autonomous software factory from a one-line prompt
+- [Kingini](https://github.com/srijithunni7182/llm4j/blob/main/src/examples/kingini/README.md): a voice-first companion in Malayalam on Sarvam
+- [Daily digest sample](https://github.com/srijithunni7182/llm4j/blob/main/src/loom/ai-agent4j-loom/samples/digest/digest.loom): a scheduled Loom workflow using the generic tools
 
 ## Optional
 
-- [Why ai-agent4j?](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/WHY_AI_AGENT4J.md) (versus LangChain4j and Spring AI) and [Why eval4j?](https://github.com/srijithunni7182/llm4j/blob/main/ai-agent4j/wiki/WHY_EVAL4J.md) (versus deepeval)
+- [Why ai-agent4j?](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/WHY_AI_AGENT4J.md) (versus LangChain4j and Spring AI) and [Why eval4j?](https://github.com/srijithunni7182/llm4j/blob/main/src/ai-agent4j/wiki/WHY_EVAL4J.md) (versus deepeval)
 - [Migration Guide 5.0](https://github.com/srijithunni7182/llm4j/blob/main/docs/MIGRATION_GUIDE_5_0.md), [API Compatibility](https://github.com/srijithunni7182/llm4j/blob/main/docs/API_COMPATIBILITY.md), [Version Matrix](https://github.com/srijithunni7182/llm4j/blob/main/docs/VERSION_MATRIX.md), [Testing Strategy](https://github.com/srijithunni7182/llm4j/blob/main/docs/TESTING_STRATEGY.md)
 - Feature specifications with requirements, designs, verification plans and sign-off evidence: `.kiro/specs/` (generic tools, rewind and fork, earned autonomy, remote answers)

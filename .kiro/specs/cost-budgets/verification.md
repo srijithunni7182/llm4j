@@ -13,7 +13,7 @@ with the fixtures below, so "roughly right" is a failure.
 
 ## 1. Test Fixtures
 
-The tests use shared fixtures from `ai-agent4j/src/test/java/io/github/llm4j/budget/fixtures/`. Loom
+The tests use shared fixtures from `src/ai-agent4j/src/test/java/io/github/llm4j/budget/fixtures/`. Loom
 tests depend on ai-agent4j's test-jar, so they use the same ones.
 
 | Fixture | Behaviour |
@@ -37,7 +37,7 @@ reservation. It costs `100 × $1/M + 50 × $2/M = **$0.0002**`.
 Each check has an ID (`V<requirement>.<n>`), the test that implements it, and its pass condition.
 
 ### Requirement 1: Budget object
-*Tests: `ai-agent4j/.../budget/BudgetTest`, `BudgetSetTest`*
+*Tests: `src/ai-agent4j/.../budget/BudgetTest`, `BudgetSetTest`*
 
 | ID | Scenario | Pass condition |
 |---|---|---|
@@ -90,7 +90,7 @@ Each check has an ID (`V<requirement>.<n>`), the test that implements it, and it
 | V4.7 | Agent without budget (baseline) vs. the same agent before this change | identical `AgentResult` (steps, answer, usage); the client is **not** a `BudgetedLLMClient` |
 
 ### Requirement 5: Loom syntax
-*Tests: `loom/.../parser/BudgetParserTest`*
+*Tests: `src/loom/.../parser/BudgetParserTest`*
 
 | ID | Scenario | Pass condition |
 |---|---|---|
@@ -101,7 +101,7 @@ Each check has an ID (`V<requirement>.<n>`), the test that implements it, and it
 | V5.5 | `tokens: 0`, `tokens: -5`, `cost: "0.50"` | ParseError whose message contains the line number and the field |
 
 ### Requirement 6: Enforcement in Loom
-*Tests: `loom/.../execution/BudgetEnforcementTest` (scripted client factory, standard calls)*
+*Tests: `src/loom/.../execution/BudgetEnforcementTest` (scripted client factory, standard calls)*
 
 | ID | Scenario | Pass condition |
 |---|---|---|
@@ -119,7 +119,7 @@ Each check has an ID (`V<requirement>.<n>`), the test that implements it, and it
 | V6.8 | Routing policy with primary and fallback tiers; run budget declared | every tier client is a `BudgetedLLMClient` |
 
 ### Requirement 7: Durability
-*Tests: `loom/.../execution/BudgetDurabilityTest` (in-memory and `JdbcRunJournal` on H2)*
+*Tests: `src/loom/.../execution/BudgetDurabilityTest` (in-memory and `JdbcRunJournal` on H2)*
 
 | ID | Scenario | Pass condition |
 |---|---|---|
@@ -222,24 +222,24 @@ Docker-based container tests that need a Docker host.
 
 | Checks | Where they live | Status |
 |---|---|---|
-| V1.1–V1.6 | `ai-agent4j/.../budget/BudgetTest` | ✅ |
+| V1.1–V1.6 | `src/ai-agent4j/.../budget/BudgetTest` | ✅ |
 | V2.1–V2.6, V2.3b, V2.8, V3.1, V3.5 | `BudgetedLLMClientTest` | ✅ |
 | V2.7a (×20 seeds), V2.7b, V2.7c, overhead | `BudgetConcurrencyTest` | ✅ exact totals on every seed; overhead well under 50 µs/call |
 | V3.2, V3.3 | `PriceTableTest` | ✅ |
 | V4.1–V4.7 | `ReActAgentBudgetTest` | ✅ |
 | Coverage | JaCoCo, `io.github.llm4j.budget` | ✅ 99.8% lines, 90.7% branches |
-| V5.1–V5.5 (+ 12 modifier cases) | `loom/.../budget/BudgetParserTest` | ✅ |
+| V5.1–V5.5 (+ 12 modifier cases) | `src/loom/.../budget/BudgetParserTest` | ✅ |
 | V3.4, V6.1–V6.8, V9.1, E2E-1, E2E-3 | `BudgetEnforcementTest` | ✅ |
 | V7.1–V7.4, E2E-2 (H2 SQL journal) | `BudgetDurabilityTest` | ✅ |
 | V8.1, V8.2 | `BudgetReportingTest` | ✅ |
-| V8.3, V8.4 | `loom/.../cli/WeaveCliBudgetTest` | ✅ |
+| V8.3, V8.4 | `src/loom/.../cli/WeaveCliBudgetTest` | ✅ |
 | V9.2 | ai-agent4j V4.7 plus unchanged eval4j suite | ✅ |
 | V9.3 | `DocumentedExamplesTest` (budget example parses); VS Code hover table checked by a node script | ✅ |
 
 Deviations, recorded as the plan requires:
 
 - **Fixtures.** ai-agent4j publishes no test-jar, so Loom's tests use their own equivalent in
-  `loom/.../budget/BudgetScript` (same numbers: estimate 100, usage 100 + 50, `per_call` 50) rather than
+  `src/loom/.../budget/BudgetScript` (same numbers: estimate 100, usage 100 + 50, `per_call` 50) rather than
   adding test-jar packaging.
 - **V4.4.** Retries live inside the providers' HTTP layer, not in `DefaultLLMClient`. The check therefore
   asserts at the agent level: a refused call never reaches the model and the agent never retries it.

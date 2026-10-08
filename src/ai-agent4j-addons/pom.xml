@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.srijithunni7182</groupId>
+        <artifactId>llm4j-parent</artifactId>
+        <version>5.0</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>ai-agent4j-addons</artifactId>
+    <packaging>jar</packaging>
+
+    <name>AI Agent4J - RAG Addons</name>
+    <description>Add-ons for ai-agent4j: Local Embeddings (ONNX/DJL), Vector Stores (Postgres, Pinecone)</description>
+
+    <properties>
+        <gemini.version>${project.version}</gemini.version>
+
+        <!-- Versions matched with Core or new -->
+        <onnxruntime.version>1.18.0</onnxruntime.version>
+        <djl.version>0.31.1</djl.version>
+        <postgresql.version>42.7.2</postgresql.version>
+        <pgvector.version>0.1.6</pgvector.version>
+        <pinecone.version>3.0.0</pinecone.version>
+        <testcontainers.version>1.19.7</testcontainers.version>
+        <junit.version>5.10.2</junit.version>
+        <assertj.version>3.27.7</assertj.version>
+    
+    </properties>
+
+    <dependencies>
+        <!-- Core Library -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Force Jackson Version -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!--
+            The engines below are OPTIONAL: they bring native libraries of well over 100 MB, so a project that only wants the core
+            interfaces does not pay for them. Add the one you use to your own pom:
+              ONNX embeddings:  com.microsoft.onnxruntime:onnxruntime
+              DJL embeddings:   ai.djl:api, ai.djl.huggingface:tokenizers and an engine (ai.djl.pytorch:pytorch-engine or ai.djl.onnxruntime:onnxruntime-engine)
+              pgvector store:   org.postgresql:postgresql and com.pgvector:pgvector
+              Pinecone store:   io.pinecone:pinecone-client
+        -->
+        <!-- Local Embedding: ONNX Runtime -->
+        <dependency>
+            <groupId>com.microsoft.onnxruntime</groupId>
+            <artifactId>onnxruntime</artifactId>
+            <version>${onnxruntime.version}</version>
+        <optional>true</optional>
+        </dependency>
+
+        <!-- Local Embedding: DJL (Deep Java Library) -->
+        <dependency>
+            <groupId>ai.djl</groupId>
+            <artifactId>api</artifactId>
+            <version>${djl.version}</version>
+        <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>ai.djl.pytorch</groupId>
+            <artifactId>pytorch-engine</artifactId>
+            <version>${djl.version}</version>
+            <scope>runtime</scope>
+        <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>ai.djl.onnxruntime</groupId>
+            <artifactId>onnxruntime-engine</artifactId>
+            <version>${djl.version}</version>
+            <scope>runtime</scope>
+        <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>ai.djl.huggingface</groupId>
+            <artifactId>tokenizers</artifactId>
+            <version>${djl.version}</version>
+        <optional>true</optional>
+        </dependency>
+
+        <!-- Persistence: PostgreSQL & PGVector -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+        <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.pgvector</groupId>
+            <artifactId>pgvector</artifactId>
+            <version>${pgvector.version}</version>
+        <optional>true</optional>
+        </dependency>
+
+        <!-- Persistence: Pinecone -->
+        <dependency>
+            <groupId>io.pinecone</groupId>
+            <artifactId>pinecone-client</artifactId>
+            <version>${pinecone.version}</version>
+        <optional>true</optional>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.11.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>5.11.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-inline</artifactId>
+            <version>5.2.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- A floor, not a target: the ONNX, DJL, pgvector and Pinecone code needs real services and is covered only by the integration tests (52% by the default tests when this was set). Raise it as unit tests land. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>jacoco-check</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.50</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

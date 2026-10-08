@@ -18,13 +18,13 @@ gate() { # name, evidence file, commands...
 
 for g in "${gates[@]}"; do case "$g" in
   G1) gate G1 "$ev/G1-core.txt" \
-        "mvn -q -pl loom/ai-agent4j-loom -am verify -Djacoco.skip=false && python3 scripts/graph_coverage.py loom/ai-agent4j-loom/target/site/jacoco/jacoco.csv" ;;
+        "mvn -q -pl src/loom/ai-agent4j-loom -am verify -Djacoco.skip=false && python3 scripts/graph_coverage.py src/loom/ai-agent4j-loom/target/site/jacoco/jacoco.csv" ;;
   G2) # VG.1 mvn verify for the three modules; VG.2 existing weave check/run/audit tests; VG.4 every repo .loom parses
       gate G2 "$ev/G2-regression.txt" \
-        "mvn -q -pl eval4j,eval4j-report verify" \
+        "mvn -q -pl src/eval4j,src/eval4j-report verify" \
         "bash scripts/check-graph-render-sync.sh" \
-        "cd loom/graph-render && node --test test/*.test.js" ;;
-  G3) gate G3 "$ev/G3-extension.txt" "cd loom/vscode-loom && npm test" ;;
+        "cd src/loom/graph-render && node --test test/*.test.js" ;;
+  G3) gate G3 "$ev/G3-extension.txt" "cd src/loom/vscode-loom && npm test" ;;
   G4) gate G4 "$ev/G4-package.txt" "bash scripts/build-vsix.sh" "bash scripts/verify-vsix.sh" "bash scripts/verify-mermaid.sh" ;;
   G6) # VG.5 sabotage was run once by hand (evidence/G5-sabotage.md); its script was removed to avoid maintaining it
       gate G6 "$ev/G6-final.txt" "python3 scripts/verify_graph_traceability.py > .kiro/specs/loom-vscode-graph/evidence/traceability.txt; cat .kiro/specs/loom-vscode-graph/evidence/traceability.txt" ;;

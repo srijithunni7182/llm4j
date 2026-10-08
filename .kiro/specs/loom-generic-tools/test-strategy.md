@@ -2,7 +2,7 @@
 
 > **Layout update.** The tools were later moved out of Loom into the `ai-agent4j-tools` library (package
 > `io.github.llm4j.tools`; see design.md §9). Where this document says `io.github.llm4j.loom.tools.generic` or
-> `loom/ai-agent4j-loom/.../generic`, read the tools module for the tools, guards and their tests, and Loom for the
+> `src/loom/ai-agent4j-loom/.../generic`, read the tools module for the tools, guards and their tests, and Loom for the
 > executor, parser, CLI and guide tests.
 
 [`verification.md`](verification.md) lists *what* must be checked. This document says *how* the checks are
@@ -215,7 +215,7 @@ Each attack also asserts the **secrets rule**: the refusal text, trace and audit
 
 ## 11. Where the tests live
 
-`loom/ai-agent4j-loom/src/test/java/io/github/llm4j/loom/generic/`, split by kind and layer
+`src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/loom/generic/`, split by kind and layer
 (`webhook/`, `email/`, `http/`, `file/`, `shell/`, `sql/`, `foundation/`, `effects/`, `fuzz/`,
 `hostile/`, `sample/`), following the package-per-feature layout of `parity/`, `depth/` and `resume/`.
 Shared fakes (`ScriptedModel`, `FaultJournal`, `StubResolver`, `EchoServer`, `RecordingEffects`) are in

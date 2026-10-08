@@ -207,10 +207,10 @@ them: the panel maps them to VS Code theme variables, the report to its own toke
 `--ink`, `--line`, `--surface`). The module holds all glyphs, shapes and Chip formatting, so Java never
 formats a chip: JSON carries raw `attrs`.
 
-**Where the source lives.** The canonical file is `loom/graph-render/graph-render.js`, with its tests
+**Where the source lives.** The canonical file is `src/loom/graph-render/graph-render.js`, with its tests
 (`node --test`). `scripts/sync-graph-render.sh` copies it to
-`loom/vscode-loom/media/graph-render.js` and
-`eval4j-report/src/main/resources/io/github/llm4j/evalreport/render/graph-render.js`, and
+`src/loom/vscode-loom/media/graph-render.js` and
+`src/eval4j-report/src/main/resources/io/github/llm4j/evalreport/render/graph-render.js`, and
 `scripts/check-graph-render-sync.sh` fails when a copy differs from the canonical file. It runs in CI,
 and `eval4j-report` also has a unit test that compares its copy with the canonical file's hash.
 

@@ -21,15 +21,15 @@ check_module() { # <dir> <artifact>
   else echo "current  $artifact"; fi
 }
 
-check_module ai-agent4j ai-agent4j
-check_module eval4j eval4j
-check_module loom/ai-agent4j-loom ai-agent4j-loom
+check_module src/ai-agent4j ai-agent4j
+check_module src/eval4j eval4j
+check_module src/loom/ai-agent4j-loom ai-agent4j-loom
 
-bundled="$root/loom/vscode-loom/bin/weave.jar"
-built="$(ls "$root"/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar 2>/dev/null | head -n 1)"
+bundled="$root/src/loom/vscode-loom/bin/weave.jar"
+built="$(ls "$root"/src/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar 2>/dev/null | head -n 1)"
 if [ -f "$bundled" ]; then
   if [ -n "$built" ] && [ "$(stat -c %Y "$bundled")" -lt "$(stat -c %Y "$built")" ]; then echo "STALE    the extension's bin/weave.jar is older than $built"; stale=1
-  elif [ "$(stat -c %Y "$bundled")" -lt "$(newest "$root/loom/ai-agent4j-loom")" ]; then echo "STALE    the extension's bin/weave.jar is older than the Loom sources"; stale=1
+  elif [ "$(stat -c %Y "$bundled")" -lt "$(newest "$root/src/loom/ai-agent4j-loom")" ]; then echo "STALE    the extension's bin/weave.jar is older than the Loom sources"; stale=1
   else echo "current  extension bin/weave.jar"; fi
 fi
 
@@ -37,8 +37,8 @@ if [ "$stale" -ne 0 ]; then
   cat <<FIX
 
 Fix (builds and installs all three modules without running their tests; -Djacoco.skip is needed with -DskipTests):
-  mvn -DskipTests -Djacoco.skip=true -pl ai-agent4j,eval4j,loom/ai-agent4j-loom install
-  cp loom/ai-agent4j-loom/target/ai-agent4j-loom-$version-cli.jar loom/vscode-loom/bin/weave.jar
+  mvn -DskipTests -Djacoco.skip=true -pl src/ai-agent4j,src/eval4j,src/loom/ai-agent4j-loom install
+  cp src/loom/ai-agent4j-loom/target/ai-agent4j-loom-$version-cli.jar src/loom/vscode-loom/bin/weave.jar
 FIX
   exit 1
 fi

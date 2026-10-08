@@ -1,6 +1,6 @@
 # Publishing the Loom extension to the VS Code Marketplace
 
-The extension is `loom/vscode-loom`. It bundles the `weave` command line (`bin/weave.jar`, the `cli` jar from the Loom build, about 22 MB),
+The extension is `src/loom/vscode-loom`. It bundles the `weave` command line (`bin/weave.jar`, the `cli` jar from the Loom build, about 22 MB),
 so a published `.vsix` is about 21 MB, well under the Marketplace's 200 MB limit. Everything below is a one-time setup, then one command per release.
 
 ## One-time setup (about 20 minutes, all in a browser)
@@ -12,27 +12,27 @@ so a published `.vsix` is about 21 MB, well under the Marketplace's 200 MB limit
    - Scopes: *Custom defined* → *Show all scopes* → **Marketplace → Manage**
    - Expiration: up to a year. Copy the token now; it is shown once. Treat it like a password.
 3. **A publisher.** Go to [marketplace.visualstudio.com/manage](https://marketplace.visualstudio.com/manage) → *Create publisher*.
-   The **ID must be exactly** `srijithunni7182` (it is `publisher` in `loom/vscode-loom/package.json`, and part of the extension's permanent name
+   The **ID must be exactly** `srijithunni7182` (it is `publisher` in `src/loom/vscode-loom/package.json`, and part of the extension's permanent name
    `srijithunni7182.vscode-loom`). The display name can be anything.
 4. **Log in once** from the repository root:
    ```bash
-   cd loom/vscode-loom
+   cd src/loom/vscode-loom
    npx --yes @vscode/vsce@3.2.1 login srijithunni7182     # paste the PAT when asked
    ```
 
 ## Every release
 
 ```bash
-# 1. bump the version in loom/vscode-loom/package.json and add a section to loom/vscode-loom/CHANGELOG.md
+# 1. bump the version in src/loom/vscode-loom/package.json and add a section to src/loom/vscode-loom/CHANGELOG.md
 # 2. build the jar and the extension, and check the package
-scripts/build-vsix.sh                  # builds weave (the cli jar), compiles, packages loom/vscode-loom/vscode-loom-<version>.vsix
+scripts/build-vsix.sh                  # builds weave (the cli jar), compiles, packages src/loom/vscode-loom/vscode-loom-<version>.vsix
 scripts/verify-vsix.sh                 # unpacks it and runs the bundled jar the way the extension does
 
 # 3. try it before the world can: install the file into your own VS Code
-code --install-extension loom/vscode-loom/vscode-loom-<version>.vsix
+code --install-extension src/loom/vscode-loom/vscode-loom-<version>.vsix
 
 # 4. publish
-cd loom/vscode-loom && npx --yes @vscode/vsce@3.2.1 publish        # compiles, packages and uploads (or add --packagePath <file>.vsix to upload the one you tried)
+cd src/loom/vscode-loom && npx --yes @vscode/vsce@3.2.1 publish        # compiles, packages and uploads (or add --packagePath <file>.vsix to upload the one you tried)
 ```
 
 The extension appears at `marketplace.visualstudio.com/items?itemName=srijithunni7182.vscode-loom` after a few minutes of verification
@@ -48,12 +48,12 @@ VS Code forks (VSCodium, Gitpod, Cursor and others) read [open-vsx.org](https://
 there, link your GitHub, claim the namespace `srijithunni7182`, create an access token, then:
 
 ```bash
-npx --yes ovsx@latest publish loom/vscode-loom/vscode-loom-<version>.vsix -p <token>
+npx --yes ovsx@latest publish src/loom/vscode-loom/vscode-loom-<version>.vsix -p <token>
 ```
 
 ## What the Marketplace page shows
 
-The listing is built from files in `loom/vscode-loom`: `README.md` (the page body; relative image links need `repository` in `package.json`, which is set),
+The listing is built from files in `src/loom/vscode-loom`: `README.md` (the page body; relative image links need `repository` in `package.json`, which is set),
 `CHANGELOG.md` (the Changelog tab), `LICENSE`, the icon `media/loom-mark-128.png`, and the categories, keywords and banner in `package.json`.
 Add screenshots of the workflow graph to the README (use `https://` or repository-relative paths) before the first publish; the graph is the best advertisement.
 

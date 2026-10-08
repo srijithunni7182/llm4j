@@ -31,7 +31,7 @@ validator can reject them with a migration message.
 
 **Parser.** `memory` with or without `:`. Keys are read with `word()`, since `memory` is a token.
 
-**Runtime.** Handled by the package-private class `loom/memory/AgentMemory`, one per agent that has
+**Runtime.** Handled by the package-private class `src/loom/memory/AgentMemory`, one per agent that has
 memory:
 
 - **Conversation store.** `FileConversationStore(baseDir.resolve(conversation))`, or

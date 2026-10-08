@@ -74,7 +74,7 @@ Three phases, each shippable on its own:
   - [x] 5.4 CLI tests: exit codes, stdout is pure JSON, unknown `--workflow` exits 2
     - _Requirements: 3.3, 3.5, 9.1_
 
-- [x] 6. **Checkpoint — core**: `mvn -pl loom/ai-agent4j-loom test` green; manual `weave graph` on
+- [x] 6. **Checkpoint — core**: `mvn -pl src/loom/ai-agent4j-loom test` green; manual `weave graph` on
       `samples/content_factory/main.loom`
 
 <!-- PHASE 2: eval4j-report -->
@@ -84,7 +84,7 @@ Three phases, each shippable on its own:
     - _Requirements: 4.1, 4.4_
   - [x] 7.2 Run all `eval4j-report` tests unmodified; compare report output for existing scripts
     - _Requirements: 4.2_
-  - [x] 7.3 Confirm no dependency from loom to eval4j/eval4j-report (`mvn dependency:tree`)
+  - [x] 7.3 Confirm no dependency from loom to src/eval4j/eval4j-report (`mvn dependency:tree`)
     - _Requirements: 4.3_
   - [x] 7.4 `trace.schema.json` (both copies): extend node `kind` with all builder kinds and `statement`,
         add optional `attrs`; schema tests for old traces (still valid), new kinds (valid) and a typo kind
@@ -93,7 +93,7 @@ Three phases, each shippable on its own:
   - [x] 7.5 `WorkflowTrace.Node` gains optional `attrs` with a 5-argument constructor kept; `WorkflowGraph`
         and `LoomTrace` carry `attrs` into the trace JSON
     - _Requirements: 10.10_
-  - [x] 7.6 Extract the Shared_Renderer to `loom/graph-render/graph-render.js` (layout, shapes, glyphs,
+  - [x] 7.6 Extract the Shared_Renderer to `src/loom/graph-render/graph-render.js` (layout, shapes, glyphs,
         Chip text, overlay support) with `node --test` tests; `sync-graph-render.sh` and
         `check-graph-render-sync.sh`; the extension (task 10) uses the generated copy
     - _Requirements: 10.2, 10.14, 6.1, 6.2, 6.8_
@@ -170,6 +170,6 @@ Three phases, each shippable on its own:
   - [x] 13.4 Docs: extension README, `weave graph` in the Loom docs
     - _Requirements: 9.4_
 
-- [ ] 14. **Final checkpoint** (see `verification.md` gates G0–G6): open `examples/tantrik-console/loom-scripts/sdlc/autonomous-dev-cycle.loom`
-      and `loom/ai-agent4j-loom/samples/boardroom/main.loom` in the extension; graph, imports, click-through
+- [ ] 14. **Final checkpoint** (see `verification.md` gates G0–G6): open `src/examples/tantrik-console/loom-scripts/sdlc/autonomous-dev-cycle.loom`
+      and `src/loom/ai-agent4j-loom/samples/boardroom/main.loom` in the extension; graph, imports, click-through
       and refresh work.

@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.srijithunni7182</groupId>
+        <artifactId>llm4j-parent</artifactId>
+        <version>5.0</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>eval4j-report</artifactId>
+    <packaging>jar</packaging>
+
+    <name>eval4j-report</name>
+    <description>Free, local dashboard and report generator for eval4j run bundles: quality dimensions, goals, run comparison, cost-aware evidence, agent and Loom trajectory views. No network access.</description>
+
+    <properties>
+        <!-- Versions matched with ai-agent4j -->
+        <eval4j.version>${project.version}</eval4j.version>
+        <ai-agent4j.version>${project.version}</ai-agent4j.version>
+        <assertj.version>3.27.7</assertj.version>
+        <junit.version>6.1.0</junit.version>
+        <mockito.version>5.23.0</mockito.version>
+        <jackson.version>2.21.7</jackson.version>
+    
+    </properties>
+
+    <dependencies>
+        <!-- Reads and writes the run bundle JSON/JSONL -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!-- Only for the RunExportListener that renders a dashboard at the end of a test JVM.
+             The CLI and the report library read bundles from disk and need no eval4j. -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>eval4j</artifactId>
+            <version>${eval4j.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- The Loom bridge (io.github.llm4j.evalreport.loom). Optional: the report library and CLI
+             never need Loom; add ai-agent4j-loom yourself to use the bridge. -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j-loom</artifactId>
+            <version>${ai-agent4j.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Contract tests: bundles are validated against the published JSON Schemas -->
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>1.5.6</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
+            <version>2.0.16</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+        <build>
+        <plugins>
+            <!-- Every package must keep at least 80% of its lines covered by the default tests -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>jacoco-check</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>PACKAGE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>cli</id>
+            <!-- mvn -P cli package: builds eval4j-report-<version>-cli.jar, a single runnable jar
+                 (java -jar eval4j-report-5.0-cli.jar render target/eval4j). eval4j and Loom are
+                 left out on purpose: the CLI reads bundles from disk and needs neither. -->
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <shadedArtifactAttached>true</shadedArtifactAttached>
+                                    <shadedClassifierName>cli</shadedClassifierName>
+                                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                                    <artifactSet>
+                                        <includes>
+                                            <include>io.github.srijithunni7182:eval4j-report</include>
+                                            <include>com.fasterxml.jackson.core:*</include>
+                                            <include>com.fasterxml.jackson.dataformat:*</include>
+                                            <include>org.yaml:snakeyaml</include>
+                                        </includes>
+                                    </artifactSet>
+                                    <filters>
+                                        <filter>
+                                            <artifact>*:*</artifact>
+                                            <excludes>
+                                                <exclude>META-INF/*.SF</exclude>
+                                                <exclude>META-INF/*.DSA</exclude>
+                                                <exclude>META-INF/*.RSA</exclude>
+                                                <exclude>module-info.class</exclude>
+                                                <exclude>META-INF/versions/**</exclude>
+                                            </excludes>
+                                        </filter>
+                                    </filters>
+                                    <transformers>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                            <mainClass>io.github.llm4j.evalreport.cli.Main</mainClass>
+                                        </transformer>
+                                    </transformers>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>
