@@ -1,0 +1,41 @@
+# Production-like local stack: the real container image + a real Postgres (same engine as Cloud SQL).
+#   cd src/examples/getviral && docker compose up --build        → http://localhost:7070
+# Uses the local dev login (no Google OAuth needed) and local media storage.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: getviral
+      POSTGRES_USER: getviral
+      POSTGRES_PASSWORD: getviral
+    volumes:
+      - getviral-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U getviral -d getviral"]
+      interval: 3s
+      retries: 20
+
+  app:
+    build:
+      context: ../..
+      dockerfile: src/examples/getviral/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "7070:8080"
+    environment:
+      GETVIRAL_DB_URL: jdbc:postgresql://db:5432/getviral
+      GETVIRAL_DB_USER: getviral
+      GETVIRAL_DB_PASSWORD: getviral
+      GETVIRAL_PUBLIC_URL: http://localhost:7070
+      GETVIRAL_DEV_LOGIN: "true"          # local only
+      GETVIRAL_MODE: ${GETVIRAL_MODE:-auto}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GETVIRAL_DATA_DIR: /app-data
+    volumes:
+      - getviral-media:/app-data
+
+volumes:
+  getviral-db:
+  getviral-media:

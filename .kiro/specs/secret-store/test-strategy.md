@@ -19,7 +19,7 @@ Companion to [design.md](design.md). Requirement IDs (`STO`, `CRY`, `REF`, `INT`
 | L2 Crypto and file | `EncryptedFileSecretStoreTest`, `MasterKeyTest` | format, AAD binding, tamper matrix, atomic write, change detection, reload, rekey, close and zeroing, permissions |
 | L3 Provider integration | `ai-agent4j` `...provider.*SecretTest`, `...config.LLMConfigSecretTest` | every provider on `MockWebServer`: header, per-request resolution, rotation, host binding, missing secret, error text scrubbed |
 | L4 Tools and others | `...agent.tools.*SecretTest`, addons tests | search tools, OpenAPI tool, REST skill registry, semantic memory, vector stores |
-| L5 Loom language and executor | `loom/ai-agent4j-loom` `...loom.secret.*Test` | parse `secret.NAME`, validation messages, executor store, provider resolution and host binding, tool options, built-in provider lookup order, audit LA15 |
+| L5 Loom language and executor | `src/loom/ai-agent4j-loom` `...loom.secret.*Test` | parse `secret.NAME`, validation messages, executor store, provider resolution and host binding, tool options, built-in provider lookup order, audit LA15 |
 | L6 CLI | `...loom.secret.SecretsCommandTest` | every `weave secrets` command, `--secrets` on `run`/`check`, no value on the command line, no value in output, run spec has no secrets path |
 | L7 Hardening | `SecretLeakTest`, `RepositoryHasNoSecretsTest` | repository scan for credential-shaped strings; leak greps |
 | L8 Docs | `SecretDocsTest` | documented examples parse and pass `weave check`; links resolve; required statements present |

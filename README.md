@@ -17,24 +17,24 @@
 </p>
 
 <p align="center">
-  <a href="ai-agent4j/wiki/Getting-Started.md">Get started</a> ·
+  <a href="src/ai-agent4j/wiki/Getting-Started.md">Get started</a> ·
   <a href="docs/THE_STACK.md">The stack</a> ·
   <a href="docs/EXAMPLES.md">Examples</a> ·
   <a href="docs/README.md">Docs</a> ·
-  <a href="ai-agent4j/wiki/WHY_AI_AGENT4J.md">Why ai-agent4j?</a> ·
-  <a href="loom/ai-agent4j-loom/WHY_LOOM.md">Why Loom?</a> ·
+  <a href="src/ai-agent4j/wiki/WHY_AI_AGENT4J.md">Why ai-agent4j?</a> ·
+  <a href="src/loom/ai-agent4j-loom/WHY_LOOM.md">Why Loom?</a> ·
   <a href="SECURITY.md"><b>Security</b></a>
 </p>
 
 <p align="center">
-  <a href="ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md"><img src="docs/images/xai_banner.svg" alt="The most complete explainable-AI toolkit for Java agents: traceability, confidence and escalation, PII privacy, fairness" width="100%"></a>
+  <a href="src/ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md"><img src="docs/images/xai_banner.svg" alt="The most complete explainable-AI toolkit for Java agents: traceability, confidence and escalation, PII privacy, fairness" width="100%"></a>
 </p>
 
 > [!IMPORTANT]
 > **The most complete explainable-AI toolkit for Java agents.** Every agent step is recorded as an immutable audit event (**traceability**),
 > each run carries a **confidence score** with `shouldEscalateToHuman()`, **PII is masked** before it reaches a model
 > or a log, and **bias monitors** can flag or block a response. The four pillars are mapped to GDPR, the EU AI Act and
-> the NIST AI RMF in **[xAI: Beyond Black Boxes](ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md)**.
+> the NIST AI RMF in **[xAI: Beyond Black Boxes](src/ai-agent4j/wiki/xAI_BEYOND_BLACK_BOXES.md)**.
 >
 > These ship in the box. With Spring AI or LangChain4j you get observability and PII guardrails, but you build confidence scoring, bias monitoring and the audit trail yourself.
 
@@ -77,20 +77,20 @@ AgentResult result = ReActAgent.builder().llmClient(client).addTool(new Calculat
 ```
 
 Keys can come from the environment, your own vault, or an encrypted file, and components fetch them per request:
-see [API keys in the Quick Start](ai-agent4j/wiki/Getting-Started.md#set-up-your-api-key) and the
-[Secret Store](ai-agent4j/wiki/Secret-Store.md). Next: the [Quick Start Guide](ai-agent4j/wiki/Getting-Started.md), or
+see [API keys in the Quick Start](src/ai-agent4j/wiki/Getting-Started.md#set-up-your-api-key) and the
+[Secret Store](src/ai-agent4j/wiki/Secret-Store.md). Next: the [Quick Start Guide](src/ai-agent4j/wiki/Getting-Started.md), or
 [build a multi-agent workflow step by step](docs/guide/README.md).
 
 ## The stack
 
 | Module | Answers | |
 |---|---|---|
-| 🏗️ [**ai-agent4j**](ai-agent4j/) | How do I build an agent? | ReAct agents, tools, skills, memory, RAG, budgets, one contract over Gemini, Claude, Sarvam and Ollama |
-| 🧵 [**Loom**](loom/ai-agent4j-loom/) | How do many agents work together, reliably, for days? | A small workflow language: journaled, resumable, budgeted, scheduled, with deterministic tasks and earned autonomy ([why](loom/ai-agent4j-loom/WHY_LOOM.md)) |
-| 🧠 [**Engram**](engram/engram-core/) | How does an agent remember without drowning in context? | Retrieve-and-synthesise memory that keeps prompts small |
-| 🧩 [**Addons**](ai-agent4j-addons/) | How do I keep data private and costs at zero? | Local ONNX/DJL embeddings, pgvector and Pinecone |
-| 🔧 [**Tools**](ai-agent4j-tools/) | How do I let an agent act safely? | `webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, with allow-lists and journals |
-| 🧪 [**eval4j**](eval4j/) | How do I know it works? | AssertJ assertions on agent behaviour, LLM judges, golden datasets, a [local dashboard](eval4j-report/docs/USER-GUIDE.md) ([why](ai-agent4j/wiki/WHY_EVAL4J.md)) |
+| 🏗️ [**ai-agent4j**](src/ai-agent4j/) | How do I build an agent? | ReAct agents, tools, skills, memory, RAG, budgets, one contract over Gemini, Claude, Sarvam and Ollama |
+| 🧵 [**Loom**](src/loom/ai-agent4j-loom/) | How do many agents work together, reliably, for days? | A small workflow language: journaled, resumable, budgeted, scheduled, with deterministic tasks and earned autonomy ([why](src/loom/ai-agent4j-loom/WHY_LOOM.md)) |
+| 🧠 [**Engram**](src/engram/engram-core/) | How does an agent remember without drowning in context? | Retrieve-and-synthesise memory that keeps prompts small |
+| 🧩 [**Addons**](src/ai-agent4j-addons/) | How do I keep data private and costs at zero? | Local ONNX/DJL embeddings, pgvector and Pinecone |
+| 🔧 [**Tools**](src/ai-agent4j-tools/) | How do I let an agent act safely? | `webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, with allow-lists and journals |
+| 🧪 [**eval4j**](src/eval4j/) | How do I know it works? | AssertJ assertions on agent behaviour, LLM judges, golden datasets, a [local dashboard](src/eval4j-report/docs/USER-GUIDE.md) ([why](src/ai-agent4j/wiki/WHY_EVAL4J.md)) |
 
 [Module details and diagram](docs/THE_STACK.md)
 
@@ -104,24 +104,24 @@ each model call, journaled effects that a crash never repeats, secrets that neve
 
 ## Examples
 
-[**GetViral**](examples/getviral/) turns one idea into a ready-to-post pack: twelve agents, one Loom workflow, every
-module here, and no API key needed to try it. Also a [boardroom of debating agents](examples/hexamind-hub/README.md), an
-[autonomous software factory](examples/nirmaan-yantra/README.md), a [Malayalam voice companion](examples/kingini/README.md)
-and a [Gmail MCP app](examples/gmail-mcp-app/). [All examples](docs/EXAMPLES.md)
+[**GetViral**](src/examples/getviral/) turns one idea into a ready-to-post pack: twelve agents, one Loom workflow, every
+module here, and no API key needed to try it. Also a [boardroom of debating agents](src/examples/hexamind-hub/README.md), an
+[autonomous software factory](src/examples/nirmaan-yantra/README.md), a [Malayalam voice companion](src/examples/kingini/README.md)
+and a [Gmail MCP app](src/examples/gmail-mcp-app/). [All examples](docs/EXAMPLES.md)
 
 ## Documentation
 
 [**Docs index**](docs/README.md) ·
-[Quick Start](ai-agent4j/wiki/Getting-Started.md) ·
-[Loom guide](loom/ai-agent4j-loom/LOOM_GUIDE.md) ·
-[Secret Store](ai-agent4j/wiki/Secret-Store.md) ·
+[Quick Start](src/ai-agent4j/wiki/Getting-Started.md) ·
+[Loom guide](src/loom/ai-agent4j-loom/LOOM_GUIDE.md) ·
+[Secret Store](src/ai-agent4j/wiki/Secret-Store.md) ·
 [Security](SECURITY.md) ·
-[eval4j](eval4j/README.md) ·
+[eval4j](src/eval4j/README.md) ·
 [Contributing](CONTRIBUTING.md)
 
 > [!TIP]
-> How it compares: [vs LangChain4j and Spring AI](ai-agent4j/wiki/WHY_AI_AGENT4J.md) ·
-> [Loom vs LangGraph](loom/ai-agent4j-loom/WHY_LOOM.md) · [eval4j vs deepeval](ai-agent4j/wiki/WHY_EVAL4J.md)
+> How it compares: [vs LangChain4j and Spring AI](src/ai-agent4j/wiki/WHY_AI_AGENT4J.md) ·
+> [Loom vs LangGraph](src/loom/ai-agent4j-loom/WHY_LOOM.md) · [eval4j vs deepeval](src/ai-agent4j/wiki/WHY_EVAL4J.md)
 
 **Philosophy:** Java first. Ground up, with minimal dependencies. Glass-box AI you can see inside. Authority in code, not in prompts.
 

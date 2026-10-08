@@ -13,10 +13,10 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-MODULE = ROOT / "loom" / "ai-agent4j-loom"
+MODULE = ROOT / "src" / "loom" / "ai-agent4j-loom"
 REPORTS = MODULE / "target" / "surefire-reports"
 SPEC = ROOT / ".kiro" / "specs" / "loom-remote-answers"
-L = "loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/"
+L = "src/loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/"
 TESTS = "io.github.llm4j.loom.channel.*Test,ChannelRunTest,ChannelGuideTest"
 
 SABOTAGES = [

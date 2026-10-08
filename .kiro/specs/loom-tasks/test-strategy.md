@@ -16,14 +16,14 @@ Companion to [design.md](design.md). Requirement IDs (`API-xx`, `LANG-xx`, `RUN-
 | Level | Module and package | What it covers |
 |---|---|---|
 | L1 Unit: API | `ai-agent4j` `io.github.llm4j.agent.task` | `Task`, `TaskContext`, `TaskResult`, `TaskRegistry`, `TaskNotPerformed`. Pure Java, no Loom. |
-| L2 Lexer/Parser | `loom/ai-agent4j-loom` `...loom.task.TaskParseTest` | Grammar of `run`, contextual keyword, error messages, AST shape. |
+| L2 Lexer/Parser | `src/loom/ai-agent4j-loom` `...loom.task.TaskParseTest` | Grammar of `run`, contextual keyword, error messages, AST shape. |
 | L3 Executor | `...loom.task.TaskRunTest`, `TaskJournalTest`, `TaskRetryApprovalTest`, `TaskSimulateTest`, `TaskConcurrencyTest`, `TaskRewindTest` | Semantics of section 6 in the design, including loops, rewinds, timeouts and the lock discipline of the effect claim. |
 | L4 Validation | `...loom.task.TaskValidationTest` | `weave check` rules (also through the CLI path, with a task found by the `ServiceLoader`) and the interaction with rewind/decide checks. |
 | L5 Scenario | `...loom.task.RefundWorkflowTest`, `TaskIntegrationTest` | End-to-end refund bot: agent extracts, tasks decide and act, human gate, resume after crash; the run timeline and script-drift tools. |
 | L6 Cross-module | `eval4j` `WorkflowTaskAssertTest`; `eval4j-report` `TaskTraceExportTest` | Trace, assertions and graph show tasks as non-agent steps (INT-04). The report test drives a real Loom run through `LoomTrace`. |
-| L7 Conformance | `loom/ctk` `TaskConformanceTest`; `...loom.task.TaskCtkConformanceTest` | The canonical scenarios exist and the comparator holds a runtime to the task contract; the Java runtime executes the canonical scripts and its trace is compared with the canonical one (INT-05). The CTK's own runner is a stub, so the second test is where the reference runtime is actually held to it. |
+| L7 Conformance | `src/loom/ctk` `TaskConformanceTest`; `...loom.task.TaskCtkConformanceTest` | The canonical scenarios exist and the comparator holds a runtime to the task contract; the Java runtime executes the canonical scripts and its trace is compared with the canonical one (INT-05). The CTK's own runner is a stub, so the second test is where the reference runtime is actually held to it. |
 | L8 Docs | `...loom.task.TaskDocsTest` | Parse/validate documented examples; docs mention what the spec says they must (DOC-01..02). |
-| L9 Regression | whole modules | `mvn verify` of `ai-agent4j`, `ai-agent4j-loom` (includes the jacoco coverage rules), `eval4j`, `eval4j-report`; `mvn test` of `loom/ctk`; a compile of the whole reactor (examples included). `RepositoryScriptsTest` checks every `.loom` file in the repository, so any script added anywhere must pass the checks. |
+| L9 Regression | whole modules | `mvn verify` of `ai-agent4j`, `ai-agent4j-loom` (includes the jacoco coverage rules), `eval4j`, `eval4j-report`; `mvn test` of `src/loom/ctk`; a compile of the whole reactor (examples included). `RepositoryScriptsTest` checks every `.loom` file in the repository, so any script added anywhere must pass the checks. |
 
 ## 3. Techniques per concern
 

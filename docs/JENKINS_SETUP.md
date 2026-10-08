@@ -50,10 +50,10 @@ Jenkins serves archived HTML under a strict Content-Security-Policy, so scripts 
 blocked. Publish the **static edition** of the eval4j report, which needs neither:
 
 ```groovy
-publishHTML(target: [reportDir: 'eval4j-report/target/eval4j/report/static',
+publishHTML(target: [reportDir: 'src/eval4j-report/target/eval4j/report/static',
                      reportFiles: 'index.html', reportName: 'eval4j report',
                      keepAll: true, allowMissing: true])
-junit 'eval4j-report/target/eval4j/report/junit.xml'
+junit 'src/eval4j-report/target/eval4j/report/junit.xml'
 ```
 
 The interactive `index.html` in the parent directory is one self-contained file; download it from the

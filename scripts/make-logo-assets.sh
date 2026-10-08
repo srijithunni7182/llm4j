@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Makes the Loom images the VS Code extension ships from the project logo (loom/ai-agent4j-loom/loom_logo.png):
+# Makes the Loom images the VS Code extension ships from the project logo (src/loom/ai-agent4j-loom/loom_logo.png):
 #   loom-mark-128.png  the emblem alone, 128x128: toolbar, tab icon and extension icon
 #   loom-logo-320.png  emblem and wordmark, 320x320: loading and empty states
-# Usage: scripts/make-logo-assets.sh [output-dir]   (default: loom/vscode-loom/media). Needs ImageMagick (convert).
+# Usage: scripts/make-logo-assets.sh [output-dir]   (default: src/loom/vscode-loom/media). Needs ImageMagick (convert).
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source_logo="$root/loom/ai-agent4j-loom/loom_logo.png"
-out="${1:-$root/loom/vscode-loom/media}"
+source_logo="$root/src/loom/ai-agent4j-loom/loom_logo.png"
+out="${1:-$root/src/loom/vscode-loom/media}"
 command -v convert >/dev/null || { echo "ImageMagick (convert) is needed" >&2; exit 1; }
 mkdir -p "$out"
 # fixed settings and no metadata, so the same logo always gives the same bytes

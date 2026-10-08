@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Gate G5 for remote answers: real `weave` processes against a stand-in Telegram server and a stand-in model server. Transcripts go to evidence/g5/.
-#   scripts/g5/run_remote.sh      (needs the classes built: mvn -pl loom/ai-agent4j-loom compile; dependencies are copied to target/lib)
+#   scripts/g5/run_remote.sh      (needs the classes built: mvn -pl src/loom/ai-agent4j-loom compile; dependencies are copied to target/lib)
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 ROOT=$(pwd)
-MODULE=$ROOT/loom/ai-agent4j-loom
+MODULE=$ROOT/src/loom/ai-agent4j-loom
 OUT=$ROOT/.kiro/specs/loom-remote-answers/evidence/g5
 WORK=$(mktemp -d)
 TG_PORT=${G5_TG_PORT:-8768}

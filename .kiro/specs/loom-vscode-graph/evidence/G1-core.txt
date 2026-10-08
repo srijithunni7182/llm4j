@@ -1,5 +1,5 @@
 # G1  2026-10-06T12:29:23Z
-$ mvn -q -pl loom/ai-agent4j-loom -am verify -Djacoco.skip=false && python3 scripts/graph_coverage.py loom/ai-agent4j-loom/target/site/jacoco/jacoco.csv
+$ mvn -q -pl src/loom/ai-agent4j-loom -am verify -Djacoco.skip=false && python3 scripts/graph_coverage.py src/loom/ai-agent4j-loom/target/site/jacoco/jacoco.csv
 SEVERE: Exhausted retries for delegate to Editor
 Oct 06, 2026 12:31:32 PM io.github.llm4j.loom.execution.HarnessExecutor initialize
 INFO: Initialized Agent: Writer

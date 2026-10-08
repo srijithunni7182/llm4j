@@ -138,7 +138,7 @@ Unless a check says otherwise it uses these stand-ins:
 | V9.1 | Every `loom` block in the new guide section is validated by the existing guide-examples test (blocks that are fragments are marked, as the test already supports). |
 | V9.2 | `LOOM_PROMPT.md`, the READMEs, the VS Code grammar and the language server's hover text mention `decision`, `decide`, `autonomy`; a test fails if one is missing. |
 | V9.3 | The commands in the guide run against a seeded store (`status`, `history`, `freeze`, `outcome`, `replay`) and print what the guide says. |
-| V9.4 | No sample workflow directory was added (`ls loom/ai-agent4j-loom/samples` unchanged). |
+| V9.4 | No sample workflow directory was added (`ls src/loom/ai-agent4j-loom/samples` unchanged). |
 
 ## V10: Regression and quality
 

@@ -2,7 +2,7 @@
 
 > **Layout update.** The tools were later moved out of Loom into the `ai-agent4j-tools` library (package
 > `io.github.llm4j.tools`; see design.md §9). Where this document says `io.github.llm4j.loom.tools.generic` or
-> `loom/ai-agent4j-loom/.../generic`, read the tools module for the tools, guards and their tests, and Loom for the
+> `src/loom/ai-agent4j-loom/.../generic`, read the tools module for the tools, guards and their tests, and Loom for the
 > executor, parser, CLI and guide tests.
 
 [`verification.md`](verification.md) lists the checks the work must pass, and
@@ -27,8 +27,8 @@ The point is to rule out the usual ways "done" is wrong:
 
 ## Conventions
 
-- **Working directory:** the repository root. The module is `loom/ai-agent4j-loom`; commands use
-  `-pl loom/ai-agent4j-loom -am` so ai-agent4j is built first.
+- **Working directory:** the repository root. The module is `src/loom/ai-agent4j-loom`; commands use
+  `-pl src/loom/ai-agent4j-loom -am` so ai-agent4j is built first.
 - **Evidence** goes in `.kiro/specs/loom-generic-tools/evidence/`, one file per gate, named as below, and
   is committed. A gate with no evidence file has not passed.
 - **A gate fails** if any listed condition fails. There is no partial pass: fix, then re-run that gate *and
@@ -76,7 +76,7 @@ The gates below say which parts are scripted and which are done by hand.
 |---|---|
 | Do | In a **fresh clone** at the SHA, with an empty local Maven repository for the project's own artifacts: |
 | | `git clone <repo> verify && cd verify && git checkout <SHA>` |
-| | `mvn -B -pl loom/ai-agent4j-loom -am clean install` (full build with tests and the JaCoCo check) |
+| | `mvn -B -pl src/loom/ai-agent4j-loom -am clean install` (full build with tests and the JaCoCo check) |
 | | Run it a second time, then once more with `-Dsurefire.runOrder=random -Dloom.fuzz.iterations=20000`. |
 | Evidence | `evidence/G1-build.txt`: the three command lines, the Maven summaries, and the surefire totals (tests, failures, errors, skipped) for each run. |
 | Pass | All three runs succeed. Failures and errors are 0. The two plain runs have the **same** test count. Skipped tests are listed and every one is one of: a `@Tag("live")` test, an OS-specific test skipped on the other OS, or a symlink test on a platform that can't make symlinks. Total added test time is under 60 s (strategy §2). |
@@ -90,7 +90,7 @@ Scripted. Three comparisons, each a plain set difference whose output is saved.
 | **Checks → tests.** Every ID in a table row of `verification.md` (V1.1 … V13, F1–F5, H1–H6, C1–C5; L1–L4 excluded) against the `@Tag` values in the surefire XML reports. | Every ID has at least one **executed, passing** test. IDs with only skipped tests fail. |
 | **Tests → checks.** Every `@Tag` of that form in the test sources against `verification.md`. | No tag names an ID that doesn't exist (catches typos that hide a gap). |
 | **Criteria → checks.** Every numbered acceptance criterion in `requirements.md` against the matrix in `test-strategy.md` §9. | Every criterion appears in at least one matrix row. |
-| **Disabled tests.** `grep -rn "@Disabled" loom/ai-agent4j-loom/src/test/…/generic`. | None. |
+| **Disabled tests.** `grep -rn "@Disabled" src/loom/ai-agent4j-loom/src/test/…/generic`. | None. |
 | **Assertions exist.** The script lists any test method in `generic/` whose body has no `assertThat`, `assert*`, `verify` or `assertThrows`. | The list is empty, or each entry is justified in the evidence file. |
 
 Evidence: `evidence/G2-traceability.txt` with the three diffs (each empty) and the justification list.
@@ -135,7 +135,7 @@ unchanged (`git diff <SHA>` empty).
 | | |
 |---|---|
 | Do | Run the **whole** Loom suite and the ai-agent4j suite from the G1 checkout, and compare with the baseline: the same suites at the commit before this work started (`ab316b4`'s parent, the merged `nifty-lovelace` head `71f67cb`). |
-| | `mvn -B -pl ai-agent4j,loom/ai-agent4j-loom test` at both commits. |
+| | `mvn -B -pl ai-agent4j,src/loom/ai-agent4j-loom test` at both commits. |
 | Evidence | `evidence/G4-regression.txt`: per-class test counts at the baseline and now. |
 | Pass | Every test that existed at the baseline exists now and passes (no test removed, renamed away or relaxed: `git diff 71f67cb -- '*Test.java'` shows only additions in pre-existing test files, or each modification is explained). The `ApprovalGate.key` values are unchanged (V2.11). |
 
@@ -161,7 +161,7 @@ The tests run against classes. Users run the shaded JAR.
 
 | | |
 |---|---|
-| Do | `mvn -B -pl loom/ai-agent4j-loom -am package`, then run R1, R3's `email` and `sql` scripts, and a `webhook` call with **only** the packaged JAR on the classpath (`java -jar …` or `weave package … --fat`), from an empty directory. |
+| Do | `mvn -B -pl src/loom/ai-agent4j-loom -am package`, then run R1, R3's `email` and `sql` scripts, and a `webhook` call with **only** the packaged JAR on the classpath (`java -jar …` or `weave package … --fat`), from an empty directory. |
 | | List the JAR: `unzip -l …jar | grep -E 'angus|jakarta.mail|postgresql'`. |
 | | Start a script that uses none of the new tools and confirm (class-loading probe, `-verbose:class | grep -c jakarta/mail`) no mail class is loaded. |
 | Evidence | `evidence/G6-package.txt`. |

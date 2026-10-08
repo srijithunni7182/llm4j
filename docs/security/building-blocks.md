@@ -24,7 +24,7 @@ What each part of llm4j does for security, and how it is meant to be used. The p
 
 Six ready-made tools, written for the case where the model chooses the arguments and may be wrong, tricked or
 hostile. Each one's options set the fence, and the tool checks every call against it. Full detail:
-[the tools' safety model](../../ai-agent4j-tools/docs/safety.md).
+[the tools' safety model](../../src/ai-agent4j-tools/docs/safety.md).
 
 | Tool | Its fence |
 |---|---|

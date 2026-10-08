@@ -46,7 +46,7 @@ All changes are additive. Existing `weave` commands, the eval report and the Out
 - **Run_Overlay**: The state of each node and edge in one run: taken, missed, unexpected, not visited,
   and how many times a node was visited.
 - **Report_Graph**: The graph card in the eval report's trace view.
-- **Logo_Assets**: The Loom mark and logo images derived from `loom/ai-agent4j-loom/loom_logo.png`.
+- **Logo_Assets**: The Loom mark and logo images derived from `src/loom/ai-agent4j-loom/loom_logo.png`.
 
 ---
 
@@ -215,7 +215,7 @@ in CI, docs and the extension.
 1. THE Graph_Builder and Graph_Command SHALL have unit tests for every statement kind, imports,
    cycles, missing files and unresolved calls.
 2. A golden-file test SHALL pin the JSON and Mermaid output for the sample scripts under
-   `loom/ai-agent4j-loom/samples/`.
+   `src/loom/ai-agent4j-loom/samples/`.
 3. THE extension SHALL have tests for the message protocol between the host and the webview and for
    the JSON-to-layout step, and a smoke test that opens the panel for a sample file.
 4. THE extension README SHALL document the command and its settings; the Loom docs SHALL document

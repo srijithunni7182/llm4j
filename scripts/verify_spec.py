@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-MODULES = [ROOT / "ai-agent4j", ROOT / "ai-agent4j-tools", ROOT / "loom" / "ai-agent4j-loom"]
+MODULES = [ROOT / "src" / "ai-agent4j", ROOT / "src" / "ai-agent4j-tools", ROOT / "src" / "loom" / "ai-agent4j-loom"]
 
 spec = ROOT / sys.argv[1]
 prefix = sys.argv[2]

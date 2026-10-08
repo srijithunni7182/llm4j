@@ -4,7 +4,7 @@
 # Usage: scripts/verify-vsix.sh [path-to.vsix]
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-vsix="${1:-$(ls "$root"/loom/vscode-loom/*.vsix | head -n 1)}"
+vsix="${1:-$(ls "$root"/src/loom/vscode-loom/*.vsix | head -n 1)}"
 listing="$(unzip -Z1 "$vsix")"
 status=0
 for required in \
@@ -19,6 +19,6 @@ done
 [ "$status" -eq 0 ] || exit "$status"
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 unzip -q "$vsix" -d "$work"
-out="$(java -jar "$work/extension/bin/weave.jar" graph "$root/loom/ai-agent4j-loom/samples/content_factory/main.loom" --format json)"
+out="$(java -jar "$work/extension/bin/weave.jar" graph "$root/src/loom/ai-agent4j-loom/samples/content_factory/main.loom" --format json)"
 grep -q '"version": 1' <<<"$out" && grep -q '"GenerateContent"' <<<"$out" || { echo "the bundled weave.jar did not draw the sample" >&2; exit 1; }
 echo "vsix ok: $(wc -l <<<"$listing") files, bundled weave.jar draws the sample"

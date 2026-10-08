@@ -223,7 +223,7 @@ If you're building multi-agent systems and you've felt the friction I described 
 
 There are several ways to get involved:
 
-**Try it.** Clone the repo, run one of the sample workflows in `loom/ai-agent4j-loom/samples/`, and see what the authoring experience feels like. The `weave` CLI makes it easy to get started without writing any Java.
+**Try it.** Clone the repo, run one of the sample workflows in `src/loom/ai-agent4j-loom/samples/`, and see what the authoring experience feels like. The `weave` CLI makes it easy to get started without writing any Java.
 
 **Build a runtime.** If you work in Go, Rust, TypeScript, or any other language — the CTK gives you a complete behavioral specification. Build a conformant runtime and run the CTK against it. If it passes, it's a Loom runtime.
 

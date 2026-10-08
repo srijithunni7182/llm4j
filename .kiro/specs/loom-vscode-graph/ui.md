@@ -187,7 +187,7 @@ A node that names an agent shows `Agent · model` in its subtitle. Hovering or f
 
 ## 10. Loom logo
 
-The Loom logo (`loom/ai-agent4j-loom/loom_logo.png`, a 1024 px neon knot with the wordmark on a dark
+The Loom logo (`src/loom/ai-agent4j-loom/loom_logo.png`, a 1024 px neon knot with the wordmark on a dark
 ground) appears in everything the extension opens.
 
 | Place | Asset | Size | Rule |

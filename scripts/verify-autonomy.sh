@@ -7,8 +7,8 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 EVIDENCE="$ROOT/.kiro/specs/loom-earned-autonomy/evidence"
-MODULES="ai-agent4j,ai-agent4j-tools,loom/ai-agent4j-loom"
-MODULE=loom/ai-agent4j-loom
+MODULES="src/ai-agent4j,src/ai-agent4j-tools,src/loom/ai-agent4j-loom"
+MODULE=src/loom/ai-agent4j-loom
 BASELINE=a1ff636   # the rewind-and-fork sign-off, before the earned-autonomy work
 SHA=$(git rev-parse HEAD)
 mkdir -p "$EVIDENCE"
@@ -42,7 +42,7 @@ g1() {
     else
       echo "   BUILD FAILURE" | tee -a "$out"; FAILED+=("G1 run $((i+1))"); tail -30 "$EVIDENCE/.g1-run$i.log" >> "$out"
     fi
-    counts[$i]="core: $(totals ai-agent4j); tools: $(totals ai-agent4j-tools); loom: $(totals $MODULE)"; echo "   ${counts[$i]}" | tee -a "$out"
+    counts[$i]="core: $(totals src/ai-agent4j); tools: $(totals src/ai-agent4j-tools); loom: $(totals $MODULE)"; echo "   ${counts[$i]}" | tee -a "$out"
   done
   [ "${counts[0]}" = "${counts[1]}" ] || { echo "   test counts differ between the two plain runs" | tee -a "$out"; FAILED+=("G1 counts"); }
   rm -f "$EVIDENCE"/.g1-run*.log
@@ -65,7 +65,7 @@ g4() {
   python3 - "$work/baseline" "$ROOT" "$SHA" "$BASELINE" > "$out" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 from pathlib import Path
-MODS = ["ai-agent4j", "ai-agent4j-tools", "loom/ai-agent4j-loom"]
+MODS = ["src/ai-agent4j", "src/ai-agent4j-tools", "src/loom/ai-agent4j-loom"]
 def cases(root):
     out = {}
     for m in MODS:
@@ -134,7 +134,7 @@ g8() {
   { echo "commit $SHA"; mvn -B -o -pl "$MODULE" verify 2>&1 | grep -E "jacoco|coverage checks|BUILD|Tests run:.*Skipped: [0-9]+$" | tail -8
     python3 - <<'PY'
 import csv
-rows = list(csv.DictReader(open("loom/ai-agent4j-loom/target/site/jacoco/jacoco.csv")))
+rows = list(csv.DictReader(open("src/loom/ai-agent4j-loom/target/site/jacoco/jacoco.csv")))
 for r in rows:
     if r["CLASS"] in ("AgreementStats", "Ladder", "AgentIdentity", "EvidenceTool", "Decider", "Engine", "ReplayEngine", "LedgerCache", "FileLedger", "AutonomyCommands", "ReplayCommand"):
         b, m = int(r["BRANCH_COVERED"]), int(r["BRANCH_MISSED"]); l, lm = int(r["LINE_COVERED"]), int(r["LINE_MISSED"])

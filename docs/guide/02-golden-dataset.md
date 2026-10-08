@@ -69,15 +69,15 @@ Put at least one injection and one fabricated-premise case per agent: they are t
 ## Search-dependent cases need recorded results
 
 If an agent searches, give the case its snippets (`retrievalContext`, or a query-matched library such as
-[`search-fixtures.yaml`](https://github.com/srijithunni7182/llm4j/blob/main/examples/hexamind-hub/eval/golden/search-fixtures.yaml) *(repository only)*). A search that returns nothing for a
+[`search-fixtures.yaml`](https://github.com/srijithunni7182/llm4j/blob/main/src/examples/hexamind-hub/eval/golden/search-fixtures.yaml) *(repository only)*). A search that returns nothing for a
 real topic makes the agent loop to its iteration limit: you would be measuring broken search, not the agent. Fabricated terms
-should find nothing, on purpose. See `RecordedSearchTool` in [offline and budgeted runs](https://github.com/srijithunni7182/llm4j/blob/main/eval4j/docs/OFFLINE-AND-BUDGETED-RUNS.md) *(repository only)*.
+should find nothing, on purpose. See `RecordedSearchTool` in [offline and budgeted runs](https://github.com/srijithunni7182/llm4j/blob/main/src/eval4j/docs/OFFLINE-AND-BUDGETED-RUNS.md) *(repository only)*.
 
 ## Generating more
 
 `DatasetSynthesizer` can draft scenarios from your documents, a description or seeds; candidates pass a quality judge and
 de-duplication, so you may get fewer than requested. Review everything it writes before committing it
-([datasets guide](https://github.com/srijithunni7182/llm4j/blob/main/eval4j/docs/DATASETS.md) *(repository only)*):
+([datasets guide](https://github.com/srijithunni7182/llm4j/blob/main/src/eval4j/docs/DATASETS.md) *(repository only)*):
 
 ```java
 SynthesisResult result = DatasetSynthesizer.using(generatorClient)

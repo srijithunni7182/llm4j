@@ -43,12 +43,12 @@
 
     <!-- The libraries published to Maven Central. Everything else (engram, the example applications) is built only with -Pextended. -->
     <modules>
-        <module>ai-agent4j</module>
-        <module>ai-agent4j-addons</module>
-        <module>ai-agent4j-tools</module>
-        <module>eval4j</module>
-        <module>eval4j-report</module>
-        <module>loom/ai-agent4j-loom</module>
+        <module>src/ai-agent4j</module>
+        <module>src/ai-agent4j-addons</module>
+        <module>src/ai-agent4j-tools</module>
+        <module>src/eval4j</module>
+        <module>src/eval4j-report</module>
+        <module>src/loom/ai-agent4j-loom</module>
     </modules>
 
     <properties>
@@ -199,12 +199,12 @@
                 <test.excluded>live</test.excluded>
             </properties>
             <modules>
-                <module>engram</module>
-                <module>examples/hexamind-hub</module>
-                <module>examples/nirmaan-yantra/nirmaan-yantra-server</module>
-                <module>examples/kingini</module>
-                <module>examples/gmail-mcp-app</module>
-                <module>examples/getviral</module>
+                <module>src/engram</module>
+                <module>src/examples/hexamind-hub</module>
+                <module>src/examples/nirmaan-yantra/nirmaan-yantra-server</module>
+                <module>src/examples/kingini</module>
+                <module>src/examples/gmail-mcp-app</module>
+                <module>src/examples/getviral</module>
             </modules>
         </profile>
 

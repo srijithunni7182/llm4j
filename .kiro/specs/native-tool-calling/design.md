@@ -58,7 +58,7 @@ Non-goals: native calling for Sarvam and Ollama (they stay on the text protocol,
 
 ## 8. CI  (CI)
 
-- **CI-01** GitHub Actions runs the tests of `loom/ai-agent4j-loom`, `engram`, `tantrik`, `eval4j-report` and `loom/ctk` as well as the four modules it already runs, on every push and pull request.
+- **CI-01** GitHub Actions runs the tests of `src/loom/ai-agent4j-loom`, `engram`, `tantrik`, `eval4j-report` and `src/loom/ctk` as well as the four modules it already runs, on every push and pull request.
 - **CI-02** The Jenkinsfile does the same (build, test with reports, and the existing quality stages where they apply).
 - **CI-03** A test fails the build if a module with tests is missing from the GitHub workflow (`CiCoversEveryModuleTest`), so a new module cannot silently skip CI.
 

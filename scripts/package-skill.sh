@@ -10,7 +10,7 @@ given="${1:-}"
 [ -z "$given" ] || given="$(cd "$(dirname "$given")" 2>/dev/null && pwd)/$(basename "$given")"
 cd "$(dirname "$0")/.."
 root="$PWD"
-jar="${given:-$(ls "$root"/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar 2>/dev/null | head -n 1)}"
+jar="${given:-$(ls "$root"/src/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar 2>/dev/null | head -n 1)}"
 [ -f "$jar" ] || { echo "no weave jar: build it first (mvn -DskipTests package) or pass its path" >&2; exit 2; }
 OUT="$root/dist/llm4j-workflow-guide"
 rm -rf "$OUT" "$OUT.zip" "$root/dist/.stage"; mkdir -p "$root/dist/.stage"

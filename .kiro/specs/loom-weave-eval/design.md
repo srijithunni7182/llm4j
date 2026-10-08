@@ -33,7 +33,7 @@ A scenario:
 |---|---|---|
 | `EvalScenario` + readers | `eval4j` | New `rubric`, `expect`, typed tags; legacy `RUBRIC:`/`EXPECT:` and `key:value` read as the new fields; `EvalScenarios.fromDirectory` |
 | `DatasetFolder` | `ai-agent4j-loom` | Finds the folder, matches files to agents and workflows, reads `dataset.yaml`, validates |
-| `EvalCommand` | `loom/cli` | `weave eval` and `--check`, `--init`; exit codes; summary |
+| `EvalCommand` | `src/loom/cli` | `weave eval` and `--check`, `--init`; exit codes; summary |
 | `AgentEvalRunner` | `ai-agent4j-loom` | Runs one agent exactly as `HarnessExecutor` would build it (shared construction, no copy) |
 | `WorkflowEvalRunner` | `ai-agent4j-loom` | Runs a workflow with the mock or a real model, records a trace, applies trajectory checks |
 | Judge | existing eval4j judges | Scores rubric lines; absent judge gives `UNJUDGED` |

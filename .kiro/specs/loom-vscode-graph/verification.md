@@ -13,7 +13,7 @@ so "looks about right" is a failure. Evidence for each gate is saved in `evidenc
 
 ## 1. Fixtures
 
-Existing scripts are reused. New ones live in `loom/ai-agent4j-loom/src/test/resources/graph/`.
+Existing scripts are reused. New ones live in `src/loom/ai-agent4j-loom/src/test/resources/graph/`.
 
 | Fixture | Content | Used for |
 |---|---|---|
@@ -31,7 +31,7 @@ Existing scripts are reused. New ones live in `loom/ai-agent4j-loom/src/test/res
 | `graph/recursive.loom` | workflow `A` calls `A` | no inline expansion |
 | `graph/duplicate_names/` | `Shared` defined in two imported files | first-in-run-order rule and warning |
 | `graph/large_400.loom` | generated: 400 statements in nested blocks | collapse, performance |
-| `report/` fixtures (`eval4j-report/src/test/resources/graph/`) | trace JSONs: `all-taken`, `one-missed`, `one-unexpected`, `loop-x3`, `no-expected`, `big-501`, `empty-path`, `old-kinds-only` | report graph and overlay |
+| `report/` fixtures (`src/eval4j-report/src/test/resources/graph/`) | trace JSONs: `all-taken`, `one-missed`, `one-unexpected`, `loop-x3`, `no-expected`, `big-501`, `empty-path`, `old-kinds-only` | report graph and overlay |
 | `graph/hostile_labels.loom` | notes and agent names containing `<img src=x onerror=alert(1)>`, quotes, `</script>`, 5,000-character strings | escaping, truncation |
 
 JSON fixtures for the extension (`vscode-loom/test/fixtures/`) are produced by `weave graph` from the
@@ -101,7 +101,7 @@ IDs are `V<requirement>.<n>`. The tests that implement them are named in each he
 |---|---|---|
 | V4.1 | `WorkflowGraph.of` | calls `GraphBuilder` (verified by a code-structure test: no private copy of `block()` remains) |
 | V4.2a | every existing `eval4j-report` test | all pass. Exactly one assertion changes, on purpose: `LoomBridgeTest.graphHasStableNodeIdsAndControlFlowEdges` expects the loop's exit edge as `n3->n6:done` (it was unlabelled), because the report's renderer needs the label to tell an exit from the body. No other existing assertion changes |
-| V4.2b | parity: for every `.loom` under `src/test/resources`, `samples/` and `examples/`, old output (from the pre-change commit, stored as golden) vs new `WorkflowGraph` output | node ids, kinds, labels, bounds and edges are identical for every statement kind the old code handled; differences are only handler nodes, new-kind nodes in place of the old generic `statement`, and the label `done` on loop exits; workflows whose ids move because a `for each` or `guardrail` body now has nodes are listed explicitly in the test |
+| V4.2b | parity: for every `.loom` under `src/test/resources`, `samples/` and `src/examples/`, old output (from the pre-change commit, stored as golden) vs new `WorkflowGraph` output | node ids, kinds, labels, bounds and edges are identical for every statement kind the old code handled; differences are only handler nodes, new-kind nodes in place of the old generic `statement`, and the label `done` on loop exits; workflows whose ids move because a `for each` or `guardrail` body now has nodes are listed explicitly in the test |
 | V4.3 | `mvn dependency:tree` for `ai-agent4j-loom` | does not contain `eval4j-report`; `eval4j` itself is a dependency only since `loom-weave-eval`, and only `io.github.llm4j.loom.eval` and `EvalCommand` use it (`ModuleBoundaryTest`) |
 | V4.4 | script using `call`, `foreach`, `guardrail` through `WorkflowGraph.of` | those nodes have kinds `call`, `foreach`, `guardrail`, not `statement`; the resulting trace validates against `trace.schema.json` |
 
@@ -262,7 +262,7 @@ screenshot saved to `evidence/`. Do it in light, dark and high-contrast themes.
 | M6 | Edit and save the entry file, then the imported file | graph updates; zoom and selection stay |
 | M7 | Introduce a syntax error | stale banner with the error; graph kept; fix clears it |
 | M8 | Rename the called workflow | unresolved call drawing and error diagnostic, as in the mockup |
-| M9 | Open `examples/tantrik-console/loom-scripts/sdlc/autonomous-dev-cycle.loom` | readable at Fit; no overlapping nodes or labels; every node kind is recognisable from the legend |
+| M9 | Open `src/examples/tantrik-console/loom-scripts/sdlc/autonomous-dev-cycle.loom` | readable at Fit; no overlapping nodes or labels; every node kind is recognisable from the legend |
 | M10 | Open `large_400.loom` | collapsed blocks; expand and collapse work; pan and zoom stay smooth |
 | M11 | Narrow the panel to about 400 px | toolbar wraps without overlap; no horizontal scrollbar on the page; graph still pannable |
 | M12 | Keyboard only | every control reachable; focus always visible |

@@ -18,7 +18,7 @@ cannot see or move.
 | [Securing a Loom workflow](docs/security/securing-workflows.md) | Nine steps with examples, a worked example that survives a prompt injection, and the patterns to avoid |
 | [Auditing a script: `weave audit`](docs/security/weave-audit.md) | The static security review: what it finds (14 rules), the report, and how to gate CI on it |
 | [The OWASP Top 10 for LLM Applications, and the gaps](docs/security/owasp-llm-top-10.md) | Each of the ten risks: what llm4j does, what you do, and what is not covered yet |
-| [The tools' safety model](ai-agent4j-tools/docs/safety.md) | What a hostile call to `webhook`, `email`, `http`, `file`, `shell` or `sql` tries, and what stops it |
+| [The tools' safety model](src/ai-agent4j-tools/docs/safety.md) | What a hostile call to `webhook`, `email`, `http`, `file`, `shell` or `sql` tries, and what stops it |
 
 ## The threat model
 
@@ -64,7 +64,7 @@ third.
 
 - **Split the trifecta.** No agent should read the outside world, touch your data *and* be able to send it out. Connect agents with typed results (`expecting { ... }`).
 - **Least reach.** One directory, a few programs, one base URL, fixed recipients, a read-only database user.
-- **Approve every way out.** `approve: [Tool]`, answered at a console or [from your phone](loom/ai-agent4j-loom/LOOM_GUIDE.md#answering-from-your-phone).
+- **Approve every way out.** `approve: [Tool]`, answered at a console or [from your phone](src/loom/ai-agent4j-loom/LOOM_GUIDE.md#answering-from-your-phone).
 - **Bound everything.** A run budget on every script; small `max_iterations` on agents that read untrusted content.
 - **Let autonomy be earned.** Start decisions at `watch`, keep a ceiling, and raise it on evidence.
 - **Check it.** `weave check` and `weave audit` in CI; review `.loom` files like code; test refusals with eval4j.

@@ -26,7 +26,7 @@ llm4j is organized into three layers:
 llm4j/
 ├── ai-agent4j          # Core library — LLM clients, ReAct agents, RAG, memory
 ├── ai-agent4j-addons   # Local embeddings (ONNX/DJL), pgvector, Pinecone
-└── loom/
+└── src/loom/
     ├── ai-agent4j-loom # Loom DSL runtime — Lexer, Parser, AST, HarnessExecutor
     ├── vscode-loom     # VS Code extension for .loom files
     └── ctk             # Conformance Test Kit — behavioral contracts for all runtimes
@@ -268,7 +268,7 @@ The entire coordination graph — retries, parallelism, branching, human approva
 
 ```bash
 # Build and alias the CLI
-cd loom/ai-agent4j-loom && mvn clean install
+cd src/loom/ai-agent4j-loom && mvn clean install
 alias weave='java -cp "target/classes:target/lib/*" io.github.llm4j.loom.cli.WeaveCLI'
 
 # Run
@@ -343,7 +343,7 @@ This is the part that makes Loom a language rather than a library.
 The CTK is a suite of 15 canonical `.loom` scripts — one per primitive — paired with expected execution traces and mock agent fixtures. Any Loom runtime (Java, Python, or future implementations) must pass the CTK to be considered conformant.
 
 ```bash
-cd loom/ctk
+cd src/loom/ctk
 mvn test
 mvn exec:java -Dexec.mainClass=io.github.loom.ctk.CtkMain
 ```
@@ -391,7 +391,7 @@ cd llm4j
 cd ai-agent4j && mvn clean install
 
 # Build and run the Loom sample
-cd ../loom/ai-agent4j-loom && mvn clean install
+cd ../src/loom/ai-agent4j-loom && mvn clean install
 alias weave='java -cp "target/classes:target/lib/*" io.github.llm4j.loom.cli.WeaveCLI'
 weave run samples/boardroom/main.loom --input topic="The future of AI agents"
 ```
@@ -413,7 +413,7 @@ llm4j is Apache 2.0 licensed and actively developed. The repo is at:
 **[https://github.com/srijithunni7182/llm4j](https://github.com/srijithunni7182/llm4j)**
 
 Good first contributions:
-- **New Loom samples** — real-world workflows in `loom/ai-agent4j-loom/samples/`
+- **New Loom samples** — real-world workflows in `src/loom/ai-agent4j-loom/samples/`
 - **New tool implementations** — anything that implements the `Tool` interface
 - **New provider integrations** — OpenAI, Anthropic, Cohere
 - **loom4py** — the Python runtime is the most impactful open contribution right now

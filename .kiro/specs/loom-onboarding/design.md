@@ -33,7 +33,7 @@ each module's `src`. Reports and prints the install command; changes nothing.
 
 Planned changes to `SKILL.md`:
 
-1. **Cold start first.** Add a section "Where you are working": check whether `examples/` and `docs/guide/` exist.
+1. **Cold start first.** Add a section "Where you are working": check whether `src/examples/` and `docs/guide/` exist.
    If not, use `weave guide` and `weave init`; never ask the user to fetch the repository.
 2. **Ask two things up front:** the stage (as now), and "Do you want tests first?" (see `loom-weave-eval` R4). Record
    the answer in the project README.
@@ -45,7 +45,7 @@ Planned changes to `SKILL.md`:
    `weave eval --check` passing.
 7. **Add pitfalls:** "Tests run: 0 is a failure", stale jars (`scripts/doctor.sh`), editor versus `weave check` disagreement (report it).
 8. **Useful commands:** add `weave init`, `weave guide`, `weave eval`, `weave graph`, `--no-env`, `--prompt`.
-9. **Remove** the final line that names `examples/hexamind-hub` as the worked example for every chapter.
+9. **Remove** the final line that names `src/examples/hexamind-hub` as the worked example for every chapter.
 10. **Never write a Java loader** for a script-only project; use `weave eval`.
 11. **Honest edges:** keep the existing list and add what is still unsupported once the specs land.
 
