@@ -25,6 +25,6 @@ decision Refund {
 }
 
 workflow Triage(ticket, tier, amount) {
-    decide Refund -> verdict
-    note "ticket {ticket}: {verdict} (the agent proposed {verdict_proposal}, level {verdict_level})"
+    decide Refund -> refund_outcome
+    note "ticket {ticket}: {refund_outcome} (the agent proposed {refund_outcome_proposal}, level {refund_outcome_level})"
 }
