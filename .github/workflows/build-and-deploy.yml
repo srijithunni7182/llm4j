@@ -41,7 +41,7 @@ jobs:
 
     # The default build: fast, hermetic tests and the coverage gates, for every published library.
     - name: Build and test
-      run: mvn -B -ntp verify
+      run: mvn -B verify
 
     - name: Upload test and coverage reports
       if: always()
@@ -67,7 +67,7 @@ jobs:
 
     # Builds the jars a release uploads, unsigned. Tests ran in the build job.
     - name: Build the release artifacts without signing
-      run: mvn -B -ntp -Prelease -Dgpg.skip=true -DskipTests verify
+      run: mvn -B -Prelease -Dgpg.skip=true -DskipTests verify
 
     - name: Keep the runnable weave jar
       uses: actions/upload-artifact@v4
@@ -90,10 +90,10 @@ jobs:
         cache: 'maven'
 
     - name: Run the extended profile
-      run: mvn -B -ntp -fae -Pextended verify
+      run: mvn -B -fae -Pextended verify
 
     - name: Test Loom CTK
-      run: mvn -B -ntp test
+      run: mvn -B test
       working-directory: loom/ctk
 
     - name: Upload test reports
@@ -116,7 +116,7 @@ jobs:
         distribution: 'temurin'
         cache: 'maven'
     - name: Scan the published libraries
-      run: mvn -B -ntp org.owasp:dependency-check-maven:check -DnvdApiKey=${{ secrets.NVD_API_KEY }}
+      run: mvn -B org.owasp:dependency-check-maven:check -DnvdApiKey=${{ secrets.NVD_API_KEY }}
 
   deploy:
     name: Deploy to Maven Central
@@ -141,7 +141,7 @@ jobs:
 
     # The tests run again here: a release is never uploaded without them.
     - name: Deploy the libraries (one bundle, signed)
-      run: mvn -B -ntp -Prelease -Dcentral.autoPublish=${{ inputs.auto_publish || 'false' }} deploy
+      run: mvn -B -Prelease -Dcentral.autoPublish=${{ inputs.auto_publish || 'false' }} deploy
       env:
         CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
         CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
