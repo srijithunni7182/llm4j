@@ -23,7 +23,7 @@
         <!-- Versions matched with Core or new -->
         <onnxruntime.version>1.18.0</onnxruntime.version>
         <djl.version>0.31.1</djl.version>
-        <postgresql.version>42.7.2</postgresql.version>
+        <postgresql.version>42.7.12</postgresql.version>
         <pgvector.version>0.1.6</pgvector.version>
         <pinecone.version>3.0.0</pinecone.version>
         <testcontainers.version>1.19.7</testcontainers.version>

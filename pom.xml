@@ -68,7 +68,7 @@
         <test.excluded>live,integration,fragile</test.excluded>
 
         <!-- one Jackson for every module, so a project that uses several gets one version -->
-        <jackson.version>2.21.7</jackson.version>
+        <jackson.version>2.22.3</jackson.version>
 
         <!-- -DskipTests also skips the coverage report and rules (they have no test data to check) -->
         <skipTests>false</skipTests>
