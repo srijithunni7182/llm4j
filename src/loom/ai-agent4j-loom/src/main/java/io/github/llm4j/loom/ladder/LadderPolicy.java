@@ -111,8 +111,14 @@ public final class LadderPolicy {
         if (from <= 0 || from >= ladder.getRungs().size()) return Optional.empty();
         RungDef r = ladder.getRungs().get(from);
         if (r.getSlip() == null || !Interpreter.test(r.getSlip(), context(history, null, now))) return Optional.empty();
+        return Optional.of(slipTarget(from));
+    }
+
+    /** The rung a slip out of {@code from} goes to: the one named, or the one below (also when the name is not below). */
+    public int slipTarget(int from) {
+        RungDef r = ladder.getRungs().get(from);
         int to = r.getSlipTo() == null ? from - 1 : ladder.indexOf(r.getSlipTo());
-        return Optional.of(to >= 0 && to < from ? to : from - 1);
+        return to >= 0 && to < from ? to : from - 1;
     }
 
     /** True when a case at this rung must go to a person whatever the rung's mode says. */

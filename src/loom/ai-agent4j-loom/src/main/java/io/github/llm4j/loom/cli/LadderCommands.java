@@ -89,7 +89,7 @@ final class LadderCommands {
             }
             List<LadderPolicy.Term> slips = policy.explainSlip(st.rung(), history, now);
             if (!slips.isEmpty()) {
-                text.append("    slips to ").append(policy.slip(st.rung(), history, now).map(policy::nameOf).orElse("a lower rung")).append(" when any of:\n");
+                text.append("    slips to ").append(policy.nameOf(policy.slipTarget(st.rung()))).append(" when any of:\n");
                 for (LadderPolicy.Term t : slips) text.append("      - ").append(term(t)).append('\n');
                 s.put("slip", terms(slips));
             }

@@ -195,3 +195,20 @@ The standing rules from earlier Loom specs still apply:
 1. THREE ladders — a refund triager (choices), a script author (artifacts, outcomes from CI) and a blog publisher (artifacts, parameters, a care filter, late numeric outcomes) — SHALL be written in Loom as test resources, each with measures and a standard-library import and nothing else, and each SHALL be driven through climb, slip, a ceiling, an epoch change and a ladder edit by tests.
 2. THE tests SHALL run with no per-ladder Java: the same engine, the same classes. A test that needs a change in Java to express one of the three SHALL be recorded as a missing mechanism and fixed in the mechanism, not in that ladder.
 3. THE refund ladder SHALL give the same levels as the equivalent `trust` block over a fixed ledger (R10.3).
+
+## Amendments after implementation
+
+Written once the code existed. Where this section and the requirements above disagree, this section is what was built. The full list, with reasons,
+is in [evidence/IMPLEMENTATION-NOTES.md](evidence/IMPLEMENTATION-NOTES.md).
+
+- **R6.1 (default ceiling).** Without `ceiling:` the limit is the **top rung**, not the first. Every agent should be able to earn autonomy, however hard the
+  climb; a lower ceiling holds an agent back on purpose. A ladder with no `autonomous` rung is warned about.
+- **R3.2.** `history.all` and `history.epoch(-n)` are not exposed in expressions; a ladder sees the current epoch.
+- **R4.3.** `c.outcome` is the name of the latest outcome and `c.outcomes.<name>` its value (`true` when it has none).
+- **R4.1.** The remembered values may be typed: `remember: amount: number, tier: text, vip: flag`.
+- **R6.2.** A ladder default on an `agent` is not built; only a decision binds a ladder.
+- **R7.2.** `when the agent changes: test it on past cases` is not applied to a ladder (it starts over, with a warning).
+- **R8.2.** `distance` is the edit distance for any two strings; choices are compared with `==`.
+- **R10.1 / R10.3.** The `trust` block keeps working unchanged; it is **not** desugared into a ladder. The two are separate engines.
+- **R11.3.** `weave ladder test` reads the recorded history of a store (`--store`).
+- **R11.4.** The editor extension has the new words and hover text; no snippet.

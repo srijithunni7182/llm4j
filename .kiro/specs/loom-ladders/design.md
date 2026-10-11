@@ -281,3 +281,15 @@ never makes a `climb` true; re-evaluation is idempotent.
 3. **Retention versus windows.** A ladder reading `since(30d)` with `keep records for: 14 days` can never climb. Warn at check, or reject?
 4. **`describe:` strings on measures.** Needed for useful plain-language output of publisher measures; the syntax is not settled.
 5. **Multiple deciders** (judging people against each other) remains out of scope as in loom-earned-autonomy.
+
+## 13. Amendments after implementation
+
+- **Levels are events in the ledger** (§4.1, §5): the standing of a scope is its latest `level` record, a freeze is a `frozen` record, a promotion and its answer
+  are records. There is no separate level store for ladders. A writer token on each level record tells two racing writers apart.
+- **Reading cases** (§2.3): `LadderEngine` folds the ledger once per change to it and groups the cases by scope; an evaluation reads only the scope's cases.
+  At 100,000 cases in 50 scopes a step costs about 180 ms (`LadderScaleTest`).
+- **Where text is read** (§1): a `ladder` or `measure` declaration is set aside by the Loom lexer as one token of raw text and read by `LadderParser`, because its
+  conditions use characters the Loom lexer rejects. Clauses may share a line; a comma list after `when` is `or` for `slip` and `escalate` and `and` for `climb`.
+- **The standard library** (§7) is `src/main/resources/loom-lib/autonomy.loom`; `import "loom/autonomy"` loads it.
+- **The `trust` desugaring** (§4.4) was not built; see requirements amendments.
+- **Artifacts** (§3.1) are kept inline; large ones are not held by reference.

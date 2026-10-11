@@ -213,6 +213,56 @@
                             <rules>
                                 <rule>
                                     <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.autonomy.expr.Interpreter</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.autonomy.expr.Checker</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.88</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.autonomy.expr.ExprParser</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.autonomy.expr.Lexer</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.95</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.ladder.LadderPolicy</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.ladder.LedgerFold</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.ladder.HistoryBuilder</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.ladder.LadderChecks</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.ladder.LadderEngine</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.80</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes><include>io.github.llm4j.loom.ladder.LevelLog</include></includes>
+                                    <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.75</minimum></limit></limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
                                     <includes><include>io.github.llm4j.loom.runtime.Generations</include></includes>
                                     <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
                                 </rule>
