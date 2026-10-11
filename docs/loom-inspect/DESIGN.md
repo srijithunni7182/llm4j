@@ -24,6 +24,9 @@ The UI mockups are the design system at https://claude.ai/artifact/G8ah58W5edzPP
 | 14 | One key per process. Every process is named on purpose: `--observe-name` is required with `--observe-server`. |
 | 15 | No merging across processes: each process's workflows get their own tabs, grouped under the process name. |
 | 16 | The process verifies the server's certificate. Trust comes from the JDK's default roots, plus an optional private CA given to that process for this connection only, or a pinned server key. There is no "insecure" switch. |
+| 17 | The private CA is given to each process with `--observe-ca`. The server does not hand out its CA. |
+| 18 | Pause, suspend and stop are delivered in the server's response to the next batch (about a second while events flow). There is no direct control port on a process. |
+| 19 | One admin password for the server and for the embedded page. No viewer role and no per-process visibility in v1. |
 
 ## 2. What the runtime gives us today (checked against the code)
 
@@ -415,16 +418,24 @@ Not in v1: mutual TLS (client certificates). The per-client signing key already 
 
 Phase 0 needs only two small additive changes to the core (an interface and an option), and phases 1 and 2 need nothing more, so the first useful release does not wait on language work.
 
-## 13. Open questions
+## 13. Open questions and deferred work
 
-Settled since draft 1: run identity (the executor already has `getRunId()` and `getJournal()`, and `ObservableRun` exposes them), the `--observe` activation, per-workflow tabs, the admin password living in the store, and remote mode as a standalone `loom-inspect-server` that many processes report to, configured from `weave` up front (no dynamic webhook registration).
+Settled since draft 1: run identity (the executor already has `getRunId()` and `getJournal()`, and `ObservableRun` exposes them), the `--observe` activation, per-workflow tabs, the admin password living in the store, remote mode as a standalone `loom-inspect-server` that many processes report to and that is configured from `weave` up front, one key per process, required process names, tabs per process and workflow with no merging, fixed retention (30 days or 2 GB), TLS trust through `--observe-ca` or a pin, commands carried in the response, and a single admin password.
+
+**Still open**
 
 1. **`no_progress` needs a variable.** `ObservableRun.variables()` gives a snapshot, so loom-inspect can read the named variable at the end of each loop round. Is a read-only snapshot from outside the executor acceptable?
-2. **Where does `inspect` live in the grammar?** A top-level block per agent (as above), or inside the `agent` block next to `budget`? The second keeps it near the agent and avoids a new top-level keyword. I lean toward the second.
+2. **Where does `inspect` live in the grammar?** A top-level block per agent (as in section 6), or inside the `agent` block next to `budget`? I lean toward inside the agent block.
 3. **Pause semantics.** Should pause let in-flight model calls finish (recommended) or cancel them? Cancelling wastes tokens already spent.
-4. **Fingerprint in the audit.** OK to record the truncated hash before and after in the audit log? It is the only way to prove which key was live when.
+4. **Fingerprint in the audit.** OK to record the truncated hash before and after a rotation in the audit log? It is the only way to prove which key was live when.
 5. **Password form.** Accept the plain stored value in v1 and add hashing later, or require the hashed form from the start?
-6. **`--observe` on one-shot runs.** `weave run` ends when the workflow ends, which closes the page. Should `--observe` keep the server up for a short time after (for example `--observe-linger 5m`) so the final state can be read?
-7. **Who may see what.** One admin password in v1. With many processes, do you want a read-only viewer password, or per-process visibility, before this is shared with a team?
-8. **Commands over the response.** Pause, suspend and stop reach a process on its next response (about a second while events flow). Acceptable for stop, or do you want an optional direct control port on the process for urgent use?
-9. **CA distribution.** Is passing `--observe-ca` per process acceptable, or should the server hand out its CA on first enrolment (a convenience that would need a bootstrap trust step, so it is not proposed for v1)?
+6. **`--observe` on one-shot runs.** `weave run` ends when the workflow ends, which closes the embedded page. Should `--observe` keep it up for a short time (for example `--observe-linger 5m`) so the final state can be read? Server mode does not have this problem.
+
+**Deferred past v1**
+
+- A read-only viewer password, and per-process visibility.
+- A direct control port on a process, for urgent stops.
+- The server handing out its CA on first enrolment (needs a bootstrap trust step).
+- Mutual TLS as an alternative to the per-process signing key.
+- A database store for the server's history, and running more than one server instance.
+- Secret rotation through the server (the value would have to be encrypted to a key held only by the process).
