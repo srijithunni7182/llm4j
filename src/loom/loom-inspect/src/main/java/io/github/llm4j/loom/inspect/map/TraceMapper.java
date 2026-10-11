@@ -54,6 +54,8 @@ public final class TraceMapper {
     private final Map<String, Deque<Pending>> tools = new HashMap<>();
     private final Map<String, Integer> toolCounts = new HashMap<>();
     private final Map<String, Pending> tasks = new HashMap<>();
+    /** What each agent step was given and fetched, to check its answer's figures against. */
+    private final Map<String, Signals.Corpus> corpora = new HashMap<>();
     private final Map<String, Pending> sleeps = new HashMap<>();
 
     /**
@@ -173,6 +175,7 @@ public final class TraceMapper {
         a.put(Semconv.LOOM_STEP, e.step());
         Pending p = new Pending(Ids.spanId(runId, e.step() + "#agent:" + agent), "invoke_agent " + agent, Semconv.KIND_AGENT, agent, null, e.step(), now, a);
         agents.put(agent + "@" + e.step(), p);
+        corpora.computeIfAbsent(agent + "@" + e.step(), k -> new Signals.Corpus()).add(e.text());
         Map<String, Object> startAttrs = new LinkedHashMap<>(a);
         String t = detail.apply(e.text());
         if (t != null) startAttrs.put(Semconv.LOOM_TEXT, t);
@@ -188,6 +191,16 @@ public final class TraceMapper {
         if (data.get("cost") != null) extra.put(Semconv.LOOM_COST_USD, String.valueOf(data.get("cost")));
         String t = detail.apply(e.text());
         if (t != null) extra.put(Semconv.LOOM_TEXT, t);
+        if (e.text() != null && !e.text().isBlank()) {
+            extra.put(Semconv.LOOM_OUTPUT_HASH, Signals.outputHash(e.text()));
+            Signals.Corpus corpus = corpora.remove(e.agent() + "@" + e.step());
+            if (corpus != null) {
+                Signals.Grounding g = Signals.ground(e.text(), corpus);
+                extra.put(Semconv.LOOM_GROUNDING_FIGURES, (long) g.figures());
+                extra.put(Semconv.LOOM_GROUNDING_UNGROUNDED, (long) g.ungrounded());
+                if (!g.examples().isEmpty() && detail != Detail.METADATA) extra.put(Semconv.LOOM_GROUNDING_EXAMPLES, String.join(", ", g.examples()));
+            }
+        }
         spans.add(span(p, now, SpanRec.STATUS_OK, null, extra));
     }
 
@@ -216,6 +229,8 @@ public final class TraceMapper {
         a.put(Semconv.GEN_AI_TOOL_NAME, tool);
         a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_TOOL);
         a.put(Semconv.LOOM_STEP, e.step());
+        a.put(Semconv.LOOM_ACTION_HASH, Signals.actionHash(tool, e.text()));
+        corpora.computeIfAbsent(e.agent() + "@" + e.step(), k -> new Signals.Corpus()).add(e.text());
         Pending p = new Pending(Ids.spanId(runId, e.step() + "#tool:" + e.agent() + ":" + n), "execute_tool " + tool, Semconv.KIND_TOOL, e.agent(), tool, e.step(), now, a);
         tools.computeIfAbsent(e.agent(), k -> new ArrayDeque<>()).addLast(p);
         Map<String, Object> startAttrs = new LinkedHashMap<>(a);
@@ -232,6 +247,8 @@ public final class TraceMapper {
             return;
         }
         boolean error = looksLikeError(e.text());
+        Signals.Corpus seen = corpora.get(p.agent() + "@" + p.step());
+        if (seen != null && !error) seen.add(e.text()); // what a failed call returned is not a source
         Map<String, Object> extra = new LinkedHashMap<>();
         String t = detail.apply(e.text());
         if (t != null) extra.put(Semconv.LOOM_TEXT, t);

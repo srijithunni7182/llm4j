@@ -46,6 +46,15 @@ public final class Semconv {
     public static final String LOOM_TASK = "loom.task";
     public static final String LOOM_TASK_OUTCOME = "loom.task.outcome";
     public static final String LOOM_TEXT = "loom.text";
+    /** Short hash of a tool call (tool and input), computed in the process so a loop can be seen even when no text leaves it. */
+    public static final String LOOM_ACTION_HASH = "loom.action.hash";
+    /** Short hash of an agent's answer, for the same reason. */
+    public static final String LOOM_OUTPUT_HASH = "loom.output.hash";
+    /** How many distinct figures an answer states, and how many of them appear in nothing the step was given or fetched. */
+    public static final String LOOM_GROUNDING_FIGURES = "loom.grounding.figures";
+    public static final String LOOM_GROUNDING_UNGROUNDED = "loom.grounding.ungrounded";
+    /** A few of the ungrounded figures, for the evidence line. Absent at the metadata detail level. */
+    public static final String LOOM_GROUNDING_EXAMPLES = "loom.grounding.examples";
 
     // ---- Values of loom.span.kind ----
     public static final String KIND_WORKFLOW = "workflow";

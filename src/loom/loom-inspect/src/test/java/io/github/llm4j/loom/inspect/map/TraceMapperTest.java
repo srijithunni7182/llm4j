@@ -250,4 +250,50 @@ class TraceMapperTest {
         assertThat(rewind.attr("loom.data.generation")).isEqualTo(2);
         assertThat(rewind.text(Semconv.LOOM_STEP)).isEqualTo("W/s4");
     }
+
+    private List<SpanRec> spansOf(Detail detail, TraceEvent... events) {
+        TraceMapper m = new TraceMapper(RUN, detail);
+        List<LogRec> logs = new ArrayList<>();
+        List<SpanRec> spans = new ArrayList<>();
+        feed(m, logs, spans, events);
+        return spans;
+    }
+
+    private static final TraceEvent[] WRITER = {
+            ev(1, TraceEvent.DELEGATE_START, "Writer", "W/s0", "Write about hooks using the findings: 340 hits"),
+            ev(2, TraceEvent.ACTION, "Writer", "W/s0", "Wiki {\"q\":\"hooks\"}", "tool", "Wiki"),
+            ev(3, TraceEvent.OBSERVATION, "Writer", "W/s0", "found 12.5% share"),
+            ev(9, TraceEvent.DELEGATE_END, "Writer", "W/s0", "340 hits, 12.5% share, 87% retention, 2019 study", "calls", 1, "tokens", 10, "cost", "0")};
+
+    @Test
+    void anAnswersSignalsAreComputedFromTheTextTheStepSawAndFetched() {
+        List<SpanRec> spans = spansOf(Detail.FULL, WRITER);
+        SpanRec agent = spanNamed(spans, "invoke_agent Writer");
+        assertThat(agent.attr(Semconv.LOOM_GROUNDING_FIGURES)).isEqualTo(4L);
+        assertThat(agent.attr(Semconv.LOOM_GROUNDING_UNGROUNDED)).isEqualTo(2L);
+        assertThat(String.valueOf(agent.attr(Semconv.LOOM_GROUNDING_EXAMPLES))).contains("87%").contains("2019");
+        assertThat(String.valueOf(agent.attr(Semconv.LOOM_OUTPUT_HASH))).hasSize(12);
+        assertThat(String.valueOf(spanNamed(spans, "execute_tool Wiki").attr(Semconv.LOOM_ACTION_HASH))).hasSize(12);
+    }
+
+    @Test
+    void atTheMetadataLevelNoTextLeavesButTheSignalsStillDo() {
+        List<SpanRec> spans = spansOf(Detail.METADATA, WRITER);
+        SpanRec agent = spanNamed(spans, "invoke_agent Writer");
+        assertThat(agent.attr(Semconv.LOOM_GROUNDING_UNGROUNDED)).isEqualTo(2L);
+        assertThat(agent.attr(Semconv.LOOM_OUTPUT_HASH)).isNotNull();
+        assertThat(agent.attr(Semconv.LOOM_GROUNDING_EXAMPLES)).isNull();
+        assertThat(agent.attr(Semconv.LOOM_TEXT)).isNull();
+        assertThat(spanNamed(spans, "execute_tool Wiki").attr(Semconv.LOOM_ACTION_HASH)).isNotNull();
+    }
+
+    @Test
+    void whatAFailedCallReturnedIsNotASource() {
+        List<SpanRec> spans = spansOf(Detail.FULL,
+                ev(1, TraceEvent.DELEGATE_START, "Writer", "W/s0", "Write"),
+                ev(2, TraceEvent.ACTION, "Writer", "W/s0", "Wiki {}", "tool", "Wiki"),
+                ev(3, TraceEvent.OBSERVATION, "Writer", "W/s0", "error: 404 not found for 5000 items"),
+                ev(9, TraceEvent.DELEGATE_END, "Writer", "W/s0", "There are 5000 items", "calls", 1, "tokens", 1, "cost", "0"));
+        assertThat(spanNamed(spans, "invoke_agent Writer").attr(Semconv.LOOM_GROUNDING_UNGROUNDED)).isEqualTo(1L);
+    }
 }
