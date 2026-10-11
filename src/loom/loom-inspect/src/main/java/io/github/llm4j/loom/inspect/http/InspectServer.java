@@ -110,8 +110,11 @@ public final class InspectServer {
                 send(x, 200, "application/json", json(Map.of("runs", registry.summaries())));
             } else if (path.startsWith("/api/runs/")) {
                 String trace = path.substring("/api/runs/".length());
+                boolean wantsGraph = trace.endsWith("/graph");
+                if (wantsGraph) trace = trace.substring(0, trace.length() - "/graph".length());
                 Optional<RunState> run = trace.matches("[0-9a-f]{32}") ? registry.findByTrace(trace) : Optional.empty();
-                if (run.isPresent()) send(x, 200, "application/json", json(run.get().view()));
+                if (run.isPresent() && wantsGraph) send(x, 200, "application/json", json(run.get().graph() == null ? Map.of() : run.get().graph()));
+                else if (run.isPresent()) send(x, 200, "application/json", json(run.get().view()));
                 else send(x, 404, "application/json", json(Map.of("error", "no such run")));
             } else {
                 send(x, 404, "application/json", json(Map.of("error", "not found")));

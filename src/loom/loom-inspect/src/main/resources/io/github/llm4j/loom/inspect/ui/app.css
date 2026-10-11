@@ -87,7 +87,7 @@ h3 { margin: 0; font: 600 15px/20px var(--font-sans); }
 /* grid and panels */
 .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--space-5); align-items: start; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: var(--space-4); min-width: 0; }
-.c8 { grid-column: span 8; } .c4 { grid-column: span 4; } .tall { grid-row: span 2; }
+.c8 { grid-column: span 8; } .c4 { grid-column: span 4; } .tall { grid-row: span 3; }
 .ph { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
 .ph .sub { color: var(--ink-faint); }
 table { width: 100%; border-collapse: collapse; }
@@ -120,6 +120,28 @@ tr.run .task { color: var(--ink); }
 .trace li.now .k { background: var(--live); color: var(--on-live); }
 .trace li.bad .t { color: var(--danger); }
 .spin { display: inline-block; width: 10px; height: 10px; border: 1.5px solid var(--live); border-right-color: transparent; border-radius: 50%; vertical-align: -1px; margin-right: 6px; }
+
+/* workflow graph */
+.graph-wrap { overflow-x: auto; padding-bottom: var(--space-2); }
+.graph { display: block; height: auto; }
+.graph .edge { fill: none; stroke: var(--line-strong); stroke-width: 1.5; }
+.graph .edge.todo { stroke-dasharray: 4 5; opacity: .7; }
+.graph .edge.hot { stroke: var(--live); }
+.graph .node rect { fill: var(--surface-raised); stroke: var(--line-strong); stroke-width: 1; }
+.graph .node.run rect { stroke: var(--live); stroke-width: 1.75; fill: var(--live-soft); }
+.graph .node.bad rect { stroke: var(--danger); stroke-width: 1.5; }
+.graph .node.todo rect { fill: transparent; stroke-dasharray: 3 4; }
+.graph .nm { font: 600 12.5px var(--font-sans); fill: var(--ink); }
+.graph .sb { font: 400 10.5px var(--font-mono); fill: var(--ink-faint); }
+.graph .node.run .sb { fill: var(--ink-muted); }
+.graph .cap { font: 600 10px var(--font-sans); letter-spacing: .08em; fill: var(--ink-faint); text-transform: uppercase; }
+.graph .box { fill: none; stroke: var(--line-strong); stroke-dasharray: 2 5; stroke-width: 1.25; }
+.graph .ok { stroke: var(--ink-faint); fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.graph .ring { fill: none; stroke: var(--live); stroke-width: 1.5; }
+@media (prefers-reduced-motion: no-preference) {
+  .graph .node.run .ring { animation: ring 1.8s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes ring { from { opacity: .8; transform: scale(1); } to { opacity: 0; transform: scale(1.12); } }
+}
 
 /* spend */
 .spend { width: 100%; height: 140px; display: block; }

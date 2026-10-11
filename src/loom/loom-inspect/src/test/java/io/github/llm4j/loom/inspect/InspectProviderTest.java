@@ -98,6 +98,24 @@ class InspectProviderTest {
     }
 
     @Test
+    void theGraphReachesTheRunEvenWhenWeaveSetsTheRunIdAfterAttaching() throws Exception {
+        HttpClient http = HttpClient.newHttpClient();
+        try (InspectSession session = (InspectSession) new InspectObserveProvider().open(ObserveOptions.parse("0", null, "full", "local", null), null)) {
+            HarnessExecutor e = executor(List.of("```json\n{\"thought\": \"t\", \"final_answer\": \"ok\"}\n```"));
+            session.attach(e.observable());
+            e.setRunId("r-late"); // weave does this after attach
+            e.initialize();
+            e.executeWorkflow("Main", Map.of());
+            assertThat(session.awaitIdle(Duration.ofSeconds(3))).isTrue();
+            String base = "http://127.0.0.1:" + session.port();
+            String trace = JSON.readTree(http.send(HttpRequest.newBuilder(URI.create(base + "/api/runs")).GET().build(), HttpResponse.BodyHandlers.ofString()).body()).at("/runs/0/traceId").asText();
+            JsonNode graph = JSON.readTree(http.send(HttpRequest.newBuilder(URI.create(base + "/api/runs/" + trace + "/graph")).GET().build(), HttpResponse.BodyHandlers.ofString()).body());
+            assertThat(graph.at("/workflows/0/name").asText()).isEqualTo("Main");
+            assertThat(graph.at("/workflows/0/nodes/0/path").asText()).isEqualTo("Main/s0");
+        }
+    }
+
+    @Test
     void metadataDetailKeepsTextOffThePage() throws Exception {
         HttpClient http = HttpClient.newHttpClient();
         try (InspectSession session = (InspectSession) new InspectObserveProvider().open(ObserveOptions.parse("0", null, "metadata", "local", null), null)) {

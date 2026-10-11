@@ -91,7 +91,11 @@ class RealRunTest {
     }
 
     private HarnessExecutor executor(String instance, List<String> answers) {
-        LoomScript script = new LoomParser(new Lexer(SCRIPT).tokenize()).parseScript();
+        return executor(instance, answers, SCRIPT);
+    }
+
+    private HarnessExecutor executor(String instance, List<String> answers, String source) {
+        LoomScript script = new LoomParser(new Lexer(source).tokenize()).parseScript();
         int[] next = {0};
         LLMClientFactory factory = model -> new LLMClient() {
             @Override
@@ -186,5 +190,36 @@ class RealRunTest {
             assertThat(s.spanId()).matches("[0-9a-f]{16}");
             assertThat(s.endNanos()).isGreaterThanOrEqualTo(s.startNanos());
         });
+    }
+
+    private static final String NESTED = """
+            agent Writer { model: "m" }
+            workflow Main() {
+                delegate "start" to Writer -> first
+                loop until (first == "never") max 2 {
+                    delegate "round {_loopRound}" to Writer -> draft
+                }
+                alt (first == "ok") {
+                    delegate "then side" to Writer -> side
+                } else {
+                    delegate "else side" to Writer -> side
+                }
+            }
+            """;
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void everyStepARealRunReportsLandsOnANodeOfTheGraph() {
+        HarnessExecutor e = executor("i_1", List.of(), NESTED);
+        e.executeWorkflow("Main", Map.of());
+        Map<String, Object> view = registry.find("getviral-prod", Ids.traceId(RUN)).orElseThrow().view();
+        Map<String, Object> steps = (Map<String, Object>) view.get("steps");
+
+        List<Map<String, Object>> nodes = (List<Map<String, Object>>) ((List<Map<String, Object>>) GraphView.of(e.observable().script()).get("workflows")).get(0).get("nodes");
+        List<String> paths = nodes.stream().map(n -> (String) n.get("path")).toList();
+        assertThat(paths).contains("Main/s0", "Main/s1", "Main/s1/r.0", "Main/s2", "Main/s2/b0");
+        assertThat(steps.keySet()).isNotEmpty().allSatisfy(k -> assertThat(paths).contains((String) k));
+        assertThat((Map<String, Object>) steps.get("Main/s1/r.0")).containsEntry("runs", 2); // two rounds, one place
+        assertThat((Map<String, Object>) steps.get("Main/s0")).containsEntry("state", "done");
     }
 }

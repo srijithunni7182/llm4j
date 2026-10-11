@@ -281,4 +281,33 @@ class RunStateTest {
         assertThat(recent.get(2)).containsEntry("kind", "tool").containsEntry("text", "Wiki {\"q\":\"hooks\"}");
         assertThat(recent.get(3)).containsEntry("kind", "tool").containsEntry("text", "Fetch");
     }
+
+    private SpanRec stepSpan(String key, String kind, String step, int code) {
+        Map<String, Object> a = new LinkedHashMap<>();
+        a.put(Semconv.LOOM_SPAN_KIND, kind);
+        a.put(Semconv.LOOM_STEP, step);
+        return new SpanRec(TRACE, Ids.spanId(RUN, key), null, "x", SpanRec.INTERNAL, at(1), at(2), a, code, null, List.of());
+    }
+
+    @Test
+    void eachStatementKeepsItsStateAcrossLoopRoundsAndRewinds_andAToolCallDoesNotSpeakForItsStep() {
+        RunRegistry reg = registry(log(0, Semconv.EV_RUN_START, "w", Semconv.LOOM_RUN_ID, RUN, Semconv.LOOM_WORKFLOW, "W"),
+                start(1, "a1", Semconv.KIND_AGENT, "invoke_agent E", "E", null, "W/s2/r1.0"),
+                start(2, "t1", Semconv.KIND_TOOL, "execute_tool Wiki", "E", "Wiki", "W/s2/r1.0"));
+        reg.applySpans(PROC, List.of(stepSpan("t1", Semconv.KIND_TOOL, "W/s2/r1.0", SpanRec.STATUS_OK)));
+        Map<String, Object> steps = map(run(reg).view(), "steps");
+        assertThat(map(steps, "W/s2/r.0")).containsEntry("state", "running").containsEntry("runs", 1); // the tool ending did not close it
+
+        reg.applySpans(PROC, List.of(stepSpan("a1", Semconv.KIND_AGENT, "W/s2/r1.0", SpanRec.STATUS_OK)));
+        reg.applyLogs(PROC, List.of(start(3, "a2", Semconv.KIND_AGENT, "invoke_agent E", "E", null, "W/s2/r2.0~2")));
+        reg.applySpans(PROC, List.of(stepSpan("a2", Semconv.KIND_AGENT, "W/s2/r2.0~2", SpanRec.STATUS_ERROR)));
+        assertThat(map(map(run(reg).view(), "steps"), "W/s2/r.0")).containsEntry("state", "failed").containsEntry("runs", 2);
+    }
+
+    @Test
+    void aSleepStartReadsAsSleepingWithItsWakeTime() {
+        RunRegistry reg = registry(log(0, Semconv.EV_RUN_START, "w", Semconv.LOOM_RUN_ID, RUN, Semconv.LOOM_WORKFLOW, "W"),
+                start(1, "z", Semconv.KIND_SLEEP, "loom.sleep", null, null, "W/s0", Semconv.LOOM_SLEEP_WAKE_AT, "2026-10-11T14:05:00Z"));
+        assertThat(list(run(reg).view(), "recent").get(1)).containsEntry("text", "sleeping").containsEntry("until", "2026-10-11T14:05:00Z");
+    }
 }

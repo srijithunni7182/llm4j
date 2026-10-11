@@ -30,6 +30,11 @@ public final class RunRegistry {
         }
     }
 
+    /** Gives a run its static graph (the workflows of its script), before or after its first event. */
+    public void setGraph(String client, String traceId, Map<String, Object> graph) {
+        state(client, traceId).setGraph(graph);
+    }
+
     public Optional<RunState> find(String client, String traceId) {
         return Optional.ofNullable(runs.get(client + "/" + traceId));
     }

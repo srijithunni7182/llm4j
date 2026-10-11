@@ -66,6 +66,14 @@ class InspectServerTest {
     }
 
     @Test
+    void aRunsGraphIsServedWhenSet_andIsEmptyBeforeThat() throws Exception {
+        assertThat(JSON.readTree(get("/api/runs/" + TRACE + "/graph").body())).isEmpty();
+        registry.setGraph("local", TRACE, Map.of("workflows", List.of(Map.of("name", "Main", "nodes", List.of()))));
+        assertThat(JSON.readTree(get("/api/runs/" + TRACE + "/graph").body()).get("workflows").get(0).get("name").asText()).isEqualTo("Main");
+        assertThat(get("/api/runs/" + "0".repeat(32) + "/graph").statusCode()).isEqualTo(404);
+    }
+
+    @Test
     void unknownOrMalformedRunsAndPathsAre404() throws Exception {
         assertThat(get("/api/runs/" + "0".repeat(32)).statusCode()).isEqualTo(404);
         assertThat(get("/api/runs/not-a-trace-id").statusCode()).isEqualTo(404);

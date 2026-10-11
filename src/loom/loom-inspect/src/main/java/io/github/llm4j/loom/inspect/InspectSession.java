@@ -2,6 +2,7 @@ package io.github.llm4j.loom.inspect;
 
 import io.github.llm4j.loom.inspect.http.InspectServer;
 import io.github.llm4j.loom.inspect.map.Detail;
+import io.github.llm4j.loom.inspect.map.GraphView;
 import io.github.llm4j.loom.inspect.map.TraceMapper;
 import io.github.llm4j.loom.inspect.otel.Resource;
 import io.github.llm4j.loom.inspect.sink.EventSink;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * One process's observing: a run registry, the page that shows it, and a sink per attached run. Embedded mode only; the same
@@ -42,8 +44,24 @@ public final class InspectSession implements ObserveProvider.Session {
         TraceMapper mapper = new TraceMapper(run.runId(), detail);
         // a new instance id for each attach: a run resumed in this process starts its sequence again, and must not look like a repeat
         Resource resource = Resource.of(options.name(), instance + "-" + attached.incrementAndGet());
+        AtomicReference<String> graphed = new AtomicReference<>();
+        java.util.function.Supplier<java.util.Map<String, Object>> graph = new java.util.function.Supplier<>() {
+            private java.util.Map<String, Object> built;
+
+            @Override
+            public java.util.Map<String, Object> get() {
+                if (built == null) built = run.script() == null ? java.util.Map.of() : GraphView.of(run.script());
+                return built;
+            }
+        };
         EventSink sink = new EventSink(options.name() + "-" + attached.get(), QUEUE, event -> {
             TraceMapper.Output out = mapper.map(event);
+            // the run id is set after attach, so the graph is given to a run when its first record shows which run this is
+            String trace = out.logs().isEmpty() ? null : out.logs().get(0).traceId();
+            if (trace != null && !trace.equals(graphed.get())) {
+                graphed.set(trace);
+                registry.setGraph(options.name(), trace, graph.get());
+            }
             registry.applyLogs(resource, out.logs());
             registry.applySpans(resource, out.spans());
         });

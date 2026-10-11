@@ -46,15 +46,10 @@
     </section>
 
     <div class="grid">
-      <section class="panel c8" aria-labelledby="h-agents">
-        <div class="ph"><h2 id="h-agents">Agents</h2><span class="sub mono" id="agentsub"></span></div>
-        <div class="tbl-wrap">
-          <table>
-            <thead><tr><th>Agent</th><th>Doing</th><th class="r">Tokens</th><th class="r">Calls</th><th class="r">Cost</th><th>Tools</th></tr></thead>
-            <tbody id="agents"></tbody>
-          </table>
-        </div>
-        <p id="noagents" class="muted pad" hidden>No agent has started yet.</p>
+      <section class="panel c8" aria-labelledby="h-graph">
+        <div class="ph"><h2 id="h-graph">Workflow</h2><span class="sub mono" id="graphsub"></span></div>
+        <div class="graph-wrap" id="graphwrap"><svg id="graph" class="graph" role="img" aria-label="Workflow graph"></svg></div>
+        <p id="nograph" class="muted pad" hidden>The workflow graph is not available for this run.</p>
       </section>
 
       <section class="panel c4 tall" aria-labelledby="h-follow">
@@ -67,6 +62,18 @@
         <ul class="trace mono" id="trace" aria-label="Live trace"></ul>
         <p id="notrace" class="muted pad" hidden>Nothing has happened yet.</p>
       </section>
+
+      <section class="panel c8" aria-labelledby="h-agents">
+        <div class="ph"><h2 id="h-agents">Agents</h2><span class="sub mono" id="agentsub"></span></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Agent</th><th>Doing</th><th class="r">Tokens</th><th class="r">Calls</th><th class="r">Cost</th><th>Tools</th></tr></thead>
+            <tbody id="agents"></tbody>
+          </table>
+        </div>
+        <p id="noagents" class="muted pad" hidden>No agent has started yet.</p>
+      </section>
+
 
       <section class="panel c8" aria-labelledby="h-spend">
         <div class="ph"><h2 id="h-spend">Spend over time</h2><span class="sub mono" id="spendsub"></span></div>

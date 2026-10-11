@@ -59,6 +59,7 @@ public final class RunState {
     private BigDecimal cost = BigDecimal.ZERO;
     /** Cumulative spend after each finished agent step: [millis since start, tokens, cost]. Thinned past 600 points. */
     private final List<Object[]> spend = new ArrayList<>();
+    private Map<String, Object> graph;
     private String suspendReason;
     private String resumeAt;
     private String sleepWakeAt;
@@ -67,6 +68,8 @@ public final class RunState {
     private final Map<String, Open> open = new LinkedHashMap<>();
     private final Map<String, Agent> agents = new LinkedHashMap<>();
     private final Map<String, Tool> tools = new LinkedHashMap<>();
+    /** Where each statement of the script stands, by {@link StepPaths#normalize normalized} step id: state and how often it ran. */
+    private final Map<String, Object[]> steps = new LinkedHashMap<>();
     private final Set<String> finished = new HashSet<>();
     private final Map<String, Long> lastSeq = new HashMap<>();
     private final ArrayDeque<Map<String, Object>> recent = new ArrayDeque<>();
@@ -82,6 +85,15 @@ public final class RunState {
 
     public String traceId() {
         return traceId;
+    }
+
+    /** The script's workflows as a graph, each node carrying the step path it runs under; null until a producer sets it. */
+    public synchronized Map<String, Object> graph() {
+        return graph;
+    }
+
+    public synchronized void setGraph(Map<String, Object> graph) {
+        this.graph = graph;
     }
 
     public synchronized String runId() {
@@ -127,6 +139,7 @@ public final class RunState {
         String kind = s.text(Semconv.LOOM_SPAN_KIND);
         if (kind == null) return;
         rememberEnd(s, kind);
+        stepState(s.text(Semconv.LOOM_STEP), kind, s.statusCode() == SpanRec.STATUS_ERROR ? "failed" : "done");
         switch (kind) {
             case Semconv.KIND_AGENT -> agentEnded(s);
             case Semconv.KIND_TOOL -> toolEnded(s, was);
@@ -184,6 +197,7 @@ public final class RunState {
         String kind = String.valueOf(r.text(Semconv.LOOM_SPAN_KIND));
         open.put(id, new Open(id, r.body(), kind, r.text(Semconv.GEN_AI_AGENT_NAME), r.text(Semconv.GEN_AI_TOOL_NAME),
                 r.text(Semconv.LOOM_STEP), r.timeNanos()));
+        stepState(r.text(Semconv.LOOM_STEP), kind, "running");
         if (Semconv.KIND_SLEEP.equals(kind)) {
             sleepWakeAt = r.text(Semconv.LOOM_SLEEP_WAKE_AT);
             status = Status.SLEEPING;
@@ -221,6 +235,14 @@ public final class RunState {
         t.totalNanos += Math.max(0, s.endNanos() - s.startNanos());
     }
 
+    /** A tool call shares its step id with the agent that made it, so only agent, task and sleep spans speak for a step. */
+    private void stepState(String step, String kind, String state) {
+        if (step == null || Semconv.KIND_TOOL.equals(kind) || Semconv.KIND_WORKFLOW.equals(kind)) return;
+        Object[] st = steps.computeIfAbsent(StepPaths.normalize(step), k -> new Object[] {"", 0});
+        if ("running".equals(state)) st[1] = (Integer) st[1] + 1;
+        st[0] = state;
+    }
+
     private void touch(long nanos) {
         if (nanos > lastEventNanos) lastEventNanos = nanos;
     }
@@ -240,6 +262,10 @@ public final class RunState {
             String tool = r.text(Semconv.GEN_AI_TOOL_NAME);
             if (tool != null) text = tool + (input != null ? " " + input : "");
             else if (input != null) text = input;
+            if (Semconv.KIND_SLEEP.equals(kind)) {
+                text = "sleeping";
+                if (r.text(Semconv.LOOM_SLEEP_WAKE_AT) != null) line.put("until", r.text(Semconv.LOOM_SLEEP_WAKE_AT));
+            }
         }
         line.put("text", text);
         recent.addLast(line);
@@ -257,6 +283,7 @@ public final class RunState {
         if (agent != null) line.put("agent", agent);
         String text = s.text(Semconv.LOOM_TEXT);
         boolean failed = s.statusCode() == SpanRec.STATUS_ERROR;
+        if (text == null && Semconv.KIND_SLEEP.equals(kind)) text = "woke up";
         line.put("text", text != null ? text : s.name() + (failed ? " failed" : ""));
         if (failed) line.put("failed", true);
         recent.addLast(line);
@@ -357,6 +384,9 @@ public final class RunState {
             steps.add(m);
         }
         v.put("openSteps", steps);
+        Map<String, Object> stepStates = new LinkedHashMap<>();
+        this.steps.forEach((k, st) -> stepStates.put(k, Map.of("state", st[0], "runs", st[1])));
+        v.put("steps", stepStates);
         List<Map<String, Object>> series = new ArrayList<>();
         for (Object[] p : spend) series.add(Map.of("t", p[0], "tokens", p[1], "cost", p[2]));
         v.put("spend", series);

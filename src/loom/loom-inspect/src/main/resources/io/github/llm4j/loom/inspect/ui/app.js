@@ -125,7 +125,7 @@
       li.appendChild(el('span', 'k ' + kind, kind === 'agent' ? 'plan' : kind));
       var t = el('span', 't');
       if (started && inflight) { t.appendChild(el('span', 'spin')); }
-      t.appendChild(document.createTextNode((e.agent && !agentFilter ? e.agent + ' · ' : '') + e.text));
+      t.appendChild(document.createTextNode((e.agent && !agentFilter ? e.agent + ' · ' : '') + e.text + (e.until ? ' until ' + new Date(e.until).toLocaleTimeString() : '')));
       li.appendChild(t);
       if (started) { inflight = false; }
       trace.appendChild(li);
@@ -144,7 +144,7 @@
     var g = $('spend');
     g.textContent = '';
     $('nospend').hidden = points.length > 0;
-    g.hidden = points.length === 0;
+    if (points.length) { g.removeAttribute('hidden'); } else { g.setAttribute('hidden', ''); }
     if (!points.length) { $('spendsub').textContent = ''; return; }
     var W = 600, H = 140, maxT = Math.max(view.elapsedMillis, points[points.length - 1].t, 1), maxV = Math.max(points[points.length - 1].tokens, 1);
     [0.25, 0.5, 0.75].forEach(function (f) { g.appendChild(svg('line', { x1: 0, x2: W, y1: H * f, y2: H * f, 'class': 'grid' })); });
@@ -156,6 +156,125 @@
     g.appendChild(svg('path', { d: d, 'class': 'line' }));
     $('spendsub').textContent = num(points[points.length - 1].tokens) + ' tokens over ' + clock(maxT);
   }
+
+  // ---- workflow graph: statements left to right; what a statement contains hangs beneath it in a dashed box ----
+  var NW = 132, NH = 50, GAP = 28, VG = 30, PAD = 10, CAP = 14;
+  var graphs = {};  // trace id to the graph, fetched once
+
+  function ensureGraph(trace) {
+    if (graphs[trace] !== undefined) { return; }
+    graphs[trace] = null;
+    fetchJson('/api/runs/' + trace + '/graph').then(function (g) { graphs[trace] = g && g.workflows ? g : false; if (graphs[trace] === false) { setTimeout(function () { delete graphs[trace]; }, 3000); } render(); })
+      .catch(function () { delete graphs[trace]; });
+  }
+
+  function stateOf(path, steps) {
+    if (!path) { return ''; }
+    var own = steps[path], running = own && own.state === 'running', failed = own && own.state === 'failed', any = !!own;
+    Object.keys(steps).forEach(function (k) {
+      if (k.indexOf(path + '/') === 0 || k.indexOf(path + '>') === 0) {
+        any = true;
+        if (steps[k].state === 'running') { running = true; }
+        if (steps[k].state === 'failed') { failed = true; }
+      }
+    });
+    return running ? 'run' : failed ? 'bad' : any ? 'done' : '';
+  }
+
+  function truncate(t, n) { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; }
+
+  function renderGraph(v) {
+    var g = graphs[selected], g2 = $('graph');
+    var wf = g && g.workflows ? g.workflows.filter(function (w) { return w.name === v.workflow; })[0] : null;
+    $('graphwrap').hidden = !wf;
+    $('nograph').hidden = !!wf || g === null || g === undefined;
+    if (!wf) { return; }
+    var steps = v.steps || {}, kids = {};
+    wf.nodes.forEach(function (n) { var k = (n.parent || '') + '|' + (n.branch || ''); (kids[k] = kids[k] || []).push(n); });
+    var children = {};
+    wf.nodes.forEach(function (n) {
+      var groups = Object.keys(kids).filter(function (k) { return k.indexOf(n.id + '|') === 0; });
+      if (groups.length) { children[n.id] = groups.map(function (k) { return { branch: k.slice(n.id.length + 1), nodes: kids[k] }; }); }
+    });
+
+    function groupSize(list) {   // width and height of a left-to-right row of nodes with whatever hangs under each
+      var w = 0, h = 0;
+      list.forEach(function (n, i) { var s = nodeSize(n); w += s.w + (i ? GAP : 0); h = Math.max(h, s.h); });
+      return { w: w, h: h };
+    }
+    function nodeSize(n) {
+      var gs = children[n.id];
+      if (!gs) { return { w: NW, h: NH }; }
+      var w = 0, h = 0;
+      gs.forEach(function (g, i) { var s = groupSize(g.nodes); w += s.w + 2 * PAD + (i ? PAD : 0); h = Math.max(h, s.h + 2 * PAD + CAP); });
+      return { w: Math.max(NW, w), h: NH + VG + h };
+    }
+
+    var out = [], total = groupSize(kids['|'] || []), runningX = null;
+    function place(list, x, y, edgesFrom) {
+      var cx = x, sts = list.map(function (n) { return stateOf(n.path, steps); }), reached = -1;
+      sts.forEach(function (st, i) { if (st) { reached = i; } });
+      // statements that leave no step of their own (a note, a set) are done once the block has moved past them
+      sts = sts.map(function (st, i) { return !st && i < reached ? 'done' : st; });
+      list.forEach(function (n, i) {
+        var size = nodeSize(n), st = sts[i], nx = cx + (size.w - NW) / 2;
+        if (i) { out.push({ t: 'edge', x1: cx - GAP, y1: y + NH / 2, x2: nx, y2: y + NH / 2, hot: st === 'run', todo: !st }); }
+        out.push({ t: 'node', n: n, x: nx, y: y, st: st, runs: (steps[n.path] || {}).runs });
+        if (st === 'run' && runningX === null) { runningX = nx; }
+        var gs = children[n.id];
+        if (gs) {
+          var gx = cx;
+          gs.forEach(function (gr) {
+            var s = groupSize(gr.nodes), bw = s.w + 2 * PAD, by = y + NH + VG / 2;
+            out.push({ t: 'box', x: gx, y: by, w: bw, h: s.h + 2 * PAD + CAP, cap: gr.branch });
+            out.push({ t: 'edge', x1: nx + NW / 2, y1: y + NH, x2: gx + bw / 2, y2: by, hot: false, todo: false });
+            place(gr.nodes, gx + PAD, by + PAD + CAP, null);
+            gx += bw + PAD;
+          });
+        }
+        cx += size.w + GAP;
+      });
+    }
+    place(kids['|'] || [], PAD, PAD, null);
+
+    var W = total.w + 2 * PAD, H = total.h + 2 * PAD;
+    g2.textContent = '';
+    g2.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    g2.setAttribute('width', Math.max(W, 320));
+    g2.setAttribute('height', H);
+    out.forEach(function (o) {
+      if (o.t === 'box') {
+        g2.appendChild(svg('rect', { x: o.x, y: o.y, width: o.w, height: o.h, rx: 12, 'class': 'box' }));
+        var cap = svg('text', { x: o.x + 10, y: o.y + 12, 'class': 'cap' });
+        cap.textContent = o.cap;
+        g2.appendChild(cap);
+      } else if (o.t === 'edge') {
+        g2.appendChild(svg('path', { d: 'M' + o.x1 + ' ' + o.y1 + ' L' + o.x2 + ' ' + o.y2, 'class': 'edge' + (o.hot ? ' hot' : o.todo ? ' todo' : '') }));
+      }
+    });
+    out.filter(function (o) { return o.t === 'node'; }).forEach(function (o) {
+      var n = o.n, grp = svg('g', { 'class': 'node' + (o.st ? ' ' + o.st : ' todo') });
+      grp.appendChild(svg('rect', { x: o.x, y: o.y, width: NW, height: NH, rx: 8 }));
+      if (o.st === 'run') { grp.appendChild(svg('rect', { x: o.x, y: o.y, width: NW, height: NH, rx: 8, 'class': 'ring' })); }
+      var nm = svg('text', { x: o.x + 12, y: o.y + 21, 'class': 'nm' });
+      nm.textContent = truncate(n.agent || n.label, 16);
+      var sb = svg('text', { x: o.x + 12, y: o.y + 38, 'class': 'sb' });
+      sb.textContent = truncate(n.kind + (o.runs > 1 ? ' ×' + o.runs : ''), 18);
+      grp.appendChild(nm);
+      grp.appendChild(sb);
+      if (o.st === 'done') { grp.appendChild(svg('path', { d: 'M' + (o.x + NW - 22) + ' ' + (o.y + 16) + 'l3.5 3.5 6-7', 'class': 'ok' })); }
+      var title = svg('title', {});
+      title.textContent = n.label;
+      grp.appendChild(title);
+      g2.appendChild(grp);
+    });
+    var started = (v.steps ? Object.keys(v.steps).filter(function (k) { return steps[k].state !== 'running'; }).length : 0);
+    var runningNow = Object.keys(steps).filter(function (k) { return steps[k].state === 'running'; }).length;
+    $('graphsub').textContent = wf.nodes.length + ' steps · ' + started + ' done' + (runningNow ? ' · ' + runningNow + ' running' : '');
+    var wrap = $('graphwrap'), key = selected + ':' + runningX;
+    if (runningX !== null && key !== lastScroll) { lastScroll = key; wrap.scrollLeft = Math.max(0, runningX - wrap.clientWidth / 2); }
+  }
+  var lastScroll = null;
 
   function render() {
     var v = view;
@@ -220,6 +339,8 @@
     });
     $('notools').hidden = v.tools.length > 0;
 
+    ensureGraph(selected);
+    renderGraph(v);
     renderSpend(v.spend || []);
     renderFollow(v);
     $('updated').textContent = 'updated ' + hms(new Date().toISOString());
