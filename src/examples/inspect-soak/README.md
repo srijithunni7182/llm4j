@@ -44,9 +44,13 @@ Check the first run's `spend` report and adjust.
 ## Watching it
 
 - **Today:** `--trace` prints every event on stderr, which is also the raw material loom-inspect will read.
-- **With loom-inspect** (when it exists): add `--observe` for the embedded page, or
-  `--observe-server <url> --observe-name soak-1` to report to an inspect server. Run two copies with
-  different names to test the server with more than one process.
+- **With loom-inspect, embedded** (works today): build the add-on (`mvn -DskipTests -pl src/loom/loom-inspect -am package`), put
+  `loom-inspect-*.jar` and `loom-inspect-core-*.jar` on the class path beside the weave jar, and add `--observe`
+  (page at `http://127.0.0.1:8787`) and, to keep the page up after the run, `--observe-linger 5m`:
+  `java -cp "$WEAVE_JAR:loom-inspect.jar:loom-inspect-core.jar" io.github.llm4j.loom.cli.WeaveCLI run soak.loom … --observe`.
+  Today it shows totals, agents with the tools they are using, tool counts, latest events and the sleeping state.
+- **With Fabric** (not built yet): `--observe-fabric <url> --observe-name soak-1` reports to a Fabric server. Run two copies with
+  different names to test it with more than one process.
 
 ## What is not verified yet
 

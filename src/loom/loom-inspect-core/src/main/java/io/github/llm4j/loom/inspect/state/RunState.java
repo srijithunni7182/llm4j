@@ -124,6 +124,7 @@ public final class RunState {
         Open was = open.remove(s.spanId());
         String kind = s.text(Semconv.LOOM_SPAN_KIND);
         if (kind == null) return;
+        rememberEnd(s, kind);
         switch (kind) {
             case Semconv.KIND_AGENT -> agentEnded(s);
             case Semconv.KIND_TOOL -> toolEnded(s, was);
@@ -229,10 +230,31 @@ public final class RunState {
         while (recent.size() > RECENT) recent.removeFirst();
     }
 
+    /** A finished step goes in the latest-events feed too, with its result text when the detail level allows one. */
+    private void rememberEnd(SpanRec s, String kind) {
+        if (Semconv.KIND_WORKFLOW.equals(kind)) return;
+        Map<String, Object> line = new LinkedHashMap<>();
+        line.put("at", OtlpJson.instant(s.endNanos()).toString());
+        line.put("event", "loom." + kind + ".end");
+        String agent = s.text(Semconv.GEN_AI_AGENT_NAME);
+        if (agent != null) line.put("agent", agent);
+        String text = s.text(Semconv.LOOM_TEXT);
+        boolean failed = s.statusCode() == SpanRec.STATUS_ERROR;
+        line.put("text", text != null ? text : s.name() + (failed ? " failed" : ""));
+        if (failed) line.put("failed", true);
+        recent.addLast(line);
+        while (recent.size() > RECENT) recent.removeFirst();
+    }
+
     // ------------------------------------------------------------------------------ reading
 
     /** A copy of everything the console shows for this run, as plain maps and lists (ready for JSON). */
-    public synchronized Map<String, Object> view() {
+    public Map<String, Object> view() {
+        return view(Instant.now());
+    }
+
+    /** As {@link #view()}, with {@code now} as the moment of looking: a run that has not ended has been going until now, even while it sleeps. */
+    public synchronized Map<String, Object> view(Instant now) {
         Map<String, Object> v = new LinkedHashMap<>();
         v.put("client", client);
         v.put("traceId", traceId);
@@ -242,7 +264,7 @@ public final class RunState {
         if (startedNanos > 0) v.put("startedAt", OtlpJson.instant(startedNanos).toString());
         if (endedNanos > 0) v.put("endedAt", OtlpJson.instant(endedNanos).toString());
         if (lastEventNanos > 0) v.put("lastEventAt", OtlpJson.instant(lastEventNanos).toString());
-        long until = endedNanos > 0 ? endedNanos : lastEventNanos;
+        long until = endedNanos > 0 ? endedNanos : Math.max(lastEventNanos, OtlpJson.nanos(now));
         v.put("elapsedMillis", startedNanos > 0 && until >= startedNanos ? (until - startedNanos) / 1_000_000L : 0L);
 
         Map<String, Object> totals = new LinkedHashMap<>();
@@ -322,6 +344,25 @@ public final class RunState {
         v.put("gaps", gaps);
         v.put("duplicates", duplicates);
         v.put("recent", new ArrayList<>(recent));
+        return v;
+    }
+
+    /** A short view for a list of runs: who, what, how it is going, and the totals. */
+    public synchronized Map<String, Object> summary() {
+        Map<String, Object> v = new LinkedHashMap<>();
+        v.put("client", client);
+        v.put("traceId", traceId);
+        v.put("runId", runId);
+        v.put("workflow", workflow);
+        v.put("status", status.name().toLowerCase(java.util.Locale.ROOT));
+        if (startedNanos > 0) v.put("startedAt", OtlpJson.instant(startedNanos).toString());
+        if (lastEventNanos > 0) v.put("lastEventAt", OtlpJson.instant(lastEventNanos).toString());
+        Map<String, Object> totals = new LinkedHashMap<>();
+        totals.put("tokens", tokens);
+        totals.put("calls", calls);
+        totals.put("cost", cost.toPlainString());
+        v.put("totals", totals);
+        v.put("runningAgents", open.values().stream().filter(o -> Semconv.KIND_AGENT.equals(o.kind())).count());
         return v;
     }
 

@@ -17,14 +17,15 @@ The UI mockups are the design system at https://claude.ai/artifact/G8ah58W5edzPP
 | 7 | Activation is `weave ... --observe` with loom-inspect on the classpath. No code needed in the app. |
 | 8 | The page has one tab per workflow, with a run picker inside each tab, plus one store-wide Secrets tab. |
 | 9 | The admin password is a secret in the app's store (`LOOM_INSPECT_ADMIN_PASSWORD`), so it is set and rotated like any other key. |
-| 10 | **Remote mode centres on `loom-inspect-server`:** a standalone, packaged server you install on any machine. A workflow process is given its URL up front on the `weave` command line (`--observe-server <url>`). There is no listener on the workflow process and no dynamic webhook registration. |
+| 10 | **Remote mode centres on Fabric** (`loom-fabric`), the observability server: a standalone, packaged server you install on any machine, in its own module. A workflow process is given its URL up front on the `weave` command line (`--observe-fabric <url>`). There is no listener on the workflow process and no dynamic webhook registration. |
 | 11 | **Many processes, one server.** Any number of workflow processes report to the same server, and all their workflows are monitored together: one tab per workflow, each run tagged with the process it came from. |
 | 12 | Processes only connect outward. Pause, suspend and stop arrive on an outbound long-poll the process holds open. Secret values never leave a process, and secret rotation stays in embedded mode. |
 | 20 | **The wire format follows OpenTelemetry.** A run is a trace, steps are spans, live lifecycle events are log records, and totals are metrics, sent as OTLP/HTTP JSON using the GenAI semantic conventions where they exist and `loom.*` attributes for the rest. Only the parts OpenTelemetry has no concept of (hello, snapshot, commands) travel outside it. |
-| 21 | Because the format is standard, a process can also export the same data to any OTLP collector (Grafana, Tempo, Datadog, Honeycomb) with `--observe-otlp <endpoint>`, independently of the inspect server. |
-| 22 | **The emitter is fault tolerant through a local outbox.** Every event is written to a durable file on the workflow machine before it is sent. The inspect server can be down for hours or days without affecting the workflow in any way, and when it returns every missed event is streamed in, in order. |
+| 21 | Because the format is standard, a process can also export the same data to any OTLP collector (Grafana, Tempo, Datadog, Honeycomb) with `--observe-otlp <endpoint>`, independently of Fabric. |
+| 23 | The server is named **Fabric** and is its own module (`loom-fabric`), separate from the `loom-inspect` add-on and the `loom-inspect-core` library. |
+| 22 | **The emitter is fault tolerant through a local outbox.** Every event is written to a durable file on the workflow machine before it is sent. Fabric can be down for hours or days without affecting the workflow in any way, and when it returns every missed event is streamed in, in order. |
 | 13 | The server keeps history on disk (retention 30 days or 2 GB, oldest finished runs first) and has its own secret store, which holds each client's key and the admin password. |
-| 14 | One key per process. Every process is named on purpose: `--observe-name` is required with `--observe-server`. |
+| 14 | One key per process. Every process is named on purpose: `--observe-name` is required with `--observe-fabric`. |
 | 15 | No merging across processes: each process's workflows get their own tabs, grouped under the process name. |
 | 16 | The process verifies the server's certificate. Trust comes from the JDK's default roots, plus an optional private CA given to that process for this connection only, or a pinned server key. There is no "insecure" switch. |
 | 17 | The private CA is given to each process with `--observe-ca`. The server does not hand out its CA. |
@@ -72,7 +73,7 @@ Three Maven modules under `src/loom/`, all listed in the root `pom.xml` next to 
 
 - **`loom-inspect-core`**: everything that turns events into a view and has no dependency on the Loom runtime. The OpenTelemetry-shaped model and OTLP/JSON codec (`otel/`), the Loom-specific messages (`wire/`), `RunState`, the detectors, the JSON view API, the static UI, and the `Receiver` that accepts batches.
 - **`loom-inspect`**: the add-on jar for the workflow process. Depends on core and on `ai-agent4j-loom`. Holds the trace sink, the embedded HTTP server, the `--observe` CLI provider, secrets and control, and the `ServerLink` that sends events to a server (section 5b).
-- **`loom-inspect-server`**: the packaged, runnable server (section 5b). Depends on core only, so it is small and does not need Loom or any model SDK on the machine it runs on.
+- **`loom-fabric`** (**Fabric**): the packaged, runnable server (section 5b), a **separate module** from the add-on. It depends on `loom-inspect-core` only, so it is small and needs no Loom runtime or model SDK on the machine it runs on, and it is versioned and released on its own.
 
 Embedded and remote mode share the same wire format and the same state code: in embedded mode the sink feeds `RunState` directly, in remote mode the same events cross a webhook first. So the two views cannot drift apart. The tree below shows both; packages marked (core) live in `loom-inspect-core`.
 
@@ -170,14 +171,14 @@ The page is organised by workflow, matching how you think about the system:
 - A workflow with no live run still has a tab; it shows its last run, or the static graph if it has never run.
 - With `weave daemon`, a scheduled workflow gains a live run in its tab each time it fires. There is no cross-run overview page; the first tab is the landing page.
 
-## 5b. Remote mode: the inspect server
+## 5b. Remote mode: Fabric
 
 For when you want one place to watch everything: several workflow processes, on several machines, reporting to a single admin page that is not inside any of them.
 
 ```
   workflow process A ─┐
  (getviral-prod)     │     OTLP, signed            ┌──────────────────────────┐
-                     ├───────────────────────────▶ │ loom-inspect-server      │ ◀────▶  browser: one console,
+                     ├───────────────────────────▶ │ Fabric (loom-fabric)     │ ◀────▶  browser: one console,
  workflow process B ─┤  ◀─── commands (long-poll) ── │  receiver · state        │         every workflow of every
  (billing-svc)       │                             │  detectors · history     │         process, one tab each
  workflow process C ─┘                             │  UI · own secret store   │
@@ -187,17 +188,17 @@ For when you want one place to watch everything: several workflow processes, on 
 
 ### The server
 
-A packaged runnable jar (`loom-inspect-server-<version>.jar`, plus a Docker image and a sample systemd unit). It runs on any machine with a JDK and needs no Loom runtime, no model keys and no workflow scripts.
+A packaged runnable jar (`loom-fabric-<version>.jar`, plus a Docker image and a sample systemd unit). It runs on any machine with a JDK and needs no Loom runtime, no model keys and no workflow scripts.
 
 ```
-loom-inspect-server init  --data /var/lib/loom-inspect          # creates its store; asks for the admin password
-loom-inspect-server clients add getviral-prod                   # prints that client's key once
-loom-inspect-server serve --data /var/lib/loom-inspect --port 9090 \
+fabric init  --data /var/lib/loom-inspect          # creates its store; asks for the admin password
+fabric clients add getviral-prod                   # prints that client's key once
+fabric serve --data /var/lib/loom-inspect --port 9090 \
                           --tls-cert cert.pem --tls-key key.pem
-loom-inspect-server clients list | revoke <name>
+fabric clients list | revoke <name>
 ```
 
-- **Its own secret store.** Created by `init`, using the same encrypted-store format as Loom. It holds the admin password (`LOOM_INSPECT_ADMIN_PASSWORD`) and each client's key (`client.<name>`). The master key comes from a file or an environment variable you name, as everywhere else in Loom.
+- **Its own secret store.** Created by `init`, using the same encrypted-store format as Loom. It holds the admin password (`LOOM_FABRIC_ADMIN_PASSWORD`) and each client's key (`client.<name>`). The master key comes from a file or an environment variable you name, as everywhere else in Loom.
 - **TLS** is served directly with `--tls-cert/--tls-key`, or the server can sit behind a reverse proxy (`--trust-proxy`). Without TLS it binds loopback only and refuses a public address.
 - **Persistence.** Unlike the embedded page, the server is long-lived, so it keeps history: per-run append-only event files with periodic snapshots (JSON lines, no database to install), an index, and retention by age and size (defaults 30 days and 2 GB, oldest finished runs first). On start it rebuilds live state from disk. Live runs stay in memory; finished runs are read from disk when opened. A JDBC store is a later option.
 - **One instance in v1.** No clustering. The server is the only thing a restart affects, and processes resend a snapshot when it returns.
@@ -208,16 +209,16 @@ The URL is given to `weave` up front, every time, on the command line or through
 
 ```
 weave daemon --secrets keys.store \
-      --observe-server https://inspect.example.com:9090 \
+      --observe-fabric https://fabric.example.com:9090 \
       --observe-name getviral-prod
 
-LOOM_INSPECT_SERVER=https://inspect.example.com:9090 weave run flow.loom --secrets keys.store
+LOOM_FABRIC_URL=https://fabric.example.com:9090 weave run flow.loom --secrets keys.store
 ```
 
-- `--observe-server <url>` enables remote reporting; `LOOM_INSPECT_SERVER` is the same thing from the environment.
-- `--observe-name <name>` is this process's name on the server. It is **required** with `--observe-server`; there is no default. It must match a client created with `clients add`, and a process that omits it is refused at start-up with a message saying so.
-- The client key is read from the process's own secret store as `LOOM_INSPECT_CLIENT_KEY` (changeable with `--observe-key-secret <name>`), so no key appears on a command line or in the environment.
-- `--observe` (embedded page) and `--observe-server` can be used together.
+- `--observe-fabric <url>` enables remote reporting; `LOOM_FABRIC_URL` is the same thing from the environment.
+- `--observe-name <name>` is this process's name on the server. It is **required** with `--observe-fabric`; there is no default. It must match a client created with `clients add`, and a process that omits it is refused at start-up with a message saying so.
+- The client key is read from the process's own secret store as `LOOM_FABRIC_CLIENT_KEY` (changeable with `--observe-key-secret <name>`), so no key appears on a command line or in the environment.
+- `--observe` (embedded page) and `--observe-fabric` can be used together.
 - **The server being down never affects the workflow.** See "The local outbox" below: events are written to disk first, sending is a separate background activity, and the run never waits for either. A wrong key or an unsupported version is reported once on the console and reporting stops; it never stops the workflow.
 
 ### What a process sends: OpenTelemetry-shaped
@@ -259,7 +260,7 @@ The data follows OpenTelemetry so that anything that understands OTLP can read i
 
 ### The local outbox: fault tolerance
 
-The emitter never sends an event straight from memory. Every event is appended to a **durable local log on the workflow machine** first, and a separate background drainer sends the log to the server from the last acknowledged position. The inspect server can be down for any length of time, and the workflow neither slows nor fails.
+The emitter never sends an event straight from memory. Every event is appended to a **durable local log on the workflow machine** first, and a separate background drainer sends the log to the server from the last acknowledged position. The Fabric can be down for any length of time, and the workflow neither slows nor fails.
 
 **Not on the run's path.** The trace listener copies the event into a small in-memory ring and returns. One writer thread appends the ring to disk; another thread sends. If the writer falls behind or the disk is full, the ring drops the oldest entries and counts them; it never blocks the workflow, never throws into it, and never retries on the workflow thread. A failure inside the emitter is logged at most once a minute.
 
@@ -270,7 +271,7 @@ The emitter never sends an event straight from memory. Every event is appended t
 - **Caps.** Default 256 MB and 7 days per process name. When the cap is reached the **oldest segments are dropped first**, the number lost is recorded as a gap, and a fresh snapshot follows the next delivery, so the console's current state is correct and only the old detail between is missing. The Processes page shows lost counts.
 
 **Sending from the log.**
-- The drainer keeps a **cursor** per destination (the inspect server; an OTLP collector if `--observe-otlp` is on) in a small file beside the log, updated only after the destination acknowledges. Several destinations read the same log independently, and a segment is deleted when every cursor has passed it.
+- The drainer keeps a **cursor** per destination (Fabric; an OTLP collector if `--observe-otlp` is on) in a small file beside the log, updated only after the destination acknowledges. Several destinations read the same log independently, and a segment is deleted when every cursor has passed it.
 - The server persists a batch before it acknowledges, and acknowledges by outbox offset. If the process dies after sending but before recording the acknowledgement, the batch is simply sent again and the server drops the duplicates.
 - **Backoff and reconnect.** Retries use backoff from 1 second to 60 seconds, with jitter. On every reconnect the process sends `hello` first, then the backlog.
 
@@ -282,7 +283,7 @@ The emitter never sends an event straight from memory. Every event is appended t
 **A process that dies, or exits, with events unsent.**
 - On a clean exit the process tries to flush for a few seconds (`--observe-flush-timeout`, default 5 seconds) and then exits, leaving the rest in the log. It never waits for a down server.
 - Any later `weave` process started with the same `--observe-name` and outbox directory first drains the logs of earlier instances (found under `<name>/`; a directory whose lock is not held belongs to a finished or dead process) before its own. A run that paused for a long `sleep` and is resumed days later therefore delivers the events from before the pause as well.
-- `weave observe flush --observe-server <url> --observe-name <name> --observe-outbox <dir>` drains an outbox by hand, and `weave observe purge` deletes one.
+- `weave observe flush --observe-fabric <url> --observe-name <name> --observe-outbox <dir>` drains an outbox by hand, and `weave observe purge` deletes one.
 - A run whose process died without a `bye` is shown by the server as "lost contact at …, final state unknown" until the backlog arrives or the run is resumed.
 
 **What it does not promise.** It is a durable buffer, not a database. At most the last second can be lost in a power failure, the cap can drop old events on a long outage, and a machine whose disk is lost loses its backlog. In each case the server's view stays honest: it shows the gap and the loss count rather than inventing events.
@@ -296,7 +297,7 @@ OTLP responses cannot carry commands, so commands use a separate outbound **long
 
 ### Exporting to any collector
 
-`--observe-otlp <endpoint>` (with `--observe-otlp-header "Authorization=Bearer …"`, the key taken from the secret store) sends the same traces, logs and metrics to a standard OTLP endpoint: an OpenTelemetry Collector, Grafana Tempo and Mimir, Honeycomb, Datadog's OTLP intake. It is independent of `--observe-server` and can be used with or without it. It sends only OTLP, with no hello, snapshot or commands, because a generic backend has nowhere to put them. This is the cheap hedge: even if loom-inspect is never opened, the data already exists in the tools a team uses for everything else.
+`--observe-otlp <endpoint>` (with `--observe-otlp-header "Authorization=Bearer …"`, the key taken from the secret store) sends the same traces, logs and metrics to a standard OTLP endpoint: an OpenTelemetry Collector, Grafana Tempo and Mimir, Honeycomb, Datadog's OTLP intake. It is independent of `--observe-fabric` and can be used with or without it. It sends only OTLP, with no hello, snapshot or commands, because a generic backend has nowhere to put them. This is the cheap hedge: even if loom-inspect is never opened, the data already exists in the tools a team uses for everything else.
 
 ### Workflows across processes
 
@@ -375,7 +376,7 @@ All JSON, all under `/inspect`. Writes are `POST`/`PUT` only.
 | `GET /api/secrets` | Name, allowed hosts, updated, fingerprint, read-only flag, used-by |
 | `PUT /api/secrets/{name}` | Rotate. Body `{value, confirm}`; response never contains the value |
 
-In server mode the same read routes are served by `loom-inspect-server`, now spanning every connected process (each run is keyed by client and run id, and each route takes an optional `client=` filter). It adds `POST /ingest` for batches, `GET /api/processes` for the Processes page, and the `clients` administration, which is available only through the CLI. The workflow process serves no routes of its own in this mode. The secrets-rotation route is served only in embedded mode; control routes in server mode enqueue a command instead of acting directly.
+In Fabric the same read routes are served by `loom-fabric`, now spanning every connected process (each run is keyed by client and run id, and each route takes an optional `client=` filter). It adds `POST /ingest` for batches, `GET /api/processes` for the Processes page, and the `clients` administration, which is available only through the CLI. The workflow process serves no routes of its own in this mode. The secrets-rotation route is served only in embedded mode; control routes in server mode enqueue a command instead of acting directly.
 
 Live updates use server-sent events rather than WebSockets: one-way, works through proxies, and the JDK server handles it.
 
@@ -426,7 +427,7 @@ What a process trusts, in order:
 
 1. **The JDK's default trust store (`cacerts`).** If the server's certificate comes from a public CA (for example Let's Encrypt, or a cloud load balancer), nothing needs to be passed to the process. This is the common case when the server sits behind a reverse proxy or a managed certificate.
 2. **A private CA, passed to the process: `--observe-ca <file>`** (or `LOOM_INSPECT_CA`). The file is the CA's **public** certificate in PEM. It is not a secret, so a path is fine, and it can be distributed by whatever already distributes your configuration. It is **added** to the default roots and applies to the loom-inspect connection only. It is not installed JVM-wide, so it does not weaken TLS to model providers or any other endpoint the workflow calls. `--observe-ca-only` makes it the only root for this connection, for the strictest setups.
-3. **A pinned server key: `--observe-pin sha256:<fingerprint>`** (or `LOOM_INSPECT_PIN`), for a single self-signed server where you do not run a CA. The process accepts only a server whose public key (SPKI) hashes to that value, so no CA is involved. The fingerprint is printed by `loom-inspect-server` at start-up. A pin over the key, not the certificate, survives certificate renewal as long as the key is reused.
+3. **A pinned server key: `--observe-pin sha256:<fingerprint>`** (or `LOOM_INSPECT_PIN`), for a single self-signed server where you do not run a CA. The process accepts only a server whose public key (SPKI) hashes to that value, so no CA is involved. The fingerprint is printed by `Fabric` at start-up. A pin over the key, not the certificate, survives certificate renewal as long as the key is reused.
 
 Rules for all three:
 
@@ -435,7 +436,7 @@ Rules for all three:
 - **Trust is per process and configured with the `weave` command.** It is not read from the server.
 - A process whose server fails verification reports it once on the console, stops reporting, and keeps running the workflow. The server shows that client as Offline.
 
-On the server side, `loom-inspect-server tls init --host inspect.example.com` can create a small private CA and a server certificate for it, writes `ca.pem` (the file you hand to processes) and prints the server's pin. Renewing the server certificate under the same CA needs no change on any process. Behind a reverse proxy, the proxy owns the certificate and the process trusts whatever the proxy's certificate chains to.
+On the server side, `fabric tls init --host fabric.example.com` can create a small private CA and a server certificate for it, writes `ca.pem` (the file you hand to processes) and prints the server's pin. Renewing the server certificate under the same CA needs no change on any process. Behind a reverse proxy, the proxy owns the certificate and the process trusts whatever the proxy's certificate chains to.
 
 Not in v1: mutual TLS (client certificates). The per-client signing key already authenticates each process, and mTLS would add a second mechanism. It can be added later as an alternative to the key.
 
@@ -473,6 +474,17 @@ Built and tested (all on this branch):
 
 What the mapper cannot yet do, because the trace lacks it: split a step's tokens into input and output (the delegate reports a total), time individual model calls, or know a tool's real status (a result that starts with "error", "failed", or an HTTP 4xx or 5xx is treated as an error, which is a heuristic and is tested as one). Loop, `for each` and `parallel` blocks have no spans yet, so every step hangs directly under the run's root span. These need the call-level events of C2.
 
+## 11c. Phase 0b status
+
+Built and tested (embedded mode, end to end, on this branch):
+
+- `ai-agent4j-loom` (additive): `ObservableRun` and `HarnessExecutor.observable()` (C5); `ObserveProvider`, `ObserveOptions` and the `Observe` loader (C6); `weave run --observe[=port]`, `--observe-bind`, `--observe-detail`, `--observe-name`, `--observe-linger`. The session is opened once per process and attached to the executor before `initialize()`; it is not saved in the run's spec, so it is given again on resume. Without the add-on on the class path the command says so and exits before running anything.
+- `loom-inspect`: `EventSink` (bounded queue, drop-oldest, never blocks or throws into the run), `InspectSession` and `InspectObserveProvider` (found with `ServiceLoader`), and the page's server. The page is read-only: `GET /`, `/api/health`, `/api/runs`, `/api/runs/{traceId}` and its assets. It listens on loopback only (it refuses any other address until there is a login), rejects a request whose `Host` is not a loopback name (DNS rebinding), serves a strict Content-Security-Policy, and its script builds the page with `textContent` only, never HTML.
+- The page: run picker, status, totals, agents with the tools they are using, tool counts, latest events, a banner when the run sleeps, pauses or waits. A run that sleeps shows as sleeping with its wake time, and keeps its timeline when it resumes, including a resume in the same process under `--wait`.
+- Checked against the real CLI: `weave run … --journal … --wait --observe=8799` on a script that sleeps, with the page opened in a browser.
+
+Not in 0b: a login, writes of any kind (pause, stop, rotate), the graph, spend chart, ladders and incidents, and Fabric. `weave daemon`, `tick` and `resume` do not take `--observe` yet.
+
 ## 12. Build plan
 
 The server comes right after the console, so the console works across processes early. Every phase is checked against the soak test (section 11a).
@@ -482,7 +494,7 @@ The server comes right after the console, so the console works across processes 
 | 0. Wire format | `loom-inspect-core` with the OpenTelemetry-shaped model and OTLP/JSON codec, the `TraceEvent` mapper, the Loom-specific messages and `RunState`, used by embedded mode too, so server mode is not a rewrite | none |
 | 0b. Spike | `ObservableRun` (C5), `ObserveProvider` and `--observe` (C6), `EventSink` + `RunState`, `GET /api/runs/{id}` and a bare page showing totals and active agents | C5, C6 (both small, additive) |
 | 1. Console | Graph overlay, agents table, Following trace, spend chart, tools, autonomy ladders (read-only), workflow tabs | C2 helps; C5 or app-supplied stores |
-| 2. Server mode | `ServerLink` in the add-on; the `loom-inspect-server` jar with `init`, `clients`, `serve`, `tls init`; the durable outbox with cursors, replay and backlog catch-up; signed OTLP ingest, `hello`, snapshots, resync and heartbeat; `--observe-otlp` export to any collector; the Processes page; tabs grouped by process; disk history with 30-day, 2 GB retention; `--observe-server`, `--observe-name`, `--observe-ca`, `--observe-pin`; the connection chip and stale view; the Docker image. Read-only: commands arrive in Phase 5. | C5, C6 |
+| 2. Server mode | `ServerLink` in the add-on; the Fabric module (`loom-fabric`) with `init`, `clients`, `serve`, `tls init`; the durable outbox with cursors, replay and backlog catch-up; signed OTLP ingest, `hello`, snapshots, resync and heartbeat; `--observe-otlp` export to any collector; the Processes page; tabs grouped by process; disk history with 30-day, 2 GB retention; `--observe-fabric`, `--observe-name`, `--observe-ca`, `--observe-pin`; the connection chip and stale view; the Docker image. Read-only: commands arrive in Phase 5. | C5, C6 |
 | 3. Incidents | Rate-limit, loop, grounding and budget detectors with default thresholds; the attention strip | none (heuristics) |
 | 4. Script thresholds | `inspect { }` block in the parser and `weave check` | C4 |
 | 5. Controls | Suspend and stop, then pause; through the embedded page directly and through the server as commands on the long-poll | C1 |
@@ -493,7 +505,7 @@ Phases 0 to 3 need only two small additive changes to the core (an interface and
 
 ## 13. Open questions and deferred work
 
-Settled since draft 1: run identity (the executor already has `getRunId()` and `getJournal()`, and `ObservableRun` exposes them), the `--observe` activation, per-workflow tabs, the admin password living in the store, remote mode as a standalone `loom-inspect-server` that many processes report to and that is configured from `weave` up front, one key per process, required process names, tabs per process and workflow with no merging, fixed retention (30 days or 2 GB), TLS trust through `--observe-ca` or a pin, commands carried on an outbound long-poll, an OpenTelemetry-shaped wire format with OTLP export, and a single admin password.
+Settled since draft 1: run identity (the executor already has `getRunId()` and `getJournal()`, and `ObservableRun` exposes them), the `--observe` activation, per-workflow tabs, the admin password living in the store, remote mode as a standalone `Fabric` that many processes report to and that is configured from `weave` up front, one key per process, required process names, tabs per process and workflow with no merging, fixed retention (30 days or 2 GB), TLS trust through `--observe-ca` or a pin, commands carried on an outbound long-poll, an OpenTelemetry-shaped wire format with OTLP export, and a single admin password.
 
 **Still open**
 
@@ -502,7 +514,7 @@ Settled since draft 1: run identity (the executor already has `getRunId()` and `
 3. **Pause semantics.** Should pause let in-flight model calls finish (recommended) or cancel them? Cancelling wastes tokens already spent.
 4. **Fingerprint in the audit.** OK to record the truncated hash before and after a rotation in the audit log? It is the only way to prove which key was live when.
 5. **Password form.** Accept the plain stored value in v1 and add hashing later, or require the hashed form from the start?
-6. **`--observe` on one-shot runs.** `weave run` ends when the workflow ends, which closes the embedded page. Should `--observe` keep it up for a short time (for example `--observe-linger 5m`) so the final state can be read? Server mode does not have this problem.
+6. *(Settled)* `--observe` on one-shot runs: `--observe-linger <time>` keeps the page up after the run ends. The default is no linger.
 7. **Outbox defaults.** 256 MB and 7 days per process name, fsync every second. Are these right for your machines, and should the default location be beside the run journal (as proposed) or a fixed system directory?
 
 **Deferred past v1**

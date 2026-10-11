@@ -79,6 +79,24 @@ public class WeaveCLI implements Callable<Integer> {
                 description = "Show what agents think and do, live, on stderr (--trace=json for JSON lines).")
         private String trace;
 
+        @Option(names = "--observe", arity = "0..1", fallbackValue = "8787", paramLabel = "port",
+                description = "Show this run live on a web page (needs the loom-inspect add-on on the class path). Default port 8787.")
+        private String observe;
+
+        @Option(names = "--observe-bind", paramLabel = "address", description = "The address the page listens on (default 127.0.0.1).")
+        private String observeBind;
+
+        @Option(names = "--observe-detail", paramLabel = "full|truncated|metadata",
+                description = "How much of what agents say and tools return the page may show (default truncated: 500 characters).")
+        private String observeDetail;
+
+        @Option(names = "--observe-name", paramLabel = "name", description = "This process's name on the page (default local).")
+        private String observeName;
+
+        @Option(names = "--observe-linger", paramLabel = "time",
+                description = "Keep the page up this long after the run ends, e.g. 5m, so its final state can be read.")
+        private String observeLinger;
+
         @CommandLine.Mixin
         private SecretOptions secrets = new SecretOptions();
 
@@ -103,9 +121,42 @@ public class WeaveCLI implements Callable<Integer> {
             if (env == null) return 2;
             env = promptOptions.apply(env);
             if (env == null) return 2;
-            return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, prices,
-                    journal == null ? null : journal.toPath(), store == null ? null : store.toPath(), waitForResume,
-                    lenient, trace, stopAt, maxRewinds, env);
+            io.github.llm4j.loom.observe.ObserveProvider.Session session = null;
+            io.github.llm4j.loom.observe.ObserveOptions observing = null;
+            if (observe != null) {
+                try {
+                    observing = io.github.llm4j.loom.observe.ObserveOptions.parse(observe, observeBind, observeDetail, observeName, observeLinger);
+                    session = io.github.llm4j.loom.observe.Observe.open(observing, env.out());
+                } catch (IllegalArgumentException | IllegalStateException | io.github.llm4j.loom.observe.Observe.Unavailable e) {
+                    System.err.println("Error: " + e.getMessage());
+                    return 2;
+                }
+                env.out().println("🔭 Watching this run at " + session.describe());
+                env = env.withObserve(session);
+            }
+            try {
+                return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, prices,
+                        journal == null ? null : journal.toPath(), store == null ? null : store.toPath(), waitForResume,
+                        lenient, trace, stopAt, maxRewinds, env);
+            } finally {
+                if (session != null) {
+                    lingerThenClose(session, observing.linger(), env);
+                }
+            }
+        }
+
+        /** Keeps the page up for {@code linger} after the run, then stops serving. */
+        private static void lingerThenClose(io.github.llm4j.loom.observe.ObserveProvider.Session session, java.time.Duration linger, WeaveEnv env) {
+            try {
+                if (!linger.isZero()) {
+                    env.out().println("🔭 Keeping " + session.describe() + " up for " + io.github.llm4j.loom.execution.HarnessExecutor.human(linger) + " (Ctrl-C to stop).");
+                    env.sleeper().sleep(linger);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                session.close();
+            }
         }
     }
 

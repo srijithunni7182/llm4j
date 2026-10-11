@@ -39,6 +39,19 @@ public final class RunRegistry {
         return runs.values().stream().filter(r -> r.client().equals(client) && runId.equals(r.runId())).findFirst();
     }
 
+    /** The run with this trace id, whichever process reported it. */
+    public Optional<RunState> findByTrace(String traceId) {
+        return runs.values().stream().filter(r -> r.traceId().equals(traceId)).findFirst();
+    }
+
+    /** One short summary per run, newest first by last event. */
+    public List<Map<String, Object>> summaries() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (RunState r : runs.values()) out.add(r.summary());
+        out.sort((x, y) -> String.valueOf(y.get("lastEventAt")).compareTo(String.valueOf(x.get("lastEventAt"))));
+        return out;
+    }
+
     /** One view per run, in no particular order. */
     public List<Map<String, Object>> views() {
         List<Map<String, Object>> out = new ArrayList<>();

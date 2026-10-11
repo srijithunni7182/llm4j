@@ -218,4 +218,45 @@ class RunStateTest {
         assertThat(reg.findByRunId("getviral-staging", RUN)).isPresent();
         assertThat(reg.find("nobody", TRACE)).isEmpty();
     }
+
+    @Test
+    void summariesAreShortAndNewestFirst_andARunCanBeFoundByItsTraceId() {
+        RunRegistry reg = new RunRegistry();
+        Resource a = Resource.of("p", "i_1");
+        reg.applyLogs(a, List.of(new LogRec(at(1), LogRec.INFO, "w", Map.of(Semconv.EVENT_NAME, Semconv.EV_RUN_START, Semconv.LOOM_SEQ, 1L, Semconv.LOOM_RUN_ID, "old", Semconv.LOOM_WORKFLOW, "A"), Ids.traceId("old"), null)));
+        reg.applyLogs(a, List.of(new LogRec(at(9), LogRec.INFO, "w", Map.of(Semconv.EVENT_NAME, Semconv.EV_RUN_START, Semconv.LOOM_SEQ, 2L, Semconv.LOOM_RUN_ID, "new", Semconv.LOOM_WORKFLOW, "B"), Ids.traceId("new"), null)));
+        List<Map<String, Object>> list = reg.summaries();
+        assertThat(list).extracting(m -> m.get("runId")).containsExactly("new", "old");
+        assertThat(list.get(0)).containsKeys("status", "totals", "runningAgents", "workflow").doesNotContainKeys("recent", "agents", "tools");
+        assertThat(reg.findByTrace(Ids.traceId("old")).orElseThrow().runId()).isEqualTo("old");
+        assertThat(reg.findByTrace("0".repeat(32))).isEmpty();
+    }
+
+    @Test
+    void aFinishedToolOrAgentStepShowsInTheLatestEventsWithItsText_andAFailedOneIsMarked() {
+        RunRegistry reg = registry(log(0, Semconv.EV_RUN_START, "w", Semconv.LOOM_RUN_ID, RUN, Semconv.LOOM_WORKFLOW, "W"));
+        SpanRec withText = new SpanRec(TRACE, Ids.spanId(RUN, "t1"), null, "execute_tool Wiki", SpanRec.CLIENT, at(1), at(2),
+                Map.of(Semconv.LOOM_SPAN_KIND, "tool", Semconv.GEN_AI_TOOL_NAME, "Wiki", Semconv.GEN_AI_AGENT_NAME, "Editor", Semconv.LOOM_TEXT, "200 OK"), SpanRec.STATUS_OK, null, List.of());
+        SpanRec failedNoText = new SpanRec(TRACE, Ids.spanId(RUN, "t2"), null, "execute_tool Example", SpanRec.CLIENT, at(3), at(4),
+                Map.of(Semconv.LOOM_SPAN_KIND, "tool", Semconv.GEN_AI_TOOL_NAME, "Example"), SpanRec.STATUS_ERROR, "404", List.of());
+        reg.applySpans(PROC, List.of(withText, failedNoText));
+        List<Map<String, Object>> recent = list(run(reg).view(), "recent");
+        Map<String, Object> ok = recent.get(recent.size() - 2);
+        assertThat(ok).containsEntry("event", "loom.tool.end").containsEntry("text", "200 OK").containsEntry("agent", "Editor");
+        Map<String, Object> bad = recent.get(recent.size() - 1);
+        assertThat(bad).containsEntry("text", "execute_tool Example failed").containsEntry("failed", true);
+    }
+
+    @Test
+    void aRunThatHasNotEndedKeepsCountingWhileItSleeps_andAnEndedOneStopsAtItsEnd() {
+        RunRegistry reg = registry(log(0, Semconv.EV_RUN_START, "w", Semconv.LOOM_RUN_ID, RUN, Semconv.LOOM_WORKFLOW, "W"),
+                log(5, Semconv.EV_RUN_SUSPENDED, "sleep", Semconv.LOOM_SUSPEND_REASON, "SLEEP", Semconv.LOOM_RESUME_AT, "x"));
+        Instant fiveMinutesIn = OtlpJson.instant(T0).plusSeconds(300);
+        assertThat(run(reg).view(fiveMinutesIn).get("elapsedMillis")).isEqualTo(300_000L);
+
+        seq = 0;
+        RunRegistry ended = registry(log(0, Semconv.EV_RUN_START, "w", Semconv.LOOM_RUN_ID, RUN, Semconv.LOOM_WORKFLOW, "W"),
+                log(60, Semconv.EV_RUN_END, "e", Semconv.LOOM_RUN_STATUS, Semconv.STATUS_COMPLETED));
+        assertThat(run(ended).view(fiveMinutesIn.plusSeconds(3600)).get("elapsedMillis")).isEqualTo(60_000L);
+    }
 }

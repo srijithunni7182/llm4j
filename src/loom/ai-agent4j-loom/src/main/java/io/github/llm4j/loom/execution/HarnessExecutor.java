@@ -534,6 +534,28 @@ public class HarnessExecutor implements LoomEngine {
         };
     }
 
+    /**
+     * A read-only view of this run for an observer (see {@link io.github.llm4j.loom.observe.ObservableRun}). Take it and add
+     * its listeners before {@link #initialize()}.
+     */
+    public io.github.llm4j.loom.observe.ObservableRun observable() {
+        HarnessExecutor self = this;
+        return new io.github.llm4j.loom.observe.ObservableRun() {
+            @Override public String runId() { return self.runId; }
+            @Override public RunJournal journal() { return self.journal; }
+            @Override public LoomScript script() { return self.script; }
+            @Override public io.github.llm4j.secret.SecretStore secretStore() { return self.secretStore; }
+            @Override public java.util.Optional<io.github.llm4j.loom.autonomy.Ledger> ledger() { return java.util.Optional.ofNullable(self.ledger); }
+            @Override public java.util.Optional<io.github.llm4j.loom.autonomy.LevelStore> levelStore() { return java.util.Optional.ofNullable(self.levelStore); }
+            @Override public io.github.llm4j.budget.Budget runBudget() { return self.getRunBudget(); }
+            @Override public SpendReport spend() { return self.spend(); }
+            @Override public Map<String, Object> variables() { return java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(self.context.getAll())); }
+            @Override public java.time.Clock clock() { return self.clock; }
+            @Override public void addTraceListener(TraceListener listener) { self.addTraceListener(listener); }
+            @Override public void addSuspensionListener(java.util.function.Consumer<RunSuspended> listener) { self.addSuspensionListener(listener); }
+        };
+    }
+
     public void addSuspensionListener(java.util.function.Consumer<RunSuspended> listener) {
         suspensionListeners.add(listener);
     }

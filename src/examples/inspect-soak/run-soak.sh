@@ -8,13 +8,13 @@
 # thread; --wait keeps this process alive so it wakes the run itself. For a shorter run, lower the sleep
 # durations in soak.loom.
 #
-# Extra weave options (for example --observe-server once loom-inspect exists) go on the command line:
-#   ./run-soak.sh --observe-server https://inspect.example.com:9090 --observe-name soak-1
+# Extra weave options (for example --observe-fabric once loom-inspect exists) go on the command line:
+#   ./run-soak.sh --observe-fabric https://fabric.example.com:9090 --observe-name soak-1
 set -euo pipefail
 cd "$(dirname "$0")"
 : "${WEAVE_JAR:=../../loom/ai-agent4j-loom/target/ai-agent4j-loom-5.0-cli.jar}"
 : "${TOPIC:=cold plunges and recovery}"
 : "${ASK_HUMAN:=no}"
-exec java -jar "$WEAVE_JAR" run soak.loom \
+exec java -cp "$WEAVE_JAR${INSPECT_JARS:+:$INSPECT_JARS}" io.github.llm4j.loom.cli.WeaveCLI run soak.loom \
      -i topic="$TOPIC" -i ask_human="$ASK_HUMAN" \
      --journal runs/soak --wait --trace "$@"

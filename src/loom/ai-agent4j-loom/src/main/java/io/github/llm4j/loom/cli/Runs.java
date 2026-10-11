@@ -96,6 +96,7 @@ final class Runs {
             if (spec.prices() != null) executor.setPriceTable(io.github.llm4j.budget.PriceTable.load(Path.of(spec.prices())));
             executor.setBudgetOverrides(spec.maxTokens(), spec.maxCalls(), cost);
             if (spec.trace() != null) executor.addTraceListener(new ConsoleTrace(env.err(), "json".equals(spec.trace())));
+            if (env.observe() != null) env.observe().attach(executor.observable()); // before initialize, so agents report
             executor.setSimulate(spec.simulate());
             executor.setStopAt(spec.stopAt());
             if (spec.maxRewinds() != null) executor.setMaxRewinds(spec.maxRewinds());

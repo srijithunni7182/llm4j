@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>loom-inspect</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/logo.png" type="image/png">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <span class="logo" role="img" aria-label="Loom"></span>
+    <span class="wm">loom<b>·</b>inspect</span>
+    <select id="runs" aria-label="Run"></select>
+    <span id="status" class="pill" hidden></span>
+    <span class="spacer"></span>
+    <span id="updated" class="faint mono"></span>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <section id="empty" class="empty" hidden>
+    <h1>No runs yet</h1>
+    <p class="muted">Start one with <code>weave run flow.loom --observe</code>. It appears here as soon as it begins.</p>
+  </section>
+
+  <main id="main" hidden>
+    <h1 id="title"></h1>
+    <section class="kpis" aria-label="Totals">
+      <div class="tile"><div class="eyebrow">Tokens</div><div id="tokens" class="val">0</div></div>
+      <div class="tile"><div class="eyebrow">Cost</div><div id="cost" class="val">$0</div></div>
+      <div class="tile"><div class="eyebrow">LLM calls</div><div id="calls" class="val">0</div></div>
+      <div class="tile"><div class="eyebrow">Running now</div><div id="running" class="val">0</div></div>
+      <div class="tile"><div class="eyebrow">Elapsed</div><div id="elapsed" class="val">0:00</div></div>
+    </section>
+
+    <section class="panel">
+      <h2>Agents</h2>
+      <table><thead><tr><th>Agent</th><th>State</th><th class="r">Tokens</th><th class="r">Calls</th><th class="r">Cost</th><th>Tools in use</th></tr></thead><tbody id="agents"></tbody></table>
+      <p id="noagents" class="muted" hidden>No agent has started yet.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Tools</h2>
+      <table><thead><tr><th>Tool</th><th class="r">Calls</th><th class="r">In flight</th><th class="r">Errors</th><th class="r">Avg</th></tr></thead><tbody id="tools"></tbody></table>
+      <p id="notools" class="muted" hidden>No tool has been called yet.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Latest events</h2>
+      <ol id="recent" class="recent"></ol>
+    </section>
+  </main>
+
+  <footer class="foot faint mono">read-only · totals and active agents (phase 0b)</footer>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>
