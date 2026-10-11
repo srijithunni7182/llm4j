@@ -1,0 +1,183 @@
+// soak.loom: a workflow of about 30 minutes, built to be observed with loom-inspect.
+//
+// The agents below are deliberately badly behaved, so that every state the console can show appears on a
+// schedule: a tool that fails, a loop that stops converging, a draft with invented figures, a rewind, a
+// budget-window pause, a deterministic task step and an optional wait for a person. They are test
+// fixtures, not a pattern to copy. See README.md to run it and CHECKLIST.md for what to look for.
+
+budget { tokens: 900000  calls: 500  warn_at: 80% }
+rate_limits { on_limit: suspend  max_wait: 2h  max_resumes: 20 }
+
+tool Wiki    { use: http  base_url: "https://en.wikipedia.org"  allow_paths: "/w/api.php"  timeout: 15s }
+tool Example { use: http  base_url: "https://example.com"  timeout: 10s  retries: 2 }
+tool Notes   { use: file  root: "soak-notes"  mode: readwrite }
+
+// ---- the studio -------------------------------------------------------------------------------
+
+agent Showrunner {
+    model: "gemini-2.5-flash"
+    temperature: 0.4
+    system: "You are the Showrunner of a short-video studio. Be concise and concrete."
+}
+
+agent Researcher {
+    model: "gemini-2.5-flash"
+    tools: [Wiki]
+    max_iterations: 6
+    system: "You research a topic. Call Wiki at least twice (path /w/api.php, query action=query, list=search, format=json, srsearch=<your search>). Then report three findings and name the page titles you used."
+}
+
+agent TrendScout {
+    model: "gemini-2.5-flash"
+    tools: [Wiki]
+    max_iterations: 6
+    system: "You find angles. Call Wiki once or twice (path /w/api.php, query action=query, list=search, format=json). Then rank eight video angles, best first, one line each."
+}
+
+// Its site has no /pricing or /blog, so every fetch fails: this is the failing tool.
+agent Competitor {
+    model: "gemini-2.5-flash"
+    tools: [Example]
+    max_iterations: 6
+    system: "You study a rival. Fetch /pricing and then /blog from Example, in that order. Report exactly what each fetch returned, including any error. Do not invent content."
+}
+
+// Invents precise figures and cites nothing: this is the suspect output.
+agent Scriptwriter {
+    model: "gemini-2.5-flash"
+    temperature: 0.8
+    system: "You write a 300 word video script. Include at least four precise statistics (percentages, sample sizes, years) as if from studies. Never cite a source and never use tools. If Feedback is not 'none', keep every statistic and change only the tone."
+}
+
+// Always the same score and the same fix, and always the same tool call: this is the loop.
+agent Editor {
+    model: "gemini-2.5-flash"
+    tools: [Wiki]
+    max_iterations: 4
+    system: "You edit scripts. Before scoring, call Wiki exactly once with path /w/api.php and query action=query, list=search, format=json, srsearch=video hook patterns. Then give a score of 5 and the fix 'Strengthen the hook.' Never give any other score or fix."
+    output_schema: { score: number, fix: string }
+}
+
+agent FactChecker {
+    model: "gemini-2.5-flash"
+    tools: [Wiki]
+    max_iterations: 8
+    system: "You check every statistic in a script against Wiki (path /w/api.php, query action=query, list=search, format=json). A claim you cannot support from a result is unsupported."
+    output_schema: { unsupported: number, claims: list }
+}
+
+agent SEO {
+    model: "gemini-2.5-flash"
+    tools: [Wiki]
+    max_iterations: 4
+    system: "You suggest three titles and rate keyword fit from 1 to 10. Use Wiki (path /w/api.php, query action=query, list=search, format=json) once."
+    output_schema: { titles: list, fit: number }
+}
+
+agent Lead {
+    model: "gemini-2.5-flash"
+    temperature: 0.2
+    system: "You decide whether a script is finished. You are never satisfied: always answer INCOMPLETE and give the fix 'Strengthen the hook.'"
+}
+
+agent Planner {
+    model: "gemini-2.5-flash"
+    system: "You plan thumbnails and captions."
+    output_schema: { shots: list }
+}
+
+agent Designer {
+    model: "gemini-2.5-flash"
+    system: "You describe one thumbnail concept in three sentences."
+}
+
+// A small per-minute allowance: with several captions at once it runs out and the run pauses until the
+// window refills. This is the pause. It is a budget window, not a provider limit.
+agent Captioner {
+    model: "gemini-2.5-flash"
+    budget { tokens: 2500 per minute  when_exhausted: suspend }
+    system: "You write one caption of at most 40 words."
+}
+
+agent Auditor {
+    model: "gemini-2.5-flash"
+    temperature: 0.0
+    system: "You audit a content pack. If Feedback is 'none', score it 3 and say the thumbnails lack a face close-up. Otherwise score it 8 and say ok."
+}
+
+agent Publisher {
+    model: "gemini-2.5-flash"
+    tools: [Notes]
+    max_iterations: 4
+    system: "You publish by saving the final pack with Notes as report.md."
+}
+
+// The same, but each file write waits for a person.
+agent PublisherGated {
+    model: "gemini-2.5-flash"
+    tools: [Notes]
+    approve: [Notes]
+    max_iterations: 4
+    system: "You publish by saving the final pack with Notes as report.md."
+}
+
+// ---- the run ----------------------------------------------------------------------------------
+
+workflow Soak(topic, pace, ask_human) {
+    note "SOAK phase A: brief and research"
+    delegate "Write a one paragraph creative brief for a 45 second video about: {topic}" to Showrunner -> brief_text
+
+    broadcast "Research for this brief: {brief_text}" to [Researcher, TrendScout, Competitor] -> findings
+    run Pace(seconds = pace) -> rested
+
+    note "SOAK phase B: the loop that does not converge"
+    loop until (review.verdict == "COMPLETE") max 5 {
+        delegate "Round {_loopRound}. Write the script. Brief: {brief_text}. Findings: {findings}. Feedback: {review.fix}" to Scriptwriter -> script_text
+
+        parallel {
+            delegate "Edit this script: {script_text}" to Editor -> edit
+            delegate "Fact-check this script: {script_text}" to FactChecker -> facts
+            delegate "Suggest titles for this script: {script_text}" to SEO -> seo
+        }
+
+        delegate "Round {_loopRound}. Edit score {edit.score}, unsupported claims {facts.unsupported}, title fit {seo.fit}. Is the script finished?" to Lead -> review expecting {
+            verdict: enum["COMPLETE", "INCOMPLETE"],
+            fix: string
+        }
+        run Pace(seconds = pace) -> rested
+    } on_exhausted {
+        note "SOAK loop gave up after {_loopRounds} rounds"
+    }
+
+    note "SOAK phase C: thumbnails, captions, a rewind"
+    checkpoint polish starting with feedback = "none"
+
+    delegate "Plan three shots for this script. Return a list of objects with description, thumb_var (thumb1, thumb2, thumb3) and caption_var (cap1, cap2, cap3). Script: {script_text}. Feedback: {feedback}" to Planner -> plan
+    parallel for each shot in plan.shots {
+        delegate "Describe a thumbnail for: {shot.description}" to Designer -> {shot.thumb_var}
+        delegate "Write a caption for: {shot.description}" to Captioner -> {shot.caption_var}
+    }
+    run Pace(seconds = pace) -> rested
+
+    delegate "Audit the pack. Feedback: {feedback}. Pack: {plan}" to Auditor -> grade expecting {
+        score: number,
+        notes: string
+    }
+    rewind to polish
+        when (grade.score < 5)
+        at most 1 times
+        carrying feedback = "{grade.notes}"
+        side effects: keep
+        if it still fails { note "SOAK audit still failing" }
+
+    note "SOAK phase D: publish"
+    alt (ask_human == "yes") {
+        delegate "Save the final pack as report.md: {script_text}" to PublisherGated -> published
+    } else {
+        delegate "Save the final pack as report.md: {script_text}" to Publisher -> published
+    }
+
+    note "SOAK saved: {published}"
+    run Pace(seconds = 240) -> rested
+    note "SOAK done"
+}

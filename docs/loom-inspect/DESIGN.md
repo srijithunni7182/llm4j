@@ -402,21 +402,27 @@ Not in v1: mutual TLS (client certificates). The per-client signing key already 
 - **Persistence test.** Stop the server mid-run, restart it, and assert live state is rebuilt from disk and processes resync; assert retention removes the oldest finished runs first.
 - **Live suite.** Under the existing `-Plive` profile, attach to a real run and assert the page shows tokens within a second.
 
+## 11a. The soak test
+
+A real, long-running workflow is the acceptance test for every phase: `src/examples/inspect-soak/`. It runs about 30 minutes against real models and is built to put every state the console shows on screen at a predictable time: parallel fan-out, a tool that fails, a loop that stops converging, a draft with ungrounded figures, a rewind, a budget-window pause, a task step, and an optional human wait. It is observed from the server (and from the embedded page) while it runs. The minute-by-minute checklist of what each phase must show is in `src/examples/inspect-soak/CHECKLIST.md`.
+
 ## 12. Build plan
 
-| Phase | Delivers | Needs |
-|---|---|---|
-| 0. Wire format | `loom-inspect-core` with `InspectEvent`, `Snapshot` and `RunState`, used by embedded mode too, so remote mode is not a rewrite | none |
-| 0b. Spike | `ObservableRun` (C5), `ObserveProvider` and `--observe` (C6), `EventSink` + `RunState`, `GET /api/runs/{id}` and a bare page showing totals and active agents | C5, C6 (both small, additive) |
-| 1. Console | Graph overlay, agents table, Following trace, spend chart, tools, autonomy ladders (read-only) | C2 helps; C5 or app-supplied stores |
-| 2. Incidents | Rate-limit, loop, grounding and budget detectors with default thresholds; attention strip | none (heuristics) |
-| 3. Script thresholds | `inspect { }` block in the parser and `weave check` | C4 |
-| 4. Controls | Suspend and stop, then pause | C1 |
-| 5. Secrets | List, fingerprint, rotate with audit | C3 for the Status column |
-| 6. Hardening | TLS, a separate viewer password, password hashing, retention options | none |
-| 7. Server mode | `ServerLink` in the add-on, the `loom-inspect-server` jar with `init`, `clients` and `serve`, signed ingest, snapshots and resync, the Processes page, signed commands, disk persistence with retention, the connection chip and stale view, Docker image | C5, C6; commands need C1 |
+The server comes right after the console, so the console works across processes early. Every phase is checked against the soak test (section 11a).
 
-Phase 0 needs only two small additive changes to the core (an interface and an option), and phases 1 and 2 need nothing more, so the first useful release does not wait on language work.
+| Phase | Delivers | Needs from the core |
+|---|---|---|
+| 0. Wire format | `loom-inspect-core` with `InspectEvent`, `Snapshot` and `RunState`, used by embedded mode too, so server mode is not a rewrite | none |
+| 0b. Spike | `ObservableRun` (C5), `ObserveProvider` and `--observe` (C6), `EventSink` + `RunState`, `GET /api/runs/{id}` and a bare page showing totals and active agents | C5, C6 (both small, additive) |
+| 1. Console | Graph overlay, agents table, Following trace, spend chart, tools, autonomy ladders (read-only), workflow tabs | C2 helps; C5 or app-supplied stores |
+| 2. Server mode | `ServerLink` in the add-on; the `loom-inspect-server` jar with `init`, `clients`, `serve`, `tls init`; signed ingest, `hello`, snapshots, resync and heartbeat; the Processes page; tabs grouped by process; disk history with 30-day, 2 GB retention; `--observe-server`, `--observe-name`, `--observe-ca`, `--observe-pin`; the connection chip and stale view; the Docker image. Read-only: commands arrive in Phase 5. | C5, C6 |
+| 3. Incidents | Rate-limit, loop, grounding and budget detectors with default thresholds; the attention strip | none (heuristics) |
+| 4. Script thresholds | `inspect { }` block in the parser and `weave check` | C4 |
+| 5. Controls | Suspend and stop, then pause; through the embedded page directly and through the server as commands in the response | C1 |
+| 6. Secrets | List, fingerprint, rotate with audit, embedded mode only | C3 for the Status column |
+| 7. Hardening | Admin password hashing, login rate-limiting review, log and body redaction audit, packaging polish | none |
+
+Phases 0 to 3 need only two small additive changes to the core (an interface and an option), so the first useful release, with a working server, does not wait on language work.
 
 ## 13. Open questions and deferred work
 
