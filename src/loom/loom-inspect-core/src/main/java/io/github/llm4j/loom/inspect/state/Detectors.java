@@ -23,6 +23,8 @@ final class Detectors {
 
     private final Incidents incidents;
     private Thresholds t;
+    private Map<String, InspectRules> rules = Map.of();
+    private final Map<String, ArrayDeque<String>> progress = new HashMap<>();
     private final Map<String, Integer> actions = new HashMap<>();
     private final Map<String, ArrayDeque<String>> outputs = new HashMap<>();
     private final Map<String, Integer> failStreak = new HashMap<>();
@@ -39,12 +41,30 @@ final class Detectors {
         this.t = thresholds;
     }
 
+    /** The per-agent rules a script's {@code inspect} blocks give; an agent without one uses the defaults. */
+    void rules(Map<String, InspectRules> rules) {
+        this.rules = rules == null ? Map.of() : Map.copyOf(rules);
+    }
+
+    private Thresholds of(String agent) {
+        InspectRules r = agent == null ? null : rules.get(agent);
+        return r == null ? t : r.over(t);
+    }
+
+    /** A pause belongs to the run, not to an agent: the shortest limit any agent set decides when it becomes a warning. */
+    private long pausedLimit() {
+        long limit = t.pausedLongerThanSeconds();
+        for (InspectRules r : rules.values()) if (r.pausedLongerThanSeconds() != null) limit = Math.min(limit, r.pausedLongerThanSeconds());
+        return limit;
+    }
+
     // ------------------------------------------------------------------------------ looping
 
     void onToolStart(String agent, String step, String tool, String actionHash, long now) {
         if (agent == null || actionHash == null) return;
         String where = StepPaths.normalize(step);
         String key = agent + "|" + where + "|" + actionHash;
+        Thresholds t = of(agent);
         int n = actions.merge(key, 1, Integer::sum);
         if (n >= t.sameAction()) {
             incidents.raise("loop:action:" + key, Incidents.Kind.LOOPING, "warn", agent, where, now,
@@ -56,6 +76,7 @@ final class Detectors {
     void onAgentEnd(String agent, String step, String outputHash, long figures, long ungrounded, String examples, long now) {
         if (agent == null) return;
         String where = StepPaths.normalize(step);
+        Thresholds t = of(agent);
         if (outputHash != null) {
             ArrayDeque<String> last = outputs.computeIfAbsent(agent + "|" + where, k -> new ArrayDeque<>());
             if (!last.isEmpty() && !last.peekLast().equals(outputHash)) last.clear(); // a different answer: the streak is over
@@ -78,10 +99,34 @@ final class Detectors {
         }
     }
 
+    // ------------------------------------------------------------------------------ no progress
+
+    /**
+     * The variable the rule names, as it stood at the boundary between two rounds of a loop (the value that round ended with). The same
+     * value this many boundaries in a row is a loop that is not getting anywhere, which is what the script said progress would look like.
+     */
+    void onSample(String owner, String variable, String loop, String valueHash, long now) {
+        InspectRules r = owner == null ? null : rules.get(owner);
+        if (r == null || r.noProgressRounds() == null || valueHash == null) return;
+        String key = "loop:progress:" + owner + "|" + variable + "|" + loop;
+        ArrayDeque<String> last = progress.computeIfAbsent(key, k -> new ArrayDeque<>());
+        if (!last.isEmpty() && !last.peekLast().equals(valueHash)) last.clear();
+        last.addLast(valueHash);
+        while (last.size() > 50) last.removeFirst();
+        if (last.size() >= r.noProgressRounds()) {
+            incidents.raise(key, Incidents.Kind.LOOPING, "warn", owner, loop, now,
+                    variable + " has not changed for " + last.size() + " rounds",
+                    List.of(Incidents.evidence("no_progress", last.size(), r.noProgressRounds(), variable + " was the same at the end of " + last.size() + " rounds in a row in " + loop)));
+        } else {
+            incidents.close(key, now, variable + " changed");
+        }
+    }
+
     // ------------------------------------------------------------------------------ failing tools
 
     void onToolEnd(String agent, String tool, boolean error, String step, long now) {
         if (tool == null) return;
+        Thresholds t = of(agent);
         if (!error) {
             failStreak.remove(tool);
             incidents.close("failed:" + tool, now, "the tool answered again");
@@ -113,11 +158,12 @@ final class Detectors {
     void refreshPaused(long nowNanos) {
         if (pausedAt == 0) return;
         long seconds = Math.max(0, (nowNanos - pausedAt) / 1_000_000_000L);
-        boolean long_ = seconds > t.pausedLongerThanSeconds();
+        long limit = pausedLimit();
+        boolean long_ = seconds > limit;
         String detail = "paused by " + pausedReason + (pausedResumeAt == null ? "" : ", resumes " + pausedResumeAt) + ". This is not a failure.";
         incidents.raise("paused", Incidents.Kind.PAUSED, long_ ? "warn" : "info", null, null, pausedAt,
                 "The run is paused (" + pausedReason + ")",
-                List.of(Incidents.evidence("paused_longer_than", seconds + "s", t.pausedLongerThanSeconds() + "s", detail)));
+                List.of(Incidents.evidence("paused_longer_than", seconds + "s", limit + "s", detail)));
     }
 
     // ------------------------------------------------------------------------------ budget

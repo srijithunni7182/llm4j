@@ -35,6 +35,11 @@ public final class RunRegistry {
         state(client, traceId).setGraph(graph);
     }
 
+    /** Gives a run the per-agent rules of its script's {@code inspect} blocks. */
+    public void setRules(String client, String traceId, Map<String, InspectRules> rules) {
+        state(client, traceId).setRules(rules);
+    }
+
     /** Gives a run the way to read its decision ladders. */
     public void setLadders(String client, String traceId, java.util.function.Supplier<List<Map<String, Object>>> ladders) {
         state(client, traceId).setLadders(ladders);

@@ -105,6 +105,11 @@ public final class RunState {
         detectors.thresholds(thresholds);
     }
 
+    /** The per-agent rules a script's {@code inspect} blocks give, by agent name. */
+    public synchronized void setRules(Map<String, InspectRules> rules) {
+        detectors.rules(rules);
+    }
+
     public synchronized void setGraph(Map<String, Object> graph) {
         this.graph = graph;
     }
@@ -143,6 +148,7 @@ public final class RunState {
             case Semconv.EV_RUN_END -> runEnd(r);
             case Semconv.EV_RUN_SUSPENDED -> runSuspended(r);
             case Semconv.EV_SPAN_START -> spanStart(r);
+            case Semconv.EV_INSPECT_SAMPLE -> detectors.onSample(r.text(Semconv.LOOM_INSPECT_AGENT), r.text(Semconv.LOOM_INSPECT_VAR), r.text(Semconv.LOOM_INSPECT_LOOP), r.text(Semconv.LOOM_INSPECT_HASH), r.timeNanos());
             case Semconv.EV_BUDGET -> detectors.onBudget(String.valueOf(r.text("loom.data.budget")), r.text("loom.data.kind"), r.body(), r.timeNanos());
             default -> { }
         }

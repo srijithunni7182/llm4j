@@ -130,4 +130,21 @@ class ReceiverTest {
     void garbageOtlpIsRejectedNotThrownRaw() {
         assertThatThrownBy(() -> receiver.logs("p", "{not json")).isInstanceOf(Receiver.Rejected.class);
     }
+
+    @Test
+    void aSnapshotsInspectRulesReachTheRunsDetectors() {
+        receiver.hello("p", hello("p", 1));
+        receiver.logs("p", logs("p", 1, Semconv.EV_RUN_START));
+        receiver.snapshot("p", new Snapshot("p", "i_1", TRACE, RUN, "Main", Map.of(), List.of(),
+                Map.of("Editor", new io.github.llm4j.loom.inspect.state.InspectRules(2, null, null, null, null, null, null, null))));
+        for (long seq = 2; seq <= 3; seq++) {
+            LogRec r = new LogRec(1_000_000_000L * (1 + seq), LogRec.INFO, "execute_tool Wiki",
+                    Map.of(Semconv.EVENT_NAME, Semconv.EV_SPAN_START, Semconv.LOOM_SEQ, seq, Semconv.LOOM_SPAN_KIND, Semconv.KIND_TOOL, Semconv.GEN_AI_AGENT_NAME, "Editor",
+                            Semconv.GEN_AI_TOOL_NAME, "Wiki", Semconv.LOOM_STEP, "Main/s1", Semconv.LOOM_ACTION_HASH, "h"), TRACE, Ids.spanId(RUN, "t" + seq));
+            receiver.logs("p", OtlpJson.encodeLogs(Resource.of("p", "i_1"), "0.1", List.of(r)));
+        }
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> incidents = (List<Map<String, Object>>) registry.findByTrace(TRACE).orElseThrow().view().get("incidents");
+        assertThat(incidents).hasSize(1); // two identical calls is a loop for this agent, though the default is four
+    }
 }

@@ -73,6 +73,12 @@ public final class Semconv {
     public static final String EV_THOUGHT = "loom.thought";
     public static final String EV_OBSERVATION = "loom.observation";
     public static final String EV_BUDGET = "loom.budget";
+    /** A workflow variable read at the boundary between two loop rounds, for the no_progress rule. */
+    public static final String EV_INSPECT_SAMPLE = "loom.inspect.sample";
+    public static final String LOOM_INSPECT_AGENT = "loom.inspect.agent";
+    public static final String LOOM_INSPECT_VAR = "loom.inspect.variable";
+    public static final String LOOM_INSPECT_LOOP = "loom.inspect.loop";
+    public static final String LOOM_INSPECT_HASH = "loom.inspect.hash";
     public static final String EV_NOTE = "loom.note";
     /** Prefix for any other Loom trace event: {@code loom.approval}, {@code loom.rewind}, {@code loom.guard}, … */
     public static final String EV_PREFIX = "loom.";

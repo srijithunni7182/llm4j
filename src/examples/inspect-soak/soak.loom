@@ -46,6 +46,7 @@ agent Competitor {
 agent Scriptwriter {
     model: "gemini-2.5-flash"
     temperature: 0.8
+    inspect { ungrounded_figures: warn at 2, high at 4 }
     system: "You write a 300 word video script. Include at least four precise statistics (percentages, sample sizes, years) as if from studies. Never cite a source and never use tools. If Feedback is not 'none', keep every statistic and change only the tone."
 }
 
@@ -54,6 +55,7 @@ agent Editor {
     model: "gemini-2.5-flash"
     tools: [Wiki]
     max_iterations: 4
+    inspect { same_action: 3 times }
     system: "You edit scripts. Before scoring, call Wiki exactly once with path /w/api.php and query action=query, list=search, format=json, srsearch=video hook patterns. Then give a score of 5 and the fix 'Strengthen the hook.' Never give any other score or fix."
     output_schema: { score: number, fix: string }
 }
@@ -77,6 +79,7 @@ agent SEO {
 agent Lead {
     model: "gemini-2.5-flash"
     temperature: 0.2
+    inspect { no_progress: 2 rounds on review.fix }
     system: "You decide whether a script is finished. You are never satisfied: always answer INCOMPLETE and give the fix 'Strengthen the hook.'"
 }
 

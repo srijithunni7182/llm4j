@@ -38,6 +38,10 @@ class InspectProviderTest {
             """;
 
     private static HarnessExecutor executor(List<String> answers) {
+        return executor(answers, SCRIPT);
+    }
+
+    private static HarnessExecutor executor(List<String> answers, String source) {
         int[] next = {0};
         LLMClientFactory factory = model -> new LLMClient() {
             @Override
@@ -56,7 +60,7 @@ class InspectProviderTest {
             @Override public String getDescription() { return "test"; }
             @Override public String execute(Map<String, Object> args) { return "the answer is 42"; }
         });
-        return new HarnessExecutor(new LoomParser(new Lexer(SCRIPT).tokenize()).parseScript(), tools, factory);
+        return new HarnessExecutor(new LoomParser(new Lexer(source).tokenize()).parseScript(), tools, factory);
     }
 
     @Test
@@ -129,6 +133,58 @@ class InspectProviderTest {
             while (session.liveSinks() > 0 && System.currentTimeMillis() < end) Thread.sleep(5);
             assertThat(session.liveSinks()).isZero();
             assertThat(session.registry().summaries()).hasSize(5).allSatisfy(r -> assertThat(r.get("status")).isEqualTo("finished"));
+        }
+    }
+
+    private static final String JUDGE = """
+            agent Lead {
+                model: "m"
+                inspect {
+                    no_progress: 2 rounds on review
+                    same_output: 9 times
+                }
+            }
+            workflow Main() {
+                loop until (review == "COMPLETE") max 4 {
+                    delegate "is it finished? round {_loopRound}" to Lead -> review
+                }
+            }
+            """;
+
+    private static String answer(String text) {
+        return "```json\n{\"thought\": \"t\", \"final_answer\": \"" + text + "\"}\n```";
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aScriptsNoProgressRuleRaisesAnIncidentFromARealLoop_andOnlyAHashOfTheVariableIsRecorded() throws Exception {
+        try (InspectSession session = (InspectSession) new InspectObserveProvider().open(ObserveOptions.parse("0", null, "metadata", "local", null), null)) {
+            HarnessExecutor e = executor(List.of(answer("INCOMPLETE"), answer("INCOMPLETE"), answer("INCOMPLETE"), answer("INCOMPLETE")), JUDGE);
+            e.setRunId("r-judge");
+            session.attach(e.observable());
+            e.initialize();
+            e.executeWorkflow("Main", Map.of());
+            assertThat(session.awaitIdle(Duration.ofSeconds(3))).isTrue();
+            Map<String, Object> view = session.registry().summaries().isEmpty() ? Map.of() : session.registry().findByTrace(io.github.llm4j.loom.inspect.otel.Ids.traceId("r-judge")).orElseThrow().view();
+            List<Map<String, Object>> incidents = (List<Map<String, Object>>) view.get("incidents");
+            Map<String, Object> inc = incidents.stream().filter(i -> String.valueOf(i.get("title")).contains("has not changed")).findFirst().orElseThrow();
+            assertThat(inc).containsEntry("agent", "Lead");
+            assertThat(String.valueOf(view)).doesNotContain("INCOMPLETE"); // metadata level: no answer text on the page
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aVariableThatKeepsChangingIsProgress() throws Exception {
+        try (InspectSession session = (InspectSession) new InspectObserveProvider().open(ObserveOptions.parse("0", null, "full", "local", null), null)) {
+            HarnessExecutor e = executor(List.of(answer("A"), answer("B"), answer("C"), answer("COMPLETE")), JUDGE);
+            e.setRunId("r-progress");
+            session.attach(e.observable());
+            e.initialize();
+            e.executeWorkflow("Main", Map.of());
+            assertThat(session.awaitIdle(Duration.ofSeconds(3))).isTrue();
+            Map<String, Object> view = session.registry().findByTrace(io.github.llm4j.loom.inspect.otel.Ids.traceId("r-progress")).orElseThrow().view();
+            assertThat((List<Map<String, Object>>) view.get("incidents")).noneMatch(i -> String.valueOf(i.get("title")).contains("has not changed"));
         }
     }
 

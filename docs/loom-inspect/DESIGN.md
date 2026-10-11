@@ -580,3 +580,29 @@ Done and tested, embedded and Fabric (the detectors live in `RunState`, which bo
 - **Found by a real run**: the agent runtime blocks an exact repeat of a tool call (and counts it) without reporting an observation, which left the call "in flight" for the rest of the run. The mapper now closes an unanswered call as "no result" at the agent's next thought, and the detectors count it as neither failure nor success. The runtime's own `redundantActionCount` is the authoritative number; it is not on the trace yet.
 
 **Not done**: `no_progress ... on <variable>` and `unsupported_claims ... from <field>` need the script's `inspect` block (Phase 4); thresholds are the defaults until then (`RunState.setThresholds` is the seam). Incident actions (pause, suspend, stop) are Phase 5. Rate-limit pauses from a *provider* (as opposed to a budget window) have not been seen with a real model, so the exact reason strings are untested beyond the budget-window case the soak stages.
+
+## 11g. Phase 4 status
+
+Done and tested. Thresholds now live in the script.
+
+- **Syntax** (decided: inside the agent block, next to `budget`, which settles open question 2; one rule per line rather than the grouped `loop:` line of section 6):
+
+  ```loom
+  agent Editor {
+      model: "gemini-2.5-flash"
+      inspect {
+          same_action: 4 times
+          same_output: 3 times
+          tool_failures: 3 times
+          no_progress: 3 rounds on review.score
+          ungrounded_figures: warn at 2, high at 4
+          paused_longer_than: 90s
+      }
+  }
+  ```
+
+  A rule left out keeps the default. The block changes nothing about how the agent runs, and is not part of an agent's autonomy identity, so editing it does not reset earned autonomy. The words `inspect`, `times`, `rounds`, `on`, `warn`, `high`, `at` stay usable as names.
+- **`weave check`**: refuses a number below 1, an unknown rule (with the nearest rule suggested), `no_progress` on a variable no step stores and no workflow takes (with a guess), a `warn` level not below its `high` level; warns about a block that sets nothing. The guide's example is parsed and checked by a test, so it cannot drift.
+- **Delivery**: the console gets each agent's rules from the script (embedded: directly; Fabric: in the run's snapshot, so a server needs no scripts). `Detectors` uses the agent's own thresholds for what that agent does. A pause belongs to the run, so the shortest `paused_longer_than` any agent set decides when it becomes a warning.
+- **`no_progress` and open question 1** (is reading a variable from outside the executor acceptable?): yes, as a copy and only at one moment. When the first event of a new loop round arrives, the previous round has finished and stored its result, so the variable is read then (on the run's own thread, from the copy `ObservableRun.variables()` hands out) and only a **hash** is recorded and sent. N equal hashes in a row at round boundaries is no progress. Reading on the run's thread matters: the first version read on the queue's thread and a fast run was read as if every round ended with its last value. A test with a real loop caught it.
+- **Not done**: `unsupported_claims ... from <field>` (a reviewer's structured count against a share) needs the same variable reading plus a notion of "claims"; left out of the first version rather than guessed. The first round's start is not a boundary, so the earliest a `no_progress: N rounds` fires is the start of round N+1.

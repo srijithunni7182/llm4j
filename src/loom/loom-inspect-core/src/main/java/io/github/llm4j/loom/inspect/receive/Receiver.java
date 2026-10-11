@@ -109,6 +109,7 @@ public final class Receiver {
         if (s.traceId() == null || !s.traceId().matches("[0-9a-f]{32}")) throw new Rejected("snapshot without a trace id");
         registry.setGraph(client, s.traceId(), s.graph());
         registry.setLadders(client, s.traceId(), s::ladders);
+        registry.setRules(client, s.traceId(), s.inspect());
         touch(client);
     }
 

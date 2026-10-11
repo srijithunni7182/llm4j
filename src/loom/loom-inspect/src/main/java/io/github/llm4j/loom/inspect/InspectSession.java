@@ -100,6 +100,8 @@ public final class InspectSession implements ObserveProvider.Session {
                 return built;
             }
         };
+        java.util.Map<String, io.github.llm4j.loom.inspect.state.InspectRules> rules = io.github.llm4j.loom.inspect.map.InspectRulesView.of(run.script());
+        io.github.llm4j.loom.inspect.map.ProgressSampler sampler = new io.github.llm4j.loom.inspect.map.ProgressSampler(rules, run::variables);
         EventSink[] self = new EventSink[1];
         EventSink sink = new EventSink(options.name() + "-" + attached.get(), QUEUE, event -> {
             TraceMapper.Output out = mapper.map(event);
@@ -108,14 +110,17 @@ public final class InspectSession implements ObserveProvider.Session {
             String trace = out.logs().isEmpty() ? null : out.logs().get(0).traceId();
             if (trace != null && !trace.equals(graphed.get())) {
                 graphed.set(trace);
-                if (server != null) registry.setGraph(options.name(), trace, graph.get());
+                if (server != null) {
+                    registry.setGraph(options.name(), trace, graph.get());
+                    registry.setRules(options.name(), trace, rules);
+                }
                 java.util.function.Supplier<List<java.util.Map<String, Object>>> ladders = null;
                 if (run.script() != null && !run.script().getDecisions().isEmpty()) {
                     ladders = () -> AutonomyView.of(run.script(), run.levelStore().orElse(null));
                     if (server != null) registry.setLadders(options.name(), trace, ladders);
                 }
                 if (link != null) {
-                    link.snapshot(new Snapshot(options.name(), resource.instanceId(), trace, run.runId(), firstWorkflow(run), graph.get(), List.of()), ladders);
+                    link.snapshot(new Snapshot(options.name(), resource.instanceId(), trace, run.runId(), firstWorkflow(run), graph.get(), List.of(), rules), ladders);
                 }
             }
             if (link != null) link.offer(out, resource); // to disk first; sending is another thread's business
@@ -131,7 +136,11 @@ public final class InspectSession implements ObserveProvider.Session {
         });
         self[0] = sink;
         sinks.add(sink);
-        run.addTraceListener(sink);
+        // a no_progress variable is read here, on the run's own thread, so it is the value at that moment and not whatever the queue gets to later
+        run.addTraceListener(event -> {
+            for (TraceEvent s : sampler.samples(event)) sink.onEvent(s);
+            sink.onEvent(event);
+        });
     }
 
     private static String firstWorkflow(ObservableRun run) {

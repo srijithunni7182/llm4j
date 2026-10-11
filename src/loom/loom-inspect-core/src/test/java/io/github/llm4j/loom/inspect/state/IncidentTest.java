@@ -248,4 +248,61 @@ class IncidentTest {
         toolEnd(5, "Competitor", "Example", "W/s0", true);
         assertThat(incidents().get(0)).containsEntry("kind", "FAILED"); // and it did not reset the streak either
     }
+
+    private void sample(int second, String owner, String variable, String loop, String hash) {
+        log(second, Semconv.EV_INSPECT_SAMPLE, "sample", Semconv.LOOM_INSPECT_AGENT, owner, Semconv.LOOM_INSPECT_VAR, variable, Semconv.LOOM_INSPECT_LOOP, loop, Semconv.LOOM_INSPECT_HASH, hash);
+    }
+
+    private static InspectRules rules(Integer sameAction, Long paused, Integer rounds, String variable) {
+        return new InspectRules(sameAction, null, null, null, null, paused, rounds, variable);
+    }
+
+    @Test
+    void anAgentsOwnRulesReplaceTheDefaultsForThatAgentOnly() {
+        start();
+        run().setRules(Map.of("Editor", rules(2, null, null, null)));
+        toolStart(1, "Editor", "Wiki", "W/s1", "h1");
+        toolStart(2, "Editor", "Wiki", "W/s1", "h1");
+        toolStart(1, "Other", "Wiki", "W/s1", "h1");
+        toolStart(2, "Other", "Wiki", "W/s1", "h1");
+        assertThat(incidents()).hasSize(1);
+        assertThat(incidents().get(0)).containsEntry("agent", "Editor");
+        assertThat(evidence(incidents().get(0))).containsEntry("threshold", 2);
+    }
+
+    @Test
+    void aVariableThatDoesNotChangeAcrossRoundBoundariesIsNoProgress_andChangingItEndsTheIncident() {
+        start();
+        run().setRules(Map.of("Editor", rules(null, null, 3, "review.score")));
+        sample(1, "Editor", "review.score", "W/s1", "five");
+        sample(2, "Editor", "review.score", "W/s1", "five");
+        assertThat(incidents()).isEmpty();
+        sample(3, "Editor", "review.score", "W/s1", "five");
+        Map<String, Object> inc = incidents().get(0);
+        assertThat(inc).containsEntry("kind", "LOOPING").containsEntry("agent", "Editor");
+        assertThat(evidence(inc)).containsEntry("rule", "no_progress").containsEntry("measured", 3).containsEntry("threshold", 3);
+        assertThat(String.valueOf(inc.get("title"))).contains("review.score has not changed");
+        sample(4, "Editor", "review.score", "W/s1", "eight");
+        assertThat(incidents().get(0)).containsEntry("state", "closed").containsEntry("closeReason", "review.score changed");
+    }
+
+    @Test
+    void aSampleForAnAgentWithNoNoProgressRuleIsIgnored() {
+        start();
+        run().setRules(Map.of("Editor", rules(2, null, null, null)));
+        for (int i = 1; i <= 6; i++) sample(i, "Editor", "review.score", "W/s1", "five");
+        sample(7, "Nobody", "x", "W/s1", "five");
+        assertThat(incidents()).isEmpty();
+    }
+
+    @Test
+    void theShortestPauseLimitAnyAgentSetDecidesWhenAPauseBecomesAWarning() {
+        start();
+        run().setRules(Map.of("Editor", rules(null, 10L, null, null)));
+        log(5, Semconv.EV_RUN_SUSPENDED, "run paused", Semconv.LOOM_SUSPEND_REASON, "RATE_LIMIT");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> inc = ((List<Map<String, Object>>) run().view(OtlpJson.instant(at(5 + 15))).get("incidents")).get(0);
+        assertThat(inc).containsEntry("severity", "warn");
+        assertThat(evidence(inc)).containsEntry("threshold", "10s");
+    }
 }
