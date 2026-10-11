@@ -18,7 +18,7 @@ public final class LadderDescriber {
         List<RungDef> rungs = ladder.getRungs();
         b.append("Ladder ").append(ladder.getName()).append('\n');
         if (decision != null) {
-            String ceiling = decision.getCeilingRung() == null ? rungs.get(0).getName() : decision.getCeilingRung();
+            String ceiling = decision.getCeilingRung() == null ? rungs.get(rungs.size() - 1).getName() : decision.getCeilingRung();
             b.append("Used by decision ").append(decision.getName()).append(", which may climb as far as ").append(ceiling).append(".\n");
             decision.getLadderArgs().forEach((k, v) -> b.append("  ").append(k).append(" = ").append(v.show()).append('\n'));
         } else if (!ladder.getParams().isEmpty()) {

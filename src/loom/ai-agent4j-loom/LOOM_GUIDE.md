@@ -843,7 +843,7 @@ workflow Triage(ticket, tier, amount, reason) {
 | `confirm` | the person | the proposal and its reasoning, to accept, edit or reject |
 | `autonomous` | the agent | nobody is asked, except a `sample` of cases (answered blind) and cases an `escalate` condition sends to a person |
 
-`decide Refund -> verdict` binds `verdict` (what takes effect), `verdict_proposal` and `verdict_level` (the rung it ran on). `ceiling:` is the highest rung this decision may reach however good the record is; without one it stays on the first rung.
+`decide Refund -> verdict` binds `verdict` (what takes effect), `verdict_proposal` and `verdict_level` (the rung it ran on). `ceiling:` is the highest rung this decision may reach however good the record is. Without one the top rung is the limit: every agent should be able to earn autonomy, however hard the climb, so a ladder with no `autonomous` rung is warned about. Write a lower ceiling to hold an agent back on purpose.
 
 **The record.** Every case is written to the ledger with its values, the proposal, **what the person did** (`accept` as it was, `edit` with the final version, `reject`), who, and how long they took. Facts that arrive later are added as *outcomes*, each with a name and optionally a value:
 

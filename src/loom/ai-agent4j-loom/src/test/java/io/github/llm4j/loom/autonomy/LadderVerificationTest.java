@@ -273,4 +273,102 @@ class LadderVerificationTest {
         LoomScript otherModel = new LoomParser(new Lexer(AGENT_AND_LADDER.replace("model: \"m\"", "model: \"m2\"")).tokenize()).parseScript();
         assertThat(AgentIdentity.of(otherModel, otherModel.getDecisions().get(0), dir)).isNotEqualTo(same);
     }
+
+    static final String PUBLISH = """
+            agent Writer {
+                model: "m"
+                system: "You are Writer."
+                guard { pii: mask }
+                output_schema: { post: string, reasoning: string }
+            }
+            measure edit_size(c) = distance(c.proposal.value, c.response.final)
+            ladder P {
+                rung edit { mode: confirm }
+                rung publish { mode: autonomous climb when history.count >= 2 and history.median(edit_size) <= 0.1 slip when history.median(edit_size) > 0.5 sample 5% blind }
+                climbing is automatic
+            }
+            decision Publish { proposed by: Writer proposes: post remember: reason: text ask: editors ladder: P ceiling: publish when the agent changes: start over }
+            workflow Triage(ticket, tier, amount, reason, customer_since) {
+                decide Publish -> post
+                note "{post}"
+            }
+            """;
+
+    // C6 — personal data and secrets never reach the ledger
+    @Test
+    void v_C6_personalDataIsMaskedBeforeAnythingIsWritten() {
+        DecideHarness h = new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), PUBLISH);
+        h.rawAgent = f -> "{\"post\": \"Contact jane.doe@example.com about it\", \"reasoning\": \"her card is 4111 1111 1111 1111\"}";
+        h.person = q -> "Contact her about it";
+        var in = h.inputs("gold", 1);
+        in.put("reason", "mail me at jane.doe@example.com");
+        h.runCase("p1", in);
+        String everything = h.ledger.records("Publish").toString();
+        assertThat(everything).doesNotContain("jane.doe@example.com").doesNotContain("4111 1111 1111 1111");
+        assertThat(everything).contains("Contact");
+    }
+
+    // C7 — retention removes the text and keeps the counts; a measure that needs the text is unknown, never zero
+    @Test
+    void v_C7_retentionRemovesTheTextAndKeepsTheCounts() {
+        DecideHarness h = new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), PUBLISH);
+        h.rawAgent = f -> "{\"post\": \"A fine post\", \"reasoning\": \"draft\"}";
+        h.person = q -> "accept";
+        for (int i = 0; i < 3; i++) h.runCase("p" + i, h.inputs("gold", 1));
+        LadderEngine engine = new LadderEngine(LadderPolicy.of(h.parsed(), h.parsed().getDecisions().get(0)), h.ledger, h.clock);
+        var before = engine.history("all", 1);
+        assertThat(before.cases()).hasSize(3);
+        h.ledger.purgeFields("Publish", h.clock.instant().plusSeconds(60));
+        var after = new LadderEngine(LadderPolicy.of(h.parsed(), h.parsed().getDecisions().get(0)), h.ledger, h.clock).history("all", 1);
+        assertThat(after.cases()).as("the counts survive").hasSize(3);
+        assertThat(h.ledger.records("Publish").toString()).doesNotContain("A fine post").doesNotContain("draft");
+        var interpreter = io.github.llm4j.loom.autonomy.expr.Interpreter.eval(io.github.llm4j.loom.autonomy.expr.ExprParser.parse("history.median(edit_size)"),
+                new io.github.llm4j.loom.autonomy.expr.Interpreter.Context(Map.of("history", after),
+                        Map.of("edit_size", new io.github.llm4j.loom.autonomy.expr.Interpreter.Measure("edit_size", "c", io.github.llm4j.loom.autonomy.expr.ExprParser.parse(
+                                "distance(c.proposal.value, c.response.final)"))), h.clock.millis()));
+        assertThat(interpreter).as("a measure that needs the removed text is unknown, not zero").isEqualTo(io.github.llm4j.loom.autonomy.expr.V.UNDEFINED);
+    }
+
+    // D10 — a ledger that cannot be written never stops a decision, and what the journal holds is written when it can be
+    @Test
+    void v_D10_aLedgerThatIsDownDoesNotStopTheRunAndCatchesUpOnResume() {
+        FaultLedger ledger = new FaultLedger(new MemoryLedger());
+        DecideHarness h = new DecideHarness(dir, ledger, new MemoryLevelStore(), AGENT_AND_LADDER);
+        h.person = f -> "approve";
+        ledger.failWrites = true;
+        io.github.llm4j.loom.runtime.RunJournal journal = io.github.llm4j.loom.runtime.RunJournal.inMemory();
+        var first = h.executor(h.newRun(journal), "run-1");
+        first.executeWorkflow("Triage", h.inputs("gold", 20));
+        assertThat(first.getContext().getAll().get("verdict")).isEqualTo("approve");
+        assertThat(h.last.audit).contains("autonomy_degraded");
+        assertThat(ledger.records("Refund")).isEmpty();
+        ledger.failWrites = false;
+        h.executor(h.newRun(journal), "run-1").executeWorkflow("Triage", h.inputs("gold", 20));
+        List<LCase> cases = LedgerFold.cases(ledger.records("Refund"));
+        assertThat(cases).hasSize(1);
+        assertThat(cases.get(0).responseChoice()).isEqualTo("approve");
+        assertThat(h.asked).hasSize(1);
+    }
+
+    // H5 / J2 — a very large artifact is stored and read back, and measuring it is bounded
+    @Test
+    void v_H5_aFiveMegabyteArtifactIsHandledWithinABound() {
+        Stores files = Stores.file(dir.resolve("big"));
+        DecideHarness h = new DecideHarness(dir, files.ledger, files.levels, PUBLISH.replace("guard { pii: mask }", ""));
+        String big = "lorem ipsum dolor sit amet ".repeat(190_000);
+        h.rawAgent = f -> "{\"post\": \"" + big + "\", \"reasoning\": \"long\"}";
+        h.person = q -> "accept";
+        long start = System.nanoTime();
+        h.runCase("big1", h.inputs("gold", 1));
+        h.runCase("big2", h.inputs("gold", 1));
+        long seconds = (System.nanoTime() - start) / 1_000_000_000L;
+        assertThat(seconds).as("seconds for two cases with 5 MB artifacts").isLessThan(60);
+        List<LCase> cases = LedgerFold.cases(files.ledger.records("Publish"));
+        assertThat(cases).hasSize(2);
+        assertThat(cases.get(0).proposalValue()).hasSize(big.length());
+        assertThat(cases.get(0).responseFinal()).hasSize(big.length());
+        LadderEngine engine = new LadderEngine(LadderPolicy.of(h.parsed(), h.parsed().getDecisions().get(0)), files.ledger, h.clock);
+        assertThat(engine.history("all", 1).cases()).hasSize(2);
+        assertThat(engine.afterResponse("all")).isNotNull();
+    }
 }

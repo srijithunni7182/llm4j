@@ -149,6 +149,11 @@ final class DecideHarness {
         return m;
     }
 
+    /** The script as loaded now. */
+    io.github.llm4j.loom.ast.LoomScript parsed() {
+        return DecisionParseTest.parse(script);
+    }
+
     /** The identity of the agent behind the Refund decision in this script, for seeding a level. */
     String hashOfRefund() {
         var parsed = DecisionParseTest.parse(script);

@@ -72,9 +72,9 @@ public final class LadderPolicy {
 
     public String nameOf(int rung) { return ladder.getRungs().get(rung).getName(); }
 
-    /** The highest rung this decision may reach: the one it names, or the first. */
+    /** The highest rung this decision may reach: the one it names, or the top one (every agent can earn autonomy; a ceiling holds it back on purpose). */
     public int ceiling() {
-        int i = decision.getCeilingRung() == null ? 0 : ladder.indexOf(decision.getCeilingRung());
+        int i = decision.getCeilingRung() == null ? ladder.getRungs().size() - 1 : ladder.indexOf(decision.getCeilingRung());
         return Math.max(0, i);
     }
 

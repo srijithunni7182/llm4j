@@ -295,7 +295,7 @@ public final class SecurityAudit {
             if (d.getLadder() == null) continue;
             io.github.llm4j.loom.ast.LadderDef l = script.getLadders().stream().filter(x -> x.getName().equals(d.getLadder())).findFirst().orElse(null);
             if (l == null) continue;
-            int ceiling = d.getCeilingRung() == null ? 0 : Math.max(0, l.indexOf(d.getCeilingRung()));
+            int ceiling = d.getCeilingRung() == null ? l.getRungs().size() - 1 : Math.max(0, l.indexOf(d.getCeilingRung()));
             String who = "decision " + d.getName() + " / ladder " + l.getName();
             for (int i = 0; i <= ceiling && i < l.getRungs().size(); i++) {
                 io.github.llm4j.loom.ast.RungDef r = l.getRungs().get(i);

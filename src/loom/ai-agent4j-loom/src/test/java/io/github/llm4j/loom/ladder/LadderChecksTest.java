@@ -140,8 +140,22 @@ class LadderChecksTest {
     void aBindingMustNameALadderAndARungOfIt() {
         assertThat(errors(good("ladder: Cautious", "ladder: Cautius"))).anyMatch(e -> e.contains("decision Refund") && e.contains("no ladder named Cautius") && e.contains("did you mean 'Cautious'?"));
         assertThat(errors(good("ceiling: suggest", "ceiling: sugest"))).anyMatch(e -> e.contains("ceiling") && e.contains("no rung named sugest") && e.contains("did you mean 'suggest'?"));
-        assertThat(warnings(good("    ceiling: suggest\n", ""))).anyMatch(e -> e.contains("no ceiling") && e.contains("stays on watch"));
+        // with no ceiling the top rung is the limit: every agent can earn autonomy
+        assertThat(warnings(good("    ceiling: suggest\n", ""))).noneMatch(e -> e.contains("ceiling"));
+        assertThat(errors(good("    ceiling: suggest\n", ""))).isEmpty();
         assertThat(errors(good("ceiling: suggest", "ceiling: act"))).isEmpty();
+    }
+
+    @Test
+    void aLadderWithNoAutonomousRungIsToldItCanNeverActAlone() {
+        String noAuto = AGENT + """
+                ladder L { rung watch { mode: blind } rung suggest { mode: confirm climb when history.count >= 3 } climbing is automatic }
+                decision D { proposed by: Triager choices: a, b, escalate ask: p ladder: L when the agent changes: start over }
+                workflow W() { decide D -> v note "{v}" }
+                """;
+        assertThat(errors(noAuto)).isEmpty();
+        assertThat(warnings(noAuto)).anyMatch(w -> w.contains("no rung is autonomous") && w.contains("should be there"));
+        assertThat(warnings(AGENT + GOOD_LADDER + GOOD_DECISION)).noneMatch(w -> w.contains("no rung is autonomous"));
     }
 
     @Test

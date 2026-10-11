@@ -140,6 +140,9 @@ public final class LadderChecks {
                 if (r.getSamplePercent() <= 0) warn(r.getLine(), rung, "has no sample: nobody checks its cases blind, so its record can't be tested");
             }
         }
+        if (rungs.stream().noneMatch(r -> r.getMode() == RungDef.Mode.AUTONOMOUS)) {
+            warn(l.getLine(), who, "no rung is autonomous, so an agent on this ladder can never act on its own: add a rung with mode: autonomous (it may be hard to reach, but it should be there)");
+        }
         if (rungs.size() > 1 && !l.isClimbingStated()) {
             error(l.getLine(), who, "say who approves climbing: climbing needs approval from NAME, or: climbing is automatic");
         }
@@ -198,10 +201,7 @@ public final class LadderChecks {
         Map<String, T> params = params(d, l, who, fields, ms);
         conditions(l, fields, params, ms);
 
-        if (d.getCeilingRung() == null) {
-            warn(d.getLine(), who, "no ceiling: the agent stays on " + l.getRungs().get(0).getName() + ", the first rung of ladder " + l.getName()
-                    + " (write ceiling: " + (l.getRungs().size() > 1 ? l.getRungs().get(1).getName() : l.getRungs().get(0).getName()) + " to let it climb that far)");
-        } else if (l.rung(d.getCeilingRung()) == null) {
+        if (d.getCeilingRung() != null && l.rung(d.getCeilingRung()) == null) {
             error(d.getCeilingRungLine(), who, "ceiling: no rung named " + d.getCeilingRung() + " in ladder " + l.getName() + Suggest.hint(d.getCeilingRung(), rungNames(l)));
         }
 
@@ -218,7 +218,7 @@ public final class LadderChecks {
         retention(d, l, who);
         if (d.getOnChange() == DecisionDef.OnChange.KEEP_TRUST) {
             int first = firstAutonomous(l);
-            int ceiling = d.getCeilingRung() == null ? 0 : Math.max(0, l.indexOf(d.getCeilingRung()));
+            int ceiling = d.getCeilingRung() == null ? l.getRungs().size() - 1 : Math.max(0, l.indexOf(d.getCeilingRung()));
             if (first >= 0 && ceiling >= first) {
                 error(d.getLine(), who, "keep the trust would let a new agent act on an old agent's record, and rung " + l.getRungs().get(first).getName()
                         + " is autonomous and can be reached: lower the ceiling below it, or write when the agent changes: start over");
