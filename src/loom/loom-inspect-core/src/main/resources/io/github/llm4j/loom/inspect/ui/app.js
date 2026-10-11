@@ -62,6 +62,7 @@
       b.type = 'button';
       b.appendChild(el('span', 'dot ' + tabState(r.status)));
       b.appendChild(el('span', '', (grouped && r.client ? r.client + ' / ' : '') + (r.workflow || 'run')));
+      if (r.incidents > 0) { b.appendChild(el('span', 'sev ' + (r.worstIncident || 'warn') + ' inc', String(r.incidents))); }
       b.title = r.status + ' · ' + shortId(r.runId || r.traceId);
       b.addEventListener('click', function () { selected = r.traceId; agentFilter = null; showProcs = false; tick(); });
       nav.appendChild(b);
@@ -287,6 +288,57 @@
   }
   var lastScroll = null;
 
+  var KINDS = { PAUSED: 'Paused', LOOPING: 'Looping', SUSPECT_OUTPUT: 'Suspect output', FAILED: 'Failing', BUDGET: 'Budget' };
+  var SEV = { high: 'High', warn: 'Warning', info: 'Info' };
+
+  function ago(iso) {
+    var s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+    return s < 60 ? s + 's ago' : s < 3600 ? Math.floor(s / 60) + 'm ago' : Math.floor(s / 3600) + 'h ago';
+  }
+
+  function renderIncidents(list) {
+    var open = list.filter(function (i) { return i.state === 'open'; });
+    var strip = $('attention');
+    strip.textContent = '';
+    strip.hidden = open.length === 0;
+    var worst = open.some(function (i) { return i.severity === 'high'; }) ? 'high' : open.some(function (i) { return i.severity === 'warn'; }) ? 'warn' : 'info';
+    strip.className = 'attention ' + worst;
+    if (open.length) {
+      strip.appendChild(el('span', 'lead', 'Needs attention'));
+      open.forEach(function (i) {
+        var b = el('button', 'sev ' + i.severity, (SEV[i.severity] || i.severity) + ' · ' + (KINDS[i.kind] || i.kind) + (i.agent ? ' · ' + i.agent : ''));
+        b.type = 'button';
+        b.title = i.title;
+        b.addEventListener('click', function () { if (i.agent) { agentFilter = i.agent; render(); } $('incidents').scrollIntoView({ block: 'nearest' }); });
+        strip.appendChild(b);
+      });
+    }
+    $('incidents').hidden = list.length === 0;
+    $('incsub').textContent = open.length + ' open' + (list.length > open.length ? ' · ' + (list.length - open.length) + ' closed' : '');
+    var box = $('inclist');
+    box.textContent = '';
+    list.forEach(function (i) {
+      var row = el('div', 'incident' + (i.state === 'closed' ? ' closed' : ''));
+      var top = el('div', 'top');
+      top.appendChild(el('span', 'sev ' + i.severity, SEV[i.severity] || i.severity));
+      top.appendChild(el('span', 'chip', (KINDS[i.kind] || i.kind) + (i.kind === 'SUSPECT_OUTPUT' ? ' · suspect' : '')));
+      top.appendChild(el('span', 'ttl', i.title));
+      top.appendChild(el('span', 'when mono', (i.state === 'closed' ? 'closed ' + ago(i.closedAt) + ' · ' + i.closeReason : 'since ' + ago(i.since))));
+      row.appendChild(top);
+      var ev = el('div', 'evid mono');
+      (i.evidence || []).forEach(function (e) {
+        var line = el('div');
+        line.appendChild(el('span', 'rule', e.rule + ': '));
+        line.appendChild(el('b', '', String(e.measured) + (e.threshold != null ? ' (threshold ' + e.threshold + ')' : '')));
+        if (e.detail) { line.appendChild(document.createTextNode(' — ' + e.detail)); }
+        ev.appendChild(line);
+      });
+      row.appendChild(ev);
+      if (i.kind === 'SUSPECT_OUTPUT') { row.appendChild(el('p', 'note', 'This means no source was found for these figures in what the step was given or fetched. It does not mean they are false.')); }
+      box.appendChild(row);
+    });
+  }
+
   var RUNGS = ['watch', 'suggest', 'act'];
 
   function renderLadders(list) {
@@ -349,7 +401,8 @@
     var agents = $('agents');
     agents.textContent = '';
     v.agents.forEach(function (a) {
-      var tr = el('tr', a.status === 'running' ? 'run' : '');
+      var flagged = (v.incidents || []).filter(function (i) { return i.state === 'open' && i.agent === a.name; });
+      var tr = el('tr', (a.status === 'running' ? 'run' : '') + (flagged.length ? ' flag ' + (flagged.some(function (i) { return i.severity === 'high'; }) ? 'high' : '') : ''));
       var first = cell(tr, '');
       var ag = el('div', 'ag');
       ag.appendChild(el('span', 'dot ' + a.status));
@@ -381,6 +434,7 @@
 
     ensureGraph(selected);
     renderGraph(v);
+    renderIncidents(v.incidents || []);
     renderLadders(v.ladders || []);
     renderSpend(v.spend || []);
     renderFollow(v);

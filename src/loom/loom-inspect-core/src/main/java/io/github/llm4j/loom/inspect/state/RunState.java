@@ -166,7 +166,8 @@ public final class RunState {
             }
             case Semconv.KIND_TOOL -> {
                 toolEnded(s, was);
-                detectors.onToolEnd(s.text(Semconv.GEN_AI_AGENT_NAME), s.text(Semconv.GEN_AI_TOOL_NAME), s.statusCode() == SpanRec.STATUS_ERROR, s.text(Semconv.LOOM_STEP), s.endNanos());
+                // a call the runtime blocked as a repeat says nothing about whether the tool works: neither a failure nor a success
+                if (!Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_NO_RESULT))) detectors.onToolEnd(s.text(Semconv.GEN_AI_AGENT_NAME), s.text(Semconv.GEN_AI_TOOL_NAME), s.statusCode() == SpanRec.STATUS_ERROR, s.text(Semconv.LOOM_STEP), s.endNanos());
             }
             case Semconv.KIND_SLEEP -> {
                 sleepWakeAt = null;

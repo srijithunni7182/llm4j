@@ -232,4 +232,20 @@ class IncidentTest {
         for (int i = 0; i < 6; i++) reg.applyLogs(PROC, List.of(r)); // sent again after lost acknowledgements
         assertThat(incidents()).isEmpty();
     }
+
+    @Test
+    void aCallBlockedAsARepeatNeitherBreaksNorStartsAFailingStreak() {
+        start();
+        toolEnd(1, "Competitor", "Example", "W/s0", true);
+        toolEnd(2, "Competitor", "Example", "W/s0", true);
+        Map<String, Object> a = new LinkedHashMap<>();
+        a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_TOOL);
+        a.put(Semconv.GEN_AI_AGENT_NAME, "Competitor");
+        a.put(Semconv.GEN_AI_TOOL_NAME, "Example");
+        a.put(Semconv.LOOM_TOOL_NO_RESULT, true);
+        reg.applySpans(PROC, List.of(new SpanRec(TRACE, Ids.spanId(RUN, "blocked"), null, "execute_tool Example", SpanRec.CLIENT, at(3), at(4), a, SpanRec.STATUS_UNSET, null, List.of())));
+        assertThat(incidents()).isEmpty();      // it did not count as a third failure
+        toolEnd(5, "Competitor", "Example", "W/s0", true);
+        assertThat(incidents().get(0)).containsEntry("kind", "FAILED"); // and it did not reset the streak either
+    }
 }

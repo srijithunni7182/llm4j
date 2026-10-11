@@ -296,4 +296,39 @@ class TraceMapperTest {
                 ev(9, TraceEvent.DELEGATE_END, "Writer", "W/s0", "There are 5000 items", "calls", 1, "tokens", 1, "cost", "0"));
         assertThat(spanNamed(spans, "invoke_agent Writer").attr(Semconv.LOOM_GROUNDING_UNGROUNDED)).isEqualTo(1L);
     }
+
+    @Test
+    void aCallTheRuntimeBlockedAsARepeatIsNotLeftInFlight_itIsClosedAsHavingNoResultAtTheNextThought() {
+        TraceMapper m = new TraceMapper(RUN, Detail.FULL);
+        List<LogRec> logs = new ArrayList<>();
+        List<SpanRec> spans = new ArrayList<>();
+        feed(m, logs, spans,
+                ev(1, TraceEvent.DELEGATE_START, "Fetcher", "W/s0", "fetch"),
+                ev(2, TraceEvent.ACTION, "Fetcher", "W/s0", "Flaky {\"q\":1}", "tool", "Flaky"),
+                ev(3, TraceEvent.OBSERVATION, "Fetcher", "W/s0", "error: 500"),
+                ev(4, TraceEvent.THOUGHT, "Fetcher", "W/s0", "again"),
+                ev(5, TraceEvent.ACTION, "Fetcher", "W/s0", "Flaky {\"q\":1}", "tool", "Flaky")); // blocked: no observation follows
+        assertThat(spans).filteredOn(s -> s.name().equals("execute_tool Flaky")).hasSize(1);
+        feed(m, logs, spans, ev(6, TraceEvent.THOUGHT, "Fetcher", "W/s0", "again"));
+        List<SpanRec> flaky = spans.stream().filter(s -> s.name().equals("execute_tool Flaky")).toList();
+        assertThat(flaky).hasSize(2);
+        assertThat(flaky.get(1).attr(Semconv.LOOM_TOOL_NO_RESULT)).isEqualTo(true);
+        assertThat(flaky.get(1).statusCode()).isEqualTo(SpanRec.STATUS_UNSET);
+    }
+
+    @Test
+    void parallelCallsInOneTurnAreStillMatchedToTheirObservationsInOrder() {
+        TraceMapper m = new TraceMapper(RUN, Detail.FULL);
+        List<LogRec> logs = new ArrayList<>();
+        List<SpanRec> spans = new ArrayList<>();
+        feed(m, logs, spans,
+                ev(1, TraceEvent.DELEGATE_START, "A", "W/s0", "go"),
+                ev(2, TraceEvent.THOUGHT, "A", "W/s0", "two at once"),
+                ev(3, TraceEvent.ACTION, "A", "W/s0", "T1 {}", "tool", "T1"),
+                ev(3, TraceEvent.ACTION, "A", "W/s0", "T2 {}", "tool", "T2"),
+                ev(4, TraceEvent.OBSERVATION, "A", "W/s0", "one"),
+                ev(5, TraceEvent.OBSERVATION, "A", "W/s0", "two"));
+        assertThat(spans).extracting(SpanRec::name).containsExactly("execute_tool T1", "execute_tool T2");
+        assertThat(spans).allSatisfy(s -> assertThat(s.attr(Semconv.LOOM_TOOL_NO_RESULT)).isNull());
+    }
 }

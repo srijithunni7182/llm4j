@@ -53,6 +53,8 @@
 
   <div id="banner" class="banner" hidden></div>
 
+  <div id="attention" class="attention" role="status" hidden></div>
+
   <section id="empty" class="empty" hidden>
     <img class="mark" src="/logo.png" alt="" width="64" height="64">
     <h1>Waiting for a run</h1>
@@ -84,6 +86,11 @@
         <div class="chips filters" id="filters"></div>
         <ul class="trace mono" id="trace" aria-label="Live trace"></ul>
         <p id="notrace" class="muted pad" hidden>Nothing has happened yet.</p>
+      </section>
+
+      <section class="panel c8" id="incidents" aria-labelledby="h-inc" hidden>
+        <div class="ph"><h2 id="h-inc">Incidents</h2><span class="sub mono" id="incsub"></span></div>
+        <div id="inclist"></div>
       </section>
 
       <section class="panel c8" aria-labelledby="h-agents">

@@ -89,7 +89,10 @@ public final class TraceMapper {
             case TraceEvent.DELEGATE_REPLAYED -> delegateReplayed(e, now, spans);
             case TraceEvent.ACTION -> toolStart(e, data, now, logs);
             case TraceEvent.OBSERVATION -> toolEnd(e, now, logs, spans);
-            case TraceEvent.THOUGHT -> logs.add(log(now, LogRec.INFO, Semconv.EV_THOUGHT, detail.apply(e.text()), e, null));
+            case TraceEvent.THOUGHT -> {
+                closeUnanswered(e.agent(), now, spans);
+                logs.add(log(now, LogRec.INFO, Semconv.EV_THOUGHT, detail.apply(e.text()), e, null));
+            }
             case TraceEvent.BUDGET -> logs.add(log(now, LogRec.WARN, Semconv.EV_BUDGET, e.text(), e, data));
             case TraceEvent.TASK_START -> taskStart(e, data, now, logs);
             case TraceEvent.TASK_END -> taskEnd(e, data, now, spans);
@@ -182,7 +185,22 @@ public final class TraceMapper {
         logs.add(record(now, LogRec.INFO, Semconv.EV_SPAN_START, p.name(), startAttrs, p.spanId()));
     }
 
+    /**
+     * A tool call that was started and never answered when its agent begins its next thought or finishes: the runtime blocks an exact
+     * repeat of an earlier call and feeds the model an error, without reporting an observation. It is closed as having no result, so
+     * the page does not show it in flight for the rest of the run.
+     */
+    private void closeUnanswered(String agent, long now, List<SpanRec> spans) {
+        Deque<Pending> queue = agent == null ? null : tools.get(agent);
+        if (queue == null) return;
+        Pending p;
+        while ((p = queue.pollFirst()) != null) {
+            spans.add(span(p, now, SpanRec.STATUS_UNSET, null, Map.of(Semconv.LOOM_TOOL_NO_RESULT, true)));
+        }
+    }
+
     private void delegateEnd(TraceEvent e, Map<String, Object> data, long now, List<SpanRec> spans) {
+        closeUnanswered(e.agent(), now, spans);
         Pending p = agents.remove(e.agent() + "@" + e.step());
         if (p == null) p = new Pending(Ids.spanId(runId, e.step() + "#agent:" + e.agent()), "invoke_agent " + e.agent(), Semconv.KIND_AGENT, e.agent(), null, e.step(), now, agentAttrs(e));
         Map<String, Object> extra = new LinkedHashMap<>();

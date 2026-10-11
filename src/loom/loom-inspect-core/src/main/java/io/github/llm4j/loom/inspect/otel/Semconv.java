@@ -46,6 +46,8 @@ public final class Semconv {
     public static final String LOOM_TASK = "loom.task";
     public static final String LOOM_TASK_OUTCOME = "loom.task.outcome";
     public static final String LOOM_TEXT = "loom.text";
+    /** A tool call that got no result: the runtime blocked it as an exact repeat of an earlier one. */
+    public static final String LOOM_TOOL_NO_RESULT = "loom.tool.no_result";
     /** Short hash of a tool call (tool and input), computed in the process so a loop can be seen even when no text leaves it. */
     public static final String LOOM_ACTION_HASH = "loom.action.hash";
     /** Short hash of an agent's answer, for the same reason. */

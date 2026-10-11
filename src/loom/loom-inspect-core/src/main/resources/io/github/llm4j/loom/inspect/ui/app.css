@@ -194,3 +194,24 @@ main.stale { opacity: .55; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .nav { display: inline-flex; gap: var(--space-2); margin-right: var(--space-2); }
 .wt.proc { border-style: dashed; }
+
+/* incidents: severity is always written in words; colour only marks it */
+.attention { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-4); padding: 10px var(--space-4); border: 1px solid var(--line-strong); border-radius: var(--radius-lg); background: var(--surface); }
+.attention .lead { font: 600 11px/14px var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); margin-right: var(--space-2); }
+.sev { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 11px; font: 600 11px/1 var(--font-sans); letter-spacing: .04em; border: 1px solid currentColor; background: transparent; cursor: pointer; }
+.sev.high { color: var(--danger); } .sev.warn { color: var(--live); } .sev.info { color: var(--wait); }
+.sev::before { content: ""; width: 7px; height: 7px; background: currentColor; border-radius: 50%; }
+.sev.high::before { border-radius: 1px; transform: rotate(45deg); }
+.attention.high { border-color: var(--danger); } .attention.warn { border-color: var(--live); }
+.incident { padding: 12px 0; border-top: 1px solid var(--line); }
+.incident:first-child { border-top: 0; }
+.incident.closed { opacity: .6; }
+.incident .top { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+.incident .ttl { font-weight: 600; }
+.incident .when { margin-left: auto; color: var(--ink-faint); }
+.evid { margin: 8px 0 0; padding: 8px 10px; border-radius: var(--radius-md); background: var(--surface-raised); display: grid; gap: 4px; }
+.evid .rule { color: var(--ink-faint); } .evid b { font-weight: 500; color: var(--ink); }
+.note { margin: 6px 0 0; color: var(--ink-faint); }
+.wt .inc { margin-left: 2px; }
+tr.flag td:first-child { box-shadow: inset 3px 0 0 var(--live); }
+tr.flag.high td:first-child { box-shadow: inset 3px 0 0 var(--danger); }

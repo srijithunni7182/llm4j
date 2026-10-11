@@ -115,6 +115,11 @@ class RealRunTest {
             @Override public String getDescription() { return "test tool"; }
             @Override public String execute(Map<String, Object> args) { return "the answer is 42"; }
         });
+        tools.register("Flaky", new Tool() {
+            @Override public String getName() { return "Flaky"; }
+            @Override public String getDescription() { return "always fails"; }
+            @Override public String execute(Map<String, Object> args) { return "error: 500 server error"; }
+        });
         HarnessExecutor e = new HarnessExecutor(script, tools, factory);
         e.setClock(clock);
         e.setSleeper(d -> clock.advance(d));
@@ -221,5 +226,68 @@ class RealRunTest {
         assertThat(steps.keySet()).isNotEmpty().allSatisfy(k -> assertThat(paths).contains((String) k));
         assertThat((Map<String, Object>) steps.get("Main/s1/r.0")).containsEntry("runs", 2); // two rounds, one place
         assertThat((Map<String, Object>) steps.get("Main/s0")).containsEntry("state", "done");
+    }
+
+    private static final String MISBEHAVING = """
+            agent Fetcher { model: "m" tools: [Flaky] max_iterations: 8 }
+            agent Writer { model: "m" }
+            workflow Main() {
+                delegate "fetch the numbers" to Fetcher -> got
+                delegate "write two sentences about them" to Writer -> text
+            }
+            """;
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aRealRunThatMisbehavesRaisesTheIncidentsItShould() {
+        String flaky = "```json\n{\"thought\": \"again\", \"action\": \"Flaky\", \"action_input\": {\"q\": \"numbers\"}}\n```";
+        HarnessExecutor e = executor("i_1", List.of(flaky, flaky, flaky, flaky, done("could not fetch"),
+                done("87% of 1200 users in 2019 liked it, across 340 sessions")), MISBEHAVING);
+        e.executeWorkflow("Main", Map.of());
+        Map<String, Object> view = registry.find("getviral-prod", Ids.traceId(RUN)).orElseThrow().view();
+        List<Map<String, Object>> incidents = (List<Map<String, Object>>) view.get("incidents");
+        assertThat(incidents).extracting(i -> i.get("kind")).contains("LOOPING", "SUSPECT_OUTPUT");
+        Map<String, Object> suspect = incidents.stream().filter(i -> "SUSPECT_OUTPUT".equals(i.get("kind"))).findFirst().orElseThrow();
+        assertThat(suspect).containsEntry("agent", "Writer").containsEntry("severity", "high");
+        Map<String, Object> loop = incidents.stream().filter(i -> "LOOPING".equals(i.get("kind"))).findFirst().orElseThrow();
+        assertThat(loop).containsEntry("agent", "Fetcher");
+        // the run finished, so every incident is over, and says why
+        assertThat(incidents).allSatisfy(i -> assertThat(i).containsEntry("state", "closed").containsEntry("closeReason", "the run ended"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aToolThatFailsThreeTimesInARealRunIsFlagged() {
+        // the agent runtime itself stops an identical failing call from being repeated, so a failing streak needs three different calls
+        String[] calls = new String[3];
+        for (int i = 0; i < 3; i++) calls[i] = "```json\n{\"thought\": \"try\", \"action\": \"Flaky\", \"action_input\": {\"q\": \"attempt-" + i + "\"}}\n```";
+        HarnessExecutor e = executor("i_1", List.of(calls[0], calls[1], calls[2], done("could not fetch"), done("fine")), MISBEHAVING);
+        e.executeWorkflow("Main", Map.of());
+        List<Map<String, Object>> incidents = (List<Map<String, Object>>) registry.find("getviral-prod", Ids.traceId(RUN)).orElseThrow().view().get("incidents");
+        Map<String, Object> failing = incidents.stream().filter(i -> "FAILED".equals(i.get("kind"))).findFirst().orElseThrow();
+        assertThat(failing).containsEntry("agent", "Fetcher");
+        assertThat(String.valueOf(failing.get("title"))).contains("Flaky");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void theSameIncidentsAreRaisedWhenNoTextLeavesTheProcess() {
+        // metadata detail: no prompt, answer or tool input is sent, only hashes and counts
+        HarnessExecutor e = executor("i_1", List.of(done("a fine answer with 87% and 1200 and 2019 and 340")), SCRIPT);
+        // the standard script has a Researcher with a tool; use the misbehaving one at metadata level through a second mapper
+        TraceMapper mapper = new TraceMapper(RUN, Detail.METADATA);
+        RunRegistry local = new RunRegistry();
+        HarnessExecutor w = executor("i_2", List.of(done("87% of 1200 users in 2019 liked it, across 340 sessions")), "agent Writer { model: \"m\" }\nworkflow Main() { delegate \"write two sentences\" to Writer -> text }\n");
+        Resource resource = Resource.of("p", "i_9");
+        w.addTraceListener(event -> {
+            TraceMapper.Output out = mapper.map(event);
+            local.applyLogs(resource, out.logs());
+            local.applySpans(resource, out.spans());
+        });
+        w.executeWorkflow("Main", Map.of());
+        Map<String, Object> view = local.find("p", Ids.traceId(RUN)).orElseThrow().view();
+        List<Map<String, Object>> incidents = (List<Map<String, Object>>) view.get("incidents");
+        assertThat(incidents).extracting(i -> i.get("kind")).contains("SUSPECT_OUTPUT");
+        assertThat(String.valueOf(view)).doesNotContain("liked it");
     }
 }
