@@ -99,6 +99,24 @@ public class LoomScript implements Node {
     public RateLimitDef getRateLimits() { return rateLimits; }
     public void setRateLimits(RateLimitDef rateLimits) { this.rateLimits = rateLimits; }
 
+    /**
+     * Gives every decision that has neither a {@code ladder:} nor a {@code trust { }} block the default ladder of the agent that proposes for it.
+     * Safe to call again after more has been merged in: a decision that already has a ladder is left as it is.
+     */
+    public void applyAgentLadders() {
+        for (DecisionDef d : decisions) {
+            if (d.getLadder() != null || d.isTrustGiven() || d.getAgent() == null) continue;
+            for (AgentDef a : agents) {
+                if (!a.getName().equals(d.getAgent()) || a.getLadder() == null) continue;
+                d.setLadder(a.getLadder(), a.getLadderLine());
+                d.setLadderFromAgent(true);
+                d.getLadderArgs().putAll(a.getLadderArgs());
+                if (d.getCeilingRung() == null && a.getCeilingRung() != null) d.setCeilingRung(a.getCeilingRung(), a.getCeilingRungLine());
+                break;
+            }
+        }
+    }
+
     public void merge(LoomScript other) {
         this.agents.addAll(other.agents);
         this.workflows.addAll(other.workflows);

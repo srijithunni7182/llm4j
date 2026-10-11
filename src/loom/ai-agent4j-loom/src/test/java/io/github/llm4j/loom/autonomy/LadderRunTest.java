@@ -97,6 +97,25 @@ class LadderRunTest {
     }
 
     @Test
+    void aLadderWrittenOnTheAgentRunsTheDecisionExactlyAsIfTheDecisionHadBoundIt() {
+        String onAgent = REFUND
+                .replace("output_schema: { choice: string, reasoning: string, confidence: number }\n}",
+                        "output_schema: { choice: string, reasoning: string, confidence: number }\n    ladder: L\n    ceiling: act\n}")
+                .replace("                ladder: L\n                ceiling: act\n", "");
+        assertThat(onAgent).doesNotContain("                ladder: L");
+        DecideHarness h = harness(onAgent);
+        h.agent = f -> new String[] {"approve", "fine", "0.9"};
+        h.person = f -> "approve";
+        for (int i = 0; i < 3; i++) h.runCase("w" + i, h.inputs("gold", 50 + i));
+        assertThat(h.asked).hasSize(3).noneMatch(q -> q.contains("The agent proposes"));
+        assertThat(h.runCase("s0", h.inputs("gold", 60))).containsEntry("verdict_level", "suggest");
+        for (int i = 0; i < 5; i++) h.runCase("s" + (i + 1), h.inputs("gold", 70 + i));
+        int asked = h.asked.size();
+        assertThat(h.runCase("a0", h.inputs("gold", 90))).containsEntry("verdict_level", "act");
+        assertThat(h.asked).hasSize(asked);
+    }
+
+    @Test
     void aNewAgentIsWatchedTheQuestionHidesTheProposalAndEveryPartIsRecorded() {
         DecideHarness h = harness(REFUND);
         h.agent = f -> new String[] {"approve", "the order was damaged", "0.9"};

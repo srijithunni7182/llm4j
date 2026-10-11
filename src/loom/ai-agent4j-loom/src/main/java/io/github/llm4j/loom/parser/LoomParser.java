@@ -72,6 +72,7 @@ public class LoomParser {
             }
         }
 
+        script.applyAgentLadders();
         return script;
     }
 
@@ -87,7 +88,7 @@ public class LoomParser {
     }
 
     private static final java.util.List<String> AGENT_SETTINGS = java.util.List.of("model", "system", "system_template", "prompt", "persona", "tools",
-            "mcp_servers", "skills", "memory", "voice", "guard", "routing", "knowledge", "output_schema", "approve", "max_iterations", "temperature", "budget");
+            "mcp_servers", "skills", "memory", "voice", "guard", "routing", "knowledge", "output_schema", "approve", "max_iterations", "temperature", "budget", "ladder", "ceiling");
 
     /** What to say when something that is not a setting turns up inside an agent: the word itself, what an agent can have, and the nearest guess. */
     private static String unknownAgentSetting(Token t) {
@@ -233,6 +234,16 @@ public class LoomParser {
                 Token keyword = advance();
                 if (agent.getBudget() != null) throw error(keyword, "An agent can have only one budget block.");
                 agent.setBudget(parseBudgetBlock(true));
+            } else if (isNamedAttribute("ladder")) {
+                Token keyword = advance();
+                advance(); // the colon
+                if (agent.getLadder() != null) throw error(keyword, "An agent can have only one default ladder.");
+                agent.setLadder(parseLadderName(), keyword.getLine());
+                parseLadderArgs(agent.getLadder(), agent.getLadderArgs());
+            } else if (isNamedAttribute("ceiling")) {
+                Token keyword = advance();
+                advance(); // the colon
+                agent.setCeilingRung(rungName("ceiling:", "Expect the name of a rung after \"ceiling:\", such as ceiling: suggest."), keyword.getLine());
             } else {
                 throw error(peek(), unknownAgentSetting(peek()));
             }
@@ -723,8 +734,15 @@ public class LoomParser {
     /** After {@code ladder:} : {@code Name} or {@code Name(param: value, …)}. */
     private void parseLadderBinding(io.github.llm4j.loom.ast.DecisionDef d) {
         Token at = peek();
-        String name = rungName("ladder:", "Expect the name of a ladder after \"ladder:\", such as ladder: RefundLadder.");
-        d.setLadder(name, at.getLine());
+        d.setLadder(parseLadderName(), at.getLine());
+        parseLadderArgs(d.getLadder(), d.getLadderArgs());
+    }
+
+    private String parseLadderName() {
+        return rungName("ladder:", "Expect the name of a ladder after \"ladder:\", such as ladder: RefundLadder.");
+    }
+
+    private void parseLadderArgs(String name, java.util.Map<String, io.github.llm4j.loom.autonomy.expr.Expr> into) {
         if (!match(TokenType.LPAREN)) return;
         if (!check(TokenType.RPAREN)) {
             do {
@@ -738,7 +756,7 @@ public class LoomParser {
                 }
                 if (text.length() == 0) throw error(peek(), "Expect a value after \"" + key.getValue() + ":\".");
                 try {
-                    d.getLadderArgs().put(key.getValue(), io.github.llm4j.loom.autonomy.expr.ExprParser.parse(text.toString()));
+                    into.put(key.getValue(), io.github.llm4j.loom.autonomy.expr.ExprParser.parse(text.toString()));
                 } catch (io.github.llm4j.loom.autonomy.expr.ExprException e) {
                     throw new RuntimeException("Parse error at line " + line + ": " + e.getMessage() + " (in the argument " + key.getValue() + ")");
                 }

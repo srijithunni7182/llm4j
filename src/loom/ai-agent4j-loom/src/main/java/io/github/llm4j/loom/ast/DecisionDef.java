@@ -68,6 +68,7 @@ public class DecisionDef implements Node {
     private int ceilingRungLine;
     private String proposes;
     private int proposesLine;
+    private boolean ladderFromAgent;
 
     public DecisionDef(String name) { this.name = name; }
 
@@ -126,6 +127,9 @@ public class DecisionDef implements Node {
     public int getLadderLine() { return ladderLine; }
     public Map<String, io.github.llm4j.loom.autonomy.expr.Expr> getLadderArgs() { return ladderArgs; }
     public void setLadder(String ladder, int line) { this.ladder = ladder; this.ladderLine = line; }
+    /** True when the ladder came from the proposing agent's default and not from this decision. */
+    public boolean isLadderFromAgent() { return ladderFromAgent; }
+    public void setLadderFromAgent(boolean fromAgent) { this.ladderFromAgent = fromAgent; }
     /** The highest rung of the bound ladder this decision may reach ({@code ceiling: suggest}); null for the first. */
     public String getCeilingRung() { return ceilingRung; }
     public int getCeilingRungLine() { return ceilingRungLine; }

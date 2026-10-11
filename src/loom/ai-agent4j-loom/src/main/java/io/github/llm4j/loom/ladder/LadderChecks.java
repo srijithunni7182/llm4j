@@ -46,6 +46,7 @@ public final class LadderChecks {
         declarations();
         for (LadderDef l : ladders.values()) ladder(l);
         for (MeasureDef m : script.getMeasures()) measure(m);
+        for (io.github.llm4j.loom.ast.AgentDef a : script.getAgents()) agentDefault(a);
         for (DecisionDef d : script.getDecisions()) if (d.getLadder() != null) binding(d);
         for (LadderDef l : ladders.values()) {
             if (script.getDecisions().stream().noneMatch(d -> l.getName().equals(d.getLadder()))) {
@@ -172,6 +173,27 @@ public final class LadderChecks {
             checker.condition(e);
         } catch (ExprException ex) {
             error(line, construct, ex.getMessage() + " (in: " + text + ")");
+        }
+    }
+
+    // ---------- an agent's default ----------
+
+    private void agentDefault(io.github.llm4j.loom.ast.AgentDef a) {
+        String who = "agent " + a.getName();
+        if (a.getLadder() == null) {
+            if (a.getCeilingRung() != null) error(a.getCeilingRungLine(), who, "ceiling: needs a ladder: to apply to (write ladder: Name in the agent)");
+            return;
+        }
+        LadderDef l = ladders.get(a.getLadder());
+        if (l == null) {
+            error(a.getLadderLine(), who, "no ladder named " + a.getLadder() + Suggest.hint(a.getLadder(), ladders.keySet()));
+            return;
+        }
+        if (a.getCeilingRung() != null && l.rung(a.getCeilingRung()) == null) {
+            error(a.getCeilingRungLine(), who, "ceiling: no rung named " + a.getCeilingRung() + " in ladder " + l.getName() + Suggest.hint(a.getCeilingRung(), rungNames(l)));
+        }
+        if (script.getDecisions().stream().noneMatch(d -> a.getName().equals(d.getAgent()))) {
+            warn(a.getLadderLine(), who, "its default ladder " + l.getName() + " applies to no decision (no decision is proposed by " + a.getName() + ")");
         }
     }
 
