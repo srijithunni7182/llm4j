@@ -152,3 +152,19 @@ Seeds and sequence counts are as in the earlier property test (`20 000` by defau
 Tests are written with each task of [tasks.md](tasks.md), not after. Specifically: L1 before the interpreter is trusted by anything; the
 `trust` golden test (L7) *before* the old evaluator is deleted; the three reference ladders (L6) as a failing test suite **first**, since they
 are the definition of "flexible enough"; sabotage (L9) last, once the safeguards exist.
+
+## 10. Retrospective: how much checking of the checks is worth it
+
+Written after the work was built, because the cost was out of proportion to what it found.
+
+**What was done.** §7 allowed hand-written sabotage as the mutation check for the safeguards. It grew to 32 breaks of the real source (`scripts/sabotage_ladders.py`), each needing a rebuild, run one after another because they edit the shared tree. PIT was run once (90% of 1,785 mutants killed).
+
+**What it found.** One real gap in 32 (S15, a superseded generation counted). Everything else confirmed tests already believed in. The defects that mattered were found by other means, at a fraction of the time: a comparison with the *previous release* (about six behaviour differences: level words, audit sampling, status wording, the outcome message, approve's exit path, editing a trust block demoting scopes), porting the earlier tests (a freeze arriving mid-case changed the rung; the status lost its freeze reason), running the tests the default build excludes (`fragile`), and reading each plan row literally (C8). A guard that lists earlier tests changed on the branch would have caught the worst mistake (an earlier test class overwritten and reported as unchanged), which no sabotage could.
+
+**What to do instead, from here.**
+1. A table per safeguard, written *with* the requirement: scenario, the failing input, the assertion that would fail. The negative case is written before the code, not discovered by breaking the code. (L9 already asked for this; it was not a table.)
+2. When a new test passes on its first run, break the one line it guards by hand and run that test. Thirty seconds, no framework.
+3. Compare with the previous release wherever behaviour must be preserved: build it from the base commit, generate fixtures, assert equality. Highest yield per minute here.
+4. Mutation testing with the real tool (PIT), incrementally on changed classes, on demand or nightly, never as a step of a working session. Hand-written sabotage is kept only for about eight safety-critical rules: failing open, showing the proposal at a blind rung, the approval gate, the ceiling, the seal.
+5. A check that lists tests that exist on the base branch and differ or are gone on this one, with the reason for each, run before any result says "unchanged" (`evidence/G1-altered-tests.md` was produced this way).
+6. Include the excluded groups (`fragile`, `integration`) in the run that closes a piece of work, or list which ones touch it.

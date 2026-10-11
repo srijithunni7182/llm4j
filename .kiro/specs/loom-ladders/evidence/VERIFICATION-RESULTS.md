@@ -12,8 +12,8 @@ Tests named here are in `src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/
 | | |
 |---|---|
 | Checks | 76 in the plan |
-| Pass | 60 of 76 (79%); 9 partly; 4 need people; 3 not done or a finding (see each table). Before the trust and agent-default work: 64, 6, 3, 3. |
-| Whole module test suite | `mvn verify`: 1,543 tests, 0 failures, 1 skipped (as before), coverage rules pass |
+| Pass | 70 of 76 (92%); 1 partly; 5 need people; 0 not done or a finding. The most that can be done without people is 70 of 76. |
+| Whole module test suite | `mvn verify`: 1,594 tests, 0 failures, 1 skipped (as before), coverage rules pass; the default build also excludes the `fragile` group, whose decision tests (`ChannelRunTest`) were run explicitly |
 | Ladder tests | about 330, all passing |
 | Safeguard removal (H4) | **26 of 26** caught ([H4-sabotage.md](H4-sabotage.md), [H4-sabotage-partial.md](H4-sabotage-partial.md)); S15 needed a new test; S21-S26 cover the trust work |
 | Mutation testing (PIT) on the language and engine | **90%** of 1,785 mutants killed, test strength 92%, 53 with no covering test (first run: 79%, 176) |
@@ -42,7 +42,7 @@ Tests named here are in `src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/
 | B2 | Pass | `TypicalMistakesTest`: 20 mistakes, each caught at load with the line and the nearest name. It found a real gap (untyped `remember:` values); fixed. |
 | B3 | Partly | `LadderDescriberTest`, `ExprDescriberTest`, `PresentationTest`: the description is generated from the parsed ladder. That a person reads it correctly is the open part of B1. |
 | B4 | Pass | `LadderCommandsTest.statusSaysWhereEachScopeStands…`, `testTriesTheLadderOnARecordedHistory…`: each condition shown with its value and what is needed. |
-| B5 | Partly | Grammar words, hover text, and the scanner no longer reports a lexical error in a ladder (`parseDocument.test`). Not tried in a running editor. |
+| B5 | Pass | Highlighting: `grammar.test` (a small tokenizer over the real grammar: the ladder words, the three modes after `mode:`, durations, percentages, decimals). Completion: `ladderCompletion.test` (13: ladders after `ladder:`, rungs after `ceiling:` and `slip to`, modes, measures including `dangerous` and the imported standard ones, case fields, collection methods, parts of a ratio, the words of a rung). Underline: `check.integration.test` with the real `weave.jar`: a misspelt measure, an unknown ceiling rung and an unknown agent ladder are errors on the right line, with the guess. Not tried in a running VS Code window; the extension's tests use its fake host. |
 | B6 | Pass | `LadderGuideTest`: the guide's examples load with their imports and pass the checks; its commands and options exist. |
 
 ## C. Is the record trustworthy?
@@ -53,10 +53,10 @@ Tests named here are in `src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/
 | C2 | Pass | `LadderEngineTest.aLateOutcomeCanCauseASlip…`, `ReferenceLaddersTest` (CI, traffic, take-down); an outcome that has not arrived is unknown, not false (`StandardLibraryTest.reversedIsTrueOnlyFor…`) |
 | C3 | Pass | `LadderRunTest.theSameRunTwiceLeavesOneCase…`; `LadderStoresTest` (restart, racing writers); `LadderVerificationTest.v_D10…` |
 | C4 | Pass | `LadderStoresTest` on memory, files and a database |
-| C5 | Partly | `LedgerFoldTest.aCaseWrittenByTheEarlierEngineReadsAsAnAcceptOrAReject`; `TrustMigrationTest` runs the ladder engine over a ledger the original engine wrote (levels, an epoch, a forced level) and requires every scope to stay where it was and nothing to be demoted. The ledger is built by the original engine in the test, not a file captured from the previous release. |
+| C5 | Pass | `PreviousReleaseStoreTest`: two real stores written by the release before this work (ledger, level store, audit, run journals): every case reads, every level, epoch and identity is where it was left, the first evaluation moves no one, and nothing is lost. `TrustMigrationTest` adds a forced level and an edited trust block. |
 | C6 | Pass | `LadderVerificationTest.v_C6_personalDataIsMaskedBeforeAnythingIsWritten` |
 | C7 | Pass | `LadderVerificationTest.v_C7_retentionRemovesTheTextAndKeepsTheCounts` (found that retention did not remove artifacts; fixed) |
-| C8 | **Not done: a finding** | A hand-edited ledger that forges a promotion is not detected. The ledger is not signed or chained. Out of this work's threat model; recorded in the notes. |
+| C8 | Pass | `SealTest` (14) and `TamperedStoreTest` (2): a changed record, a record added at the end, one slipped in among the previous release\'s, one removed, a swapped seal, a different key are each found, on memory, file and database ledgers and with 8 concurrent writers; a decision with a record that does not verify asks a person for every case and `status`/`history`/`verify` say so; `verify --accept --reason` lets an operator trust the record as it stands. Limits are stated in the guide: not protection against someone who can read both the key and the ledger, and the last records can be lost. |
 
 ## D. Does it fail safe?
 
@@ -67,7 +67,7 @@ Tests named here are in `src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/
 | D3 | Pass | `WilsonTest.twentyOutOfTwentyIsNotOneHundredPercentEvidence`; sabotage S11 |
 | D4 | Pass | `LadderDecider` fails closed on a ledger that cannot be read (`LadderRunTest.aLedgerThatCannotBeReadNeverMeansTheAgentActsAlone`); S16 |
 | D5 | Pass | `LadderVerificationTest.v_D5_…`, `LadderRunTest.anArtifactAgentThatReturnsNothingUsable…`; S17 |
-| D6 | Partly | A run that is resumed does not decide twice (`LadderRunTest`); a decider that times out was not tested separately. |
+| D6 | Pass | `LadderBoundRunTest`: a decider that stays silent leaves the run paused with nothing decided, one case and one model call across resumes; the answer arriving after a resume decides the case once; at the top rung an escalated case is never acted on while the person is away. |
 | D7 | Pass | `LadderEngineTest.anEarnedClimbIsProposedOnceAndWaitsForTheNamedPerson` |
 | D8 | Pass | `LadderEngineTest.theCeilingStopsAClimbThatIsEarned`; `LadderCommandsTest` shows "the ceiling is …" |
 | D9 | Pass | `LadderAuditTest` |
@@ -99,18 +99,18 @@ Tests named here are in `src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/
 | F8 | Pass | same tests (looser: nothing promoted) |
 | F9 | Pass | `LadderPolicyTest.theRulesInForce…` (a measure edit changes the fingerprint) |
 | F10 | Pass | `LadderEngineTest.aLoweredCeilingDemotesWithThatReason` |
-| F11 | Partly | The plan of a case is journaled and a resume finishes the case as it began (`LadderRunTest`); a ladder edit *between* the two was not staged. |
+| F11 | Pass | `LadderBoundRunTest.aLadderEditedWhileACaseWaits…`: the case waiting for a person finishes blind under the rules it began under; the next case is asked under the edited ladder. |
 | F12 | Pass | `LadderEngineTest` (idempotent re-check) |
-| F13 | **Not done** | "Test on past cases" is not supported for a ladder (it starts over; `weave check` says so). |
+| F13 | Pass | `LadderEpochReplayTest`, `LadderTestOnPastCasesCliTest` (a changed prompt in a real `weave run`), `ReplayDurabilityTest` (trust): the new agent starts on the rung the replay of the old agent's cases supports (judged by the ladder's own conditions), at most what the old one had; the report names the rung and why; nothing is written to the ledger beyond the new epoch, nobody is asked. |
 
 ## G. Does the old way still work?
 
 | # | Result | Evidence |
 |---|---|---|
-| G1 | **Needs people** | The whole suite passes, but seven earlier test files were changed when trust decisions moved to the ladder engine (`DecideHarness`, `DecideTest`, `DecideSafetyTest`, `DecideResilienceTest`, `AutonomyCommandsTest`, `AutonomyCompatTest`, `AutonomySweepTest`): they seeded or read the original level store, or the original record kind, directly. The scenarios are kept; the plan requires a person to approve each recorded reason. |
-| G2 | Partly | `TrustAsLadderEquivalenceTest`: the original engine and the ladder written from the trust block stand on the same rung with the same change after every case, over 150 random histories (60,000 steps, 6 configurations). Not done as stated: the level history of each decision script in the repository over a fixed ledger. Four trust forms stay on the original engine, which is untouched for them. |
+| G1 | **Needs people** | The whole suite passes (`mvn verify`: 1,594 tests), but twelve files that exist on `main` were changed; [G1-altered-tests.md](G1-altered-tests.md) lists each with the exact lines and the reason. The plan asks a person to approve those reasons. A mistake earlier in this work, now corrected: `LadderRunTest` (the earned-autonomy R3 tests) was overwritten and the results said "unchanged"; it is restored from `main`, ported only where it bypassed the product, and my tests are in `LadderBoundRunTest`. |
+| G2 | Pass | `PreviousReleaseLevelHistoryTest`: seven decision scripts (the repository's `scripts/g5/refund.loom` and the guide's trust example among them), 320 cases each, run by the release before this work and by this one: every case ran at the same level and proposed the same, every change of level and every promotion proposal is the same. Found and fixed on the way: the level words of an audited case, which cases are audited, the order of audit and limit. |
 | G3 | Pass | Every `.loom` in the repository still loads (the existing repository-wide checks run in the suite); the new words are contextual (`LadderScriptTest`). |
-| G4 | Partly | The commands keep their arguments, and `status` keeps its words, figures and `--json` keys for a trust decision. `AutonomyCommandsTest` was changed (seeding, two expected strings), so "unchanged" holds only after a person approves the change (see G1). |
+| G4 | Pass | `PreviousReleaseStoreTest`: status, history, outcome, promote, demote, freeze, unfreeze, approve, reject and replay run on a copy of a store the previous release wrote, with the previous release's arguments: the same exit code and the same output, line for line (JSON: every key it printed is there with the same value). Found and fixed: the outcome message, approve's answer for a moot proposal, status for a trust decision (now printed by the original code), the model note in `last change`. |
 | G5 | Pass | `LadderVerificationTest.v_G5_…` (a `trust` decision and a ladder decision in one script) |
 | G6 | Pass | `LadderChecksTest.aDecisionHasItsRulesInOnePlace` |
 
@@ -131,7 +131,7 @@ Tests named here are in `src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/
 |---|---|---|
 | I1 | **Needs people** | The commands answer every question listed (`LadderCommandsTest`); a person who did not write the ladder has not tried. |
 | I2 | Pass | `LadderCommandsTest` (reason and name recorded; audit file) |
-| I3 | **Not done** | Answering from the phone channel was not tested for artifact decisions. |
+| I3 | Pass | `ChannelArtifactDecisionTest` (artifact decisions from a phone: the blind rung asks for the person's own work and nothing sent shows the draft or its reasoning; the confirm rung shows the proposal and takes accept, reject or a corrected text) and `ChannelRunTest` (tagged `fragile`, so the default build skips it; run explicitly, 8 of 8). |
 | I4 | Pass | `LadderCommandsTest.testTriesTheLadderOnARecordedHistoryAndWritesNothing` |
 | I5 | Pass | C5; the earlier engine's files are read as they are |
 
@@ -140,7 +140,7 @@ Tests named here are in `src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/
 | # | Result | Evidence |
 |---|---|---|
 | J1 | Pass | `LadderScaleTest`: 100,000 cases in 50 scopes, one case's ladder step about 180 ms against a bound of 1 s |
-| J2 | Partly | A 5 MB artifact is stored, read back and measured within a bound. Artifacts are kept inline, not by reference. |
+| J2 | Pass | `ArtifactReferenceTest`: 100 KB, 1 MB and 5 MB artifacts as proposals and edits are kept once, apart, under the hash of their content (the records of the case stay under 2 KB); read back whole; edit size computed in about a second at 5 MB; retention removes the text from that one place and the measure becomes unknown; also on the file ledger. |
 | J3 | Pass | `LadderStoresTest`, `LadderEngineTest.twoWritersNever…` (6 and 8 racing writers on memory, files and a database) |
 
 ## K. Documentation and examples
