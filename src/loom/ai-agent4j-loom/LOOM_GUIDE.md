@@ -2016,6 +2016,7 @@ weave daemon triggers/ --secrets keys.store \
 - `--observe-detail full|truncated|metadata` decides how much of what agents say leaves the process (default: the first 500 characters). It is applied in the process, before anything is sent or shown.
 - Trust in the server is yours to set: the JDK's default roots, plus `--observe-ca ca.pem` (a private CA; added for this connection only) or `--observe-pin sha256:…`. The host name in the URL is always checked.
 - `--observe-otlp https://collector:4318` (with `--observe-otlp-header "Authorization=Bearer ${secret:OTLP_TOKEN}"`) also sends the traces and logs to any OpenTelemetry endpoint.
+- The page flags trouble as it happens: a pause by a limit (information, not an error), an agent making the same call or giving the same answer again and again, a tool that keeps failing, a budget nearly spent, and an answer whose figures appear in nothing the step was given or fetched (labelled *suspect*: it means no source was found, not that the figures are false). These rules look at hashes and counts computed in the process, so they work at every `--observe-detail` level. Thresholds are defaults for now.
 - The pages are read-only in this release; pausing, stopping and rotating secrets from them come later.
 
 ## ☕ 5. Advanced: Custom Java Integration

@@ -13,9 +13,9 @@ Times are estimates (the first live run will correct them), counted from the sta
 | 0:03 | Research finishes; `sleep 90s` | the run shown as **Sleeping** with a countdown to the wake time (not Paused, not failed); no agent running; the sleep step drawn as a clock node | 1 |
 | 0:05 | Loop round 1: Scriptwriter, then Editor, FactChecker and SEO in parallel | loop box with "round 1 / 5"; three parallel nodes running; Editor's Wiki call "video hook patterns" | 1 |
 | 0:08 | Round 2. Same score 5, same fix, same Wiki call | the repeated action count for Editor rises | 3 |
-| 0:11 | Round 3 | **Looping** incident: same fix three rounds, flat score, identical call ×3; attention strip shows it | 3 |
+| 0:11 | Round 3 | **Looping** incident: Lead gives the same answer three rounds in a row (`same_output`); attention strip shows it. In round 4 Editor's identical Wiki call reaches four (`same_action`) and a second Looping incident opens | 3 |
 | 0:11 | Scriptwriter's statistics have no sources | **Suspect output** incident with the ungrounded figures listed; FactChecker's unsupported count above zero | 3 |
-| 0:14 to 0:16 | Rounds 4 and 5; the loop gives up | "round 5 / 5", then the loop's `on_exhausted` note; the Looping incident closes when the loop ends | 3 |
+| 0:14 to 0:16 | Rounds 4 and 5; the loop gives up | "round 5 / 5", then the loop's `on_exhausted` note; the Looping incidents stay open until the run ends (a loop's end does not clear them yet) | 3 |
 | 0:17 | `checkpoint polish`; Planner; `parallel for each` over three shots | three Designer and three Captioner branches; the for-each fan-out visible | 1 |
 | 0:18 | Captioner exceeds 2,500 tokens a minute | **Paused**, not failed: hatched node, countdown to the next minute, other branches finish first | 3 |
 | 0:19 | The window refills; the run resumes | the pause incident closes; "resumed" shown; no step repeats (the journal replays the finished ones) | 3 |
