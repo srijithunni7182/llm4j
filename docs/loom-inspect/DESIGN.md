@@ -17,8 +17,10 @@ The UI mockups are the design system at https://claude.ai/artifact/G8ah58W5edzPP
 | 7 | Activation is `weave ... --observe` with loom-inspect on the classpath. No code needed in the app. |
 | 8 | The page has one tab per workflow, with a run picker inside each tab, plus one store-wide Secrets tab. |
 | 9 | The admin password is a secret in the app's store (`LOOM_INSPECT_ADMIN_PASSWORD`), so it is set and rotated like any other key. |
-| 10 | **Remote mode:** the workflow JVM runs no UI. It exposes a listener where you register a webhook; events are pushed to your service, which shows the same view. |
-| 11 | Remote mode is outbound-only from the workflow process: pause, suspend and stop travel back in the webhook response. Secret values never leave the process. |
+| 10 | **Remote mode centres on `loom-inspect-server`:** a standalone, packaged server you install on any machine. A workflow process is given its URL up front on the `weave` command line (`--observe-server <url>`). There is no listener on the workflow process and no dynamic webhook registration. |
+| 11 | **Many processes, one server.** Any number of workflow processes report to the same server, and all their workflows are monitored together: one tab per workflow, each run tagged with the process it came from. |
+| 12 | Processes only connect outward. Pause, suspend and stop travel back in the server's response. Secret values never leave a process, and secret rotation stays in embedded mode. |
+| 13 | The server keeps history on disk and has its own secret store, which holds each client's key and the admin password. |
 
 ## 2. What the runtime gives us today (checked against the code)
 
@@ -56,10 +58,11 @@ Order of value: C5 and C6 first (they make loom-inspect reachable), then C2 and 
 
 ## 4. Module layout
 
-Two Maven modules under `src/loom/`, both listed in the root `pom.xml` next to `ai-agent4j-loom`:
+Three Maven modules under `src/loom/`, all listed in the root `pom.xml` next to `ai-agent4j-loom`:
 
-- **`loom-inspect-core`**: everything that turns events into a view and has no dependency on the Loom runtime. The versioned wire format (`InspectEvent`, `Snapshot`), `RunState`, the detectors, the JSON view API, the static UI, and `WebhookReceiver`. This is what a remote service embeds, and it also has a `serve` main for running the receiver standalone.
-- **`loom-inspect`**: the add-on jar for the workflow process. Depends on core and on `ai-agent4j-loom`. Holds the trace sink, the embedded HTTP server, the `--observe` CLI provider, secrets and control, and the webhook emitter (section 5b).
+- **`loom-inspect-core`**: everything that turns events into a view and has no dependency on the Loom runtime. The versioned wire format (`InspectEvent`, `Snapshot`), `RunState`, the detectors, the JSON view API, the static UI, and the `Receiver` that accepts batches.
+- **`loom-inspect`**: the add-on jar for the workflow process. Depends on core and on `ai-agent4j-loom`. Holds the trace sink, the embedded HTTP server, the `--observe` CLI provider, secrets and control, and the `ServerLink` that sends events to a server (section 5b).
+- **`loom-inspect-server`**: the packaged, runnable server (section 5b). Depends on core only, so it is small and does not need Loom or any model SDK on the machine it runs on.
 
 Embedded and remote mode share the same wire format and the same state code: in embedded mode the sink feeds `RunState` directly, in remote mode the same events cross a webhook first. So the two views cannot drift apart. The tree below shows both; packages marked (core) live in `loom-inspect-core`.
 
@@ -91,12 +94,11 @@ loom-inspect/
     control/
       RunController.java       pause, resume, suspend, stop (see C1)
     wire/                      (core) InspectEvent, Snapshot, Envelope: versioned JSON, seq numbers
-    receive/                   (core) WebhookReceiver: verify signature, dedup by (run, seq), feed Pump, reply with ack and commands
+    receive/                   (core) Receiver: verify signature, dedup by (client, run, seq), feed Pump, reply with ack and commands
     emit/
-      WebhookEmitter.java      per-registration queue, batching, retry, backoff, signing, snapshot on (re)connect
-      Registrations.java       listener endpoints and the stored list (survives restarts)
-      Signer.java              HMAC-SHA256 over timestamp + body, key from the secret store
-      CommandExec.java         verifies and runs commands from a webhook reply, through RunController
+      ServerLink.java          one outbound connection to a server: hello, snapshot, batching, retry, backoff, heartbeat
+      Signer.java              HMAC-SHA256 over timestamp + body, client key from the secret store
+      CommandExec.java         verifies and runs commands from a server reply, through RunController
     cli/
       InspectObserveProvider.java   the ObserveProvider; listed in META-INF/services
     http/
@@ -153,82 +155,105 @@ The page is organised by workflow, matching how you think about the system:
 - A workflow with no live run still has a tab; it shows its last run, or the static graph if it has never run.
 - With `weave daemon`, a scheduled workflow gains a live run in its tab each time it fires. There is no cross-run overview page; the first tab is the landing page.
 
-## 5b. Remote mode
+## 5b. Remote mode: the inspect server
 
-For when the workflow runs somewhere you do not want a web server: a small always-on machine, a container with no inbound port, a production host. The workflow process runs only a thin **emitter**. Your own service receives the events and shows the same view.
-
-```
- workflow JVM                                    your service                      browser
- ┌──────────────────────────┐   signed POST    ┌─────────────────────────┐
- │ weave daemon             │ ───────────────▶ │ loom-inspect-core       │ ◀────▶  same console
- │  --observe-remote=9099   │   batches of     │  WebhookReceiver        │         (workflow tabs,
- │  emitter (no UI, no      │   events         │  RunState + detectors   │          incidents, ladders)
- │  state model)            │ ◀─────────────── │  view API + UI          │
- └──────────────────────────┘   ack + commands └─────────────────────────┘
-   outbound only; no inbound port needed for viewing
-```
-
-### Starting it
+For when you want one place to watch everything: several workflow processes, on several machines, reporting to a single admin page that is not inside any of them.
 
 ```
-weave daemon --secrets keys.store --observe-remote=9099
-weave run flow.loom --observe-webhook https://ops.example.com/loom/hook
+ workflow process A ─┐
+ (getviral-prod)     │     signed batches          ┌──────────────────────────┐
+                     ├───────────────────────────▶ │ loom-inspect-server      │ ◀────▶  browser: one console,
+ workflow process B ─┤  ◀─── ack + commands ────── │  receiver · state        │         every workflow of every
+ (billing-svc)       │                             │  detectors · history     │         process, one tab each
+ workflow process C ─┘                             │  UI · own secret store   │
+                                                   └──────────────────────────┘
+   each process connects outward only; the server never connects to a process
 ```
 
-- `--observe-remote[=port]` starts a **registration listener** (default 9099, loopback unless `--observe-bind`). It serves no UI. You register webhooks on it at any time, including while runs are live.
-- `--observe-webhook <url>` registers one webhook at start-up, with no listener, for the simple case. Repeatable.
-- `--observe` (embedded UI) and the remote options can be used together.
+### The server
 
-### Registering a webhook
+A packaged runnable jar (`loom-inspect-server-<version>.jar`, plus a Docker image and a sample systemd unit). It runs on any machine with a JDK and needs no Loom runtime, no model keys and no workflow scripts.
 
-| Method and path | Purpose |
-|---|---|
-| `POST /observe/webhooks` | Register: `{name, url, workflows: ["*"], signingSecret: "LOOM_INSPECT_WEBHOOK_SECRET", detail: "truncated"}` |
-| `GET /observe/webhooks` | List registrations with delivery health (below) |
-| `DELETE /observe/webhooks/{id}` | Remove one |
-| `POST /observe/webhooks/{id}/test` | Send a test event now |
-| `POST /observe/webhooks/{id}/resync` | Send a fresh snapshot |
+```
+loom-inspect-server init  --data /var/lib/loom-inspect          # creates its store; asks for the admin password
+loom-inspect-server clients add getviral-prod                   # prints that client's key once
+loom-inspect-server serve --data /var/lib/loom-inspect --port 9090 \
+                          --tls-cert cert.pem --tls-key key.pem
+loom-inspect-server clients list | revoke <name>
+```
 
-`signingSecret` is the **name** of a secret in the app's store, never the value, which is consistent with how everything else here handles keys. The registration listener itself requires a bearer token held in the store as `LOOM_INSPECT_REGISTER_TOKEN`. Registrations are stored in a file beside the trigger store, so they survive a restart.
+- **Its own secret store.** Created by `init`, using the same encrypted-store format as Loom. It holds the admin password (`LOOM_INSPECT_ADMIN_PASSWORD`) and each client's key (`client.<name>`). The master key comes from a file or an environment variable you name, as everywhere else in Loom.
+- **TLS** is served directly with `--tls-cert/--tls-key`, or the server can sit behind a reverse proxy (`--trust-proxy`). Without TLS it binds loopback only and refuses a public address.
+- **Persistence.** Unlike the embedded page, the server is long-lived, so it keeps history: per-run append-only event files with periodic snapshots (JSON lines, no database to install), an index, and retention by age and size (defaults 30 days and 2 GB, oldest finished runs first). On start it rebuilds live state from disk. Live runs stay in memory; finished runs are read from disk when opened. A JDBC store is a later option.
+- **One instance in v1.** No clustering. The server is the only thing a restart affects, and processes resend a snapshot when it returns.
 
-### What is sent
+### Pointing a workflow process at it
+
+The URL is given to `weave` up front, every time, on the command line or through an environment variable:
+
+```
+weave daemon --secrets keys.store \
+      --observe-server https://inspect.example.com:9090 \
+      --observe-name getviral-prod
+
+LOOM_INSPECT_SERVER=https://inspect.example.com:9090 weave run flow.loom --secrets keys.store
+```
+
+- `--observe-server <url>` enables remote reporting; `LOOM_INSPECT_SERVER` is the same thing from the environment.
+- `--observe-name <name>` is this process's name on the server (default: the host name plus the script name). It must match a client created with `clients add`.
+- The client key is read from the process's own secret store as `LOOM_INSPECT_CLIENT_KEY` (changeable with `--observe-key-secret <name>`), so no key appears on a command line or in the environment.
+- `--observe` (embedded page) and `--observe-server` can be used together.
+- **If the server is unreachable the run goes on.** The process keeps a bounded queue, retries with backoff, and sends a fresh snapshot when the server returns. A wrong key or an unsupported version is reported once on the console and reporting stops; it never stops the workflow.
+
+### What a process sends
 
 One wire format for everything, versioned (`v: 1`):
 
+1. **`hello`**, when the process connects: a per-start instance id, the name, host, process id, Loom and loom-inspect versions, the workflows it knows (name, script hash), and its wire version. The server answers with the range of wire versions it accepts. A process newer or older than the server degrades gracefully: unknown fields are ignored, and an unsupported wire version is shown on the Processes page rather than failing silently.
+2. **`snapshot`**, for each live run on connect and after any gap: run info, the static graph, agents, thresholds from the script's `inspect` blocks, budgets, spend so far, autonomy ladders, pending questions, and **secrets metadata** (name, hosts, updated, fingerprint, used-by; never values).
+3. **Deltas**: every trace event from section 2, plus `llm_call` and `secret_use` when C2 and C3 exist, each with a per-run `seq`, in batches of up to 200 events or one second.
+4. **`heartbeat`** every 5 seconds, so a quiet process is told apart from a dead one, and **`bye`** on a clean exit.
+
 ```json
-{ "v": 1, "delivery": "d_8f21", "sent": "2026-10-11T14:08:52Z",
-  "events": [
-    { "run": "r-7f3a", "workflow": "ContentStudio", "seq": 12408, "at": "...",
-      "type": "action", "agent": "Fact-Checker", "step": "main/s4/p1",
-      "text": "Fetch healthline.com/…", "data": { "tool": "Fetch" } } ] }
+{ "v": 1, "client": "getviral-prod", "instance": "i_52c1", "delivery": "d_8f21",
+  "sent": "2026-10-11T14:08:52Z",
+  "events": [ { "run": "r-7f3a", "workflow": "ContentStudio", "seq": 12408, "at": "...",
+                "type": "action", "agent": "Fact-Checker", "step": "main/s4/p1",
+                "text": "Fetch healthline.com/…", "data": { "tool": "Fetch" } } ] }
 ```
 
-- **Snapshot first.** On registration and after any gap, the emitter sends a `snapshot` event: run info, the static graph, agents, thresholds from the script's `inspect` blocks, budgets, spend so far, autonomy ladders, pending questions, and **secrets metadata** (name, hosts, updated, fingerprint, used-by; never values). The receiver can therefore draw a complete view at any moment, even if it joined mid-run.
-- **Then deltas**: every trace event as in section 2, plus `llm_call` and `secret_use` when C2 and C3 exist, and a `heartbeat` every 5 seconds so a quiet run is told apart from a dead link.
-- **Ordering and delivery.** Events carry a per-run `seq`. Delivery is at least once, in order per run; the receiver drops anything it has already seen and asks for a resync on a gap.
-- **Batching and retry.** Up to 200 events or one second per POST. Failures retry with backoff from 1s to 60s. Each registration has its own bounded queue (default 10,000 events). When it overflows the oldest events are dropped, a `dropped` counter is kept, and a fresh snapshot follows when the link recovers.
-- **The run never waits.** Emitting happens on its own thread behind the sink's queue. A slow, down or hostile webhook cannot slow or fail a workflow.
+- Delivery is at least once and in order per run. The server drops anything it has seen, keyed by `(client, run, seq)`, and asks for a resync on a gap.
+- Each process has its own bounded queue (default 10,000 events). On overflow the oldest events are dropped, a `dropped` counter is kept and shown, and a snapshot follows recovery.
+- Emitting runs on its own thread behind the sink's queue. A slow or down server cannot slow or fail a workflow.
+- **Redaction and truncation happen in the workflow process, before an event leaves it**, according to `--observe-detail full|truncated|metadata` (default `truncated`: 500 characters, guard and redaction rules applied first).
 
 ### What comes back
 
-The receiver answers `200` with `{ "ack": { "r-7f3a": 12408 }, "commands": [ ... ] }`, signed with the same key.
+The server answers each batch with `{ "ack": { "r-7f3a": 12408 }, "commands": [ ... ] }`, signed with the client's key.
 
-- **`ack`** lets the emitter trim its queue.
-- **`commands`** are `pause`, `resume`, `suspend` and `stop` for a named run. The emitter verifies the signature and timestamp, executes through `RunController` (C1), and reports the outcome as a `command_result` event. This keeps the workflow process **outbound-only**: no inbound port is needed for viewing or control. A command waits for the next response, so latency is the batch interval (about a second while events flow, up to a heartbeat when idle).
-- A command is delivered at most once and expires after 60 seconds if the run is not reachable.
+- **`ack`** lets the process trim its queue. It also carries the server's clock, so a process can warn when the two clocks differ by more than the signature window.
+- **`commands`** are `pause`, `resume`, `suspend` and `stop` for a named run on that process. The process verifies the signature and timestamp, executes through `RunController` (C1), and reports the outcome as a `command_result` event. A command waits for the next response (about a second while events flow, up to a heartbeat when idle) and expires after 60 seconds if the process cannot be reached.
+- Commands are issued only by a signed-in admin in the server's UI, and every one is audited with who, when, which process and run.
 
-### What remote mode does not do (v1)
+### Workflows across processes
 
-- **No secret rotation.** A new secret value would have to travel through your service to the process. Rotation stays in embedded mode and in `weave secrets`. The Secrets tab shows names, hosts, fingerprints and used-by, read-only, with a note saying where to rotate.
-- **No full-detail trace by default.** Trace text leaves the machine, so each registration chooses a `detail` level: `full`, `truncated` (default, 500 characters, with the guard and redaction rules applied first) or `metadata` (no text, just types, agents, sizes and timings).
+The console is the same as before; what changes is where the tabs come from.
+
+- **One top-level tab per workflow**, taken from every connected process. If two processes run the same workflow (the same name and script hash, such as prod and staging), they share one tab, and the run picker lists runs from both with the process name beside each. If two different scripts share a name, they get separate tabs, prefixed with the process name.
+- **A Processes page** lists every client: name, host, version, workflows, live runs, state (online, lagging, offline since), events per second, queued and dropped counts, and the key's name. It is also where you see an unsupported version, a revoked key, or a process that stopped answering.
+- **Process-level state reaches the runs.** If a process goes quiet, its live runs show "last seen running at …" and the connection chip says Stale, exactly as in the single-process remote view. Runs of a process that sent `bye` are marked finished or suspended according to the last event, not left as running.
+- **Secrets** are shown per process, read-only: names, hosts, fingerprints, used-by. Rotation is not available through the server. The page says where to rotate (the process's host, or its embedded page).
+- Optional: a filter chip row (by process) above the run picker.
+
+### What the server does not do (v1)
+
+- No secret rotation, as above.
+- No high availability: one instance.
+- It never connects out to a workflow process, and it never fetches a URL on a client's behalf.
 
 ### How it looks
 
-The receiver shows the same console. What changes is honesty about the link: a connection chip in the header says **Live** (with delivery lag), **Lagging** (catching up, how many events behind), **Resynced** (a gap was detected and repaired from a snapshot), or **Stale** (no heartbeat for 3 intervals). When stale, the whole view is dimmed and every "running" state is shown as "last seen running at 14:09:03", so it never presents old data as live. Pause, suspend and stop buttons show "queued" until the command result arrives.
-
-### Delivery health (on the listener)
-
-Per registration: state (delivering, retrying, failing), lag, last success, queued, dropped, consecutive failures. A registration that fails continuously for 24 hours (configurable) is disabled and audited, not retried forever.
+The same console, with a connection chip in the header: **Live** (with lag), **Lagging** (events behind), **Resynced** (a gap was repaired from a snapshot) and **Stale** (no heartbeat for three intervals; the view is dimmed and every "running" becomes "last seen running at …"). Pause, suspend and stop show "queued" until the command result arrives.
 
 ## 6. Thresholds in the script (proposed syntax, needs C4)
 
@@ -287,7 +312,7 @@ All JSON, all under `/inspect`. Writes are `POST`/`PUT` only.
 | `GET /api/secrets` | Name, allowed hosts, updated, fingerprint, read-only flag, used-by |
 | `PUT /api/secrets/{name}` | Rotate. Body `{value, confirm}`; response never contains the value |
 
-In remote mode the same routes are served by the receiver, from `loom-inspect-core`'s `ViewApi`, which you mount in your own service (for example behind your existing login), plus one extra route, `POST <your hook url>`, handled by `WebhookReceiver`. The workflow side serves only the `/observe/webhooks` routes of section 5b. The secrets and control routes are served only in embedded mode, except that control routes in remote mode enqueue a command instead of acting directly.
+In server mode the same read routes are served by `loom-inspect-server`, now spanning every connected process (each run is keyed by client and run id, and each route takes an optional `client=` filter). It adds `POST /ingest` for batches, `GET /api/processes` for the Processes page, and the `clients` administration, which is available only through the CLI. The workflow process serves no routes of its own in this mode. The secrets-rotation route is served only in embedded mode; control routes in server mode enqueue a command instead of acting directly.
 
 Live updates use server-sent events rather than WebSockets: one-way, works through proxies, and the JDK server handles it.
 
@@ -319,12 +344,15 @@ The pages can stop a run and replace API keys, so the module is off by default a
 - Rotation also requires a CSRF token and a same-origin check.
 - Audit log of every control and rotation: who, when, what, fingerprint before and after, source address. Never values. Written through a pluggable `AuditSink`, with a file default.
 - **Trace content is sensitive.** Events hold prompts and answers. Defaults: truncate text to 500 characters, apply the agent's existing `guard { pii: mask }` settings (events are already masked at source where configured), and let `Options.redact(...)` add patterns. The mockups show full trace lines; the shipped default shows the truncated form.
-- **Remote mode adds these:**
-  - Every delivery and every reply is signed (`HMAC-SHA256` over `timestamp.body`) with a key from the app's store; a timestamp outside a 5-minute window is rejected, which stops replay.
-  - Webhook URLs must be `https` (plain `http` only for loopback). The emitter resolves the host and refuses private, link-local and metadata addresses unless `--observe-allow-private` is set, and does not follow redirects. An optional `--observe-webhook-hosts` allow-list restricts where events may go. This is what stops the registration listener being used to reach internal services.
-  - Redaction and truncation are applied **in the workflow process, before an event leaves it**. A receiver never sees more than its registration's `detail` level allows.
+- **Server mode adds these:**
+  - Every batch and every reply is signed (`HMAC-SHA256` over `timestamp.body`) with that client's key. A timestamp outside a 5-minute window is rejected, which stops replay.
+  - Each process has its **own key**, so one can be revoked (`clients revoke`) without touching the others, and a leaked key reaches only one client's reports and commands. Keys live in the server's and the process's secret stores, never on a command line.
+  - A client may only report under its own name; the server rejects events that claim another client's identity.
+  - The process connects to exactly the URL it was given: `https` required (plain `http` only for loopback), no redirects followed, optional `--observe-ca` to pin a private CA. There is no server-initiated fetch, so the earlier concern about using a registration listener to reach internal addresses does not arise.
+  - Redaction and truncation are applied **in the workflow process, before an event leaves it**. The server never sees more than the client's detail level allows.
   - Secret values are never put on the wire. Fingerprints and metadata only.
-  - The registration listener needs its own token and binds loopback by default; exposing it on a network address requires TLS and the token.
+  - The server's admin password is a secret in its own store; failed logins are rate-limited; the UI uses the same session, CSRF and same-origin rules as embedded mode.
+  - Ingest is rate-limited per client. Over the limit the server answers `429` with `Retry-After`, and the process backs off.
 - Run `weave audit`-style checks on the module: no `Authorization` header logging, no value in `toString`, a test that greps responses for a known secret.
 
 ## 10. Data and retention
@@ -341,8 +369,10 @@ The pages can stop a run and replace API keys, so the module is off by default a
 - **Secrets tests.** Rotate against `InMemorySecretStore` and `EncryptedFileSecretStore`; read-only store gives a read-only row; no response, log or audit line contains the value.
 - **Security tests.** Unauthenticated, viewer and admin access to every route; CSRF and same-origin rejection; refusal to bind a public address without TLS.
 - **Overhead check.** Run a recorded workflow with and without the sink; the added time should be a small fraction of one model call.
-- **Delivery tests (remote).** A receiver that fails, lags or drops: assert ordering, de-duplication by `(run, seq)`, bounded queue with a drop counter, snapshot after a gap, backoff, and that the run thread never blocks. Signature tests: wrong key, stale timestamp, tampered body, forged command.
-- **Parity test.** Feed the same recorded events through embedded mode and through emitter → receiver; assert the resulting `RunState` JSON is identical.
+- **Delivery tests (server mode).** A server that fails, lags or drops: assert ordering, de-duplication by `(run, seq)`, bounded queue with a drop counter, snapshot after a gap, backoff, and that the run thread never blocks. Signature tests: wrong key, stale timestamp, tampered body, forged command.
+- **Parity test.** Feed the same recorded events through embedded mode and through `ServerLink` to the server; assert the resulting `RunState` JSON is identical.
+- **Multi-process test.** Several simulated clients, including two running the same workflow and one that dies mid-run; assert tabs, run pickers, the Processes page and the stale and `bye` handling. Add a revoked key and a client that claims another's name.
+- **Persistence test.** Stop the server mid-run, restart it, and assert live state is rebuilt from disk and processes resync; assert retention removes the oldest finished runs first.
 - **Live suite.** Under the existing `-Plive` profile, attach to a real run and assert the page shows tokens within a second.
 
 ## 12. Build plan
@@ -357,13 +387,13 @@ The pages can stop a run and replace API keys, so the module is off by default a
 | 4. Controls | Suspend and stop, then pause | C1 |
 | 5. Secrets | List, fingerprint, rotate with audit | C3 for the Status column |
 | 6. Hardening | TLS, a separate viewer password, password hashing, retention options | none |
-| 7. Remote mode | `WebhookEmitter`, registration listener, `WebhookReceiver`, snapshot and resync, signed commands, the connection chip and stale view | C5, C6; commands need C1 |
+| 7. Server mode | `ServerLink` in the add-on, the `loom-inspect-server` jar with `init`, `clients` and `serve`, signed ingest, snapshots and resync, the Processes page, signed commands, disk persistence with retention, the connection chip and stale view, Docker image | C5, C6; commands need C1 |
 
 Phase 0 needs only two small additive changes to the core (an interface and an option), and phases 1 and 2 need nothing more, so the first useful release does not wait on language work.
 
 ## 13. Open questions
 
-Settled since draft 1: run identity (the executor already has `getRunId()` and `getJournal()`, and `ObservableRun` exposes them), the `--observe` activation, per-workflow tabs, and the admin password living in the store.
+Settled since draft 1: run identity (the executor already has `getRunId()` and `getJournal()`, and `ObservableRun` exposes them), the `--observe` activation, per-workflow tabs, the admin password living in the store, and remote mode as a standalone `loom-inspect-server` that many processes report to, configured from `weave` up front (no dynamic webhook registration).
 
 1. **`no_progress` needs a variable.** `ObservableRun.variables()` gives a snapshot, so loom-inspect can read the named variable at the end of each loop round. Is a read-only snapshot from outside the executor acceptable?
 2. **Where does `inspect` live in the grammar?** A top-level block per agent (as above), or inside the `agent` block next to `budget`? The second keeps it near the agent and avoids a new top-level keyword. I lean toward the second.
@@ -371,7 +401,9 @@ Settled since draft 1: run identity (the executor already has `getRunId()` and `
 4. **Fingerprint in the audit.** OK to record the truncated hash before and after in the audit log? It is the only way to prove which key was live when.
 5. **Password form.** Accept the plain stored value in v1 and add hashing later, or require the hashed form from the start?
 6. **`--observe` on one-shot runs.** `weave run` ends when the workflow ends, which closes the page. Should `--observe` keep the server up for a short time after (for example `--observe-linger 5m`) so the final state can be read?
-7. **Who hosts the receiver?** Is your service the receiver (embedding `loom-inspect-core`, behind your own login), or do you also want a standalone `loom-inspect-core serve` for cases where there is no service of yours yet?
-8. **Commands over the webhook response.** Pause, suspend and stop reach the process only on the next response (about a second while events flow). Is that acceptable for stop, or do you want an optional direct control port on the process for urgent use?
-9. **Secret rotation in remote mode.** Left out of v1 because the value would transit your service. Would you want it later, with the value encrypted to a key held only by the process?
-10. **Detail level per registration.** Default `truncated`. Is `metadata` (no text at all) worth offering for shared or less-trusted receivers?
+7. **Client keys.** One key per process, created with `clients add` (recommended, revocable one at a time), or also a single shared key for small setups?
+8. **Same workflow name in different apps.** Proposed above: the same name and script hash share a tab, different scripts get separate tabs. Would you rather always have a tab per (process, workflow) with no merging?
+9. **Who may see what.** One admin password in v1. With many processes, do you want a read-only viewer password, or per-process visibility, before this is shared with a team?
+10. **Persistence defaults.** Files with 30-day, 2 GB retention. Enough, or do you want a database store from the start?
+11. **Commands over the response.** Pause, suspend and stop reach a process on its next response (about a second while events flow). Acceptable for stop, or do you want an optional direct control port on the process for urgent use?
+12. **Process names.** Should `--observe-name` be required, so every process is named on purpose, rather than defaulting from the host and script?
