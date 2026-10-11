@@ -51,6 +51,7 @@
         <module>src/loom/ai-agent4j-loom</module>
         <module>src/loom/loom-inspect-core</module>
         <module>src/loom/loom-inspect</module>
+        <module>src/loom/loom-fabric</module>
     </modules>
 
     <properties>

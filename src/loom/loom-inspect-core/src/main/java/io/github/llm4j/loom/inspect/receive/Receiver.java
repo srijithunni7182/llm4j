@@ -27,8 +27,20 @@ public final class Receiver {
 
     /** The message was not from who it said it was from, or was not understood. */
     public static final class Rejected extends RuntimeException {
+        private final int status;
+
         public Rejected(String message) {
+            this(message, 400);
+        }
+
+        public Rejected(String message, int status) {
             super(message);
+            this.status = status;
+        }
+
+        /** The HTTP status that fits: 403 for a client reporting as another, 400 for what could not be read. */
+        public int status() {
+            return status;
         }
     }
 
@@ -182,7 +194,7 @@ public final class Receiver {
 
     private static void same(String authenticated, String claimed) {
         if (claimed == null || !claimed.equals(authenticated)) {
-            throw new Rejected("a client may only report as itself (authenticated as '" + authenticated + "')");
+            throw new Rejected("a client may only report as itself (authenticated as '" + authenticated + "')", 403);
         }
     }
 
