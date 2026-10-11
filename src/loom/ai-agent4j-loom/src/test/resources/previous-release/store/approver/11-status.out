@@ -1,0 +1,12 @@
+Refund   FROZEN (act is stopped: incident 42)
+  scope gold   level act (running at suggest)   (epoch 1, agent e5978300f0)
+    evidence: 20 blind cases of the latest 20;  agreement 100.0% (lower bound 83.9%);  dangerous mistakes 0.0%;  coverage 100.0%;  unusable proposals 0
+    next step: already at act
+    open promotion proposal: to suggest on 5 cases, waiting for risk-owner
+    last change: 2026-03-17T06:00:00Z watch -> act (set, by operator:root): emergency
+  scope basic   level watch   (epoch 1, agent e5978300f0)
+    evidence: 20 blind cases of the latest 20;  agreement 100.0% (lower bound 83.9%);  dangerous mistakes 0.0%;  coverage 100.0%;  unusable proposals 0
+    towards suggest: every part is met
+    open promotion proposal: to suggest on 5 cases, waiting for risk-owner
+    last change: 2026-03-17T06:00:00Z watch -> watch (set, by operator:root): incident
+

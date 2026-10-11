@@ -1,0 +1,46 @@
+# Replay of Refund (r19ce0a16700-7b95)
+
+## What was replayed
+
+47 cases selected, 47 replayed (100.0% of the selected cases).
+
+## Tools in replay
+
+- allowed to run (replay: allow): none
+- simulated (not performed): none
+- read live (not recorded; non-deterministic): none
+
+## Headline
+
+| | cases | agreement | lower bound | dangerous | coverage |
+|---|---|---|---|---|---|
+| incumbent | 47 | 100.0% | 92.4% | 0.0% | 100.0% |
+| candidate | 47 | 100.0% | 92.4% | 0.0% | 100.0% |
+
+Cost of this replay: 705 tokens, 0; about 0.0000 per case.
+
+## The level the candidate would earn
+
+act: every rule up to act is met by 47 replayed cases
+
+## Flips (0)
+
+None: the candidate chose as the incumbent did on every replayed case.
+
+## By scope
+
+### basic
+
+| | cases | agreement | lower bound | dangerous | coverage |
+|---|---|---|---|---|---|
+| incumbent | 22 | 100.0% | 85.1% | 0.0% | 100.0% |
+| candidate | 22 | 100.0% | 85.1% | 0.0% | 100.0% |
+
+### gold
+
+| | cases | agreement | lower bound | dangerous | coverage |
+|---|---|---|---|---|---|
+| incumbent | 25 | 100.0% | 86.7% | 0.0% | 100.0% |
+| candidate | 25 | 100.0% | 86.7% | 0.0% | 100.0% |
+
+

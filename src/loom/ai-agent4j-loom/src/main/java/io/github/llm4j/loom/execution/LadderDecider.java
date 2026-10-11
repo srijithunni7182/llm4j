@@ -50,6 +50,23 @@ final class LadderDecider {
         });
     }
 
+    /**
+     * The level a case is said to have run at. A ladder says its rung. A trust block keeps the words it always used: the level the case actually ran at,
+     * so a case audited blind at suggest ran at watch, and one a person was asked about at act ran at suggest.
+     */
+    static String level(DecisionDef def, Map<String, Object> plan) {
+        if (!def.isLadderFromTrust()) return Decider.text(plan.get("rung"));
+        RungDef.Mode mode = RungDef.Mode.of(Decider.text(plan.get("mode")));
+        return mode == RungDef.Mode.BLIND ? "watch" : mode == RungDef.Mode.CONFIRM ? "suggest" : "act";
+    }
+
+    /** Why the case ran there. A trust block calls a blind sample an audit and a case a person is asked about a limit. */
+    static String how(DecisionDef def, Map<String, Object> plan) {
+        String how = Decider.text(plan.get("how"));
+        if (!def.isLadderFromTrust()) return how;
+        return how.equals("sample") ? "audit" : how.equals("escalate") ? "limit" : how;
+    }
+
     private static boolean artifact(DecisionDef def) {
         return def.getProposes() != null;
     }
@@ -139,7 +156,7 @@ final class LadderDecider {
         if (p != null) p.flush();
         if (artifact(def)) result.put("final", Decider.text(result.get("verdict")));       // what took effect: for an accept it is the proposal, so the edit is 0
         result.put("proposal", proposedText);
-        result.put("level", plan.get("rung"));
+        result.put("level", level(def, plan));
         journal.put(step + "#decide-result", new RunJournal.Entry("decision", result));
         bind(stmt, result);
         appendResponded(def, caseId, step, result);
@@ -257,7 +274,7 @@ final class LadderDecider {
     private void openCase(DecisionDef def, String caseId, String step, String free, String scope, Map<String, String> fields, Map<String, Object> plan, Map<String, Object> proposal) {
         int gen = Decider.generationOf(step);
         d.write(def, new Rec(caseId + "#case#" + gen, def.getName(), Rec.CASE, run.clock().instant(), caseId, gen,
-                Rec.map("scope", scope, "locator", run.runLocator(), "step", free, "journalStep", step, "fields", fields, "level", plan.get("rung"), "how", plan.get("how"),
+                Rec.map("scope", scope, "locator", run.runLocator(), "step", free, "journalStep", step, "fields", fields, "level", level(def, plan), "how", how(def, plan),
                         "identity", plan.get("identity"), "epoch", plan.get("epoch"), "forced", plan.get("forced"),
                         "servedModel", proposal == null ? null : proposal.get("servedModel"))));
     }
@@ -290,7 +307,7 @@ final class LadderDecider {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("decision", def.getName());
         data.put("case", caseId);
-        data.put("level", plan.get("rung"));
+        data.put("level", level(def, plan));
         if (blind) {
             run.trace(TraceEvent.DECISION, def.getAgent(), "proposal recorded (hidden)", data);
         } else {

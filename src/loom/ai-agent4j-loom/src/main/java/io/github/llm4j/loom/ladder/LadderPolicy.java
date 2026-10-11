@@ -92,6 +92,9 @@ public final class LadderPolicy {
 
     public DecisionDef decision() { return decision; }
 
+    /** True when a case that is both sampled and escalated is sampled (a trust block always checked blind first); a ladder written by hand escalates first. */
+    public boolean sampleBeforeEscalate() { return decision.isLadderFromTrust(); }
+
     // ---- the rules -----------------------------------------------------------------------------------------------------
 
     private Interpreter.Context context(V.Cs history, V.Rec current, long now) {
@@ -166,7 +169,9 @@ public final class LadderPolicy {
         double share = ladder.getRungs().get(rung).getSamplePercent();
         if (share <= 0) return false;
         try {
-            byte[] h = MessageDigest.getInstance("SHA-256").digest((caseId + "|" + decision.getName() + "|" + nameOf(rung) + "|sample").getBytes(StandardCharsets.UTF_8));
+            // a trust block keeps choosing the cases it always chose to check, so a deployment's audit sample does not change when it moves to the ladder engine
+            String key = decision.isLadderFromTrust() ? caseId + "|" + decision.getName() + "|audit" : caseId + "|" + decision.getName() + "|" + nameOf(rung) + "|sample";
+            byte[] h = MessageDigest.getInstance("SHA-256").digest(key.getBytes(StandardCharsets.UTF_8));
             long n = ((h[0] & 0xffL) << 24 | (h[1] & 0xffL) << 16 | (h[2] & 0xffL) << 8 | (h[3] & 0xffL)) % 10000;
             return n < share * 10000;
         } catch (java.security.NoSuchAlgorithmException e) {

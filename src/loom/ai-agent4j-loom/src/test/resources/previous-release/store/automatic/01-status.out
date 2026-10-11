@@ -1,0 +1,10 @@
+Refund
+  scope gold   level act   (epoch 1, agent e5978300f0)
+    evidence: 20 blind cases of the latest 20;  agreement 100.0% (lower bound 83.9%);  dangerous mistakes 0.0%;  coverage 100.0%;  unusable proposals 0
+    next step: already at act
+    last change: 2026-03-04T06:00:00Z suggest -> act (promoted, by runtime): 8 cases, agreement lower bound 67.6% (raw 100.0%)
+  scope basic   level act   (epoch 1, agent e5978300f0)
+    evidence: 20 blind cases of the latest 20;  agreement 100.0% (lower bound 83.9%);  dangerous mistakes 0.0%;  coverage 100.0%;  unusable proposals 0
+    next step: already at act
+    last change: 2026-03-04T09:00:00Z suggest -> act (promoted, by runtime): 8 cases, agreement lower bound 67.6% (raw 100.0%)
+

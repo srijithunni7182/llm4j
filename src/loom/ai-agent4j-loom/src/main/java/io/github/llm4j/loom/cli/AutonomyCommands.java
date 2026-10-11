@@ -147,13 +147,16 @@ final class AutonomyCommands implements Callable<Integer> {
         for (String name : decisions) {
             Optional<DecisionDef> def = definition(store, name, script, err);
             if (def.isEmpty()) return 2;
-            if (def.get().getLadder() != null) {
+            if (def.get().getLadder() != null && !def.get().isLadderFromTrust()) {
                 Optional<LoomScript> loaded = loadScript(store, name, script, err);
                 if (loaded.isEmpty()) return 2;
                 all.add(LadderCommands.describe(def.get(), loaded.get(), ledger, clock, text));
                 continue;
             }
-            Map<String, Object> d = describe(def.get(), ledger, levels, clock, text);
+            // a trust block is shown as it always was, from the record the engine keeps in the ledger
+            LevelStore shown = def.get().isLadderFromTrust()
+                    ? new io.github.llm4j.loom.ladder.LedgerLevelView(new io.github.llm4j.loom.ladder.LevelLog(name, List.of("watch", "suggest", "act"), ledger)) : levels;
+            Map<String, Object> d = describe(def.get(), ledger, shown, clock, text);
             all.add(d);
         }
         if (json) {
@@ -172,7 +175,7 @@ final class AutonomyCommands implements Callable<Integer> {
         return String.format("%.1f%%", v * 100);
     }
 
-    private static Map<String, Object> describe(DecisionDef def, Ledger ledger, LevelStore levels, Clock clock, StringBuilder text) {
+    static Map<String, Object> describe(DecisionDef def, Ledger ledger, LevelStore levels, Clock clock, StringBuilder text) {
         Engine engine = new Engine(def, ledger, levels, clock);
         Map<String, Object> d = new LinkedHashMap<>();
         d.put("decision", def.getName());
@@ -276,8 +279,11 @@ final class AutonomyCommands implements Callable<Integer> {
             out.println(name);
             for (Rec r : ledger.records(name)) {
                 switch (r.kind()) {
-                    case Rec.LEVEL -> out.println("  " + r.at() + "  scope " + r.str("scope") + "  " + (r.str("from") == null ? "(start)" : r.str("from")) + " -> " + r.str("to")
-                            + "  [" + r.str("kind") + (r.flag("forced") ? ", forced" : "") + "]  by " + r.str("by") + ": " + r.str("reason"));
+                    case Rec.LEVEL -> {
+                        // the note of which model the provider first named is a record, not a change of level
+                        if (!"model".equals(r.str("kind"))) out.println("  " + r.at() + "  scope " + r.str("scope") + "  " + (r.str("from") == null ? "(start)" : r.str("from")) + " -> " + r.str("to")
+                                + "  [" + r.str("kind") + (r.flag("forced") ? ", forced" : "") + "]  by " + r.str("by") + ": " + r.str("reason"));
+                    }
                     case Rec.PROMOTION_PROPOSED -> out.println("  " + r.at() + "  scope " + r.str("scope") + "  promotion to " + r.str("to") + " proposed (" + r.str("why") + ")");
                     case Rec.PROMOTION_DECIDED -> out.println("  " + r.at() + "  proposal " + r.str("result") + " by " + r.str("by") + ": " + r.str("reason"));
                     case Rec.FROZEN -> out.println("  " + r.at() + "  " + (r.flag("frozen") ? "FROZEN" : "unfrozen") + " " + r.str("scope") + ": " + r.str("reason"));

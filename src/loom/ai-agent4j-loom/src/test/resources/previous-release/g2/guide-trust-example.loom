@@ -1,0 +1,41 @@
+agent Triager {
+    model: "gemini-2.5-flash"
+    system: "You are Triager. Decide whether a refund request should be approved."
+    output_schema: { choice: enum["approve", "reject", "escalate"], reasoning: string, confidence: number }
+}
+
+decision Refund {
+    proposed by:            Triager
+    choices:                approve, reject, escalate
+    group cases by:         tier
+    remember:               amount, reason, customer_since
+    dangerous mistake:      propose approve, person decides reject
+    ask:                    support-lead
+    keep records for:       180 days
+    when the agent changes: test it on past cases
+
+    trust {
+        start at watch                          // propose quietly; people decide; nobody sees the proposal
+        never go above suggest                  // write "act" here on purpose, once the record supports it
+
+        to suggest:  after 100 cases over 14 days, agreeing at least 90%
+        to act:      after 300 cases over 30 days, agreeing at least 97%, with no dangerous mistakes
+        judge on the latest 300 cases
+
+        check 5% of cases with a person who doesn't see the proposal
+        always ask a person when amount > 200
+        always ask a person after 50 cases a day
+
+        drop to suggest when 2 dangerous mistakes in 50 cases
+        drop to suggest when 2 reversals in 100 cases
+        drop to suggest when agreement falls below 92%
+        drop to suggest when 5 unusable proposals in 50 cases
+
+        moving up needs approval from: risk-owner     // or: moving up is automatic
+    }
+}
+
+workflow Triage(ticket, tier, amount, reason, customer_since) {
+    decide Refund -> verdict
+    alt (verdict == "approve") { note "refund {ticket}" }
+}

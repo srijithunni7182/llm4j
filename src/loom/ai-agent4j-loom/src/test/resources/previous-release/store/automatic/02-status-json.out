@@ -1,0 +1,45 @@
+[ {
+  "decision" : "Refund",
+  "frozen" : false,
+  "scopes" : [ {
+    "scope" : "gold",
+    "level" : "act",
+    "effectiveLevel" : "act",
+    "epoch" : 1,
+    "agent" : "e5978300f0",
+    "forced" : false,
+    "cases" : 20,
+    "agreement" : 1.0,
+    "lowerBound" : 0.8388748398148704,
+    "dangerousRate" : 0.0,
+    "coverage" : 1.0,
+    "malformed" : 0,
+    "nextStep" : "already at act",
+    "lastChange" : {
+      "time" : "2026-03-04T06:00:00Z",
+      "kind" : "promoted",
+      "to" : "act",
+      "reason" : "8 cases, agreement lower bound 67.6% (raw 100.0%)"
+    }
+  }, {
+    "scope" : "basic",
+    "level" : "act",
+    "effectiveLevel" : "act",
+    "epoch" : 1,
+    "agent" : "e5978300f0",
+    "forced" : false,
+    "cases" : 20,
+    "agreement" : 1.0,
+    "lowerBound" : 0.8388748398148704,
+    "dangerousRate" : 0.0,
+    "coverage" : 1.0,
+    "malformed" : 0,
+    "nextStep" : "already at act",
+    "lastChange" : {
+      "time" : "2026-03-04T09:00:00Z",
+      "kind" : "promoted",
+      "to" : "act",
+      "reason" : "8 cases, agreement lower bound 67.6% (raw 100.0%)"
+    }
+  } ]
+} ]

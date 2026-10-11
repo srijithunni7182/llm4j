@@ -192,6 +192,7 @@ public final class LadderEngine {
         RungDef.Mode mode = policy.modeOf(rung);
         String how = rung < s.rung() ? (log.frozen() && rung < Math.min(s.rung(), policy.ceiling()) ? "frozen" : "ceiling") : policy.nameOf(rung);
         if (mode == RungDef.Mode.AUTONOMOUS) {
+            if (policy.sampleBeforeEscalate() && policy.sampled(rung, caseId)) return new Plan(policy.nameOf(rung), RungDef.Mode.BLIND, "sample");
             if (policy.escalates(rung, current, history, nowMillis)) return new Plan(policy.nameOf(rung), RungDef.Mode.CONFIRM, "escalate");
             if (policy.sampled(rung, caseId)) return new Plan(policy.nameOf(rung), RungDef.Mode.BLIND, "sample");
         } else if (mode == RungDef.Mode.CONFIRM && policy.sampled(rung, caseId)) {
@@ -282,9 +283,24 @@ public final class LadderEngine {
         return Optional.ofNullable(open);
     }
 
+    /** A proposal nobody answered that the scope has since caught up with (moved up by hand, say): there is nothing left to approve. */
+    private Optional<Rec> moot(String scope) {
+        Optional<LevelLog.Standing> cur = log.current(scope);
+        if (cur.isEmpty()) return Optional.empty();
+        List<String> answered = ledger.recordsOfKind(decision(), Rec.PROMOTION_DECIDED).stream().map(r -> r.str("proposal")).toList();
+        Rec found = null;
+        for (Rec r : ledger.recordsOfKind(decision(), Rec.PROMOTION_PROPOSED)) {
+            int epoch = r.num("epoch") == null ? 1 : r.num("epoch").intValue();
+            if (scope.equals(r.str("scope")) && !answered.contains(r.id()) && epoch == cur.get().epoch() && policy.indexOf(r.str("to")) <= cur.get().rung()) found = r;
+        }
+        return Optional.ofNullable(found);
+    }
+
     /** Approves the open proposal of the scope and moves it up. */
     public Change approve(String scope, String by, String reason) {
-        Proposal p = openProposal(scope).orElseThrow(() -> new IllegalStateException("there is no open promotion proposal for " + shown(scope)));
+        Proposal p = openProposal(scope).orElseThrow(() -> new IllegalStateException(moot(scope)
+                .map(r -> "the scope is already at " + log.current(scope).orElseThrow().rungName())
+                .orElse("there is no open promotion proposal for " + shown(scope))));
         if (policy.approver() != null && !policy.approver().equals(by)) {
             throw new IllegalStateException("only " + policy.approver() + " may approve moving up (you said " + by + ")");
         }
