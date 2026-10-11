@@ -58,7 +58,9 @@ public final class ScriptExplainer {
 
         out.append("\nWorth knowing\n");
         out.append("  - ").append(facts.models == 0 ? "No step asks a model." : facts.models + " step" + (facts.models == 1 ? " asks" : "s ask") + " a model.").append('\n');
-        if (facts.tasks > 0) out.append("  - ").append(facts.tasks).append(" step").append(facts.tasks == 1 ? " runs" : "s run").append(" plain code (a task), with no model.\n");
+        int plain = facts.tasks - facts.modelTasks;
+        if (plain > 0) out.append("  - ").append(plain).append(" step").append(plain == 1 ? " runs" : "s run").append(" plain code (a task), with no model.\n");
+        if (facts.modelTasks > 0) out.append("  - ").append(facts.modelTasks).append(" step").append(facts.modelTasks == 1 ? " runs" : "s run").append(" code (a task) that asks a model.\n");
         out.append("  - ").append(facts.people == 0 ? "No person is asked anything." : "A person is asked at " + facts.people + " step" + (facts.people == 1 ? "" : "s") + ".").append('\n');
         List<String> approving = script.getAgents().stream().filter(a -> a.isApproveAll() || !a.getApprove().isEmpty()).map(AgentDef::getName).toList();
         if (!approving.isEmpty()) out.append("  - A person is asked before a tool is used by: ").append(String.join(", ", approving)).append(".\n");
@@ -71,6 +73,7 @@ public final class ScriptExplainer {
     private static final class Facts {
         int models;
         int tasks;
+        int modelTasks;
         int people;
         int loops;
     }
@@ -168,7 +171,8 @@ public final class ScriptExplainer {
         if (s instanceof NoteStmt n) return "A note is shown: " + quote(n.getMessage());
         if (s instanceof RunStmt r) {
             facts.tasks++;
-            return "The task " + r.getTaskName() + " runs (plain code, no model)" + kept(r.getVariableName());
+            if (r.getModel() != null) facts.modelTasks++;
+            return "The task " + r.getTaskName() + " runs (" + (r.getModel() == null ? "plain code, no model" : "plain code that asks the model " + r.getModel()) + ")" + kept(r.getVariableName());
         }
         if (s instanceof CallStmt c) return "The workflow " + c.getWorkflowName() + " is run" + kept(c.getResultVariable());
         if (s instanceof AltStmt a) return "If " + say(a.getCondition()) + ":";

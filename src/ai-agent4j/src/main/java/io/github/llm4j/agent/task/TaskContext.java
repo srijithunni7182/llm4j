@@ -1,5 +1,6 @@
 package io.github.llm4j.agent.task;
 
+import io.github.llm4j.LLMClient;
 import java.math.BigDecimal;
 import java.util.Map;
 
@@ -25,6 +26,17 @@ public interface TaskContext {
      * ticketing API as its idempotency key so a repeated call is recognised. Empty outside a Loom run.
      */
     String idempotencyKey();
+
+    /**
+     * The model this step was given ({@code run Name(...) model "gemini-2.5-flash" -> out}), for a task that reasons with one: classifying
+     * an intent, extracting fields, judging a draft. In a Loom run the client is the same kind an agent gets, so the call is counted against
+     * budgets, shown in the spend report and trace, and replaced by a mock under {@code weave eval}. Use this and not a client of your own.
+     *
+     * @throws TaskNotPerformed when the step names no model, or when the context was made without one
+     */
+    default LLMClient llm() {
+        throw new TaskNotPerformed("this step has no model: write model \"...\" on the run statement (in a test, pass a client to TaskContext.of)");
+    }
 
     /** An argument, or null when absent. */
     default Object arg(String name) {
@@ -79,8 +91,13 @@ public interface TaskContext {
 
     /** A context with a step id and idempotency key. Inputs are copied. */
     static TaskContext of(Map<String, ?> args, Map<String, ?> variables, String stepId, String idempotencyKey) {
+        return of(args, variables, stepId, idempotencyKey, null);
+    }
+
+    /** A context whose {@link #llm()} is {@code model}: for a unit test of a task that uses a model, pass a mock client. */
+    static TaskContext of(Map<String, ?> args, Map<String, ?> variables, String stepId, String idempotencyKey, LLMClient model) {
         return new SimpleTaskContext(TaskValues.freezeMap(args), TaskValues.freezeMap(variables),
-                stepId == null ? "" : stepId, idempotencyKey == null ? "" : idempotencyKey);
+                stepId == null ? "" : stepId, idempotencyKey == null ? "" : idempotencyKey, model);
     }
 
     /** Converts a value for the typed accessors; {@link TaskNotPerformed} when it cannot be. */

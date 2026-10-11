@@ -365,7 +365,7 @@ public class LoomParser {
     }
 
     /**
-     * {@code run Task(name = value, ...) -> variable [retry N] [backoff 2s] [timeout 30s] [on_failure { ... }]}.
+     * {@code run Task(name = value, ...) [model "name"] -> variable [model "name"] [retry N] [backoff 2s] [timeout 30s] [on_failure { ... }]}.
      * A value is a variable path (passed with its type), a quoted string (placeholders filled in), a number or true/false.
      */
     private RunStmt parseRun() {
@@ -396,15 +396,25 @@ public class LoomParser {
             } while (match(TokenType.COMMA));
         }
         consume(TokenType.RPAREN, "Expect ')' after the arguments of " + task.getValue() + ".");
+        String model = null; // model "name" may come before the arrow, as it reads best, or with the other options after the variable
+        if (match(TokenType.MODEL)) {
+            match(TokenType.COLON);
+            model = consume(TokenType.STRING_LITERAL, "Expect a quoted model name, as in model \"gemini-2.5-flash\".").getValue();
+        }
         consume(TokenType.ARROW, "Expect '->' and a variable to hold the result, as in run " + task.getValue() + "(...) -> result.");
         String variable = nameOrReference("Expect a variable name for the result (or {item.field}).");
 
         RunStmt stmt = new RunStmt(task.getValue(), variable);
         stmt.setLine(keyword.getLine());
+        stmt.setModel(model);
         stmt.getArgs().addAll(args);
-        // Optional, in any order: retry 3 · backoff 2s · timeout 30s
+        // Optional, in any order: model "name" · retry 3 · backoff 2s · timeout 30s
         while (true) {
-            if (match(TokenType.RETRY)) {
+            if (match(TokenType.MODEL)) {
+                match(TokenType.COLON); // model: "x" reads as it does in an agent
+                if (stmt.getModel() != null) throw error(previous(), "model is given twice in run " + task.getValue() + ".");
+                stmt.setModel(consume(TokenType.STRING_LITERAL, "Expect a quoted model name, as in model \"gemini-2.5-flash\".").getValue());
+            } else if (match(TokenType.RETRY)) {
                 Token count = consume(TokenType.NUMBER_LITERAL, "Expect number of retries.");
                 stmt.setRetryCount((int) Double.parseDouble(count.getValue()));
             } else if (check(TokenType.IDENTIFIER) && ("backoff".equals(peek().getValue()) || "timeout".equals(peek().getValue()))) {
@@ -412,7 +422,7 @@ public class LoomParser {
                 long millis = durationMillis();
                 if (option.equals("backoff")) stmt.setBackoffMillis(millis); else stmt.setTimeoutMillis(millis);
             } else if (isBudgetModifier()) {
-                throw error(peek(), "A task spends no tokens, so it has no budget: remove 'budget' from run " + task.getValue() + ".");
+                throw error(peek(), "A task has no budget of its own: remove 'budget' from run " + task.getValue() + ". Its model calls count against the enclosing run, loop or step budgets.");
             } else {
                 break;
             }

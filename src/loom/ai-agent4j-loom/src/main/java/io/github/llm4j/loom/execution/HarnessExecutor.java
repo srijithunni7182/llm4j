@@ -692,6 +692,13 @@ public class HarnessExecutor implements LoomEngine {
                 else checkModel(c, a.getLine(), "agent " + a.getName(), a.getModel());
             }
         }
+        for (io.github.llm4j.loom.ast.WorkflowDef w : script.getWorkflows()) {
+            io.github.llm4j.loom.ast.StatementWalker.walk(w.getStatements(), st -> {
+                if (st instanceof io.github.llm4j.loom.ast.RunStmt r && r.getModel() != null) {
+                    checkModel(c, r.getLine(), "run " + r.getTaskName(), r.getModel());
+                }
+            });
+        }
         for (RoutingPolicyDef r : script.getRoutingPolicies()) {
             if (r.getPrimaryModel() != null) checkModel(c, r.getLine(), "routing " + r.getName(), r.getPrimaryModel());
             for (String fb : r.getFallbackModels()) checkModel(c, r.getLine(), "routing " + r.getName(), fb);
@@ -2202,14 +2209,25 @@ public class HarnessExecutor implements LoomEngine {
 
     /** Meters a client against run + agent + enclosing budgets, when the script uses budgets. */
     private io.github.llm4j.LLMClient metered(io.github.llm4j.LLMClient client, AgentDef agentDef, String model) {
+        return metered(client, agentDef.getName(), agentDef.getBudget() != null ? agentDef.getBudget().getPerCall() : null, model);
+    }
+
+    /**
+     * The client a task gets from {@code ctx.llm()}: the model the {@code run} statement named, metered like an agent's. Its spend is
+     * reported under {@code task <Name>}, and counts against the run budget and the budgets around the statement.
+     */
+    io.github.llm4j.LLMClient clientForTask(String taskName, String model) {
+        return metered(clientFor(model), "task " + taskName, null, model);
+    }
+
+    private io.github.llm4j.LLMClient metered(io.github.llm4j.LLMClient client, String agentName, Integer perCall, String model) {
         if (!budgeting || client == null) return client;
-        String agentName = agentDef.getName();
         io.github.llm4j.budget.BudgetedLLMClient metered = io.github.llm4j.budget.BudgetedLLMClient.builder(client)
                 .budgets(() -> budgetsFor(agentName))
                 .estimator(tokenEstimator)
                 .prices(priceTable)
                 .model(model)
-                .perCallCap(agentDef.getBudget() != null ? agentDef.getBudget().getPerCall() : null)
+                .perCallCap(perCall)
                 .build();
         metered.addChargeListener((m, charge) -> {
             String stepId = step.get();

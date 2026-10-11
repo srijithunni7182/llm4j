@@ -70,7 +70,7 @@ public final class ScriptDrift {
             return d.getTargetAgent() + ":" + d.getPayload() + ":" + (agent.isPresent() ? agent.get().getTools() + "/" + agent.get().getModel() : "?");
         }
         if (s instanceof io.github.llm4j.loom.ast.RunStmt r) {
-            StringBuilder b = new StringBuilder("task " + r.getTaskName() + "(");
+            StringBuilder b = new StringBuilder("task " + r.getTaskName() + (r.getModel() == null ? "" : "@" + r.getModel()) + "(");
             r.getArgs().forEach(a -> b.append(a.name()).append('=').append(a.kind()).append(':').append(a.text()).append(','));
             return b.append(')').toString();
         }

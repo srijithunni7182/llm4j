@@ -94,7 +94,7 @@ class TaskParseTest {
     @Test
     void budgetRejected() {
         RuntimeException e = assertThrows(RuntimeException.class, () -> body("run T() -> out budget 100 tokens"));
-        assertTrue(e.getMessage().contains("spends no tokens"), e.getMessage());
+        assertTrue(e.getMessage().contains("no budget of its own"), e.getMessage());
     }
 
     @Test
