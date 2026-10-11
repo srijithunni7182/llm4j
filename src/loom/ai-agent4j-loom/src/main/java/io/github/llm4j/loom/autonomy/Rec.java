@@ -20,6 +20,8 @@ public record Rec(String id, String decision, String kind, Instant at, String ca
     public static final String OUTCOME = "outcome";
     public static final String RESPONDED = "responded";
     public static final String EPOCH = "epoch";
+    /** The text of an artifact too large to keep in the record that refers to it, stored once under the hash of its content. */
+    public static final String BLOB = "blob";
     public static final String LEVEL = "level";
     public static final String FROZEN = "frozen";
     public static final String PROMOTION_PROPOSED = "promotion_proposed";

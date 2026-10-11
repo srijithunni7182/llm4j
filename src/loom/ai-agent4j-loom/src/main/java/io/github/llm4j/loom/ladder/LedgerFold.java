@@ -24,6 +24,7 @@ public final class LedgerFold {
     }
 
     public static List<LCase> cases(List<Rec> records) {
+        Map<String, String> blobs = Blobs.index(records);
         Map<String, Draft> drafts = new LinkedHashMap<>();
         Map<String, Integer> latest = new LinkedHashMap<>();
         for (Rec r : records) {
@@ -46,7 +47,7 @@ public final class LedgerFold {
         }
         List<LCase> out = new ArrayList<>();
         for (Draft d : drafts.values()) {
-            if (d.open != null) out.add(build(d, d.open.generation() < latest.get(d.open.caseId())));
+            if (d.open != null) out.add(build(d, d.open.generation() < latest.get(d.open.caseId()), blobs));
         }
         return out;
     }
@@ -66,7 +67,7 @@ public final class LedgerFold {
     }
 
     @SuppressWarnings("unchecked")
-    private static LCase build(Draft d, boolean superseded) {
+    private static LCase build(Draft d, boolean superseded, Map<String, String> blobs) {
         Rec o = d.open;
         Map<String, String> fields = new LinkedHashMap<>();
         if (o.body().get("fields") instanceof Map<?, ?> m) m.forEach((k, v) -> fields.put(String.valueOf(k), String.valueOf(v)));
@@ -81,9 +82,9 @@ public final class LedgerFold {
         Number confidence = p == null ? null : p.num("confidence");
         return new LCase(o.caseId(), o.decision(), o.str("scope") == null ? "all" : o.str("scope"), o.at(), o.str("level"), o.str("how"), o.str("identity"),
                 epoch == null ? 1 : epoch.intValue(), o.generation(), superseded, fields, o.str("servedModel"),
-                p == null ? null : p.str("choice"), p == null ? null : p.str("value"), p == null ? null : p.str("reasoning"),
+                p == null ? null : p.str("choice"), Blobs.read(p, "value", blobs), p == null ? null : p.str("reasoning"),
                 confidence == null ? null : confidence.doubleValue(), p != null && p.flag("malformed"), p == null ? null : p.at(), flags,
-                r != null, r == null ? null : r.str("kind"), r == null ? null : r.str("choice"), r == null ? null : r.str("final"),
+                r != null, r == null ? null : r.str("kind"), r == null ? null : r.str("choice"), Blobs.read(r, "final", blobs),
                 r == null ? null : r.str("by"), r != null && r.flag("shown"), millis, r == null ? (Instant) null : r.at(), outcomes);
     }
 }

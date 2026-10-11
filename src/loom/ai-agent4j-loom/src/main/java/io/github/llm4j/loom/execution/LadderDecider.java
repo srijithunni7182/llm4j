@@ -288,16 +288,21 @@ final class LadderDecider {
 
     private void appendProposed(DecisionDef def, String caseId, String step, Map<String, Object> proposal) {
         int gen = Decider.generationOf(step);
-        d.write(def, new Rec(caseId + "#proposed#" + gen, def.getName(), Rec.PROPOSED, run.clock().instant(), caseId, gen,
-                Rec.map("choice", proposal.get("choice"), "value", proposal.get("value"), "reasoning", proposal.get("reasoning"), "confidence", proposal.get("confidence"),
-                        "malformed", Boolean.TRUE.equals(proposal.get("malformed")) ? true : null, "flags", proposal.get("flags"))));
+        java.time.Instant now = run.clock().instant();
+        Map<String, Object> body = Rec.map("choice", proposal.get("choice"), "reasoning", proposal.get("reasoning"), "confidence", proposal.get("confidence"),
+                "malformed", Boolean.TRUE.equals(proposal.get("malformed")) ? true : null, "flags", proposal.get("flags"));
+        // a large artifact is kept once, apart, and the record says where
+        body.putAll(io.github.llm4j.loom.ladder.Blobs.keep(rec -> d.write(def, rec), def.getName(), "value", proposal.get("value") == null ? null : Decider.text(proposal.get("value")), now));
+        d.write(def, new Rec(caseId + "#proposed#" + gen, def.getName(), Rec.PROPOSED, now, caseId, gen, body));
     }
 
     private void appendResponded(DecisionDef def, String caseId, String step, Map<String, Object> result) {
         int gen = Decider.generationOf(step);
-        d.write(def, new Rec(caseId + "#responded#" + gen, def.getName(), Rec.RESPONDED, run.clock().instant(), caseId, gen,
-                Rec.map("kind", result.get("kind"), "choice", result.get("choice"), "final", result.get("final"), "by", result.get("decider"),
-                        "shown", Boolean.TRUE.equals(result.get("shown")), "millis", result.get("millis"))));
+        java.time.Instant now = run.clock().instant();
+        Map<String, Object> body = Rec.map("kind", result.get("kind"), "choice", result.get("choice"), "by", result.get("decider"),
+                "shown", Boolean.TRUE.equals(result.get("shown")), "millis", result.get("millis"));
+        body.putAll(io.github.llm4j.loom.ladder.Blobs.keep(rec -> d.write(def, rec), def.getName(), "final", result.get("final") == null ? null : Decider.text(result.get("final")), now));
+        d.write(def, new Rec(caseId + "#responded#" + gen, def.getName(), Rec.RESPONDED, now, caseId, gen, body));
     }
 
     private void afterResponse(DecisionDef def, LadderEngine engine, String scope) {

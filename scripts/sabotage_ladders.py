@@ -19,7 +19,7 @@ SPEC = ROOT / ".kiro" / "specs" / "loom-ladders"
 L = "src/loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/"
 TESTS = ("Ladder*Test,Reference*Test,Interpreter*Test,Expr*Test,LedgerFoldTest,VTest,LexerTest,CheckerTest,WilsonTest,DistanceTest,StandardLibraryTest,"
          "TypicalMistakesTest,NovelAgentsTest,LadderVerificationTest,LadderStoresTest,LadderScriptTest,!LadderScaleTest,"
-         "Trust*Test,AgentLadderDefaultTest,DecideSafetyTest,DecideResilienceTest,ReplayTest")
+         "Trust*Test,AgentLadderDefaultTest,DecideSafetyTest,DecideResilienceTest,ReplayTest,ArtifactReferenceTest,LadderEpochReplayTest")
 
 SABOTAGES = [
     ("S1", "Missing data makes a condition true (fail open) instead of false",
@@ -72,6 +72,10 @@ SABOTAGES = [
      [(L + "ladder/LadderPolicy.java", "if (best == null || to < best.to()) best", "if (best == null) best")]),
     ("S25", "Write the trust block without its days requirement",
      [(L + "ladder/TrustDesugar.java", "if (rule.days() > 0) parts.add(said(", "if (false) parts.add(said(")]),
+    ("S27", "Keep a large artifact inside the record of the case instead of apart",
+     [(L + "ladder/Blobs.java", "public static final int LIMIT = 16 * 1024;", "public static final int LIMIT = Integer.MAX_VALUE;")]),
+    ("S28", "Retention leaves the text of a large artifact in place",
+     [(L + "autonomy/Purge.java", 'if (body.remove("text") != null) body.put("purged", true);', 'body.remove("size");')]),
     ("S26", "Count every case, not only blind ones, as evidence for a trust block",
      [(L + "ladder/TrustDesugar.java", 'measure(BLIND, "c.blind", line)', 'measure(BLIND, "true", line)')]),
 ]

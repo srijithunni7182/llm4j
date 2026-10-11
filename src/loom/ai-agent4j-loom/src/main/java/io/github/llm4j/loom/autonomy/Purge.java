@@ -12,6 +12,11 @@ final class Purge {
     /** The record without the case's remembered values and its reasoning, when it is a case, proposal or response older than {@code before}. */
     static Rec apply(Rec r, Instant before) {
         if (!r.at().isBefore(before)) return r;
+        if (Rec.BLOB.equals(r.kind())) {
+            Map<String, Object> body = new LinkedHashMap<>(r.body());
+            if (body.remove("text") != null) body.put("purged", true);
+            return new Rec(r.id(), r.decision(), r.kind(), r.at(), r.caseId(), r.generation(), body);
+        }
         if (!Rec.CASE.equals(r.kind()) && !Rec.PROPOSED.equals(r.kind()) && !Rec.RESPONDED.equals(r.kind())) return r;
         Map<String, Object> body = new LinkedHashMap<>(r.body());
         boolean changed = body.remove("fields") != null;
