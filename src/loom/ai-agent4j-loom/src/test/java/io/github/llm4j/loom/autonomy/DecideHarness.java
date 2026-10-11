@@ -196,6 +196,11 @@ final class DecideHarness {
         return Level.of(log().current(scope).orElseThrow().rungName());
     }
 
+    /** Why the scope stands where it does: the reason of its latest change. */
+    String reasonOf(String scope) {
+        return onLadder() ? log().current(scope).orElseThrow().reason() : levels.get("Refund", scope).orElseThrow().reason();
+    }
+
     int epochOf(String scope) {
         return onLadder() ? log().current(scope).orElseThrow().epoch() : levels.get("Refund", scope).orElseThrow().epoch();
     }

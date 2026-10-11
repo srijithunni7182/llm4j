@@ -41,7 +41,7 @@ class ArtifactReferenceTest {
         String proposed = document(size);
         String edited = proposed + " (and one more sentence)";
         MemoryLedger ledger = new MemoryLedger();
-        DecideHarness h = new DecideHarness(dir, ledger, new MemoryLevelStore(), LadderRunTest.PUBLISH);
+        DecideHarness h = new DecideHarness(dir, ledger, new MemoryLevelStore(), LadderBoundRunTest.PUBLISH);
         h.rawAgent = f -> "{\"post\": \"" + proposed + "\", \"reasoning\": \"draft\"}";
         h.person = f -> "accept";
         h.runCase("p1", h.inputs("x", 1));
@@ -93,7 +93,7 @@ class ArtifactReferenceTest {
     void aLargeArtifactSurvivesTheFileLedgerWholeAndRetentionRemovesItFromTheFile() throws Exception {
         String proposed = document(1_000_000);
         Ledger ledger = new FileLedger(dir.resolve("autonomy"));
-        DecideHarness h = new DecideHarness(dir, ledger, new MemoryLevelStore(), LadderRunTest.PUBLISH);
+        DecideHarness h = new DecideHarness(dir, ledger, new MemoryLevelStore(), LadderBoundRunTest.PUBLISH);
         h.rawAgent = f -> "{\"post\": \"" + proposed + "\", \"reasoning\": \"draft\"}";
         h.person = f -> "accept";
         h.runCase("p1", h.inputs("x", 1));
@@ -111,7 +111,7 @@ class ArtifactReferenceTest {
     @ValueSource(ints = {100, 16_384})
     void textAtOrUnderTheLimitStaysInTheRecord(int size) {
         MemoryLedger ledger = new MemoryLedger();
-        DecideHarness h = new DecideHarness(dir, ledger, new MemoryLevelStore(), LadderRunTest.PUBLISH);
+        DecideHarness h = new DecideHarness(dir, ledger, new MemoryLevelStore(), LadderBoundRunTest.PUBLISH);
         String text = document(size);
         h.rawAgent = f -> "{\"post\": \"" + text + "\", \"reasoning\": \"draft\"}";
         h.person = f -> "accept";

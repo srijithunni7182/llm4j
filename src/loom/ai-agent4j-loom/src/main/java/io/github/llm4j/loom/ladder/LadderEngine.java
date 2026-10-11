@@ -234,7 +234,7 @@ public final class LadderEngine {
             Optional<LadderPolicy.SlipHit> slip = policy.slipHit(cur.rung(), history, t);
             if (slip.isPresent()) {
                 String why = because(slip.get().because(), true);
-                LevelLog.Standing next = withRung(cur, slip.get().to(), "slip: " + why, false);
+                LevelLog.Standing next = withRung(cur, slip.get().to(), trustWords(true, scope, cur, slip.get().to(), "slip: " + why), false);
                 if (log.write(scope, cur.version(), next, "demoted", cur.rungName(), "runtime", now(), policy.rulesText())) {
                     out.add(new Change("demoted", scope, cur.rungName(), next.rungName(), next.reason(), "runtime", false));
                     return out;
@@ -244,9 +244,9 @@ public final class LadderEngine {
             int to = cur.rung() + 1;
             if (to > policy.ceiling() || to >= policy.rungs().size() || !policy.climbs(to, history, t)) return out;
             if (policy.slip(to, history, t).isPresent()) return out;                      // it would only flap
-            String why = because(policy.explainClimb(to, history, t), true);
+            String why = trustWords(false, scope, cur, to, because(policy.explainClimb(to, history, t), true));
             if (policy.automatic()) {
-                LevelLog.Standing next = withRung(cur, to, "climb: " + why, false);
+                LevelLog.Standing next = withRung(cur, to, trustWords(false, scope, cur, to, "climb: " + why), false);
                 if (log.write(scope, cur.version(), next, "promoted", cur.rungName(), "runtime", now(), policy.rulesText())) {
                     out.add(new Change("promoted", scope, cur.rungName(), next.rungName(), next.reason(), "runtime", false));
                     return out;
@@ -258,6 +258,23 @@ public final class LadderEngine {
             return out;
         }
         return out;
+    }
+
+    /**
+     * Why a scope moved, in the words a trust block has always used for it, so what its operators read in {@code history} does not change when it runs as a
+     * ladder: "8 cases, agreement lower bound 67.6% (raw 100.0%)" for a climb, and the rule's own sentence for a drop. A ladder written by hand says it with its
+     * conditions.
+     */
+    private String trustWords(boolean slip, String scope, LevelLog.Standing cur, int to, String generic) {
+        if (!policy.decision().isLadderFromTrust()) return generic;
+        io.github.llm4j.loom.autonomy.Ladder original = new io.github.llm4j.loom.autonomy.Ladder(policy.decision(), ledger, clock);
+        if (slip) {
+            io.github.llm4j.loom.autonomy.LevelState state = new io.github.llm4j.loom.autonomy.LevelState(io.github.llm4j.loom.autonomy.Level.of(cur.rungName()), cur.epoch(),
+                    cur.identity(), cur.forced(), cur.at(), cur.reason(), cur.version());
+            return original.demotion(scope, state).map(io.github.llm4j.loom.autonomy.Ladder.Demotion::reason).orElse(generic);
+        }
+        io.github.llm4j.loom.autonomy.AgreementStats.Figures f = original.evaluate(scope, cur.epoch(), io.github.llm4j.loom.autonomy.Level.values()[to]).figures();
+        return String.format("%d cases, agreement lower bound %.1f%% (raw %.1f%%)", f.cases(), f.lowerBound() * 100, f.rate() * 100);
     }
 
     private LevelLog.Standing withRung(LevelLog.Standing cur, int rung, String reason, boolean forced) {
@@ -408,10 +425,11 @@ public final class LadderEngine {
             for (int attempt = 0; attempt < RETRIES; attempt++) {
                 LevelLog.Standing cur = log.current(scope).orElse(null);
                 if (cur == null || cur.rules().equals(fingerprint)) break;
-                if (cur.rules().equals(LevelLog.LEGACY)) {
-                    // a standing the original engine earned: adopted as it stands. The ladder judges what comes next, not what was already granted.
+                if (cur.rules().equals(LevelLog.LEGACY) || policy.decision().isLadderFromTrust()) {
+                    // a standing the original engine earned is adopted as it stands, and so is the standing of a trust block whose rules were edited: a trust block's
+                    // level has only ever changed by its drop rules and by approval, so editing a threshold does not demote anyone. The ladder judges what comes next.
                     LevelLog.Standing adopted = new LevelLog.Standing(cur.rung(), cur.rungName(), cur.version() + 1, cur.epoch(), cur.identity(), cur.servedModel(), cur.forced(),
-                            now(), "adopted from the original engine", fingerprint);
+                            now(), cur.rules().equals(LevelLog.LEGACY) ? "adopted from the original engine" : "the trust block was edited; the standing is kept", fingerprint);
                     if (log.write(scope, cur.version(), adopted, "rules", cur.rungName(), "runtime", now(), policy.rulesText())) break;
                     continue;
                 }

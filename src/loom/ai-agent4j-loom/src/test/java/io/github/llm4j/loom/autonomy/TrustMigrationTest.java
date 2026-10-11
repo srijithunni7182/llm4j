@@ -124,4 +124,27 @@ class TrustMigrationTest {
         assertThat(log.current("gold").orElseThrow().identity()).isEqualTo("id-b");
         assertThat(log.current("gold").orElseThrow().rules()).isEqualTo(LevelLog.LEGACY);
     }
+
+    @Test
+    void editingATrustBlockKeepsEveryScopeWhereItIsAndOnlyTheDropRulesAndApprovalMoveItAfterwards() {
+        LoomScript s = script();
+        DecisionDef d = s.getDecisions().get(0);
+        Engine old = new Engine(d, ledger, new MemoryLevelStore(), clock);
+        old.state("gold", "id-a");
+        original(old, "gold", 20, "approve", "approve", true);                                  // act
+        assertThat(old.levels().get("D", "gold").orElseThrow().level()).isEqualTo(Level.ACT);
+        s.applyTrustLadders();
+        LadderEngine engine = new LadderEngine(LadderPolicy.of(s, d), ledger, clock);
+        engine.reevaluate();
+
+        // the publisher tightens both thresholds far beyond what the record shows
+        LoomScript edited = new LoomParser(new Lexer(TrustAsLadderEquivalenceTest.script(
+                TRUST.replace("after 5 cases, agreeing at least 60%", "after 500 cases, agreeing at least 99%").replace("after 10 cases, agreeing at least 80%", "after 900 cases, agreeing at least 99%"))).tokenize()).parseScript();
+        edited.applyTrustLadders();
+        LadderEngine after = new LadderEngine(LadderPolicy.of(edited, edited.getDecisions().get(0)), ledger, clock);
+        assertThat(after.reevaluate()).as("an edit moves nobody").isEmpty();
+        assertThat(after.log().current("gold").orElseThrow().rungName()).isEqualTo("act");
+        assertThat(after.log().current("gold").orElseThrow().reason()).contains("edited").contains("kept");
+        assertThat(after.log().current("gold").orElseThrow().rules()).isEqualTo(LadderPolicy.of(edited, edited.getDecisions().get(0)).fingerprint());
+    }
 }
