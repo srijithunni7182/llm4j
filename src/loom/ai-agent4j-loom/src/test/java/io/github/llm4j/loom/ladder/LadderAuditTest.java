@@ -96,7 +96,7 @@ class LadderAuditTest {
     }
 
     @Test
-    void testingOnPastCasesIsSaidNotToApplyYet() {
+    void testingOnPastCasesIsNoLongerWarnedAbout() {
         LadderHarness h = new LadderHarness(LadderChecksTest.AGENT + """
                 ladder L {
                     rung a { mode: blind }
@@ -106,7 +106,7 @@ class LadderAuditTest {
                 decision D { proposed by: Triager choices: x, y, escalate ask: p ladder: L ceiling: b when the agent changes: test it on past cases }
                 workflow W() { decide D -> v note "{v}" }
                 """);
-        assertThat(warnings(h)).anyMatch(w -> w.contains("not yet applied to a ladder") && w.contains("starts over"));
+        assertThat(warnings(h)).noneMatch(w -> w.contains("past cases") || w.contains("starts over"));
     }
 
     private static String retentionLadder(String climb) {

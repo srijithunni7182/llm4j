@@ -40,7 +40,14 @@ final class LadderDecider {
     /** The engine of a decision, created once; rules that changed since the last run are applied the first time it is built. */
     LadderEngine engine(DecisionDef def) {
         return engines.computeIfAbsent(def.getName(), n -> {
-            LadderEngine engine = new LadderEngine(LadderPolicy.of(run.script(), def), d.ledger(), run.clock());
+            LadderPolicy policy = LadderPolicy.of(run.script(), def);
+            LadderEngine engine = new LadderEngine(policy, d.ledger(), run.clock());
+            // "when the agent changes: test it on past cases": the new agent starts on the rung the replay of the old one's cases under it supports
+            engine.inheritWith((scope, old, identity) -> {
+                HarnessExecutor.Inherited inherited = run.inheritedRung(def, scope, old.rungName(), old.epoch(), identity);
+                log.info("Decision " + def.getName() + ", scope " + scope + ": " + inherited.reason());
+                return inherited.rung() == null ? 0 : Math.max(0, policy.indexOf(inherited.rung()));
+            });
             try {
                 for (LadderEngine.Change change : engine.reevaluate()) announce(def, change);
             } catch (RuntimeException e) {

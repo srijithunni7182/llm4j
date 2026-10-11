@@ -108,7 +108,7 @@ class TrustDesugarTest {
     @Test
     void whatTheLanguageCannotSayInOneLineStaysWithTheOriginalEngineAndSaysWhy() {
         assertThat(of(decision("", "start at suggest  moving up is automatic")).unsupported()).contains("starts at suggest");
-        assertThat(of(decision("when the agent changes: test it on past cases", "moving up is automatic")).unsupported()).contains("past cases");
+        assertThat(of(decision("when the agent changes: test it on past cases", "moving up is automatic")).supported()).as("testing on past cases is a ladder's too").isTrue();
         assertThat(of(decision("", "always ask a person after 50 cases a day  moving up is automatic")).unsupported()).contains("calendar days");
         assertThat(of(decision("", "always ask a person when region == west  moving up is automatic")).unsupported()).contains("remembered value");
         assertThat(of(decision("", "always ask a person when urgent  moving up is automatic")).unsupported()).contains("remembered value");

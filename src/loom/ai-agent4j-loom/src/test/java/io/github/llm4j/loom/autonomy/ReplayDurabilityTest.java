@@ -118,7 +118,7 @@ class ReplayDurabilityTest {
                     : f -> new String[] {Integer.parseInt(f.get("amount")) < 100 ? "approve" : "reject", "good", "0.9"};
             Path newScript = h.script("new-agent.loom", live.script.replace("You are Triager.", "You are the new Triager."));
 
-            LevelState old = live.levels.get("Refund", "gold").orElseThrow();
+            LevelState old = new LevelState(live.levelOf("gold"), live.epochOf("gold"), live.identityOf("gold"), false, DecideHarness.T0, "earned", 1);
             EpochReplay inherit = new EpochReplay(h.engine, newScript);
             io.github.llm4j.loom.execution.HarnessExecutor.Inherited got = inherit.inherited(
                     DecisionParseTest.parse(live.script).getDecisions().get(0), "gold", old.withLevel(Level.SUGGEST, false, DecideHarness.T0, "earned"), "newidentity");

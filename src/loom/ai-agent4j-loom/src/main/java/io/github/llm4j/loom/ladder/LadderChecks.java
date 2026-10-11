@@ -234,9 +234,6 @@ public final class LadderChecks {
         if (!d.isOnChangeStated()) {
             warn(d.getLine(), who, "no \"when the agent changes:\" line: a changed agent starts over (write when the agent changes: start over, to say so)");
         }
-        if (d.getOnChange() == DecisionDef.OnChange.TEST_ON_PAST) {
-            warn(d.getLine(), who, "when the agent changes: test it on past cases is not yet applied to a ladder: a changed agent starts over");
-        }
         anchoring(l);
         retention(d, l, who);
         if (d.getOnChange() == DecisionDef.OnChange.KEEP_TRUST) {

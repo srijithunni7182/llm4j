@@ -28,8 +28,7 @@ import java.util.regex.Pattern;
  * {@code window} of them), so the ladder it writes climbs and slips where the trust block always did.
  *
  * <p>What the language cannot say in one line stays with the original engine, and the result says why: a decision that does not start at watch, that
- * tests a changed agent on past cases, that asks a person after N cases <em>a day</em>, or whose {@code always ask} condition is not a comparison of a
- * remembered value.
+ * asks a person after N cases <em>a day</em>, or whose {@code always ask} condition is not a comparison of a remembered value.
  */
 public final class TrustDesugar {
 
@@ -66,7 +65,6 @@ public final class TrustDesugar {
 
     private static Result build(DecisionDef d, Set<String> scriptMeasures) {
         if (d.getStartAt() != Level.WATCH) return no("it starts at " + d.getStartAt().word() + ", and a ladder always starts on its first rung");
-        if (d.getOnChange() == DecisionDef.OnChange.TEST_ON_PAST) return no("when the agent changes it tests the new agent on past cases, which only the original engine does");
         if (d.getAskAfterPerDay() > 0) return no("it asks a person after N cases a day, which counts calendar days");
         for (String taken : List.of(BLIND, AGREES, BY_AGENT, MALFORMED, REVERSED)) {
             if (scriptMeasures.contains(taken)) return no("the script already has a measure called " + taken);

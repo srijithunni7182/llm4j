@@ -45,7 +45,13 @@ public final class LadderEngine {
     private final Ledger ledger;
     private final Clock clock;
     private final LevelLog log;
-    private ToIntFunction<LevelLog.Standing> inherit;
+    /** What a new epoch starts on when the decision says "test it on past cases": the rung (an index) the new agent has earned, given the old standing. */
+    @FunctionalInterface
+    public interface Inheritance {
+        int rungFor(String scope, LevelLog.Standing old, String identity);
+    }
+
+    private Inheritance inherit;
 
     public LadderEngine(LadderPolicy policy, Ledger ledger, Clock clock) {
         this.policy = policy;
@@ -56,6 +62,11 @@ public final class LadderEngine {
 
     /** What a new epoch inherits when the decision says "test it on past cases": given the old standing, the rung the new agent has earned. */
     public void inheritWith(ToIntFunction<LevelLog.Standing> inherit) {
+        this.inherit = (scope, old, identity) -> inherit.applyAsInt(old);
+    }
+
+    /** As {@link #inheritWith(ToIntFunction)}, for a rule that needs to know the scope and the new agent. */
+    public void inheritWith(Inheritance inherit) {
         this.inherit = inherit;
     }
 
@@ -151,7 +162,7 @@ public final class LadderEngine {
                     how = "keep the trust";
                     break;
                 case TEST_ON_PAST:
-                    rung = inherit == null ? 0 : Math.min(cur.rung(), Math.max(0, inherit.applyAsInt(cur)));
+                    rung = inherit == null ? 0 : Math.min(cur.rung(), Math.max(0, inherit.rungFor(scope, cur, identity)));
                     how = inherit == null ? "start over (no replay available)" : "test it on past cases";
                     break;
                 default:
