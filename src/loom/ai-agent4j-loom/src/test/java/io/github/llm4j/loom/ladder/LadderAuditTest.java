@@ -108,4 +108,30 @@ class LadderAuditTest {
                 """);
         assertThat(warnings(h)).anyMatch(w -> w.contains("not yet applied to a ladder") && w.contains("starts over"));
     }
+
+    private static String retentionLadder(String climb) {
+        return LadderChecksTest.AGENT + "measure ok(c) = c.response.kind == \"accept\"\nladder L {\n rung a { mode: blind }\n rung b { mode: confirm climb when " + climb + " }\n climbing is automatic\n}\n"
+                + "decision D { proposed by: Triager choices: x, y, escalate ask: p ladder: L ceiling: b keep records for: 14 days when the agent changes: start over }\n"
+                + "workflow W() { decide D -> v note \"{v}\" }\n";
+    }
+
+    @Test
+    void theLookBackIsFoundHoweverDeepInTheConditionItSits() {
+        for (String climb : List.of("history.count >= 1 and not history.since(30d).any(ok)", "abs(history.since(30d).count) >= 1", "history.since(30d).span >= 2d",
+                "history.count in [history.since(30d).count]", "-history.since(30d).count < 0", "history.where(ok).since(30d).count >= 1", "history.count(ok) >= history.since(30d).count")) {
+            assertThat(warnings(new LadderHarness(retentionLadder(climb)))).as(climb).anyMatch(w -> w.contains("looks back 30d"));
+        }
+        assertThat(warnings(new LadderHarness(retentionLadder("history.since(7d).count >= 1")))).noneMatch(w -> w.contains("looks back"));
+    }
+
+    @Test
+    void aFilterIsFoundHoweverDeepInTheConditionItSits() {
+        String base = LadderChecksTest.AGENT + "measure agrees(c) = c.response.choice == c.proposal.choice\nladder L {\n rung a { mode: confirm }\n rung b { mode: autonomous climb when @C@ slip when history.rate(agrees) < 0.5 sample 5% blind }\n climbing needs approval from boss\n}\n"
+                + "decision D { proposed by: Triager choices: x, y, escalate ask: p ladder: L ceiling: b when the agent changes: start over }\nworkflow W() { decide D -> v note \"{v}\" }\n";
+        for (String climb : List.of("not history.where(blind).any(agrees)", "abs(history.where(blind).count) >= 1", "history.count >= 1 and history.where(blind).rate(agrees) >= 0.9",
+                "history.count in [history.where(blind).count]", "-history.where(blind).count < 0", "history.rate(agrees) >= 0.9 and blind == blind")) {
+            assertThat(warnings(new LadderHarness(base.replace("@C@", climb)))).as(climb).noneMatch(w -> w.contains("counts every case"));
+        }
+        assertThat(warnings(new LadderHarness(base.replace("@C@", "history.rate(agrees) >= 0.9")))).anyMatch(w -> w.contains("counts every case"));
+    }
 }
