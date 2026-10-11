@@ -49,8 +49,10 @@ Check the first run's `spend` report and adjust.
   (page at `http://127.0.0.1:8787`) and, to keep the page up after the run, `--observe-linger 5m`:
   `java -cp "$WEAVE_JAR:loom-inspect.jar:loom-inspect-core.jar" io.github.llm4j.loom.cli.WeaveCLI run soak.loom … --observe`.
   Today it shows totals, agents with the tools they are using, tool counts, latest events and the sleeping state.
-- **With Fabric** (not built yet): `--observe-fabric <url> --observe-name soak-1` reports to a Fabric server. Run two copies with
-  different names to test it with more than one process.
+- **With Fabric** (works today): create a server (`java -jar loom-fabric-*-all.jar init --data fdata`, `clients add soak-1`, `serve`),
+  store the printed key (`weave secrets set LOOM_FABRIC_CLIENT_KEY --secrets keys.store`) and pass
+  `--observe-fabric http://127.0.0.1:9090 --observe-name soak-1` (see `src/loom/loom-fabric/README.md` for TLS). Run two copies with
+  different names to test it with more than one process. The outage, restart and kill steps in `CHECKLIST.md` are the acceptance test.
 
 ## What is not verified yet
 

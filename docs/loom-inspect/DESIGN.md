@@ -537,3 +537,34 @@ Done, embedded mode, read-only:
 - Trace lines read as what happened ("sleeping until 14:05", "woke up").
 
 The graph and ladders are delivered by the embedded session. Fabric will carry the same two things in its snapshot (Phase 2).
+
+## 11e. Phase 2 status
+
+Done and tested. Read-only: commands arrive in Phase 5.
+
+- **Outbox** (`emit/Outbox`, `Cursor`): append-only checksummed segments with offsets; a record cut off by a crash is dropped on reopen and the rest kept; caps of 256 MB and 7 days drop the oldest segments first and the loss shows as a count, never as invented events; trimmed only past what every destination has acknowledged; a directory lock tells a finished process's log from a live one's. Flushed every 200 ms and forced to disk every second (the stated bound on what a crash or a power cut can lose; the power-cut case is by construction, not by a test).
+- **Sending** (`ServerLink`): `hello`, then a snapshot of each live run, then the backlog in ordered batches of up to 500, oldest first; cursors move only on acknowledgement, so a restart between sending and recording just sends a batch again and the server drops the duplicates; backoff 1 s to 60 s with jitter; `429` honoured; a wrong key is reported once and reporting stops (the workflow never does); a batch the server calls unreadable is skipped and counted so the rest can flow; the logs of earlier instances with the same name are drained first, oldest first, and removed. At exit it tries for `--observe-flush-timeout` and never waits for a server that is down.
+- **Fabric** (`loom-fabric`, depends only on `loom-inspect-core`): signed ingest at the OTLP paths and `/loom-inspect/v1/*`; an unknown, revoked or wrong key all answer the same 401; a 5-minute replay window; a per-client rate limit; a client may only report as itself (403); every message is appended to the history and forced to disk before the 200 that acknowledges it; a restart rebuilds the console from the history. Admin password and client keys live in Fabric's own AES-GCM vault; sessions are cookies (HttpOnly, SameSite=Strict, Secure behind TLS); a growing delay follows failed logins per address; login accepts JSON only, which stops cross-site form posts. Without TLS it listens on loopback only; for another address it needs TLS or `--trust-proxy`. Retention is 30 days and 2 GB, oldest day first.
+- **TLS trust** (`tls/Tls`): the process verifies the server and the host name, always. Default roots, plus a private CA for this connection only (`--observe-ca`, `--observe-ca-only`), or a pinned server key (`--observe-pin`). `fabric tls init` makes a small CA and a server certificate with `keytool` (a JDK is already required). Tested against a real TLS server, and through the real CLIs over https.
+- **The page**: login, Processes (state, host, workflows, live runs, events per second, backlog, lost, last seen), one tab per process and workflow (never merged), a connection chip (Live, Catching up with the backlog size, Stale and dimmed with the last-seen time, Unsupported). An embedded page is unchanged.
+- **weave**: `--observe-fabric`, `--observe-ca`, `--observe-ca-only`, `--observe-pin`, `--observe-outbox`, `--observe-key-secret`, `--observe-flush-timeout`, `--observe-otlp`, `--observe-otlp-header` on `run`, `resume`, `tick` and `daemon` through one mixin; `LOOM_FABRIC_URL`, `LOOM_FABRIC_CA` and `LOOM_FABRIC_PIN` from the environment; `weave observe flush` and `purge`.
+- **OTLP export** to any collector, from the same outbox with its own cursor, independent of Fabric.
+- **Resource use**: a process that only reports keeps no copy of its own; the sink of a run that has ended frees its thread (a daemon fires many runs); the registry keeps the live runs and the latest 50 finished ones.
+- **Checked end to end**: a real executor, the real add-on and the real server over loopback, including a server that is down for the whole run and receives all of it, with no gap, when it comes up; and the real command lines (`fabric init`, `clients add`, `tls init`, `serve`; `weave secrets`, `weave run --observe-fabric`) against each other, over http and over https with a private CA. That run found a real bug (a relative `--out` for `tls init`), now fixed and tested.
+
+**Deviations from the plan above**
+
+- Fabric's vault is its own small AES-GCM file, not Loom's secret-store format, so that the server needs no Loom runtime. The trust model is the same (encrypted at rest, the master key kept elsewhere).
+- The history is replayed in full at start; finished runs are not yet read lazily from disk. Memory is bounded by the registry's limits and the history by retention, but a very large history makes a slow start.
+- `/v1/metrics` is accepted and not kept (the process sends no metrics yet).
+- The command long-poll and the `commands` endpoint belong to Phase 5.
+- The Docker image and the systemd unit are written and not yet built or run in CI.
+
+**Not verified**
+
+- The 30-minute soak (`src/examples/inspect-soak`) has not been run, because it needs a live model. Its checklist is the acceptance test for this phase.
+- A network cut between a process and Fabric has been reasoned and unit-tested (cursors, backoff), not performed.
+
+**Performed by hand with the real command lines**: a process started while Fabric was down and killed with `kill -9`; Fabric then started; a second process with the same name and outbox started. The second drained the dead instance's log (both runs appeared on the server, with the dead one's last known state, `sleeping`) and removed its directory.
+
+**Not done yet**: a run whose process died without a `bye` still shows its last state; the design's "lost contact at …, final state unknown" per run is not drawn (the process row and the connection chip are right, the run is not marked). Small, and left for the incidents phase, which needs the same "silent" notion.

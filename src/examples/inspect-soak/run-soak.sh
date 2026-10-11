@@ -8,7 +8,7 @@
 # thread; --wait keeps this process alive so it wakes the run itself. For a shorter run, lower the sleep
 # durations in soak.loom.
 #
-# Extra weave options (for example --observe-fabric once loom-inspect exists) go on the command line:
+# Extra weave options (for example --observe-fabric, with the client key in the secret store) go on the command line:
 #   ./run-soak.sh --observe-fabric https://fabric.example.com:9090 --observe-name soak-1
 set -euo pipefail
 cd "$(dirname "$0")"

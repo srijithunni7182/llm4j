@@ -1994,6 +1994,30 @@ workflow TracedExecute(id) {
 
 ---
 
+### Watching runs live (loom-inspect and Fabric)
+
+An optional add-on, `loom-inspect`, shows a run while it happens: tokens and cost per agent, which agent and tool is active, the workflow with the running step marked, autonomy ladders, sleeps and pauses. Put the add-on's jars (`loom-inspect` and `loom-inspect-core`) on the class path beside weave. Without them an `--observe` option says so and nothing runs.
+
+```bash
+weave run flow.loom --observe                 # a read-only page at http://127.0.0.1:8787, this process only
+weave run flow.loom --observe --observe-linger 5m   # keep it up after the run so the final state can be read
+```
+
+To watch many processes in one place, run **Fabric** (`loom-fabric`, a separate server; see its README) and point each process at it. The same options work on `run`, `resume`, `tick` and `daemon`:
+
+```bash
+weave secrets set LOOM_FABRIC_CLIENT_KEY --secrets keys.store     # the key printed by 'fabric clients add getviral-prod'
+weave daemon triggers/ --secrets keys.store \
+      --observe-fabric https://fabric.example.com:9090 --observe-name getviral-prod --observe-ca ca.pem
+```
+
+- `--observe-name` is required with `--observe-fabric` and `--observe-otlp`. A process that is not given one is refused before anything runs.
+- Events are written to a local outbox first (`--observe-outbox`, default `./loom-inspect-outbox`), so a server that is down never slows or stops a workflow, and everything missed is delivered when it returns. `weave observe flush` delivers what a finished process left; `weave observe purge` removes it.
+- `--observe-detail full|truncated|metadata` decides how much of what agents say leaves the process (default: the first 500 characters). It is applied in the process, before anything is sent or shown.
+- Trust in the server is yours to set: the JDK's default roots, plus `--observe-ca ca.pem` (a private CA; added for this connection only) or `--observe-pin sha256:…`. The host name in the URL is always checked.
+- `--observe-otlp https://collector:4318` (with `--observe-otlp-header "Authorization=Bearer ${secret:OTLP_TOKEN}"`) also sends the traces and logs to any OpenTelemetry endpoint.
+- The pages are read-only in this release; pausing, stopping and rotating secrets from them come later.
+
 ## ☕ 5. Advanced: Custom Java Integration
 
 If you are embedding Loom into an existing complex Java application rather than using the `weave` CLI, you can use the `HarnessExecutor` directly.
