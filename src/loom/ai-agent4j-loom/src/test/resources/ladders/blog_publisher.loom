@@ -1,0 +1,47 @@
+// Reference ladder 3: an agent that publishes posts. Parameterised by a site's traffic, defends against rubber-stamping,
+// and reads numbers that arrive a week later.
+import "loom/autonomy"
+
+agent Writer {
+    model: "ollama/fake"
+    system: "You are Writer. Write the post."
+    output_schema: { post: string, reasoning: string }
+}
+
+measure careful(c)  = c.review_time >= 30s
+measure takedown(c) = c.outcomes.status == "taken down"
+measure traffic(c)  = c.outcomes.views_7d
+
+ladder BlogLadder(baseline_views) {
+    rung edit { mode: confirm }
+
+    rung publish {
+        mode: autonomous
+        climb when history.where(careful).count >= 6
+               and history.where(careful).median(edit_size) <= 10%
+               and history.last(10).mean(traffic) >= 0.8 * baseline_views
+               and history.count(takedown) == 0
+        slip to edit when history.last(10).count(takedown) >= 1,
+                          history.last(10).mean(traffic) < 0.5 * baseline_views
+        sample 20% blind
+        escalate when case.topic in ["legal", "pricing"]
+    }
+
+    climbing needs approval from editor-in-chief
+}
+
+decision Publish {
+    proposed by:   Writer
+    proposes:      post
+    group cases by: section
+    remember:      topic, section, word_count
+    ask:           editors
+    ladder:        BlogLadder(baseline_views: 1200)
+    ceiling:       publish
+    when the agent changes: start over
+}
+
+workflow Draft(topic, section, word_count) {
+    decide Publish -> post
+    note "{post}"
+}

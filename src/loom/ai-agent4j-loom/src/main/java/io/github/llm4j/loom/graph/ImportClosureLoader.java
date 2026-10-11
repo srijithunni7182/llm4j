@@ -80,6 +80,7 @@ public final class ImportClosureLoader {
             visiting.add(file);
             List<Path> imports = new ArrayList<>();
             for (int i = 0; i < script.getImports().size(); i++) {
+                if (io.github.llm4j.loom.execution.LibraryImports.isLibrary(script.getImports().get(i))) continue;       // ships with Loom
                 Path target = file.getParent().resolve(script.getImports().get(i)).normalize();
                 int line = script.getImportLines().get(i);
                 imports.add(target);

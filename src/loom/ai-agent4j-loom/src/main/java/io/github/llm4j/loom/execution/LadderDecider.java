@@ -137,6 +137,7 @@ final class LadderDecider {
             result.put("millis", Math.max(0, run.clock().millis() - askedAt));
         }
         if (p != null) p.flush();
+        if (artifact(def)) result.put("final", Decider.text(result.get("verdict")));       // what took effect: for an accept it is the proposal, so the edit is 0
         result.put("proposal", proposedText);
         result.put("level", plan.get("rung"));
         journal.put(step + "#decide-result", new RunJournal.Entry("decision", result));

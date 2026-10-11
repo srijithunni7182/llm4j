@@ -1,0 +1,47 @@
+// Reference ladder 1: an agent that picks a choice. Uses the standard measures and nothing else.
+import "loom/autonomy"
+
+agent Triager {
+    model: "ollama/fake"
+    system: "You are Triager. Propose whether to approve this refund."
+    output_schema: { choice: string, reasoning: string, confidence: number }
+}
+
+ladder RefundLadder {
+    rung watch { mode: blind }
+
+    rung suggest {
+        mode: confirm
+        climb when history.count >= 10 and history.rate(agrees).lower95 >= 0.6
+    }
+
+    rung act {
+        mode: autonomous
+        climb when history.count >= 30 and history.rate(agrees).lower95 >= 0.8
+               and history.count(dangerous) == 0
+        slip to suggest when history.last(50).count(dangerous) >= 2,
+                             history.last(100).count(reversed) >= 2,
+                             history.rate(agrees) < 0.7
+        sample 10% blind
+        escalate when case.amount > 200, history.since(1d).count >= 50
+    }
+
+    climbing needs approval from risk-owner
+}
+
+decision Refund {
+    proposed by:            Triager
+    choices:                approve, reject, escalate
+    group cases by:         tier
+    remember:               amount, reason, customer_since
+    dangerous mistake:      propose approve, person decides reject
+    ask:                    support-lead
+    ladder:                 RefundLadder
+    ceiling:                act
+    when the agent changes: start over
+}
+
+workflow Triage(ticket, tier, amount, reason, customer_since) {
+    decide Refund -> verdict
+    note "case {ticket}: {verdict}"
+}

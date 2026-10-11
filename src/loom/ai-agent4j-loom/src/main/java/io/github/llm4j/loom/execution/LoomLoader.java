@@ -44,6 +44,10 @@ public class LoomLoader {
         LoomScript effectiveScript = new LoomScript();
         
         for (String importPathRaw : script.getImports()) {
+            if (LibraryImports.isLibrary(importPathRaw)) {
+                effectiveScript.merge(LibraryImports.load(importPathRaw));
+                continue;
+            }
             Path importPath = path.getParent().resolve(importPathRaw).normalize();
             LoomScript importedScript = loadRecursive(importPath);
             effectiveScript.merge(importedScript);
