@@ -290,7 +290,47 @@ public final class SecurityAudit {
         return PROGRAM.matcher(all).find() && WRITES.matcher(all).find();
     }
 
+    private static void ladders(LoomScript script, List<Finding> findings) {
+        for (DecisionDef d : script.getDecisions()) {
+            if (d.getLadder() == null) continue;
+            io.github.llm4j.loom.ast.LadderDef l = script.getLadders().stream().filter(x -> x.getName().equals(d.getLadder())).findFirst().orElse(null);
+            if (l == null) continue;
+            int ceiling = d.getCeilingRung() == null ? 0 : Math.max(0, l.indexOf(d.getCeilingRung()));
+            String who = "decision " + d.getName() + " / ladder " + l.getName();
+            for (int i = 0; i <= ceiling && i < l.getRungs().size(); i++) {
+                io.github.llm4j.loom.ast.RungDef r = l.getRungs().get(i);
+                if (r.getMode() != io.github.llm4j.loom.ast.RungDef.Mode.AUTONOMOUS) continue;
+                findings.add(new Finding("LA16", Severity.INFO, List.of(Owasp.LLM06), who + " / rung " + r.getName(), d.getLine(), "An autonomous rung can be reached",
+                        d.getName() + " may climb to rung " + r.getName() + ", where the agent's proposals take effect without asking (ceiling: " + l.getRungs().get(ceiling).getName() + ").",
+                        "Keep the ceiling below this rung until the record supports it."));
+                if (l.isAutomatic()) {
+                    findings.add(new Finding("LA16", Severity.MEDIUM, List.of(Owasp.LLM06), who + " / rung " + r.getName(), d.getLine(), "Climbing to act without a person",
+                            "Moving up is automatic, so nobody signs off the promotion into " + r.getName() + ".", "Use climbing needs approval from NAME."));
+                }
+                if (r.getSlip() == null) {
+                    findings.add(new Finding("LA16", Severity.MEDIUM, List.of(Owasp.LLM06, Owasp.LLM09), who + " / rung " + r.getName(), r.getLine(), "Nothing takes the agent back down",
+                            "Rung " + r.getName() + " has no slip condition: once the agent is there, the record cannot move it back.", "Add slip to <lower rung> when <condition>."));
+                }
+                if (r.getSamplePercent() < 0.01) {
+                    findings.add(new Finding("LA16", Severity.LOW, List.of(Owasp.LLM09), who + " / rung " + r.getName(), r.getLine(), "Acting with no ongoing check",
+                            "Rung " + r.getName() + " sends " + (r.getSamplePercent() <= 0 ? "no" : "under 1% of") + " cases to a person blind, so drift goes unmeasured.",
+                            "Add sample 5% blind."));
+                }
+            }
+            if (d.getOnChange() == DecisionDef.OnChange.KEEP_TRUST) {
+                findings.add(new Finding("LA16", ceiling >= firstAutonomous(l) && firstAutonomous(l) >= 0 ? Severity.HIGH : Severity.LOW, List.of(Owasp.LLM06), who, d.getLine(),
+                        "A changed agent keeps the old agent's trust", "when the agent changes: keep the trust lets a new agent act on an old agent's record.", "Use start over."));
+            }
+        }
+    }
+
+    private static int firstAutonomous(io.github.llm4j.loom.ast.LadderDef l) {
+        for (int i = 0; i < l.getRungs().size(); i++) if (l.getRungs().get(i).getMode() == io.github.llm4j.loom.ast.RungDef.Mode.AUTONOMOUS) return i;
+        return -1;
+    }
+
     private static void decisions(LoomScript script, List<Finding> findings) {
+        ladders(script, findings);
         for (DecisionDef d : script.getDecisions()) {
             if (d.getCeiling() == Level.ACT && d.isAutomatic()) {
                 findings.add(new Finding("LA10", Severity.MEDIUM, List.of(Owasp.LLM06), "decision " + d.getName(), d.getLine(), "Autonomy to act is granted without a person",

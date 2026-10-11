@@ -7,16 +7,17 @@ agent ScriptWriter {
     output_schema: { script: string, reasoning: string }
 }
 
-measure broke(c) = c.outcomes.reverted == true
+measure broke(c)   = c.outcomes.reverted == true
+measure careful(c) = c.review_time >= 20s
 
 ladder AuthorLadder {
     rung review { mode: confirm }
 
     rung publish {
         mode: autonomous
-        climb when history.count >= 8
-               and history.median(edit_size) <= 10%
-               and history.rate(rejected) <= 0.15
+        climb when history.where(careful).count >= 8
+               and history.where(careful).median(edit_size) <= 10%
+               and history.where(careful).rate(rejected) <= 0.15
         slip to review when history.last(10).count(broke) >= 1,
                             history.last(10).median(edit_size) > 25%
         sample 20% blind

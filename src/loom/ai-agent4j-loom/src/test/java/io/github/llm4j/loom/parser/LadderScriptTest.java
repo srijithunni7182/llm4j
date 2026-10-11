@@ -109,7 +109,7 @@ class LadderScriptTest {
         var args = s.getDecisions().get(0).getLadderArgs();
         assert args != null;
         assertThat(args.get("a").show()).isEqualTo("14d");
-        assertThat(args.get("b").show()).isEqualTo("0.9");
+        assertThat(args.get("b").show()).isEqualTo("90%");
         assertThat(args.get("c").show()).isEqualTo("\"gold\"");
         assertThat(args.get("d").show()).isEqualTo("2.5");
     }

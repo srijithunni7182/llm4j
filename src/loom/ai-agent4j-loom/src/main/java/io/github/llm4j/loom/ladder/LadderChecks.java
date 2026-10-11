@@ -211,6 +211,11 @@ public final class LadderChecks {
         if (!d.isOnChangeStated()) {
             warn(d.getLine(), who, "no \"when the agent changes:\" line: a changed agent starts over (write when the agent changes: start over, to say so)");
         }
+        if (d.getOnChange() == DecisionDef.OnChange.TEST_ON_PAST) {
+            warn(d.getLine(), who, "when the agent changes: test it on past cases is not yet applied to a ladder: a changed agent starts over");
+        }
+        anchoring(l);
+        retention(d, l, who);
         if (d.getOnChange() == DecisionDef.OnChange.KEEP_TRUST) {
             int first = firstAutonomous(l);
             int ceiling = d.getCeilingRung() == null ? 0 : Math.max(0, l.indexOf(d.getCeilingRung()));
@@ -219,6 +224,62 @@ public final class LadderChecks {
                         + " is autonomous and can be reached: lower the ceiling below it, or write when the agent changes: start over");
             }
         }
+    }
+
+    /**
+     * A climb into an autonomous rung that rests on cases a person answered while looking at the proposal: with no blind rung before it and no filter
+     * on the cases, a reviewer who tends to agree with whatever is put in front of them could earn the agent the right to act alone.
+     */
+    private void anchoring(LadderDef l) {
+        List<RungDef> rungs = l.getRungs();
+        for (int i = 1; i < rungs.size(); i++) {
+            RungDef r = rungs.get(i);
+            if (r.getMode() != RungDef.Mode.AUTONOMOUS || r.getClimb() == null || rungs.get(i - 1).getMode() != RungDef.Mode.CONFIRM) continue;
+            boolean blindBefore = rungs.subList(0, i).stream().anyMatch(x -> x.getMode() == RungDef.Mode.BLIND);
+            if (blindBefore) continue;
+            boolean[] filtered = {false};
+            walk(r.getClimb(), e -> {
+                if (e instanceof Expr.Call c && c.method().equals("where")) filtered[0] = true;
+                if (e instanceof Expr.Name n && (n.name().equals("blind") || n.name().equals("shown"))) filtered[0] = true;
+            });
+            if (!filtered[0]) {
+                warn(r.getClimbLine(), "ladder " + l.getName() + ", rung " + r.getName(), "climb when counts every case, including ones where the person saw the proposal and "
+                        + "tends to agree with it: select the cases that are solid evidence, such as history.where(careful) or history.where(blind)");
+            }
+        }
+    }
+
+    /** A ladder that looks further back than the records are kept can never see the evidence it asks for. */
+    private void retention(DecisionDef d, LadderDef l, String who) {
+        if (d.getKeepDays() <= 0) return;
+        long keepMs = d.getKeepDays() * 86_400_000L;
+        for (RungDef r : l.getRungs()) {
+            for (Expr e : new Expr[] {r.getClimb(), r.getSlip(), r.getEscalate()}) {
+                if (e == null) continue;
+                walk(e, x -> {
+                    if (x instanceof Expr.Call c && (c.method().equals("since") || c.method().equals("between")) && !c.args().isEmpty()
+                            && c.args().get(0) instanceof Expr.Lit lit && lit.value() instanceof io.github.llm4j.loom.autonomy.expr.V.Dur dur && dur.millis() > keepMs) {
+                        warn(d.getLine(), who, "keep records for " + d.getKeepDays() + " days, but ladder " + l.getName() + " looks back " + lit.text() + " (rung " + r.getName()
+                                + "): the older cases are gone, so that condition can never be met");
+                    }
+                });
+            }
+        }
+    }
+
+    private static void walk(Expr e, java.util.function.Consumer<Expr> visit) {
+        visit.accept(e);
+        if (e instanceof Expr.Field f) walk(f.target(), visit);
+        else if (e instanceof Expr.Call c) {
+            walk(c.target(), visit);
+            c.args().forEach(a -> walk(a, visit));
+        } else if (e instanceof Expr.Fn f) f.args().forEach(a -> walk(a, visit));
+        else if (e instanceof Expr.Bin b) {
+            walk(b.left(), visit);
+            walk(b.right(), visit);
+        } else if (e instanceof Expr.Not n) walk(n.operand(), visit);
+        else if (e instanceof Expr.Neg n) walk(n.operand(), visit);
+        else if (e instanceof Expr.ListLit l) l.items().forEach(a -> walk(a, visit));
     }
 
     private static int firstAutonomous(LadderDef l) {

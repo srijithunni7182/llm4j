@@ -355,6 +355,10 @@ public final class LadderParser {
             if (c == '(' || c == '[') depth++;
             if (c == ')' || c == ']') depth--;
             if (c == '}' && stopAtBrace) return i;
+            if (stopAtBrace && depth <= 0 && Character.isLetter(c) && i > 0 && Character.isWhitespace(text.charAt(i - 1)) && !sofar.toString().isBlank()
+                    && !ENDS_OPEN.matcher(sofar.toString().trim()).find() && nextWordIsClause(i)) {
+                return i;                                            // the next clause of the rung begins on the same line
+            }
             if (c == '\n' && depth <= 0) {
                 String done = sofar.toString().trim();
                 int j = i;
@@ -367,6 +371,14 @@ public final class LadderParser {
             i++;
         }
         return text.length();
+    }
+
+    private boolean nextWordIsClause(int at) {
+        int j = at;
+        while (j < text.length() && (Character.isLetterOrDigit(text.charAt(j)) || text.charAt(j) == '_')) j++;
+        String word = text.substring(at, j);
+        boolean clause = word.equals("slip") || word.equals("sample") || word.equals("escalate") || word.equals("climb") || word.equals("mode") || word.equals("rung");
+        return clause && (j >= text.length() || Character.isWhitespace(text.charAt(j)));
     }
 
     // ---------- measure ----------
