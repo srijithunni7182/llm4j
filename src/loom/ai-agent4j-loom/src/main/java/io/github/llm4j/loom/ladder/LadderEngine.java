@@ -175,7 +175,7 @@ public final class LadderEngine {
         return rung;
     }
 
-    /** How this case is run: its rung's mode, except that a sampled case goes to a person blind and an escalated one goes to a person. */
+    /** How this case is run: its rung's mode, except that a sampled case goes to a person blind and an escalated one goes to a person (sampling also applies to a confirm rung). */
     public Plan plan(String scope, String caseId, LevelLog.Standing s, V.Rec current, V.Cs history, long nowMillis) {
         int rung = effective(s);
         RungDef.Mode mode = policy.modeOf(rung);
@@ -183,6 +183,9 @@ public final class LadderEngine {
         if (mode == RungDef.Mode.AUTONOMOUS) {
             if (policy.escalates(rung, current, history, nowMillis)) return new Plan(policy.nameOf(rung), RungDef.Mode.CONFIRM, "escalate");
             if (policy.sampled(rung, caseId)) return new Plan(policy.nameOf(rung), RungDef.Mode.BLIND, "sample");
+        } else if (mode == RungDef.Mode.CONFIRM && policy.sampled(rung, caseId)) {
+            // a share of confirmed cases is answered blind too: otherwise nothing could be measured while the agent is shown to people
+            return new Plan(policy.nameOf(rung), RungDef.Mode.BLIND, "sample");
         }
         return new Plan(policy.nameOf(rung), mode, how);
     }
@@ -205,10 +208,10 @@ public final class LadderEngine {
             V.Cs history = history(scope, cur);
             long t = now().toEpochMilli();
 
-            Optional<Integer> slip = policy.slip(cur.rung(), history, t);
+            Optional<LadderPolicy.SlipHit> slip = policy.slipHit(cur.rung(), history, t);
             if (slip.isPresent()) {
-                String why = because(policy.explainSlip(cur.rung(), history, t), true);
-                LevelLog.Standing next = withRung(cur, slip.get(), "slip: " + why, false);
+                String why = because(slip.get().because(), true);
+                LevelLog.Standing next = withRung(cur, slip.get().to(), "slip: " + why, false);
                 if (log.write(scope, cur.version(), next, "demoted", cur.rungName(), "runtime", now(), policy.rulesText())) {
                     out.add(new Change("demoted", scope, cur.rungName(), next.rungName(), next.reason(), "runtime", false));
                     return out;

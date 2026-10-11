@@ -86,6 +86,7 @@ public final class HistoryBuilder {
         if (c.proposalValue() != null) m.put("value", V.str(c.proposalValue()));
         if (c.reasoning() != null) m.put("reasoning", V.str(c.reasoning()));
         if (c.confidence() != null) m.put("confidence", V.num(c.confidence()));
+        m.put("malformed", V.bool(c.malformed()));
         return V.rec(m);
     }
 

@@ -113,31 +113,31 @@ public final class LadderChecks {
             String rung = who + ", rung " + r.getName();
             if (i == 0) {
                 if (r.getClimb() != null) error(r.getClimbLine(), rung, "the first rung is where every scope starts, so it can't have a climb when");
-                if (r.getSlip() != null) error(r.getSlipLine(), rung, "the first rung has nowhere to slip down to, so it can't have a slip");
+                if (!r.getSlips().isEmpty()) error(r.getSlipLine(), rung, "the first rung has nowhere to slip down to, so it can't have a slip");
             } else if (r.getClimb() == null) {
                 error(r.getLine(), rung, "can never be reached: it has no climb when <condition>");
             }
-            if (r.getSlip() != null && r.getSlipTo() != null) {
-                int to = l.indexOf(r.getSlipTo());
+            for (RungDef.Slip sl : r.getSlips()) {
+                if (sl.to() == null) continue;
+                int to = l.indexOf(sl.to());
                 if (to < 0) {
-                    error(r.getSlipLine(), rung, "slip to " + r.getSlipTo() + ": no rung of that name in ladder " + l.getName()
-                            + Suggest.hint(r.getSlipTo(), rungNames(l)));
+                    error(sl.line(), rung, "slip to " + sl.to() + ": no rung of that name in ladder " + l.getName() + Suggest.hint(sl.to(), rungNames(l)));
                 } else if (to >= i) {
-                    error(r.getSlipLine(), rung, "slip to " + r.getSlipTo() + " must go down: " + r.getSlipTo() + " is not below " + r.getName());
+                    error(sl.line(), rung, "slip to " + sl.to() + " must go down: " + sl.to() + " is not below " + r.getName());
                 }
             }
             if (r.getSamplePercent() != 0 || r.getSampleLine() != 0) {
                 if (r.getSamplePercent() <= 0 || r.getSamplePercent() > 1) {
                     error(r.getSampleLine(), rung, "sample needs a percentage between 0% and 100% (not " + r.getSamplePercent() * 100 + "%)");
-                } else if (r.getMode() != RungDef.Mode.AUTONOMOUS) {
-                    warn(r.getSampleLine(), rung, "sample only does something on an autonomous rung: a " + r.getMode().word() + " rung already asks a person");
+                } else if (r.getMode() == RungDef.Mode.BLIND) {
+                    warn(r.getSampleLine(), rung, "sample does nothing on a blind rung: it already asks a person without the proposal");
                 }
             }
             if (r.getEscalate() != null && r.getMode() == RungDef.Mode.BLIND) {
                 warn(r.getEscalateLine(), rung, "escalate does nothing on a blind rung: it already asks a person");
             }
             if (r.getMode() == RungDef.Mode.AUTONOMOUS) {
-                if (r.getSlip() == null) warn(r.getLine(), rung, "has no slip: once the agent is here, nothing takes it back down");
+                if (r.getSlips().isEmpty()) warn(r.getLine(), rung, "has no slip: once the agent is here, nothing takes it back down");
                 if (r.getSamplePercent() <= 0) warn(r.getLine(), rung, "has no sample: nobody checks its cases blind, so its record can't be tested");
             }
         }
@@ -162,7 +162,7 @@ public final class LadderChecks {
         for (RungDef r : l.getRungs()) {
             String rung = "ladder " + l.getName() + ", rung " + r.getName();
             condition(climbing, r.getClimb(), r.getClimbText(), r.getClimbLine(), rung + ", climb when");
-            condition(climbing, r.getSlip(), r.getSlipText(), r.getSlipLine(), rung + ", slip when");
+            for (RungDef.Slip sl : r.getSlips()) condition(climbing, sl.expr(), sl.text(), sl.line(), rung + ", slip when");
             condition(escalating, r.getEscalate(), r.getEscalateText(), r.getEscalateLine(), rung + ", escalate when");
         }
     }
@@ -276,7 +276,11 @@ public final class LadderChecks {
         if (d.getKeepDays() <= 0) return;
         long keepMs = d.getKeepDays() * 86_400_000L;
         for (RungDef r : l.getRungs()) {
-            for (Expr e : new Expr[] {r.getClimb(), r.getSlip(), r.getEscalate()}) {
+            List<Expr> looked = new ArrayList<>();
+            looked.add(r.getClimb());
+            r.getSlips().forEach(sl -> looked.add(sl.expr()));
+            looked.add(r.getEscalate());
+            for (Expr e : looked) {
                 if (e == null) continue;
                 walk(e, x -> {
                     if (x instanceof Expr.Call c && (c.method().equals("since") || c.method().equals("between")) && !c.args().isEmpty()

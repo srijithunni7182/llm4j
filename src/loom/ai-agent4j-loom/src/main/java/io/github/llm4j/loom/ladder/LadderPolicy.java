@@ -106,19 +106,49 @@ public final class LadderPolicy {
         return climb != null && Interpreter.test(climb, context(history, null, now));
     }
 
-    /** The rung to slip to when the condition to move down out of {@code from} holds. */
+    /** A way down that holds: the rung it drops to and the conditions that said so. */
+    public record SlipHit(int to, List<Term> because) { }
+
+    /** The rung to slip to when a condition to move down out of {@code from} holds; the lowest, if several hold. */
     public Optional<Integer> slip(int from, V.Cs history, long now) {
+        return slipHit(from, history, now).map(SlipHit::to);
+    }
+
+    /** The way down that holds, with what made it hold; the lowest rung wins when several do. */
+    public Optional<SlipHit> slipHit(int from, V.Cs history, long now) {
         if (from <= 0 || from >= ladder.getRungs().size()) return Optional.empty();
         RungDef r = ladder.getRungs().get(from);
-        if (r.getSlip() == null || !Interpreter.test(r.getSlip(), context(history, null, now))) return Optional.empty();
-        return Optional.of(slipTarget(from));
+        SlipHit best = null;
+        Interpreter.Context ctx = context(history, null, now);
+        for (RungDef.Slip s : r.getSlips()) {
+            if (!Interpreter.test(s.expr(), ctx)) continue;
+            int to = target(from, s);
+            if (best == null || to < best.to()) best = new SlipHit(to, terms(s.expr(), "or", ctx));
+        }
+        return Optional.ofNullable(best);
     }
 
     /** The rung a slip out of {@code from} goes to: the one named, or the one below (also when the name is not below). */
     public int slipTarget(int from) {
-        RungDef r = ladder.getRungs().get(from);
-        int to = r.getSlipTo() == null ? from - 1 : ladder.indexOf(r.getSlipTo());
+        List<RungDef.Slip> slips = ladder.getRungs().get(from).getSlips();
+        return slips.isEmpty() ? from - 1 : target(from, slips.get(0));
+    }
+
+    private int target(int from, RungDef.Slip s) {
+        int to = s.to() == null ? from - 1 : ladder.indexOf(s.to());
         return to >= 0 && to < from ? to : from - 1;
+    }
+
+    /** One way down out of a rung, as the status command shows it: where it goes and what each of its conditions says. */
+    public record SlipRule(int to, List<Term> terms) { }
+
+    /** Every way down out of {@code from}, with the figures of each condition. */
+    public List<SlipRule> slipRules(int from, V.Cs history, long now) {
+        if (from <= 0 || from >= ladder.getRungs().size()) return List.of();
+        List<SlipRule> out = new ArrayList<>();
+        Interpreter.Context ctx = context(history, null, now);
+        for (RungDef.Slip s : ladder.getRungs().get(from).getSlips()) out.add(new SlipRule(target(from, s), terms(s.expr(), "or", ctx)));
+        return out;
     }
 
     /** True when a case at this rung must go to a person whatever the rung's mode says. */
@@ -150,10 +180,11 @@ public final class LadderPolicy {
         return terms(ladder.getRungs().get(to).getClimb(), "and", context(history, null, now));
     }
 
-    /** What the slip condition of {@code from} says, term by term. */
+    /** What the slip conditions of {@code from} say, term by term. */
     public List<Term> explainSlip(int from, V.Cs history, long now) {
-        if (from <= 0 || from >= ladder.getRungs().size() || ladder.getRungs().get(from).getSlip() == null) return List.of();
-        return terms(ladder.getRungs().get(from).getSlip(), "or", context(history, null, now));
+        List<Term> out = new ArrayList<>();
+        for (SlipRule r : slipRules(from, history, now)) out.addAll(r.terms());
+        return out;
     }
 
     private static List<Term> terms(Expr e, String connective, Interpreter.Context ctx) {
@@ -202,7 +233,7 @@ public final class LadderPolicy {
         for (RungDef r : ladder.getRungs()) {
             b.append("rung ").append(r.getName()).append('\n').append("  mode: ").append(r.getMode().word()).append('\n');
             if (r.getClimb() != null) b.append("  climb when ").append(collapse(r.getClimbText())).append('\n');
-            if (r.getSlip() != null) b.append("  slip").append(r.getSlipTo() == null ? "" : " to " + r.getSlipTo()).append(" when ").append(collapse(r.getSlipText())).append('\n');
+            for (RungDef.Slip sl : r.getSlips()) b.append("  slip").append(sl.to() == null ? "" : " to " + sl.to()).append(" when ").append(collapse(sl.text())).append('\n');
             if (r.getSamplePercent() > 0) b.append("  sample ").append(Show.number(r.getSamplePercent() * 100)).append("% blind\n");
             if (r.getEscalate() != null) b.append("  escalate when ").append(collapse(r.getEscalateText())).append('\n');
         }
@@ -221,7 +252,7 @@ public final class LadderPolicy {
         for (RungDef r : ladder.getRungs()) {
             b.append("rung ").append(r.getName()).append(' ').append(r.getMode().word()).append('\n');
             if (r.getClimb() != null) b.append(" climb ").append(r.getClimb().show()).append('\n');
-            if (r.getSlip() != null) b.append(" slip ").append(r.getSlipTo()).append(' ').append(r.getSlip().show()).append('\n');
+            for (RungDef.Slip sl : r.getSlips()) b.append(" slip ").append(sl.to()).append(' ').append(sl.expr().show()).append('\n');
             if (r.getSamplePercent() > 0) b.append(" sample ").append(r.getSamplePercent()).append('\n');
             if (r.getEscalate() != null) b.append(" escalate ").append(r.getEscalate().show()).append('\n');
         }

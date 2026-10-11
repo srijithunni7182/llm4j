@@ -127,7 +127,10 @@ class LadderChecksTest {
     void sampleAndEscalateMakeSenseOnlyWhereTheyDoSomething() {
         assertThat(errors(good("sample 5% blind", "sample 150% blind"))).anyMatch(e -> e.contains("sample") && e.contains("between 0% and 100%"));
         assertThat(warnings(good("rung watch { mode: blind }", "rung watch { mode: blind sample 5% blind }")))
-                .anyMatch(e -> e.contains("sample") && e.contains("only does something on an autonomous rung"));
+                .anyMatch(e -> e.contains("sample does nothing on a blind rung"));
+        // a confirm rung can be sampled: a share of its cases is answered blind so the record can still be measured
+        assertThat(warnings(good("climb when history.count >= 100 and history.rate(agrees).lower95 >= 0.9", "climb when history.count >= 100 and history.rate(agrees).lower95 >= 0.9 sample 5% blind")))
+                .noneMatch(e -> e.contains("rung suggest") && e.contains("sample"));
         assertThat(warnings(good("rung watch { mode: blind }", "rung watch { mode: blind escalate when true }")))
                 .anyMatch(e -> e.contains("escalate") && e.contains("already asks a person"));
         assertThat(warnings(good("    sample 5% blind\n", ""))).anyMatch(e -> e.contains("rung act") && e.contains("no sample"));

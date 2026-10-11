@@ -33,10 +33,7 @@ public class RungDef implements Node {
     private Expr climb;
     private String climbText;
     private int climbLine;
-    private Expr slip;
-    private String slipText;
-    private String slipTo;
-    private int slipLine;
+    private final java.util.List<Slip> slips = new java.util.ArrayList<>();
     private double samplePercent;
     private int sampleLine;
     private Expr escalate;
@@ -60,13 +57,20 @@ public class RungDef implements Node {
     public int getClimbLine() { return climbLine; }
     public void setClimb(Expr climb, String text, int line) { this.climb = climb; this.climbText = text; this.climbLine = line; }
 
-    /** The condition to move down out of this rung, or null. */
-    public Expr getSlip() { return slip; }
-    public String getSlipText() { return slipText; }
-    /** The rung to slip to, or null for the one below. */
-    public String getSlipTo() { return slipTo; }
-    public int getSlipLine() { return slipLine; }
-    public void setSlip(Expr slip, String text, String to, int line) { this.slip = slip; this.slipText = text; this.slipTo = to; this.slipLine = line; }
+    /** One way down: the condition, its text, the rung it drops to (null for the one below) and the line it was written on. */
+    public record Slip(Expr expr, String text, String to, int line) { }
+
+    /** Every way down out of this rung, in the order written. When several hold, the lowest rung they name wins. */
+    public java.util.List<Slip> getSlips() { return slips; }
+    /** Adds a way down ({@code slip to suggest when …}); a rung may have several, each to its own rung. */
+    public void setSlip(Expr slip, String text, String to, int line) { this.slips.add(new Slip(slip, text, to, line)); }
+
+    /** The first way down, or null: the condition to move down out of this rung. */
+    public Expr getSlip() { return slips.isEmpty() ? null : slips.get(0).expr(); }
+    public String getSlipText() { return slips.isEmpty() ? null : slips.get(0).text(); }
+    /** The rung the first slip drops to, or null for the one below. */
+    public String getSlipTo() { return slips.isEmpty() ? null : slips.get(0).to(); }
+    public int getSlipLine() { return slips.isEmpty() ? 0 : slips.get(0).line(); }
 
     /** The share (0 to 1) of cases at this rung sent to a person blind; 0 for none. */
     public double getSamplePercent() { return samplePercent; }

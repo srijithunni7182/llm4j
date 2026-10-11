@@ -87,12 +87,14 @@ final class LadderCommands {
                 s.put("towards", policy.nameOf(next));
                 s.put("climb", terms(terms));
             }
-            List<LadderPolicy.Term> slips = policy.explainSlip(st.rung(), history, now);
-            if (!slips.isEmpty()) {
-                text.append("    slips to ").append(policy.nameOf(policy.slipTarget(st.rung()))).append(" when any of:\n");
-                for (LadderPolicy.Term t : slips) text.append("      - ").append(term(t)).append('\n');
-                s.put("slip", terms(slips));
+            List<LadderPolicy.SlipRule> slips = policy.slipRules(st.rung(), history, now);
+            List<Object> slipTerms = new java.util.ArrayList<>();
+            for (LadderPolicy.SlipRule rule : slips) {
+                text.append("    slips to ").append(policy.nameOf(rule.to())).append(" when any of:\n");
+                for (LadderPolicy.Term t : rule.terms()) text.append("      - ").append(term(t)).append('\n');
+                slipTerms.addAll(terms(rule.terms()));
             }
+            if (!slips.isEmpty()) s.put("slip", slipTerms);
             engine.openProposal(scope).ifPresent(p -> {
                 text.append("    open promotion proposal: to ").append(p.to()).append(" on ").append(p.cases()).append(" cases, waiting for ").append(policy.approver()).append('\n');
                 s.put("openProposal", p.to());

@@ -32,9 +32,9 @@ public final class LadderDescriber {
                 b.append("  The agent climbs to ").append(r.getName()).append(" when:\n");
                 bullets(b, flatten(r.getClimb(), "and"), ", and");
             }
-            if (r.getSlip() != null) {
-                String to = r.getSlipTo() != null ? r.getSlipTo() : i > 0 ? rungs.get(i - 1).getName() : "?";
-                List<Expr> parts = flatten(r.getSlip(), "or");
+            for (RungDef.Slip sl : r.getSlips()) {
+                String to = sl.to() != null ? sl.to() : i > 0 ? rungs.get(i - 1).getName() : "?";
+                List<Expr> parts = flatten(sl.expr(), "or");
                 if (parts.size() > 1) {
                     b.append("  The agent slips from ").append(r.getName()).append(" to ").append(to).append(" when any of these holds:\n");
                     bullets(b, parts, ", or");
