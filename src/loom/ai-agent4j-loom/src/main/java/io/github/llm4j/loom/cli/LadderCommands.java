@@ -40,7 +40,7 @@ final class LadderCommands {
         boolean frozen = engine.frozen();
         d.put("frozen", frozen);
         text.append(def.getName()).append("   ladder ").append(policy.ladderName()).append(", may climb as far as ").append(policy.nameOf(policy.ceiling()))
-                .append(frozen ? "   FROZEN (the autonomous rungs are stopped)" : "").append('\n');
+                .append(frozen ? "   FROZEN (the autonomous rungs are stopped" + (engine.log().freezeReason() == null ? "" : ": " + engine.log().freezeReason()) + ")" : "").append('\n');
         int torn = ledger.unreadable(def.getName());
         if (torn > 0) {
             d.put("unreadableLedgerLines", torn);
@@ -78,7 +78,9 @@ final class LadderCommands {
             }
             text.append("  scope ").append(scope).append(trust ? "   level " : "   rung ").append(st.rungName());
             if (effective != st.rung()) text.append(" (running at ").append(policy.nameOf(effective)).append(")");
-            if (st.forced()) text.append(trust ? "   FORCED: set by hand, not yet supported by the evidence" : "   FORCED: set by hand, not supported by the record");
+            boolean forced = engine.unearned(scope, st);
+            s.put("forced", forced);
+            if (forced) text.append(trust ? "   FORCED: set by hand, not yet supported by the evidence" : "   FORCED: set by hand, not supported by the record");
             text.append("   (epoch ").append(st.epoch()).append(", agent ").append(AgentIdentity.shorten(st.identity())).append(", served model ")
                     .append(st.servedModel() == null ? "unreported" : st.servedModel()).append(")\n");
             if (trust) {

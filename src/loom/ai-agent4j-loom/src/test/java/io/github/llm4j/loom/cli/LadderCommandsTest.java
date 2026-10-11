@@ -337,6 +337,24 @@ class LadderCommandsTest {
     }
 
     @Test
+    void describeReadsATrustBlockAsALadderAndSaysWhyADecisionStaysOnTheOriginalEngine() throws Exception {
+        Path trust = dir.resolve("trust.loom");
+        String base = io.github.llm4j.loom.autonomy.Scripts2Access.refund("");
+        Files.writeString(trust, base);
+        assertThat(LadderCliCommand.describe(trust.toFile(), "Refund", env())).isZero();
+        assertThat(out()).contains("The trust block of Refund, read as a ladder").contains("Rung watch").contains("Rung suggest").contains("Rung act")
+                .contains("cases answered without seeing the proposal");
+        errBytes.reset();
+        assertThat(LadderCliCommand.describe(trust.toFile(), null, env())).as("a script that declares no ladder of its own").isEqualTo(2);
+        assertThat(err()).contains("declares no ladder");
+
+        Files.writeString(trust, io.github.llm4j.loom.autonomy.Scripts2Access.refund("always ask a person after 50 cases a day"));
+        outBytes.reset();
+        assertThat(LadderCliCommand.describe(trust.toFile(), "Refund", env())).isZero();
+        assertThat(out()).contains("runs on the original engine, not on a ladder").contains("calendar days");
+    }
+
+    @Test
     void theLadderCommandsSayWhatIsWrongWithTheirArguments() throws Exception {
         assertThat(LadderCliCommand.describe(dir.resolve("missing.loom").toFile(), null, env())).isEqualTo(2);
         assertThat(err()).startsWith("Error:");

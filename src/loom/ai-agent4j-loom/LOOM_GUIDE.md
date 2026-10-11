@@ -937,6 +937,24 @@ weave ladder test refund.loom Refund --store runs/.loom-triggers       # the run
 
 **What it does not do.** It does not learn: the ledger grades, it never trains or rewrites a prompt. It does not find out by itself that a verdict was wrong (record that with `weave autonomy outcome`). It does not certify compliance with anything: it produces evidence. It does not yet replay a changed agent over past cases for a ladder (`test it on past cases` starts over, and `weave check` says so), and it does not yet offer an autonomous rung that acts after a delay unless a person vetoes. A `trust` block and a ladder are two forms of the same idea; a decision uses one or the other.
 
+**A ladder on an agent.** If every decision an agent proposes for should earn trust the same way, write the ladder once on the agent:
+
+```loom
+agent Triager {
+    model: "gemini-2.5-flash"
+    system: "You are Triager."
+    output_schema: { choice: string, reasoning: string }
+    ladder:  RefundLadder
+    ceiling: suggest          # optional: the highest rung any of its decisions may reach
+}
+```
+
+A decision with neither its own `ladder:` nor a `trust` block takes the agent's ladder (and its arguments and ceiling). A decision that names its own `ladder:`, or has a `trust` block, keeps that. `weave check` reports an unknown ladder or rung on an agent, and a default that applies to no decision.
+
+**Your `trust` block is a ladder.** A `trust` block is written as a three-rung ladder (`watch` blind, `suggest` confirm, `act` autonomous) when the script is loaded, and runs on the same engine: it reads the same blind answers over the same window, so it climbs and slips exactly where it always did. `weave ladder describe refund.loom Refund` prints that ladder in sentences; `weave autonomy status` keeps the words and figures you know (`level`, `evidence: …`). Because it is a ladder it also notices when the provider swaps the model behind an unchanged script, and a `drop to` rule for each lower level is one `slip to` clause on the rung. A rung may have several `slip to` clauses; when more than one holds, the lowest rung wins. A `confirm` rung may also carry `sample 5% blind`.
+
+Four things in a `trust` block cannot be written as one ladder condition, so a decision that uses them stays on the original engine (with its original records), and `weave ladder describe refund.loom Refund` says which: `start at` above `watch`, `when the agent changes: test it on past cases`, `always ask a person after N cases a day` (it counts calendar days) and `always ask a person when …` with anything but a comparison of a remembered value. Levels an earlier release stored are adopted as they stand when a decision moves to the ladder engine; nothing is demoted by the change.
+
 ### Memory, Voice and Languages
 
 **Agent memory** lets an agent remember conversations and facts across runs. It's separate from Loom's

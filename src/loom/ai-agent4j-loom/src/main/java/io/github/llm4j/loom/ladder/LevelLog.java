@@ -92,6 +92,13 @@ public final class LevelLog {
         return frozen;
     }
 
+    /** Why the decision is frozen, as the latest freeze said; null when it is not. */
+    public String freezeReason() {
+        String reason = null;
+        for (Rec r : ledger.recordsOfKind(decision, Rec.FROZEN)) reason = r.flag("frozen") ? r.str("reason") : null;
+        return reason;
+    }
+
     public void setFrozen(boolean frozen, String reason, String by, Instant at) {
         ledger.append(new Rec(decision + (frozen ? "#freeze#" : "#unfreeze#") + at.toEpochMilli() + "#" + Integer.toHexString((reason + by).hashCode()), decision, Rec.FROZEN,
                 at, "", 1, Rec.map("frozen", frozen, "reason", reason, "by", by, "scope", decision)));

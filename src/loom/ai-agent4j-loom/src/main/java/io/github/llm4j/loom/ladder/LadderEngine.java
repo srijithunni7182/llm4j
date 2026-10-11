@@ -65,6 +65,15 @@ public final class LadderEngine {
 
     public Ledger ledger() { return ledger; }
 
+    /** True when a rung set by hand is not (yet) supported by the record: some step up to it does not hold on the scope's history. Shown as forced until it does. */
+    public boolean unearned(String scope, LevelLog.Standing s) {
+        if (!s.forced()) return false;
+        V.Cs history = history(scope, s);
+        long t = now().toEpochMilli();
+        for (int r = 1; r <= s.rung(); r++) if (!policy.climbs(r, history, t)) return true;
+        return false;
+    }
+
     private String decision() { return policy.decisionName(); }
 
     private Instant now() { return clock.instant(); }

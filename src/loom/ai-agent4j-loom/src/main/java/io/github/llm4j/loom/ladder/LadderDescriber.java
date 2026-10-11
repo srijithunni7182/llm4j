@@ -6,6 +6,7 @@ import io.github.llm4j.loom.ast.RungDef;
 import io.github.llm4j.loom.autonomy.expr.Expr;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /** A ladder in plain sentences, generated from the parsed ladder: what is read is what is enforced. */
 public final class LadderDescriber {
@@ -14,6 +15,7 @@ public final class LadderDescriber {
 
     /** The ladder described; {@code decision} (may be null) says which decision binds it, how high it may climb and with which values. */
     public static String describe(LadderDef ladder, DecisionDef decision) {
+        Map<String, String> labels = decision == null ? Map.of() : decision.getTrustLabels();
         StringBuilder b = new StringBuilder();
         List<RungDef> rungs = ladder.getRungs();
         b.append("Ladder ").append(ladder.getName()).append('\n');
@@ -30,17 +32,17 @@ public final class LadderDescriber {
             b.append('\n').append("Rung ").append(r.getName()).append(": ").append(mode(r.getMode())).append('\n');
             if (r.getClimb() != null) {
                 b.append("  The agent climbs to ").append(r.getName()).append(" when:\n");
-                bullets(b, flatten(r.getClimb(), "and"), ", and");
+                bullets(b, flatten(r.getClimb(), "and"), ", and", labels);
             }
             for (RungDef.Slip sl : r.getSlips()) {
                 String to = sl.to() != null ? sl.to() : i > 0 ? rungs.get(i - 1).getName() : "?";
                 List<Expr> parts = flatten(sl.expr(), "or");
                 if (parts.size() > 1) {
                     b.append("  The agent slips from ").append(r.getName()).append(" to ").append(to).append(" when any of these holds:\n");
-                    bullets(b, parts, ", or");
+                    bullets(b, parts, ", or", labels);
                 } else {
                     b.append("  The agent slips from ").append(r.getName()).append(" to ").append(to).append(" when:\n");
-                    bullets(b, parts, "");
+                    bullets(b, parts, "", labels);
                 }
             }
             if (r.getSamplePercent() > 0) {
@@ -49,7 +51,7 @@ public final class LadderDescriber {
             if (r.getEscalate() != null) {
                 List<Expr> parts = flatten(r.getEscalate(), "or");
                 b.append("  A person is also asked, whatever the rung, when ").append(parts.size() > 1 ? "any of these holds:\n" : ":\n");
-                bullets(b, parts, parts.size() > 1 ? ", or" : "");
+                bullets(b, parts, parts.size() > 1 ? ", or" : "", labels);
             }
         }
         b.append('\n').append(ladder.isAutomatic() ? "Moving up is automatic when the conditions hold.\n" : "Moving up needs approval from " + ladder.getApprover() + ".\n");
@@ -79,9 +81,27 @@ public final class LadderDescriber {
         }
     }
 
-    private static void bullets(StringBuilder b, List<Expr> parts, String joiner) {
+    private static void bullets(StringBuilder b, List<Expr> parts, String joiner, Map<String, String> labels) {
         for (int i = 0; i < parts.size(); i++) {
-            b.append("    - ").append(ExprDescriber.describe(parts.get(i))).append(i < parts.size() - 1 ? joiner : "").append('\n');
+            b.append("    - ").append(phrase(parts.get(i), labels)).append(i < parts.size() - 1 ? joiner : "").append('\n');
         }
+    }
+
+    /** A condition in its own words when it has some (a trust block's), else in the words the expression describer finds. */
+    private static String phrase(Expr e, Map<String, String> labels) {
+        String label = labels.get(Show.unwrapped(e.show()));
+        if (label == null) return ExprDescriber.describe(e);
+        if (e instanceof Expr.Bin bin) {
+            String op = switch (bin.op()) {
+                case ">=" -> "at least";
+                case ">" -> "more than";
+                case "<=" -> "at most";
+                case "<" -> "less than";
+                case "==" -> "exactly";
+                default -> null;
+            };
+            if (op != null) return label + ": " + op + " " + ExprDescriber.describe(bin.right());
+        }
+        return label;
     }
 }

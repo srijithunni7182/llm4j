@@ -55,7 +55,7 @@ class TrustMigrationTest {
         old.state("gold", "id-a");
         old.state("basic", "id-a");
         old.state("new", "id-a");
-        original(old, "gold", 12, "approve", "approve", true);
+        original(old, "gold", 20, "approve", "approve", true);
         original(old, "basic", 6, "approve", "approve", true);
         assertThat(levels.get("D", "gold").orElseThrow().level()).isEqualTo(Level.ACT);
         assertThat(levels.get("D", "basic").orElseThrow().level()).isEqualTo(Level.SUGGEST);

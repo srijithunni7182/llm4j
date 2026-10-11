@@ -18,7 +18,8 @@ REPORTS = MODULE / "target" / "surefire-reports"
 SPEC = ROOT / ".kiro" / "specs" / "loom-ladders"
 L = "src/loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/"
 TESTS = ("Ladder*Test,Reference*Test,Interpreter*Test,Expr*Test,LedgerFoldTest,VTest,LexerTest,CheckerTest,WilsonTest,DistanceTest,StandardLibraryTest,"
-         "TypicalMistakesTest,NovelAgentsTest,LadderVerificationTest,LadderStoresTest,LadderScriptTest,!LadderScaleTest")
+         "TypicalMistakesTest,NovelAgentsTest,LadderVerificationTest,LadderStoresTest,LadderScriptTest,!LadderScaleTest,"
+         "Trust*Test,AgentLadderDefaultTest,DecideSafetyTest,DecideResilienceTest,ReplayTest")
 
 SABOTAGES = [
     ("S1", "Missing data makes a condition true (fail open) instead of false",
@@ -61,6 +62,18 @@ SABOTAGES = [
      [(L + "autonomy/expr/Checker.java", "if (inProgress.contains(name)) {", "if (false) {")]),
     ("S20", "Let a measure read the history",
      [(L + "autonomy/expr/Checker.java", "if ((name.equals(\"history\") || name.equals(\"case\")) && s.inMeasure()) {", "if (false) {")]),
+    ("S21", "Re-judge (and demote) a standing the original engine earned, when a decision moves to the ladder engine",
+     [(L + "ladder/LadderEngine.java", "if (cur.rules().equals(LevelLog.LEGACY)) {", "if (false) {")]),
+    ("S22", "Hide the cases a ladder wrote from the replay feature",
+     [(L + "autonomy/Cases.java", "case Rec.RESPONDED -> responded = r;", "case Rec.RESPONDED -> { }")]),
+    ("S23", "Let a case change rung after the agent has replied (a freeze arriving mid-case)",
+     [(L + "execution/LadderDecider.java", "&& Decider.text(Decider.castMap(began).get(\"epoch\")).equals(String.valueOf(st.epoch()))) {", "&& false) {")]),
+    ("S24", "When two ways down hold, take the first instead of the lowest",
+     [(L + "ladder/LadderPolicy.java", "if (best == null || to < best.to()) best", "if (best == null) best")]),
+    ("S25", "Write the trust block without its days requirement",
+     [(L + "ladder/TrustDesugar.java", "if (rule.days() > 0) parts.add(said(", "if (false) parts.add(said(")]),
+    ("S26", "Count every case, not only blind ones, as evidence for a trust block",
+     [(L + "ladder/TrustDesugar.java", 'measure(BLIND, "c.blind", line)', 'measure(BLIND, "true", line)')]),
 ]
 
 
