@@ -167,6 +167,8 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**outbox** `: "outbox"`\n\nIn an `email` tool: write each message to this directory as an `.eml` file instead of sending it. For development.',
     approve:
         '**approve** `: [Tool, …] | all`\n\nOn an agent: those tool calls wait for a person\'s yes. Journaled per call; a durable run pauses until someone answers.',
+    inspect:
+        '**inspect** `{ same_action: 4 times  no_progress: 3 rounds on review.score  ungrounded_figures: warn at 2, high at 4 }`\n\nOn an agent: what the loom-inspect console should treat as trouble for it (rules: `same_action`, `same_output`, `tool_failures`, `no_progress`, `ungrounded_figures`, `paused_longer_than`). Changes nothing about how the agent runs; a rule left out keeps the default.',
     max_iterations:
         '**max_iterations** `: N`\n\nOn an agent: the most reasoning steps it may take for one task.',
     source:
