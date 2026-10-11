@@ -3,6 +3,7 @@
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var selected = null, agentFilter = null, view = null, viewAt = 0;
+  var fabric = false, procs = [], showProcs = false;
 
   function store(k, v) { try { if (v === undefined) { return localStorage.getItem(k); } localStorage.setItem(k, v); } catch (e) { return null; } return null; }
 
@@ -19,7 +20,7 @@
 
   function fetchJson(url) {
     return fetch(url, { cache: 'no-store' }).then(function (r) {
-      if (!r.ok) { throw new Error(r.status); }
+      if (!r.ok) { var err = new Error(r.status); err.status = r.status; throw err; }
       return r.json();
     });
   }
@@ -47,24 +48,34 @@
   function renderTabs(runs) {
     var nav = $('wtabs');
     nav.textContent = '';
+    if (fabric) {
+      var p = el('button', 'wt proc' + (showProcs ? ' on' : ''), 'Processes');
+      p.type = 'button';
+      p.addEventListener('click', function () { showProcs = true; renderAll(); });
+      nav.appendChild(p);
+    }
+    var clients = {};
+    runs.forEach(function (r) { clients[r.client] = true; });
+    var grouped = fabric || Object.keys(clients).length > 1;   // one tab per process and workflow, never merged
     runs.forEach(function (r) {
-      var b = el('button', 'wt' + (r.traceId === selected ? ' on' : ''));
+      var b = el('button', 'wt' + (!showProcs && r.traceId === selected ? ' on' : ''));
       b.type = 'button';
       b.appendChild(el('span', 'dot ' + tabState(r.status)));
-      b.appendChild(el('span', '', r.workflow || 'run'));
+      b.appendChild(el('span', '', (grouped && r.client ? r.client + ' / ' : '') + (r.workflow || 'run')));
       b.title = r.status + ' · ' + shortId(r.runId || r.traceId);
-      b.addEventListener('click', function () { selected = r.traceId; agentFilter = null; tick(); });
+      b.addEventListener('click', function () { selected = r.traceId; agentFilter = null; showProcs = false; tick(); });
       nav.appendChild(b);
     });
-    nav.hidden = runs.length < 2;
+    nav.hidden = !fabric && runs.length < 2;
   }
 
   function renderRuns(runs) {
     var ids = runs.map(function (r) { return r.traceId; });
     if (ids.indexOf(selected) < 0) { selected = ids.length ? ids[0] : null; }
     renderTabs(runs);
-    $('empty').hidden = runs.length > 0;
-    $('main').hidden = runs.length === 0;
+    $('empty').hidden = runs.length > 0 || showProcs;
+    $('main').hidden = runs.length === 0 || showProcs;
+    $('processes').hidden = !showProcs;
     if (!runs.length) { ['status', 'meta'].forEach(function (i) { $(i).hidden = true; }); $('wfname').textContent = ''; $('banner').hidden = true; }
   }
 
@@ -383,11 +394,87 @@
     $('elapsed').textContent = clock(view.elapsedMillis + (live ? Date.now() - viewAt : 0));
   }
 
+  function renderConnection() {
+    var chip = $('conn'), main = $('main');
+    var p = view && procs.filter(function (x) { return x.name === view.client; })[0];
+    if (!fabric || !p || showProcs) { chip.hidden = true; main.classList.remove('stale'); return; }
+    chip.hidden = false;
+    var cls = 'conn', text;
+    if (p.state === 'online') { cls += ' live'; text = 'Live'; }
+    else if (p.state === 'catching up') { cls += ' catching'; text = 'Catching up · ' + num(p.backlog); }
+    else if (p.state === 'finished') { text = 'Process ended'; }
+    else if (p.state === 'unsupported') { cls += ' stale'; text = 'Unsupported version'; }
+    else { cls += ' stale'; text = 'Stale · last seen ' + (p.lastSeen ? hms(p.lastSeen) : '?'); }
+    chip.className = cls;
+    chip.textContent = text;
+    main.classList.toggle('stale', p.state === 'offline' || p.state === 'unsupported');
+  }
+
+  function renderProcesses() {
+    var body = $('proctable');
+    body.textContent = '';
+    $('procsub').textContent = procs.length + (procs.length === 1 ? ' process' : ' processes');
+    $('noproc').hidden = procs.length > 0;
+    procs.forEach(function (p) {
+      var tr = el('tr');
+      cell(tr, p.name);
+      var st = cell(tr, '');
+      st.appendChild(el('span', 'conn ' + (p.state === 'online' ? 'live' : p.state === 'catching up' ? 'catching' : p.state === 'finished' ? '' : 'stale'), p.state));
+      cell(tr, (p.host || '–') + (p.pid ? ' · ' + p.pid : ''), 'mono');
+      cell(tr, (p.workflows || []).join(', ') || '–');
+      cell(tr, p.liveRuns, 'r');
+      cell(tr, p.eventsPerSecond, 'r');
+      cell(tr, num(p.backlog), 'r');
+      cell(tr, num(p.lost), 'r' + (p.lost > 0 ? ' err' : ''));
+      cell(tr, p.lastSeen ? hms(p.lastSeen) : '–', 'mono');
+      body.appendChild(tr);
+    });
+  }
+
+  function renderAll() {
+    renderProcesses();
+    if (view) { render(); }
+    renderConnection();
+    $('processes').hidden = !showProcs;
+    $('main').hidden = showProcs || !selected;
+    $('empty').hidden = showProcs || !!selected;
+    $('banner').hidden = showProcs || $('banner').hidden;
+  }
+
+  function showLogin(on, message) {
+    $('login').hidden = !on;
+    if (on) {
+      ['main', 'empty', 'processes', 'wtabs'].forEach(function (i) { $(i).hidden = true; });
+      $('loginerr').hidden = !message;
+      $('loginerr').textContent = message || '';
+    }
+  }
+
+  $('loginform').addEventListener('submit', function (e) {
+    e.preventDefault();
+    fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('pw').value }) })
+      .then(function (r) {
+        $('pw').value = '';
+        if (r.ok) { showLogin(false); tick(); return; }
+        showLogin(true, r.status === 429 ? 'Too many attempts. Wait a moment.' : r.status === 503 ? 'No admin password is set on the server.' : 'Wrong password.');
+      })
+      .catch(function () { showLogin(true, 'Cannot reach the server.'); });
+  });
+
   function tick() {
     fetchJson('/api/runs').then(function (list) {
-      renderRuns(list.runs);
-      return selected ? fetchJson('/api/runs/' + selected).then(function (v) { view = v; viewAt = Date.now(); render(); }) : null;
-    }).catch(function () {
+      showLogin(false);
+      // the Processes view exists only on a Fabric server; an embedded page answers 404 and never shows it
+      return fetchJson('/api/processes').then(function (p) { fabric = true; procs = p.processes || []; }, function (e) { if (e.status === 401) { throw e; } fabric = false; })
+        .then(function () {
+          renderRuns(list.runs);
+          renderProcesses();
+          $('mode').textContent = fabric ? 'read-only · Fabric' : 'read-only · embedded mode';
+          if (showProcs) { ['status', 'meta', 'conn'].forEach(function (i) { $(i).hidden = true; }); $('wfname').textContent = ''; $('client').textContent = ''; $('banner').hidden = true; }
+          return selected && !showProcs ? fetchJson('/api/runs/' + selected).then(function (v) { view = v; viewAt = Date.now(); render(); renderConnection(); }) : null;
+        });
+    }).catch(function (e) {
+      if (e && e.status === 401) { showLogin(true); return; }
       $('updated').textContent = 'cannot reach the run (it may have ended)';
     });
   }

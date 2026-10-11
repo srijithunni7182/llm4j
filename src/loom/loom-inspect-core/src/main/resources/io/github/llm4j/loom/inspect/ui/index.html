@@ -18,6 +18,7 @@
       <span id="wfname" class="wf"></span>
     </div>
     <span id="status" class="pill" hidden></span>
+    <span id="conn" class="conn" hidden></span>
     <div class="meta mono" id="meta" hidden>
       <span>started <b id="started"></b></span>
       <span>elapsed <b id="elapsed"></b></span>
@@ -27,6 +28,28 @@
   </header>
 
   <nav id="wtabs" class="wtabs" aria-label="Workflows" hidden></nav>
+
+  <section id="login" class="login" hidden>
+    <img class="mark" src="/logo.png" alt="" width="64" height="64">
+    <h1>Sign in</h1>
+    <form id="loginform" autocomplete="off">
+      <label class="sr" for="pw">Admin password</label>
+      <input id="pw" type="password" autocomplete="current-password" placeholder="Admin password" required>
+      <button class="btn primary" type="submit">Sign in</button>
+    </form>
+    <p id="loginerr" class="danger-t" role="alert" hidden></p>
+  </section>
+
+  <section id="processes" class="panel" hidden aria-labelledby="h-proc">
+    <div class="ph"><h2 id="h-proc">Processes</h2><span class="sub mono" id="procsub"></span></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Process</th><th>State</th><th>Host</th><th>Workflows</th><th class="r">Live runs</th><th class="r">Events/s</th><th class="r">Backlog</th><th class="r">Lost</th><th>Last seen</th></tr></thead>
+        <tbody id="proctable"></tbody>
+      </table>
+    </div>
+    <p id="noproc" class="muted pad" hidden>No process has reported yet. Add one with <code>fabric clients add &lt;name&gt;</code>, then start a workflow with <code>--observe-fabric</code>.</p>
+  </section>
 
   <div id="banner" class="banner" hidden></div>
 
@@ -94,7 +117,7 @@
     </div>
   </main>
 
-  <footer class="foot2 faint mono"><span>read-only · embedded mode</span><span id="updated"></span></footer>
+  <footer class="foot2 faint mono"><span id="mode">read-only · embedded mode</span><span id="updated"></span></footer>
 </div>
 <script src="/app.js"></script>
 </body>

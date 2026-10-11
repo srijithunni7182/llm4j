@@ -178,3 +178,19 @@ tr.run .task { color: var(--ink); }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .meta { display: none; } .tbl-wrap { overflow-x: auto; }
 }
+
+/* connection chip, login, processes (Fabric) */
+.conn { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 12px; font: 600 11px/1 var(--font-sans); letter-spacing: .06em; text-transform: uppercase; border: 1px solid var(--line-strong); color: var(--ink-muted); }
+.conn.live { color: var(--rung-act); border-color: var(--rung-act); }
+.conn.catching { color: var(--live); border-color: var(--live); }
+.conn.stale { color: var(--danger); border-color: var(--danger); border-style: dashed; }
+main.stale { opacity: .55; }
+.login { max-width: 360px; margin: 72px auto; text-align: center; }
+.login .mark { border-radius: var(--radius-lg); border: 1px solid var(--line-strong); margin-bottom: var(--space-4); }
+.login form { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
+.login input { height: 36px; padding: 0 12px; border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font: inherit; }
+.login input:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; }
+.btn.primary { background: var(--live); color: var(--on-live); border-color: var(--live); font-weight: 600; height: 36px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.nav { display: inline-flex; gap: var(--space-2); margin-right: var(--space-2); }
+.wt.proc { border-style: dashed; }
