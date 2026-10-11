@@ -12,10 +12,10 @@ Tests named here are in `src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/
 | | |
 |---|---|
 | Checks | 76 in the plan |
-| Pass | 64 of 76; 6 partly; 3 need people; 3 not done or a finding (see each table) |
-| Whole module test suite | `mvn verify`: 1,489 tests, 0 failures, 1 skipped (as before), coverage rules pass |
+| Pass | 60 of 76 (79%); 9 partly; 4 need people; 3 not done or a finding (see each table). Before the trust and agent-default work: 64, 6, 3, 3. |
+| Whole module test suite | `mvn verify`: 1,543 tests, 0 failures, 1 skipped (as before), coverage rules pass |
 | Ladder tests | about 330, all passing |
-| Safeguard removal (H4) | **20 of 20** caught ([H4-sabotage.md](H4-sabotage.md)); one needed a new test (S15) |
+| Safeguard removal (H4) | **26 of 26** caught ([H4-sabotage.md](H4-sabotage.md), [H4-sabotage-partial.md](H4-sabotage-partial.md)); S15 needed a new test; S21-S26 cover the trust work |
 | Mutation testing (PIT) on the language and engine | **90%** of 1,785 mutants killed, test strength 92%, 53 with no covering test (first run: 79%, 176) |
 | Line / branch coverage | expression language 99.0% / 92.5%; ladder package 97.6% / 88.3%; CLI, parser, executor wiring 94.2% / 73.1% |
 | Editor extension tests | 174 pass, 4 fail; the 4 fail identically on the commit before this work (logo script, renderer copy: environment) |
@@ -53,7 +53,7 @@ Tests named here are in `src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/
 | C2 | Pass | `LadderEngineTest.aLateOutcomeCanCauseASlip…`, `ReferenceLaddersTest` (CI, traffic, take-down); an outcome that has not arrived is unknown, not false (`StandardLibraryTest.reversedIsTrueOnlyFor…`) |
 | C3 | Pass | `LadderRunTest.theSameRunTwiceLeavesOneCase…`; `LadderStoresTest` (restart, racing writers); `LadderVerificationTest.v_D10…` |
 | C4 | Pass | `LadderStoresTest` on memory, files and a database |
-| C5 | Pass | `LedgerFoldTest.aCaseWrittenByTheEarlierEngineReadsAsAnAcceptOrAReject`; the earlier engine's files are untouched |
+| C5 | Partly | `LedgerFoldTest.aCaseWrittenByTheEarlierEngineReadsAsAnAcceptOrAReject`; `TrustMigrationTest` runs the ladder engine over a ledger the original engine wrote (levels, an epoch, a forced level) and requires every scope to stay where it was and nothing to be demoted. The ledger is built by the original engine in the test, not a file captured from the previous release. |
 | C6 | Pass | `LadderVerificationTest.v_C6_personalDataIsMaskedBeforeAnythingIsWritten` |
 | C7 | Pass | `LadderVerificationTest.v_C7_retentionRemovesTheTextAndKeepsTheCounts` (found that retention did not remove artifacts; fixed) |
 | C8 | **Not done: a finding** | A hand-edited ledger that forges a promotion is not detected. The ledger is not signed or chained. Out of this work's threat model; recorded in the notes. |
@@ -107,10 +107,10 @@ Tests named here are in `src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/
 
 | # | Result | Evidence |
 |---|---|---|
-| G1 | Pass | The module's whole suite, including every earlier test unchanged (see the summary). |
-| G2 | Pass | The earlier engine and its files are untouched. |
+| G1 | **Needs people** | The whole suite passes, but seven earlier test files were changed when trust decisions moved to the ladder engine (`DecideHarness`, `DecideTest`, `DecideSafetyTest`, `DecideResilienceTest`, `AutonomyCommandsTest`, `AutonomyCompatTest`, `AutonomySweepTest`): they seeded or read the original level store, or the original record kind, directly. The scenarios are kept; the plan requires a person to approve each recorded reason. |
+| G2 | Partly | `TrustAsLadderEquivalenceTest`: the original engine and the ladder written from the trust block stand on the same rung with the same change after every case, over 150 random histories (60,000 steps, 6 configurations). Not done as stated: the level history of each decision script in the repository over a fixed ledger. Four trust forms stay on the original engine, which is untouched for them. |
 | G3 | Pass | Every `.loom` in the repository still loads (the existing repository-wide checks run in the suite); the new words are contextual (`LadderScriptTest`). |
-| G4 | Pass | The earlier commands keep their arguments; `AutonomyCommandsTest` and the others run unchanged. |
+| G4 | Partly | The commands keep their arguments, and `status` keeps its words, figures and `--json` keys for a trust decision. `AutonomyCommandsTest` was changed (seeding, two expected strings), so "unchanged" holds only after a person approves the change (see G1). |
 | G5 | Pass | `LadderVerificationTest.v_G5_…` (a `trust` decision and a ladder decision in one script) |
 | G6 | Pass | `LadderChecksTest.aDecisionHasItsRulesInOnePlace` |
 
