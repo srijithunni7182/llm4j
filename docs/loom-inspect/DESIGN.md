@@ -20,7 +20,10 @@ The UI mockups are the design system at https://claude.ai/artifact/G8ah58W5edzPP
 | 10 | **Remote mode centres on `loom-inspect-server`:** a standalone, packaged server you install on any machine. A workflow process is given its URL up front on the `weave` command line (`--observe-server <url>`). There is no listener on the workflow process and no dynamic webhook registration. |
 | 11 | **Many processes, one server.** Any number of workflow processes report to the same server, and all their workflows are monitored together: one tab per workflow, each run tagged with the process it came from. |
 | 12 | Processes only connect outward. Pause, suspend and stop travel back in the server's response. Secret values never leave a process, and secret rotation stays in embedded mode. |
-| 13 | The server keeps history on disk and has its own secret store, which holds each client's key and the admin password. |
+| 13 | The server keeps history on disk (retention 30 days or 2 GB, oldest finished runs first) and has its own secret store, which holds each client's key and the admin password. |
+| 14 | One key per process. Every process is named on purpose: `--observe-name` is required with `--observe-server`. |
+| 15 | No merging across processes: each process's workflows get their own tabs, grouped under the process name. |
+| 16 | The process verifies the server's certificate. Trust comes from the JDK's default roots, plus an optional private CA given to that process for this connection only, or a pinned server key. There is no "insecure" switch. |
 
 ## 2. What the runtime gives us today (checked against the code)
 
@@ -200,7 +203,7 @@ LOOM_INSPECT_SERVER=https://inspect.example.com:9090 weave run flow.loom --secre
 ```
 
 - `--observe-server <url>` enables remote reporting; `LOOM_INSPECT_SERVER` is the same thing from the environment.
-- `--observe-name <name>` is this process's name on the server (default: the host name plus the script name). It must match a client created with `clients add`.
+- `--observe-name <name>` is this process's name on the server. It is **required** with `--observe-server`; there is no default. It must match a client created with `clients add`, and a process that omits it is refused at start-up with a message saying so.
 - The client key is read from the process's own secret store as `LOOM_INSPECT_CLIENT_KEY` (changeable with `--observe-key-secret <name>`), so no key appears on a command line or in the environment.
 - `--observe` (embedded page) and `--observe-server` can be used together.
 - **If the server is unreachable the run goes on.** The process keeps a bounded queue, retries with backoff, and sends a fresh snapshot when the server returns. A wrong key or an unsupported version is reported once on the console and reporting stops; it never stops the workflow.
@@ -239,11 +242,11 @@ The server answers each batch with `{ "ack": { "r-7f3a": 12408 }, "commands": [ 
 
 The console is the same as before; what changes is where the tabs come from.
 
-- **One top-level tab per workflow**, taken from every connected process. If two processes run the same workflow (the same name and script hash, such as prod and staging), they share one tab, and the run picker lists runs from both with the process name beside each. If two different scripts share a name, they get separate tabs, prefixed with the process name.
+- **Tabs are grouped by process.** Each process's workflows appear as tabs under its name, in the form `getviral-prod / ContentStudio`. There is **no merging**: the same workflow running in prod and staging is two tabs, one under each process, so a run, an incident or a cost is never ambiguous about where it happened. The run picker inside a tab lists only that process's runs of that workflow.
+- With many processes the tab strip groups by process and collapses to the ones with live runs or open incidents first, with the rest under a "more" menu and a search box.
 - **A Processes page** lists every client: name, host, version, workflows, live runs, state (online, lagging, offline since), events per second, queued and dropped counts, and the key's name. It is also where you see an unsupported version, a revoked key, or a process that stopped answering.
 - **Process-level state reaches the runs.** If a process goes quiet, its live runs show "last seen running at …" and the connection chip says Stale, exactly as in the single-process remote view. Runs of a process that sent `bye` are marked finished or suspended according to the last event, not left as running.
 - **Secrets** are shown per process, read-only: names, hosts, fingerprints, used-by. Rotation is not available through the server. The page says where to rotate (the process's host, or its embedded page).
-- Optional: a filter chip row (by process) above the run picker.
 
 ### What the server does not do (v1)
 
@@ -348,12 +351,33 @@ The pages can stop a run and replace API keys, so the module is off by default a
   - Every batch and every reply is signed (`HMAC-SHA256` over `timestamp.body`) with that client's key. A timestamp outside a 5-minute window is rejected, which stops replay.
   - Each process has its **own key**, so one can be revoked (`clients revoke`) without touching the others, and a leaked key reaches only one client's reports and commands. Keys live in the server's and the process's secret stores, never on a command line.
   - A client may only report under its own name; the server rejects events that claim another client's identity.
-  - The process connects to exactly the URL it was given: `https` required (plain `http` only for loopback), no redirects followed, optional `--observe-ca` to pin a private CA. There is no server-initiated fetch, so the earlier concern about using a registration listener to reach internal addresses does not arise.
+  - The process connects to exactly the URL it was given: `https` required (plain `http` only for loopback), no redirects followed. How it decides to trust the server is in "TLS trust" below. There is no server-initiated fetch, so the earlier concern about using a registration listener to reach internal addresses does not arise.
   - Redaction and truncation are applied **in the workflow process, before an event leaves it**. The server never sees more than the client's detail level allows.
   - Secret values are never put on the wire. Fingerprints and metadata only.
   - The server's admin password is a secret in its own store; failed logins are rate-limited; the UI uses the same session, CSRF and same-origin rules as embedded mode.
   - Ingest is rate-limited per client. Over the limit the server answers `429` with `Retry-After`, and the process backs off.
 - Run `weave audit`-style checks on the module: no `Authorization` header logging, no value in `toString`, a test that greps responses for a known secret.
+
+## 9a. TLS trust: how a process verifies the server
+
+The process, not the server, decides whether the server is genuine, because a fake server would receive trace data (and could try to send commands). Commands are signed with the client's key, so a fake server cannot forge them, but it could read events. So the process always verifies the certificate, with hostname checking, and never offers an insecure option.
+
+What a process trusts, in order:
+
+1. **The JDK's default trust store (`cacerts`).** If the server's certificate comes from a public CA (for example Let's Encrypt, or a cloud load balancer), nothing needs to be passed to the process. This is the common case when the server sits behind a reverse proxy or a managed certificate.
+2. **A private CA, passed to the process: `--observe-ca <file>`** (or `LOOM_INSPECT_CA`). The file is the CA's **public** certificate in PEM. It is not a secret, so a path is fine, and it can be distributed by whatever already distributes your configuration. It is **added** to the default roots and applies to the loom-inspect connection only. It is not installed JVM-wide, so it does not weaken TLS to model providers or any other endpoint the workflow calls. `--observe-ca-only` makes it the only root for this connection, for the strictest setups.
+3. **A pinned server key: `--observe-pin sha256:<fingerprint>`** (or `LOOM_INSPECT_PIN`), for a single self-signed server where you do not run a CA. The process accepts only a server whose public key (SPKI) hashes to that value, so no CA is involved. The fingerprint is printed by `loom-inspect-server` at start-up. A pin over the key, not the certificate, survives certificate renewal as long as the key is reused.
+
+Rules for all three:
+
+- **Hostname verification stays on.** The certificate must name the host in the URL (a SAN match).
+- **No trust on first use.** A process never learns a certificate by seeing it once; a person supplies the CA file or the pin.
+- **Trust is per process and configured with the `weave` command.** It is not read from the server.
+- A process whose server fails verification reports it once on the console, stops reporting, and keeps running the workflow. The server shows that client as Offline.
+
+On the server side, `loom-inspect-server tls init --host inspect.example.com` can create a small private CA and a server certificate for it, writes `ca.pem` (the file you hand to processes) and prints the server's pin. Renewing the server certificate under the same CA needs no change on any process. Behind a reverse proxy, the proxy owns the certificate and the process trusts whatever the proxy's certificate chains to.
+
+Not in v1: mutual TLS (client certificates). The per-client signing key already authenticates each process, and mTLS would add a second mechanism. It can be added later as an alternative to the key.
 
 ## 10. Data and retention
 
@@ -401,9 +425,6 @@ Settled since draft 1: run identity (the executor already has `getRunId()` and `
 4. **Fingerprint in the audit.** OK to record the truncated hash before and after in the audit log? It is the only way to prove which key was live when.
 5. **Password form.** Accept the plain stored value in v1 and add hashing later, or require the hashed form from the start?
 6. **`--observe` on one-shot runs.** `weave run` ends when the workflow ends, which closes the page. Should `--observe` keep the server up for a short time after (for example `--observe-linger 5m`) so the final state can be read?
-7. **Client keys.** One key per process, created with `clients add` (recommended, revocable one at a time), or also a single shared key for small setups?
-8. **Same workflow name in different apps.** Proposed above: the same name and script hash share a tab, different scripts get separate tabs. Would you rather always have a tab per (process, workflow) with no merging?
-9. **Who may see what.** One admin password in v1. With many processes, do you want a read-only viewer password, or per-process visibility, before this is shared with a team?
-10. **Persistence defaults.** Files with 30-day, 2 GB retention. Enough, or do you want a database store from the start?
-11. **Commands over the response.** Pause, suspend and stop reach a process on its next response (about a second while events flow). Acceptable for stop, or do you want an optional direct control port on the process for urgent use?
-12. **Process names.** Should `--observe-name` be required, so every process is named on purpose, rather than defaulting from the host and script?
+7. **Who may see what.** One admin password in v1. With many processes, do you want a read-only viewer password, or per-process visibility, before this is shared with a team?
+8. **Commands over the response.** Pause, suspend and stop reach a process on its next response (about a second while events flow). Acceptable for stop, or do you want an optional direct control port on the process for urgent use?
+9. **CA distribution.** Is passing `--observe-ca` per process acceptable, or should the server hand out its CA on first enrolment (a convenience that would need a bootstrap trust step, so it is not proposed for v1)?
