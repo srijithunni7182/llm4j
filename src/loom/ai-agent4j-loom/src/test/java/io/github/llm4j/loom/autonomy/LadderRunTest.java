@@ -204,6 +204,89 @@ class LadderRunTest {
         assertThat(h.audit).contains("level_changed");
     }
 
+    private static final String WAITING = "Triage/s0#decide-ask";
+
+    private static io.github.llm4j.loom.runtime.RunSuspended waiting() {
+        return new io.github.llm4j.loom.runtime.RunSuspended(WAITING, "waiting for support-lead");
+    }
+
+    @Test
+    void aDeciderThatTimesOutPausesTheRunAndNothingIsDecidedUntilTheAnswerComesAfterTheResume() {
+        DecideHarness h = harness(REFUND);
+        io.github.llm4j.loom.runtime.RunJournal journal = io.github.llm4j.loom.runtime.RunJournal.inMemory();
+        h.person = f -> {
+            throw waiting();
+        };
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> h.executor(h.newRun(journal), "late").executeWorkflow("Triage", h.inputs("gold", 50)))
+                .isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class);
+        assertThat(h.ledger.recordsOfKind("Refund", Rec.RESPONDED)).as("no decision, and no silent action").isEmpty();
+        assertThat(cases(h, "Refund")).hasSize(1);
+        assertThat(cases(h, "Refund").get(0).responded()).isFalse();
+
+        // resumed with the decider still silent: paused again, still nothing decided, still one case, one question
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> h.executor(h.newRun(journal), "late").executeWorkflow("Triage", h.inputs("gold", 50)))
+                .isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class);
+        assertThat(h.ledger.recordsOfKind("Refund", Rec.RESPONDED)).isEmpty();
+        assertThat(cases(h, "Refund")).hasSize(1);
+        assertThat(h.modelCalls).as("the agent was not asked again").isEqualTo(1);
+
+        // the answer arrives after the run was resumed: the case is decided once, by the person
+        journal.put(WAITING, new io.github.llm4j.loom.runtime.RunJournal.Entry("human", "approve"));
+        h.person = f -> {
+            throw new AssertionError("the person was asked again");
+        };
+        h.executor(h.newRun(journal), "late").executeWorkflow("Triage", h.inputs("gold", 50));
+        assertThat(h.ledger.recordsOfKind("Refund", Rec.RESPONDED)).hasSize(1);
+        assertThat(cases(h, "Refund")).hasSize(1);
+        assertThat(cases(h, "Refund").get(0).responder()).isEqualTo("support-lead");
+        assertThat(h.modelCalls).isEqualTo(1);
+
+        // and a further resume after it finished changes nothing
+        h.executor(h.newRun(journal), "late").executeWorkflow("Triage", h.inputs("gold", 50));
+        assertThat(h.ledger.recordsOfKind("Refund", Rec.RESPONDED)).hasSize(1);
+    }
+
+    @Test
+    void aDeciderThatTimesOutOnAnEscalatedCaseAtTheTopRungNeverLetsTheAgentActInstead() {
+        DecideHarness h = harness(REFUND);
+        h.agent = f -> new String[] {"approve", "fine", "0.9"};
+        h.person = f -> "approve";
+        for (int i = 0; i < 10; i++) h.runCase("g" + i, h.inputs("gold", 50));
+        assertThat(h.runCase("act", h.inputs("gold", 60))).containsEntry("verdict_level", "act");
+        h.person = f -> {
+            throw waiting();
+        };
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> h.runCase("big", h.inputs("gold", 500))).isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class);
+        assertThat(cases(h, "Refund").get(cases(h, "Refund").size() - 1).responded()).as("the agent did not act while the person was away").isFalse();
+    }
+
+    @Test
+    void aLadderEditedWhileACaseWaitsLetsThatCaseFinishUnderTheRulesItBeganUnderAndTheNextCaseUsesTheNewOnes() {
+        DecideHarness h = harness(REFUND);
+        io.github.llm4j.loom.runtime.RunJournal journal = io.github.llm4j.loom.runtime.RunJournal.inMemory();
+        h.person = f -> {
+            throw waiting();
+        };
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> h.executor(h.newRun(journal), "in-flight").executeWorkflow("Triage", h.inputs("gold", 20)))
+                .isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class);
+        assertThat(h.asked.get(0)).as("began blind").doesNotContain("The agent proposes");
+
+        // the publisher edits the ladder while the case waits: the entry rung now shows the proposal
+        h.script = h.script.replace("rung watch { mode: blind }", "rung watch { mode: confirm }");
+        journal.put(WAITING, new io.github.llm4j.loom.runtime.RunJournal.Entry("human", "approve"));
+        h.executor(h.newRun(journal), "in-flight").executeWorkflow("Triage", h.inputs("gold", 20));
+        LCase finished = cases(h, "Refund").get(0);
+        assertThat(finished.shown()).as("finished as it began: the person never saw the proposal").isFalse();
+        assertThat(finished.level()).isEqualTo("watch");
+        assertThat(finished.blind()).isTrue();
+
+        // the next case is asked under the new rules
+        h.person = f -> "approve";
+        h.runCase("next", h.inputs("gold", 30));
+        assertThat(h.asked.get(h.asked.size() - 1)).contains("The agent proposes");
+        assertThat(cases(h, "Refund").get(1).shown()).isTrue();
+    }
+
     @Test
     void theSameRunTwiceLeavesOneCaseAndAResumedRunRepeatsNothing() {
         DecideHarness h = harness(REFUND);
