@@ -55,13 +55,28 @@ final class AutonomyCommands implements Callable<Integer> {
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    private static String operator() {
+    static String operator() {
         String user = System.getProperty("user.name");
         return "operator:" + (user == null ? "unknown" : user);
     }
 
     /** The decision's rules: from the script it was last run from, or the one given. */
-    private static Optional<DecisionDef> definition(Path store, String decision, File script, PrintStream err) {
+    /** The whole script behind a decision (its ladders and measures too), from the script it was last run from or the one given. */
+    static Optional<LoomScript> loadScript(Path store, String decision, File script, PrintStream err) {
+        Path file = script != null ? script.toPath() : AutonomySupport.scriptOf(store, decision).orElse(null);
+        if (file == null || !Files.exists(file)) {
+            err.println("Error: don't know which script declares " + decision + ". Pass --script <file>.");
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(new LoomLoader().load(file.toAbsolutePath().toString()));
+        } catch (Exception e) {
+            err.println("Error: could not read " + file + ": " + e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    static Optional<DecisionDef> definition(Path store, String decision, File script, PrintStream err) {
         Path file = script != null ? script.toPath() : AutonomySupport.scriptOf(store, decision).orElse(null);
         if (file == null || !Files.exists(file)) {
             err.println("Error: don't know which script declares " + decision + " (it was never run from this store, or the script moved). Pass --script <file>.");
@@ -78,7 +93,7 @@ final class AutonomyCommands implements Callable<Integer> {
         }
     }
 
-    private static void audit(Path store, String event, Map<String, Object> data) {
+    static void audit(Path store, String event, Map<String, Object> data) {
         Map<String, Object> record = new LinkedHashMap<>();
         record.put("event", event);
         record.put("time", Instant.now().toString());
@@ -132,6 +147,12 @@ final class AutonomyCommands implements Callable<Integer> {
         for (String name : decisions) {
             Optional<DecisionDef> def = definition(store, name, script, err);
             if (def.isEmpty()) return 2;
+            if (def.get().getLadder() != null) {
+                Optional<LoomScript> loaded = loadScript(store, name, script, err);
+                if (loaded.isEmpty()) return 2;
+                all.add(LadderCommands.describe(def.get(), loaded.get(), ledger, clock, text));
+                continue;
+            }
             Map<String, Object> d = describe(def.get(), ledger, levels, clock, text);
             all.add(d);
         }
@@ -320,6 +341,10 @@ final class AutonomyCommands implements Callable<Integer> {
     static int move(Path store, String decision, String scope, String to, boolean up, boolean force, String reason, File script, String by, WeaveEnv env) {
         Optional<DecisionDef> def = definition(store, Names.check(decision), script, env.err());
         if (def.isEmpty()) return 2;
+        if (def.get().getLadder() != null) {
+            Optional<LoomScript> loaded = loadScript(store, Names.check(decision), script, env.err());
+            return loaded.isEmpty() ? 2 : LadderCommands.move(store, def.get(), loaded.get(), scope, to, up, force, reason, by, env);
+        }
         Engine engine = new Engine(def.get(), AutonomySupport.ledger(store), AutonomySupport.levels(store), env.clock());
         LevelState state = engine.levels().get(decision, scope).orElse(null);
         if (state == null) {
@@ -387,6 +412,10 @@ final class AutonomyCommands implements Callable<Integer> {
     static int decide(Path store, String decision, String scope, boolean approve, String reason, File script, String by, WeaveEnv env) {
         Optional<DecisionDef> def = definition(store, Names.check(decision), script, env.err());
         if (def.isEmpty()) return 2;
+        if (def.get().getLadder() != null) {
+            Optional<LoomScript> loaded = loadScript(store, Names.check(decision), script, env.err());
+            return loaded.isEmpty() ? 2 : LadderCommands.decide(store, def.get(), loaded.get(), scope, approve, reason, by, env);
+        }
         Engine engine = new Engine(def.get(), AutonomySupport.ledger(store), AutonomySupport.levels(store), env.clock());
         try {
             Engine.Change change = approve ? engine.approve(scope, by, reason) : engine.reject(scope, by, reason);
@@ -471,11 +500,14 @@ final class AutonomyCommands implements Callable<Integer> {
         @Parameters(index = "2", description = "The case id (shown by status and in the ledger).")
         String caseId;
 
-        @Option(names = "--result", required = true, description = "reversed, upheld, or another word.")
+        @Option(names = "--result", required = true, description = "reversed, upheld, or another word (the name of the outcome).")
         String result;
 
         @Option(names = "--note", description = "A note (recorded).")
         String note;
+
+        @Option(names = "--value", description = "A value that goes with the result, such as a number of views (a number if it looks like one).")
+        String value;
 
         @Option(names = "--script", description = "The script that declares the decision.")
         File script;
@@ -483,13 +515,21 @@ final class AutonomyCommands implements Callable<Integer> {
         @Override
         public Integer call() {
             WeaveEnv env = WeaveEnv.system();
-            return outcome(store.toPath(), decision, caseId, result, note, script, env);
+            return outcome(store.toPath(), decision, caseId, result, value, note, script, env);
         }
     }
 
     static int outcome(Path store, String decision, String caseId, String result, String note, File script, WeaveEnv env) {
+        return outcome(store, decision, caseId, result, null, note, script, env);
+    }
+
+    static int outcome(Path store, String decision, String caseId, String result, String value, String note, File script, WeaveEnv env) {
         Optional<DecisionDef> def = definition(store, Names.check(decision), script, env.err());
         if (def.isEmpty()) return 2;
+        if (def.get().getLadder() != null) {
+            Optional<LoomScript> loaded = loadScript(store, Names.check(decision), script, env.err());
+            return loaded.isEmpty() ? 2 : LadderCommands.outcome(store, def.get(), loaded.get(), caseId, result, value, note, env);
+        }
         Engine engine = new Engine(def.get(), AutonomySupport.ledger(store), AutonomySupport.levels(store), env.clock());
         try {
             List<Engine.Change> changes = engine.outcome(caseId, result, note);

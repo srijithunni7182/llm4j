@@ -42,7 +42,7 @@ class ExprParserTest {
 
     @Test
     void literals() {
-        assertThat(show("90%")).isEqualTo("0.9");
+        assertThat(show("90%")).isEqualTo("90%");
         assertThat(show("14d")).isEqualTo("14d");
         assertThat(show("[\"legal\", \"pricing\"]")).isEqualTo("[\"legal\", \"pricing\"]");
         assertThat(show("case_topic in [\"legal\"]")).isEqualTo("(case_topic in [\"legal\"])");

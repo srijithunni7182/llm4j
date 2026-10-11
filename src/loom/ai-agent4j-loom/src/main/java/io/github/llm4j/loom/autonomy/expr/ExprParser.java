@@ -169,7 +169,7 @@ public final class ExprParser {
         Token t = peek();
         switch (t.kind()) {
             case NUMBER -> { next(); return new Expr.Lit(V.num(t.number()), trim(t.number()), t.column()); }
-            case PERCENT -> { next(); return new Expr.Lit(V.num(t.number()), trim(t.number()), t.column()); }
+            case PERCENT -> { next(); return new Expr.Lit(V.num(t.number()), t.text(), t.column()); }
             case DURATION -> { next(); return new Expr.Lit(V.dur(t.millis()), t.text(), t.column()); }
             case STRING -> { next(); return new Expr.Lit(V.str(t.text()), "\"" + t.text().replace("\\", "\\\\").replace("\"", "\\\"") + "\"", t.column()); }
             case TRUE -> { next(); return new Expr.Lit(V.bool(true), "true", t.column()); }

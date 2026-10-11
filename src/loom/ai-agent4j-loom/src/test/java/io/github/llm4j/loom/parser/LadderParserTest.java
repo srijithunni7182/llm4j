@@ -62,7 +62,7 @@ class LadderParserTest {
                 "(((history.last(50).count(dangerous) >= 2) or (history.last(100).count(reversed) >= 2)) or (history.rate(agrees) < 0.92))");
         assertThat(act.getSamplePercent()).isEqualTo(0.05);
         assertThat(act.getEscalate().show()).isEqualTo("((case.amount > 200) or (history.since(1d).count >= 50))");
-        assertThat(act.getClimb().show()).contains("0.97");
+        assertThat(act.getClimb().show()).contains("97%");
     }
 
     @Test
