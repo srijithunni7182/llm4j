@@ -24,11 +24,13 @@ public final class Kinds {
     public static final String DECIDE = "decide";
     public static final String OBSERVE = "observe";
     public static final String NOTE = "note";
+    /** A {@code sleep} statement: the workflow waits for a fixed time. */
+    public static final String SLEEP = "sleep";
     public static final String UNKNOWN = "unknown";
 
     public static final List<String> ALL = List.of(
             START, END, DELEGATE, TASK, HANDOFF, BROADCAST, PARALLEL, ALT, LOOP, FOREACH, HUMAN_PROMPT,
-            CHECKPOINT, REWIND, CALL, GUARDRAIL, DECIDE, OBSERVE, NOTE, UNKNOWN);
+            CHECKPOINT, REWIND, CALL, GUARDRAIL, DECIDE, OBSERVE, NOTE, SLEEP, UNKNOWN);
 
     private Kinds() {
     }

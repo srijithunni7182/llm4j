@@ -27,6 +27,8 @@ public record TraceEvent(String type, String agent, String step, String text, Ma
     public static final String GUARD = "guard";
     public static final String VOICE = "voice";
     public static final String SUSPENDED = "suspended";
+    /** A {@code sleep} step: {@code data.state} is "start" (with {@code wakeAt} and {@code millis}) or "end". */
+    public static final String SLEEP = "sleep";
     public static final String TOOL = "tool";
     public static final String CHECKPOINT = "checkpoint";
     public static final String REWIND = "rewind";

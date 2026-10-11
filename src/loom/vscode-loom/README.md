@@ -10,7 +10,7 @@ Open it from the Command Palette, from the graph icon in the editor title bar, o
 
 What you see:
 
-- **One node per step**, drawn by kind: agent steps (`delegate`, `handoff`, `broadcast`), tasks (`run`), `parallel` rounds, `alt` branches, `loop` and `for each`, `call`, `ask a person`, `checkpoint` and `rewind`, `guardrail`, `decide`, `observe` and `note`. A **Legend** button lists the colours.
+- **One node per step**, drawn by kind: agent steps (`delegate`, `handoff`, `broadcast`), tasks (`run`), `parallel` rounds, `alt` branches, `loop` and `for each`, `call`, `ask a person`, `checkpoint` and `rewind`, `guardrail`, `decide`, `observe`, `sleep` (a clock) and `note`. A **Legend** button lists the colours.
 - **Settings as chips** on each step: `retry 3 · 2s`, `timeout 90s`, `budget 5k tok`, `expects {score, notes}`, a loop's `max 3`, `→ variable`, and so on (at most three, then `+n`).
 - **Agent details** when you hover or focus a step that names an agent: model, tools, approval rules, budget. A step whose agent needs approval shows a hand.
 - **Edges** with labels: `then` and `else`, `again` and `done` on loops, `failure` and `exhausted` for handler blocks.

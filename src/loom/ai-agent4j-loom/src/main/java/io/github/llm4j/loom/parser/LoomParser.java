@@ -325,6 +325,8 @@ public class LoomParser {
             return parseDecide();
         } else if (isRunStart()) {
             return parseRun();
+        } else if (isWord("sleep") && isDurationStart(peekAt(1))) {
+            return parseSleep();
         }
         
         throw error(peek(), "Expected statement, got " + peek().getType());
@@ -924,6 +926,23 @@ public class LoomParser {
             }
         }
         consume(TokenType.RBRACE, "Expect '}' after the trust block.");
+    }
+
+    /** True when the token can open a duration: {@code 90s} (a number) or {@code "90s"} (a string). */
+    private static boolean isDurationStart(Token t) {
+        return t.getType() == TokenType.NUMBER_LITERAL || t.getType() == TokenType.STRING_LITERAL;
+    }
+
+    /** {@code sleep 30s}, {@code sleep 5m}, {@code sleep 2h}, {@code sleep 1d}; a contextual word, so {@code sleep} stays usable as a variable name. */
+    private SleepStmt parseSleep() {
+        Token word = advance();
+        int from = current;
+        java.time.Duration duration = duration(word);
+        Token first = tokens.get(from);
+        StringBuilder text = new StringBuilder();
+        for (int i = from; i < current; i++) text.append(tokens.get(i).getValue());
+        String written = first.getType() == TokenType.STRING_LITERAL ? first.getValue().trim() : text.toString();
+        return new SleepStmt(duration, written);
     }
 
     private NoteStmt parseNoteStmt() {

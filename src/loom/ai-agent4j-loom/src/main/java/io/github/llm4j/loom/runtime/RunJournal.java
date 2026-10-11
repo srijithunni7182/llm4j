@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public interface RunJournal {
 
-    /** A recorded step result. {@code kind} is "delegate", "failed", "human", "broadcast" or "handoff". */
+    /** A recorded step result. {@code kind} is "delegate", "failed", "human", "broadcast", "handoff" or "sleep" (the wake time). */
     record Entry(String kind, Object value) { }
 
     Optional<Entry> get(String stepId);

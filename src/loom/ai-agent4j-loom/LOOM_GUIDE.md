@@ -1196,6 +1196,7 @@ Loom provides **Symbolic Controls** that ensure your agents follow a rigid seque
 - **`for each` / `parallel for each`**: Run a block once per item of a list, in order or all at once. See [for each](#for-each).
 - **`run`**: Run a **task** — plain Java; no model and no tokens unless the statement names one with `model "…"`. For the steps too important to leave to an LLM. See [Tasks](#tasks-deterministic-steps-run).
 - **`human_prompt`**: Ask a person. With a run journal the run suspends instead of holding a thread. See [Durable Runs](#durable-runs-no-new-syntax).
+- **`sleep`**: Wait a fixed time (`sleep 5m`). With a run journal the run pauses and holds no thread. See [Sleeping](#sleeping).
 - **`budget`**: Cap what a run, an agent or a single step may spend on LLM calls. See [Cost Budgets](#cost-budgets).
 
 > **New in this release:** [cost budgets](#cost-budgets), [durable runs](#durable-runs-no-new-syntax), [`for each` with runtime routing](#for-each),
@@ -1687,6 +1688,41 @@ What happens when a budget runs out:
 
 `budget` is a contextual keyword: scripts that use it as a variable name keep working. Scripts without
 budgets are not metered at all.
+
+### Sleeping
+
+`sleep` makes the workflow wait for a fixed time and then carry on. It is for polling a job that takes a while, a cooldown between rounds of a loop, or a follow-up some hours after a message. It costs nothing: no model, no tokens, and it does not count against a `budget`.
+
+```loom
+workflow Poll(job) {
+    run StartJob(id = job) -> started
+    loop until (status.state == "done") max 24 {
+        run CheckJob(id = job) -> status
+        sleep 5m
+    } on_exhausted {
+        note "Job {job} is still running after two hours"
+    }
+}
+```
+
+Write the time as a whole number and a unit: `sleep 30s`, `sleep 5m`, `sleep 2h`, `sleep 1d` (or the same in quotes, `sleep "5m"`). `sleep` is a keyword only where a statement starts, so it still works as a variable name.
+
+**What happens**
+
+| Run | A sleep of | Behaviour |
+|---|---|---|
+| With a durable journal (`--journal`, a file or a database) | more than 30 seconds | The run **pauses** and holds no thread. It resumes at the wake time, the same way a run paused for a rate limit does. |
+| With a durable journal | 30 seconds or less | Waited out in place: pausing would cost more than it saves. |
+| Without one (in memory) | any length | Waited out in place, holding the thread. |
+
+- **The wake time is recorded first.** The step writes `now + duration` to the journal before anything waits. A resumed run, a restart, or a second machine on the same journal keeps that wake time: a sleep is never lengthened, and resuming early just pauses again until the recorded time.
+- **Something has to wake the run.** A paused run leaves a resume trigger in the trigger store, exactly as for a limit: keep `weave daemon` running, install a system trigger with `weave triggers install`, run `weave tick`, or start the run with `--wait` so it stays alive and resumes by itself. It wakes at the recorded time or shortly after (the trigger store adds a small jitter).
+- **A sleep is not a limit.** It does not count against `rate_limits { max_resumes }`, and `{_run.resumes}` does not include it, so a polling loop can sleep as many times as it needs. `{_run.lastSuspension.reason}` reads `SLEEP` while one is recorded.
+- **In a loop**, every round sleeps until its own wake time. After a `rewind`, the replaced attempt's sleeps are history and the new attempt sleeps again.
+- **In `parallel`, `broadcast` and `parallel for each`**, the other branches finish first and are journaled; the run then pauses once, until the latest wake time.
+- **Seeing it.** `weave run` prints `💤 Sleeping: sleeping 5m. Wakes at … (in …)`. The live trace has a `sleep` event with `state` `start` (and `wakeAt`, `millis`) and later `end`; the audit log records `sleep_started` and `sleep_ended`; `weave graph` draws a clock node.
+
+**What it is not.** It is not a schedule: for something that repeats, use `schedule`. It does not wait until a clock time (`sleep until` is not supported yet).
 
 ### Pausing and Resuming on Limits
 > In depth: [Budgets, Pausing and Scheduling §3–4](BUDGETS_AND_SCHEDULING.md#3-rate-limits-and-quotas).

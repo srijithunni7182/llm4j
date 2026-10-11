@@ -114,6 +114,8 @@ public class HarnessExecutor implements LoomEngine {
     /** Journal key of the run's latest pause for a limit. */
     public static final String SUSPENSION = "#suspension";
     static final int DEFAULT_MAX_RESUMES = 50;
+    /** A sleep this short is waited out in place even with a durable journal: pausing the run costs more than it saves. */
+    static final Duration INLINE_SLEEP = Duration.ofSeconds(30);
     static final Duration DEFAULT_MAX_INLINE_WAIT = Duration.ofMinutes(5);
     static final Duration DEFAULT_MAX_SUSPEND = Duration.ofDays(7);
     private java.time.Clock clock = java.time.Clock.systemUTC();
@@ -391,6 +393,50 @@ public class HarnessExecutor implements LoomEngine {
     public String awaitHuman(String key, String message) {
         String id = step.get() + "#" + key;
         return journal.get(id).map(e -> String.valueOf(e.value())).orElseThrow(() -> new RunSuspended(id, message));
+    }
+
+    /**
+     * {@code sleep 90s}. The wake time is journaled before anything waits, so a resumed run (or a second
+     * executor on the same journal) keeps the original wake time and never lengthens the sleep. With a
+     * durable journal a sleep longer than {@link #INLINE_SLEEP} pauses the run ({@link RunSuspended},
+     * reason SLEEP) and holds no thread; otherwise the sleep is waited out in place.
+     */
+    private void executeSleep(io.github.llm4j.loom.ast.SleepStmt sleep) {
+        String stepId = step.get();
+        var recorded = journal.get(stepId).filter(e -> "sleep".equals(e.kind()));
+        boolean resumed = recorded.isPresent();
+        Instant wakeAt;
+        if (resumed) {
+            wakeAt = Instant.parse(String.valueOf(recorded.get().value()));
+        } else {
+            wakeAt = clock.instant().plus(sleep.getDuration());
+            journal.put(stepId, new RunJournal.Entry("sleep", wakeAt.toString()));
+        }
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("wakeAt", wakeAt.toString());
+        data.put("millis", String.valueOf(sleep.getDuration().toMillis()));
+        data.put("step", stepId);
+        if (!resumed) {
+            data.put("state", "start");
+            trace(TraceEvent.SLEEP, null, "sleeping " + sleep.getText() + ", until " + wakeAt, data);
+            auditLogger.logConversationEvent(sessionId, null, "sleep_started", new java.util.LinkedHashMap<>(data));
+        }
+        Duration remaining = Duration.between(clock.instant(), wakeAt);
+        if (!remaining.isNegative() && !remaining.isZero()) {
+            if (journal.isDurable() && remaining.compareTo(INLINE_SLEEP) > 0) {
+                throw new RunSuspended(stepId, wakeAt, "sleeping " + sleep.getText());
+            }
+            try {
+                sleeper.sleep(remaining);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while sleeping at " + stepId, e);
+            }
+        }
+        Map<String, Object> done = new java.util.LinkedHashMap<>(data);
+        done.put("state", "end");
+        trace(TraceEvent.SLEEP, null, "woke after " + sleep.getText(), done);
+        auditLogger.logConversationEvent(sessionId, null, "sleep_ended", new java.util.LinkedHashMap<>(done));
     }
 
     /**
@@ -1432,6 +1478,8 @@ public class HarnessExecutor implements LoomEngine {
             String noteText = resolvePayload(note.getMessage());
             log.info("NOTE: " + noteText);
             trace(TraceEvent.NOTE, null, noteText, null);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.SleepStmt sleep) {
+            executeSleep(sleep);
         } else if (stmt instanceof io.github.llm4j.loom.ast.RunStmt run) {
             taskRunner.run(run);
         } else if (stmt instanceof DelegateStmt del) {
@@ -2486,10 +2534,12 @@ public class HarnessExecutor implements LoomEngine {
                 .orElse(null);
         resumes = last == null ? 0 : (int) number(last.get("resumes"));
         if (last != null && "suspended".equals(last.get("state"))) {
-            resumes++;
+            // A sleep is the script's own choice, not a limit: waking from one is not counted against max_resumes.
+            boolean slept = "SLEEP".equals(String.valueOf(last.get("reason")));
+            if (!slept) resumes++;
             Instant now = clock.instant();
             last.put("resumes", resumes);
-            if (resumes > maxResumes()) {
+            if (!slept && resumes > maxResumes()) {
                 last.put("state", "failed");
                 journal.put(SUSPENSION, new RunJournal.Entry("suspension", last));
                 throw new IllegalStateException("Run paused for limits and resumed " + (resumes - 1)
@@ -2533,6 +2583,8 @@ public class HarnessExecutor implements LoomEngine {
         if (paused.limit() != null) {
             rec.putAll(limitData(paused.limit()));
             rec.put("detail", paused.limit().describe());
+        } else if (paused.detail() != null) {
+            rec.put("detail", paused.detail());
         }
         journal.put(SUSPENSION, new RunJournal.Entry("suspension", rec));
         if (triggerStore != null && runId != null) {

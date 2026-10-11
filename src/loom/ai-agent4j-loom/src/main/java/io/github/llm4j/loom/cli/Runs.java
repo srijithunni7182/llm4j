@@ -191,8 +191,8 @@ final class Runs {
         }
         ZonedDateTime at = paused.resumeAt().atZone(zone(env));
         Duration in = Duration.between(env.clock().instant(), paused.resumeAt());
-        env.out().println("⏸ Paused: " + (paused.limit() != null ? paused.limit().describe() : paused.reason())
-                + ". Resumes at " + WHEN.format(at) + " (in " + HarnessExecutor.human(in.isNegative() ? Duration.ZERO : in) + ").");
+        env.out().println((paused.reason() == RunSuspended.Reason.SLEEP ? "💤 Sleeping: " + paused.detail() : "⏸ Paused: " + (paused.limit() != null ? paused.limit().describe() : paused.reason()))
+                + (paused.reason() == RunSuspended.Reason.SLEEP ? ". Wakes at " : ". Resumes at ") + WHEN.format(at) + " (in " + HarnessExecutor.human(in.isNegative() ? Duration.ZERO : in) + ").");
         if (runDir == null) {
             env.out().println("   This run has no --journal, so it can't be resumed later: run it again with --journal <dir>.");
             return;

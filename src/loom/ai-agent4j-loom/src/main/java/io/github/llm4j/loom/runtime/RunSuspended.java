@@ -12,17 +12,21 @@ import java.time.Instant;
  *   <li>{@link Reason#RATE_LIMIT} / {@link Reason#BUDGET_WINDOW}: run it again at {@link #resumeAt()}
  *       (a trigger store does this for you). Everything done so far replays; the step that hit the
  *       limit runs again.</li>
+ *   <li>{@link Reason#SLEEP}: a {@code sleep} step; run it again at {@link #resumeAt()}. The wake time is
+ *       journaled, so a restart never lengthens the sleep, and a sleep is not counted against
+ *       {@code max_resumes}.</li>
  * </ul>
  */
 public class RunSuspended extends AgentInterrupt {
 
-    public enum Reason { HUMAN, RATE_LIMIT, BUDGET_WINDOW }
+    public enum Reason { HUMAN, RATE_LIMIT, BUDGET_WINDOW, SLEEP }
 
     private final String stepId;
     private final String prompt;
     private final Reason reason;
     private final Instant resumeAt;
     private final RateLimitInfo limit;
+    private String detail;
 
     public RunSuspended(String stepId, String prompt) {
         super("Waiting for a human at " + stepId);
@@ -40,6 +44,22 @@ public class RunSuspended extends AgentInterrupt {
         this.reason = reason;
         this.resumeAt = limit.resetAt();
         this.limit = limit;
+    }
+
+    /** A {@code sleep} step that runs until {@code wakeAt}. */
+    public RunSuspended(String stepId, Instant wakeAt, String detail) {
+        super("Sleeping at " + stepId + ": " + detail + "; wakes at " + wakeAt);
+        this.stepId = stepId;
+        this.prompt = null;
+        this.reason = Reason.SLEEP;
+        this.resumeAt = wakeAt;
+        this.limit = null;
+        this.detail = detail;
+    }
+
+    /** What the run is waiting for, in words ({@code sleeping 90s}), or null when there is a {@link #limit()} to describe instead. */
+    public String detail() {
+        return detail;
     }
 
     public String stepId() {
