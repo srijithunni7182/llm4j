@@ -251,4 +251,18 @@ class LedgerFoldTest {
         assertThat(r.get("zip")).isEqualTo(V.str("01234"));              // not 1234
         assertThat(r.get("amount")).isEqualTo(V.num(250));
     }
+
+    @Test
+    void aSupersededGenerationOfACaseIsNotInTheHistory() {
+        List<LCase> cases = LedgerFold.cases(List.of(
+                caseRec("c1", 1, 0, "watch", "all", Map.of(), 1, "id-a"),
+                proposed("c1", 1, 1, Rec.map("choice", "reject")),
+                responded("c1", 1, 2, Rec.map("kind", "accept", "choice", "reject", "by", "lead")),
+                caseRec("c1", 2, 50, "watch", "all", Map.of(), 1, "id-a"),
+                proposed("c1", 2, 51, Rec.map("choice", "approve")),
+                responded("c1", 2, 52, Rec.map("kind", "accept", "choice", "approve", "by", "lead"))));
+        V.Cs history = HistoryBuilder.history(cases, "all", 1);
+        assertThat(history.cases()).hasSize(1);
+        assertThat(((V.Rec) history.cases().get(0).get("response")).get("choice")).isEqualTo(V.str("approve"));
+    }
 }
