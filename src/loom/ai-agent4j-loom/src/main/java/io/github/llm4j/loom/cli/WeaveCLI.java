@@ -586,6 +586,64 @@ public class WeaveCLI implements Callable<Integer> {
         return 0;
     }
 
+    @Command(name = "observe", description = "Looks after what observing leaves on disk: observe flush delivers an outbox, observe purge removes one.",
+            subcommands = {ObserveFlushCommand.class, ObservePurgeCommand.class})
+    static class ObserveCommand implements Callable<Integer> {
+        @Override
+        public Integer call() {
+            CommandLine.usage(this, System.out);
+            return 0;
+        }
+    }
+
+    @Command(name = "flush", description = "Delivers what an earlier process left in its local outbox to the Fabric server (the server must know this name's key).")
+    static class ObserveFlushCommand implements Callable<Integer> {
+        @CommandLine.Mixin
+        private ObserveMixin observeOpts = new ObserveMixin();
+
+        @CommandLine.Mixin
+        private SecretOptions secrets = new SecretOptions();
+
+        @Override
+        public Integer call() {
+            WeaveEnv env = secrets.apply(WeaveEnv.system(), Prompts.console());
+            if (env == null) return 2;
+            try {
+                io.github.llm4j.loom.observe.ObserveOptions options = observeOpts.parsed();
+                if (options == null || options.fabric() == null) {
+                    System.err.println("Error: observe flush needs --observe-fabric (or LOOM_FABRIC_URL) and --observe-name.");
+                    return 2;
+                }
+                long left = io.github.llm4j.loom.observe.Observe.provider().flush(options, env.secrets(), env.out());
+                return left == 0 ? 0 : 1;
+            } catch (IllegalArgumentException | io.github.llm4j.loom.observe.Observe.Unavailable e) {
+                System.err.println("Error: " + e.getMessage());
+                return 2;
+            }
+        }
+    }
+
+    @Command(name = "purge", description = "Deletes a process name's local outbox that no running process is using. Undelivered events in it are lost.")
+    static class ObservePurgeCommand implements Callable<Integer> {
+        @CommandLine.Mixin
+        private ObserveMixin observeOpts = new ObserveMixin();
+
+        @Override
+        public Integer call() {
+            if (observeOpts.name() == null || observeOpts.name().isBlank()) {
+                System.err.println("Error: observe purge needs --observe-name.");
+                return 2;
+            }
+            try {
+                io.github.llm4j.loom.observe.Observe.provider().purge(observeOpts.name().trim(), observeOpts.outbox(), System.out);
+                return 0;
+            } catch (io.github.llm4j.loom.observe.Observe.Unavailable e) {
+                System.err.println("Error: " + e.getMessage());
+                return 2;
+            }
+        }
+    }
+
     @Command(name = "triggers", description = "Lists and manages stored triggers, and installs system triggers.%n"
             + "  list | pause <id> | enable <id> | cancel <id> | fire <id> | install | uninstall")
     static class TriggersCommand implements Callable<Integer> {
@@ -826,6 +884,7 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new ResumeCommand())
                 .addSubcommand(new TickCommand())
                 .addSubcommand(new DaemonCommand())
+                .addSubcommand(new ObserveCommand())
                 .addSubcommand(new TriggersCommand())
                 .addSubcommand(new ScheduleCommand())
                 .addSubcommand(new PackageCommand())

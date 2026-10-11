@@ -99,7 +99,7 @@ public final class Outbound implements AutoCloseable {
         List<ServerLink.Source> orphans = new ArrayList<>();
         if (transport != null) {
             try (var dirs = Files.list(root)) {
-                dirs.filter(Files::isDirectory).filter(d -> !d.getFileName().toString().equals(instance)).sorted().forEach(d -> {
+                dirs.filter(Files::isDirectory).filter(d -> !d.getFileName().toString().equals(instance)).sorted(java.util.Comparator.comparingLong(Outbox::lastWrite)).forEach(d -> {
                     try {
                         Outbox o = new Outbox(d, SEGMENT, CAP_BYTES, CAP_AGE, clock); // fails when a live process holds it
                         orphans.add(new ServerLink.Source(o, new Cursor(d, "fabric"), true));

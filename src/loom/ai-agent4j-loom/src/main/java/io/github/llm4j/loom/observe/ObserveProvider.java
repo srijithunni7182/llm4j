@@ -14,6 +14,19 @@ public interface ObserveProvider {
     /** Starts whatever serves the observer (a web page, an exporter). Throws {@link IllegalArgumentException} for options it refuses. */
     Session open(ObserveOptions options, PrintStream out);
 
+    /**
+     * Delivers what an earlier process left in its local outbox, by hand ({@code weave observe flush}). Returns how many records are still
+     * undelivered afterwards. A provider with no outbox says so.
+     */
+    default long flush(ObserveOptions options, io.github.llm4j.secret.SecretStore secrets, PrintStream out) {
+        throw new UnsupportedOperationException(name() + " keeps no outbox");
+    }
+
+    /** Deletes the local outbox of {@code name} (under {@code outbox}, or the default place) that no running process is using ({@code weave observe purge}). Returns how many records went. */
+    default long purge(String name, java.nio.file.Path outbox, PrintStream out) {
+        throw new UnsupportedOperationException(name() + " keeps no outbox");
+    }
+
     /** One process's worth of observing. */
     interface Session extends AutoCloseable {
 

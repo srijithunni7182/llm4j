@@ -307,6 +307,20 @@ public final class Outbox implements AutoCloseable {
         return dir;
     }
 
+    /** When anything was last written to the outbox in {@code dir}: the newest segment's time, or the directory's if it has none. */
+    public static long lastWrite(Path dir) {
+        long newest = 0;
+        try (var list = Files.list(dir)) {
+            for (Path p : (Iterable<Path>) list.filter(f -> f.getFileName().toString().startsWith("seg-"))::iterator) {
+                newest = Math.max(newest, Files.getLastModifiedTime(p).toMillis());
+            }
+            if (newest == 0) newest = Files.getLastModifiedTime(dir).toMillis();
+        } catch (IOException e) {
+            // unreadable: sorts first
+        }
+        return newest;
+    }
+
     /** True when a live process holds the lock of the outbox in {@code dir}. */
     public static boolean inUse(Path dir) {
         Path lockFile = dir.resolve("lock");

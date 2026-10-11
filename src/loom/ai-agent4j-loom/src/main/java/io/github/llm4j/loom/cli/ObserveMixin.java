@@ -63,6 +63,20 @@ final class ObserveMixin {
             description = "A header for the OTLP endpoint; a value may be ${secret:NAME}, read from the secret store. Repeatable.")
     private List<String> observeOtlpHeaders = new ArrayList<>();
 
+    /** The options as parsed, or null when none asks for anything. Throws {@link IllegalArgumentException} for a bad one. */
+    ObserveOptions parsed() {
+        return ObserveOptions.fromCommandLine(observe, observeBind, observeDetail, observeName, observeLinger, observeFabric, observeCa, observeCaOnly,
+                observePin, observeOutbox, observeKeySecret, observeFlushTimeout, observeOtlp, observeOtlpHeaders, System::getenv);
+    }
+
+    String name() {
+        return observeName;
+    }
+
+    java.nio.file.Path outbox() {
+        return observeOutbox == null || observeOutbox.isBlank() ? null : java.nio.file.Path.of(observeOutbox.trim());
+    }
+
     /** What opening found: the environment to run with, the session to close afterwards, or a failure already reported. */
     record Opened(WeaveEnv env, ObserveProvider.Session session, ObserveOptions options, boolean failed) {
 

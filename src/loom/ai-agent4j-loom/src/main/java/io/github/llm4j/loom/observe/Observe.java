@@ -15,6 +15,12 @@ public final class Observe {
 
     private Observe() { }
 
+    /** The first provider on the class path. */
+    public static ObserveProvider provider() throws Unavailable {
+        for (ObserveProvider p : ServiceLoader.load(ObserveProvider.class)) return p;
+        throw new Unavailable("this needs the loom-inspect add-on on the class path (add the loom-inspect jar next to weave).");
+    }
+
     /** Opens a session with the first provider found by {@link ServiceLoader}. */
     public static ObserveProvider.Session open(ObserveOptions options, PrintStream out) throws Unavailable {
         return open(options, out, ServiceLoader.load(ObserveProvider.class));
