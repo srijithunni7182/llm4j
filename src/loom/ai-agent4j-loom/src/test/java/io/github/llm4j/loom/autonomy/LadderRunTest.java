@@ -30,7 +30,7 @@ class LadderRunTest {
     }
 
     private Level level(DecideHarness h, String scope) {
-        return h.levels.get("Refund", scope).orElseThrow().level();
+        return h.levelOf(scope);
     }
 
     @Test
@@ -60,12 +60,13 @@ class LadderRunTest {
         assertThat(h.ledger.records("Refund").stream().filter(r -> Rec.PROMOTION_PROPOSED.equals(r.kind()))).hasSize(1);
         assertThat(h.audit).contains("promotion_proposed").doesNotContain("level_changed");
 
-        Engine engine = new Engine(DecisionParseTest.parse(h.script).getDecisions().get(0), h.ledger, h.levels, h.clock);
+        io.github.llm4j.loom.ladder.LadderEngine engine = new io.github.llm4j.loom.ladder.LadderEngine(
+                io.github.llm4j.loom.ladder.LadderPolicy.of(h.parsed(), h.parsed().getDecisions().get(0)), h.ledger, h.clock);
         assertThatThrownBy(() -> engine.approve("gold", "somebody-else", "ok")).hasMessageContaining("only risk-owner");
-        Engine.Change change = engine.approve("gold", "risk-owner", "the numbers look right");
-        assertThat(change.to()).isEqualTo(Level.SUGGEST);
+        var change = engine.approve("gold", "risk-owner", "the numbers look right");
+        assertThat(change.to()).isEqualTo("suggest");
         assertThat(level(h, "gold")).isEqualTo(Level.SUGGEST);
-        assertThat(engine.ladder().proposals("gold").get(0).by()).isEqualTo("risk-owner");
+        assertThat(h.ledger.recordsOfKind("Refund", Rec.PROMOTION_DECIDED).get(0).str("by")).isEqualTo("risk-owner");
         assertThatThrownBy(() -> engine.approve("gold", "risk-owner", "again")).hasMessageContaining("no open promotion proposal");
     }
 
@@ -73,7 +74,7 @@ class LadderRunTest {
     @Tag("EA-V3.7")
     void aDemotionIsImmediateAndShowsInTheNextCaseNotTheOneInProgress() {
         DecideHarness h = harness("drop to watch when 2 dangerous mistakes in 20 cases");
-        h.levels.compareAndSet("Refund", "gold", null, new LevelState(Level.SUGGEST, 1, h.hashOfRefund(), false, DecideHarness.T0, "test", 1));
+        h.seed("gold", Level.SUGGEST);
         // at suggest, every case is checked blind only when sampled: make the agent wrong in a dangerous way on every case, and check them all
         h.script = h.script.replace("trust {", "trust {\n check 100% of cases with a person who doesn't see the proposal");
         h.agent = f -> new String[] {"approve", "r", "0.9"};
@@ -84,7 +85,7 @@ class LadderRunTest {
         assertThat(level(h, "gold")).as("one dangerous mistake").isEqualTo(Level.SUGGEST);
         h.runCase("run-2", h.inputs("gold", 21));
         assertThat(level(h, "gold")).as("the second").isEqualTo(Level.WATCH);
-        assertThat(h.levels.get("Refund", "gold").orElseThrow().reason()).contains("2 dangerous mistakes in the last 2 cases");
+        assertThat(h.reasonOf("gold")).contains("2 dangerous mistakes in the last 2 cases");
         assertThat(h.audit).contains("level_changed");
         assertThat(h.ledger.records("Refund").stream().filter(r -> Rec.LEVEL.equals(r.kind()) && "demoted".equals(r.str("kind")))).hasSize(1);
     }
@@ -93,7 +94,7 @@ class LadderRunTest {
     @Tag("EA-V3.5")
     void aConditionOnTheRememberedValuesSendsACaseToAPersonEvenAtAct() {
         DecideHarness h = harness("always ask a person when amount > 200");
-        h.levels.compareAndSet("Refund", "gold", null, new LevelState(Level.ACT, 1, h.hashOfRefund(), false, DecideHarness.T0, "test", 1));
+        h.seed("gold", Level.ACT);
 
         Map<String, Object> small = h.runCase("run-1", h.inputs("gold", 150));
         Map<String, Object> large = h.runCase("run-2", h.inputs("gold", 250));
@@ -108,7 +109,7 @@ class LadderRunTest {
     @Tag("EA-V3.5")
     void aDailyLimitSendsTheNextCaseAndTheCountSurvivesARestart() {
         DecideHarness h = harness("always ask a person after 3 cases a day");
-        h.levels.compareAndSet("Refund", "gold", null, new LevelState(Level.ACT, 1, h.hashOfRefund(), false, DecideHarness.T0, "test", 1));
+        h.seed("gold", Level.ACT);
         for (int i = 0; i < 3; i++) assertThat(h.runCase("run-" + i, h.inputs("gold", 10 + i)).get("verdict_level")).isEqualTo("act");
 
         DecideHarness restarted = new DecideHarness(dir, h.ledger, h.levels, h.script); // a new process: nothing remembered but the ledger
@@ -136,7 +137,7 @@ class LadderRunTest {
     @Tag("EA-V3.6")
     void anAuditedCaseAtActIsAskedBlindAndCountsAsEvidenceExactlyAsInWatch() {
         DecideHarness h = harness("check 100% of cases with a person who doesn't see the proposal");
-        h.levels.compareAndSet("Refund", "gold", null, new LevelState(Level.ACT, 1, h.hashOfRefund(), false, DecideHarness.T0, "test", 1));
+        h.seed("gold", Level.ACT);
         h.agent = f -> new String[] {"approve", "SECRET-REASON", "0.5"};
 
         Map<String, Object> vars = h.runCase("run-1", h.inputs("gold", 20));
@@ -168,8 +169,8 @@ class LadderRunTest {
         assertThat(journal.get("Triage/s0#level")).isPresent();
 
         // meanwhile the ladder moves: this scope is now at act
-        LevelState now = h.levels.get("Refund", "gold").orElseThrow();
-        h.levels.compareAndSet("Refund", "gold", now, now.withLevel(Level.ACT, true, DecideHarness.T0, "someone moved it"));
+        new io.github.llm4j.loom.ladder.LadderEngine(io.github.llm4j.loom.ladder.LadderPolicy.of(h.parsed(), h.parsed().getDecisions().get(0)), h.ledger, h.clock)
+                .set("gold", "act", true, "someone moved it", "test");
         journal.put("Triage/s0#decide-ask", new RunJournal.Entry("human", "approve"));
 
         h.asked.clear();

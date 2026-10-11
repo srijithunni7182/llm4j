@@ -44,14 +44,20 @@ public final class Cases {
     }
 
     private static Case foldOne(String id, int generation, List<Rec> records, List<Rec> outcomes, boolean superseded) {
-        Rec opened = null, proposed = null, decided = null;
+        Rec opened = null, proposed = null, decided = null, responded = null;
         for (Rec r : records) {
             switch (r.kind()) {
                 case Rec.CASE -> opened = r;
                 case Rec.PROPOSED -> proposed = r;
                 case Rec.DECIDED -> decided = r;
+                // a case answered under a ladder: the response is the verdict, the person who responded the decider
+                case Rec.RESPONDED -> responded = r;
                 default -> { }
             }
+        }
+        if (decided == null && responded != null) {
+            decided = new Rec(responded.id(), responded.decision(), Rec.DECIDED, responded.at(), responded.caseId(), responded.generation(),
+                    Rec.map("verdict", responded.str("choice"), "decider", responded.str("by"), "shown", responded.flag("shown"), "millis", responded.num("millis")));
         }
         Rec head = opened != null ? opened : records.get(0);
         Map<String, String> fields = new LinkedHashMap<>();

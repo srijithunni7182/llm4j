@@ -54,12 +54,17 @@ final class DecisionChecks {
         AgentDef agent = script.getAgents().stream().filter(a -> a.getName().equals(d.getAgent())).findFirst().orElse(null);
         if (d.getAgent() == null) c.error(line, who, "say which agent proposes: proposed by: AgentName");
         else if (agent == null) c.error(line, who, "agent " + d.getAgent() + " is not defined (proposed by: " + d.getAgent() + ")");
+        else if (d.getProposes() != null) artifactSchema(d, agent);
         else schema(d, agent);
 
-        if (d.getChoices().size() < 2) c.error(line, who, "a decision needs at least two choices, such as: choices: approve, reject");
+        boolean artifact = d.getProposes() != null;
+        if (artifact && !d.getDangerous().isEmpty()) {
+            c.error(line, who, "dangerous mistake needs choices to compare; a decision that proposes " + d.getProposes() + " has none");
+        }
+        if (!artifact && d.getChoices().size() < 2) c.error(line, who, "a decision needs at least two choices, such as: choices: approve, reject");
         Set<String> seen = new HashSet<>();
         for (String choice : d.getChoices()) if (!seen.add(choice)) c.error(line, who, "the choice " + choice + " is listed twice");
-        if (d.getChoices().size() >= 2 && !d.getChoices().contains("escalate")) {
+        if (!artifact && d.getChoices().size() >= 2 && !d.getChoices().contains("escalate")) {
             c.warn(line, who, "there is no choice called escalate; an unusable proposal will be recorded as escalate, which is not one of the choices");
         }
         for (DecisionDef.Mistake m : d.getDangerous()) {
@@ -79,7 +84,15 @@ final class DecisionChecks {
         if (agent != null && agent.getModel() != null && agent.getModel().toLowerCase(java.util.Locale.ROOT).contains("latest")) {
             c.warn(line, who, "agent " + agent.getName() + " uses the model alias " + agent.getModel() + "; a silent change of model behind an alias cannot be detected unless the provider's reply names the model");
         }
-        trust(d);
+        if (d.getLadder() == null || d.isLadderFromTrust()) trust(d);
+    }
+
+    /** An agent that proposes an artifact needs a structured output to hold it. */
+    private void artifactSchema(DecisionDef d, AgentDef agent) {
+        SchemaDef s = agent.getOutputSchema();
+        if (s == null || s.getType() != SchemaDef.Type.OBJECT || s.getFields() == null) {
+            c.error(d.getLine(), "decision " + d.getName(), "agent " + agent.getName() + " can't produce a proposal: give it an output_schema holding the " + d.getProposes());
+        }
     }
 
     private void schema(DecisionDef d, AgentDef agent) {

@@ -23,6 +23,8 @@ import java.util.regex.Pattern;
 final class DecideHarness {
 
     static final Instant T0 = Instant.parse("2026-03-01T00:00:00Z");
+    /** The model the provider says answered; a test changes it to show a silent change behind an alias. */
+    static volatile String servedModel = "m";
 
     final Path dir;
     final Ledger ledger;
@@ -43,6 +45,8 @@ final class DecideHarness {
 
     /** What the agent proposes for a case, from the values it was given: {choice, reasoning[, confidence]}. */
     Function<Map<String, String>, String[]> agent = f -> new String[] {"approve", "looks fine", "0.9"};
+    /** When set, the agent's whole reply (a JSON object) from the case's values: for decisions that propose an artifact. */
+    Function<Map<String, String>, String> rawAgent;
     /** What the person decides, from the case's values. */
     Function<Map<String, String>, String> person = f -> "approve";
     String script;
@@ -78,12 +82,14 @@ final class DecideHarness {
         ScriptedRun run = new ScriptedRun(dir);
         run.journal = journal;
         run.env.putAll(env);
+        run.served = servedModel;
         tools.forEach(run.tools::register);
         run.responder = r -> {
             if (r.getMessages().get(0).getContent().contains("You are Summarizer")) return ScriptedRun.done("summary of " + task(r));
             String task = task(r);
             modelCalls++;
             tasks.add(task);
+            if (rawAgent != null) return "```json\n" + rawAgent.apply(fieldsOf(task)) + "\n```";
             String[] says = agent.apply(fieldsOf(task));
             if (!toolCalls.isEmpty()) {
                 int seen = ScriptedRun.lastMessage(r).split("Observation:", -1).length - 1;
@@ -143,10 +149,69 @@ final class DecideHarness {
         return m;
     }
 
+    /** The script as loaded now. */
+    io.github.llm4j.loom.ast.LoomScript parsed() {
+        return DecisionParseTest.parse(script);
+    }
+
     /** The identity of the agent behind the Refund decision in this script, for seeding a level. */
     String hashOfRefund() {
         var parsed = DecisionParseTest.parse(script);
         return AgentIdentity.of(parsed, parsed.getDecisions().get(0), dir);
+    }
+
+    // ---- where the decision stands, whichever engine runs it ---------------------------------------------------------------------
+
+    private io.github.llm4j.loom.ladder.LadderPolicy policy() {
+        var s = parsed();
+        return io.github.llm4j.loom.ladder.LadderPolicy.of(s, s.getDecisions().get(0));
+    }
+
+    private boolean onLadder() {
+        return parsed().getDecisions().get(0).getLadder() != null;
+    }
+
+    private io.github.llm4j.loom.ladder.LevelLog log() {
+        var p = policy();
+        return new io.github.llm4j.loom.ladder.LevelLog(p.decisionName(), p.rungs(), ledger);
+    }
+
+    /** Puts a scope at a level in the first epoch, as the engine would have after earning it (the agent's identity is the script's, so nothing starts a new epoch). */
+    void seed(String scope, Level level) {
+        if (!onLadder()) {
+            levels.compareAndSet("Refund", scope, null, new LevelState(level, 1, hashOfRefund(), false, T0, "test", 1));
+            return;
+        }
+        var p = policy();
+        var log = log();
+        int have = log.current(scope).map(io.github.llm4j.loom.ladder.LevelLog.Standing::version).orElse(0);
+        int rung = p.indexOf(level.word());
+        log.write(scope, have, new io.github.llm4j.loom.ladder.LevelLog.Standing(rung, p.nameOf(rung), have + 1, 1, hashOfRefund(), null, false, T0, "test", p.fingerprint()),
+                "first", null, "test", T0, p.rulesText());
+    }
+
+    /** The level a scope has earned. */
+    Level levelOf(String scope) {
+        if (!onLadder()) return levels.get("Refund", scope).orElseThrow().level();
+        return Level.of(log().current(scope).orElseThrow().rungName());
+    }
+
+    /** Why the scope stands where it does: the reason of its latest change. */
+    String reasonOf(String scope) {
+        return onLadder() ? log().current(scope).orElseThrow().reason() : levels.get("Refund", scope).orElseThrow().reason();
+    }
+
+    int epochOf(String scope) {
+        return onLadder() ? log().current(scope).orElseThrow().epoch() : levels.get("Refund", scope).orElseThrow().epoch();
+    }
+
+    String identityOf(String scope) {
+        return onLadder() ? log().current(scope).orElseThrow().identity() : levels.get("Refund", scope).orElseThrow().identity();
+    }
+
+    /** Every scope the decision has seen. */
+    java.util.Set<String> scopes() {
+        return onLadder() ? log().all().keySet() : levels.scopes("Refund").keySet();
     }
 
     DecideHarness also(java.util.function.Consumer<DecideHarness> change) {

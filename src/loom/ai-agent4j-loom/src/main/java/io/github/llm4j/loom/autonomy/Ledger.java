@@ -20,6 +20,11 @@ public interface Ledger {
     /** Removes the fields of cases older than {@code before}, keeping only that they happened (counts survive). */
     void purgeFields(String decision, Instant before);
 
+    /** The key that seals this ledger's records of levels (see {@link Seal}); kept where the ledger is kept. */
+    default byte[] sealKey() {
+        return Seal.processKey();
+    }
+
     /** Lines of the stored data that could not be read (a torn write), for {@code status} to report. */
     default int unreadable(String decision) {
         return 0;

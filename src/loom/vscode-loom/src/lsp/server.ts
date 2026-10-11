@@ -16,6 +16,7 @@
  *               5.1, 5.2, 5.3, 5.4, 21.1, 21.2, 21.3
  */
 
+import { ladderCompletions } from './ladderCompletion';
 import {
     createConnection,
     ProposedFeatures,
@@ -61,7 +62,7 @@ connection.onInitialize((): InitializeResult => {
             definitionProvider: true,
             completionProvider: {
                 resolveProvider: false,
-                triggerCharacters: [' ', '.'],
+                triggerCharacters: [' ', '.', ':', '('],
             },
         },
     };
@@ -120,6 +121,28 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**decision** `Name { proposed by: Agent  choices: a, b, escalate  group cases by: v  remember: x, y  dangerous mistake: propose a, person decides b  ask: who  keep records for: 180 days  when the agent changes: start over | test it on past cases | keep the trust  trust { ... } }`\n\nEarned autonomy: an agent proposes, a person decides, and a ledger of both decides how much freedom the agent has (`watch`, `suggest`, `act`). See `weave autonomy` and `weave replay`.',
     decide:
         '**decide** `Name -> verdict`\n\nOne case of a decision. Binds `verdict` (what takes effect), `verdict_proposal` (the agent\'s choice) and `verdict_level` (watch, suggest or act). At `watch` the person decides without seeing the proposal, so the agent\'s agreement is measured honestly.',
+    ladder:
+        '**ladder** `Name { rung watch { mode: blind }  rung suggest { mode: confirm  climb when <condition> }  rung act { mode: autonomous  climb when <condition>  slip to suggest when <condition>  sample 5% blind  escalate when <condition> }  climbing needs approval from: someone }`\n\nA named, reusable policy for earning autonomy. Each rung has a mode (`blind`, `confirm` or `autonomous`), a condition to climb into it and a condition to slip out of it. Conditions are expressions over `history`: `history.last(50).count(dangerous) >= 2`. Bind it with `ladder: Name` in a `decision`. See `weave ladder describe`.',
+    rung:
+        '**rung** `name { mode: blind | confirm | autonomous  climb when <condition>  slip [to rung] when <condition>  sample 5% blind  escalate when <condition> }`\n\nOne step of a `ladder`. `blind`: a person answers without seeing the proposal. `confirm`: a person sees it and accepts, edits or rejects it. `autonomous`: the proposal takes effect without asking.',
+    measure:
+        '**measure** `name(c) = <expression>`\n\nA pure function of one case, defined by you: `measure edit_size(c) = distance(c.proposal.value, c.response.final)`. Use it in a ladder by name: `history.median(edit_size) <= 10%`. `import "loom/autonomy"` brings the standard ones (`accepted`, `edited`, `rejected`, `agrees`, `edit_size`, `untouched`, `reversed`).',
+    climb:
+        '**climb when** `<condition>`\n\nIn a `rung`: the condition to move up into it. Missing data is never enough: a condition over no cases is false.',
+    slip:
+        '**slip** `[to rung] when <condition>`\n\nIn a `rung`: the condition to move down out of it, at once, to the rung below or the one named. A comma between conditions means `or`.',
+    sample:
+        '**sample** `5% blind`\n\nIn an `autonomous` rung: the share of cases sent to a person who does not see the proposal, chosen by the case id so a resume makes the same choice.',
+    escalate:
+        '**escalate when** `<condition>`\n\nIn a `rung`: cases that must go to a person whatever the rung, such as `case.amount > 200`.',
+    climbing:
+        '**climbing** `needs approval from NAME` | `is automatic`\n\nIn a `ladder`: who signs off a move up.',
+    ceiling:
+        '**ceiling** `: rung`\n\nIn a `decision`: the highest rung of its ladder it may reach, however good the record is.',
+    proposes:
+        '**proposes** `: post`\n\nIn a `decision`, instead of `choices`: the agent proposes an artifact (a script, a post). A person accepts, edits or rejects it, and how far they moved it is recorded.',
+    history:
+        '**history** `.last(50).where(careful).rate(agrees).lower95`\n\nIn a ladder condition: the answered cases of this decision and scope in the current epoch. Collections have `where`, `last`, `since`, `by`, `count`, `rate`, `mean`, `median`, `min`, `max`, `sum`, `any`, `all`.',
     trust:
         '**trust** `{ start at watch  never go above suggest  to suggest: after 100 cases over 14 days, agreeing at least 90%  to act: after 300 cases over 30 days, agreeing at least 97%, with no dangerous mistakes  judge on the latest 300 cases  check 5% of cases with a person who doesn\'t see the proposal  always ask a person when amount > 200  drop to suggest when 2 dangerous mistakes in 50 cases  moving up needs approval from: someone }`\n\nInside a `decision`: the rules for earning and losing freedom. Agreement is judged by the lower end of its 95% Wilson interval, over blind cases only. Reaching `act` is a sentence the script has to write (`never go above act`).',
     on_unknown:
@@ -391,6 +414,19 @@ connection.onDefinition((params: TextDocumentPositionParams): Location | null =>
 connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] => {
     const doc = documents.get(params.textDocument.uri);
     const items: CompletionItem[] = [];
+
+    // 0. Inside a ladder, or after `ladder:` / `ceiling:`: the rungs, measures, fields and methods that belong there (and nothing else)
+    if (doc) {
+        const ladder = ladderCompletions(doc.getText(), doc.offsetAt(params.position));
+        if (ladder) {
+            return ladder.map(c => ({
+                label: c.label,
+                kind: c.kind === 'method' ? CompletionItemKind.Method : c.kind === 'field' ? CompletionItemKind.Field : c.kind === 'keyword' ? CompletionItemKind.Keyword
+                    : c.kind === 'mode' ? CompletionItemKind.EnumMember : c.kind === 'measure' ? CompletionItemKind.Function : CompletionItemKind.Class,
+                detail: c.detail,
+            }));
+        }
+    }
 
     // 1. Keyword completions
     for (const kw of LOOM_KEYWORD_NAMES) {

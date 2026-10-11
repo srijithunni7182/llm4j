@@ -95,6 +95,10 @@ public enum TokenType {
     PLUS,       // + (for string concat)
     PERCENT,    // % (e.g. warn_at: 80%)
 
+    // A whole ladder or measure declaration, set aside as raw text (their conditions are expressions of their own)
+    LADDER_DECL,
+    MEASURE_DECL,
+
     // End of File
     EOF
 }

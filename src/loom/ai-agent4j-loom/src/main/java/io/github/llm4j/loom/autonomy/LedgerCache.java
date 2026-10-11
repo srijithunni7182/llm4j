@@ -16,6 +16,7 @@ import java.util.Set;
 final class LedgerCache {
 
     private final List<Rec> records = new ArrayList<>();
+    private final Map<String, Integer> index = new HashMap<>();
     private final Set<String> ids = new HashSet<>();
     private final Map<String, Map<Integer, List<Rec>>> byCase = new LinkedHashMap<>();
     private final Map<String, List<Case>> folded = new HashMap<>();
@@ -34,6 +35,7 @@ final class LedgerCache {
     /** Adds a record; false when one with its id is already there. */
     boolean add(Rec r) {
         if (!ids.add(r.id())) return false;
+        index.put(r.id(), records.size());
         records.add(r);
         byKind.computeIfAbsent(r.kind(), k -> new ArrayList<>()).add(r);
         if (!r.caseId().isEmpty()) {
@@ -51,7 +53,7 @@ final class LedgerCache {
     List<Rec> ofKinds(String... kinds) {
         List<Rec> out = new ArrayList<>();
         for (String k : kinds) out.addAll(byKind.getOrDefault(k, List.of()));
-        out.sort(java.util.Comparator.comparingInt(records::indexOf));
+        if (kinds.length > 1) out.sort(java.util.Comparator.comparingInt(r -> index.get(r.id())));
         return out;
     }
 
@@ -69,6 +71,7 @@ final class LedgerCache {
     void clear() {
         records.clear();
         ids.clear();
+        index.clear();
         byCase.clear();
         folded.clear();
         dirty.clear();

@@ -244,6 +244,13 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     io.github.llm4j.loom.autonomy.Ledger ledger() { return ledger; }
+
+    private final Map<String, String> servedModels = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** The model the provider said answered the agent's latest call, or null when it said nothing (or no call has been made). */
+    String servedModel(String agent) { return servedModels.get(agent); }
+
+    void forgetServedModel(String agent) { servedModels.remove(agent); }
     io.github.llm4j.loom.autonomy.LevelStore levelStore() { return levelStore; }
     Replay replay() { return replay; }
 
@@ -304,16 +311,30 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     /** The level a new agent inherits and why. */
-    public record Inherited(io.github.llm4j.loom.autonomy.Level level, String reason) { }
+    public record Inherited(io.github.llm4j.loom.autonomy.Level level, String reason, String rung) {
+        public Inherited(io.github.llm4j.loom.autonomy.Level level, String reason) {
+            this(level, reason, level == null ? null : level.word());
+        }
+    }
 
     /** What runs the replay when an agent changes with {@code test it on past cases}; without it a new agent starts over. */
     public interface Inheritance {
         Inherited inherited(io.github.llm4j.loom.ast.DecisionDef def, String scope, io.github.llm4j.loom.autonomy.LevelState old, String identity);
+
+        /** The rung (by name) a new agent on a ladder starts on, given the rung and epoch the old agent had; the first rung when nothing says otherwise. */
+        default Inherited inheritedRung(io.github.llm4j.loom.ast.DecisionDef def, String scope, String oldRung, int oldEpoch, String identity) {
+            return new Inherited(null, "no replay is available, so it starts over", null);
+        }
     }
 
     private Inheritance inheritance;
 
     public void setInheritance(Inheritance inheritance) { this.inheritance = inheritance; }
+
+    /** The rung a new agent on a ladder may start on, from the replay of the old agent's cases under it (see {@link Inheritance#inheritedRung}). */
+    Inherited inheritedRung(io.github.llm4j.loom.ast.DecisionDef def, String scope, String oldRung, int oldEpoch, String identity) {
+        return inheritance != null ? inheritance.inheritedRung(def, scope, oldRung, oldEpoch, identity) : new Inherited(null, "no replay is available, so it starts over", null);
+    }
 
     String recordedAnswer(String question) { return rewinder.recordedAnswer(question); }
     void recordAnswer(String question, String answer) { rewinder.recordAnswer(question, answer); }
@@ -1196,6 +1217,11 @@ public class HarnessExecutor implements LoomEngine {
             
             if (llmClient == null) {
                 llmClient = metered(clientFor(agentDef.getModel()), agentDef, agentDef.getModel());
+            }
+            if (script.getDecisions().stream().anyMatch(d -> d.getLadder() != null && agentDef.getName().equals(d.getAgent()))) {
+                // a ladder compares the model the provider says answered with the one that answered before: a silent change behind an alias starts a new epoch
+                String agentName = agentDef.getName();
+                llmClient = new ServedModelRecorder(llmClient, served -> servedModels.put(agentName, served));
             }
             if (agentDef.getGuard() != null) {
                 String judge = agentDef.getGuard().getBiasModel();

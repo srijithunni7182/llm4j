@@ -24,6 +24,20 @@ public final class EpochReplay implements HarnessExecutor.Inheritance {
     }
 
     @Override
+    public HarnessExecutor.Inherited inheritedRung(DecisionDef def, String scope, String oldRung, int oldEpoch, String identity) {
+        try {
+            ReplayReport report = engine.run(def.getName(), new ReplayOptions(script, scope, null, 100, 0, 1, false, false, false, 0, null, null), oldEpoch);
+            if (report.replayed == 0) {
+                return new HarnessExecutor.Inherited(null, "replay " + report.id + " had no replayable cases (" + report.selected + " selected), so it starts on the first rung", null);
+            }
+            return new HarnessExecutor.Inherited(null, "replay " + report.id + " over " + report.replayed + " past cases: " + report.levelEarnedWhy, report.levelEarned);
+        } catch (Exception e) {
+            log.warning("Decision " + def.getName() + ": the replay of past cases failed (" + e.getMessage() + "); the new agent starts over");
+            return new HarnessExecutor.Inherited(null, "the replay of past cases failed (" + e.getMessage() + "), so it starts on the first rung", null);
+        }
+    }
+
+    @Override
     public HarnessExecutor.Inherited inherited(DecisionDef def, String scope, LevelState old, String identity) {
         try {
             ReplayReport report = engine.run(def.getName(), new ReplayOptions(script, scope, null, def.getWindow(), 0, 1, false, false, false, 0, null, null), old.epoch());

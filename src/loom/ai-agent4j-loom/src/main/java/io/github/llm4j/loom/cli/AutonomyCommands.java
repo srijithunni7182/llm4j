@@ -41,27 +41,52 @@ import picocli.CommandLine.Parameters;
  * the same {@link Engine}, and every change is written to {@code <store>/autonomy/audit.jsonl} with the rule that fired and the figures it used.
  */
 @Command(name = "autonomy", description = "Where each decision's ladder stands, and the ways a person moves it.%n"
-        + "  status | history | promote | demote | approve | reject | freeze | unfreeze | outcome",
+        + "  status | history | promote | demote | approve | reject | freeze | unfreeze | outcome | verify",
         subcommands = {AutonomyCommands.Status.class, AutonomyCommands.History.class, AutonomyCommands.Promote.class, AutonomyCommands.Demote.class,
                 AutonomyCommands.Approve.class, AutonomyCommands.Reject.class, AutonomyCommands.Freeze.class, AutonomyCommands.Unfreeze.class,
-                AutonomyCommands.Outcome.class})
+                AutonomyCommands.Outcome.class, AutonomyCommands.Verify.class})
 final class AutonomyCommands implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        System.err.println("Choose a command: status, history, promote, demote, approve, reject, freeze, unfreeze or outcome (weave autonomy --help).");
+        System.err.println("Choose a command: status, history, promote, demote, approve, reject, freeze, unfreeze, outcome or verify (weave autonomy --help).");
         return 2;
     }
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    private static String operator() {
+    /** A change is refused, with the reason, when the record of levels does not verify: nothing is built on top of a record someone else has changed. */
+    private static int refusing(WeaveEnv env, java.util.function.IntSupplier change) {
+        try {
+            return change.getAsInt();
+        } catch (io.github.llm4j.loom.autonomy.LedgerTampered t) {
+            env.err().println("Error: " + t.getMessage());
+            return 2;
+        }
+    }
+
+    static String operator() {
         String user = System.getProperty("user.name");
         return "operator:" + (user == null ? "unknown" : user);
     }
 
     /** The decision's rules: from the script it was last run from, or the one given. */
-    private static Optional<DecisionDef> definition(Path store, String decision, File script, PrintStream err) {
+    /** The whole script behind a decision (its ladders and measures too), from the script it was last run from or the one given. */
+    static Optional<LoomScript> loadScript(Path store, String decision, File script, PrintStream err) {
+        Path file = script != null ? script.toPath() : AutonomySupport.scriptOf(store, decision).orElse(null);
+        if (file == null || !Files.exists(file)) {
+            err.println("Error: don't know which script declares " + decision + ". Pass --script <file>.");
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(new LoomLoader().load(file.toAbsolutePath().toString()));
+        } catch (Exception e) {
+            err.println("Error: could not read " + file + ": " + e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    static Optional<DecisionDef> definition(Path store, String decision, File script, PrintStream err) {
         Path file = script != null ? script.toPath() : AutonomySupport.scriptOf(store, decision).orElse(null);
         if (file == null || !Files.exists(file)) {
             err.println("Error: don't know which script declares " + decision + " (it was never run from this store, or the script moved). Pass --script <file>.");
@@ -78,7 +103,7 @@ final class AutonomyCommands implements Callable<Integer> {
         }
     }
 
-    private static void audit(Path store, String event, Map<String, Object> data) {
+    static void audit(Path store, String event, Map<String, Object> data) {
         Map<String, Object> record = new LinkedHashMap<>();
         record.put("event", event);
         record.put("time", Instant.now().toString());
@@ -129,11 +154,31 @@ final class AutonomyCommands implements Callable<Integer> {
         LevelStore levels = AutonomySupport.levels(store);
         List<Map<String, Object>> all = new ArrayList<>();
         StringBuilder text = new StringBuilder();
+        boolean tampered = false;
         for (String name : decisions) {
             Optional<DecisionDef> def = definition(store, name, script, err);
             if (def.isEmpty()) return 2;
-            Map<String, Object> d = describe(def.get(), ledger, levels, clock, text);
-            all.add(d);
+            try {
+                if (def.get().getLadder() != null && !def.get().isLadderFromTrust()) {
+                    Optional<LoomScript> loaded = loadScript(store, name, script, err);
+                    if (loaded.isEmpty()) return 2;
+                    all.add(LadderCommands.describe(def.get(), loaded.get(), ledger, clock, text));
+                    continue;
+                }
+                // a trust block is shown as it always was, from the record the engine keeps in the ledger
+                LevelStore shown = def.get().isLadderFromTrust()
+                        ? new io.github.llm4j.loom.ladder.LedgerLevelView(new io.github.llm4j.loom.ladder.LevelLog(name, List.of("watch", "suggest", "act"), ledger)) : levels;
+                all.add(describe(def.get(), ledger, shown, clock, text));
+            } catch (io.github.llm4j.loom.autonomy.LedgerTampered t) {
+                tampered = true;
+                text.append(name).append("   DOES NOT VERIFY\n  ").append(t.getMessage()).append("\n\n");
+                Map<String, Object> d = new LinkedHashMap<>();
+                d.put("decision", name);
+                d.put("verifies", false);
+                d.put("why", t.result().why());
+                d.put("record", t.result().record());
+                all.add(d);
+            }
         }
         if (json) {
             try {
@@ -144,14 +189,14 @@ final class AutonomyCommands implements Callable<Integer> {
         } else {
             out.print(text);
         }
-        return 0;
+        return tampered ? 3 : 0;
     }
 
     private static String pct(double v) {
         return String.format("%.1f%%", v * 100);
     }
 
-    private static Map<String, Object> describe(DecisionDef def, Ledger ledger, LevelStore levels, Clock clock, StringBuilder text) {
+    static Map<String, Object> describe(DecisionDef def, Ledger ledger, LevelStore levels, Clock clock, StringBuilder text) {
         Engine engine = new Engine(def, ledger, levels, clock);
         Map<String, Object> d = new LinkedHashMap<>();
         d.put("decision", def.getName());
@@ -213,7 +258,7 @@ final class AutonomyCommands implements Callable<Integer> {
                 text.append("    stale: ").append(stale.size()).append(" case(s) with no verdict after ").append(def.getStaleDays()).append(" days: ").append(String.join(", ", stale.subList(0, Math.min(5, stale.size())))).append('\n');
                 s.put("stale", stale);
             }
-            Optional<Rec> last = ledger.records(def.getName()).stream().filter(r -> Rec.LEVEL.equals(r.kind()) && scope.equals(r.str("scope"))).reduce((a, b) -> b);
+            Optional<Rec> last = ledger.records(def.getName()).stream().filter(r -> Rec.LEVEL.equals(r.kind()) && !"model".equals(r.str("kind")) && scope.equals(r.str("scope"))).reduce((a, b) -> b);
             last.ifPresent(r -> {
                 text.append("    last change: ").append(r.at()).append(' ').append(r.str("from") == null ? "(start)" : r.str("from")).append(" -> ").append(r.str("to")).append(" (")
                         .append(r.str("kind")).append(r.flag("forced") ? ", forced" : "").append(", by ").append(r.str("by")).append("): ").append(r.str("reason")).append('\n');
@@ -253,10 +298,15 @@ final class AutonomyCommands implements Callable<Integer> {
         Ledger ledger = AutonomySupport.ledger(store);
         for (String name : decisions) {
             out.println(name);
+            io.github.llm4j.loom.autonomy.Seal.Result sealed = io.github.llm4j.loom.autonomy.Seal.verify(ledger, name);
+            if (!sealed.ok()) out.println("  WARNING: the record does not verify (" + sealed.why() + ", at " + sealed.record() + "): treat what follows as unconfirmed.");
             for (Rec r : ledger.records(name)) {
                 switch (r.kind()) {
-                    case Rec.LEVEL -> out.println("  " + r.at() + "  scope " + r.str("scope") + "  " + (r.str("from") == null ? "(start)" : r.str("from")) + " -> " + r.str("to")
-                            + "  [" + r.str("kind") + (r.flag("forced") ? ", forced" : "") + "]  by " + r.str("by") + ": " + r.str("reason"));
+                    case Rec.LEVEL -> {
+                        // the note of which model the provider first named is a record, not a change of level
+                        if (!"model".equals(r.str("kind"))) out.println("  " + r.at() + "  scope " + r.str("scope") + "  " + (r.str("from") == null ? "(start)" : r.str("from")) + " -> " + r.str("to")
+                                + "  [" + r.str("kind") + (r.flag("forced") ? ", forced" : "") + "]  by " + r.str("by") + ": " + r.str("reason"));
+                    }
                     case Rec.PROMOTION_PROPOSED -> out.println("  " + r.at() + "  scope " + r.str("scope") + "  promotion to " + r.str("to") + " proposed (" + r.str("why") + ")");
                     case Rec.PROMOTION_DECIDED -> out.println("  " + r.at() + "  proposal " + r.str("result") + " by " + r.str("by") + ": " + r.str("reason"));
                     case Rec.FROZEN -> out.println("  " + r.at() + "  " + (r.flag("frozen") ? "FROZEN" : "unfrozen") + " " + r.str("scope") + ": " + r.str("reason"));
@@ -320,6 +370,10 @@ final class AutonomyCommands implements Callable<Integer> {
     static int move(Path store, String decision, String scope, String to, boolean up, boolean force, String reason, File script, String by, WeaveEnv env) {
         Optional<DecisionDef> def = definition(store, Names.check(decision), script, env.err());
         if (def.isEmpty()) return 2;
+        if (def.get().getLadder() != null) {
+            Optional<LoomScript> loaded = loadScript(store, Names.check(decision), script, env.err());
+            return loaded.isEmpty() ? 2 : refusing(env, () -> LadderCommands.move(store, def.get(), loaded.get(), scope, to, up, force, reason, by, env));
+        }
         Engine engine = new Engine(def.get(), AutonomySupport.ledger(store), AutonomySupport.levels(store), env.clock());
         LevelState state = engine.levels().get(decision, scope).orElse(null);
         if (state == null) {
@@ -366,6 +420,67 @@ final class AutonomyCommands implements Callable<Integer> {
         }
     }
 
+    @Command(name = "verify", description = "Checks that the record of levels, promotions and freezes is as the runtime wrote it. With --accept an operator who has looked says the record, as it stands, is to be trusted; the runtime goes on from there.")
+    static class Verify implements Callable<Integer> {
+        @Parameters(index = "0", description = "The run store.")
+        File store;
+
+        @Option(names = "--decision", description = "Only this decision.")
+        String decision;
+
+        @Option(names = "--accept", description = "Accept the record as it stands (needs --reason).")
+        boolean accept;
+
+        @Option(names = "--reason", description = "Why the record is accepted.")
+        String reason;
+
+        @Option(names = "--by", description = "Who accepts it (default: you).")
+        String by;
+
+        @Override
+        public Integer call() {
+            return verify(store.toPath(), decision, accept, reason, by, WeaveEnv.system());
+        }
+    }
+
+    static int verify(Path store, String only, boolean accept, String reason, String by, WeaveEnv env) {
+        List<String> decisions = only != null ? List.of(Names.check(only)) : AutonomySupport.decisions(store);
+        if (decisions.isEmpty()) {
+            env.err().println("Error: no decision has run from " + store + " yet (there is no autonomy directory).");
+            return 2;
+        }
+        if (accept && (reason == null || reason.isBlank())) {
+            env.err().println("Error: accepting a record needs --reason: say what you looked at.");
+            return 2;
+        }
+        Ledger ledger = AutonomySupport.ledger(store);
+        int worst = 0;
+        for (String name : decisions) {
+            io.github.llm4j.loom.autonomy.Seal.Result r = io.github.llm4j.loom.autonomy.Seal.verify(ledger, name);
+            if (r.ok()) {
+                env.out().println(name + ": " + (r.sealed() ? "verified (" + r.records() + " records of levels, promotions and freezes)"
+                        : "not sealed yet: written by the previous release, so there is nothing to check against; the next change seals it"));
+                continue;
+            }
+            if (!accept) {
+                env.out().println(name + ": DOES NOT VERIFY: " + r.why() + (r.record() == null ? "" : " (at " + r.record() + ")"));
+                env.out().println("  Every case of this decision goes to a person until the record is looked at. weave autonomy verify " + store + " --decision " + name + " --accept --reason \"...\"");
+                worst = 3;
+                continue;
+            }
+            io.github.llm4j.loom.autonomy.Seal.accept(ledger, name, env.clock().instant(), by != null ? by : operator(), reason);
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("decision", name);
+            data.put("rule", "record accepted");
+            data.put("found", r.why());
+            data.put("at", r.record());
+            data.put("reason", reason);
+            audit(store, "record_accepted", data);
+            env.out().println(name + ": accepted as it stands (" + r.why() + "); sealed from here.");
+        }
+        return worst;
+    }
+
     @Command(name = "approve", description = "Approves the open promotion proposal of a scope (only the approver the script names may).")
     static class Approve extends Mover {
         @Override
@@ -387,6 +502,10 @@ final class AutonomyCommands implements Callable<Integer> {
     static int decide(Path store, String decision, String scope, boolean approve, String reason, File script, String by, WeaveEnv env) {
         Optional<DecisionDef> def = definition(store, Names.check(decision), script, env.err());
         if (def.isEmpty()) return 2;
+        if (def.get().getLadder() != null) {
+            Optional<LoomScript> loaded = loadScript(store, Names.check(decision), script, env.err());
+            return loaded.isEmpty() ? 2 : refusing(env, () -> LadderCommands.decide(store, def.get(), loaded.get(), scope, approve, reason, by, env));
+        }
         Engine engine = new Engine(def.get(), AutonomySupport.ledger(store), AutonomySupport.levels(store), env.clock());
         try {
             Engine.Change change = approve ? engine.approve(scope, by, reason) : engine.reject(scope, by, reason);
@@ -471,11 +590,14 @@ final class AutonomyCommands implements Callable<Integer> {
         @Parameters(index = "2", description = "The case id (shown by status and in the ledger).")
         String caseId;
 
-        @Option(names = "--result", required = true, description = "reversed, upheld, or another word.")
+        @Option(names = "--result", required = true, description = "reversed, upheld, or another word (the name of the outcome).")
         String result;
 
         @Option(names = "--note", description = "A note (recorded).")
         String note;
+
+        @Option(names = "--value", description = "A value that goes with the result, such as a number of views (a number if it looks like one).")
+        String value;
 
         @Option(names = "--script", description = "The script that declares the decision.")
         File script;
@@ -483,13 +605,21 @@ final class AutonomyCommands implements Callable<Integer> {
         @Override
         public Integer call() {
             WeaveEnv env = WeaveEnv.system();
-            return outcome(store.toPath(), decision, caseId, result, note, script, env);
+            return outcome(store.toPath(), decision, caseId, result, value, note, script, env);
         }
     }
 
     static int outcome(Path store, String decision, String caseId, String result, String note, File script, WeaveEnv env) {
+        return outcome(store, decision, caseId, result, null, note, script, env);
+    }
+
+    static int outcome(Path store, String decision, String caseId, String result, String value, String note, File script, WeaveEnv env) {
         Optional<DecisionDef> def = definition(store, Names.check(decision), script, env.err());
         if (def.isEmpty()) return 2;
+        if (def.get().getLadder() != null) {
+            Optional<LoomScript> loaded = loadScript(store, Names.check(decision), script, env.err());
+            return loaded.isEmpty() ? 2 : refusing(env, () -> LadderCommands.outcome(store, def.get(), loaded.get(), caseId, result, value, note, env));
+        }
         Engine engine = new Engine(def.get(), AutonomySupport.ledger(store), AutonomySupport.levels(store), env.clock());
         try {
             List<Engine.Change> changes = engine.outcome(caseId, result, note);

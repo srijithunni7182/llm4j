@@ -1,0 +1,43 @@
+// Reference ladder 2: an agent that writes a script. Judged by how much reviewers edit it and whether CI later reverts it.
+import "loom/autonomy"
+
+agent ScriptWriter {
+    model: "ollama/fake"
+    system: "You are ScriptWriter. Write the script."
+    output_schema: { script: string, reasoning: string }
+}
+
+measure broke(c)   = c.outcomes.reverted == true
+measure careful(c) = c.review_time >= 20s
+
+ladder AuthorLadder {
+    rung review { mode: confirm }
+
+    rung publish {
+        mode: autonomous
+        climb when history.where(careful).count >= 8
+               and history.where(careful).median(edit_size) <= 10%
+               and history.where(careful).rate(rejected) <= 0.15
+        slip to review when history.last(10).count(broke) >= 1,
+                            history.last(10).median(edit_size) > 25%
+        sample 20% blind
+    }
+
+    climbing needs approval from eng-lead
+}
+
+decision PublishScript {
+    proposed by: ScriptWriter
+    proposes:    script
+    group cases by: repo
+    remember:    repo, spec_size
+    ask:         reviewers
+    ladder:      AuthorLadder
+    ceiling:     publish
+    when the agent changes: start over
+}
+
+workflow Author(repo, spec_size) {
+    decide PublishScript -> script
+    note "{script}"
+}

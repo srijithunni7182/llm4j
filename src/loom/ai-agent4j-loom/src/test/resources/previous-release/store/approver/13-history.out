@@ -1,0 +1,10 @@
+Refund
+  2026-03-12T06:00:00Z  scope gold  (start) -> watch  [first]  by runtime: first case of this scope
+  2026-03-12T09:00:00Z  scope basic  (start) -> watch  [first]  by runtime: first case of this scope
+  2026-03-13T06:00:00Z  scope gold  promotion to suggest proposed (5 cases, agreement lower bound 56.6% (raw 100.0%))
+  2026-03-13T09:00:00Z  scope basic  promotion to suggest proposed (5 cases, agreement lower bound 56.6% (raw 100.0%))
+  2026-03-17T06:00:00Z  outcome of @ROOT@/runs/case-91/Triage/s1: reversed
+  2026-03-17T06:00:00Z  scope gold  watch -> act  [set]  by operator:root: emergency
+  2026-03-17T06:00:00Z  scope basic  watch -> watch  [set]  by operator:root: incident
+  2026-03-17T06:00:00Z  FROZEN Refund: incident 42
+  2026-03-17T06:00:00Z  unfrozen Refund: all clear

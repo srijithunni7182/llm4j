@@ -788,6 +788,7 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new TravelCommands.Reset())
                 .addSubcommand(new TravelCommands.Fork())
                 .addSubcommand(new AutonomyCommands())
+                .addSubcommand(new LadderCliCommand())
                 .addSubcommand(new ReplayCommand())
                 .addSubcommand(new AuditCommand())
                 .addSubcommand(new GraphCommand())

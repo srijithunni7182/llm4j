@@ -1,0 +1,17 @@
+status
+status-json
+history
+outcome|none|reversed
+outcome|@ROOT@/runs/case-91/Triage/s1|reversed
+move|gold|suggest|false|drill
+move|gold|act|true|emergency
+move|basic|watch|false|incident
+status
+freeze|incident 42
+status
+unfreeze|all clear
+history
+approve|gold|looks right
+reject|basic|not yet
+status-json
+replay

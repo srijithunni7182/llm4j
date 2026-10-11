@@ -1,0 +1,22 @@
+{
+  "scopes" : {
+    "gold" : {
+      "level" : "act",
+      "epoch" : 1,
+      "identity" : "e5978300f0541d998af27be502f64d98692f9a902cc4cfd29793f5c5e3eefe71",
+      "forced" : false,
+      "since" : "2026-03-04T06:00:00Z",
+      "reason" : "8 cases, agreement lower bound 67.6% (raw 100.0%)",
+      "version" : 3
+    },
+    "basic" : {
+      "level" : "act",
+      "epoch" : 1,
+      "identity" : "e5978300f0541d998af27be502f64d98692f9a902cc4cfd29793f5c5e3eefe71",
+      "forced" : false,
+      "since" : "2026-03-04T09:00:00Z",
+      "reason" : "8 cases, agreement lower bound 67.6% (raw 100.0%)",
+      "version" : 3
+    }
+  }
+}

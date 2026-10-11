@@ -1,0 +1,22 @@
+{
+  "scopes" : {
+    "gold" : {
+      "level" : "watch",
+      "epoch" : 1,
+      "identity" : "e5978300f0541d998af27be502f64d98692f9a902cc4cfd29793f5c5e3eefe71",
+      "forced" : false,
+      "since" : "2026-03-12T06:00:00Z",
+      "reason" : "first case of this scope",
+      "version" : 1
+    },
+    "basic" : {
+      "level" : "watch",
+      "epoch" : 1,
+      "identity" : "e5978300f0541d998af27be502f64d98692f9a902cc4cfd29793f5c5e3eefe71",
+      "forced" : false,
+      "since" : "2026-03-12T09:00:00Z",
+      "reason" : "first case of this scope",
+      "version" : 1
+    }
+  }
+}

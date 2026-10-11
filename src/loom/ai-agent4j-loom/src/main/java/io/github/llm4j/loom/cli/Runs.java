@@ -123,7 +123,19 @@ final class Runs {
                     executor.setAutonomy(AutonomySupport.ledger(store), AutonomySupport.levels(store));
                     AutonomySupport.rememberScript(store, script, scriptFile);
                     Path scriptPath = scriptFile.toPath().toAbsolutePath();
-                    executor.setInheritance((def, scope, old, identity) -> AutonomySupport.inheritance(store, def.getName(), scriptPath, env).inherited(def, scope, old, identity));
+                    executor.setInheritance(new io.github.llm4j.loom.execution.HarnessExecutor.Inheritance() {
+                        @Override
+                        public io.github.llm4j.loom.execution.HarnessExecutor.Inherited inherited(io.github.llm4j.loom.ast.DecisionDef def, String scope,
+                                io.github.llm4j.loom.autonomy.LevelState old, String identity) {
+                            return AutonomySupport.inheritance(store, def.getName(), scriptPath, env).inherited(def, scope, old, identity);
+                        }
+
+                        @Override
+                        public io.github.llm4j.loom.execution.HarnessExecutor.Inherited inheritedRung(io.github.llm4j.loom.ast.DecisionDef def, String scope, String oldRung,
+                                int oldEpoch, String identity) {
+                            return AutonomySupport.inheritance(store, def.getName(), scriptPath, env).inheritedRung(def, scope, oldRung, oldEpoch, identity);
+                        }
+                    });
                 }
             }
             executor.initialize();

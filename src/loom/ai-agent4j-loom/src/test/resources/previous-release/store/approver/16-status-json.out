@@ -1,0 +1,48 @@
+[ {
+  "decision" : "Refund",
+  "frozen" : false,
+  "scopes" : [ {
+    "scope" : "gold",
+    "level" : "act",
+    "effectiveLevel" : "act",
+    "epoch" : 1,
+    "agent" : "e5978300f0",
+    "forced" : false,
+    "cases" : 20,
+    "agreement" : 1.0,
+    "lowerBound" : 0.8388748398148704,
+    "dangerousRate" : 0.0,
+    "coverage" : 1.0,
+    "malformed" : 0,
+    "nextStep" : "already at act",
+    "openProposal" : "suggest",
+    "lastChange" : {
+      "time" : "2026-03-17T06:00:00Z",
+      "kind" : "set",
+      "to" : "act",
+      "reason" : "emergency"
+    }
+  }, {
+    "scope" : "basic",
+    "level" : "watch",
+    "effectiveLevel" : "watch",
+    "epoch" : 1,
+    "agent" : "e5978300f0",
+    "forced" : false,
+    "cases" : 20,
+    "agreement" : 1.0,
+    "lowerBound" : 0.8388748398148704,
+    "dangerousRate" : 0.0,
+    "coverage" : 1.0,
+    "malformed" : 0,
+    "towards" : "suggest",
+    "eligible" : true,
+    "parts" : [ "cases: met (20 cases, needs 5 cases)", "agreement: met (lower bound 83.9% (raw 100.0% over 20 cases), needs 50%)" ],
+    "lastChange" : {
+      "time" : "2026-03-17T06:00:00Z",
+      "kind" : "set",
+      "to" : "watch",
+      "reason" : "incident"
+    }
+  } ]
+} ]

@@ -1,0 +1,22 @@
+// The standard measures of earned autonomy, written in Loom: import "loom/autonomy"
+//
+// Nothing here is special to the runtime. Read it, copy it, change it, or leave it out and write your own measures.
+// (Do not import it and also declare a measure of the same name: that is "already declared".)
+//
+// A case is c: c.proposal.choice / .value / .reasoning / .confidence, c.response.kind / .choice / .final / .by,
+// c.outcome (the latest outcome), c.outcomes.<name>, c.shown, c.blind, c.review_time, plus the values the decision remembers.
+
+// what the person did with the proposal
+measure accepted(c)  = c.response.kind == "accept"
+measure edited(c)    = c.response.kind == "edit"
+measure rejected(c)  = c.response.kind == "reject"
+
+// a choice decision: the person chose what the agent proposed
+measure agrees(c)    = c.response.choice == c.proposal.choice
+
+// an artifact decision: how far the person moved the proposal, from 0 (untouched) to 1 (nothing left)
+measure edit_size(c) = distance(c.proposal.value, c.response.final)
+measure untouched(c) = accepted(c) or edit_size(c) < 0.02
+
+// something that happened after the verdict, recorded with: weave autonomy outcome <store> <decision> <case> --result reversed
+measure reversed(c)  = c.outcomes.reversed == true

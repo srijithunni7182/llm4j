@@ -82,3 +82,51 @@ test('R1.2: the controller shows what the real weave check finds', { skip }, asy
     assert.equal(shown.get(file)![0].line, 3);
     assert.match(shown.get(file)![0].message, /never used/);
 });
+
+// B5: the editor underlines a ladder's mistakes where they are, because the problems come from the language's own checker with the line it found them on.
+const LADDER = [
+    'import "loom/autonomy"',                                                                        // 1
+    'agent A { model: "ollama/llama3" system: "s" output_schema: { choice: string, reasoning: string } }', // 2
+    '',                                                                                              // 3
+    'ladder Cautious {',                                                                             // 4
+    '    rung watch { mode: blind }',                                                                // 5
+    '    rung suggest {',                                                                            // 6
+    '        mode: confirm',                                                                         // 7
+    '        climb when history.count >= 10 and history.rate(agrees).lower95 >= 0.6',               // 8
+    '    }',                                                                                         // 9
+    '    climbing is automatic',                                                                     // 10
+    '}',                                                                                             // 11
+    'decision D { proposed by: A  choices: a, b  ask: lead  ladder: Cautious  ceiling: suggest  when the agent changes: start over }', // 12
+    'workflow W() { decide D -> v\n note "{v}" }',                                                   // 13
+    '',
+].join('\n');
+
+test('B5: a ladder that is fine has no errors', { skip }, async () => {
+    const result = await check(script('ladder-fine.loom', LADDER));
+    assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+});
+
+test('B5: a misspelt measure is an error on the line of the condition, with a guess', { skip }, async () => {
+    const result = await check(script('ladder-typo.loom', LADDER.replace('rate(agrees)', 'rate(agree)')));
+    assert.equal(result.ok, false);
+    const d = result.diagnostics.find(x => x.severity === 'error')!;
+    assert.equal(d.line, 8, d.message);
+    assert.match(d.message, /agree/);
+    assert.match(d.message, /agrees/, 'the guess is offered');
+});
+
+test('B5: an unknown rung in ceiling: is an error on the line of the decision', { skip }, async () => {
+    const result = await check(script('ladder-ceiling.loom', LADDER.replace('ceiling: suggest', 'ceiling: suggst')));
+    assert.equal(result.ok, false);
+    const d = result.diagnostics.find(x => x.severity === 'error')!;
+    assert.equal(d.line, 12, d.message);
+    assert.match(d.message, /suggest/);
+});
+
+test('B5: a ladder on an agent that names no ladder is an error on the line of the agent', { skip }, async () => {
+    const result = await check(script('ladder-agent.loom', LADDER.replace('output_schema: { choice: string, reasoning: string } }', 'output_schema: { choice: string, reasoning: string } ladder: Cautius }')));
+    assert.equal(result.ok, false);
+    const d = result.diagnostics.find(x => x.severity === 'error')!;
+    assert.equal(d.line, 2, d.message);
+    assert.match(d.message, /Cautious/);
+});

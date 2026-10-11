@@ -169,3 +169,29 @@ test('R1.5: the editor scanner finds no lexical error in any script of the repos
     );
     assert.deepEqual(problems, []);
 });
+
+test('ladder and measure declarations hold conditions the language reads itself: their operators are not lexical errors', () => {
+    const source = [
+        'import "loom/autonomy"',
+        'measure careful(c) = c.review_time >= 30s',
+        'measure edit(c) = distance(c.proposal.value,',
+        '                          c.response.final) / 2',
+        'ladder L(baseline) {',
+        '    rung a { mode: blind }',
+        '    rung b {',
+        '        mode: autonomous',
+        '        climb when history.mean(views) >= 0.8 * baseline and history.rate(careful) >= 90%',
+        '    }',
+        '    climbing is automatic',
+        '}',
+        'agent A { model: "m" system: "s" }',
+    ].join('\n');
+    const r = parseDocument(source);
+    assert.deepEqual(r.errors, []);
+    assert.deepEqual(r.definitions.map((d) => d.name), ['A']);
+});
+
+test('a character that is not valid is still reported next to a ladder', () => {
+    const r = parseDocument(['ladder L { rung a { mode: blind } }', 'agent A { model: "m" system: "s" # }'].join('\n'));
+    assert.deepEqual(r.errors.filter((e) => e.kind === 'LexError').map((e) => `${e.line}:${e.message}`), ["1:Unexpected character: '#'"]);
+});

@@ -102,6 +102,25 @@ public class AgentDef implements Node {
     public void setBudget(BudgetDef budget) { this.budget = budget; }
     public void setTemperature(Double temperature) { this.temperature = temperature; }
 
+    private String ladder;
+    private int ladderLine;
+    private final java.util.Map<String, io.github.llm4j.loom.autonomy.expr.Expr> ladderArgs = new java.util.LinkedHashMap<>();
+    private String ceilingRung;
+    private int ceilingRungLine;
+
+    /**
+     * The ladder every decision this agent proposes for binds unless it names its own ({@code ladder: Name} in the agent), or null. A decision with
+     * its own {@code ladder:} or {@code trust { }} keeps it.
+     */
+    public String getLadder() { return ladder; }
+    public int getLadderLine() { return ladderLine; }
+    public java.util.Map<String, io.github.llm4j.loom.autonomy.expr.Expr> getLadderArgs() { return ladderArgs; }
+    public void setLadder(String ladder, int line) { this.ladder = ladder; this.ladderLine = line; }
+    /** The highest rung this agent may reach on any decision that does not state its own ceiling, or null for the top. */
+    public String getCeilingRung() { return ceilingRung; }
+    public int getCeilingRungLine() { return ceilingRungLine; }
+    public void setCeilingRung(String rung, int line) { this.ceilingRung = rung; this.ceilingRungLine = line; }
+
     public SchemaDef getOutputSchema() { return outputSchema; }
     public void setOutputSchema(SchemaDef outputSchema) { this.outputSchema = outputSchema; }
 

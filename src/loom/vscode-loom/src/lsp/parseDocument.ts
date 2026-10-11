@@ -93,10 +93,21 @@ export function parseDocument(text: string): ParseResult {
     const logicalLines: string[] = new Array(lines.length);
     let inString = false;
     let stringStart: { line: number; col: number } | null = null;
+    // A `ladder` block and a `measure` line hold conditions in a language of their own (`*`, `/`, `14d`, method
+    // chains). The language's lexer sets such a declaration aside whole (see Lexer.java), so the characters that
+    // are only valid there are not lexical errors here either. `depth` is the brace depth outside strings and comments.
+    let depth = 0;
+    let inLadder = false;
+    let inMeasure = false;
 
     for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
         const line = lines[lineIdx];
         const logical = line.split('');
+        if (!inString && depth === 0 && !inLadder) {
+            const trimmed = line.trimStart();
+            if (/^ladder\s*[A-Za-z_{]/.test(trimmed)) inLadder = true;
+            inMeasure = /^measure\s+[A-Za-z_]/.test(trimmed) || (inMeasure && /^\s+\S/.test(line));
+        }
 
         for (let col = 0; col < line.length; col++) {
             const ch = line[col];
@@ -122,7 +133,10 @@ export function parseDocument(text: string): ParseResult {
                 break;
             }
 
-            if (!VALID_CHAR_RE.test(ch) && !isWordApostrophe(line, col)) {
+            if (ch === '{') depth++;
+            if (ch === '}') depth = Math.max(0, depth - 1);
+
+            if (!inLadder && !inMeasure && !VALID_CHAR_RE.test(ch) && !isWordApostrophe(line, col)) {
                 errors.push({
                     kind: 'LexError',
                     message: `Unexpected character: '${ch}'`,
@@ -134,6 +148,7 @@ export function parseDocument(text: string): ParseResult {
         }
 
         logicalLines[lineIdx] = logical.join('');
+        if (inLadder && depth === 0 && line.includes('}')) inLadder = false;
     }
 
     // Only a string still open at end-of-file is actually unterminated.

@@ -1,0 +1,40 @@
+# Implementation notes: where the build differs from the spec
+
+The spec ([requirements](../requirements.md), [design](../design.md)) was written before the code. Building it changed some decisions and left some
+things undone. This file lists every difference, so the spec can be amended or the work finished; nothing here is hidden in the tests.
+
+## Decisions that changed while building
+
+| # | Spec | What was built | Why |
+|---|---|---|---|
+| N1 | Levels in a separate level store (design §4) | **Levels are events in the ledger.** The standing of a scope is its latest `level` record; a freeze is a `frozen` record; a promotion proposal and its answer are records. | The ledger is already append-only, idempotent and implemented for memory, files and a database. A second store would have been a second thing to keep consistent. A writer token on each record tells two racing writers apart (S8 in the sabotage run). |
+| N2 | `distance` of choices is 0 or 1 (R8.2, design §2.5) | Text is edit distance for any two strings, including choices. Choices are compared with `==` (the `agrees` measure). | Strings carry no "this is a choice" marker, and a measure that wants 0/1 can say `==`. |
+| N3 | `c.outcome` is the latest outcome, with `.views_7d`, `.status` (the sketches were inconsistent) | `c.outcome` is the **name** of the latest outcome; `c.outcomes.<name>` is its value (`true` for an outcome with none). An outcome that has not arrived is unknown. | One shape that serves `reversed`, `views_7d = 5400` and `status = "taken down"`. |
+| N4 | A percentage literal is a number (R3.6) | It is a number that **keeps its text** (`90%` shows as `90%`, not `0.9`). | `describe` and messages read better, and the fingerprint is the same for the same rules. |
+| N5 | Remembered values are untyped; typing left open (design §12.2) | `remember: amount: number, tier: text, vip: flag`. A declared type is checked at load and read that way at run time (`"01234"` stays text). An undeclared one is read as a number if it looks like one. | The verification plan's "a number where a yes/no is wanted" slipped through untyped fields (found by `TypicalMistakesTest`). |
+| N6 | `final` only for an edit | For an artifact decision `response.final` is **always** set: the proposal for an accept, the corrected version for an edit, empty for a reject. | So `edit_size` is 0 for an accept without a special case in the language (there is no `if`). |
+| N7 | Cases written by the earlier engine need a migration (R10.2) | They are read as they are: a `decided` record is folded as an accept or a reject. | A decision can move from `trust` to a ladder and its cases still count. |
+| N8 | `sample` on any rung | `sample` and `escalate` act at `autonomous` rungs. On other rungs a person is asked anyway; `weave check` warns that they do nothing. | Closed set of modes. |
+
+## Not done
+
+| # | Spec | State |
+|---|---|---|
+| U1 | The `trust` block is desugared into a ladder, one engine (R10.3, design §4.4) | **Done, with three exceptions (`start at` above watch; `always ask a person after N cases a day`; `always ask a person when …` other than a comparison of a remembered value).** `TrustDesugar` writes a trust block as a three-rung ladder at load and the decision runs on the ladder engine. A randomised equivalence test (`TrustAsLadderEquivalenceTest`, 150 histories, 60,000 case steps) requires the same rung and the same change after every case, and six sabotages of the translation each fail it. Three things stay on the original engine and `weave ladder describe <Decision>` says which: `start at` above watch, `always ask a person after N cases a day`, and `always ask a person when …` that is not a comparison of a remembered value. The original engine and the replay feature are therefore kept (task 5.2 is not done: the old evaluator is not removed). Levels the original engine stored are adopted as they stand. Known changes: a case is audited blind before it is escalated (the original did the reverse); a blind sample is chosen by a different hash; a trust decision now notices a changed served model. |
+| U2 | `when the agent changes: test it on past cases` for a ladder (R7.2) | **Done.** The old agent's past cases are replayed under the new one and judged by the ladder's own conditions (`ReplayJudge`); the new agent starts on the rung that supports, at most the old one's (`LadderEpochReplayTest`, `LadderTestOnPastCasesCliTest`). A trust block that uses it is written as a ladder too. |
+| U3 | A ladder default on an `agent` (R6.2) | **Done.** `ladder:` and `ceiling:` in an agent apply to every decision it proposes for that has neither its own `ladder:` nor a `trust` block, also across files (`AgentLadderDefaultTest`). |
+| U4 | `history.all`, `history.epoch(-1)` in expressions (R3.2) | Not exposed in the language. The engine can read every epoch; a ladder sees the current one. |
+| U5 | Artifacts over a size limit held by reference (design §3.1) | **Done** in the ledger: text over 16,000 characters is kept once under the hash of its content as a `blob` record; the case's records hold a reference. Retention removes it. Not in the run journal, which still holds the artifact inline (`ArtifactReferenceTest`). |
+| U6 | The fourth rung mode, act after a delay unless vetoed | Out of scope in the spec; still not built. |
+| U7 | `weave ladder test` over a fixture file (R11.3) | It reads the recorded history in a store (`--store`). |
+| U8 | The editor extension (R11.4) | **Done** except a running VS Code window: highlighting of the ladder words, modes and numbers, completion inside a ladder, and ladder errors on the right line from the real checker (`grammar.test`, `ladderCompletion.test`, `check.integration.test`). No snippet. |
+| U9 | A hand-edited ledger that forges a promotion is detected (verification C8) | **Done.** Level, promotion and freeze records are sealed (HMAC) and anchored (`Seal`); a changed, added or removed record is found and the decision fails closed (`SealTest`, `TamperedStoreTest`). Earlier, this row said "out of the threat model"; the design never said so, and the plan allows that answer only if it does. Limits: someone who can read the key and the ledger can still forge; the last records can be lost; a decision still on the original engine keeps its unsealed level store. |
+| U10 | Answering from the phone channel for an artifact decision (verification I3) | **Done** (`ChannelArtifactDecisionTest`). |
+
+## Found by the verification plan, fixed
+
+- **Typed remembered values** (N5): a number given where a yes/no was wanted was accepted because `remember:` values had no type.
+- **First sighting of a served model**: the model a provider names was not recorded at the first case, so a later change behind the same script was invisible (`LadderRunTest.aProviderThatSilentlyServesAnotherModelStartsANewEpoch`). The first reply now records it.
+- **Two writers with identical content** both believed they had made a change: content equality is not identity, so each write carries a token (S8).
+- **Clauses on one line** (`climb when a slip when b`): the first condition swallowed the rest.
+- **Cost of a long record**: listing records of one kind sorted by position with a linear search (about 40 ms per call at 100,000 cases). It now keeps an index. See `LadderScaleTest`.

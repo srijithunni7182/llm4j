@@ -40,12 +40,13 @@ class DecideSafetyTest {
 
         assertThat(vars.get("verdict")).as("the person decided").isEqualTo("reject");
         assertThat(vars.get("verdict_level")).isEqualTo("watch");
-        assertThat(h.levels.get("Refund", "gold").orElseThrow().level()).isEqualTo(Level.WATCH);
+        assertThat(h.levelOf("gold")).isEqualTo(Level.WATCH);
         Case c = h.ledger.get("Refund", "run-1/Triage/s0").orElseThrow();
         assertThat(c.decider()).isEqualTo("support-lead");
         assertThat(c.decidedByAgent()).isFalse();
         assertThat(c.outcomes()).isEmpty();
-        assertThat(kinds(h.ledger)).containsExactly(Rec.LEVEL, Rec.CASE, Rec.PROPOSED, Rec.DECIDED);
+        assertThat(kinds(h.ledger)).containsOnly(Rec.LEVEL, Rec.SEAL_BASE, Rec.CASE, Rec.PROPOSED, Rec.RESPONDED);     // the level records (the first case, the served model) and the anchor that seals them
+        assertThat(kinds(h.ledger).stream().filter(k -> !k.equals(Rec.LEVEL) && !k.equals(Rec.SEAL_BASE)).toList()).containsExactly(Rec.CASE, Rec.PROPOSED, Rec.RESPONDED);
     }
 
     @Test
@@ -59,7 +60,7 @@ class DecideSafetyTest {
 
         h.runCase("run-1", inputs);
 
-        assertThat(h.levels.get("Refund", "gold").orElseThrow().level()).isEqualTo(Level.WATCH);
+        assertThat(h.levelOf("gold")).isEqualTo(Level.WATCH);
         assertThat(kinds(h.ledger)).doesNotContain(Rec.OUTCOME).doesNotContain(Rec.PROMOTION_PROPOSED).doesNotContain(Rec.FROZEN);
         assertThat(h.audit).doesNotContain("level_changed");
     }
@@ -106,15 +107,14 @@ class DecideSafetyTest {
     void whenTheAgentChangesStartOverReturnsToTheStartLevelWithNoEvidence() {
         DecideHarness h = harness("");
         for (int i = 0; i < 5; i++) h.runCase("run-" + i, h.inputs("gold", 10 + i));
-        assertThat(h.levels.get("Refund", "gold").orElseThrow().level()).isEqualTo(Level.SUGGEST);
-        String before = h.levels.get("Refund", "gold").orElseThrow().identity();
+        assertThat(h.levelOf("gold")).isEqualTo(Level.SUGGEST);
+        String before = h.identityOf("gold");
 
         h.script = h.script.replace("You are Triager.", "You are a more careful Triager.");
         Map<String, Object> next = h.runCase("run-new", h.inputs("gold", 50));
 
-        LevelState state = h.levels.get("Refund", "gold").orElseThrow();
-        assertThat(state.epoch()).isEqualTo(2);
-        assertThat(state.identity()).isNotEqualTo(before);
+        assertThat(h.epochOf("gold")).isEqualTo(2);
+        assertThat(h.identityOf("gold")).isNotEqualTo(before);
         assertThat(next.get("verdict_level")).isEqualTo("watch");
         assertThat(new Ladder(DecisionParseTest.parse(h.script).getDecisions().get(0), h.ledger, h.clock).evidence("gold", 2)).hasSize(1);
         assertThat(h.audit).contains("level_changed");
@@ -129,7 +129,7 @@ class DecideSafetyTest {
 
         Map<String, Object> next = h.runCase("run-new", h.inputs("gold", 50));
 
-        assertThat(h.levels.get("Refund", "gold").orElseThrow().epoch()).isEqualTo(2);
+        assertThat(h.epochOf("gold")).isEqualTo(2);
         assertThat(next.get("verdict_level")).isEqualTo("suggest");
     }
 
@@ -143,14 +143,14 @@ class DecideSafetyTest {
         };
         var first = h.executor(h.newRun(journal), "run-1");
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> first.executeWorkflow("Triage", h.inputs("gold", 20))).isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class);
-        String began = h.levels.get("Refund", "gold").orElseThrow().identity();
+        String began = h.identityOf("gold");
 
         h.script = h.script.replace("You are Triager.", "You are another Triager."); // the script is edited while the case waits
         journal.put("Triage/s0#decide-ask", new io.github.llm4j.loom.runtime.RunJournal.Entry("human", "approve"));
         h.executor(h.newRun(journal), "run-1").executeWorkflow("Triage", h.inputs("gold", 20));
 
         assertThat(h.ledger.get("Refund", "run-1/Triage/s0").orElseThrow().identity()).isEqualTo(began);
-        assertThat(h.levels.get("Refund", "gold").orElseThrow().epoch()).as("the resumed case did not start an epoch").isEqualTo(1);
+        assertThat(h.epochOf("gold")).as("the resumed case did not start an epoch").isEqualTo(1);
     }
 
     @Test
@@ -175,7 +175,7 @@ class DecideSafetyTest {
                 run.env.put("NOTIFY_URL", "http://127.0.0.1:" + server.getAddress().getPort() + "/hook");
                 h.executor(run, "run-" + i).executeWorkflow("Triage", h.inputs("gold", 10 + i));
             }
-            assertThat(h.levels.get("Refund", "gold").orElseThrow().level()).isEqualTo(Level.SUGGEST);
+            assertThat(h.levelOf("gold")).isEqualTo(Level.SUGGEST);
             assertThat(posts).hasSize(1);
             assertThat(posts.get(0)).contains("watch to suggest");
 
@@ -192,7 +192,7 @@ class DecideSafetyTest {
     @Tag("EA-V5.4")
     void aFreezeThatArrivesWhileACaseIsBeingProposedDoesNotChangeThatCase() {
         DecideHarness h = harness("");
-        h.levels.compareAndSet("Refund", "gold", null, new LevelState(Level.ACT, 1, h.hashOfRefund(), false, DecideHarness.T0, "earned", 1));
+        h.seed("gold", Level.ACT);
         h.agent = f -> {
             Engine.freeze(h.ledger, h.levels, h.clock, "Refund", "Refund", "incident, while this case is being proposed");
             return new String[] {"approve", "ok", "0.9"};

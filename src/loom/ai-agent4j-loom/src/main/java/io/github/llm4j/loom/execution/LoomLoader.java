@@ -44,6 +44,10 @@ public class LoomLoader {
         LoomScript effectiveScript = new LoomScript();
         
         for (String importPathRaw : script.getImports()) {
+            if (LibraryImports.isLibrary(importPathRaw)) {
+                effectiveScript.merge(LibraryImports.load(importPathRaw));
+                continue;
+            }
             Path importPath = path.getParent().resolve(importPathRaw).normalize();
             LoomScript importedScript = loadRecursive(importPath);
             effectiveScript.merge(importedScript);
@@ -52,6 +56,8 @@ public class LoomLoader {
         // Merge original script definitions after imports (so original file can override if needed? 
         // Actually, for now we just merge them. Order might matter for collisions.)
         effectiveScript.merge(script);
+        effectiveScript.applyAgentLadders();
+        effectiveScript.applyTrustLadders();
         // The prompts folder is the importing file's own business: imports never choose it (merge leaves it alone).
         effectiveScript.setPromptsDir(script.getPromptsDir(), script.getPromptsDirLine());
 

@@ -71,6 +71,8 @@ public class Lexer {
     private int line = 1;
     private int columnStart = 1;
     private final List<Token> tokens = new ArrayList<>();
+    /** How deep inside braces the scan is; a ladder or measure is only ever declared at depth 0. */
+    private int depth = 0;
 
     public Lexer(String source) {
         this.source = source;
@@ -88,8 +90,8 @@ public class Lexer {
     private void scanToken() {
         char c = advance();
         switch (c) {
-            case '{': addToken(TokenType.LBRACE); break;
-            case '}': addToken(TokenType.RBRACE); break;
+            case '{': depth++; addToken(TokenType.LBRACE); break;
+            case '}': depth = Math.max(0, depth - 1); addToken(TokenType.RBRACE); break;
             case '(': addToken(TokenType.LPAREN); break;
             case ')': addToken(TokenType.RPAREN); break;
             case '[': addToken(TokenType.LBRACKET); break;
@@ -204,9 +206,40 @@ public class Lexer {
         }
 
         String text = source.substring(start, current);
+        if (depth == 0 && (text.equals("ladder") || text.equals("measure")) && declaration(text)) return;
         TokenType type = KEYWORDS.get(text);
         if (type == null) type = TokenType.IDENTIFIER;
         addToken(type);
+    }
+
+    /**
+     * A {@code ladder} or {@code measure} declaration is set aside whole, as one token holding its raw text: its conditions are expressions
+     * ({@code *}, {@code /}, {@code 14d}, method chains) in a language of their own. Only recognised where a declaration can start (at the top
+     * level, after a closing brace, a string or another declaration), so {@code agent ladder { }} and a variable called {@code measure} are untouched.
+     */
+    private boolean declaration(String word) {
+        TokenType previous = tokens.isEmpty() ? null : tokens.get(tokens.size() - 1).getType();
+        boolean startsHere = previous == null || previous == TokenType.RBRACE || previous == TokenType.STRING_LITERAL
+                || previous == TokenType.NUMBER_LITERAL || previous == TokenType.LADDER_DECL || previous == TokenType.MEASURE_DECL;
+        if (!startsHere) return false;
+        int i = current;
+        while (i < source.length() && Character.isWhitespace(source.charAt(i))) i++;
+        if (i >= source.length()) return false;
+        char next = source.charAt(i);
+        boolean ladder = word.equals("ladder");
+        if (!(isAlpha(next) || (ladder && next == '{'))) return false;
+        int end = ladder ? io.github.llm4j.loom.parser.LadderParser.ladderEnd(source, start)
+                : io.github.llm4j.loom.parser.LadderParser.measureEnd(source, start);
+        if (end < 0) throw new RuntimeException("The " + word + " starting at line " + line + " was never closed (missing '}').");
+        int col = start - columnStart + 1;
+        int startLine = line;
+        String raw = source.substring(start, end);
+        tokens.add(new Token(ladder ? TokenType.LADDER_DECL : TokenType.MEASURE_DECL, raw, startLine, col));
+        int lastNewline = raw.lastIndexOf('\n');
+        for (int k = 0; k < raw.length(); k++) if (raw.charAt(k) == '\n') line++;
+        if (lastNewline >= 0) columnStart = start + lastNewline + 1;
+        current = end;
+        return true;
     }
 
     private boolean match(char expected) {

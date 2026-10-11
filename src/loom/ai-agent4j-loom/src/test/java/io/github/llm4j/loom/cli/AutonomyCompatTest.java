@@ -107,7 +107,8 @@ class AutonomyCompatTest {
         assertThat(cases).hasSize(1);
         assertThat(cases.get(0).verdict()).isEqualTo("approve");
         assertThat(cases.get(0).locator()).contains("runs");
-        assertThat(AutonomySupport.levels(store).get("Refund", "gold")).isPresent();
+        assertThat(AutonomySupport.ledger(store).recordsOfKind("Refund", io.github.llm4j.loom.autonomy.Rec.LEVEL)).as("the level of the scope is in the ledger")
+                .anyMatch(r -> "gold".equals(r.str("scope")));
     }
 
     @Test

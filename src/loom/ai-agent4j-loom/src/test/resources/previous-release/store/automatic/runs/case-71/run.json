@@ -1,0 +1,19 @@
+{
+  "script" : "@ROOT@/refund.loom",
+  "loot" : null,
+  "workflow" : "Triage",
+  "inputs" : {
+    "tier" : "gold",
+    "amount" : "80",
+    "reason" : "damaged",
+    "customer_since" : "2020",
+    "ticket" : "T-70"
+  },
+  "maxTokens" : null,
+  "maxCalls" : null,
+  "maxCost" : null,
+  "prices" : null,
+  "store" : "@ROOT@/store",
+  "lenient" : false,
+  "trace" : null
+}

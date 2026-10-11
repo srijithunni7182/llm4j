@@ -212,6 +212,14 @@ public final class ReplayEngine {
         if (partial) append(dir, Map.of("kind", "stopped", "why", why));
 
         ReplayReport report = ReplayReport.build(def, id, rows, skips, selected.size());
+        if (def.getLadder() != null && !def.isLadderFromTrust()) {
+            // a ladder the script wrote judges by its own conditions, not by the rules of a trust block
+            java.util.Map<String, String> candidateChoices = new java.util.LinkedHashMap<>();
+            for (ReplayReport.Row r : rows) candidateChoices.put(r.caseId(), r.candidate());
+            var verdict = io.github.llm4j.loom.ladder.ReplayJudge.judge(script, def, io.github.llm4j.loom.ladder.LedgerFold.cases(ledger.records(decision)), candidateChoices);
+            report.levelEarned = verdict.rung();
+            report.levelEarnedWhy = verdict.why();
+        }
         report.candidateIdentity = (String) plan.get("candidateIdentity");
         report.partial = partial;
         report.stoppedBecause = why;

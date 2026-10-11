@@ -779,6 +779,214 @@ A hand-set level beyond what the evidence supports needs `--force`, is recorded 
 
 **What it does not do.** It does not learn: the ledger *grades*, it never trains or rewrites a prompt. It does not weigh several deciders against each other (one named decider per case). It does not find out by itself that a verdict was wrong (record that with `weave autonomy outcome`). It does not certify compliance with anything: it produces evidence. The ledger and the levels are written only by the runtime and the commands; nothing an agent, a tool or a case's values say can change them.
 
+### Ladders: Earned Autonomy as a Policy You Write
+
+The `trust` block above fixes what "good" means: how often the agent agrees with a person. That fits an agent that picks from a short list. It does not fit an agent that writes a script (what matters is how much a reviewer rewrites it, and whether CI later reverts it) or one that publishes posts (edits, how carefully they were reviewed, traffic a week later). A **ladder** is the same idea with the policy in your hands: you name the rungs, say what the runtime enforces on each, and write the conditions to climb and to slip as expressions over the record of what people did.
+
+> Loom provides the mechanisms (the ledger, the expression language, three rung modes, the safeguards). You provide the policy.
+
+```loom
+import "loom/autonomy"
+
+agent Triager {
+    model: "gemini-2.5-flash"
+    system: "You are Triager. Decide whether a refund request should be approved."
+    output_schema: { choice: enum["approve", "reject", "escalate"], reasoning: string, confidence: number }
+}
+
+ladder RefundLadder {
+    rung watch { mode: blind }
+
+    rung suggest {
+        mode: confirm
+        climb when history.count >= 100 and history.span >= 14d
+               and history.rate(agrees).lower95 >= 0.90
+    }
+
+    rung act {
+        mode: autonomous
+        climb when history.count >= 300 and history.rate(agrees).lower95 >= 97%
+               and history.count(dangerous) == 0
+        slip to suggest when history.last(50).count(dangerous) >= 2,
+                             history.last(100).count(reversed) >= 2,
+                             history.rate(agrees) < 0.92
+        sample 5% blind
+        escalate when case.amount > 200, history.since(1d).count >= 50
+    }
+
+    climbing needs approval from risk-owner
+}
+
+decision Refund {
+    proposed by:            Triager
+    choices:                approve, reject, escalate
+    group cases by:         tier
+    remember:               amount: number, tier: text, reason: text
+    dangerous mistake:      propose approve, person decides reject
+    ask:                    support-lead
+    ladder:                 RefundLadder
+    ceiling:                suggest
+    when the agent changes: start over
+}
+
+workflow Triage(ticket, tier, amount, reason) {
+    decide Refund -> verdict
+    note "case {ticket}: {verdict} (proposed {verdict_proposal}, rung {verdict_level})"
+}
+```
+
+**Rungs and modes.** A ladder has rungs in order; a new scope starts on the first. What happens at a rung is one of three modes, the only part the runtime fixes (a ladder cannot invent a mode or pretend to be blind):
+
+| Mode | Who decides | What the person sees |
+|---|---|---|
+| `blind` | the person | the case's values only, **not** the proposal |
+| `confirm` | the person | the proposal and its reasoning, to accept, edit or reject |
+| `autonomous` | the agent | nobody is asked, except a `sample` of cases (answered blind) and cases an `escalate` condition sends to a person |
+
+`decide Refund -> verdict` binds `verdict` (what takes effect), `verdict_proposal` and `verdict_level` (the rung it ran on). `ceiling:` is the highest rung this decision may reach however good the record is. Without one the top rung is the limit: every agent should be able to earn autonomy, however hard the climb, so a ladder with no `autonomous` rung is warned about. Write a lower ceiling to hold an agent back on purpose.
+
+**The record.** Every case is written to the ledger with its values, the proposal, **what the person did** (`accept` as it was, `edit` with the final version, `reject`), who, and how long they took. Facts that arrive later are added as *outcomes*, each with a name and optionally a value:
+
+```text
+weave autonomy outcome runs/.loom-triggers Refund <case-id> --result reversed --note chargeback
+weave autonomy outcome runs/.loom-triggers Publish <case-id> --result views_7d --value 5400
+```
+
+**Conditions are expressions over `history`.** `history` is the answered cases of this decision and scope in the current epoch. Collections are read with method chains, and every condition is checked when the script loads: a misspelt field, a number compared with a duration or a rung that cannot be reached is an error that names the line.
+
+| You write | It means |
+|---|---|
+| `history.count`, `history.span` | how many cases, and the time they span |
+| `.where(p)`, `.last(n)`, `.since(14d)`, `.between(30d, 7d)`, `.by(field)` | narrow or group the cases (`where` takes a measure, a field test such as `amount > 200`, or both) |
+| `.count(p)`, `.rate(p)` | how many cases, or what share, satisfy `p`; a rate also has `.value`, `.n`, `.lower95` and `.upper95` |
+| `.mean(m)`, `.median(m)`, `.min(m)`, `.max(m)`, `.sum(m)`, `.quantile(m, 0.9)` | numbers over a measure or field |
+| `.any(p)`, `.all(p)` | whether some or every case satisfies `p` |
+| `case.amount` | the case being decided (in `escalate when`) |
+
+Three rules keep conditions honest. The language is **total**: no loops, no assignment, no way to read a file, a clock or the network, so a ladder can only compute. Anything that cannot be worked out (a missing field, an outcome that has not arrived) is *unknown*, and a condition that is not plainly true is false, so **missing data never lets an agent climb** (and never demotes it either). A bare comparison on a share uses its value, and the cautious estimate has to be asked for: `history.rate(agrees).lower95 >= 0.9` (20 of 20 is not 100% evidence).
+
+**Measures are yours.** A measure is a pure function of one case:
+
+```loom
+import "loom/autonomy"
+
+agent ScriptWriter {
+    model: "gemini-2.5-flash"
+    system: "You are ScriptWriter. Write the script."
+    output_schema: { script: string, reasoning: string }
+}
+
+measure broke(c)   = c.outcomes.reverted == true
+measure careful(c) = c.review_time >= 20s
+
+ladder AuthorLadder {
+    rung review { mode: confirm }
+
+    rung publish {
+        mode: autonomous
+        climb when history.where(careful).count >= 8
+               and history.where(careful).median(edit_size) <= 10%
+               and history.where(careful).rate(rejected) <= 0.15
+        slip to review when history.last(10).count(broke) >= 1,
+                            history.last(10).median(edit_size) > 25%
+        sample 20% blind
+    }
+
+    climbing needs approval from eng-lead
+}
+
+decision PublishScript {
+    proposed by:    ScriptWriter
+    proposes:       script
+    group cases by: repo
+    remember:       repo, spec_size
+    ask:            reviewers
+    ladder:         AuthorLadder
+    ceiling:        publish
+    when the agent changes: start over
+}
+
+workflow Author(repo, spec_size) {
+    decide PublishScript -> script_text
+    note "{script_text}"
+}
+```
+
+`import "loom/autonomy"` brings the standard measures, written in Loom and shipped with it: `accepted`, `edited`, `rejected`, `agrees` (a choice decision), `edit_size` and `untouched` (an artifact decision), and `reversed`. Read them (`weave guide` prints the file), copy them or leave them out; nothing in the runtime depends on them. `dangerous` is generated from the decision's `dangerous mistake:` lines. A decision that **proposes** an artifact instead of choosing (`proposes: script`) has the person accept it, send a corrected version, or reject it. `careful` above is a defence against a reviewer who approves everything in two seconds: a climb that counts every case warns at load, because a person who sees the proposal tends to agree with it.
+
+**Parameters.** `ladder BlogLadder(baseline_views)` takes values the decision supplies: `ladder: BlogLadder(baseline_views: 1200)`. One ladder can serve many decisions; evidence is kept per decision and scope and never shared.
+
+**When something changes.**
+
+- A change of **agent** (model, prompt, persona, tools, schema, guard) starts a new *epoch*: evidence earned by one agent is never credited to another. `when the agent changes: start over` (the default, and warned about when you leave it out) or `keep the trust` (refused when an autonomous rung can be reached). The old record stays in the ledger.
+- A change of the **model the provider says answered**, with the script unchanged (an alias moved to a new snapshot), starts a new epoch too, and the reason names both ids. A provider that reports no model cannot be watched this way; `weave check` warns about an alias such as `...latest`.
+- A change of the **ladder** or a measure is not a new agent. At the next load every scope is checked against the new rules: one that no longer qualifies is demoted at once with the reason *rules changed*, and a scope that now qualifies for more is never promoted by the change itself; it climbs with its next case, the usual way.
+
+**Commands.** The `weave autonomy` commands work on a ladder as on a `trust` decision, and two more read a ladder without running anything:
+
+```text
+weave autonomy status   runs/.loom-triggers --decision Refund          # each scope: rung, what each condition for the next climb says, open proposals
+weave autonomy approve  runs/.loom-triggers Refund --scope gold --by risk-owner --reason "numbers look right"
+weave autonomy promote  runs/.loom-triggers Refund --scope gold --to suggest --force --reason "incident drill"
+weave autonomy freeze   runs/.loom-triggers Refund --reason "incident 42"
+weave ladder describe refund.loom                                      # the ladder in plain sentences, from the parsed ladder
+weave ladder test refund.loom Refund --store runs/.loom-triggers       # the rung each scope would hold on the recorded history; writes nothing
+```
+
+**What it guarantees.** The ledger and the rung are written only by the runtime and these commands, never by an agent, a tool, a measure or a value in a case. At a `blind` rung nothing the run prints, traces or audits shows the proposal before the person has answered. A rung's mode is read from the script and cannot be changed by an expression. A ledger or level that cannot be read never means the agent acts alone. Every change of rung is recorded with its reason, the rules in force, and who approved it. `weave audit` lists every autonomous rung that can be reached and whether it climbs without a person, has no `slip`, or has no `sample`.
+
+**What it does not do.** It does not learn: the ledger grades, it never trains or rewrites a prompt. It does not find out by itself that a verdict was wrong (record that with `weave autonomy outcome`). It does not certify compliance with anything: it produces evidence. It replays a changed agent over past cases for a ladder too (`when the agent changes: test it on past cases` starts the new agent on the rung the replay supports, judged by the ladder's own conditions, at most what the old agent had). It does not yet offer an autonomous rung that acts after a delay unless a person vetoes. A `trust` block and a ladder are two forms of the same idea; a decision uses one or the other.
+
+**A ladder on an agent.** If every decision an agent proposes for should earn trust the same way, write the ladder once on the agent:
+
+```loom
+import "loom/autonomy"
+
+ladder RefundLadder {
+    rung watch { mode: blind }
+    rung suggest {
+        mode: confirm
+        climb when history.count >= 50 and history.rate(agrees).lower95 >= 0.8
+    }
+    rung act {
+        mode: autonomous
+        climb when history.count >= 200 and history.rate(agrees).lower95 >= 0.95
+        slip to suggest when history.last(50).rate(agrees) < 0.85
+        sample 5% blind
+    }
+    climbing needs approval from risk-owner
+}
+
+agent Triager {
+    model: "gemini-2.5-flash"
+    system: "You are Triager."
+    output_schema: { choice: string, reasoning: string }
+    ladder:  RefundLadder
+    ceiling: suggest          // optional: the highest rung any of its decisions may reach
+}
+
+decision Refund {
+    proposed by: Triager
+    choices:     approve, reject
+    ask:         support-lead
+    when the agent changes: start over
+}
+
+workflow Triage(ticket) {
+    decide Refund -> verdict
+    note "{verdict}"
+}
+```
+
+A decision with neither its own `ladder:` nor a `trust` block takes the agent's ladder (and its arguments and ceiling). A decision that names its own `ladder:`, or has a `trust` block, keeps that. `weave check` reports an unknown ladder or rung on an agent, and a default that applies to no decision.
+
+**Your `trust` block is a ladder.** A `trust` block is written as a three-rung ladder (`watch` blind, `suggest` confirm, `act` autonomous) when the script is loaded, and runs on the same engine: it reads the same blind answers over the same window, so it climbs and slips exactly where it always did. `weave ladder describe refund.loom Refund` prints that ladder in sentences; `weave autonomy status` keeps the words and figures you know (`level`, `evidence: …`). Because it is a ladder it also notices when the provider swaps the model behind an unchanged script, and a `drop to` rule for each lower level is one `slip to` clause on the rung. A rung may have several `slip to` clauses; when more than one holds, the lowest rung wins. A `confirm` rung may also carry `sample 5% blind`.
+
+Three things in a `trust` block cannot be written as one ladder condition, so a decision that uses them stays on the original engine (with its original records), and `weave ladder describe refund.loom Refund` says which: `start at` above `watch`, `always ask a person after N cases a day` (it counts calendar days) and `always ask a person when …` with anything but a comparison of a remembered value. (`when the agent changes: test it on past cases` is written as a ladder too: the replay of the old agent's cases is judged by the ladder.) Levels an earlier release stored are adopted as they stand when a decision moves to the ladder engine; nothing is demoted by the change.
+
+**The record is tamper-evident.** Every level change, promotion proposal and answer, and freeze that the runtime writes carries a seal (an HMAC under a key kept with the store, in `autonomy/.seal-key`, or in `LOOM_LEDGER_KEY` if you set it so the key never sits beside the ledger). An *anchor* record states the hash of everything of that kind before it, which includes what an earlier release wrote without seals, and level versions must keep counting. If someone edits the file to give an agent a rung it did not earn (changes a record, adds one, removes one), the record no longer verifies: the decision then sends every case to a person, `weave autonomy status` says `DOES NOT VERIFY`, `history` warns, and the commands that change a level refuse. `weave autonomy verify <store>` says what it found; `weave autonomy verify <store> --decision D --accept --reason "..."` is how an operator who has looked says the record as it stands is to be trusted. What this is: evidence that something that did not hold the key changed the file. What it is not: protection against someone who can read both the key and the ledger, or against losing the last few records. A decision still on the original engine (the three forms above) keeps its level store as before and is not covered.
+
+**Large artifacts.** A proposal or an edit longer than 16,000 characters is kept once, apart from the record of the case, under the hash of its content; the case says which, how big it is and how it begins. Two cases with the same text share one copy. Retention removes the text from that one place, and a measure that needed it becomes unknown (never small). Tested with 100 KB, 1 MB and 5 MB artifacts; `distance` is bounded in work, and two huge unlike documents give unknown rather than a guess.
 ### Memory, Voice and Languages
 
 **Agent memory** lets an agent remember conversations and facts across runs. It's separate from Loom's

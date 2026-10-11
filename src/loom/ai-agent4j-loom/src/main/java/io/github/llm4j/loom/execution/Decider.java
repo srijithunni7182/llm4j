@@ -120,6 +120,13 @@ final class Decider {
         }
     }
 
+    private LadderDecider ladderDecider;
+
+    private synchronized LadderDecider ladders() {
+        if (ladderDecider == null) ladderDecider = new LadderDecider(run, this);
+        return ladderDecider;
+    }
+
     Proposing proposing() {
         return proposing.get();
     }
@@ -136,12 +143,12 @@ final class Decider {
 
     // ---- helpers ------------------------------------------------------------------------------------------------------------
 
-    private DecisionDef decisionOf(DecideStmt stmt) {
+    DecisionDef decisionOf(DecideStmt stmt) {
         return run.script().getDecisions().stream().filter(d -> d.getName().equals(stmt.getDecision())).findFirst()
                 .orElseThrow(() -> new IllegalStateException("decision " + stmt.getDecision() + " is not defined"));
     }
 
-    private synchronized io.github.llm4j.loom.autonomy.Ledger ledger() {
+    synchronized io.github.llm4j.loom.autonomy.Ledger ledger() {
         if (run.ledger() != null) return run.ledger();
         if (fallbackLedger == null) fallbackLedger = new MemoryLedger();
         return fallbackLedger;
@@ -157,20 +164,20 @@ final class Decider {
         return engines.computeIfAbsent(def.getName(), n -> new Engine(def, ledger(), levels(), run.clock()));
     }
 
-    private String identityOf(DecisionDef def) {
+    String identityOf(DecisionDef def) {
         return identities.computeIfAbsent(def.getName(), n -> AgentIdentity.of(run.script(), def, run.baseDir(), run.promptCatalog()));
     }
 
-    private static String text(Object o) {
+    static String text(Object o) {
         return o == null ? "" : String.valueOf(o);
     }
 
-    private String mask(DecisionDef def, String value) {
+    String mask(DecisionDef def, String value) {
         String masked = run.forStorage(def.getAgent(), value);
         return new io.github.llm4j.tools.Redactor(secrets()).scrub(masked);
     }
 
-    private java.util.List<String> secrets() {
+    java.util.List<String> secrets() {
         java.util.List<String> out = new ArrayList<>();
         for (io.github.llm4j.loom.ast.ToolDef t : run.script().getTools()) {
             t.getOptions().forEach((k, v) -> {
@@ -184,7 +191,7 @@ final class Decider {
     }
 
     /** The values the decision remembers, as text, masked as the agent's guard says. */
-    private Map<String, String> fields(DecisionDef def) {
+    Map<String, String> fields(DecisionDef def) {
         Map<String, String> fields = new LinkedHashMap<>();
         for (String name : def.getRemember()) {
             Object v = run.view().getVariable(name);
@@ -193,13 +200,13 @@ final class Decider {
         return fields;
     }
 
-    private String scopeOf(DecisionDef def) {
+    String scopeOf(DecisionDef def) {
         if (def.getGroupBy() == null) return DEFAULT_SCOPE;
         String v = text(run.view().getVariable(def.getGroupBy())).strip();
         return v.isEmpty() ? DEFAULT_SCOPE : v;
     }
 
-    private static int generationOf(String step) {
+    static int generationOf(String step) {
         int g = 1;
         Matcher m = Pattern.compile("~(\\d+)").matcher(step);
         while (m.find()) g = Math.max(g, Integer.parseInt(m.group(1)));
@@ -229,6 +236,10 @@ final class Decider {
 
         if (run.replay() != null) {
             replayProposal(def, agent, stmt, step);
+            return;
+        }
+        if (def.getLadder() != null) {
+            ladders().decide(stmt, def, agent);
             return;
         }
 
@@ -316,7 +327,7 @@ final class Decider {
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> castMap(Map<?, ?> m) {
+    static Map<String, Object> castMap(Map<?, ?> m) {
         return (Map<String, Object>) m;
     }
 
@@ -401,6 +412,19 @@ final class Decider {
         String template = def.getTask();
         StringBuilder values = new StringBuilder();
         fields.forEach((k, v) -> values.append(k).append(" = ").append(v).append('\n'));
+        if (def.getProposes() != null) {
+            String ask = "Produce the " + def.getProposes() + " for " + def.getName() + ".";
+            if (template == null) return ask + "\n\n" + values;
+            Matcher m = PLACEHOLDER.matcher(template);
+            StringBuilder out = new StringBuilder();
+            while (m.find()) {
+                String name = m.group(1);
+                String value = fields.containsKey(name) ? fields.get(name) : mask(def, text(run.view().getVariable(name)));
+                m.appendReplacement(out, Matcher.quoteReplacement(value));
+            }
+            m.appendTail(out);
+            return out.toString();
+        }
         if (template == null) {
             return "Decide " + def.getName() + " for this case. Choose one of: " + String.join(", ", def.getChoices()) + ".\n\n" + values;
         }
@@ -415,7 +439,7 @@ final class Decider {
         return out + "\n\nChoose one of: " + String.join(", ", def.getChoices()) + ".";
     }
 
-    private Map<String, Object> propose(DecisionDef def, AgentDef agent, String step, Map<String, String> fields, Proposing p, Level ranAt) {
+    Map<String, Object> propose(DecisionDef def, AgentDef agent, String step, Map<String, String> fields, Proposing p, Level ranAt) {
         RunJournal journal = run.journal();
         String task = taskText(def, fields);
         journal.put(step + "#decide-task", new RunJournal.Entry("task", task));
@@ -436,7 +460,7 @@ final class Decider {
                 // a proposal that could not be made is sent to a person as an unusable one; the failure itself is not hidden
                 log.warning("Decision " + def.getName() + ": the agent could not propose (" + failed.getMessage() + ")");
                 Map<String, Object> bad = new LinkedHashMap<>();
-                bad.put("choice", "escalate");
+                if (def.getProposes() != null) bad.put("value", ""); else bad.put("choice", "escalate");
                 bad.put("reasoning", "");
                 bad.put("malformed", true);
                 bad.put("failed", true);
@@ -448,12 +472,13 @@ final class Decider {
             }
             proposal = parse(def, raw);
             if (proposal == null && attempt == 0) {
-                reminder = "\n\nYour last answer did not name one of the choices. The choice must be exactly one of: " + String.join(", ", def.getChoices()) + ".";
+                reminder = def.getProposes() != null ? "\n\nYour last answer was empty. Produce the " + def.getProposes() + "."
+                        : "\n\nYour last answer did not name one of the choices. The choice must be exactly one of: " + String.join(", ", def.getChoices()) + ".";
             }
         }
         if (proposal == null) {
             proposal = new LinkedHashMap<>();
-            proposal.put("choice", "escalate");
+            if (def.getProposes() != null) proposal.put("value", ""); else proposal.put("choice", "escalate");
             proposal.put("reasoning", "");
             proposal.put("malformed", true);
         }
@@ -471,6 +496,7 @@ final class Decider {
     /** The proposal as a choice (one of the declared ones, exactly), a reasoning and a confidence; null when the answer does not name a choice. */
     @SuppressWarnings("unchecked")
     private Map<String, Object> parse(DecisionDef def, Object raw) {
+        if (def.getProposes() != null) return parseArtifact(def, raw);
         if (!(raw instanceof Map<?, ?> m)) return null;
         Object choice = ((Map<String, Object>) m).get("choice");
         if (choice == null) return null;
@@ -481,6 +507,43 @@ final class Decider {
         out.put("choice", matched);
         out.put("reasoning", mask(def, text(((Map<String, Object>) m).get("reasoning"))));
         Object confidence = ((Map<String, Object>) m).get("confidence");
+        if (confidence instanceof Number n && n.doubleValue() >= 0 && n.doubleValue() <= 1) out.put("confidence", n.doubleValue());
+        return out;
+    }
+
+    /** The artifact an agent proposed: the field named for it, else its one content field, else the whole object as JSON; with the reasoning and confidence. */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseArtifact(DecisionDef def, Object raw) {
+        String value;
+        String reasoning = "";
+        Object confidence = null;
+        if (raw instanceof Map<?, ?> m) {
+            Map<String, Object> map = (Map<String, Object>) m;
+            Object named = map.get(def.getProposes());
+            Map<String, Object> content = new LinkedHashMap<>(map);
+            content.remove("reasoning");
+            content.remove("confidence");
+            if (named != null) value = text(named);
+            else if (content.size() == 1) value = text(content.values().iterator().next());
+            else if (content.isEmpty()) return null;
+            else {
+                try {
+                    value = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(content);
+                } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                    return null;
+                }
+            }
+            reasoning = text(map.get("reasoning"));
+            confidence = map.get("confidence");
+        } else if (raw instanceof String s && !s.isBlank()) {
+            value = s;
+        } else {
+            return null;
+        }
+        if (value.isBlank()) return null;
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("value", mask(def, value));
+        out.put("reasoning", mask(def, reasoning));
         if (confidence instanceof Number n && n.doubleValue() >= 0 && n.doubleValue() <= 1) out.put("confidence", n.doubleValue());
         return out;
     }
@@ -499,11 +562,11 @@ final class Decider {
         return q.toString();
     }
 
-    private static String neutralise(String text) {
+    static String neutralise(String text) {
         return io.github.llm4j.loom.travel.RunTravel.neutralise(text);
     }
 
-    private String ask(DecisionDef def, String step, Map<String, String> fields, Map<String, Object> shownProposal) {
+    String ask(DecisionDef def, String step, Map<String, String> fields, Map<String, Object> shownProposal) {
         if (run.humanInterface() == null) {
             throw new IllegalStateException("decision " + def.getName() + " needs a person to ask (" + def.getAsk() + "), but no human interface is configured");
         }
@@ -555,7 +618,7 @@ final class Decider {
     }
 
     /** A ledger that cannot be written never stops a decision: the verdict is in the run journal and is appended again on resume. */
-    private void write(DecisionDef def, Rec rec) {
+    void write(DecisionDef def, Rec rec) {
         try {
             ledger().append(rec);
         } catch (RuntimeException e) {
@@ -639,8 +702,9 @@ final class Decider {
         run.stopPoint(step + "#decide-proposal");
         // no stop point named: the replay was not asked to end here, so give the statement its answer and let the run carry on
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("verdict", proposal.get("choice"));
-        result.put("proposal", proposal.get("choice"));
+        Object proposed = proposal.get("choice") != null ? proposal.get("choice") : proposal.get("value");
+        result.put("verdict", proposed);
+        result.put("proposal", proposed);
         result.put("level", Level.WATCH.word());
         bind(stmt, result);
     }

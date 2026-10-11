@@ -48,7 +48,7 @@ class DecideResilienceTest {
                 assertThat(cases).as(at).hasSize(1);
                 assertThat(cases.get(0).verdict()).as(at).isEqualTo("approve");
                 assertThat(cases.get(0).proposal()).as(at).isEqualTo("approve");
-                assertThat(h.ledger.records("Refund").stream().filter(r -> Rec.DECIDED.equals(r.kind()))).as(at).hasSize(1);
+                assertThat(h.ledger.records("Refund").stream().filter(r -> Rec.RESPONDED.equals(r.kind()))).as(at).hasSize(1);
                 assertThat(resumed.getContext().getAll().get("verdict")).as(at).isEqualTo("approve");
             }
         }
@@ -77,16 +77,15 @@ class DecideResilienceTest {
     @Test
     @Tag("EA-V8.4")
     void ifTheLedgerOrTheLevelStoreCannotBeReadTheDecisionRunsAtWatchAndSaysWhy() {
-        for (String broken : List.of("ledger", "levels", "both")) {
+        // the levels live in the ledger, so one store to break; it can fail to be read, to be written, or both
+        for (String broken : List.of("reads", "writes", "both")) {
             FaultLedger ledger = new FaultLedger(new MemoryLedger());
             FaultLevels levels = new FaultLevels(new MemoryLevelStore());
             DecideHarness h = new DecideHarness(dir, ledger, levels, Scripts2.refund(""));
-            // the ladder says act, but the stores cannot be trusted right now
-            levels.compareAndSet("Refund", "gold", null, new LevelState(Level.ACT, 1, h.hashOfRefund(), false, DecideHarness.T0, "earned", 1));
-            levels.failReads = broken.equals("levels") || broken.equals("both");
-            ledger.failReads = broken.equals("ledger") || broken.equals("both");
-            ledger.failWrites = broken.equals("ledger") || broken.equals("both");
-            if (broken.equals("ledger")) h.script = h.script.replace("never go above act", "never go above act\n always ask a person after 5 cases a day"); // reads the ledger at act
+            // the ladder says act, but the store cannot be trusted right now
+            h.seed("gold", Level.ACT);
+            ledger.failReads = !broken.equals("writes");
+            ledger.failWrites = !broken.equals("reads");
 
             Map<String, Object> vars = h.runCase("run-1", h.inputs("gold", 20));
 
@@ -104,7 +103,7 @@ class DecideResilienceTest {
             throw new io.github.llm4j.loom.runtime.RunSuspended("Triage/s0#decide-ask", "waiting");
         };
         assertThatThrownBy(() -> h.runCase("run-1", h.inputs("gold", 20))).isInstanceOf(io.github.llm4j.loom.runtime.RunSuspended.class);
-        assertThat(h.levels.get("Refund", "gold").orElseThrow().level()).isEqualTo(Level.WATCH);
+        assertThat(h.levelOf("gold")).isEqualTo(Level.WATCH);
     }
 
     @Test

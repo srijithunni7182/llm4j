@@ -1,0 +1,25 @@
+agent Triager {
+    model: "m"
+    system: "You are Triager."
+    output_schema: { choice: string, reasoning: string, confidence: number }
+}
+decision Refund {
+    proposed by:       Triager
+    choices:           approve, reject, escalate
+    group cases by:    tier
+    remember:          amount, reason, customer_since
+    dangerous mistake: propose approve, person decides reject
+    ask:               support-lead
+    trust {
+        start at watch
+        never go above act
+        to suggest: after 5 cases, agreeing at least 50%
+        to act:     after 8 cases, agreeing at least 50%, with no dangerous mistakes
+        judge on the latest 20 cases
+        moving up needs approval from: risk-owner
+    }
+}
+workflow Triage(ticket, tier, amount, reason, customer_since) {
+    decide Refund -> verdict
+    note "verdict {verdict} proposal {verdict_proposal} level {verdict_level}"
+}

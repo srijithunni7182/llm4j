@@ -14,6 +14,8 @@ public class LoomScript implements Node {
     private final List<ProviderDef> providers = new ArrayList<>();
     private final List<PersonaDef> personas = new ArrayList<>();
     private final List<DecisionDef> decisions = new ArrayList<>();
+    private final List<LadderDef> ladders = new ArrayList<>();
+    private final List<MeasureDef> measures = new ArrayList<>();
     private final List<String> imports = new ArrayList<>();
     private final List<Integer> importLines = new ArrayList<>();
     private String promptsDir;
@@ -69,6 +71,14 @@ public class LoomScript implements Node {
     /** Decisions declared with {@code decision Name { … }}. */
     public List<DecisionDef> getDecisions() { return decisions; }
 
+    public void addLadder(LadderDef ladder) { this.ladders.add(ladder); }
+    /** Ladders declared with {@code ladder Name { rung … }}. */
+    public List<LadderDef> getLadders() { return ladders; }
+
+    public void addMeasure(MeasureDef measure) { this.measures.add(measure); }
+    /** Measures declared with {@code measure name(c) = …}. */
+    public List<MeasureDef> getMeasures() { return measures; }
+
     public void addImport(String path) { addImport(path, 0); }
     public void addImport(String path, int line) {
         this.imports.add(path);
@@ -89,6 +99,38 @@ public class LoomScript implements Node {
     public RateLimitDef getRateLimits() { return rateLimits; }
     public void setRateLimits(RateLimitDef rateLimits) { this.rateLimits = rateLimits; }
 
+    /**
+     * Gives every decision that has neither a {@code ladder:} nor a {@code trust { }} block the default ladder of the agent that proposes for it.
+     * Safe to call again after more has been merged in: a decision that already has a ladder is left as it is.
+     */
+    public void applyAgentLadders() {
+        for (DecisionDef d : decisions) {
+            // a ladder written from a decision that said nothing of trust is only a stand-in: an agent merged in from another file replaces it
+            boolean standIn = d.isLadderFromTrust() && !d.isTrustGiven();
+            if ((d.getLadder() != null && !standIn) || d.isTrustGiven() || d.getAgent() == null) continue;
+            for (AgentDef a : agents) {
+                if (!a.getName().equals(d.getAgent()) || a.getLadder() == null) continue;
+                if (standIn) {
+                    d.setLadderFromTrust(false);
+                    d.getTrustMeasures().clear();
+                    d.getTrustLabels().clear();
+                    ladders.removeIf(l -> l.getName().equals(d.getLadder()));
+                    d.getLadderArgs().clear();
+                }
+                d.setLadder(a.getLadder(), a.getLadderLine());
+                d.setLadderFromAgent(true);
+                d.getLadderArgs().putAll(a.getLadderArgs());
+                if (d.getCeilingRung() == null && a.getCeilingRung() != null) d.setCeilingRung(a.getCeilingRung(), a.getCeilingRungLine());
+                break;
+            }
+        }
+    }
+
+    /** Writes the ladder of each decision that has none from its {@code trust { }} block, where the language can say it; see {@code TrustDesugar}. */
+    public void applyTrustLadders() {
+        io.github.llm4j.loom.ladder.TrustDesugar.apply(this);
+    }
+
     public void merge(LoomScript other) {
         this.agents.addAll(other.agents);
         this.workflows.addAll(other.workflows);
@@ -100,6 +142,8 @@ public class LoomScript implements Node {
         this.providers.addAll(other.providers);
         this.personas.addAll(other.personas);
         this.decisions.addAll(other.decisions);
+        this.ladders.addAll(other.ladders);
+        this.measures.addAll(other.measures);
         if (this.auditConfig == null) {
             this.auditConfig = other.auditConfig;
         }

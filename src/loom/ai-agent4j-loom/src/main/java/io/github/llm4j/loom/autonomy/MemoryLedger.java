@@ -10,6 +10,12 @@ import java.util.Map;
 public class MemoryLedger implements Ledger {
 
     private final Map<String, LedgerCache> caches = new LinkedHashMap<>();
+    private final byte[] sealKey = Seal.newKey();
+
+    @Override
+    public byte[] sealKey() {
+        return sealKey;
+    }
 
     private LedgerCache cache(String decision) {
         return caches.computeIfAbsent(decision, k -> new LedgerCache());
