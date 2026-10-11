@@ -118,6 +118,16 @@ class RunStateTest {
     }
 
     @Test
+    void spendIsRecordedCumulativelyAfterEachFinishedAgentStep_andStaysBounded() {
+        RunRegistry reg = registry(log(0, Semconv.EV_RUN_START, "w", Semconv.LOOM_RUN_ID, RUN, Semconv.LOOM_WORKFLOW, "W"));
+        for (int i = 0; i < 700; i++) reg.applySpans(PROC, List.of(agentSpan("s" + i, "Editor", 1 + i, 2 + i, 10, 1, "0.01")));
+        List<Map<String, Object>> spend = list(run(reg).view(), "spend");
+        assertThat(spend.size()).isLessThanOrEqualTo(600);
+        assertThat(spend.get(spend.size() - 1)).containsEntry("tokens", 7000L).containsEntry("cost", "7.00");
+        assertThat((Long) spend.get(0).get("tokens")).isLessThan((Long) spend.get(spend.size() - 1).get("tokens"));
+    }
+
+    @Test
     void toolCallsAreCountedWithTheirErrorsAndAverageTime() {
         RunRegistry reg = registry(log(0, Semconv.EV_RUN_START, "w", Semconv.LOOM_RUN_ID, RUN, Semconv.LOOM_WORKFLOW, "W"));
         reg.applySpans(PROC, List.of(toolSpan("t1", "Competitor", "Example", 1, 3, true), toolSpan("t2", "Competitor", "Example", 4, 6, false)));

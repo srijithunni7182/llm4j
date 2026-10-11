@@ -133,6 +133,30 @@
     $('notrace').hidden = lines.length > 0;
   }
 
+  function svg(tag, attrs) {
+    var e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    return e;
+  }
+
+  // Cumulative tokens against run time; the x axis is the run's own clock, so a sleep shows as a flat stretch.
+  function renderSpend(points) {
+    var g = $('spend');
+    g.textContent = '';
+    $('nospend').hidden = points.length > 0;
+    g.hidden = points.length === 0;
+    if (!points.length) { $('spendsub').textContent = ''; return; }
+    var W = 600, H = 140, maxT = Math.max(view.elapsedMillis, points[points.length - 1].t, 1), maxV = Math.max(points[points.length - 1].tokens, 1);
+    [0.25, 0.5, 0.75].forEach(function (f) { g.appendChild(svg('line', { x1: 0, x2: W, y1: H * f, y2: H * f, 'class': 'grid' })); });
+    var d = 'M0,' + H;
+    var last = 0;
+    points.forEach(function (p) { last = H - (p.tokens / maxV) * (H - 4); d += ' L' + ((p.t / maxT) * W).toFixed(1) + ',' + (H - (p.tokens / maxV) * (H - 4)).toFixed(1); });
+    d += ' L' + W + ',' + last.toFixed(1);
+    g.appendChild(svg('path', { d: d + ' L' + W + ',' + H + ' Z', 'class': 'area' }));
+    g.appendChild(svg('path', { d: d, 'class': 'line' }));
+    $('spendsub').textContent = num(points[points.length - 1].tokens) + ' tokens over ' + clock(maxT);
+  }
+
   function render() {
     var v = view;
     if (!v) { return; }
@@ -196,6 +220,7 @@
     });
     $('notools').hidden = v.tools.length > 0;
 
+    renderSpend(v.spend || []);
     renderFollow(v);
     $('updated').textContent = 'updated ' + hms(new Date().toISOString());
   }

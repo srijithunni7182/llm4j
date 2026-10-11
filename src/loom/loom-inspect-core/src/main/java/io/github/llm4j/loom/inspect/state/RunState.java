@@ -57,6 +57,8 @@ public final class RunState {
     private long tokens;
     private long calls;
     private BigDecimal cost = BigDecimal.ZERO;
+    /** Cumulative spend after each finished agent step: [millis since start, tokens, cost]. Thinned past 600 points. */
+    private final List<Object[]> spend = new ArrayList<>();
     private String suspendReason;
     private String resumeAt;
     private String sleepWakeAt;
@@ -204,6 +206,10 @@ public final class RunState {
         tokens += t;
         calls += c;
         cost = cost.add(usd);
+        spend.add(new Object[] {startedNanos > 0 ? Math.max(0, (s.endNanos() - startedNanos) / 1_000_000L) : 0L, tokens, cost.toPlainString()});
+        if (spend.size() > 600) {
+            for (int i = spend.size() - 2; i >= 1; i -= 2) spend.remove(i);
+        }
     }
 
     private void toolEnded(SpanRec s, Open was) {
@@ -351,6 +357,9 @@ public final class RunState {
             steps.add(m);
         }
         v.put("openSteps", steps);
+        List<Map<String, Object>> series = new ArrayList<>();
+        for (Object[] p : spend) series.add(Map.of("t", p[0], "tokens", p[1], "cost", p[2]));
+        v.put("spend", series);
 
         v.put("gaps", gaps);
         v.put("duplicates", duplicates);

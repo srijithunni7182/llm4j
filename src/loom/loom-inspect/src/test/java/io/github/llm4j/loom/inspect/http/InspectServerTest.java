@@ -85,6 +85,7 @@ class InspectServerTest {
         assertThat(get("/app.css").body()).contains("--live");
         HttpResponse<byte[]> logo = http.send(HttpRequest.newBuilder(URI.create(base + "/logo.png")).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
         assertThat(logo.body()[1]).isEqualTo((byte) 'P'); // a PNG
+        assertThat(page.body()).contains("id=\"spend\"");
         assertThat(page.body()).contains("data-theme=\"dark\"");
         assertThat(get("/app.css").body()).contains("[data-theme=\"light\"]").contains("/fonts/HankenGrotesk.woff2");
         for (String font : new String[] {"/fonts/HankenGrotesk.woff2", "/fonts/JetBrainsMono.woff2"}) {
