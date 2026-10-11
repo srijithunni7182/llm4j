@@ -305,4 +305,18 @@ class IncidentTest {
         assertThat(inc).containsEntry("severity", "warn");
         assertThat(evidence(inc)).containsEntry("threshold", "10s");
     }
+
+    @Test
+    void theBlockForEveryAgentIsTheBaseAndAnAgentsOwnBlockOverridesItRuleByRule() {
+        start();
+        run().setRules(Map.of("*", rules(2, null, null, null), "Editor", rules(3, null, null, null)));
+        toolStart(1, "Editor", "Wiki", "W/s1", "h1");
+        toolStart(2, "Editor", "Wiki", "W/s1", "h1");
+        toolStart(1, "Other", "Wiki", "W/s1", "h1");
+        toolStart(2, "Other", "Wiki", "W/s1", "h1");
+        assertThat(incidents()).hasSize(1);                                   // Other, at the shared 2; Editor has its own 3
+        assertThat(incidents().get(0)).containsEntry("agent", "Other");
+        toolStart(3, "Editor", "Wiki", "W/s1", "h1");
+        assertThat(incidents()).hasSize(2);
+    }
 }

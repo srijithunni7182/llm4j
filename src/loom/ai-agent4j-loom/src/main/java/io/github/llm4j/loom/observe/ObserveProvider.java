@@ -27,11 +27,27 @@ public interface ObserveProvider {
         throw new UnsupportedOperationException(name() + " keeps no outbox");
     }
 
+    /**
+     * Checks a rules file against a script without running anything ({@code weave observe rules}). Prints what it finds and returns the
+     * number of errors.
+     */
+    default int checkRules(io.github.llm4j.loom.ast.LoomScript script, java.nio.file.Path rulesFile, PrintStream out) {
+        throw new UnsupportedOperationException(name() + " has no rules to check");
+    }
+
     /** One process's worth of observing. */
     interface Session extends AutoCloseable {
 
         /** Starts watching a run. Call before the run's executor is initialized. */
         void attach(ObservableRun run);
+
+        /**
+         * As {@link #attach(ObservableRun)}, saying which script file the run was loaded from, so a rules file kept beside it
+         * ({@code flow.inspect} next to {@code flow.loom}) can be found.
+         */
+        default void attach(ObservableRun run, java.nio.file.Path scriptFile) {
+            attach(run);
+        }
 
         /** Where to look, in words, for example {@code http://127.0.0.1:8787}. */
         String describe();

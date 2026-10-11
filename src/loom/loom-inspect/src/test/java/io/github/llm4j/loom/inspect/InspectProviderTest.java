@@ -137,19 +137,23 @@ class InspectProviderTest {
     }
 
     private static final String JUDGE = """
-            agent Lead {
-                model: "m"
-                inspect {
-                    no_progress: 2 rounds on review
-                    same_output: 9 times
-                }
-            }
+            agent Lead { model: "m" }
             workflow Main() {
                 loop until (review == "COMPLETE") max 4 {
                     delegate "is it finished? round {_loopRound}" to Lead -> review
                 }
             }
             """;
+
+    @org.junit.jupiter.api.io.TempDir
+    java.nio.file.Path dir;
+
+    /** The script and, beside it, the rules that say how to watch it: the script itself says nothing about watching. */
+    private java.nio.file.Path judgeWithRules(String rules) throws Exception {
+        java.nio.file.Path script = java.nio.file.Files.writeString(dir.resolve("judge.loom"), JUDGE);
+        if (rules != null) java.nio.file.Files.writeString(dir.resolve("judge.inspect"), rules);
+        return script;
+    }
 
     private static String answer(String text) {
         return "```json\n{\"thought\": \"t\", \"final_answer\": \"" + text + "\"}\n```";
@@ -159,9 +163,10 @@ class InspectProviderTest {
     @SuppressWarnings("unchecked")
     void aScriptsNoProgressRuleRaisesAnIncidentFromARealLoop_andOnlyAHashOfTheVariableIsRecorded() throws Exception {
         try (InspectSession session = (InspectSession) new InspectObserveProvider().open(ObserveOptions.parse("0", null, "metadata", "local", null), null)) {
+            java.nio.file.Path script = judgeWithRules("# how to watch judge.loom\nLead {\n    no_progress: 2 rounds on review   # the verdict that should change\n    same_output: 9 times\n}\n");
             HarnessExecutor e = executor(List.of(answer("INCOMPLETE"), answer("INCOMPLETE"), answer("INCOMPLETE"), answer("INCOMPLETE")), JUDGE);
             e.setRunId("r-judge");
-            session.attach(e.observable());
+            session.attach(e.observable(), script);
             e.initialize();
             e.executeWorkflow("Main", Map.of());
             assertThat(session.awaitIdle(Duration.ofSeconds(3))).isTrue();
@@ -177,9 +182,10 @@ class InspectProviderTest {
     @SuppressWarnings("unchecked")
     void aVariableThatKeepsChangingIsProgress() throws Exception {
         try (InspectSession session = (InspectSession) new InspectObserveProvider().open(ObserveOptions.parse("0", null, "full", "local", null), null)) {
+            java.nio.file.Path script = judgeWithRules("Lead { no_progress: 2 rounds on review }\n");
             HarnessExecutor e = executor(List.of(answer("A"), answer("B"), answer("C"), answer("COMPLETE")), JUDGE);
             e.setRunId("r-progress");
-            session.attach(e.observable());
+            session.attach(e.observable(), script);
             e.initialize();
             e.executeWorkflow("Main", Map.of());
             assertThat(session.awaitIdle(Duration.ofSeconds(3))).isTrue();
@@ -209,5 +215,59 @@ class InspectProviderTest {
     void theProviderIsNamed() {
         ObserveProvider p = new InspectObserveProvider();
         assertThat(p.name()).isEqualTo("loom-inspect");
+    }
+
+    @Test
+    void aRulesFileGivenExplicitlyIsUsedWhereverItIs_andNoFileMeansTheDefaults() throws Exception {
+        java.nio.file.Path elsewhere = java.nio.file.Files.writeString(dir.resolve("prod-rules.txt"), "Lead { no_progress: 2 rounds on review }\n");
+        try (InspectSession session = (InspectSession) new InspectObserveProvider().open(ObserveOptions.parse("0", null, "metadata", "local", null).withRules(elsewhere), null)) {
+            HarnessExecutor e = executor(List.of(answer("X"), answer("X"), answer("X"), answer("X")), JUDGE);
+            e.setRunId("r-explicit");
+            session.attach(e.observable(), judgeWithRules(null)); // no judge.inspect beside the script: the explicit file wins anyway
+            e.initialize();
+            e.executeWorkflow("Main", Map.of());
+            assertThat(session.awaitIdle(Duration.ofSeconds(3))).isTrue();
+            assertThat(String.valueOf(session.registry().findByTrace(io.github.llm4j.loom.inspect.otel.Ids.traceId("r-explicit")).orElseThrow().view().get("incidents"))).contains("has not changed");
+        }
+        try (InspectSession session = (InspectSession) new InspectObserveProvider().open(ObserveOptions.parse("0", null, "metadata", "local", null), null)) {
+            HarnessExecutor e = executor(List.of(answer("X"), answer("X"), answer("X"), answer("X")), JUDGE);
+            e.setRunId("r-defaults");
+            session.attach(e.observable(), judgeWithRules(null));
+            e.initialize();
+            e.executeWorkflow("Main", Map.of());
+            assertThat(session.awaitIdle(Duration.ofSeconds(3))).isTrue();
+            assertThat(String.valueOf(session.registry().findByTrace(io.github.llm4j.loom.inspect.otel.Ids.traceId("r-defaults")).orElseThrow().view().get("incidents"))).doesNotContain("has not changed");
+        }
+    }
+
+    @Test
+    void aRulesFileWithErrorsIsReportedOnceAndNotUsed_theRunIsNotAffected() throws Exception {
+        java.io.ByteArrayOutputStream console = new java.io.ByteArrayOutputStream();
+        java.nio.file.Path script = judgeWithRules("Leed { same_action: 2 times }\nLead { no_progress: 2 rounds on reveiw }\n");
+        try (InspectSession session = (InspectSession) new InspectObserveProvider().open(ObserveOptions.parse("0", null, "full", "local", null), new java.io.PrintStream(console))) {
+            HarnessExecutor e = executor(List.of(answer("COMPLETE")), JUDGE);
+            e.setRunId("r-bad-rules");
+            session.attach(e.observable(), script);
+            e.initialize();
+            e.executeWorkflow("Main", Map.of());
+            assertThat(session.awaitIdle(Duration.ofSeconds(3))).isTrue();
+            assertThat(session.registry().findByTrace(io.github.llm4j.loom.inspect.otel.Ids.traceId("r-bad-rules")).orElseThrow().view().get("status")).isEqualTo("finished");
+        }
+        assertThat(console.toString()).contains("no agent named Leed").contains("Lead").contains("no workflow variable named reveiw").contains("not using judge.inspect");
+    }
+
+    @Test
+    void theRulesCheckCommandReportsProblemsAndCountsErrors() throws Exception {
+        java.nio.file.Path script = judgeWithRules(null);
+        io.github.llm4j.loom.ast.LoomScript loaded = new LoomParser(new Lexer(JUDGE).tokenize()).parseScript();
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        java.nio.file.Path good = java.nio.file.Files.writeString(dir.resolve("good.inspect"), "Lead { same_output: 3 times }\n");
+        assertThat(new InspectObserveProvider().checkRules(loaded, good, new java.io.PrintStream(out))).isZero();
+        assertThat(out.toString()).contains("all fine");
+        java.nio.file.Path bad = java.nio.file.Files.writeString(dir.resolve("bad.inspect"), "Nobody { same_output: 3 times }\n");
+        out.reset();
+        assertThat(new InspectObserveProvider().checkRules(loaded, bad, new java.io.PrintStream(out))).isEqualTo(1);
+        assertThat(out.toString()).contains("no agent named Nobody");
+        assertThat(script).exists();
     }
 }

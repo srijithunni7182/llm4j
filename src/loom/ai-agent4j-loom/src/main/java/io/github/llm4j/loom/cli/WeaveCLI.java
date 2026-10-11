@@ -587,7 +587,7 @@ public class WeaveCLI implements Callable<Integer> {
     }
 
     @Command(name = "observe", description = "Looks after what observing leaves on disk: observe flush delivers an outbox, observe purge removes one.",
-            subcommands = {ObserveFlushCommand.class, ObservePurgeCommand.class})
+            subcommands = {ObserveFlushCommand.class, ObservePurgeCommand.class, ObserveRulesCommand.class})
     static class ObserveCommand implements Callable<Integer> {
         @Override
         public Integer call() {
@@ -617,6 +617,37 @@ public class WeaveCLI implements Callable<Integer> {
                 long left = io.github.llm4j.loom.observe.Observe.provider().flush(options, env.secrets(), env.out());
                 return left == 0 ? 0 : 1;
             } catch (IllegalArgumentException | io.github.llm4j.loom.observe.Observe.Unavailable e) {
+                System.err.println("Error: " + e.getMessage());
+                return 2;
+            }
+        }
+    }
+
+    @Command(name = "rules", description = "Checks a rules file (what counts as trouble for each agent) against a script, without running anything. Default file: <script>.inspect beside the script.")
+    static class ObserveRulesCommand implements Callable<Integer> {
+        @Parameters(index = "0", description = "The .loom script the rules are for.")
+        private File script;
+
+        @Option(names = "--observe-rules", paramLabel = "file", description = "The rules file (default: <script>.inspect).")
+        private File rules;
+
+        @Override
+        public Integer call() {
+            if (!script.exists()) {
+                System.err.println("Error: Script file not found: " + script);
+                return 2;
+            }
+            try {
+                File file = rules != null ? rules : new File(script.getParentFile() == null ? new File(".") : script.getParentFile(),
+                        script.getName().replaceFirst("\\.[^.]*$", "") + ".inspect");
+                if (!file.exists()) {
+                    System.err.println("Error: no rules file: " + file + " (create it, or pass --observe-rules)");
+                    return 2;
+                }
+                LoomScript loaded = new io.github.llm4j.loom.execution.LoomLoader().load(script.getAbsolutePath());
+                int errors = io.github.llm4j.loom.observe.Observe.provider().checkRules(loaded, file.toPath(), System.out);
+                return errors == 0 ? 0 : 1;
+            } catch (io.github.llm4j.loom.observe.Observe.Unavailable | java.io.IOException | RuntimeException e) {
                 System.err.println("Error: " + e.getMessage());
                 return 2;
             }

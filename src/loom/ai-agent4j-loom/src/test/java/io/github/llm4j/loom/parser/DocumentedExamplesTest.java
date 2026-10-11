@@ -144,22 +144,4 @@ class DocumentedExamplesTest {
         assertNull(schema.getFields().get("items").getElementType());
         assertEquals(SchemaDef.Type.STRING, schema.getFields().get("names").getElementType().getType());
     }
-
-    @Test
-    void theInspectExampleInTheGuideParsesAndChecksClean() throws Exception {
-        String guide = java.nio.file.Files.readString(java.nio.file.Path.of("LOOM_GUIDE.md"));
-        int at = guide.indexOf("inspect {\n");
-        int start = guide.lastIndexOf("```loom", at);
-        int end = guide.indexOf("```", at);
-        assertTrue(start >= 0 && end > at, "the guide has a loom block with an inspect example");
-        String block = guide.substring(guide.indexOf('\n', start) + 1, end);
-        String source = block + "\nworkflow W(topic) {\n  delegate \"x\" to Editor -> review\n  note \"{review}\"\n}\n";
-        LoomScript script = new LoomParser(new Lexer(source).tokenize()).parseScript();
-        var in = script.getAgents().get(0).getInspect();
-        assertEquals(4, in.getSameAction());
-        assertEquals("review.score", in.getNoProgressVariable());
-        assertEquals(java.time.Duration.ofSeconds(90), in.getPausedLongerThan());
-        assertTrue(new io.github.llm4j.loom.execution.ScriptValidator().validate(script, new io.github.llm4j.loom.execution.ScriptValidator.Context()).stream()
-                .noneMatch(p -> p.severity() == io.github.llm4j.loom.execution.ScriptValidator.Severity.ERROR));
-    }
 }

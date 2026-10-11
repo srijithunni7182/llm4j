@@ -8,7 +8,10 @@ import io.github.llm4j.loom.inspect.map.TraceMapper;
 import io.github.llm4j.loom.inspect.otel.Resource;
 import io.github.llm4j.loom.execution.TraceEvent;
 import io.github.llm4j.loom.inspect.emit.Outbound;
+import io.github.llm4j.loom.inspect.rules.RulesCheck;
+import io.github.llm4j.loom.inspect.rules.RulesFile;
 import io.github.llm4j.loom.inspect.sink.EventSink;
+import io.github.llm4j.loom.inspect.state.InspectRules;
 import io.github.llm4j.loom.inspect.wire.Snapshot;
 import io.github.llm4j.loom.inspect.state.RunRegistry;
 import io.github.llm4j.loom.observe.ObservableRun;
@@ -85,6 +88,38 @@ public final class InspectSession implements ObserveProvider.Session {
 
     @Override
     public void attach(ObservableRun run) {
+        attach(run, null);
+    }
+
+    /**
+     * The watching rules for a run: the file given with {@code --observe-rules}, else {@code <script>.inspect} beside the script, else
+     * none (the defaults). A file with errors is reported once and not used; the run is never affected.
+     */
+    private java.util.Map<String, InspectRules> rulesFor(ObservableRun run, java.nio.file.Path scriptFile) {
+        java.nio.file.Path file = options.rules();
+        if (file == null && scriptFile != null) {
+            java.nio.file.Path beside = RulesFile.sidecarFor(scriptFile);
+            if (java.nio.file.Files.isRegularFile(beside)) file = beside;
+        }
+        if (file == null) return java.util.Map.of();
+        java.nio.file.Path source = file;
+        try {
+            RulesFile.Parsed parsed = RulesFile.read(source);
+            java.util.List<RulesFile.Problem> problems = run.script() == null ? parsed.problems() : RulesCheck.check(run.script(), parsed);
+            problems.forEach(p -> console.println("loom-inspect: " + source.getFileName() + ": " + p));
+            if (problems.stream().anyMatch(RulesFile.Problem::error)) {
+                console.println("loom-inspect: not using " + source.getFileName() + " (watching with the defaults). The workflow is not affected.");
+                return java.util.Map.of();
+            }
+            return parsed.rules();
+        } catch (RuntimeException e) {
+            console.println("loom-inspect: cannot read " + file + ": " + e.getMessage() + ". Watching with the defaults.");
+            return java.util.Map.of();
+        }
+    }
+
+    @Override
+    public void attach(ObservableRun run, java.nio.file.Path scriptFile) {
         Detail detail = Detail.parse(options.detail());
         Outbound link = fabric(run);
         TraceMapper mapper = new TraceMapper(run.runId(), detail);
@@ -100,7 +135,7 @@ public final class InspectSession implements ObserveProvider.Session {
                 return built;
             }
         };
-        java.util.Map<String, io.github.llm4j.loom.inspect.state.InspectRules> rules = io.github.llm4j.loom.inspect.map.InspectRulesView.of(run.script());
+        java.util.Map<String, InspectRules> rules = rulesFor(run, scriptFile);
         io.github.llm4j.loom.inspect.map.ProgressSampler sampler = new io.github.llm4j.loom.inspect.map.ProgressSampler(rules, run::variables);
         EventSink[] self = new EventSink[1];
         EventSink sink = new EventSink(options.name() + "-" + attached.get(), QUEUE, event -> {

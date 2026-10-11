@@ -45,4 +45,14 @@ public final class InspectObserveProvider implements ObserveProvider {
         java.nio.file.Path dir = options.fabric() != null ? options.fabric().outbox() : options.otlp() != null ? options.otlp().outbox() : null;
         return dir != null ? dir : java.nio.file.Path.of(io.github.llm4j.loom.inspect.emit.Outbound.DEFAULT_OUTBOX);
     }
+
+    @Override
+    public int checkRules(io.github.llm4j.loom.ast.LoomScript script, java.nio.file.Path rulesFile, PrintStream out) {
+        var parsed = io.github.llm4j.loom.inspect.rules.RulesFile.read(rulesFile);
+        var problems = io.github.llm4j.loom.inspect.rules.RulesCheck.check(script, parsed);
+        problems.forEach(p -> out.println(rulesFile.getFileName() + ": " + p));
+        long errors = problems.stream().filter(io.github.llm4j.loom.inspect.rules.RulesFile.Problem::error).count();
+        if (problems.isEmpty()) out.println(rulesFile.getFileName() + ": " + parsed.rules().size() + " block(s), all fine");
+        return (int) errors;
+    }
 }

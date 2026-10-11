@@ -46,9 +46,12 @@ final class Detectors {
         this.rules = rules == null ? Map.of() : Map.copyOf(rules);
     }
 
+    /** The defaults, with the block for every agent ({@code *}) laid over them, and then the agent's own block. */
     private Thresholds of(String agent) {
+        InspectRules all = rules.get("*");
+        Thresholds base = all == null ? t : all.over(t);
         InspectRules r = agent == null ? null : rules.get(agent);
-        return r == null ? t : r.over(t);
+        return r == null ? base : r.over(base);
     }
 
     /** A pause belongs to the run, not to an agent: the shortest limit any agent set decides when it becomes a warning. */

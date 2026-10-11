@@ -583,26 +583,26 @@ Done and tested, embedded and Fabric (the detectors live in `RunState`, which bo
 
 ## 11g. Phase 4 status
 
-Done and tested. Thresholds now live in the script.
+Done and tested. Thresholds are kept **beside** the workflow, not in it.
 
-- **Syntax** (decided: inside the agent block, next to `budget`, which settles open question 2; one rule per line rather than the grouped `loop:` line of section 6):
+**What changed from the first version of this phase.** The first version put an `inspect { }` block inside the Loom agent. That put watching instructions into the language and made the script harder to read, for something that changes nothing about what the workflow does. It was reverted (the Loom grammar, parser, `weave check`, guide text, VS Code grammar and hover are as they were before Phase 4) and the rules moved one layer down, into `loom-inspect`, which owns the format and the checks.
 
-  ```loom
-  agent Editor {
-      model: "gemini-2.5-flash"
-      inspect {
-          same_action: 4 times
-          same_output: 3 times
-          tool_failures: 3 times
-          no_progress: 3 rounds on review.score
-          ungrounded_figures: warn at 2, high at 4
-          paused_longer_than: 90s
-      }
+- **The file**: `flow.inspect` next to `flow.loom` (found by name), or any file given with `--observe-rules <file>` (which wins). Blocks by agent name, `*` for every agent, `#` and `//` comments, one rule per line or several separated by `;`:
+
+  ```
+  Editor {
+      same_action: 4 times
+      same_output: 3 times
+      tool_failures: 3 times
+      no_progress: 3 rounds on review.score
   }
+  Scriptwriter { ungrounded_figures: warn at 2, high at 4 }
+  *            { paused_longer_than: 90s }
   ```
 
-  A rule left out keeps the default. The block changes nothing about how the agent runs, and is not part of an agent's autonomy identity, so editing it does not reset earned autonomy. The words `inspect`, `times`, `rounds`, `on`, `warn`, `high`, `at` stay usable as names.
-- **`weave check`**: refuses a number below 1, an unknown rule (with the nearest rule suggested), `no_progress` on a variable no step stores and no workflow takes (with a guess), a `warn` level not below its `high` level; warns about a block that sets nothing. The guide's example is parsed and checked by a test, so it cannot drift.
-- **Delivery**: the console gets each agent's rules from the script (embedded: directly; Fabric: in the run's snapshot, so a server needs no scripts). `Detectors` uses the agent's own thresholds for what that agent does. A pause belongs to the run, so the shortest `paused_longer_than` any agent set decides when it becomes a warning.
-- **`no_progress` and open question 1** (is reading a variable from outside the executor acceptable?): yes, as a copy and only at one moment. When the first event of a new loop round arrives, the previous round has finished and stored its result, so the variable is read then (on the run's own thread, from the copy `ObservableRun.variables()` hands out) and only a **hash** is recorded and sent. N equal hashes in a row at round boundaries is no progress. Reading on the run's thread matters: the first version read on the queue's thread and a fast run was read as if every round ended with its last value. A test with a real loop caught it.
-- **Not done**: `unsupported_claims ... from <field>` (a reviewer's structured count against a share) needs the same variable reading plus a notion of "claims"; left out of the first version rather than guessed. The first round's start is not a boundary, so the earliest a `no_progress: N rounds` fires is the start of round N+1.
+  A rule left out keeps the default. An agent's block overrides the `*` block rule by rule. Nothing in it changes how a run behaves, so it cannot affect an agent's earned autonomy. A script without a rules file is watched with the defaults, exactly as in Phase 3.
+- **`weave observe rules <script> [--observe-rules file]`** checks the file against the script without running anything: an agent the script does not have (nearest name suggested), a `no_progress` variable that no step stores and no workflow takes, a number below 1, an unknown rule (nearest rule suggested), a `warn` level not below its `high` level, a `*` block with `no_progress`; a block that sets nothing is a warning. When a run starts, a file with errors is reported once and not used (the defaults apply); the workflow is never affected.
+- **Delivery**: unchanged from the first version. The rules are read at attach time; the embedded page gets them directly and Fabric gets them in the run's snapshot, so a server needs neither the script nor the file. `Detectors` lays the `*` block over the defaults and an agent's own block over that. A pause belongs to the run, so the shortest `paused_longer_than` anyone set decides when it becomes a warning.
+- **`no_progress`** (open question 1, reading a variable from outside the executor: acceptable, as a copy at one moment): at the first event of a new loop round the previous round has finished and stored its result, so the variable is read then, on the run's own thread, from the copy `ObservableRun.variables()` hands out, and only a **hash** is recorded and sent. N equal hashes in a row at round boundaries is no progress. Reading on the run's thread matters: reading on the queue's thread made a fast run look as if every round ended with its last value, and a real-loop test caught it.
+- **Found while doing the move**: the sidecar needs the script's path at attach time, so `Session.attach(run, scriptFile)` was added next to `attach(run)`; `weave run`, `resume`, `tick` and `daemon` pass it.
+- **Not done**: `unsupported_claims ... from <field>` (a reviewer's structured count against a share) needs the same variable reading plus a notion of "claims"; left out rather than guessed. The first round's start is not a boundary, so the earliest a `no_progress: N rounds` fires is the start of round N+1. A central rules file kept on a Fabric server (so an operator can change thresholds without touching the process's machine) is a natural next step and is not built.

@@ -43,6 +43,9 @@ Check the first run's `spend` report and adjust.
 
 ## Watching it
 
+`soak.inspect` beside `soak.loom` says how loom-inspect watches this workflow (when a looping or ungrounded agent counts as trouble); the script itself says nothing about watching. Check it with `weave observe rules soak.loom`.
+
+
 - **Today:** `--trace` prints every event on stderr, which is also the raw material loom-inspect will read.
 - **With loom-inspect, embedded** (works today): build the add-on (`mvn -DskipTests -pl src/loom/loom-inspect -am package`), put
   `loom-inspect-*.jar` and `loom-inspect-core-*.jar` on the class path beside the weave jar, and add `--observe`

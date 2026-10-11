@@ -1,0 +1,12 @@
+# How loom-inspect watches soak.loom. The script says what the workflow does; this file, kept beside it, says what counts as trouble.
+# loom-inspect finds it by name (soak.inspect next to soak.loom). Check it without running anything:
+#     weave observe rules soak.loom
+
+# Editor makes the same Wiki call every round on purpose: flag it at three, not the default four.
+Editor { same_action: 3 times }
+
+# Lead never changes its mind ("Strengthen the hook."), so review.fix stays the same at every round boundary.
+Lead { no_progress: 2 rounds on review.fix }
+
+# Scriptwriter invents statistics on purpose: warn at two ungrounded figures, high at four.
+Scriptwriter { ungrounded_figures: warn at 2, high at 4 }

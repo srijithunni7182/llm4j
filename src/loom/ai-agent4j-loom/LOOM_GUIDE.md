@@ -2017,22 +2017,21 @@ weave daemon triggers/ --secrets keys.store \
 - Trust in the server is yours to set: the JDK's default roots, plus `--observe-ca ca.pem` (a private CA; added for this connection only) or `--observe-pin sha256:…`. The host name in the URL is always checked.
 - `--observe-otlp https://collector:4318` (with `--observe-otlp-header "Authorization=Bearer ${secret:OTLP_TOKEN}"`) also sends the traces and logs to any OpenTelemetry endpoint.
 - The page flags trouble as it happens: a pause by a limit (information, not an error), an agent making the same call or giving the same answer again and again, a tool that keeps failing, a budget nearly spent, and an answer whose figures appear in nothing the step was given or fetched (labelled *suspect*: it means no source was found, not that the figures are false). These rules look at hashes and counts computed in the process, so they work at every `--observe-detail` level. Thresholds are defaults for now.
-- Say what is normal for an agent in an `inspect { }` block inside it. It changes nothing about how the agent runs (and does not reset its earned autonomy); a rule left out keeps the default, and `weave check` refuses a rule that names a variable nothing sets.
+- **How a workflow is watched is kept out of the workflow.** A file beside the script, `flow.inspect` next to `flow.loom` (or any file given with `--observe-rules`), says what counts as trouble for each agent. The script stays as readable as it was, and the same script can be watched differently in test and in production. Nothing in it changes how an agent runs. A rule left out keeps the default.
 
-  ```loom
-  agent Editor {
-      model: "gemini-2.5-flash"
-      inspect {
-          same_action: 4 times                    // the same tool call, rounds of a loop counted together
-          same_output: 3 times                    // the same answer, in a row
-          tool_failures: 3 times                  // a tool failing, in a row
-          no_progress: 3 rounds on review.score   // this workflow variable unchanged at the end of 3 loop rounds in a row
-          ungrounded_figures: warn at 2, high at 4
-          paused_longer_than: 90s                 // a pause by a limit longer than this is a warning
-      }
+  ```
+  # flow.inspect
+  Editor {
+      same_action: 4 times                    # the same tool call, rounds of a loop counted together
+      same_output: 3 times                    # the same answer, in a row
+      tool_failures: 3 times                  # a tool failing, in a row
+      no_progress: 3 rounds on review.score   # this workflow variable unchanged at the end of 3 loop rounds in a row
   }
+  Scriptwriter { ungrounded_figures: warn at 2, high at 4 }
+  *            { paused_longer_than: 90s }    # for every agent that does not say otherwise
   ```
 
+  `weave observe rules flow.loom` checks the file against the script without running anything: it refuses an agent the script does not have and a variable nothing sets (and suggests the nearest name). A file with errors is reported once when a run starts and not used.
 - The pages are read-only in this release; pausing, stopping and rotating secrets from them come later.
 
 ## ☕ 5. Advanced: Custom Java Integration

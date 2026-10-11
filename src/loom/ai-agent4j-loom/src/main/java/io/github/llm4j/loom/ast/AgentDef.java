@@ -31,7 +31,6 @@ public class AgentDef implements Node {
     /** Optional sampling temperature (0.0–2.0) for this agent's LLM calls; null = the runtime default. */
     private Double temperature;
     private BudgetDef budget;
-    private InspectDef inspect;
     private final List<String> approve = new ArrayList<>();
     private boolean approveAll;
     private Integer maxIterations;
@@ -99,9 +98,6 @@ public class AgentDef implements Node {
     public void setApproveAll(boolean approveAll) { this.approveAll = approveAll; }
     public Integer getMaxIterations() { return maxIterations; }
     public void setMaxIterations(Integer maxIterations) { this.maxIterations = maxIterations; }
-    /** What the loom-inspect console should treat as trouble for this agent ({@code inspect { }} inside the agent), or null. */
-    public InspectDef getInspect() { return inspect; }
-    public void setInspect(InspectDef inspect) { this.inspect = inspect; }
     public BudgetDef getBudget() { return budget; }
     public void setBudget(BudgetDef budget) { this.budget = budget; }
     public void setTemperature(Double temperature) { this.temperature = temperature; }

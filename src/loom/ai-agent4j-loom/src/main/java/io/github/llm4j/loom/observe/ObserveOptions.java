@@ -16,8 +16,10 @@ import java.util.regex.Pattern;
  * @param embedded serve the page from this process ({@code --observe}); false when only reporting to a Fabric server
  * @param fabric where to report, or null
  * @param otlp an OpenTelemetry endpoint to export to, or null
+ * @param rules a file of watching rules ({@code --observe-rules}), or null to look for {@code <script>.inspect} beside the script
  */
-public record ObserveOptions(int port, String bind, String detail, String name, Duration linger, boolean embedded, FabricOptions fabric, OtlpOptions otlp) {
+public record ObserveOptions(int port, String bind, String detail, String name, Duration linger, boolean embedded, FabricOptions fabric, OtlpOptions otlp,
+                             java.nio.file.Path rules) {
 
     public static final int DEFAULT_PORT = 8787;
     public static final String DEFAULT_BIND = "127.0.0.1";
@@ -25,11 +27,20 @@ public record ObserveOptions(int port, String bind, String detail, String name, 
 
     /** The embedded page only. */
     public ObserveOptions(int port, String bind, String detail, String name, Duration linger) {
-        this(port, bind, detail, name, linger, true, null, null);
+        this(port, bind, detail, name, linger, true, null, null, null);
     }
 
     public ObserveOptions(int port, String bind, String detail, String name, Duration linger, boolean embedded, FabricOptions fabric) {
-        this(port, bind, detail, name, linger, embedded, fabric, null);
+        this(port, bind, detail, name, linger, embedded, fabric, null, null);
+    }
+
+    public ObserveOptions(int port, String bind, String detail, String name, Duration linger, boolean embedded, FabricOptions fabric, OtlpOptions otlp) {
+        this(port, bind, detail, name, linger, embedded, fabric, otlp, null);
+    }
+
+    /** The same, watching by the rules in this file. */
+    public ObserveOptions withRules(java.nio.file.Path file) {
+        return new ObserveOptions(port, bind, detail, name, linger, embedded, fabric, otlp, file);
     }
 
     public ObserveOptions {

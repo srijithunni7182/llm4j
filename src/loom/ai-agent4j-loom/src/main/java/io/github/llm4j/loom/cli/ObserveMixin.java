@@ -59,6 +59,10 @@ final class ObserveMixin {
             description = "Also export traces and logs to any OpenTelemetry endpoint (OTLP over HTTP), for example https://collector.example.com:4318. Needs --observe-name.")
     private String observeOtlp;
 
+    @Option(names = "--observe-rules", paramLabel = "file",
+            description = "What counts as trouble for each agent, kept beside the workflow and not in it (default: <script>.inspect next to the script, when there is one).")
+    private String observeRules;
+
     @Option(names = "--observe-otlp-header", paramLabel = "Name=value",
             description = "A header for the OTLP endpoint; a value may be ${secret:NAME}, read from the secret store. Repeatable.")
     private List<String> observeOtlpHeaders = new ArrayList<>();
@@ -102,6 +106,14 @@ final class ObserveMixin {
             return new Opened(env, null, null, true);
         }
         if (observing == null) return new Opened(env, null, null, false);
+        if (observeRules != null && !observeRules.isBlank()) {
+            java.nio.file.Path rules = java.nio.file.Path.of(observeRules.trim());
+            if (!java.nio.file.Files.isRegularFile(rules)) {
+                System.err.println("Error: --observe-rules: no such file: " + observeRules);
+                return new Opened(env, null, null, true);
+            }
+            observing = observing.withRules(rules);
+        }
         try {
             ObserveProvider.Session session = Observe.open(observing, env.out());
             env.out().println("🔭 " + session.summary());
