@@ -231,7 +231,8 @@ public final class Tls {
      * Makes a small private CA and a server certificate for {@code host} (and any extra names or addresses), with the JDK's own
      * {@code keytool}. Writes {@code ca.pem} (hand it to processes with {@code --observe-ca}), {@code server.p12} and its password file.
      */
-    public static Created createCa(Path dir, String host, List<String> alsoNames) {
+    public static Created createCa(Path directory, String host, List<String> alsoNames) {
+        Path dir = directory.toAbsolutePath(); // keytool runs in this directory, so every path handed to it must not depend on where we were started
         try {
             Files.createDirectories(dir);
             Path caKs = dir.resolve("ca.p12");

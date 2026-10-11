@@ -91,4 +91,18 @@ class TlsTest {
             throw new IllegalStateException(e);
         }
     }
+
+    @Test
+    void aRelativeOutputDirectoryWorksToo() throws Exception {
+        Path relative = Path.of("target", "tls-relative-" + System.nanoTime());
+        try {
+            Tls.Created c = Tls.createCa(relative, "fabric.test", List.of());
+            assertThat(Files.exists(c.caPem())).isTrue();
+            assertThat(Files.exists(relative.resolve("server.p12"))).isTrue();
+        } finally {
+            try (var walk = Files.walk(relative.toAbsolutePath())) {
+                walk.sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+            }
+        }
+    }
 }
