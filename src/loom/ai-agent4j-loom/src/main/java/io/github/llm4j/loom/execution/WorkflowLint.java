@@ -129,6 +129,21 @@ public final class WorkflowLint {
         return out;
     }
 
+    /** Every name a workflow of the script stores a result under, and its parameters: what a rule may refer to as a variable. */
+    public static Set<String> variablesOf(io.github.llm4j.loom.ast.LoomScript script) {
+        Set<String> names = new java.util.TreeSet<>();
+        for (WorkflowDef w : script.getWorkflows()) {
+            names.addAll(w.getParameters());
+            StatementWalker.walk(w.getStatements(), st -> {
+                String n = assigned(st);
+                if (n != null) names.add(n);
+                if (st instanceof io.github.llm4j.loom.ast.RunStmt r && r.getVariableName() != null) names.add(r.getVariableName());
+                if (st instanceof io.github.llm4j.loom.ast.ForEachStmt f && f.getItemName() != null) names.add(f.getItemName());
+            });
+        }
+        return names;
+    }
+
     private static String assigned(Statement s) {
         String name = null;
         if (s instanceof DelegateStmt d) name = d.getVariableName();

@@ -89,7 +89,7 @@ public class LoomParser {
     }
 
     private static final java.util.List<String> AGENT_SETTINGS = java.util.List.of("model", "system", "system_template", "prompt", "persona", "tools",
-            "mcp_servers", "skills", "memory", "voice", "guard", "routing", "knowledge", "output_schema", "approve", "max_iterations", "temperature", "budget", "ladder", "ceiling");
+            "mcp_servers", "skills", "memory", "voice", "guard", "routing", "knowledge", "output_schema", "approve", "max_iterations", "temperature", "budget", "inspect", "ladder", "ceiling");
 
     /** What to say when something that is not a setting turns up inside an agent: the word itself, what an agent can have, and the nearest guess. */
     private static String unknownAgentSetting(Token t) {
@@ -235,6 +235,10 @@ public class LoomParser {
                 Token keyword = advance();
                 if (agent.getBudget() != null) throw error(keyword, "An agent can have only one budget block.");
                 agent.setBudget(parseBudgetBlock(true));
+            } else if (isBlockKeyword("inspect")) {
+                Token keyword = advance();
+                if (agent.getInspect() != null) throw error(keyword, "An agent can have only one inspect block.");
+                agent.setInspect(parseInspectBlock(keyword.getLine()));
             } else if (isNamedAttribute("ladder")) {
                 Token keyword = advance();
                 advance(); // the colon
@@ -1805,6 +1809,70 @@ public class LoomParser {
         }
         consume(TokenType.RBRACE, "Expect '}' after rate_limits block.");
         return def;
+    }
+
+    private static final java.util.List<String> INSPECT_RULES = java.util.List.of(
+            "same_action", "same_output", "no_progress", "ungrounded_figures", "tool_failures", "paused_longer_than");
+
+    /**
+     * {@code inspect { same_action: 4 times  no_progress: 3 rounds on review.score  ungrounded_figures: warn at 2, high at 4 … }}, after the
+     * keyword. One rule per line; a rule left out keeps the console's default. Changes nothing about how the agent runs.
+     */
+    private io.github.llm4j.loom.ast.InspectDef parseInspectBlock(int line) {
+        io.github.llm4j.loom.ast.InspectDef def = new io.github.llm4j.loom.ast.InspectDef();
+        def.setLine(line);
+        consume(TokenType.LBRACE, "Expect '{' after inspect.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token rule = consume(TokenType.IDENTIFIER, "Expect an inspect rule: " + String.join(", ", INSPECT_RULES) + ".");
+            consume(TokenType.COLON, "Expect ':' after '" + rule.getValue() + "'.");
+            switch (rule.getValue()) {
+                case "same_action" -> def.setSameAction(countThen(rule, "times"));
+                case "same_output" -> def.setSameOutput(countThen(rule, "times"));
+                case "tool_failures" -> def.setToolFailures(countThen(rule, "times"));
+                case "no_progress" -> {
+                    int rounds = countThen(rule, "rounds");
+                    Token on = consume(TokenType.IDENTIFIER, "Expect 'on <variable>' after the number of rounds, e.g. no_progress: 3 rounds on review.score");
+                    if (!"on".equals(on.getValue())) throw error(on, "Expect 'on <variable>' after the number of rounds, e.g. no_progress: 3 rounds on review.score");
+                    Token var = consume(TokenType.IDENTIFIER, "Expect the workflow variable that says what progress is, e.g. review.score");
+                    def.setNoProgress(rounds, var.getValue(), rule.getLine());
+                }
+                case "ungrounded_figures" -> {
+                    def.setUngroundedLine(rule.getLine());
+                    do {
+                        Token level = consume(TokenType.IDENTIFIER, "Expect 'warn at <n>' or 'high at <n>', e.g. ungrounded_figures: warn at 2, high at 4");
+                        Token at = consume(TokenType.IDENTIFIER, "Expect 'at' after '" + level.getValue() + "'.");
+                        if (!"at".equals(at.getValue())) throw error(at, "Expect 'at' after '" + level.getValue() + "', e.g. warn at 2");
+                        int n = whole(rule);
+                        switch (level.getValue()) {
+                            case "warn" -> def.setUngroundedWarn(n);
+                            case "high" -> def.setUngroundedHigh(n);
+                            default -> throw error(level, "ungrounded_figures takes 'warn at <n>' and 'high at <n>', got '" + level.getValue() + "'");
+                        }
+                    } while (match(TokenType.COMMA));
+                }
+                case "paused_longer_than" -> def.setPausedLongerThan(duration(rule));
+                default -> throw error(rule, "Unknown inspect rule '" + rule.getValue() + "'" + io.github.llm4j.loom.autonomy.expr.Suggest.hint(rule.getValue(), INSPECT_RULES)
+                        + ". The rules are: " + String.join(", ", INSPECT_RULES) + ".");
+            }
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after inspect block.");
+        return def;
+    }
+
+    /** A whole number of at least one, then the word {@code unit}: {@code 4 times}. */
+    private int countThen(Token rule, String unit) {
+        int n = whole(rule);
+        Token word = consume(TokenType.IDENTIFIER, "Expect '" + unit + "' after the number, e.g. " + rule.getValue() + ": " + n + " " + unit);
+        if (!unit.equals(word.getValue())) throw error(word, "Expect '" + unit + "' after the number, e.g. " + rule.getValue() + ": " + n + " " + unit + ", got '" + word.getValue() + "'");
+        return n;
+    }
+
+    private int whole(Token rule) {
+        Token n = consume(TokenType.NUMBER_LITERAL, "Expect a whole number for " + rule.getValue() + ".");
+        double v = Double.parseDouble(n.getValue());
+        if (v < 1 || v != Math.floor(v) || v > 100_000) throw error(n, rule.getValue() + " takes a whole number from 1 up, got " + n.getValue());
+        return (int) v;
     }
 
     /** A positive duration: {@code 30s}, {@code 15m}, {@code 6h}, {@code 2d} (or the same as a string). */

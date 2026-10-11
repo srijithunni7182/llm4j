@@ -140,6 +140,7 @@ public class ScriptValidator {
     public List<Problem> validate(LoomScript script, Context context) {
         Checker c = new Checker(script, context);
         checkAgents(c);
+        checkInspect(c);
         checkPromptFiles(c);
         checkWorkflowLint(c);
         checkRouting(c);
@@ -190,6 +191,29 @@ public class ScriptValidator {
         for (String id : folder.ids()) {
             if (!used.contains(id)) {
                 c.warn(line, "prompt files", "prompt " + id + " is not used by any agent (" + folder.root().relativize(folder.latest(id).orElseThrow().file()) + ")");
+            }
+        }
+    }
+
+    /** An {@code inspect { }} block says what is normal for an agent; it must say something sensible, and name a variable that exists. */
+    private void checkInspect(Checker c) {
+        java.util.Set<String> variables = WorkflowLint.variablesOf(c.script());
+        for (AgentDef a : c.script().getAgents()) {
+            io.github.llm4j.loom.ast.InspectDef in = a.getInspect();
+            if (in == null) continue;
+            String who = "agent " + a.getName();
+            if (in.isEmpty()) {
+                c.warn(in.getLine(), who, "this inspect block sets no rule, so it does nothing (rules: same_action, same_output, no_progress, ungrounded_figures, tool_failures, paused_longer_than)");
+            }
+            if (in.getUngroundedWarn() != null && in.getUngroundedHigh() != null && in.getUngroundedWarn() >= in.getUngroundedHigh()) {
+                c.error(in.getUngroundedLine(), who, "ungrounded_figures: warn at " + in.getUngroundedWarn() + " must be lower than high at " + in.getUngroundedHigh());
+            }
+            if (in.getNoProgressVariable() != null) {
+                String root = in.getNoProgressVariable().split("\\.")[0];
+                if (!variables.contains(root)) {
+                    c.error(in.getNoProgressLine(), who, "no_progress: no workflow variable named " + root
+                            + " (a variable is what a step stores with ->, or a workflow parameter)" + io.github.llm4j.loom.autonomy.expr.Suggest.hint(root, variables));
+                }
             }
         }
     }
