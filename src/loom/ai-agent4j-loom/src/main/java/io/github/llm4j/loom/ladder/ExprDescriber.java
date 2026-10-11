@@ -165,6 +165,15 @@ public final class ExprDescriber {
     }
 
     private static String call(Expr.Call c) {
+        String text = callPlain(c);
+        if (c.target() instanceof Expr.Call by && by.method().equals("by") && !by.args().isEmpty() && !c.method().equals("min") && !c.method().equals("max")
+                && !c.method().equals("by")) {
+            return text + " in each " + phrase(by.args().get(0), true);
+        }
+        return text;
+    }
+
+    private static String callPlain(Expr.Call c) {
         String set = setOf(c.target());
         List<Expr> a = c.args();
         switch (c.method()) {
@@ -177,7 +186,7 @@ public final class ExprDescriber {
             case "median": return "the median " + phrase(a.get(0), true) + " of " + set;
             case "min": case "max":
                 if (a.isEmpty() && c.target() instanceof Expr.Call inner && inner.target() instanceof Expr.Call by && by.method().equals("by")) {
-                    return "the " + (c.method().equals("min") ? "lowest" : "highest") + ", over each " + phrase(by.args().get(0), true) + ", of " + call(inner);
+                    return "the " + (c.method().equals("min") ? "lowest" : "highest") + ", over each " + phrase(by.args().get(0), true) + ", of " + callPlain(inner);
                 }
                 return "the " + (c.method().equals("min") ? "lowest " : "highest ") + phrase(a.get(0), true) + " of " + set;
             case "sum": return "the total " + phrase(a.get(0), true) + " of " + set;

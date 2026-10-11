@@ -9,6 +9,10 @@ public final class Suggest {
 
     /** The nearest candidate within two edits (or sharing a long prefix), or null. */
     public static String nearest(String word, Collection<String> candidates) {
+        if (word.length() < 3) {
+            for (String c : candidates) if (c.equalsIgnoreCase(word)) return c;
+            return null;                                        // a one- or two-letter word is too short for a guess to mean anything
+        }
         String best = null;
         int bestDistance = Integer.MAX_VALUE;
         for (String c : candidates) {
