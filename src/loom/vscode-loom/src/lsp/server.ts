@@ -16,6 +16,7 @@
  *               5.1, 5.2, 5.3, 5.4, 21.1, 21.2, 21.3
  */
 
+import { ladderCompletions } from './ladderCompletion';
 import {
     createConnection,
     ProposedFeatures,
@@ -61,7 +62,7 @@ connection.onInitialize((): InitializeResult => {
             definitionProvider: true,
             completionProvider: {
                 resolveProvider: false,
-                triggerCharacters: [' ', '.'],
+                triggerCharacters: [' ', '.', ':', '('],
             },
         },
     };
@@ -413,6 +414,19 @@ connection.onDefinition((params: TextDocumentPositionParams): Location | null =>
 connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] => {
     const doc = documents.get(params.textDocument.uri);
     const items: CompletionItem[] = [];
+
+    // 0. Inside a ladder, or after `ladder:` / `ceiling:`: the rungs, measures, fields and methods that belong there (and nothing else)
+    if (doc) {
+        const ladder = ladderCompletions(doc.getText(), doc.offsetAt(params.position));
+        if (ladder) {
+            return ladder.map(c => ({
+                label: c.label,
+                kind: c.kind === 'method' ? CompletionItemKind.Method : c.kind === 'field' ? CompletionItemKind.Field : c.kind === 'keyword' ? CompletionItemKind.Keyword
+                    : c.kind === 'mode' ? CompletionItemKind.EnumMember : c.kind === 'measure' ? CompletionItemKind.Function : CompletionItemKind.Class,
+                detail: c.detail,
+            }));
+        }
+    }
 
     // 1. Keyword completions
     for (const kw of LOOM_KEYWORD_NAMES) {

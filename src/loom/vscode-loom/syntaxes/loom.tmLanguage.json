@@ -4,6 +4,7 @@
   "patterns": [
     { "include": "#comments" },
     { "include": "#strings" },
+    { "include": "#ladder-modes" },
     { "include": "#keywords" },
     { "include": "#numbers" },
     { "include": "#operators" },
@@ -26,13 +27,17 @@
         }
       ]
     },
+    "ladder-modes": {
+      "match": "\\b(mode)(\\s*:\\s*)(blind|confirm|autonomous)\\b",
+      "captures": { "1": { "name": "keyword.control.loom" }, "3": { "name": "support.constant.loom" } }
+    },
     "keywords": {
       "name": "keyword.control.loom",
-      "match": "\\b(agent|workflow|delegate|handoff|broadcast|parallel|loop|alt|call|guardrail|observe|schedule|routing|import|mcp|audit|note|retry|on_failure|for|each|in|max|on_exhausted|expecting|backoff|timeout|human_prompt|else|until|to|temperature|budget|per_call|warn_at|rate_limits|on_limit|max_wait|max_resumes|when_exhausted|per|cron|every|timezone|run|misfire|overlap|use|approve|max_iterations|source|top_k|store|mode|env|provider|persona|memory|voice|guard|conversation|session|facts|recall|min_similarity|listen|speak|pii|bias|bias_model|checkpoint|rewind|decision|decide|trust|ladder|rung|measure|climb|slip|escalate|climbing|ceiling|proposes)\\b"
+      "match": "\\b(agent|workflow|delegate|handoff|broadcast|parallel|loop|alt|call|guardrail|observe|schedule|routing|import|mcp|audit|note|retry|on_failure|for|each|in|max|on_exhausted|expecting|backoff|timeout|human_prompt|else|until|to|temperature|budget|per_call|warn_at|rate_limits|on_limit|max_wait|max_resumes|when_exhausted|per|cron|every|timezone|run|misfire|overlap|use|approve|max_iterations|source|top_k|store|mode|env|provider|persona|memory|voice|guard|conversation|session|facts|recall|min_similarity|listen|speak|pii|bias|bias_model|checkpoint|rewind|decision|decide|trust|ladder|rung|measure|climb|slip|escalate|climbing|ceiling|proposes|sample)\\b"
     },
     "numbers": {
       "name": "constant.numeric.loom",
-      "match": "\\b[0-9]+\\b"
+      "match": "\\b[0-9]+(?:\\.[0-9]+)?(?:%|(?:ms|s|m|h|d|w)\\b)?"
     },
     "operators": {
       "name": "keyword.operator.loom",

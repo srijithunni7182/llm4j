@@ -19,7 +19,7 @@ SPEC = ROOT / ".kiro" / "specs" / "loom-ladders"
 L = "src/loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/"
 TESTS = ("Ladder*Test,Reference*Test,Interpreter*Test,Expr*Test,LedgerFoldTest,VTest,LexerTest,CheckerTest,WilsonTest,DistanceTest,StandardLibraryTest,"
          "TypicalMistakesTest,NovelAgentsTest,LadderVerificationTest,LadderStoresTest,LadderScriptTest,!LadderScaleTest,"
-         "Trust*Test,AgentLadderDefaultTest,DecideSafetyTest,DecideResilienceTest,ReplayTest,ArtifactReferenceTest,LadderEpochReplayTest")
+         "Trust*Test,AgentLadderDefaultTest,DecideSafetyTest,DecideResilienceTest,ReplayTest,ArtifactReferenceTest,LadderEpochReplayTest,SealTest,TamperedStoreTest")
 
 SABOTAGES = [
     ("S1", "Missing data makes a condition true (fail open) instead of false",
@@ -76,6 +76,14 @@ SABOTAGES = [
      [(L + "ladder/Blobs.java", "public static final int LIMIT = 16 * 1024;", "public static final int LIMIT = Integer.MAX_VALUE;")]),
     ("S28", "Retention leaves the text of a large artifact in place",
      [(L + "autonomy/Purge.java", 'if (body.remove("text") != null) body.put("purged", true);', 'body.remove("size");')]),
+    ("S29", "Accept a record after the anchor that has no valid seal",
+     [(L + "autonomy/Seal.java", "if (!valid(key, r)) return Result.bad(r.id(), r.str(\"seal\") == null", "if (false) return Result.bad(r.id(), r.str(\"seal\") == null")]),
+    ("S30", "Go on using a record of levels that does not verify",
+     [(L + "ladder/LevelLog.java", "if (!result.ok()) throw new io.github.llm4j.loom.autonomy.LedgerTampered(decision, result);", "if (false) throw new io.github.llm4j.loom.autonomy.LedgerTampered(decision, result);")]),
+    ("S31", "Do not compare the anchor's hash with the records before it",
+     [(L + "autonomy/Seal.java", "if (!hashOf(before).equals(base.str(\"hash\")))", "if (false)")]),
+    ("S32", "Ignore a gap in the versions of a scope (a removed record)",
+     [(L + "autonomy/Seal.java", "if (v != expected) return Result.bad(r.id(), \"version \"", "if (false) return Result.bad(r.id(), \"version \"")]),
     ("S26", "Count every case, not only blind ones, as evidence for a trust block",
      [(L + "ladder/TrustDesugar.java", 'measure(BLIND, "c.blind", line)', 'measure(BLIND, "true", line)')]),
 ]
