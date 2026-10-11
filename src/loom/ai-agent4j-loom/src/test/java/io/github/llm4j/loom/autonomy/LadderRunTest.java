@@ -314,4 +314,53 @@ class LadderRunTest {
         assertThat(last.level()).isEqualTo("publish");
         assertThat(last.malformed()).isTrue();
     }
+
+    @Test
+    void anArtifactIsReadFromTheFieldNamedForItTheOneContentFieldOrTheWholeObject() {
+        DecideHarness h = harness(PUBLISH);
+        h.person = f -> "accept";
+        h.rawAgent = f -> "{\"post\": \"named\", \"reasoning\": \"r\", \"confidence\": 0.4}";
+        h.runCase("n1", h.inputs("x", 1));
+        h.rawAgent = f -> "{\"post\": \"out of range\", \"reasoning\": \"r\", \"confidence\": 7}";
+        h.runCase("n4", h.inputs("x", 1));
+        DecideHarness other = harness(PUBLISH.replace("output_schema: { post: string, reasoning: string }", "output_schema: { body: string, title: string, reasoning: string }"));
+        other.person = h.person;
+        other.rawAgent = f -> "{\"body\": \"only content\", \"reasoning\": \"r\"}";
+        other.runCase("n2", other.inputs("x", 1));
+        other.rawAgent = f -> "{\"title\": \"T\", \"body\": \"B\", \"reasoning\": \"r\"}";
+        other.runCase("n3", other.inputs("x", 1));
+        List<LCase> cases = cases(h, "Publish");
+        assertThat(cases.get(0).proposalValue()).isEqualTo("named");
+        assertThat(cases.get(0).confidence()).isEqualTo(0.4);
+        assertThat(cases.get(1).confidence()).isNull();
+        List<LCase> second = cases(other, "Publish");
+        assertThat(second.get(0).proposalValue()).isEqualTo("only content");
+        assertThat(second.get(1).proposalValue()).contains("\"title\":\"T\"").contains("\"body\":\"B\"");
+    }
+
+    @Test
+    void aTaskTemplateFillsTheArtifactRequestFromTheCasesValues() {
+        DecideHarness h = harness(PUBLISH.replace("remember: topic", "remember: topic").replace("ask: editors", "ask: editors\n task: \"Write about {reason} for {customer_since}\""));
+        h.rawAgent = f -> "{\"post\": \"p\", \"reasoning\": \"r\"}";
+        h.person = f -> "accept";
+        h.runCase("t1", h.inputs("x", 1));
+        assertThat(h.tasks.get(0)).contains("Write about damaged for 2020");
+        DecideHarness plain = harness(PUBLISH);
+        plain.rawAgent = h.rawAgent;
+        plain.person = h.person;
+        plain.runCase("t2", plain.inputs("x", 1));
+        assertThat(plain.tasks.get(0)).contains("Produce the post for Publish.");
+    }
+
+    @Test
+    void anAgentThatCannotProposeIsReportedAndAPersonStillDecides() {
+        DecideHarness h = harness(PUBLISH);
+        h.rawAgent = f -> "not json at all";
+        h.person = f -> "I wrote this myself";
+        Map<String, Object> out = h.runCase("bad1", h.inputs("x", 1));
+        assertThat(out.get("post")).isEqualTo("I wrote this myself");
+        LCase c = cases(h, "Publish").get(0);
+        assertThat(c.malformed() || c.proposalValue() != null).isTrue();
+        assertThat(c.responseKind()).isEqualTo("edit");
+    }
 }
