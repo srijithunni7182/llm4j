@@ -1,0 +1,203 @@
+package io.github.llm4j.loom.inspect.emit;
+
+import io.github.llm4j.loom.ast.LoomScript;
+import io.github.llm4j.loom.inspect.map.GraphView;
+import io.github.llm4j.loom.inspect.map.TraceMapper;
+import io.github.llm4j.loom.inspect.otel.OtlpJson;
+import io.github.llm4j.loom.inspect.otel.Resource;
+import io.github.llm4j.loom.inspect.tls.Tls;
+import io.github.llm4j.loom.inspect.wire.Hello;
+import io.github.llm4j.loom.inspect.wire.Snapshot;
+import io.github.llm4j.loom.inspect.wire.Wire;
+import io.github.llm4j.loom.observe.FabricOptions;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.time.Clock;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+
+/**
+ * This process's side of reporting to Fabric: the durable outbox, the thread that sends it, and the timer that flushes it (every 200 ms)
+ * and forces it to disk (every second), which is the stated bound on what a crash or power cut can lose. Writing is on the event sink's
+ * thread, never the workflow's, and a failure to write (a full disk) is counted and reported at most once a minute; it never reaches the run.
+ */
+public final class FabricLink implements AutoCloseable {
+
+    private static final long SEGMENT = 8L * 1024 * 1024;
+    private static final long CAP_BYTES = 256L * 1024 * 1024;
+    private static final Duration CAP_AGE = Duration.ofDays(7);
+    public static final String DEFAULT_OUTBOX = "loom-inspect-outbox";
+
+    private final Outbox outbox;
+    private final ServerLink link;
+    private final ScheduledExecutorService timer;
+    private final Duration flushTimeout;
+    private final PrintStream out;
+    private final Map<String, Supplier<List<Map<String, Object>>>> ladders = new ConcurrentHashMap<>();
+    private volatile long writeFailures;
+    private volatile long lastReport;
+
+    private FabricLink(Outbox outbox, ServerLink link, Duration flushTimeout, PrintStream out) {
+        this.outbox = outbox;
+        this.link = link;
+        this.flushTimeout = flushTimeout;
+        this.out = out;
+        this.timer = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "loom-inspect-outbox-flush");
+            t.setDaemon(true);
+            return t;
+        });
+    }
+
+    /** Opens the outbox for this process name and instance, picks up the logs earlier instances left, and starts sending. */
+    public static FabricLink open(String name, FabricOptions f, String key, LoomScript script, Clock clock, PrintStream out) {
+        javax.net.ssl.SSLContext tls = "https".equalsIgnoreCase(f.url().getScheme()) ? Tls.clientContext(f.ca(), f.caOnly(), f.pin()) : null;
+        return open(name, f, script, clock, out, new HttpTransport(f.url(), tls, name, key, clock), ServerLink.Timing.normal());
+    }
+
+    /** As {@link #open(String, FabricOptions, String, LoomScript, Clock, PrintStream)} with the transport and timing given (tests). */
+    public static FabricLink open(String name, FabricOptions f, LoomScript script, Clock clock, PrintStream out, Transport transport, ServerLink.Timing timing) {
+        String instance = "i_" + UUID.randomUUID().toString().substring(0, 8);
+        Path root = (f.outbox() != null ? f.outbox() : Path.of(DEFAULT_OUTBOX)).resolve(name);
+        Outbox own = new Outbox(root.resolve(instance), SEGMENT, CAP_BYTES, CAP_AGE, clock);
+        List<ServerLink.Source> orphans = new ArrayList<>();
+        try (var dirs = Files.list(root)) {
+            dirs.filter(Files::isDirectory).filter(d -> !d.getFileName().toString().equals(instance)).sorted().forEach(d -> {
+                try {
+                    Outbox o = new Outbox(d, SEGMENT, CAP_BYTES, CAP_AGE, clock); // fails when a live process holds it
+                    orphans.add(new ServerLink.Source(o, new Cursor(d, "fabric"), true));
+                } catch (IllegalStateException e) {
+                    // in use by another running process: not ours to drain
+                }
+            });
+        } catch (IOException e) {
+            // no earlier instances
+        }
+        Hello hello = new Hello(name, instance, host(), ProcessHandle.current().pid(), version("ai-agent4j-loom"), version("loom-inspect"), Wire.VERSION, workflows(script));
+        FabricLink[] self = new FabricLink[1];
+        ServerLink link = new ServerLink(name, transport, new ServerLink.Source(own, new Cursor(own.dir(), "fabric"), false), orphans, hello,
+                () -> self[0].currentLadders(), timing, clock, out);
+        FabricLink fl = new FabricLink(own, link, f.flushTimeout(), out);
+        self[0] = fl;
+        fl.timer.scheduleWithFixedDelay(() -> fl.flush(false), 200, 200, TimeUnit.MILLISECONDS);
+        fl.timer.scheduleWithFixedDelay(() -> fl.flush(true), 1000, 1000, TimeUnit.MILLISECONDS);
+        link.start();
+        return fl;
+    }
+
+    private void flush(boolean sync) {
+        try {
+            if (sync) outbox.sync();
+            else outbox.flush();
+        } catch (RuntimeException e) {
+            failed(e);
+        }
+    }
+
+    private Map<String, List<Map<String, Object>>> currentLadders() {
+        Map<String, List<Map<String, Object>>> now = new java.util.LinkedHashMap<>();
+        ladders.forEach((trace, s) -> {
+            try {
+                now.put(trace, s.get());
+            } catch (RuntimeException e) {
+                // a store that cannot be read is simply absent from this heartbeat
+            }
+        });
+        return now;
+    }
+
+    /** Writes what the mapper produced, in the order it came, to the outbox. Never throws. */
+    public void offer(TraceMapper.Output output, Resource resource) {
+        try {
+            if (!output.logs().isEmpty()) outbox.append(("L" + OtlpJson.encodeLogs(resource, "0.1", output.logs())).getBytes(StandardCharsets.UTF_8));
+            if (!output.spans().isEmpty()) outbox.append(("S" + OtlpJson.encodeTraces(resource, "0.1", output.spans())).getBytes(StandardCharsets.UTF_8));
+        } catch (RuntimeException e) {
+            failed(e);
+        }
+    }
+
+    /** A run's graph and ladders, sent now and again after every reconnect. */
+    public void snapshot(Snapshot s, Supplier<List<Map<String, Object>>> ladderSource) {
+        if (ladderSource != null) ladders.put(s.traceId(), ladderSource);
+        link.snapshot(s);
+    }
+
+    private void failed(RuntimeException e) {
+        writeFailures++;
+        long now = System.currentTimeMillis();
+        if (lastReport == 0 || now - lastReport > 60_000) {
+            lastReport = now;
+            out.println("loom-inspect: cannot write the local outbox (" + e.getMessage() + "); " + writeFailures + " record(s) dropped so far. The workflow is not affected.");
+        }
+    }
+
+    public ServerLink link() {
+        return link;
+    }
+
+    public Outbox outbox() {
+        return outbox;
+    }
+
+    /** At the end of the process: a short try at delivering what is left, then stop. What is left stays on disk for the next process of this name. */
+    @Override
+    public void close() {
+        timer.shutdownNow();
+        try {
+            outbox.sync();
+        } catch (RuntimeException e) {
+            failed(e);
+        }
+        link.finish(flushTimeout);
+        link.close();
+        outbox.close();
+    }
+
+    private static String host() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (IOException e) {
+            return "unknown";
+        }
+    }
+
+    private static String version(String artifact) {
+        Package p = FabricLink.class.getPackage();
+        String v = p == null ? null : p.getImplementationVersion();
+        return v == null ? "dev" : v;
+    }
+
+    private static List<Hello.Workflow> workflows(LoomScript script) {
+        List<Hello.Workflow> out = new ArrayList<>();
+        if (script == null) return out;
+        Object g = GraphView.of(script).get("workflows");
+        if (g instanceof List<?> list) {
+            for (Object w : list) {
+                if (w instanceof Map<?, ?> m) out.add(new Hello.Workflow(String.valueOf(m.get("name")), sha(Wire.write(m))));
+            }
+        }
+        return out;
+    }
+
+    private static String sha(String text) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8))).substring(0, 12);
+        } catch (java.security.GeneralSecurityException e) {
+            return "";
+        }
+    }
+}

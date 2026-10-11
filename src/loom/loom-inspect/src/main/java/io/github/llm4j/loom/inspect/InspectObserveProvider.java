@@ -14,6 +14,6 @@ public final class InspectObserveProvider implements ObserveProvider {
 
     @Override
     public Session open(ObserveOptions options, PrintStream out) {
-        return new InspectSession(options);
+        return new InspectSession(options, out);
     }
 }
