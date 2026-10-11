@@ -7,7 +7,7 @@ import io.github.llm4j.loom.inspect.map.GraphView;
 import io.github.llm4j.loom.inspect.map.TraceMapper;
 import io.github.llm4j.loom.inspect.otel.Resource;
 import io.github.llm4j.loom.execution.TraceEvent;
-import io.github.llm4j.loom.inspect.emit.FabricLink;
+import io.github.llm4j.loom.inspect.emit.Outbound;
 import io.github.llm4j.loom.inspect.sink.EventSink;
 import io.github.llm4j.loom.inspect.wire.Snapshot;
 import io.github.llm4j.loom.inspect.state.RunRegistry;
@@ -32,7 +32,7 @@ public final class InspectSession implements ObserveProvider.Session {
     private final ObserveOptions options;
     private final RunRegistry registry = new RunRegistry();
     private final InspectServer server;
-    private FabricLink fabric;
+    private Outbound fabric;
     private boolean fabricFailed;
     private final java.io.PrintStream console;
     private final List<EventSink> sinks = new CopyOnWriteArrayList<>();
@@ -51,23 +51,33 @@ public final class InspectSession implements ObserveProvider.Session {
     }
 
     /** The link to Fabric, opened on the first run: the client key is in that run's secret store. Null when not reporting, or when it could not start. */
-    private synchronized FabricLink fabric(ObservableRun run) {
-        if (options.fabric() == null || fabricFailed) return null;
+    private synchronized Outbound fabric(ObservableRun run) {
+        if ((options.fabric() == null && options.otlp() == null) || fabricFailed) return null;
         if (fabric == null) {
             try {
                 String key = null;
-                try {
-                    key = run.secretStore() == null ? null : run.secretStore().resolve(options.fabric().keySecret());
-                } catch (RuntimeException missing) {
-                    // not in the store: said below, with what to do
+                if (options.fabric() != null) {
+                    try {
+                        key = run.secretStore() == null ? null : run.secretStore().resolve(options.fabric().keySecret());
+                    } catch (RuntimeException missing) {
+                        // not in the store: said below, with what to do
+                    }
+                    if (key == null || key.isBlank()) {
+                        throw new IllegalStateException("the client key is not in the secret store: set it with 'weave secrets set " + options.fabric().keySecret() + "'");
+                    }
                 }
-                if (key == null || key.isBlank()) {
-                    throw new IllegalStateException("the client key is not in the secret store: set it with 'weave secrets set " + options.fabric().keySecret() + "'");
-                }
-                fabric = FabricLink.open(options.name(), options.fabric(), key, run.script(), java.time.Clock.systemUTC(), console);
+                io.github.llm4j.loom.observe.ObservableRun r = run;
+                fabric = Outbound.open(options.name(), new Outbound.Destinations(options.fabric(), key, options.otlp(),
+                        name -> {
+                            try {
+                                return r.secretStore() == null ? null : r.secretStore().resolve(name);
+                            } catch (RuntimeException e) {
+                                return null;
+                            }
+                        }), run.script(), java.time.Clock.systemUTC(), console);
             } catch (RuntimeException e) {
                 fabricFailed = true;
-                console.println("loom-inspect: not reporting to Fabric: " + e.getMessage() + ". The workflow is not affected.");
+                console.println("loom-inspect: not reporting: " + e.getMessage() + ". The workflow is not affected.");
             }
         }
         return fabric;
@@ -76,7 +86,7 @@ public final class InspectSession implements ObserveProvider.Session {
     @Override
     public void attach(ObservableRun run) {
         Detail detail = Detail.parse(options.detail());
-        FabricLink link = fabric(run);
+        Outbound link = fabric(run);
         TraceMapper mapper = new TraceMapper(run.runId(), detail);
         // a new instance id for each attach: a run resumed in this process starts its sequence again, and must not look like a repeat
         Resource resource = Resource.of(options.name(), instance + "-" + attached.incrementAndGet());
@@ -130,7 +140,7 @@ public final class InspectSession implements ObserveProvider.Session {
 
     @Override
     public String describe() {
-        if (server == null) return options.fabric().url().toString();
+        if (server == null) return options.fabric() != null ? options.fabric().url().toString() : options.otlp().endpoint().toString();
         String host = options.bind().contains(":") ? "[" + options.bind() + "]" : options.bind();
         return "http://" + host + ":" + server.port();
     }
@@ -147,7 +157,9 @@ public final class InspectSession implements ObserveProvider.Session {
 
     @Override
     public String summary() {
-        String reporting = options.fabric() == null ? null : "Reporting to " + options.fabric().url() + " as " + options.name() + " (a local outbox keeps events if it is unreachable)";
+        String reporting = null;
+        if (options.fabric() != null) reporting = "Reporting to " + options.fabric().url() + " as " + options.name() + " (a local outbox keeps events if it is unreachable)";
+        if (options.otlp() != null) reporting = (reporting == null ? "" : reporting + "\n🔭 ") + "Exporting OTLP to " + options.otlp().endpoint() + " as " + options.name();
         if (server == null) return reporting;
         return "Watching this run at " + describe() + (reporting == null ? "" : "\n🔭 " + reporting);
     }

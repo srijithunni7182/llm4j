@@ -63,6 +63,8 @@ public final class ServerLink implements AutoCloseable {
     private volatile long sent;
     private volatile long closeDeadline;
     private volatile boolean drainedAtEnd;
+    private volatile java.util.function.LongSupplier trimLimit;
+    private volatile boolean keepOrphans;
     private long lastReport;
 
     public ServerLink(String client, Transport transport, Source own, List<Source> orphans, Hello hello,
@@ -82,6 +84,16 @@ public final class ServerLink implements AutoCloseable {
 
     public void start() {
         thread.start();
+    }
+
+    /** With a second destination reading the same log, nothing may be trimmed past what that one has also acknowledged. */
+    public void trimLimit(java.util.function.LongSupplier limit) {
+        this.trimLimit = limit;
+    }
+
+    /** Leave an emptied earlier instance's directory in place (another destination has not drained it). */
+    public void keepOrphans(boolean keep) {
+        this.keepOrphans = keep;
     }
 
     /** True while the server is reachable and accepting. */
@@ -202,7 +214,7 @@ public final class ServerLink implements AutoCloseable {
             }
             List<Outbox.Entry> batch = s.outbox().read(s.cursor().get(), BATCH);
             if (batch.isEmpty()) {
-                if (s.orphan()) finished(s); // we hold its lock, so nobody else is writing to it
+                if (s.orphan() && !keepOrphans) finished(s); // we hold its lock, so nobody else is writing to it
                 continue;
             }
             int i = 0;
@@ -215,7 +227,9 @@ public final class ServerLink implements AutoCloseable {
                 sent += j - i;
                 i = j;
             }
-            s.outbox().trim(s.cursor().get());
+            long limit = s.cursor().get();
+            if (!s.orphan() && trimLimit != null) limit = Math.min(limit, trimLimit.getAsLong());
+            s.outbox().trim(limit);
             return batch.size();
         }
         return 0;

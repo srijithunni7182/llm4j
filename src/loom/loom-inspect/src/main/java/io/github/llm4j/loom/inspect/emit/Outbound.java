@@ -10,6 +10,7 @@ import io.github.llm4j.loom.inspect.wire.Hello;
 import io.github.llm4j.loom.inspect.wire.Snapshot;
 import io.github.llm4j.loom.inspect.wire.Wire;
 import io.github.llm4j.loom.observe.FabricOptions;
+import io.github.llm4j.loom.observe.OtlpOptions;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.InetAddress;
@@ -31,11 +32,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
- * This process's side of reporting to Fabric: the durable outbox, the thread that sends it, and the timer that flushes it (every 200 ms)
+ * This process's side of reporting, to Fabric and/or an OTLP endpoint: the durable outbox, the thread that sends it, and the timer that flushes it (every 200 ms)
  * and forces it to disk (every second), which is the stated bound on what a crash or power cut can lose. Writing is on the event sink's
  * thread, never the workflow's, and a failure to write (a full disk) is counted and reported at most once a minute; it never reaches the run.
  */
-public final class FabricLink implements AutoCloseable {
+public final class Outbound implements AutoCloseable {
 
     private static final long SEGMENT = 8L * 1024 * 1024;
     private static final long CAP_BYTES = 256L * 1024 * 1024;
@@ -50,6 +51,7 @@ public final class FabricLink implements AutoCloseable {
 
     private final Outbox outbox;
     private final ServerLink link;
+    private final OtlpExport otlp;
     private final ScheduledExecutorService timer;
     private final Duration flushTimeout;
     private final PrintStream out;
@@ -57,9 +59,10 @@ public final class FabricLink implements AutoCloseable {
     private volatile long writeFailures;
     private volatile long lastReport;
 
-    private FabricLink(Outbox outbox, ServerLink link, Duration flushTimeout, PrintStream out) {
+    private Outbound(Outbox outbox, ServerLink link, OtlpExport otlp, Duration flushTimeout, PrintStream out) {
         this.outbox = outbox;
         this.link = link;
+        this.otlp = otlp;
         this.flushTimeout = flushTimeout;
         this.out = out;
         this.timer = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -69,39 +72,64 @@ public final class FabricLink implements AutoCloseable {
         });
     }
 
+    /** Where the events go. Either may be null; at least one is not. */
+    public record Destinations(FabricOptions fabric, String fabricKey, OtlpOptions otlp, java.util.function.UnaryOperator<String> secrets) { }
+
     /** Opens the outbox for this process name and instance, picks up the logs earlier instances left, and starts sending. */
-    public static FabricLink open(String name, FabricOptions f, String key, LoomScript script, Clock clock, PrintStream out) {
-        javax.net.ssl.SSLContext tls = "https".equalsIgnoreCase(f.url().getScheme()) ? Tls.clientContext(f.ca(), f.caOnly(), f.pin()) : null;
-        return open(name, f, script, clock, out, new HttpTransport(f.url(), tls, name, key, clock), timing);
+    public static Outbound open(String name, Destinations d, LoomScript script, Clock clock, PrintStream out) {
+        Transport transport = null;
+        if (d.fabric() != null) {
+            FabricOptions f = d.fabric();
+            javax.net.ssl.SSLContext tls = "https".equalsIgnoreCase(f.url().getScheme()) ? Tls.clientContext(f.ca(), f.caOnly(), f.pin()) : null;
+            transport = new HttpTransport(f.url(), tls, name, d.fabricKey(), clock);
+        }
+        OtlpExport.Sender sender = d.otlp() == null ? null
+                : OtlpExport.http(d.otlp().endpoint(), OtlpExport.resolveHeaders(d.otlp().headers(), d.secrets()));
+        java.nio.file.Path dir = d.fabric() != null ? d.fabric().outbox() : d.otlp().outbox();
+        Duration flush = d.fabric() != null ? d.fabric().flushTimeout() : FabricOptions.DEFAULT_FLUSH;
+        return open(name, dir, transport, sender, flush, script, clock, out, timing);
     }
 
-    /** As {@link #open(String, FabricOptions, String, LoomScript, Clock, PrintStream)} with the transport and timing given (tests). */
-    public static FabricLink open(String name, FabricOptions f, LoomScript script, Clock clock, PrintStream out, Transport transport, ServerLink.Timing timing) {
+    /** As above with the transports and timing given (tests). Either transport may be null. */
+    public static Outbound open(String name, Path outboxDir, Transport transport, OtlpExport.Sender otlpSender, Duration flushTimeout, LoomScript script,
+                                Clock clock, PrintStream out, ServerLink.Timing timing) {
         String instance = "i_" + UUID.randomUUID().toString().substring(0, 8);
-        Path root = (f.outbox() != null ? f.outbox() : Path.of(DEFAULT_OUTBOX)).resolve(name);
+        Path root = (outboxDir != null ? outboxDir : Path.of(DEFAULT_OUTBOX)).resolve(name);
         Outbox own = new Outbox(root.resolve(instance), SEGMENT, CAP_BYTES, CAP_AGE, clock);
         List<ServerLink.Source> orphans = new ArrayList<>();
-        try (var dirs = Files.list(root)) {
-            dirs.filter(Files::isDirectory).filter(d -> !d.getFileName().toString().equals(instance)).sorted().forEach(d -> {
-                try {
-                    Outbox o = new Outbox(d, SEGMENT, CAP_BYTES, CAP_AGE, clock); // fails when a live process holds it
-                    orphans.add(new ServerLink.Source(o, new Cursor(d, "fabric"), true));
-                } catch (IllegalStateException e) {
-                    // in use by another running process: not ours to drain
-                }
-            });
-        } catch (IOException e) {
-            // no earlier instances
+        if (transport != null) {
+            try (var dirs = Files.list(root)) {
+                dirs.filter(Files::isDirectory).filter(d -> !d.getFileName().toString().equals(instance)).sorted().forEach(d -> {
+                    try {
+                        Outbox o = new Outbox(d, SEGMENT, CAP_BYTES, CAP_AGE, clock); // fails when a live process holds it
+                        orphans.add(new ServerLink.Source(o, new Cursor(d, "fabric"), true));
+                    } catch (IllegalStateException e) {
+                        // in use by another running process: not ours to drain
+                    }
+                });
+            } catch (IOException e) {
+                // no earlier instances
+            }
         }
-        Hello hello = new Hello(name, instance, host(), ProcessHandle.current().pid(), version("ai-agent4j-loom"), version("loom-inspect"), Wire.VERSION, workflows(script));
-        FabricLink[] self = new FabricLink[1];
-        ServerLink link = new ServerLink(name, transport, new ServerLink.Source(own, new Cursor(own.dir(), "fabric"), false), orphans, hello,
-                () -> self[0].currentLadders(), timing, clock, out);
-        FabricLink fl = new FabricLink(own, link, f.flushTimeout(), out);
+        Outbound[] self = new Outbound[1];
+        Cursor fabricCursor = new Cursor(own.dir(), "fabric");
+        Cursor otlpCursor = new Cursor(own.dir(), "otlp");
+        java.util.function.LongSupplier minCursor = () -> Math.min(transport == null ? Long.MAX_VALUE : fabricCursor.get(), otlpSender == null ? Long.MAX_VALUE : otlpCursor.get());
+        ServerLink link = null;
+        if (transport != null) {
+            Hello hello = new Hello(name, instance, host(), ProcessHandle.current().pid(), version("ai-agent4j-loom"), version("loom-inspect"), Wire.VERSION, workflows(script));
+            link = new ServerLink(name, transport, new ServerLink.Source(own, fabricCursor, false), orphans, hello, () -> self[0].currentLadders(), timing, clock, out);
+            link.trimLimit(minCursor);
+            link.keepOrphans(otlpSender != null);
+        }
+        OtlpExport export = otlpSender == null ? null
+                : new OtlpExport(own, otlpCursor, otlpSender, timing, out, acked -> own.trim(minCursor.getAsLong()));
+        Outbound fl = new Outbound(own, link, export, flushTimeout, out);
         self[0] = fl;
         fl.timer.scheduleWithFixedDelay(() -> fl.flush(false), 200, 200, TimeUnit.MILLISECONDS);
         fl.timer.scheduleWithFixedDelay(() -> fl.flush(true), 1000, 1000, TimeUnit.MILLISECONDS);
-        link.start();
+        if (link != null) link.start();
+        if (export != null) export.start();
         return fl;
     }
 
@@ -139,7 +167,7 @@ public final class FabricLink implements AutoCloseable {
     /** A run's graph and ladders, sent now and again after every reconnect. */
     public void snapshot(Snapshot s, Supplier<List<Map<String, Object>>> ladderSource) {
         if (ladderSource != null) ladders.put(s.traceId(), ladderSource);
-        link.snapshot(s);
+        if (link != null) link.snapshot(s);
     }
 
     private void failed(RuntimeException e) {
@@ -168,8 +196,10 @@ public final class FabricLink implements AutoCloseable {
         } catch (RuntimeException e) {
             failed(e);
         }
-        link.finish(flushTimeout);
-        link.close();
+        if (link != null) link.finish(flushTimeout);
+        if (otlp != null) otlp.finish(flushTimeout);
+        if (link != null) link.close();
+        if (otlp != null) otlp.close();
         outbox.close();
     }
 
@@ -182,7 +212,7 @@ public final class FabricLink implements AutoCloseable {
     }
 
     private static String version(String artifact) {
-        Package p = FabricLink.class.getPackage();
+        Package p = Outbound.class.getPackage();
         String v = p == null ? null : p.getImplementationVersion();
         return v == null ? "dev" : v;
     }

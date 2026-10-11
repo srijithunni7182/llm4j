@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
@@ -77,5 +78,17 @@ class FabricOptionsTest {
     void theNameIsChecked_andTheFlushTimeoutParsed() {
         assertThatThrownBy(() -> FabricOptions.parse("https://x.example.com", "bad name!", null, false, null, null, null, null)).hasMessageContaining("letters");
         assertThat(FabricOptions.parse("https://x.example.com", "p", null, false, null, null, null, "10s").flushTimeout().getSeconds()).isEqualTo(10);
+    }
+
+    @Test
+    void anOtlpEndpointNeedsAName_https_andWellFormedHeaders_andCanBeUsedAlone() {
+        assertThatThrownBy(() -> OtlpOptions.parse("https://c.example.com:4318", List.of(), null)).hasMessageContaining("--observe-name");
+        assertThatThrownBy(() -> OtlpOptions.parse("http://c.example.com", List.of(), "p")).hasMessageContaining("https");
+        assertThatThrownBy(() -> OtlpOptions.parse("https://c.example.com", List.of("no equals sign"), "p")).hasMessageContaining("Name=value");
+        assertThat(OtlpOptions.parse("http://127.0.0.1:4318", List.of("Authorization=Bearer ${secret:OTLP_TOKEN}"), "p").headers()).hasSize(1);
+        ObserveOptions o = ObserveOptions.fromCommandLine(null, null, null, "p", null, null, null, false, null, null, null, null, "https://c.example.com:4318", List.of("X-Team=a"), NO_ENV);
+        assertThat(o.embedded()).isFalse();
+        assertThat(o.fabric()).isNull();
+        assertThat(o.otlp().endpoint().getHost()).isEqualTo("c.example.com");
     }
 }

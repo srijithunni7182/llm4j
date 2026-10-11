@@ -15,8 +15,9 @@ import java.util.regex.Pattern;
  * @param linger how long to keep the page up after the run ends, so its final state can be read
  * @param embedded serve the page from this process ({@code --observe}); false when only reporting to a Fabric server
  * @param fabric where to report, or null
+ * @param otlp an OpenTelemetry endpoint to export to, or null
  */
-public record ObserveOptions(int port, String bind, String detail, String name, Duration linger, boolean embedded, FabricOptions fabric) {
+public record ObserveOptions(int port, String bind, String detail, String name, Duration linger, boolean embedded, FabricOptions fabric, OtlpOptions otlp) {
 
     public static final int DEFAULT_PORT = 8787;
     public static final String DEFAULT_BIND = "127.0.0.1";
@@ -24,7 +25,11 @@ public record ObserveOptions(int port, String bind, String detail, String name, 
 
     /** The embedded page only. */
     public ObserveOptions(int port, String bind, String detail, String name, Duration linger) {
-        this(port, bind, detail, name, linger, true, null);
+        this(port, bind, detail, name, linger, true, null, null);
+    }
+
+    public ObserveOptions(int port, String bind, String detail, String name, Duration linger, boolean embedded, FabricOptions fabric) {
+        this(port, bind, detail, name, linger, embedded, fabric, null);
     }
 
     public ObserveOptions {
@@ -59,12 +64,21 @@ public record ObserveOptions(int port, String bind, String detail, String name, 
      */
     public static ObserveOptions fromCommandLine(String observe, String bind, String detail, String name, String linger, String fabricUrl, String ca,
                                                  boolean caOnly, String pin, String outbox, String keySecret, String flush, java.util.function.Function<String, String> env) {
+        return fromCommandLine(observe, bind, detail, name, linger, fabricUrl, ca, caOnly, pin, outbox, keySecret, flush, null, null, env);
+    }
+
+    /** As above with an OTLP endpoint and its headers ({@code --observe-otlp}, {@code --observe-otlp-header}). */
+    public static ObserveOptions fromCommandLine(String observe, String bind, String detail, String name, String linger, String fabricUrl, String ca,
+                                                 boolean caOnly, String pin, String outbox, String keySecret, String flush, String otlp, java.util.List<String> otlpHeaders,
+                                                 java.util.function.Function<String, String> env) {
         String url = first(fabricUrl, env.apply("LOOM_FABRIC_URL"));
-        if (observe == null && url == null) return null;
+        String collector = first(otlp, null);
+        if (observe == null && url == null && collector == null) return null;
+        OtlpOptions exporting = collector == null ? null : OtlpOptions.parse(collector, otlpHeaders, name, outbox);
         FabricOptions fabric = url == null ? null
                 : FabricOptions.parse(url, name, first(ca, env.apply("LOOM_FABRIC_CA")), caOnly, first(pin, env.apply("LOOM_FABRIC_PIN")), outbox, keySecret, flush);
         ObserveOptions base = parse(observe, bind, detail, name, linger);
-        return new ObserveOptions(base.port(), base.bind(), base.detail(), base.name(), base.linger(), observe != null, fabric);
+        return new ObserveOptions(base.port(), base.bind(), base.detail(), base.name(), base.linger(), observe != null, fabric, exporting);
     }
 
     private static String first(String a, String b) {

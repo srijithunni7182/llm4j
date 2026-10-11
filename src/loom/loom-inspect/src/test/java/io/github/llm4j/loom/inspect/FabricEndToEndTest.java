@@ -9,7 +9,7 @@ import io.github.llm4j.loom.execution.LLMClientFactory;
 import io.github.llm4j.loom.execution.ToolRegistry;
 import io.github.llm4j.loom.fabric.FabricServer;
 import io.github.llm4j.loom.fabric.Vault;
-import io.github.llm4j.loom.inspect.emit.FabricLink;
+import io.github.llm4j.loom.inspect.emit.Outbound;
 import io.github.llm4j.loom.inspect.emit.ServerLink;
 import io.github.llm4j.loom.inspect.otel.Ids;
 import io.github.llm4j.loom.inspect.state.RunState;
@@ -57,7 +57,7 @@ class FabricEndToEndTest {
 
     @AfterEach
     void stop() {
-        FabricLink.useTiming(null);
+        Outbound.useTiming(null);
         if (session != null) session.close();
         if (server != null) server.close();
     }
@@ -82,7 +82,7 @@ class FabricEndToEndTest {
     }
 
     private InspectSession openSession(int port) {
-        FabricLink.useTiming(new ServerLink.Timing(Duration.ofMillis(10), Duration.ofMillis(100), Duration.ofMillis(20), Duration.ofMillis(100)));
+        Outbound.useTiming(new ServerLink.Timing(Duration.ofMillis(10), Duration.ofMillis(100), Duration.ofMillis(20), Duration.ofMillis(100)));
         FabricOptions f = FabricOptions.parse("http://127.0.0.1:" + port, "alpha", null, false, null, dir.resolve("outbox").toString(), null, "3s");
         ObserveOptions o = new ObserveOptions(0, null, "full", "alpha", Duration.ZERO, false, f);
         return (InspectSession) new InspectObserveProvider().open(o, new PrintStream(console));
@@ -198,6 +198,34 @@ class FabricEndToEndTest {
         session.attach(e.observable());
         e.initialize();
         e.executeWorkflow("Main", Map.of());
-        assertThat(console.toString()).contains("not reporting to Fabric").contains("weave secrets set LOOM_FABRIC_CLIENT_KEY");
+        assertThat(console.toString()).contains("not reporting").contains("weave secrets set LOOM_FABRIC_CLIENT_KEY");
+    }
+
+    @Test
+    void otlpAloneExportsARealRunToAStandardEndpoint_asServiceNameAndSteps() throws Exception {
+        List<String> bodies = new java.util.concurrent.CopyOnWriteArrayList<>();
+        com.sun.net.httpserver.HttpServer collector = com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
+        collector.createContext("/", x -> {
+            bodies.add(x.getRequestURI().getPath() + " " + x.getRequestHeaders().getFirst("Authorization") + " " + new String(x.getRequestBody().readAllBytes()));
+            x.sendResponseHeaders(200, -1);
+            x.close();
+        });
+        collector.start();
+        try {
+            Outbound.useTiming(new ServerLink.Timing(Duration.ofMillis(10), Duration.ofMillis(100), Duration.ofMillis(20), Duration.ofMillis(100)));
+            ObserveOptions o = ObserveOptions.fromCommandLine(null, null, "full", "alpha", null, null, null, false, null, dir.resolve("outbox").toString(), null, null,
+                    "http://127.0.0.1:" + collector.getAddress().getPort(), List.of("Authorization=Bearer ${secret:OTLP_TOKEN}"), k -> null);
+            session = (InspectSession) new InspectObserveProvider().open(o, new PrintStream(console));
+            HarnessExecutor e = executor("unused");
+            ((InMemorySecretStore) e.observable().secretStore()).put("OTLP_TOKEN", "tok-123");
+            session.attach(e.observable());
+            e.initialize();
+            e.executeWorkflow("Main", Map.of());
+            until(() -> bodies.stream().anyMatch(b -> b.startsWith("/v1/traces")) && bodies.stream().anyMatch(b -> b.startsWith("/v1/logs")));
+            assertThat(bodies).allSatisfy(b -> assertThat(b).contains("Bearer tok-123"));
+            assertThat(String.join("\n", bodies)).contains("\"service.name\"").contains("alpha").contains("invoke_agent Researcher").contains("execute_tool Lookup");
+        } finally {
+            collector.stop(0);
+        }
     }
 }
