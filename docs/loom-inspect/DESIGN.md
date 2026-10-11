@@ -19,7 +19,9 @@ The UI mockups are the design system at https://claude.ai/artifact/G8ah58W5edzPP
 | 9 | The admin password is a secret in the app's store (`LOOM_INSPECT_ADMIN_PASSWORD`), so it is set and rotated like any other key. |
 | 10 | **Remote mode centres on `loom-inspect-server`:** a standalone, packaged server you install on any machine. A workflow process is given its URL up front on the `weave` command line (`--observe-server <url>`). There is no listener on the workflow process and no dynamic webhook registration. |
 | 11 | **Many processes, one server.** Any number of workflow processes report to the same server, and all their workflows are monitored together: one tab per workflow, each run tagged with the process it came from. |
-| 12 | Processes only connect outward. Pause, suspend and stop travel back in the server's response. Secret values never leave a process, and secret rotation stays in embedded mode. |
+| 12 | Processes only connect outward. Pause, suspend and stop arrive on an outbound long-poll the process holds open. Secret values never leave a process, and secret rotation stays in embedded mode. |
+| 20 | **The wire format follows OpenTelemetry.** A run is a trace, steps are spans, live lifecycle events are log records, and totals are metrics, sent as OTLP/HTTP JSON using the GenAI semantic conventions where they exist and `loom.*` attributes for the rest. Only the parts OpenTelemetry has no concept of (hello, snapshot, commands) travel outside it. |
+| 21 | Because the format is standard, a process can also export the same data to any OTLP collector (Grafana, Tempo, Datadog, Honeycomb) with `--observe-otlp <endpoint>`, independently of the inspect server. |
 | 13 | The server keeps history on disk (retention 30 days or 2 GB, oldest finished runs first) and has its own secret store, which holds each client's key and the admin password. |
 | 14 | One key per process. Every process is named on purpose: `--observe-name` is required with `--observe-server`. |
 | 15 | No merging across processes: each process's workflows get their own tabs, grouped under the process name. |
@@ -66,7 +68,7 @@ Order of value: C5 and C6 first (they make loom-inspect reachable), then C2 and 
 
 Three Maven modules under `src/loom/`, all listed in the root `pom.xml` next to `ai-agent4j-loom`:
 
-- **`loom-inspect-core`**: everything that turns events into a view and has no dependency on the Loom runtime. The versioned wire format (`InspectEvent`, `Snapshot`), `RunState`, the detectors, the JSON view API, the static UI, and the `Receiver` that accepts batches.
+- **`loom-inspect-core`**: everything that turns events into a view and has no dependency on the Loom runtime. The OpenTelemetry-shaped model and OTLP/JSON codec (`otel/`), the Loom-specific messages (`wire/`), `RunState`, the detectors, the JSON view API, the static UI, and the `Receiver` that accepts batches.
 - **`loom-inspect`**: the add-on jar for the workflow process. Depends on core and on `ai-agent4j-loom`. Holds the trace sink, the embedded HTTP server, the `--observe` CLI provider, secrets and control, and the `ServerLink` that sends events to a server (section 5b).
 - **`loom-inspect-server`**: the packaged, runnable server (section 5b). Depends on core only, so it is small and does not need Loom or any model SDK on the machine it runs on.
 
@@ -99,10 +101,12 @@ loom-inspect/
       SecretsService.java      list metadata, fingerprint, rotate
     control/
       RunController.java       pause, resume, suspend, stop (see C1)
-    wire/                      (core) InspectEvent, Snapshot, Envelope: versioned JSON, seq numbers
-    receive/                   (core) Receiver: verify signature, dedup by (client, run, seq), feed Pump, reply with ack and commands
+    otel/                      (core) OTLP/JSON codec (no OpenTelemetry SDK), ids, attribute names, the TraceEvent mapper
+    wire/                      (core) Hello, Snapshot, Heartbeat, Command: the few Loom-specific messages
+    receive/                   (core) Receiver: OTLP endpoints, verify signature, dedup, feed Pump, serve the command long-poll
     emit/
-      ServerLink.java          one outbound connection to a server: hello, snapshot, batching, retry, backoff, heartbeat
+      ServerLink.java          one outbound connection to a server: hello, snapshot, OTLP batching, retry, backoff, heartbeat, command long-poll
+      OtlpExport.java          the same data to any OTLP collector (--observe-otlp), plain bearer headers
       Signer.java              HMAC-SHA256 over timestamp + body, client key from the secret store
       CommandExec.java         verifies and runs commands from a server reply, through RunController
     cli/
@@ -166,10 +170,10 @@ The page is organised by workflow, matching how you think about the system:
 For when you want one place to watch everything: several workflow processes, on several machines, reporting to a single admin page that is not inside any of them.
 
 ```
- workflow process A ─┐
- (getviral-prod)     │     signed batches          ┌──────────────────────────┐
+  workflow process A ─┐
+ (getviral-prod)     │     OTLP, signed            ┌──────────────────────────┐
                      ├───────────────────────────▶ │ loom-inspect-server      │ ◀────▶  browser: one console,
- workflow process B ─┤  ◀─── ack + commands ────── │  receiver · state        │         every workflow of every
+ workflow process B ─┤  ◀─── commands (long-poll) ── │  receiver · state        │         every workflow of every
  (billing-svc)       │                             │  detectors · history     │         process, one tab each
  workflow process C ─┘                             │  UI · own secret store   │
                                                    └──────────────────────────┘
@@ -211,35 +215,53 @@ LOOM_INSPECT_SERVER=https://inspect.example.com:9090 weave run flow.loom --secre
 - `--observe` (embedded page) and `--observe-server` can be used together.
 - **If the server is unreachable the run goes on.** The process keeps a bounded queue, retries with backoff, and sends a fresh snapshot when the server returns. A wrong key or an unsupported version is reported once on the console and reporting stops; it never stops the workflow.
 
-### What a process sends
+### What a process sends: OpenTelemetry-shaped
 
-One wire format for everything, versioned (`v: 1`):
+The data follows OpenTelemetry so that anything that understands OTLP can read it, and so that loom-inspect does not invent a second vocabulary for "a step that took 12 seconds and used 5,000 tokens". It is OTLP over HTTP with JSON encoding. loom-inspect writes and reads that JSON itself, with no OpenTelemetry SDK dependency, in keeping with the stack's no-vendor-SDK stance. (A bridge to the SDK is a later option.)
 
-1. **`hello`**, when the process connects: a per-start instance id, the name, host, process id, Loom and loom-inspect versions, the workflows it knows (name, script hash), and its wire version. The server answers with the range of wire versions it accepts. A process newer or older than the server degrades gracefully: unknown fields are ignored, and an unsupported wire version is shown on the Processes page rather than failing silently.
-2. **`snapshot`**, for each live run on connect and after any gap: run info, the static graph, agents, thresholds from the script's `inspect` blocks, budgets, spend so far, autonomy ladders, pending questions, and **secrets metadata** (name, hosts, updated, fingerprint, used-by; never values).
-3. **Deltas**: every trace event from section 2, plus `llm_call` and `secret_use` when C2 and C3 exist, each with a per-run `seq`, in batches of up to 200 events or one second.
-4. **`heartbeat`** every 5 seconds, so a quiet process is told apart from a dead one, and **`bye`** on a clean exit.
+**Resource** (who is reporting), on every request: `service.name` = the `--observe-name`, `service.instance.id` = a per-start id, `service.version`, `host.name`, `process.pid`, `telemetry.sdk.name` = `loom-inspect`, `loom.version`.
 
-```json
-{ "v": 1, "client": "getviral-prod", "instance": "i_52c1", "delivery": "d_8f21",
-  "sent": "2026-10-11T14:08:52Z",
-  "events": [ { "run": "r-7f3a", "workflow": "ContentStudio", "seq": 12408, "at": "...",
-                "type": "action", "agent": "Fact-Checker", "step": "main/s4/p1",
-                "text": "Fetch healthline.com/…", "data": { "tool": "Fetch" } } ] }
-```
+**A run is a trace; a step is a span.** The trace id is derived from the run id (a stable hash), so a run keeps one trace across pauses, sleeps and restarts. Span ids are derived from the step id and rewind generation, so they are the same after a resume.
 
-- Delivery is at least once and in order per run. The server drops anything it has seen, keyed by `(client, run, seq)`, and asks for a resync on a gap.
-- Each process has its own bounded queue (default 10,000 events). On overflow the oldest events are dropped, a `dropped` counter is kept and shown, and a snapshot follows recovery.
-- Emitting runs on its own thread behind the sink's queue. A slow or down server cannot slow or fail a workflow.
-- **Redaction and truncation happen in the workflow process, before an event leaves it**, according to `--observe-detail full|truncated|metadata` (default `truncated`: 500 characters, guard and redaction rules applied first).
+| Loom | OpenTelemetry |
+|---|---|
+| The run | Trace. Root span `loom.workflow <name>` with `loom.workflow`, `loom.run.id` |
+| `delegate` to an agent | Span `invoke_agent <Agent>` with `gen_ai.operation.name=invoke_agent`, `gen_ai.agent.name` |
+| A model call | Child span `chat <model>` with `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens`, `gen_ai.response.finish_reasons`, plus `loom.cost.usd` |
+| A tool call | Child span `execute_tool <name>` with `gen_ai.tool.name`; status `ERROR` and `error.type` when it fails |
+| `run` (a task) | Span `loom.task <Name>` |
+| `sleep`, `human_prompt`, approvals | Spans `loom.sleep` (with `loom.sleep.wake_at`), `loom.human_prompt`, `loom.approval` |
+| `loop`, `for each`, `parallel`, `alt` | Spans `loom.loop` (with `loom.loop.round`), `loom.for_each`, `loom.parallel`, `loom.alt` |
+| `checkpoint`, `rewind`, budget warnings, guard findings, decision proposals | Span events (and log records) with `loom.*` attributes, for example `loom.rewind.to`, `loom.rewind.generation` |
+| A decision's rung | Attributes `loom.decision.name`, `loom.autonomy.level` (`watch`, `suggest`, `act`) on the decision span |
+| Tokens, time, cost, activity | Metrics: `gen_ai.client.token.usage` and `gen_ai.client.operation.duration` (the standard ones), and `loom.run.cost` (USD counter), `loom.tool.calls` (by tool and status), `loom.runs.active`, `loom.incidents.open` |
+
+**Live state needs more than finished spans.** OpenTelemetry exports a span when it ends, but a console must show a 30-minute run's step while it is running. So the process sends, for each step, a log record `loom.span.start` (with the trace and span ids and attributes) when the step begins, and the span itself when it ends. The receiver treats a start with no end as "running". A step that crosses a pause or a restart is closed by whoever finishes it: the start time is journaled, and span ids are deterministic, so the process that wakes a `sleep` can export the completed span with its original start time.
+
+**Ordering and loss.** OTLP has no sequence numbers, so every lifecycle log record carries `loom.seq` (continuous per run). The receiver detects a gap from it and asks for a snapshot. Spans are idempotent (the same trace and span id replaces itself), so re-sending is safe. Delivery is at least once; each process has a bounded queue (default 10,000 records) and a `dropped` counter, as before.
+
+**Content follows the detail level.** Prompts, answers and tool arguments are attached only at `--observe-detail full` (as the GenAI conventions' opt-in content attributes); `truncated` (the default) cuts them to 500 characters after the guard and redaction rules; `metadata` sends none. Redaction happens in the workflow process, before anything leaves it.
+
+**The GenAI conventions are still marked as in development.** The mapper pins the convention version it emits (through the OTLP `schema_url`) and keeps the attribute names in one class, so a change in the convention is a one-file change here.
+
+**What is not OpenTelemetry.** A few things have no OTel concept and travel as small versioned JSON messages next to OTLP:
+
+- **`hello`**, when the process connects: instance id, name, host, process id, versions, the workflows it knows (name, script hash), its wire version. The server answers with the versions it accepts; a newer or older process degrades gracefully (unknown fields ignored, an unsupported version shown on the Processes page).
+- **`snapshot`**, for each live run on connect and after any gap: the static graph, agents, thresholds from the script's `inspect` blocks, budgets, spend so far, autonomy ladders, pending questions, and **secrets metadata** (name, hosts, updated, fingerprint, used-by; never values).
+- **`heartbeat`** every 5 seconds, and **`bye`** on a clean exit.
+
+**Endpoints.** The server accepts OTLP at the standard paths `/v1/traces`, `/v1/logs` and `/v1/metrics`, and the Loom-specific messages under `/loom-inspect/v1/` (`hello`, `snapshot`, `heartbeat`, `commands`). Every request carries the client's signature header `X-Loom-Inspect-Signature: t=<unix>,v1=<HMAC-SHA256(client key, timestamp.body)>`. OTLP exporters accept custom headers, so this needs nothing special on the wire; a standard collector simply ignores it.
 
 ### What comes back
 
-The server answers each batch with `{ "ack": { "r-7f3a": 12408 }, "commands": [ ... ] }`, signed with the client's key.
+OTLP responses cannot carry commands, so commands use a separate outbound **long-poll**: the process asks `GET /loom-inspect/v1/commands?wait=25s` and the server answers the moment a command is queued (or with an empty reply after 25 seconds, and the process asks again). The process stays outbound-only, and a command now arrives in well under a second rather than waiting for the next batch.
 
-- **`ack`** lets the process trim its queue. It also carries the server's clock, so a process can warn when the two clocks differ by more than the signature window.
-- **`commands`** are `pause`, `resume`, `suspend` and `stop` for a named run on that process. The process verifies the signature and timestamp, executes through `RunController` (C1), and reports the outcome as a `command_result` event. A command waits for the next response (about a second while events flow, up to a heartbeat when idle) and expires after 60 seconds if the process cannot be reached.
-- Commands are issued only by a signed-in admin in the server's UI, and every one is audited with who, when, which process and run.
+- **`commands`** are `pause`, `resume`, `suspend` and `stop` for a named run on that process, signed with the client's key. The process verifies the signature and timestamp, executes through `RunController` (C1), and reports the outcome as a `loom.command.result` log record. A command expires after 60 seconds if the process cannot be reached.
+- **Acknowledgement and clock.** The `heartbeat` reply carries the server's clock, so a process can warn when the two clocks differ by more than the signature window.
+
+### Exporting to any collector
+
+`--observe-otlp <endpoint>` (with `--observe-otlp-header "Authorization=Bearer …"`, the key taken from the secret store) sends the same traces, logs and metrics to a standard OTLP endpoint: an OpenTelemetry Collector, Grafana Tempo and Mimir, Honeycomb, Datadog's OTLP intake. It is independent of `--observe-server` and can be used with or without it. It sends only OTLP, with no hello, snapshot or commands, because a generic backend has nowhere to put them. This is the cheap hedge: even if loom-inspect is never opened, the data already exists in the tools a team uses for everything else.
 
 ### Workflows across processes
 
@@ -259,7 +281,7 @@ The console is the same as before; what changes is where the tabs come from.
 
 ### How it looks
 
-The same console, with a connection chip in the header: **Live** (with lag), **Lagging** (events behind), **Resynced** (a gap was repaired from a snapshot) and **Stale** (no heartbeat for three intervals; the view is dimmed and every "running" becomes "last seen running at …"). Pause, suspend and stop show "queued" until the command result arrives.
+The same console, with a connection chip in the header: **Live** (with lag), **Lagging** (events behind), **Resynced** (a gap was repaired from a snapshot) and **Stale** (no heartbeat for three intervals; the view is dimmed and every "running" becomes "last seen running at …"). Pause, suspend and stop show "queued" until the command result arrives (normally well under a second).
 
 ## 6. Thresholds in the script (proposed syntax, needs C4)
 
@@ -396,7 +418,7 @@ Not in v1: mutual TLS (client certificates). The per-client signing key already 
 - **Secrets tests.** Rotate against `InMemorySecretStore` and `EncryptedFileSecretStore`; read-only store gives a read-only row; no response, log or audit line contains the value.
 - **Security tests.** Unauthenticated, viewer and admin access to every route; CSRF and same-origin rejection; refusal to bind a public address without TLS.
 - **Overhead check.** Run a recorded workflow with and without the sink; the added time should be a small fraction of one model call.
-- **Delivery tests (server mode).** A server that fails, lags or drops: assert ordering, de-duplication by `(run, seq)`, bounded queue with a drop counter, snapshot after a gap, backoff, and that the run thread never blocks. Signature tests: wrong key, stale timestamp, tampered body, forged command.
+- **Delivery tests (server mode).** A server that fails, lags or drops: assert ordering by `loom.seq`, idempotent re-sent spans, de-duplication, bounded queue with a drop counter, snapshot after a gap, backoff, and that the run thread never blocks. Signature tests: wrong key, stale timestamp, tampered body, forged command.
 - **Parity test.** Feed the same recorded events through embedded mode and through `ServerLink` to the server; assert the resulting `RunState` JSON is identical.
 - **Multi-process test.** Several simulated clients, including two running the same workflow and one that dies mid-run; assert tabs, run pickers, the Processes page and the stale and `bye` handling. Add a revoked key and a client that claims another's name.
 - **Persistence test.** Stop the server mid-run, restart it, and assert live state is rebuilt from disk and processes resync; assert retention removes the oldest finished runs first.
@@ -412,13 +434,13 @@ The server comes right after the console, so the console works across processes 
 
 | Phase | Delivers | Needs from the core |
 |---|---|---|
-| 0. Wire format | `loom-inspect-core` with `InspectEvent`, `Snapshot` and `RunState`, used by embedded mode too, so server mode is not a rewrite | none |
+| 0. Wire format | `loom-inspect-core` with the OpenTelemetry-shaped model and OTLP/JSON codec, the `TraceEvent` mapper, the Loom-specific messages and `RunState`, used by embedded mode too, so server mode is not a rewrite | none |
 | 0b. Spike | `ObservableRun` (C5), `ObserveProvider` and `--observe` (C6), `EventSink` + `RunState`, `GET /api/runs/{id}` and a bare page showing totals and active agents | C5, C6 (both small, additive) |
 | 1. Console | Graph overlay, agents table, Following trace, spend chart, tools, autonomy ladders (read-only), workflow tabs | C2 helps; C5 or app-supplied stores |
-| 2. Server mode | `ServerLink` in the add-on; the `loom-inspect-server` jar with `init`, `clients`, `serve`, `tls init`; signed ingest, `hello`, snapshots, resync and heartbeat; the Processes page; tabs grouped by process; disk history with 30-day, 2 GB retention; `--observe-server`, `--observe-name`, `--observe-ca`, `--observe-pin`; the connection chip and stale view; the Docker image. Read-only: commands arrive in Phase 5. | C5, C6 |
+| 2. Server mode | `ServerLink` in the add-on; the `loom-inspect-server` jar with `init`, `clients`, `serve`, `tls init`; signed OTLP ingest, `hello`, snapshots, resync and heartbeat; `--observe-otlp` export to any collector; the Processes page; tabs grouped by process; disk history with 30-day, 2 GB retention; `--observe-server`, `--observe-name`, `--observe-ca`, `--observe-pin`; the connection chip and stale view; the Docker image. Read-only: commands arrive in Phase 5. | C5, C6 |
 | 3. Incidents | Rate-limit, loop, grounding and budget detectors with default thresholds; the attention strip | none (heuristics) |
 | 4. Script thresholds | `inspect { }` block in the parser and `weave check` | C4 |
-| 5. Controls | Suspend and stop, then pause; through the embedded page directly and through the server as commands in the response | C1 |
+| 5. Controls | Suspend and stop, then pause; through the embedded page directly and through the server as commands on the long-poll | C1 |
 | 6. Secrets | List, fingerprint, rotate with audit, embedded mode only | C3 for the Status column |
 | 7. Hardening | Admin password hashing, login rate-limiting review, log and body redaction audit, packaging polish | none |
 
@@ -426,7 +448,7 @@ Phases 0 to 3 need only two small additive changes to the core (an interface and
 
 ## 13. Open questions and deferred work
 
-Settled since draft 1: run identity (the executor already has `getRunId()` and `getJournal()`, and `ObservableRun` exposes them), the `--observe` activation, per-workflow tabs, the admin password living in the store, remote mode as a standalone `loom-inspect-server` that many processes report to and that is configured from `weave` up front, one key per process, required process names, tabs per process and workflow with no merging, fixed retention (30 days or 2 GB), TLS trust through `--observe-ca` or a pin, commands carried in the response, and a single admin password.
+Settled since draft 1: run identity (the executor already has `getRunId()` and `getJournal()`, and `ObservableRun` exposes them), the `--observe` activation, per-workflow tabs, the admin password living in the store, remote mode as a standalone `loom-inspect-server` that many processes report to and that is configured from `weave` up front, one key per process, required process names, tabs per process and workflow with no merging, fixed retention (30 days or 2 GB), TLS trust through `--observe-ca` or a pin, commands carried on an outbound long-poll, an OpenTelemetry-shaped wire format with OTLP export, and a single admin password.
 
 **Still open**
 
