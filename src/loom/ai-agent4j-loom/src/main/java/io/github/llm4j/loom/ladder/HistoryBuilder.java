@@ -19,16 +19,32 @@ public final class HistoryBuilder {
      * were decided.
      */
     public static V.Cs history(List<LCase> all, String scope, int epoch) {
+        return history(all, scope, epoch, Map.of());
+    }
+
+    /** As {@link #history(List, String, int)}, reading each remembered value as the type the decision declared for it. */
+    public static V.Cs history(List<LCase> all, String scope, int epoch, Map<String, String> types) {
         List<V.Rec> out = new ArrayList<>();
         for (LCase c : all) {
             if (c.superseded() || !c.responded() || !c.scope().equals(scope)) continue;
             if (epoch >= 0 && c.epoch() != epoch) continue;
-            out.add(record(c));
+            out.add(record(c, types));
         }
         return V.cases(out);
     }
 
-    /** A remembered value (kept as text in the ledger): a number if it is one, {@code true} or {@code false}, else the text. */
+    /** A remembered value read as the declared type: a number or nothing, text as it is, a flag as {@code true}/{@code false} or nothing. */
+    static V declared(String s, String type) {
+        if (s == null) return V.UNDEFINED;
+        switch (type) {
+            case "number": return NUMBER.matcher(s.trim()).matches() ? V.num(Double.parseDouble(s.trim())) : V.UNDEFINED;
+            case "text": return V.str(s);
+            case "flag": return s.equals("true") ? V.bool(true) : s.equals("false") ? V.bool(false) : V.UNDEFINED;
+            default: return typed(s);
+        }
+    }
+
+    /** A remembered value (kept as text in the ledger) with no declared type: a number if it looks like one, {@code true} or {@code false}, else the text. */
     static V typed(String s) {
         if (s == null) return V.UNDEFINED;
         if (NUMBER.matcher(s).matches()) return V.num(Double.parseDouble(s));
@@ -38,8 +54,12 @@ public final class HistoryBuilder {
     }
 
     public static V.Rec record(LCase c) {
+        return record(c, Map.of());
+    }
+
+    public static V.Rec record(LCase c, Map<String, String> types) {
         Map<String, V> f = new LinkedHashMap<>();
-        c.fields().forEach((k, v) -> f.put(k, typed(v)));
+        c.fields().forEach((k, v) -> f.put(k, types.containsKey(k) ? declared(v, types.get(k)) : typed(v)));
         f.put("id", V.str(c.id()));
         f.put("at", V.num(c.at().toEpochMilli()));
         f.put("scope", V.str(c.scope()));

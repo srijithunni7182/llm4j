@@ -39,9 +39,20 @@ public final class CaseFields {
     /** The built-in fields and the values a decision remembers (and groups by), which have no declared type. */
     public static Map<String, T> forDecision(DecisionDef d) {
         Map<String, T> f = builtin();
-        for (String name : d.getRemember()) f.putIfAbsent(name, T.ANY);
+        for (String name : d.getRemember()) f.putIfAbsent(name, declared(d.getRememberTypes().get(name)));
         if (d.getGroupBy() != null) f.putIfAbsent(d.getGroupBy(), T.ANY);
         return f;
+    }
+
+    /** The type a script declared for a remembered value; a value with none declared could be anything. */
+    public static T declared(String word) {
+        if (word == null) return T.ANY;
+        switch (word) {
+            case "number": return T.NUM;
+            case "text": return T.STR;
+            case "flag": return T.BOOL;
+            default: return T.ANY;
+        }
     }
 
     /**

@@ -38,6 +38,7 @@ public class DecisionDef implements Node {
     private final List<String> choices = new ArrayList<>();
     private String groupBy;
     private final List<String> remember = new ArrayList<>();
+    private final Map<String, String> rememberTypes = new LinkedHashMap<>();
     private final List<Mistake> dangerous = new ArrayList<>();
     private String ask;
     private int keepDays;
@@ -79,6 +80,8 @@ public class DecisionDef implements Node {
     public String getGroupBy() { return groupBy; }
     public void setGroupBy(String groupBy) { this.groupBy = groupBy; }
     public List<String> getRemember() { return remember; }
+    /** The declared type of a remembered value ({@code remember: amount: number}): number, text or flag; absent when none was declared. */
+    public Map<String, String> getRememberTypes() { return rememberTypes; }
     public List<Mistake> getDangerous() { return dangerous; }
     public String getAsk() { return ask; }
     public void setAsk(String ask) { this.ask = ask; }

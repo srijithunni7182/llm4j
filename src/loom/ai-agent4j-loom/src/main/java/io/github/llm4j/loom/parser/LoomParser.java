@@ -612,7 +612,17 @@ public class LoomParser {
             } else if (wordIs("remember")) {
                 advance();
                 consume(TokenType.COLON, "Expect ':' after \"remember\".");
-                do d.getRemember().add(consume(TokenType.IDENTIFIER, "Expect a variable name to remember.").getValue()); while (match(TokenType.COMMA));
+                do {
+                    Token variable = consume(TokenType.IDENTIFIER, "Expect a variable name to remember.");
+                    d.getRemember().add(variable.getValue());
+                    if (match(TokenType.COLON)) {
+                        Token type = advance();
+                        if (type.getType() == TokenType.STRING_LITERAL || !java.util.Set.of("number", "text", "flag").contains(type.getValue())) {
+                            throw error(type, "After \"" + variable.getValue() + ":\" write number, text or flag (not \"" + type.getValue() + "\").");
+                        }
+                        d.getRememberTypes().put(variable.getValue(), type.getValue());
+                    }
+                } while (match(TokenType.COMMA));
             } else if (wordIs("dangerous")) {
                 advance();
                 word("mistake", "Write: dangerous mistake: propose approve, person decides reject");

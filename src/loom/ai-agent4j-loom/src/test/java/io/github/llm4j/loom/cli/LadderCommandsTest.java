@@ -155,6 +155,22 @@ class LadderCommandsTest {
     }
 
     @Test
+    void anAgentThatAlwaysEscalatesShowsLowCoverageBesideItsAgreement() throws Exception {
+        agent = f -> "escalate";
+        person = f -> "escalate";
+        for (int i = 0; i < 4; i++) runCase("gold", 10 + i);
+        outBytes.reset();
+        AutonomyCommands.status(store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err);
+        assertThat(out()).contains("coverage 0.0%").contains("always escalates");
+        agent = f -> "approve";
+        person = f -> "approve";
+        for (int i = 0; i < 4; i++) runCase("gold", 30 + i);
+        outBytes.reset();
+        AutonomyCommands.status(store, "Refund", null, false, clock, new PrintStream(outBytes, true), System.err);
+        assertThat(out()).contains("coverage 50.0%");
+    }
+
+    @Test
     void onlyTheNamedApproverApprovesAndTheApprovalMovesTheRungAndIsAudited() throws Exception {
         for (int i = 0; i < 4; i++) runCase("gold", 10 + i);
         assertThat(AutonomyCommands.decide(store, "Refund", "gold", true, "fine", null, "someone-else", env())).isEqualTo(2);

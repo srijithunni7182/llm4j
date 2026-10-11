@@ -1,0 +1,47 @@
+// A fourth kind of agent, not described when the language was designed: it drafts replies to customers.
+// Judged by how much the support agent rewrites, whether the customer complains afterwards, and a mood the case carries.
+import "loom/autonomy"
+
+agent Drafter {
+    model: "ollama/fake"
+    system: "You are Drafter. Draft a reply to the customer."
+    output_schema: { reply: string, reasoning: string }
+}
+
+measure complained(c)  = c.outcomes.complaint == true
+measure resolved(c)    = c.outcomes.resolved_in_hours <= 24
+measure thorough(c)    = c.review_time >= 15s
+
+ladder ReplyLadder(max_rewrite) {
+    rung draft { mode: confirm }
+
+    rung send {
+        mode: autonomous
+        climb when history.where(thorough).count >= 12
+               and history.where(thorough).median(edit_size) <= max_rewrite
+               and history.where(thorough).count(complained) == 0
+               and history.where(resolved).count >= 8
+        slip to draft when history.last(20).count(complained) >= 2,
+                           history.last(20).median(edit_size) > 2 * max_rewrite
+        sample 15% blind
+        escalate when case.mood == "angry", case.customer_tier == "enterprise"
+    }
+
+    climbing needs approval from support-lead
+}
+
+decision Reply {
+    proposed by:   Drafter
+    proposes:      reply
+    group cases by: queue
+    remember:      queue, mood, customer_tier
+    ask:           support-agents
+    ladder:        ReplyLadder(max_rewrite: 15%)
+    ceiling:       send
+    when the agent changes: start over
+}
+
+workflow Answer(queue, mood, customer_tier) {
+    decide Reply -> reply
+    note "{reply}"
+}

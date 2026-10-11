@@ -69,6 +69,12 @@ final class LadderCommands {
             text.append("   (epoch ").append(st.epoch()).append(", agent ").append(AgentIdentity.shorten(st.identity())).append(", served model ")
                     .append(st.servedModel() == null ? "unreported" : st.servedModel()).append(")\n");
             text.append("    ").append(history.cases().size()).append(" answered cases in this epoch\n");
+            if (def.getChoices().contains("escalate") && !history.cases().isEmpty()) {
+                long escalated = history.cases().stream().filter(c -> c.get("proposal") instanceof V.Rec p && p.get("choice") instanceof V.Str ch && ch.value().equals("escalate")).count();
+                double coverage = 1.0 - (double) escalated / history.cases().size();
+                text.append("    coverage ").append(String.format("%.1f%%", coverage * 100)).append(": the share of proposals that were not escalate (an agent that always escalates agrees only when people do)\n");
+                s.put("coverage", coverage);
+            }
 
             int next = st.rung() + 1;
             if (next >= policy.rungs().size() || next > policy.ceiling()) {

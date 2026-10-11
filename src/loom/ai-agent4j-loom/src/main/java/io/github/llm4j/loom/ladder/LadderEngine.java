@@ -74,12 +74,12 @@ public final class LadderEngine {
 
     /** The cases of this scope and epoch that count. */
     public V.Cs history(String scope, int epoch) {
-        return HistoryBuilder.history(cases(), scope, epoch);
+        return HistoryBuilder.history(cases(), scope, epoch, policy.decision().getRememberTypes());
     }
 
     /** The cases of this scope in every epoch. */
     public V.Cs historyAll(String scope) {
-        return HistoryBuilder.history(cases(), scope, -1);
+        return HistoryBuilder.history(cases(), scope, -1, policy.decision().getRememberTypes());
     }
 
     private V.Cs history(String scope, LevelLog.Standing s) {

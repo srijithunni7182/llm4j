@@ -171,7 +171,7 @@ final class LadderDecider {
             String identity = d.identityOf(def);
             LevelLog.Standing st = engine.standing(scope, identity, served);
             V.Rec current = HistoryBuilder.record(new LCase(caseId, def.getName(), scope, run.clock().instant(), st.rungName(), "", identity, st.epoch(), 1, false,
-                    fields, served, null, null, null, null, false, null, List.of(), false, null, null, null, null, false, null, null, List.of()));
+                    fields, served, null, null, null, null, false, null, List.of(), false, null, null, null, null, false, null, null, List.of()), def.getRememberTypes());
             LadderEngine.Plan plan = engine.plan(scope, caseId, st, current, engine.history(scope, st.epoch()), run.clock().millis());
             pick.put("rung", plan.rung());
             pick.put("mode", plan.mode().word());

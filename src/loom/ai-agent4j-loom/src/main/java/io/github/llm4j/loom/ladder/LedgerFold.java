@@ -19,6 +19,7 @@ public final class LedgerFold {
         Rec open;
         Rec proposed;
         Rec responded;
+        Rec decided;
         final List<Rec> outcomes = new ArrayList<>();
     }
 
@@ -33,11 +34,12 @@ public final class LedgerFold {
         }
         for (Rec r : records) {
             if (r.kind().equals(Rec.CASE)) continue;
-            if (r.kind().equals(Rec.PROPOSED) || r.kind().equals(Rec.RESPONDED)) {
+            if (r.kind().equals(Rec.PROPOSED) || r.kind().equals(Rec.RESPONDED) || r.kind().equals(Rec.DECIDED)) {
                 Draft d = drafts.get(r.caseId() + "#" + r.generation());
                 if (d == null) continue;
                 if (r.kind().equals(Rec.PROPOSED)) d.proposed = r;
-                else d.responded = r;
+                else if (r.kind().equals(Rec.RESPONDED)) d.responded = r;
+                else d.decided = r;
             } else if (r.kind().equals(Rec.OUTCOME) && latest.containsKey(r.caseId())) {
                 drafts.get(r.caseId() + "#" + latest.get(r.caseId())).outcomes.add(r);
             }
@@ -49,13 +51,27 @@ public final class LedgerFold {
         return out;
     }
 
+    /**
+     * A case written by the earlier engine has a verdict and not a response: read it as the person accepting the proposal when they chose the same,
+     * and rejecting it when they chose differently. The case keeps counting after a decision moves from a trust block to a ladder.
+     */
+    private static Rec fromVerdict(Draft d) {
+        Rec v = d.decided;
+        if (v == null) return null;
+        String proposed = d.proposed == null ? null : d.proposed.str("choice");
+        String verdict = v.str("verdict");
+        return new Rec(v.id(), v.decision(), Rec.RESPONDED, v.at(), v.caseId(), v.generation(),
+                Rec.map("kind", verdict != null && verdict.equals(proposed) ? "accept" : "reject", "choice", verdict, "by", v.str("decider"),
+                        "shown", v.flag("shown"), "millis", v.num("millis")));
+    }
+
     @SuppressWarnings("unchecked")
     private static LCase build(Draft d, boolean superseded) {
         Rec o = d.open;
         Map<String, String> fields = new LinkedHashMap<>();
         if (o.body().get("fields") instanceof Map<?, ?> m) m.forEach((k, v) -> fields.put(String.valueOf(k), String.valueOf(v)));
         Rec p = d.proposed;
-        Rec r = d.responded;
+        Rec r = d.responded != null ? d.responded : fromVerdict(d);
         List<String> flags = p != null && p.body().get("flags") instanceof List<?> l ? l.stream().map(String::valueOf).toList() : List.of();
         Long millis = r == null ? null : r.num("millis") != null ? Long.valueOf(r.num("millis").longValue())
                 : p != null ? Long.valueOf(Math.max(0, r.at().toEpochMilli() - p.at().toEpochMilli())) : null;

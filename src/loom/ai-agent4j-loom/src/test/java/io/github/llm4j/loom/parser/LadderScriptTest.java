@@ -9,6 +9,7 @@ import io.github.llm4j.loom.lexer.Lexer;
 import io.github.llm4j.loom.lexer.Token;
 import io.github.llm4j.loom.lexer.TokenType;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -180,5 +181,14 @@ class LadderScriptTest {
         assertThatThrownBy(() -> parse(agent + "decision D { proposed by: A choices: a, b ladder: L(x: ) }")).hasMessageContaining("Expect a value");
         assertThatThrownBy(() -> parse(agent + "decision D { proposed by: A choices: a, b ceiling: }")).hasMessageContaining("name of a rung");
         assertThatThrownBy(() -> parse(agent + "decision D { proposed by: A choices: a, b ladder: }")).hasMessageContaining("name of a ladder");
+    }
+
+    @Test
+    void rememberedValuesMayDeclareATypeAndAWrongOneIsReported() {
+        String agent = "agent A { model: \"m\" system: \"s\" output_schema: { choice: string, reasoning: string } }\n";
+        DecisionDef d = parse(agent + "decision D { proposed by: A choices: a, b remember: amount: number, tier: text, vip: flag, memo ask: x }").getDecisions().get(0);
+        assertThat(d.getRemember()).containsExactly("amount", "tier", "vip", "memo");
+        assertThat(d.getRememberTypes()).containsOnly(Map.entry("amount", "number"), Map.entry("tier", "text"), Map.entry("vip", "flag"));
+        assertThatThrownBy(() -> parse(agent + "decision D { proposed by: A choices: a, b remember: amount: numbr }")).hasMessageContaining("write number, text or flag");
     }
 }

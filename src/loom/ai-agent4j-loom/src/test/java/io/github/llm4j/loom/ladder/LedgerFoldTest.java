@@ -130,6 +130,26 @@ class LedgerFoldTest {
         assertThat(cases.get(0).proposalChoice()).isNull();
     }
 
+    @Test
+    void aCaseWrittenByTheEarlierEngineReadsAsAnAcceptOrAReject() {
+        List<Rec> recs = List.of(
+                caseRec("old1", 1, 0, "watch", "gold", Map.of("amount", "40"), 1, "id-a"),
+                proposed("old1", 1, 1, Rec.map("choice", "approve", "reasoning", "r")),
+                new Rec("old1#decided#1", "D", Rec.DECIDED, at(60), "old1", 1, Rec.map("verdict", "approve", "decider", "lead", "shown", false, "millis", 59000L)),
+                caseRec("old2", 1, 100, "suggest", "gold", Map.of(), 1, "id-a"),
+                proposed("old2", 1, 101, Rec.map("choice", "approve")),
+                new Rec("old2#decided#1", "D", Rec.DECIDED, at(160), "old2", 1, Rec.map("verdict", "reject", "decider", "lead", "shown", true, "millis", 1000L)));
+        List<LCase> cases = LedgerFold.cases(recs);
+        assertThat(cases.get(0).responseKind()).isEqualTo("accept");
+        assertThat(cases.get(0).responseChoice()).isEqualTo("approve");
+        assertThat(cases.get(0).blind()).isTrue();
+        assertThat(cases.get(0).reviewMillis()).isEqualTo(59000L);
+        assertThat(cases.get(1).responseKind()).isEqualTo("reject");
+        assertThat(cases.get(1).responseChoice()).isEqualTo("reject");
+        assertThat(cases.get(1).shown()).isTrue();
+        assertThat(HistoryBuilder.history(cases, "gold", 1).cases()).hasSize(2);
+    }
+
     // ---------- what an expression sees ----------
 
     @Test
@@ -213,5 +233,22 @@ class LedgerFoldTest {
         assertThat(HistoryBuilder.typed("")).isEqualTo(V.str(""));
         assertThat(HistoryBuilder.typed("true")).isEqualTo(V.bool(true));
         assertThat(HistoryBuilder.typed("False")).isEqualTo(V.str("False"));
+    }
+
+    @Test
+    void aDeclaredTypeDecidesHowARememberedValueIsRead() {
+        assertThat(HistoryBuilder.declared("250", "number")).isEqualTo(V.num(250));
+        assertThat(HistoryBuilder.declared("abc", "number")).isEqualTo(V.UNDEFINED);
+        assertThat(HistoryBuilder.declared("007", "text")).isEqualTo(V.str("007"));
+        assertThat(HistoryBuilder.declared("true", "flag")).isEqualTo(V.bool(true));
+        assertThat(HistoryBuilder.declared("maybe", "flag")).isEqualTo(V.UNDEFINED);
+        assertThat(HistoryBuilder.declared("12", "something-else")).isEqualTo(V.num(12));
+        List<Rec> recs = List.of(
+                caseRec("c1", 1, 0, "watch", "gold", Map.of("amount", "250", "zip", "01234"), 1, "id-a"),
+                proposed("c1", 1, 5, Rec.map("choice", "approve")),
+                responded("c1", 1, 65, Rec.map("kind", "accept", "choice", "approve", "by", "lead")));
+        V.Rec r = HistoryBuilder.history(LedgerFold.cases(recs), "gold", 1, Map.of("zip", "text")).cases().get(0);
+        assertThat(r.get("zip")).isEqualTo(V.str("01234"));              // not 1234
+        assertThat(r.get("amount")).isEqualTo(V.num(250));
     }
 }

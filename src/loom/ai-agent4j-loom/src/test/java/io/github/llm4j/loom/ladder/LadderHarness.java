@@ -33,7 +33,8 @@ final class LadderHarness {
     }
 
     private static LoomScript load(String name, java.nio.file.Path dir, String from, String to) throws java.io.IOException {
-        java.nio.file.Path file = dir.resolve(from == null ? name : "edited-" + name);
+        java.nio.file.Path file = dir.resolve(from == null ? name : "edited-" + name.replace('/', '_'));
+        java.nio.file.Files.createDirectories(file.getParent());
         try (var in = LadderHarness.class.getResourceAsStream("/ladders/" + name)) {
             String text = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
             if (from != null) {

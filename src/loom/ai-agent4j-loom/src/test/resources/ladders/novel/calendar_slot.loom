@@ -1,0 +1,41 @@
+// A fifth: it proposes a calendar slot, and the verdict that matters is the other side's, which arrives later as an outcome.
+import "loom/autonomy"
+
+agent Scheduler {
+    model: "ollama/fake"
+    system: "You are Scheduler. Propose a meeting slot."
+    output_schema: { slot: string, reasoning: string }
+}
+
+measure confirmed(c)  = c.outcomes.confirmed == true
+measure declined(c)   = c.outcomes.declined == true
+measure answered(c)   = confirmed(c) or declined(c)
+
+ladder SlotLadder {
+    rung propose { mode: confirm }
+
+    rung book {
+        mode: autonomous
+        climb when history.where(answered).count >= 10
+               and history.where(answered).rate(confirmed).lower95 >= 0.7
+        slip to propose when history.last(10).rate(declined) > 0.3
+        sample 10% blind
+    }
+
+    climbing needs approval from office-manager
+}
+
+decision Slot {
+    proposed by: Scheduler
+    proposes:    slot
+    remember:    attendees, urgency
+    ask:         assistants
+    ladder:      SlotLadder
+    ceiling:     book
+    when the agent changes: start over
+}
+
+workflow Book(attendees, urgency) {
+    decide Slot -> slot
+    note "{slot}"
+}
