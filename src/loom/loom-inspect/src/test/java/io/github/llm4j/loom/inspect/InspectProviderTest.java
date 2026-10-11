@@ -116,6 +116,23 @@ class InspectProviderTest {
     }
 
     @Test
+    void whenARunEndsItsSinkIsReleased_soADaemonFiringManyRunsDoesNotKeepAThreadForEach() throws Exception {
+        try (InspectSession session = (InspectSession) new InspectObserveProvider().open(ObserveOptions.parse("0", null, "full", "local", null), null)) {
+            for (int i = 0; i < 5; i++) {
+                HarnessExecutor e = executor(List.of("```json\n{\"thought\": \"t\", \"final_answer\": \"ok\"}\n```"));
+                e.setRunId("r-many-" + i);
+                session.attach(e.observable());
+                e.initialize();
+                e.executeWorkflow("Main", Map.of());
+            }
+            long end = System.currentTimeMillis() + 3000;
+            while (session.liveSinks() > 0 && System.currentTimeMillis() < end) Thread.sleep(5);
+            assertThat(session.liveSinks()).isZero();
+            assertThat(session.registry().summaries()).hasSize(5).allSatisfy(r -> assertThat(r.get("status")).isEqualTo("finished"));
+        }
+    }
+
+    @Test
     void metadataDetailKeepsTextOffThePage() throws Exception {
         HttpClient http = HttpClient.newHttpClient();
         try (InspectSession session = (InspectSession) new InspectObserveProvider().open(ObserveOptions.parse("0", null, "metadata", "local", null), null)) {

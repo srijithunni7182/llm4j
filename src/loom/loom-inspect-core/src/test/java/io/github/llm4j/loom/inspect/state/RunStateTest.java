@@ -322,4 +322,23 @@ class RunStateTest {
         reg.setLadders(PROC.serviceName(), TRACE, () -> { throw new IllegalStateException("store gone"); });
         assertThat(list(run(reg).view(), "ladders")).isEmpty();
     }
+
+    @Test
+    void onlyTheLatestFinishedRunsAreKept_andARunStillGoingIsNeverEvicted() {
+        RunRegistry reg = new RunRegistry();
+        LogRec still = new LogRec(at(0), LogRec.INFO, "w", Map.of(Semconv.EVENT_NAME, Semconv.EV_RUN_START, Semconv.LOOM_SEQ, 1L, Semconv.LOOM_RUN_ID, "r-live", Semconv.LOOM_WORKFLOW, "W"), Ids.traceId("r-live"), null);
+        reg.applyLogs(PROC, List.of(still));
+        for (int i = 0; i < 60; i++) {
+            String run = "r-done-" + i;
+            long t = at(1 + i);
+            reg.applyLogs(PROC, List.of(
+                    new LogRec(t, LogRec.INFO, "w", Map.of(Semconv.EVENT_NAME, Semconv.EV_RUN_START, Semconv.LOOM_SEQ, 1L, Semconv.LOOM_RUN_ID, run, Semconv.LOOM_WORKFLOW, "W"), Ids.traceId(run), null),
+                    new LogRec(t + 1, LogRec.INFO, "w", Map.of(Semconv.EVENT_NAME, Semconv.EV_RUN_END, Semconv.LOOM_SEQ, 2L, Semconv.LOOM_RUN_STATUS, Semconv.STATUS_COMPLETED), Ids.traceId(run), null)));
+        }
+        List<Map<String, Object>> kept = reg.summaries();
+        assertThat(kept.size()).isLessThanOrEqualTo(52); // 50 finished, the one that just ended, the one still going
+        assertThat(kept).anySatisfy(r -> assertThat(r.get("runId")).isEqualTo("r-live"));
+        assertThat(kept).anySatisfy(r -> assertThat(r.get("runId")).isEqualTo("r-done-59"));
+        assertThat(kept).noneSatisfy(r -> assertThat(r.get("runId")).isEqualTo("r-done-0"));
+    }
 }

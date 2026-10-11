@@ -82,4 +82,20 @@ class EventSinkTest {
         sink.onEvent(ev(99));
         assertThat(texts(got)).doesNotContain("e99");
     }
+
+    @Test
+    void aSinkTheConsumerEndsStopsItsThreadOnceDrained_andLaterEventsAreIgnored() throws Exception {
+        List<TraceEvent> got = Collections.synchronizedList(new ArrayList<>());
+        EventSink[] self = new EventSink[1];
+        self[0] = new EventSink("t", 100, e -> {
+            got.add(e);
+            if (e.text().equals("e2")) self[0].finishWhenDrained();
+        });
+        for (int i = 0; i < 3; i++) self[0].onEvent(ev(i));
+        long end = System.currentTimeMillis() + 3000;
+        while (!self[0].ended() && System.currentTimeMillis() < end) Thread.sleep(5);
+        assertThat(self[0].ended()).isTrue();
+        self[0].onEvent(ev(9)); // nobody reads it, and nobody blocks
+        assertThat(texts(got)).containsExactly("e0", "e1", "e2");
+    }
 }

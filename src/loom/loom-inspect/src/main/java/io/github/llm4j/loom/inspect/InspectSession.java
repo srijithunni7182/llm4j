@@ -6,6 +6,7 @@ import io.github.llm4j.loom.inspect.map.Detail;
 import io.github.llm4j.loom.inspect.map.GraphView;
 import io.github.llm4j.loom.inspect.map.TraceMapper;
 import io.github.llm4j.loom.inspect.otel.Resource;
+import io.github.llm4j.loom.execution.TraceEvent;
 import io.github.llm4j.loom.inspect.emit.FabricLink;
 import io.github.llm4j.loom.inspect.sink.EventSink;
 import io.github.llm4j.loom.inspect.wire.Snapshot;
@@ -89,8 +90,10 @@ public final class InspectSession implements ObserveProvider.Session {
                 return built;
             }
         };
+        EventSink[] self = new EventSink[1];
         EventSink sink = new EventSink(options.name() + "-" + attached.get(), QUEUE, event -> {
             TraceMapper.Output out = mapper.map(event);
+            boolean ending = TraceEvent.RUN_END.equals(event.type());
             // the run id is set after attach, so the graph is given to a run when its first record shows which run this is
             String trace = out.logs().isEmpty() ? null : out.logs().get(0).traceId();
             if (trace != null && !trace.equals(graphed.get())) {
@@ -110,7 +113,13 @@ public final class InspectSession implements ObserveProvider.Session {
                 registry.applyLogs(resource, out.logs());
                 registry.applySpans(resource, out.spans());
             }
+            if (ending) {
+                // this attach is over (finished, or paused to resume under a new attach): free its thread, a daemon fires many runs
+                self[0].finishWhenDrained();
+                sinks.remove(self[0]);
+            }
         });
+        self[0] = sink;
         sinks.add(sink);
         run.addTraceListener(sink);
     }
@@ -124,6 +133,11 @@ public final class InspectSession implements ObserveProvider.Session {
         if (server == null) return options.fabric().url().toString();
         String host = options.bind().contains(":") ? "[" + options.bind() + "]" : options.bind();
         return "http://" + host + ":" + server.port();
+    }
+
+    /** How many attached runs are still being watched (a run that has ended is released). */
+    int liveSinks() {
+        return sinks.size();
     }
 
     /** The runs seen so far. */

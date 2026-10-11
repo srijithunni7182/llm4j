@@ -106,6 +106,10 @@ public final class RunState {
         return runId;
     }
 
+    public synchronized long lastEventNanos() {
+        return lastEventNanos;
+    }
+
     public synchronized Status status() {
         return status;
     }

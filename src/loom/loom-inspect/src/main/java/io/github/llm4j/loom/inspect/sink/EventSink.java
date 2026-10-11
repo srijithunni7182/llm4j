@@ -28,6 +28,7 @@ public final class EventSink implements TraceListener, AutoCloseable {
     private final AtomicLong finished = new AtomicLong();
     private final AtomicLong dropped = new AtomicLong();
     private volatile boolean closed;
+    private volatile boolean endRequested;
     private volatile long lastLogged;
 
     public EventSink(String name, int capacity, Consumer<TraceEvent> consumer) {
@@ -45,6 +46,19 @@ public final class EventSink implements TraceListener, AutoCloseable {
             if (queue.poll() != null) dropped.incrementAndGet();
         }
         enqueued.incrementAndGet();
+    }
+
+    /**
+     * Stops the thread once the queue is empty. For the consumer to call when it has seen the run end: a long-lived process
+     * (a daemon) attaches a sink to every run it fires and must not keep a thread for each of them.
+     */
+    public void finishWhenDrained() {
+        endRequested = true;
+    }
+
+    /** True once the thread has stopped because the run ended. */
+    public boolean ended() {
+        return closed;
     }
 
     /** Events dropped because the queue was full. */
@@ -100,6 +114,10 @@ public final class EventSink implements TraceListener, AutoCloseable {
                 }
             } finally {
                 finished.incrementAndGet();
+            }
+            if (endRequested && queue.isEmpty()) {
+                closed = true;
+                return;
             }
         }
     }

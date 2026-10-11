@@ -70,6 +70,25 @@ public final class RunRegistry {
     }
 
     private RunState state(String client, String traceId) {
-        return runs.computeIfAbsent(client + "/" + traceId, k -> new RunState(client, traceId));
+        String key = client + "/" + traceId;
+        RunState existing = runs.get(key);
+        if (existing != null) return existing;
+        RunState created = runs.computeIfAbsent(key, k -> new RunState(client, traceId));
+        evict();
+        return created;
+    }
+
+    /** Most finished runs kept in memory; older ones go (a server still has them in its history). Running, sleeping and paused runs never go. */
+    static final int MAX_FINISHED = 50;
+
+    private void evict() {
+        List<RunState> done = new ArrayList<>();
+        for (RunState r : runs.values()) {
+            RunState.Status st = r.status();
+            if (st == RunState.Status.FINISHED || st == RunState.Status.FAILED || st == RunState.Status.STOPPED) done.add(r);
+        }
+        if (done.size() <= MAX_FINISHED) return;
+        done.sort((a, b) -> Long.compare(a.lastEventNanos(), b.lastEventNanos()));
+        for (int i = 0; i < done.size() - MAX_FINISHED; i++) runs.remove(done.get(i).client() + "/" + done.get(i).traceId());
     }
 }
