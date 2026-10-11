@@ -66,6 +66,10 @@ to act: after 300 cases over 30 days, agreeing at least 95%, with no dangerous m
 
 👉 [Earned Autonomy in the language guide](./ai-agent4j-loom/LOOM_GUIDE.md#earned-autonomy)
 
+The policy does not have to be one we wrote. A **ladder** is a reusable policy you write: rungs with a mode (`blind`, `confirm`, `autonomous`), and conditions to climb and slip written as expressions over the record of what people did, judged by measures of your own (how much a reviewer rewrote a script, whether CI reverted it, traffic a week after a post). Missing data never lets an agent climb.
+
+👉 [Ladders in the language guide](./ai-agent4j-loom/LOOM_GUIDE.md#ladders-earned-autonomy-as-a-policy-you-write)
+
 👉 **[Why Loom?](./ai-agent4j-loom/WHY_LOOM.md)** How Loom runs long-running, autonomous workflows, and how it compares with LangGraph.
 
 ---
