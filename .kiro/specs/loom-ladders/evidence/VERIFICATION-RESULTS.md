@@ -11,10 +11,10 @@ Tests named here are in `src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/
 
 | | |
 |---|---|
-| Checks | 74 in the plan |
-| Pass | see the table; counted at the bottom |
-| Whole module test suite | `FULL_RESULT` |
-| Ladder tests | about 320, all passing |
+| Checks | 76 in the plan |
+| Pass | 64 of 76; 6 partly; 3 need people; 3 not done or a finding (see each table) |
+| Whole module test suite | `mvn verify`: 1,489 tests, 0 failures, 1 skipped (as before), coverage rules pass |
+| Ladder tests | about 330, all passing |
 | Safeguard removal (H4) | **20 of 20** caught ([H4-sabotage.md](H4-sabotage.md)); one needed a new test (S15) |
 | Mutation testing (PIT) on the language and engine | **90%** of 1,785 mutants killed, test strength 92%, 53 with no covering test (first run: 79%, 176) |
 | Line / branch coverage | expression language 99.0% / 92.5%; ladder package 97.6% / 88.3%; CLI, parser, executor wiring 94.2% / 73.1% |
@@ -157,7 +157,7 @@ Tests named here are in `src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/
 2. A4 and B1 performed by someone other than the author: **no**.
 3. H4 shows no unprotected protection: **yes**, 20 of 20.
 4. The independent mapping of the plan to the spec: **no**.
-5. Existing suite, repository script check and documentation snippets pass in a clean checkout: see the summary.
+5. Existing suite, repository script check and documentation snippets pass in a clean checkout: yes: `mvn verify`, 1,489 tests.
 6. The performance bounds are met and recorded: **yes** (J1).
 
 **The work is not done by this plan's own definition.** The remaining items need people, or are gaps listed in [IMPLEMENTATION-NOTES.md](IMPLEMENTATION-NOTES.md).
