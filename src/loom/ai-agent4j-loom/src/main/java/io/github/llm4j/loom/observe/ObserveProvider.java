@@ -23,6 +23,11 @@ public interface ObserveProvider {
         /** Where to look, in words, for example {@code http://127.0.0.1:8787}. */
         String describe();
 
+        /** One line for the console when the session has opened, for example {@code Watching this run at http://127.0.0.1:8787}. */
+        default String summary() {
+            return "Watching this run at " + describe();
+        }
+
         /** Stops serving. Whatever was observed is finished with. */
         @Override
         void close();

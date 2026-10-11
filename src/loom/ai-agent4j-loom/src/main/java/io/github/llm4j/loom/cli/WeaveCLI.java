@@ -97,6 +97,30 @@ public class WeaveCLI implements Callable<Integer> {
                 description = "Keep the page up this long after the run ends, e.g. 5m, so its final state can be read.")
         private String observeLinger;
 
+        @Option(names = "--observe-fabric", paramLabel = "url",
+                description = "Report this process to a Fabric server at this URL (or set LOOM_FABRIC_URL). Needs --observe-name. Events are kept in a local outbox, so a server that is down never affects the run.")
+        private String observeFabric;
+
+        @Option(names = "--observe-ca", paramLabel = "file",
+                description = "A PEM file with the public certificate of the CA that signed the server's certificate (or LOOM_FABRIC_CA). Added to the default roots for this connection only.")
+        private String observeCa;
+
+        @Option(names = "--observe-ca-only", description = "Trust only the CA given with --observe-ca, not the default roots.")
+        private boolean observeCaOnly;
+
+        @Option(names = "--observe-pin", paramLabel = "sha256:hex",
+                description = "Accept only a server whose public key has this SHA-256 (or LOOM_FABRIC_PIN). Printed by the server at start-up.")
+        private String observePin;
+
+        @Option(names = "--observe-outbox", paramLabel = "dir", description = "Where the local outbox is kept (default ./loom-inspect-outbox).")
+        private String observeOutbox;
+
+        @Option(names = "--observe-key-secret", paramLabel = "name", description = "The secret holding this process's key for the server (default LOOM_FABRIC_CLIENT_KEY).")
+        private String observeKeySecret;
+
+        @Option(names = "--observe-flush-timeout", paramLabel = "time", description = "At exit, try this long to deliver what is left (default 5s).")
+        private String observeFlushTimeout;
+
         @CommandLine.Mixin
         private SecretOptions secrets = new SecretOptions();
 
@@ -123,15 +147,21 @@ public class WeaveCLI implements Callable<Integer> {
             if (env == null) return 2;
             io.github.llm4j.loom.observe.ObserveProvider.Session session = null;
             io.github.llm4j.loom.observe.ObserveOptions observing = null;
-            if (observe != null) {
+            try {
+                observing = io.github.llm4j.loom.observe.ObserveOptions.fromCommandLine(observe, observeBind, observeDetail, observeName, observeLinger,
+                        observeFabric, observeCa, observeCaOnly, observePin, observeOutbox, observeKeySecret, observeFlushTimeout, System::getenv);
+            } catch (IllegalArgumentException e) {
+                System.err.println("Error: " + e.getMessage());
+                return 2;
+            }
+            if (observing != null) {
                 try {
-                    observing = io.github.llm4j.loom.observe.ObserveOptions.parse(observe, observeBind, observeDetail, observeName, observeLinger);
                     session = io.github.llm4j.loom.observe.Observe.open(observing, env.out());
                 } catch (IllegalArgumentException | IllegalStateException | io.github.llm4j.loom.observe.Observe.Unavailable e) {
                     System.err.println("Error: " + e.getMessage());
                     return 2;
                 }
-                env.out().println("🔭 Watching this run at " + session.describe());
+                env.out().println("🔭 " + session.summary());
                 env = env.withObserve(session);
             }
             try {

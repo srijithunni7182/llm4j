@@ -13,12 +13,19 @@ import java.util.regex.Pattern;
  * @param detail how much text may leave the run: full, truncated or metadata
  * @param name this process's name as shown on the page
  * @param linger how long to keep the page up after the run ends, so its final state can be read
+ * @param embedded serve the page from this process ({@code --observe}); false when only reporting to a Fabric server
+ * @param fabric where to report, or null
  */
-public record ObserveOptions(int port, String bind, String detail, String name, Duration linger) {
+public record ObserveOptions(int port, String bind, String detail, String name, Duration linger, boolean embedded, FabricOptions fabric) {
 
     public static final int DEFAULT_PORT = 8787;
     public static final String DEFAULT_BIND = "127.0.0.1";
     private static final Pattern SPAN = Pattern.compile("\\s*(\\d+)\\s*([smh])\\s*");
+
+    /** The embedded page only. */
+    public ObserveOptions(int port, String bind, String detail, String name, Duration linger) {
+        this(port, bind, detail, name, linger, true, null);
+    }
 
     public ObserveOptions {
         if (port < 0 || port > 65535) throw new IllegalArgumentException("--observe takes a port from 0 to 65535, got " + port);
@@ -44,6 +51,24 @@ public record ObserveOptions(int port, String bind, String detail, String name, 
             }
         }
         return new ObserveOptions(p, bind, detail, name, parseLinger(linger));
+    }
+
+    /**
+     * From everything the command line (and the environment) can say. {@code observe} is the {@code --observe} value or null when the
+     * flag is absent; {@code fabricUrl} is {@code --observe-fabric} or null. Returns null when neither asks for anything.
+     */
+    public static ObserveOptions fromCommandLine(String observe, String bind, String detail, String name, String linger, String fabricUrl, String ca,
+                                                 boolean caOnly, String pin, String outbox, String keySecret, String flush, java.util.function.Function<String, String> env) {
+        String url = first(fabricUrl, env.apply("LOOM_FABRIC_URL"));
+        if (observe == null && url == null) return null;
+        FabricOptions fabric = url == null ? null
+                : FabricOptions.parse(url, name, first(ca, env.apply("LOOM_FABRIC_CA")), caOnly, first(pin, env.apply("LOOM_FABRIC_PIN")), outbox, keySecret, flush);
+        ObserveOptions base = parse(observe, bind, detail, name, linger);
+        return new ObserveOptions(base.port(), base.bind(), base.detail(), base.name(), base.linger(), observe != null, fabric);
+    }
+
+    private static String first(String a, String b) {
+        return a != null && !a.isBlank() ? a : b != null && !b.isBlank() ? b : null;
     }
 
     private static Duration parseLinger(String text) {
