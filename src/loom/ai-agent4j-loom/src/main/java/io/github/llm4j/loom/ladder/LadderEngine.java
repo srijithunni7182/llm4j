@@ -9,6 +9,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
@@ -68,18 +69,36 @@ public final class LadderEngine {
 
     // ---- reading -------------------------------------------------------------------------------------------------------
 
-    public List<LCase> cases() {
-        return LedgerFold.cases(ledger.records(decision()));
+    private int foldedCount = -1;
+    private String foldedLast;
+    private List<LCase> folded = List.of();
+    private Map<String, List<LCase>> byScope = Map.of();
+
+    /** Every case of the decision, folded from the ledger; kept until the ledger gains a record, so a long record is folded once and not for every question. */
+    public synchronized List<LCase> cases() {
+        List<Rec> records = ledger.records(decision());
+        String last = records.isEmpty() ? "" : records.get(records.size() - 1).id();
+        if (records.size() != foldedCount || !last.equals(foldedLast)) {
+            folded = LedgerFold.cases(records);
+            Map<String, List<LCase>> grouped = new java.util.HashMap<>();
+            for (LCase c : folded) grouped.computeIfAbsent(c.scope(), k -> new ArrayList<>()).add(c);
+            byScope = grouped;
+            foldedCount = records.size();
+            foldedLast = last;
+        }
+        return folded;
     }
 
     /** The cases of this scope and epoch that count. */
     public V.Cs history(String scope, int epoch) {
-        return HistoryBuilder.history(cases(), scope, epoch, policy.decision().getRememberTypes());
+        cases();
+        return HistoryBuilder.history(byScope.getOrDefault(scope, List.of()), scope, epoch, policy.decision().getRememberTypes());
     }
 
     /** The cases of this scope in every epoch. */
     public V.Cs historyAll(String scope) {
-        return HistoryBuilder.history(cases(), scope, -1, policy.decision().getRememberTypes());
+        cases();
+        return HistoryBuilder.history(byScope.getOrDefault(scope, List.of()), scope, -1, policy.decision().getRememberTypes());
     }
 
     private V.Cs history(String scope, LevelLog.Standing s) {
