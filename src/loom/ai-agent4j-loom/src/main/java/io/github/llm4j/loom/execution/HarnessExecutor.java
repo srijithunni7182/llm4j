@@ -352,6 +352,23 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     private String stopAt;
+    private final RunControl control = new RunControl();
+
+    {
+        control.addListener(this::traceControl);
+    }
+
+    private void traceControl(RunControl.Event e) {
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("action", e.action().name().toLowerCase(java.util.Locale.ROOT));
+        data.put("state", e.state());
+        if (e.by() != null) data.put("by", e.by());
+        if (e.step() != null) data.put("step", e.step());
+        trace(TraceEvent.CONTROL, null, e.action().name().toLowerCase(java.util.Locale.ROOT) + " " + e.state() + (e.by() == null ? "" : " by " + e.by()), data);
+    }
+
+    /** What an observer may do to this run: pause, resume, suspend, stop. Takes effect between steps. */
+    public RunControl control() { return control; }
     /** Ends the run cleanly, as {@link io.github.llm4j.loom.runtime.RunStopped}, once the named step or checkpoint has completed. */
     public void setStopAt(String point) { this.stopAt = point; }
     /** A place a run can be told to stop at: a step id (with or without its attempt) or a checkpoint's name. */
@@ -549,6 +566,7 @@ public class HarnessExecutor implements LoomEngine {
             @Override public java.util.Optional<io.github.llm4j.loom.autonomy.LevelStore> levelStore() { return java.util.Optional.ofNullable(self.levelStore); }
             @Override public io.github.llm4j.budget.Budget runBudget() { return self.getRunBudget(); }
             @Override public SpendReport spend() { return self.spend(); }
+            @Override public RunControl control() { return self.control; }
             @Override public Map<String, Object> variables() { return java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(self.context.getAll())); }
             @Override public java.time.Clock clock() { return self.clock; }
             @Override public void addTraceListener(TraceListener listener) { self.addTraceListener(listener); }
@@ -1151,6 +1169,7 @@ public class HarnessExecutor implements LoomEngine {
                     if (generation > 1) context.setVariable("_generation", String.valueOf(generation));
                 }
                 try {
+                    control.checkpoint(step.get()); // an observer may have paused, suspended or stopped the run
                     executeStatement(statements.get(i));
                     if (stopAt != null) stopPoint(step.get());
                 } catch (Rewinder.RewindSignal signal) {
@@ -1460,7 +1479,11 @@ public class HarnessExecutor implements LoomEngine {
 
         String parent = step.get();
         boolean topLevel = parent.isEmpty();
-        if (topLevel) beginRun();
+        if (topLevel) control.reset(); // a stop asked for an earlier run is not meant for this one
+        if (topLevel) {
+            beginRun();
+            control.reset(); // a stop asked for an earlier run is not meant for this one
+        }
         step.set(topLevel ? workflowName : parent + ">" + workflowName);
         String ended = "completed";
         Map<String, Object> endData = new java.util.LinkedHashMap<>();

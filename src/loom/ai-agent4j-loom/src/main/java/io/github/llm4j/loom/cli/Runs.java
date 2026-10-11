@@ -182,6 +182,11 @@ final class Runs {
 
     private static void printPaused(RunSuspended paused, Path runDir, RunSpec spec, WeaveEnv env) {
         String resume = runDir != null ? "weave resume " + quote(runDir.toString()) : null;
+        if (paused.reason() == RunSuspended.Reason.OPERATOR) {
+            env.out().println("⏸ Suspended at " + paused.stepId() + " (" + paused.prompt() + "). Nothing is lost"
+                    + (runDir != null ? "; to carry on: weave resume " + quote(runDir.toString()) : "; this run has no --journal, so it cannot be resumed later") + ".");
+            return;
+        }
         if (paused.resumeAt() == null) {
             env.out().println("⏸ Waiting for a person at " + paused.stepId() + ": " + paused.prompt());
             if (resume != null) {

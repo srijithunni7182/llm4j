@@ -15,11 +15,13 @@ import java.time.Instant;
  *   <li>{@link Reason#SLEEP}: a {@code sleep} step; run it again at {@link #resumeAt()}. The wake time is
  *       journaled, so a restart never lengthens the sleep, and a sleep is not counted against
  *       {@code max_resumes}.</li>
+ *   <li>{@link Reason#OPERATOR}: a person asked for the run to be suspended (from an observer's control). It holds nothing and
+ *       schedules nothing: run it again with the same journal when you want it to go on.</li>
  * </ul>
  */
 public class RunSuspended extends AgentInterrupt {
 
-    public enum Reason { HUMAN, RATE_LIMIT, BUDGET_WINDOW, SLEEP }
+    public enum Reason { HUMAN, RATE_LIMIT, BUDGET_WINDOW, SLEEP, OPERATOR }
 
     private final String stepId;
     private final String prompt;
@@ -44,6 +46,20 @@ public class RunSuspended extends AgentInterrupt {
         this.reason = reason;
         this.resumeAt = limit.resetAt();
         this.limit = limit;
+    }
+
+    /** The run was suspended at {@code stepId} by {@code who}, to be resumed by hand. */
+    public static RunSuspended byOperator(String stepId, String who) {
+        return new RunSuspended(stepId, "suspended by " + who, Reason.OPERATOR);
+    }
+
+    private RunSuspended(String stepId, String prompt, Reason reason) {
+        super("Suspended at " + stepId + " (" + prompt + ")");
+        this.stepId = stepId;
+        this.prompt = prompt;
+        this.reason = reason;
+        this.resumeAt = null;
+        this.limit = null;
     }
 
     /** A {@code sleep} step that runs until {@code wakeAt}. */

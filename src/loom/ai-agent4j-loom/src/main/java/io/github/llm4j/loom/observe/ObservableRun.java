@@ -52,6 +52,12 @@ public interface ObservableRun {
     /** The clock the run uses for budget windows, rate limits and sleeps. */
     Clock clock();
 
+    /**
+     * What an observer may do to the run: pause, resume, suspend, stop. Unlike everything else here this changes the run, so offer it only
+     * behind a login. Takes effect between steps; see {@link io.github.llm4j.loom.execution.RunControl}.
+     */
+    io.github.llm4j.loom.execution.RunControl control();
+
     /** Receives the run's trace events live. Call before the executor is initialized. */
     void addTraceListener(TraceListener listener);
 
