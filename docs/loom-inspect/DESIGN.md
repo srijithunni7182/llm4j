@@ -13,6 +13,10 @@ The UI mockups are the design system at https://claude.ai/artifact/G8ah58W5edzPP
 | 3 | Secrets: rotate only. No add, no delete, no allowed-host change. Works only with the store the running app already uses. |
 | 4 | It is an add-on jar that runs inside the application's own JVM. |
 | 5 | The Loom logo appears in the page header. |
+| 6 | The executor exposes what loom-inspect needs through one read-only `ObservableRun` view. No package-private reach-through. |
+| 7 | Activation is `weave ... --observe` with loom-inspect on the classpath. No code needed in the app. |
+| 8 | The page has one tab per workflow, with a run picker inside each tab, plus one store-wide Secrets tab. |
+| 9 | The admin password is a secret in the app's store (`LOOM_INSPECT_ADMIN_PASSWORD`), so it is set and rotated like any other key. |
 
 ## 2. What the runtime gives us today (checked against the code)
 
@@ -30,8 +34,8 @@ Constraints found while reading:
 
 - Listeners must be added **before** `initialize()`; agents report only when someone listens.
 - Listeners run on the worker thread, and parallel branches call them concurrently. A slow listener slows the run, and an exception is swallowed with a warning. loom-inspect's listener must only enqueue.
-- `TraceEvent` has no run id. The application supplies one when attaching.
-- `levelStore()` on the executor is package-private. The `Ledger` and `LevelStore` come from whoever called `setAutonomy`, so the app hands them to loom-inspect.
+- `TraceEvent` has no run id, but the executor does: `getRunId()` is already public, and so are `getJournal()` and `getSecretStore()`. So loom-inspect can read the journal and run id from the executor without the app passing them.
+- Still hidden: the `LevelStore` (`levelStore()` is package-private) and the ledger, which only `setAutonomy` receives; the parsed script's workflows and agents; the run's budget limits; and a read-only snapshot of workflow variables. These are what `ObservableRun` (C5) exposes.
 
 ## 3. Gaps, and the small core changes they need
 
@@ -43,9 +47,10 @@ These are changes in `ai-agent4j-loom`, kept as small as possible. Each has a fa
 | C2 | **No call-level events.** There is no trace event for an LLM call with tokens, latency and model, and `observation` carries no tool name. | Emit `llm_call` (agent, model, tokens in/out, ms, cost) and add the tool name and duration to `observation`. | Poll `spend()` every second for tokens and cost; derive "tool in flight" from an `action` with no `observation` yet, per agent. Latency is unavailable. |
 | C3 | **No key-health signal.** We cannot say whether the provider accepted or rejected a secret. | Emit `secret_use` (name, outcome: ok, 401, 403, other; never the value). | The Secrets page shows used-by, host, updated and fingerprint, and leaves the Status column out. |
 | C4 | **No `inspect` block in the language.** | Add `inspect <Agent> { ... }` to the parser, AST and `weave check` (see section 6). | Thresholds come from a Java `InspectConfig` with sensible defaults, and the page says "defaults". |
-| C5 | `levelStore()` is package-private. | Make it public, or add `executor.autonomy()` returning ledger and level store. | The app passes both to `Inspect.attach`. |
+| C5 | **Nothing is exposed as a whole.** Some getters are public, some package-private, some missing. | One read-only `ObservableRun` interface returned by `executor.observable()`: `runId()`, `journal()`, `script()` (workflows, agents, tools, provider and secret references), `secretStore()`, `ledger()` and `levelStore()`, `budget()` (limits, `warn_at`, per-agent), `spend()`, `variables()` (immutable snapshot), `pending()` (questions and approvals waiting on a person), `clock()`. loom-inspect depends only on this interface, so internals can change without breaking it. | The app passes the pieces to `Inspect.attach`. |
+| C6 | **No way to start loom-inspect from the CLI.** | An `ObserveProvider` interface in core, found with `ServiceLoader`, and a `--observe[=port]` option on `weave run`, `resume`, `tick` and `daemon` (section 5). Without loom-inspect on the classpath the option prints how to add it and exits. | Programmatic `Inspect.attach` only. |
 
-Order of value: C2 and C4 first (they make the console and incidents real), then C1, then C3.
+Order of value: C5 and C6 first (they make loom-inspect reachable), then C2 and C4 (they make the console and incidents real), then C1, then C3.
 
 ## 4. Module layout
 
@@ -78,9 +83,12 @@ loom-inspect/
       SecretsService.java      list metadata, fingerprint, rotate
     control/
       RunController.java       pause, resume, suspend, stop (see C1)
+    cli/
+      InspectObserveProvider.java   the ObserveProvider; listed in META-INF/services
     http/
       InspectServer.java       JDK HttpServer, JSON and server-sent events
-      Auth.java                pluggable authenticator, CSRF, roles
+      Auth.java                login, sessions, CSRF, lockout
+      AdminPassword.java       reads the password secret from the app's store
       Api.java                 route table (section 7)
   src/main/resources/inspect-ui/
     index.html, app.js, app.css   plain static files, no build step
@@ -93,26 +101,43 @@ Choices and why:
 - **Static UI, no build.** The mockups are plain HTML, CSS and a little JS. Shipping them as static resources keeps the jar self-contained and removes a Node toolchain from the build.
 - **One writer thread.** `EventSink` only enqueues; `Pump` mutates `RunState`. HTTP handlers read immutable snapshots. This keeps the run's own threads fast and avoids locks on the hot path.
 
-## 5. How it attaches
+## 5. How it starts
+
+### From the CLI (the main path)
+
+```
+weave run flow.loom --secrets keys.store --secrets-key-env MYAPP_MASTER_KEY --observe
+weave daemon --observe=9090
+```
+
+`--observe` takes an optional port (default 8787) and binds `127.0.0.1`; `--observe-bind <address>` changes that (section 9 lists what is then required). Mechanics:
+
+1. `WeaveCLI` finds an `ObserveProvider` with `ServiceLoader`. loom-inspect registers one in `META-INF/services`. If none is found, the CLI says "add loom-inspect to the classpath" and exits before running anything.
+2. The provider is started once per process and owns the HTTP server.
+3. Each time the CLI creates a `HarnessExecutor` (a `run`, a `resume`, or one fired by `tick` or `daemon`), it calls `provider.attach(executor.observable())` **before** `initialize()`, so agents report events.
+4. The provider reads the run id, journal, script, secret store, autonomy stores and budgets from `ObservableRun`. Nothing is passed by hand.
+
+The secret store used is the one `--secrets` gave the run, so the page and the run always agree about which keys exist.
+
+### From Java
 
 ```java
 HarnessExecutor executor = ...;
-Inspect.Handle h = Inspect.attach(executor,
-        RunInfo.of("r-7f3a", "ContentStudio", "GetViral"),
-        Options.builder()
-            .bind("127.0.0.1", 8787)
-            .authenticator(Auth.token(System.getenv("INSPECT_ADMIN_TOKEN")))
-            .autonomy(ledger, levelStore)          // until C5
-            .build());
-executor.initialize();                              // after attach, so agents report
+Inspect.Handle h = Inspect.attach(executor.observable(), Options.builder().port(8787).build());
+executor.initialize();
 executor.executeWorkflow("Main", inputs);
 ```
 
-`attach` does three things: registers the `EventSink`, registers the suspension listener, and (first call only) starts the server. It returns a handle with `close()`. One server serves many runs; each `attach` adds a run to the registry.
+`attach` registers the trace listener and the suspension listener, and starts the server on the first call. One server serves many runs; each `attach` adds a run. If nothing attaches, the runtime pays nothing, because agents report only when a listener exists.
 
-If the app never calls `attach`, nothing changes: the runtime pays nothing when no listener is registered.
+### Per-workflow tabs
 
-The CLI path: `weave run flow.loom --inspect :8787` loads loom-inspect from the classpath if present and calls the same `attach`. v2.
+The page is organised by workflow, matching how you think about the system:
+
+- **One top-level tab per `workflow` in the loaded script(s)**, in script order, each with a badge showing its open incidents (red) or running state (amber). Inside a tab there is a run picker (live runs first, then recent finished ones) and the sections shown in the mockup: Live run, Agents, Autonomy, Spend, Tools, Journal, Replay.
+- **One store-wide Secrets tab** at the end. Secrets belong to the application, not to a workflow, so this tab is the same wherever you open it.
+- A workflow with no live run still has a tab; it shows its last run, or the static graph if it has never run.
+- With `weave daemon`, a scheduled workflow gains a live run in its tab each time it fires. There is no cross-run overview page; the first tab is the landing page.
 
 ## 6. Thresholds in the script (proposed syntax, needs C4)
 
@@ -189,8 +214,16 @@ The pages can stop a run and replace API keys, so the module is off by default a
 
 - Disabled unless `Inspect.attach` is called; binds to `127.0.0.1` unless told otherwise.
 - Refuses to start on a non-loopback address without TLS or without an authenticator. No unauthenticated mode on a network address.
-- Two roles: `viewer` (everything read-only) and `admin` (control and rotate). Secrets and control endpoints require `admin`.
-- Rotation also requires re-entering the admin credential, a CSRF token, and a same-origin check.
+- **The admin password is a secret in the app's store**, named `LOOM_INSPECT_ADMIN_PASSWORD` (changeable with `--observe-password-secret <name>`). Set it with the existing command: `weave secrets set LOOM_INSPECT_ADMIN_PASSWORD --secrets keys.store`. It is resolved from the store on each login, so rotating it takes effect at once, and it needs no new file or flag.
+- **Behaviour by situation:**
+  - *Password secret present:* a login page; a session after a correct password; control and rotation require it (re-entered for rotation).
+  - *No password secret, loopback address:* read-only. The page works, and the pause, suspend, stop and rotate buttons are disabled with the line "set LOOM_INSPECT_ADMIN_PASSWORD to enable".
+  - *No password secret, any other address:* refuses to start.
+- Comparison is constant-time. Failed logins are rate-limited per address with a growing delay, and every attempt is audited without the attempted value.
+- The store holds the password encrypted at rest, with the same trust as an API key. v1 compares the stored value directly. A salted hash is the better form for a human password, so loom-inspect also accepts a value written as `pbkdf2$<iterations>$<salt>$<hash>`, which a later `weave observe hash-password` helper can produce.
+- The password can be rotated from the Secrets tab like any other secret, with extra care: it requires the current password, it is labelled "loom-inspect admin" with no used-by list, and saving it ends every other session.
+- Roles: a single role, `admin`, in v1. A separate read-only password (`LOOM_INSPECT_VIEW_PASSWORD`) is a later addition.
+- Rotation also requires a CSRF token and a same-origin check.
 - Audit log of every control and rotation: who, when, what, fingerprint before and after, source address. Never values. Written through a pluggable `AuditSink`, with a file default.
 - **Trace content is sensitive.** Events hold prompts and answers. Defaults: truncate text to 500 characters, apply the agent's existing `guard { pii: mask }` settings (events are already masked at source where configured), and let `Options.redact(...)` add patterns. The mockups show full trace lines; the shipped default shows the truncated form.
 - Run `weave audit`-style checks on the module: no `Authorization` header logging, no value in `toString`, a test that greps responses for a known secret.
@@ -215,21 +248,23 @@ The pages can stop a run and replace API keys, so the module is off by default a
 
 | Phase | Delivers | Needs |
 |---|---|---|
-| 0. Spike | `EventSink` + `RunState` + `GET /api/runs/{id}` and a bare page showing totals and active agents | nothing in core |
+| 0. Spike | `ObservableRun` (C5), `ObserveProvider` and `--observe` (C6), `EventSink` + `RunState`, `GET /api/runs/{id}` and a bare page showing totals and active agents | C5, C6 (both small, additive) |
 | 1. Console | Graph overlay, agents table, Following trace, spend chart, tools, autonomy ladders (read-only) | C2 helps; C5 or app-supplied stores |
 | 2. Incidents | Rate-limit, loop, grounding and budget detectors with default thresholds; attention strip | none (heuristics) |
 | 3. Script thresholds | `inspect { }` block in the parser and `weave check` | C4 |
 | 4. Controls | Suspend and stop, then pause | C1 |
 | 5. Secrets | List, fingerprint, rotate with audit | C3 for the Status column |
-| 6. Hardening | TLS, roles, retention options, `weave run --inspect` | none |
+| 6. Hardening | TLS, a separate viewer password, password hashing, retention options | none |
 
-Phases 0 to 2 need no change to the core, so the first useful release does not wait on language work.
+Phase 0 needs only two small additive changes to the core (an interface and an option), and phases 1 and 2 need nothing more, so the first useful release does not wait on language work.
 
 ## 13. Open questions
 
-1. **Run identity.** Should the app always name the run on `attach`, or can the executor expose its journal's run id so loom-inspect can read it?
-2. **`no_progress` needs a variable.** Is reading a named workflow variable from outside the executor acceptable, or should the script emit it as a `note`/`observe` event that loom-inspect watches?
-3. **Where does `inspect` live in the grammar?** A top-level block per agent (as above), or inside the `agent` block next to `budget`? The second keeps it near the agent and avoids a new top-level keyword.
-4. **Multiple executors in one JVM** (GetViral runs many workflows): one server, many attached runs. Is a per-workflow tab enough, or do you want a cross-run overview as the landing page?
-5. **Pause semantics.** Should pause let in-flight model calls finish (recommended) or cancel them? Cancelling wastes tokens already spent.
-6. **Fingerprint in the audit.** OK to record the truncated hash before and after in the audit log? It is the only way to prove which key was live when.
+Settled since draft 1: run identity (the executor already has `getRunId()` and `getJournal()`, and `ObservableRun` exposes them), the `--observe` activation, per-workflow tabs, and the admin password living in the store.
+
+1. **`no_progress` needs a variable.** `ObservableRun.variables()` gives a snapshot, so loom-inspect can read the named variable at the end of each loop round. Is a read-only snapshot from outside the executor acceptable?
+2. **Where does `inspect` live in the grammar?** A top-level block per agent (as above), or inside the `agent` block next to `budget`? The second keeps it near the agent and avoids a new top-level keyword. I lean toward the second.
+3. **Pause semantics.** Should pause let in-flight model calls finish (recommended) or cancel them? Cancelling wastes tokens already spent.
+4. **Fingerprint in the audit.** OK to record the truncated hash before and after in the audit log? It is the only way to prove which key was live when.
+5. **Password form.** Accept the plain stored value in v1 and add hashing later, or require the hashed form from the start?
+6. **`--observe` on one-shot runs.** `weave run` ends when the workflow ends, which closes the page. Should `--observe` keep the server up for a short time after (for example `--observe-linger 5m`) so the final state can be read?
