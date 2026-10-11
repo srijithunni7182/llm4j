@@ -25,8 +25,15 @@ class WireTest {
 
     @Test
     void heartbeatSurvivesARoundTrip() {
-        Heartbeat in = new Heartbeat("p", "i", "2026-10-11T14:08:52Z");
+        Heartbeat in = new Heartbeat("p", "i", "2026-10-11T14:08:52Z", 120, 5, 2, java.util.Map.of("0123", List.of(java.util.Map.of("name", "Refund"))));
         assertThat(Wire.read(Wire.write(in), Heartbeat.class)).isEqualTo(in);
+    }
+
+    @Test
+    void anOldHeartbeatWithoutTheNewFieldsStillReads() {
+        Heartbeat h = Wire.read("{\"client\":\"p\",\"instance\":\"i\",\"at\":\"x\"}", Heartbeat.class);
+        assertThat(h.backlog()).isZero();
+        assertThat(h.ladders()).isEmpty();
     }
 
     @Test
