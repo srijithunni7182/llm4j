@@ -28,9 +28,9 @@ the proof the language is enough), then tooling. Tests are written with each tas
   - [x] 4.3 `decide` for artifact decisions; `result`, `result_proposal`, `result_level`. R6.5.
   - [x] 4.4 Epochs: identity change, served-model change, `when the agent changes:` default and warning. R7.1–R7.3.
   - [x] 4.5 Rules fingerprint and re-evaluation at load; recorded rule texts. R7.4, R7.5.
-- [~] 5. **Compatibility** (the `trust` block is untouched; **not** desugared)
-  - [ ] 5.1 Desugar `trust` to a ladder; golden test against the old engine over the existing ledgers. R10.1, R10.3.
-  - [ ] 5.2 Remove the old rule evaluator once 5.1 passes.
+- [~] 5. **Compatibility** (the `trust` block is written as a ladder where the language can say it; four forms stay on the original engine)
+  - [x] 5.1 Desugar `trust` to a ladder; golden test against the old engine over the existing ledgers. R10.1, R10.3. (`TrustDesugar`, `TrustAsLadderEquivalenceTest`, `TrustMigrationTest`)
+  - [ ] 5.2 Remove the old rule evaluator once 5.1 passes. (Not done: four trust forms and `weave replay` still need it.)
 - [x] 6. **Standard library**
   - [x] 6.1 Write `loom/autonomy` in Loom; test each measure. R8.1.
   - [x] 6.2 Generated `dangerous(c)` from the decision's declarations.
@@ -48,4 +48,4 @@ the proof the language is enough), then tooling. Tests are written with each tas
   G3 (sabotage) and G9 (safety) re-run against the new engine.
 
 
-`[x]` done, `[~]` done in part (see [evidence/IMPLEMENTATION-NOTES.md](evidence/IMPLEMENTATION-NOTES.md)). Task 5.1 and 5.2 (desugaring `trust`) are not done. Task 11 is in [evidence/VERIFICATION-RESULTS.md](evidence/VERIFICATION-RESULTS.md).
+`[x]` done, `[~]` done in part (see [evidence/IMPLEMENTATION-NOTES.md](evidence/IMPLEMENTATION-NOTES.md)). Task 5.1 is done; 5.2 (removing the old evaluator) is not. Task 11 is in [evidence/VERIFICATION-RESULTS.md](evidence/VERIFICATION-RESULTS.md).
