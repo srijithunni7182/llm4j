@@ -105,6 +105,13 @@ public final class LadderEngine {
             } else if (known(cur.servedModel()) && known(servedModel) && !cur.servedModel().equals(servedModel)) {
                 why = "the served model changed from " + cur.servedModel() + " to " + servedModel + " with the script unchanged";
             }
+            if (why == null && !known(cur.servedModel()) && known(servedModel)) {
+                // the first time the provider names the model: remember it, so a later change behind the same script can be seen
+                LevelLog.Standing named = new LevelLog.Standing(cur.rung(), cur.rungName(), cur.version() + 1, cur.epoch(), cur.identity(), servedModel, cur.forced(), now(),
+                        cur.reason(), cur.rules());
+                if (log.write(scope, cur.version(), named, "model", cur.rungName(), "runtime", now(), policy.rulesText())) return named;
+                continue;
+            }
             if (why == null) return cur;
             int rung;
             String how;

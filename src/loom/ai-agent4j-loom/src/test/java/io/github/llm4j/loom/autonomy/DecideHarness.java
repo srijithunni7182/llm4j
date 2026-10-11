@@ -23,6 +23,8 @@ import java.util.regex.Pattern;
 final class DecideHarness {
 
     static final Instant T0 = Instant.parse("2026-03-01T00:00:00Z");
+    /** The model the provider says answered; a test changes it to show a silent change behind an alias. */
+    static volatile String servedModel = "m";
 
     final Path dir;
     final Ledger ledger;
@@ -43,6 +45,8 @@ final class DecideHarness {
 
     /** What the agent proposes for a case, from the values it was given: {choice, reasoning[, confidence]}. */
     Function<Map<String, String>, String[]> agent = f -> new String[] {"approve", "looks fine", "0.9"};
+    /** When set, the agent's whole reply (a JSON object) from the case's values: for decisions that propose an artifact. */
+    Function<Map<String, String>, String> rawAgent;
     /** What the person decides, from the case's values. */
     Function<Map<String, String>, String> person = f -> "approve";
     String script;
@@ -78,12 +82,14 @@ final class DecideHarness {
         ScriptedRun run = new ScriptedRun(dir);
         run.journal = journal;
         run.env.putAll(env);
+        run.served = servedModel;
         tools.forEach(run.tools::register);
         run.responder = r -> {
             if (r.getMessages().get(0).getContent().contains("You are Summarizer")) return ScriptedRun.done("summary of " + task(r));
             String task = task(r);
             modelCalls++;
             tasks.add(task);
+            if (rawAgent != null) return "```json\n" + rawAgent.apply(fieldsOf(task)) + "\n```";
             String[] says = agent.apply(fieldsOf(task));
             if (!toolCalls.isEmpty()) {
                 int seen = ScriptedRun.lastMessage(r).split("Observation:", -1).length - 1;

@@ -55,6 +55,9 @@ public final class ScriptedRun {
         return this;
     }
 
+    /** The model the provider says answered, as reported in each reply. */
+    public volatile String served = "m";
+
     public static String call(String tool, String argsJson) {
         return "```json\n{\"thought\": \"use " + tool + "\", \"action\": \"" + tool + "\", \"action_input\": " + argsJson + "}\n```";
     }
@@ -75,7 +78,7 @@ public final class ScriptedRun {
                 requests.add(request);
                 int i = answered.getAndIncrement();
                 String content = responder != null ? responder.apply(request) : i < replies.size() ? replies.get(i) : done("ok");
-                return LLMResponse.builder().content(content).model("m").tokenUsage(10, 5, 15).build();
+                return LLMResponse.builder().content(content).model(served).tokenUsage(10, 5, 15).build();
             }
 
             @Override

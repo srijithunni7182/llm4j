@@ -1,10 +1,10 @@
 package io.github.llm4j.loom.autonomy;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.llm4j.loom.runtime.RunJournal;
-import io.github.llm4j.loom.runtime.RunSuspended;
+import io.github.llm4j.loom.ladder.LCase;
+import io.github.llm4j.loom.ladder.LedgerFold;
+import io.github.llm4j.loom.ladder.LevelLog;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -12,174 +12,306 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** A ladder climbed and descended by running cases, not by seeding the ledger (spec loom-earned-autonomy R3). */
+/** A workflow that decides, run case after case against one ledger: the ladder as a person running it would see it. */
+@Tag("L6")
 class LadderRunTest {
+
+    static final String REFUND = """
+            agent Triager {
+                model: "m"
+                system: "You are Triager."
+                output_schema: { choice: string, reasoning: string, confidence: number }
+            }
+            measure agrees(c) = c.response.choice == c.proposal.choice
+            ladder L {
+                rung watch { mode: blind }
+                rung suggest {
+                    mode: confirm
+                    climb when history.count >= 3 and history.rate(agrees) >= 0.8
+                }
+                rung act {
+                    mode: autonomous
+                    climb when history.count >= 6 and history.rate(agrees) >= 0.8
+                    slip to suggest when history.last(3).count(dangerous) >= 2
+                    escalate when case.amount > 200
+                }
+                climbing is automatic
+            }
+            decision Refund {
+                proposed by: Triager
+                choices: approve, reject, escalate
+                group cases by: tier
+                remember: amount, tier
+                dangerous mistake: propose approve, person decides reject
+                ask: support-lead
+                ladder: L
+                ceiling: act
+                when the agent changes: start over
+            }
+            workflow Triage(ticket, tier, amount, reason, customer_since) {
+                decide Refund -> verdict
+                note "ticket {ticket}: {verdict} (proposed {verdict_proposal}, rung {verdict_level})"
+            }
+            """;
+
+    static final String PUBLISH = """
+            agent Writer {
+                model: "m"
+                system: "You are Writer."
+                output_schema: { post: string, reasoning: string }
+            }
+            measure edit_size(c) = distance(c.proposal.value, c.response.final)
+            measure untouched(c) = c.response.kind == "accept"
+            ladder P {
+                rung edit { mode: confirm }
+                rung publish {
+                    mode: autonomous
+                    climb when history.count >= 3 and history.rate(untouched) >= 0.6
+                }
+                climbing is automatic
+            }
+            decision Publish {
+                proposed by: Writer
+                proposes: post
+                remember: topic
+                ask: editors
+                ladder: P
+                ceiling: publish
+                when the agent changes: start over
+            }
+            workflow Triage(ticket, tier, amount, reason, customer_since, topic) {
+                decide Publish -> post
+                note "{post}"
+            }
+            """;
 
     @TempDir
     Path dir;
 
-    private DecideHarness harness(String trustExtra) {
-        return new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), Scripts2.refund(trustExtra));
+    private DecideHarness harness(String script) {
+        return new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), script);
     }
 
-    private static void cases(DecideHarness h, String scope, int n, int from) {
-        for (int i = 0; i < n; i++) {
-            h.runCase("run-" + scope + (from + i), h.inputs(scope, 10 + from + i));
-            h.clock.advance(java.time.Duration.ofHours(1));
-        }
-    }
-
-    private Level level(DecideHarness h, String scope) {
-        return h.levels.get("Refund", scope).orElseThrow().level();
+    private static List<LCase> cases(DecideHarness h, String decision) {
+        return LedgerFold.cases(h.ledger.records(decision));
     }
 
     @Test
-    @Tag("EA-V3.9")
-    void autoPromotionMovesTheLevelAtTheThresholdAndTheNextCaseRunsAtTheNewLevel() {
-        DecideHarness h = harness("");
-        cases(h, "gold", 4, 0);
-        assertThat(level(h, "gold")).isEqualTo(Level.WATCH);
-        cases(h, "gold", 1, 4);
-        assertThat(level(h, "gold")).as("after the 5th agreeing blind case").isEqualTo(Level.SUGGEST);
-        assertThat(h.audit).contains("level_changed");
-        assertThat(h.ledger.records("Refund").stream().filter(r -> Rec.LEVEL.equals(r.kind())).map(r -> r.str("to")).toList()).containsSubsequence("watch", "suggest");
+    void aNewAgentIsWatchedTheQuestionHidesTheProposalAndEveryPartIsRecorded() {
+        DecideHarness h = harness(REFUND);
+        h.agent = f -> new String[] {"approve", "the order was damaged", "0.9"};
+        h.person = f -> "approve";
+        Map<String, Object> out = h.runCase("r1", h.inputs("gold", 80));
 
-        h.asked.clear();
-        Map<String, Object> next = h.runCase("run-gold-next", h.inputs("gold", 99));
-        assertThat(next.get("verdict_level")).isEqualTo("suggest");
-        assertThat(h.asked.get(0)).contains("The agent proposes");
-    }
-
-    @Test
-    @Tag("EA-V3.9")
-    void approvalMakesOneProposalMovesNothingUntilApprovedAndRecordsTheApprover() {
-        DecideHarness h = harness("").also(x -> x.script = Scripts2.refund("").replace("moving up is automatic", "moving up needs approval from: risk-owner"));
-        cases(h, "gold", 5, 0);
-        assertThat(level(h, "gold")).as("earned, not approved").isEqualTo(Level.WATCH);
-        cases(h, "gold", 2, 5);
-        assertThat(h.ledger.records("Refund").stream().filter(r -> Rec.PROMOTION_PROPOSED.equals(r.kind()))).hasSize(1);
-        assertThat(h.audit).contains("promotion_proposed").doesNotContain("level_changed");
-
-        Engine engine = new Engine(DecisionParseTest.parse(h.script).getDecisions().get(0), h.ledger, h.levels, h.clock);
-        assertThatThrownBy(() -> engine.approve("gold", "somebody-else", "ok")).hasMessageContaining("only risk-owner");
-        Engine.Change change = engine.approve("gold", "risk-owner", "the numbers look right");
-        assertThat(change.to()).isEqualTo(Level.SUGGEST);
-        assertThat(level(h, "gold")).isEqualTo(Level.SUGGEST);
-        assertThat(engine.ladder().proposals("gold").get(0).by()).isEqualTo("risk-owner");
-        assertThatThrownBy(() -> engine.approve("gold", "risk-owner", "again")).hasMessageContaining("no open promotion proposal");
-    }
-
-    @Test
-    @Tag("EA-V3.7")
-    void aDemotionIsImmediateAndShowsInTheNextCaseNotTheOneInProgress() {
-        DecideHarness h = harness("drop to watch when 2 dangerous mistakes in 20 cases");
-        h.levels.compareAndSet("Refund", "gold", null, new LevelState(Level.SUGGEST, 1, h.hashOfRefund(), false, DecideHarness.T0, "test", 1));
-        // at suggest, every case is checked blind only when sampled: make the agent wrong in a dangerous way on every case, and check them all
-        h.script = h.script.replace("trust {", "trust {\n check 100% of cases with a person who doesn't see the proposal");
-        h.agent = f -> new String[] {"approve", "r", "0.9"};
-        h.person = f -> "reject";
-
-        Map<String, Object> first = h.runCase("run-1", h.inputs("gold", 20));
-        assertThat(first.get("verdict_level")).isEqualTo("watch");
-        assertThat(level(h, "gold")).as("one dangerous mistake").isEqualTo(Level.SUGGEST);
-        h.runCase("run-2", h.inputs("gold", 21));
-        assertThat(level(h, "gold")).as("the second").isEqualTo(Level.WATCH);
-        assertThat(h.levels.get("Refund", "gold").orElseThrow().reason()).contains("2 dangerous mistakes in the last 2 cases");
-        assertThat(h.audit).contains("level_changed");
-        assertThat(h.ledger.records("Refund").stream().filter(r -> Rec.LEVEL.equals(r.kind()) && "demoted".equals(r.str("kind")))).hasSize(1);
-    }
-
-    @Test
-    @Tag("EA-V3.5")
-    void aConditionOnTheRememberedValuesSendsACaseToAPersonEvenAtAct() {
-        DecideHarness h = harness("always ask a person when amount > 200");
-        h.levels.compareAndSet("Refund", "gold", null, new LevelState(Level.ACT, 1, h.hashOfRefund(), false, DecideHarness.T0, "test", 1));
-
-        Map<String, Object> small = h.runCase("run-1", h.inputs("gold", 150));
-        Map<String, Object> large = h.runCase("run-2", h.inputs("gold", 250));
-
-        assertThat(small.get("verdict_level")).isEqualTo("act");
-        assertThat(large.get("verdict_level")).isEqualTo("suggest");
+        assertThat(out).containsEntry("verdict", "approve").containsEntry("verdict_proposal", "approve").containsEntry("verdict_level", "watch");
         assertThat(h.asked).hasSize(1);
-        assertThat(h.ledger.get("Refund", "run-2/Triage/s0").orElseThrow().level()).isEqualTo(Level.SUGGEST);
+        assertThat(h.asked.get(0)).contains("support-lead").contains("amount = 80").doesNotContain("The agent proposes").doesNotContain("damaged");
+        assertThat(h.trace).anyMatch(t -> t.contains("proposal recorded (hidden)"));
+        assertThat(h.trace).noneMatch(t -> t.contains("proposes approve"));
+
+        List<LCase> cases = cases(h, "Refund");
+        assertThat(cases).hasSize(1);
+        LCase c = cases.get(0);
+        assertThat(c.id()).isEqualTo("r1/" + c.id().substring(3));
+        assertThat(c.scope()).isEqualTo("gold");
+        assertThat(c.level()).isEqualTo("watch");
+        assertThat(c.fields()).containsEntry("amount", "80");
+        assertThat(c.proposalChoice()).isEqualTo("approve");
+        assertThat(c.reasoning()).isEqualTo("the order was damaged");
+        assertThat(c.responseKind()).isEqualTo("accept");
+        assertThat(c.responder()).isEqualTo("support-lead");
+        assertThat(c.shown()).isFalse();
+        assertThat(c.blind()).isTrue();
+        assertThat(c.servedModel()).isEqualTo("m");
     }
 
     @Test
-    @Tag("EA-V3.5")
-    void aDailyLimitSendsTheNextCaseAndTheCountSurvivesARestart() {
-        DecideHarness h = harness("always ask a person after 3 cases a day");
-        h.levels.compareAndSet("Refund", "gold", null, new LevelState(Level.ACT, 1, h.hashOfRefund(), false, DecideHarness.T0, "test", 1));
-        for (int i = 0; i < 3; i++) assertThat(h.runCase("run-" + i, h.inputs("gold", 10 + i)).get("verdict_level")).isEqualTo("act");
+    void theAgentClimbsOnItsRecordAndTheLadderChangesWhatTheRunDoes() {
+        DecideHarness h = harness(REFUND);
+        h.agent = f -> new String[] {"approve", "fine", "0.9"};
+        h.person = f -> "approve";
+        for (int i = 0; i < 3; i++) h.runCase("w" + i, h.inputs("gold", 50 + i));
+        assertThat(h.asked).hasSize(3);
+        assertThat(h.asked).noneMatch(q -> q.contains("The agent proposes"));
 
-        DecideHarness restarted = new DecideHarness(dir, h.ledger, h.levels, h.script); // a new process: nothing remembered but the ledger
-        restarted.clock.set(h.clock.instant());
-        assertThat(restarted.runCase("run-3", restarted.inputs("gold", 13)).get("verdict_level")).as("the fourth of the day").isEqualTo("suggest");
-        restarted.day();
-        assertThat(restarted.runCase("run-4", restarted.inputs("gold", 14)).get("verdict_level")).as("the next day").isEqualTo("act");
+        // three agreeing cases: suggest. The person now sees the proposal.
+        Map<String, Object> out = h.runCase("s0", h.inputs("gold", 60));
+        assertThat(out).containsEntry("verdict_level", "suggest");
+        assertThat(h.asked.get(3)).contains("The agent proposes: approve").contains("fine");
+        assertThat(cases(h, "Refund").get(3).shown()).isTrue();
+
+        // suggest cases are not blind evidence for the next step, but the ladder counts every answered case
+        for (int i = 0; i < 5; i++) h.runCase("s" + (i + 1), h.inputs("gold", 70 + i));
+        int asked = h.asked.size();
+        Map<String, Object> acted = h.runCase("a0", h.inputs("gold", 90));
+        assertThat(acted).containsEntry("verdict", "approve").containsEntry("verdict_level", "act");
+        assertThat(h.asked).hasSize(asked);                                 // nobody was asked
+        LCase last = cases(h, "Refund").get(cases(h, "Refund").size() - 1);
+        assertThat(last.responder()).isEqualTo("agent");
+        assertThat(last.blind()).isFalse();
+        assertThat(last.level()).isEqualTo("act");
     }
 
     @Test
-    @Tag("EA-V3.6")
-    void auditSamplingSendsAShareOfCasesBlindAndTheSameCasesEveryTime() {
-        int sampled = 0;
-        for (int i = 0; i < 10_000; i++) if (io.github.llm4j.loom.execution.DeciderAccess.sampled("run-" + i + "/Triage/s0", "Refund", 5)) sampled++;
-        assertThat(sampled).isBetween(450, 550);
-        for (int i = 0; i < 2_000; i++) {
-            String id = "run-" + i + "/Triage/s0";
-            assertThat(io.github.llm4j.loom.execution.DeciderAccess.sampled(id, "Refund", 5)).as(id).isEqualTo(io.github.llm4j.loom.execution.DeciderAccess.sampled(id, "Refund", 5));
+    void scopesEarnSeparatelyAndALimitSendsACaseToAPersonWhateverTheRung() {
+        DecideHarness h = harness(REFUND);
+        h.agent = f -> new String[] {"approve", "fine", "0.9"};
+        h.person = f -> "approve";
+        for (int i = 0; i < 9; i++) h.runCase("g" + i, h.inputs("gold", 50));
+        assertThat(h.runCase("g9", h.inputs("gold", 50))).containsEntry("verdict_level", "act");
+        assertThat(h.runCase("b0", h.inputs("basic", 50))).containsEntry("verdict_level", "watch");
+
+        int asked = h.asked.size();
+        Map<String, Object> big = h.runCase("g10", h.inputs("gold", 500));
+        assertThat(h.asked).hasSize(asked + 1);                             // amount over 200: a person is asked
+        assertThat(big).containsEntry("verdict_level", "act");
+        assertThat(cases(h, "Refund").get(cases(h, "Refund").size() - 1).how()).isEqualTo("escalate");
+    }
+
+    @Test
+    void aDangerousMistakeSlipsTheAgentDownAndTheNextCaseIsAskedAgain() {
+        DecideHarness h = harness(REFUND);
+        h.agent = f -> new String[] {"approve", "fine", "0.9"};
+        h.person = f -> "approve";
+        for (int i = 0; i < 10; i++) h.runCase("g" + i, h.inputs("gold", 50));
+        assertThat(h.runCase("act0", h.inputs("gold", 50))).containsEntry("verdict_level", "act");
+        h.person = f -> "reject";
+        h.runCase("x1", h.inputs("gold", 500));                              // escalated: the person rejects what the agent approved
+        h.runCase("x2", h.inputs("gold", 500));
+        int asked = h.asked.size();
+        Map<String, Object> after = h.runCase("after", h.inputs("gold", 50));
+        assertThat(after).containsEntry("verdict_level", "suggest");
+        assertThat(h.asked).hasSize(asked + 1);
+        assertThat(h.audit).contains("level_changed");
+    }
+
+    @Test
+    void theSameRunTwiceLeavesOneCaseAndAResumedRunRepeatsNothing() {
+        DecideHarness h = harness(REFUND);
+        h.person = f -> "approve";
+        io.github.llm4j.loom.runtime.RunJournal journal = io.github.llm4j.loom.runtime.RunJournal.inMemory();
+        for (int i = 0; i < 2; i++) {
+            io.github.llm4j.loom.generic.support.ScriptedRun run = h.newRun(journal);
+            io.github.llm4j.loom.execution.HarnessExecutor e = h.executor(run, "same");
+            e.executeWorkflow("Triage", h.inputs("gold", 50));
         }
-        assertThat(io.github.llm4j.loom.execution.DeciderAccess.sampled("x", "Refund", 0)).isFalse();
-        assertThat(io.github.llm4j.loom.execution.DeciderAccess.sampled("x", "Refund", 100)).isTrue();
+        assertThat(cases(h, "Refund")).hasSize(1);
+        assertThat(h.asked).hasSize(1);
+        assertThat(h.modelCalls).isEqualTo(1);
+        assertThat(h.ledger.recordsOfKind("Refund", Rec.RESPONDED)).hasSize(1);
     }
 
     @Test
-    @Tag("EA-V3.6")
-    void anAuditedCaseAtActIsAskedBlindAndCountsAsEvidenceExactlyAsInWatch() {
-        DecideHarness h = harness("check 100% of cases with a person who doesn't see the proposal");
-        h.levels.compareAndSet("Refund", "gold", null, new LevelState(Level.ACT, 1, h.hashOfRefund(), false, DecideHarness.T0, "test", 1));
-        h.agent = f -> new String[] {"approve", "SECRET-REASON", "0.5"};
+    void aLedgerThatCannotBeReadNeverMeansTheAgentActsAlone() {
+        DecideHarness h = new DecideHarness(dir, new MemoryLedger() {
+            @Override
+            public synchronized List<Rec> recordsOfKind(String decision, String... kinds) {
+                throw new IllegalStateException("disk gone");
+            }
 
-        Map<String, Object> vars = h.runCase("run-1", h.inputs("gold", 20));
-
-        assertThat(vars.get("verdict_level")).isEqualTo("watch");
-        assertThat(h.asked.get(0)).doesNotContain("SECRET-REASON").doesNotContain("proposes");
-        assertThat(h.ledger.get("Refund", "run-1/Triage/s0").orElseThrow().blindEvidence()).isTrue();
+            @Override
+            public synchronized List<Rec> records(String decision) {
+                throw new IllegalStateException("disk gone");
+            }
+        }, new MemoryLevelStore(), REFUND);
+        h.person = f -> "reject";
+        Map<String, Object> out = h.runCase("r1", h.inputs("gold", 50));
+        assertThat(out).containsEntry("verdict", "reject");
+        assertThat(h.asked).hasSize(1);
+        assertThat(h.asked.get(0)).doesNotContain("The agent proposes");
+        assertThat(h.audit).contains("autonomy_degraded");
     }
 
     @Test
-    @Tag("EA-V3.8")
-    void theDefaultCeilingIsSuggestSoReachingActIsAnSentenceTheScriptHadToWrite() {
-        DecideHarness h = new DecideHarness(dir, new MemoryLedger(), new MemoryLevelStore(), Scripts2.refund("").replace("never go above act", ""));
-        cases(h, "gold", 40, 0);
-        assertThat(level(h, "gold")).isEqualTo(Level.SUGGEST);
+    void aChangedAgentStartsOverAndTheOldRecordStaysInTheLedger() {
+        DecideHarness h = harness(REFUND);
+        h.agent = f -> new String[] {"approve", "fine", "0.9"};
+        h.person = f -> "approve";
+        for (int i = 0; i < 3; i++) h.runCase("w" + i, h.inputs("gold", 50));
+        assertThat(h.runCase("s0", h.inputs("gold", 50))).containsEntry("verdict_level", "suggest");
+
+        h.script = REFUND.replace("You are Triager.", "You are a stricter Triager.");
+        Map<String, Object> out = h.runCase("n0", h.inputs("gold", 50));
+        assertThat(out).containsEntry("verdict_level", "watch");
+        assertThat(cases(h, "Refund")).hasSize(5);
+        assertThat(cases(h, "Refund").get(4).epoch()).isEqualTo(2);
+        assertThat(h.ledger.recordsOfKind("Refund", Rec.LEVEL).stream().anyMatch(r -> "epoch".equals(r.str("kind")))).isTrue();
     }
 
     @Test
-    @Tag("EA-V3.10")
-    void theLevelInForceIsJournaledSoARunResumedAfterAChangeFinishesTheCaseAtTheLevelItBeganWith() {
-        DecideHarness h = harness("");
-        RunJournal journal = RunJournal.inMemory();
-        h.person = f -> {
-            throw new RunSuspended("Triage/s0#decide-ask", "waiting for support-lead");
-        };
-        var first = h.newRun(journal);
-        var executor = h.executor(first, "run-1");
-        assertThatThrownBy(() -> executor.executeWorkflow("Triage", h.inputs("gold", 20))).isInstanceOf(RunSuspended.class);
-        assertThat(journal.get("Triage/s0#level")).isPresent();
+    void aProviderThatSilentlyServesAnotherModelStartsANewEpoch() {
+        DecideHarness h = harness(REFUND);
+        h.agent = f -> new String[] {"approve", "fine", "0.9"};
+        h.person = f -> "approve";
+        for (int i = 0; i < 3; i++) h.runCase("w" + i, h.inputs("gold", 50));
+        assertThat(h.runCase("s0", h.inputs("gold", 50))).containsEntry("verdict_level", "suggest");
+        DecideHarness.servedModel = "m-v2";
+        try {
+            Map<String, Object> out = h.runCase("n0", h.inputs("gold", 50));
+            assertThat(out).containsEntry("verdict_level", "watch");
+            LevelLog.Standing s = new LevelLog("Refund", List.of("watch", "suggest", "act"), h.ledger).current("gold").orElseThrow();
+            assertThat(s.epoch()).isEqualTo(2);
+            assertThat(s.reason()).contains("served model changed from m to m-v2");
+            assertThat(cases(h, "Refund").get(4).servedModel()).isEqualTo("m-v2");
+        } finally {
+            DecideHarness.servedModel = "m";
+        }
+    }
 
-        // meanwhile the ladder moves: this scope is now at act
-        LevelState now = h.levels.get("Refund", "gold").orElseThrow();
-        h.levels.compareAndSet("Refund", "gold", now, now.withLevel(Level.ACT, true, DecideHarness.T0, "someone moved it"));
-        journal.put("Triage/s0#decide-ask", new RunJournal.Entry("human", "approve"));
+    // ---------- artifacts ----------
 
-        h.asked.clear();
-        var resumed = h.executor(h.newRun(journal), "run-1");
-        resumed.executeWorkflow("Triage", h.inputs("gold", 20));
-        assertThat(resumed.getContext().getAll().get("verdict_level")).as("the case began at watch").isEqualTo("watch");
-        assertThat(resumed.getContext().getAll().get("verdict")).isEqualTo("approve");
-        assertThat(h.ledger.cases("Refund")).hasSize(1);
+    @Test
+    void aDecisionThatProposesAnArtifactRecordsAcceptedEditedAndRejected() {
+        DecideHarness h = harness(PUBLISH);
+        h.rawAgent = f -> "{\"post\": \"Hello wrld\", \"reasoning\": \"draft\"}";
+        h.person = f -> "accept";
+        Map<String, Object> first = h.runCase("p1", h.inputs("x", 1));
+        assertThat(first).containsEntry("post", "Hello wrld").containsEntry("post_level", "edit");
+        assertThat(h.asked.get(0)).contains("review the post").contains("Hello wrld").contains("The agent proposes");
 
-        Map<String, Object> next = h.runCase("run-2", h.inputs("gold", 21));
-        assertThat(next.get("verdict_level")).as("the next case uses the new level").isEqualTo("act");
+        h.person = q -> "Hello world";
+        Map<String, Object> second = h.runCase("p2", h.inputs("x", 1));
+        assertThat(second).containsEntry("post", "Hello world").containsEntry("post_proposal", "Hello wrld");
+
+        h.person = q -> "reject";
+        Map<String, Object> third = h.runCase("p3", h.inputs("x", 1));
+        assertThat(third).containsEntry("post", "");
+
+        List<LCase> cases = cases(h, "Publish");
+        assertThat(cases).extracting(LCase::responseKind).containsExactly("accept", "edit", "reject");
+        assertThat(cases.get(1).proposalValue()).isEqualTo("Hello wrld");
+        assertThat(cases.get(1).responseFinal()).isEqualTo("Hello world");
+        assertThat(cases.get(0).shown()).isTrue();
+    }
+
+    @Test
+    void anArtifactAgentThatKeepsBeingAcceptedGainsTheRightToPublishOnItsOwn() {
+        DecideHarness h = harness(PUBLISH);
+        h.rawAgent = f -> "{\"post\": \"A fine post\", \"reasoning\": \"draft\"}";
+        h.person = f -> "accept";
+        for (int i = 0; i < 3; i++) h.runCase("p" + i, h.inputs("x", 1));
+        int asked = h.asked.size();
+        Map<String, Object> out = h.runCase("auto", h.inputs("x", 1));
+        assertThat(out).containsEntry("post", "A fine post").containsEntry("post_level", "publish");
+        assertThat(h.asked).hasSize(asked);
+        LCase last = cases(h, "Publish").get(3);
+        assertThat(last.responder()).isEqualTo("agent");
+        assertThat(last.responseKind()).isEqualTo("accept");
+    }
+
+    @Test
+    void anArtifactAgentThatReturnsNothingUsableIsSentToAPersonEvenAtTheTopRung() {
+        DecideHarness h = harness(PUBLISH);
+        h.rawAgent = f -> "{\"post\": \"A fine post\", \"reasoning\": \"draft\"}";
+        h.person = f -> "accept";
+        for (int i = 0; i < 3; i++) h.runCase("p" + i, h.inputs("x", 1));
+        h.rawAgent = f -> "{\"reasoning\": \"I could not\"}";
+        int asked = h.asked.size();
+        h.runCase("bad", h.inputs("x", 1));
+        assertThat(h.asked).hasSize(asked + 1);
+        LCase last = cases(h, "Publish").get(3);
+        assertThat(last.how()).isEqualTo("unusable proposal");
+        assertThat(last.level()).isEqualTo("publish");
+        assertThat(last.malformed()).isTrue();
     }
 }

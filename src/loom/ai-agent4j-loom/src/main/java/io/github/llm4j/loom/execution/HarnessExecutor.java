@@ -244,6 +244,13 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     io.github.llm4j.loom.autonomy.Ledger ledger() { return ledger; }
+
+    private final Map<String, String> servedModels = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** The model the provider said answered the agent's latest call, or null when it said nothing (or no call has been made). */
+    String servedModel(String agent) { return servedModels.get(agent); }
+
+    void forgetServedModel(String agent) { servedModels.remove(agent); }
     io.github.llm4j.loom.autonomy.LevelStore levelStore() { return levelStore; }
     Replay replay() { return replay; }
 
@@ -1196,6 +1203,11 @@ public class HarnessExecutor implements LoomEngine {
             
             if (llmClient == null) {
                 llmClient = metered(clientFor(agentDef.getModel()), agentDef, agentDef.getModel());
+            }
+            if (script.getDecisions().stream().anyMatch(d -> d.getLadder() != null && agentDef.getName().equals(d.getAgent()))) {
+                // a ladder compares the model the provider says answered with the one that answered before: a silent change behind an alias starts a new epoch
+                String agentName = agentDef.getName();
+                llmClient = new ServedModelRecorder(llmClient, served -> servedModels.put(agentName, served));
             }
             if (agentDef.getGuard() != null) {
                 String judge = agentDef.getGuard().getBiasModel();
