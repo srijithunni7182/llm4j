@@ -59,6 +59,8 @@ public final class RunState {
     private BigDecimal cost = BigDecimal.ZERO;
     /** Cumulative spend after each finished agent step: [millis since start, tokens, cost]. Thinned past 600 points. */
     private final List<Object[]> spend = new ArrayList<>();
+    private final Incidents incidents = new Incidents();
+    private final Detectors detectors = new Detectors(incidents, Thresholds.defaults());
     private Map<String, Object> graph;
     private java.util.function.Supplier<List<Map<String, Object>>> ladders;
     private String suspendReason;
@@ -96,6 +98,11 @@ public final class RunState {
     /** Where the run's decisions stand on their autonomy ladders; asked for whenever the view is built. Embedded mode only. */
     public synchronized void setLadders(java.util.function.Supplier<List<Map<String, Object>>> ladders) {
         this.ladders = ladders;
+    }
+
+    /** The thresholds the incident rules use (the defaults until a script's {@code inspect} blocks say otherwise). */
+    public synchronized void setThresholds(Thresholds thresholds) {
+        detectors.thresholds(thresholds);
     }
 
     public synchronized void setGraph(Map<String, Object> graph) {
@@ -136,6 +143,7 @@ public final class RunState {
             case Semconv.EV_RUN_END -> runEnd(r);
             case Semconv.EV_RUN_SUSPENDED -> runSuspended(r);
             case Semconv.EV_SPAN_START -> spanStart(r);
+            case Semconv.EV_BUDGET -> detectors.onBudget(String.valueOf(r.text("loom.data.budget")), r.text("loom.data.kind"), r.body(), r.timeNanos());
             default -> { }
         }
         remember(r);
@@ -151,8 +159,15 @@ public final class RunState {
         rememberEnd(s, kind);
         stepState(s.text(Semconv.LOOM_STEP), kind, s.statusCode() == SpanRec.STATUS_ERROR ? "failed" : "done");
         switch (kind) {
-            case Semconv.KIND_AGENT -> agentEnded(s);
-            case Semconv.KIND_TOOL -> toolEnded(s, was);
+            case Semconv.KIND_AGENT -> {
+                agentEnded(s);
+                detectors.onAgentEnd(s.text(Semconv.GEN_AI_AGENT_NAME), s.text(Semconv.LOOM_STEP), s.text(Semconv.LOOM_OUTPUT_HASH),
+                        number(s.attr(Semconv.LOOM_GROUNDING_FIGURES)), number(s.attr(Semconv.LOOM_GROUNDING_UNGROUNDED)), s.text(Semconv.LOOM_GROUNDING_EXAMPLES), s.endNanos());
+            }
+            case Semconv.KIND_TOOL -> {
+                toolEnded(s, was);
+                detectors.onToolEnd(s.text(Semconv.GEN_AI_AGENT_NAME), s.text(Semconv.GEN_AI_TOOL_NAME), s.statusCode() == SpanRec.STATUS_ERROR, s.text(Semconv.LOOM_STEP), s.endNanos());
+            }
             case Semconv.KIND_SLEEP -> {
                 sleepWakeAt = null;
                 if (status == Status.SLEEPING) status = Status.RUNNING;
@@ -171,6 +186,7 @@ public final class RunState {
         resumeAt = null;
         sleepWakeAt = null;
         open.clear(); // whatever the earlier process had open ended with it
+        detectors.onResumed(r.timeNanos());
     }
 
     private void runEnd(LogRec r) {
@@ -184,7 +200,10 @@ public final class RunState {
             }
             default -> { }
         }
-        if (status == Status.FINISHED || status == Status.FAILED || status == Status.STOPPED) endedNanos = r.timeNanos();
+        if (status == Status.FINISHED || status == Status.FAILED || status == Status.STOPPED) {
+            endedNanos = r.timeNanos();
+            detectors.onRunEnd(r.timeNanos());
+        }
         open.clear();
     }
 
@@ -198,6 +217,7 @@ public final class RunState {
             status = Status.WAITING;
         } else {
             status = Status.PAUSED;
+            detectors.onPaused(suspendReason, resumeAt, r.timeNanos());
         }
     }
 
@@ -212,7 +232,11 @@ public final class RunState {
             sleepWakeAt = r.text(Semconv.LOOM_SLEEP_WAKE_AT);
             status = Status.SLEEPING;
         } else if (status == Status.SLEEPING || status == Status.PAUSED || status == Status.WAITING) {
+            if (status == Status.PAUSED) detectors.onResumed(r.timeNanos());
             status = Status.RUNNING; // something started, so the run is going again
+        }
+        if (Semconv.KIND_TOOL.equals(kind)) {
+            detectors.onToolStart(r.text(Semconv.GEN_AI_AGENT_NAME), r.text(Semconv.LOOM_STEP), r.text(Semconv.GEN_AI_TOOL_NAME), r.text(Semconv.LOOM_ACTION_HASH), r.timeNanos());
         }
     }
 
@@ -309,6 +333,7 @@ public final class RunState {
 
     /** As {@link #view()}, with {@code now} as the moment of looking: a run that has not ended has been going until now, even while it sleeps. */
     public synchronized Map<String, Object> view(Instant now) {
+        detectors.refreshPaused(OtlpJson.nanos(now));
         Map<String, Object> v = new LinkedHashMap<>();
         v.put("client", client);
         v.put("traceId", traceId);
@@ -411,6 +436,7 @@ public final class RunState {
         v.put("spend", series);
 
         v.put("gaps", gaps);
+        v.put("incidents", incidents.view());
         v.put("duplicates", duplicates);
         v.put("recent", new ArrayList<>(recent));
         return v;
@@ -432,6 +458,8 @@ public final class RunState {
         totals.put("cost", cost.toPlainString());
         v.put("totals", totals);
         v.put("runningAgents", open.values().stream().filter(o -> Semconv.KIND_AGENT.equals(o.kind())).count());
+        v.put("incidents", incidents.openCount());
+        if (incidents.worst() != null) v.put("worstIncident", incidents.worst());
         return v;
     }
 
