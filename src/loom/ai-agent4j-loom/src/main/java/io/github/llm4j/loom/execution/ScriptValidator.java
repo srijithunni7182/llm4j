@@ -283,6 +283,7 @@ public class ScriptValidator {
         TaskChecks.run(c);
         RewindChecks.run(c);
         DecisionChecks.run(c);
+        io.github.llm4j.loom.ladder.LadderChecks.run(c);
     }
 
     private void walk(List<Statement> statements, Checker c) {

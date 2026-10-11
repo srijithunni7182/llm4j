@@ -51,6 +51,12 @@ public class LoomParser {
                 script.setBudget(parseBudgetBlock(false));
             } else if (isDecisionStart()) {
                 script.addDecision(parseDecision());
+            } else if (check(TokenType.LADDER_DECL)) {
+                Token decl = advance();
+                script.addLadder(LadderParser.parseLadder(decl.getValue(), decl.getLine()));
+            } else if (check(TokenType.MEASURE_DECL)) {
+                Token decl = advance();
+                script.addMeasure(LadderParser.parseMeasure(decl.getValue(), decl.getLine()));
             } else if (isNamedAttribute("prompts")) {
                 // Contextual: `prompts` stays usable as a variable name everywhere else.
                 Token keyword = advance();
@@ -675,13 +681,60 @@ public class LoomParser {
             } else if (wordIs("trust") && peekAt(1).getType() == TokenType.LBRACE) {
                 advance();
                 parseTrust(d);
+            } else if (wordIs("ladder") && peekAt(1).getType() == TokenType.COLON) {
+                advance();
+                advance();
+                parseLadderBinding(d);
+            } else if (wordIs("ceiling") && peekAt(1).getType() == TokenType.COLON) {
+                advance();
+                advance();
+                d.setCeilingRung(rungName("ceiling:", "Expect the name of a rung after \"ceiling:\", such as ceiling: suggest."), first.getLine());
+            } else if (wordIs("proposes") && peekAt(1).getType() == TokenType.COLON) {
+                advance();
+                advance();
+                d.setProposes(consume(TokenType.IDENTIFIER, "Expect the name of what the agent proposes after \"proposes:\", such as proposes: script.").getValue(), first.getLine());
             } else {
-                throw error(first, "Unexpected \"" + first.getValue() + "\" in decision " + d.getName() + ". A decision holds: proposed by, choices, group cases by, remember, "
-                        + "dangerous mistake, ask, keep records for, when the agent changes, tell, task, flag cases, and a trust { } block.");
+                throw error(first, "Unexpected \"" + first.getValue() + "\" in decision " + d.getName() + ". A decision holds: proposed by, choices, proposes, group cases by, remember, "
+                        + "dangerous mistake, ask, keep records for, when the agent changes, tell, task, flag cases, ladder, ceiling, and a trust { } block.");
             }
         }
         consume(TokenType.RBRACE, "Expect '}' after the decision body.");
         return d;
+    }
+
+    /** A rung or ladder name: any word, since the lexer makes keywords of some ordinary ones. */
+    private String rungName(String after, String hint) {
+        Token t = peek();
+        if (t.getType() == TokenType.STRING_LITERAL || !t.getValue().matches("[A-Za-z_][A-Za-z0-9_-]*")) throw error(t, hint);
+        advance();
+        return t.getValue();
+    }
+
+    /** After {@code ladder:} : {@code Name} or {@code Name(param: value, …)}. */
+    private void parseLadderBinding(io.github.llm4j.loom.ast.DecisionDef d) {
+        Token at = peek();
+        String name = rungName("ladder:", "Expect the name of a ladder after \"ladder:\", such as ladder: RefundLadder.");
+        d.setLadder(name, at.getLine());
+        if (!match(TokenType.LPAREN)) return;
+        if (!check(TokenType.RPAREN)) {
+            do {
+                Token key = consume(TokenType.IDENTIFIER, "Expect a parameter name in the arguments of ladder " + name + ".");
+                consume(TokenType.COLON, "Write the arguments of a ladder as name: value, such as baseline_views: 1200.");
+                StringBuilder text = new StringBuilder();
+                int line = peek().getLine();
+                while (!check(TokenType.COMMA) && !check(TokenType.RPAREN) && !isAtEnd()) {
+                    Token t = advance();
+                    text.append(t.getType() == TokenType.STRING_LITERAL ? "\"" + t.getValue() + "\"" : t.getValue());
+                }
+                if (text.length() == 0) throw error(peek(), "Expect a value after \"" + key.getValue() + ":\".");
+                try {
+                    d.getLadderArgs().put(key.getValue(), io.github.llm4j.loom.autonomy.expr.ExprParser.parse(text.toString()));
+                } catch (io.github.llm4j.loom.autonomy.expr.ExprException e) {
+                    throw new RuntimeException("Parse error at line " + line + ": " + e.getMessage() + " (in the argument " + key.getValue() + ")");
+                }
+            } while (match(TokenType.COMMA));
+        }
+        consume(TokenType.RPAREN, "Expect ')' to close the arguments of ladder " + name + ".");
     }
 
     private void parseTrust(io.github.llm4j.loom.ast.DecisionDef d) {

@@ -14,6 +14,8 @@ public class LoomScript implements Node {
     private final List<ProviderDef> providers = new ArrayList<>();
     private final List<PersonaDef> personas = new ArrayList<>();
     private final List<DecisionDef> decisions = new ArrayList<>();
+    private final List<LadderDef> ladders = new ArrayList<>();
+    private final List<MeasureDef> measures = new ArrayList<>();
     private final List<String> imports = new ArrayList<>();
     private final List<Integer> importLines = new ArrayList<>();
     private String promptsDir;
@@ -69,6 +71,14 @@ public class LoomScript implements Node {
     /** Decisions declared with {@code decision Name { … }}. */
     public List<DecisionDef> getDecisions() { return decisions; }
 
+    public void addLadder(LadderDef ladder) { this.ladders.add(ladder); }
+    /** Ladders declared with {@code ladder Name { rung … }}. */
+    public List<LadderDef> getLadders() { return ladders; }
+
+    public void addMeasure(MeasureDef measure) { this.measures.add(measure); }
+    /** Measures declared with {@code measure name(c) = …}. */
+    public List<MeasureDef> getMeasures() { return measures; }
+
     public void addImport(String path) { addImport(path, 0); }
     public void addImport(String path, int line) {
         this.imports.add(path);
@@ -100,6 +110,8 @@ public class LoomScript implements Node {
         this.providers.addAll(other.providers);
         this.personas.addAll(other.personas);
         this.decisions.addAll(other.decisions);
+        this.ladders.addAll(other.ladders);
+        this.measures.addAll(other.measures);
         if (this.auditConfig == null) {
             this.auditConfig = other.auditConfig;
         }

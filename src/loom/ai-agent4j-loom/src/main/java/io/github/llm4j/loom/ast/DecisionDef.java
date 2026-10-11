@@ -42,6 +42,7 @@ public class DecisionDef implements Node {
     private String ask;
     private int keepDays;
     private OnChange onChange = OnChange.START_OVER;
+    private boolean onChangeStated;
     private String tellTool;
     private String task;
     private int staleDays = 7;
@@ -58,6 +59,14 @@ public class DecisionDef implements Node {
     private boolean automatic;
     private boolean trustGiven;
     private boolean ceilingStated;
+
+    private String ladder;
+    private int ladderLine;
+    private final Map<String, io.github.llm4j.loom.autonomy.expr.Expr> ladderArgs = new LinkedHashMap<>();
+    private String ceilingRung;
+    private int ceilingRungLine;
+    private String proposes;
+    private int proposesLine;
 
     public DecisionDef(String name) { this.name = name; }
 
@@ -76,7 +85,9 @@ public class DecisionDef implements Node {
     public int getKeepDays() { return keepDays; }
     public void setKeepDays(int keepDays) { this.keepDays = keepDays; }
     public OnChange getOnChange() { return onChange; }
-    public void setOnChange(OnChange onChange) { this.onChange = onChange; }
+    public void setOnChange(OnChange onChange) { this.onChange = onChange; this.onChangeStated = true; }
+    /** True when the script wrote a {@code when the agent changes:} line. */
+    public boolean isOnChangeStated() { return onChangeStated; }
     public String getTellTool() { return tellTool; }
     public void setTellTool(String tellTool) { this.tellTool = tellTool; }
     /** The text asked of the agent for each case, with {name} placeholders for the remembered values; null for the default. */
@@ -106,4 +117,18 @@ public class DecisionDef implements Node {
     /** True when the script wrote a {@code trust { }} block. */
     public boolean isTrustGiven() { return trustGiven; }
     public void setTrustGiven(boolean trustGiven) { this.trustGiven = trustGiven; }
+
+    /** The ladder this decision binds ({@code ladder: Name}), or null when it has its own {@code trust} block. */
+    public String getLadder() { return ladder; }
+    public int getLadderLine() { return ladderLine; }
+    public Map<String, io.github.llm4j.loom.autonomy.expr.Expr> getLadderArgs() { return ladderArgs; }
+    public void setLadder(String ladder, int line) { this.ladder = ladder; this.ladderLine = line; }
+    /** The highest rung of the bound ladder this decision may reach ({@code ceiling: suggest}); null for the first. */
+    public String getCeilingRung() { return ceilingRung; }
+    public int getCeilingRungLine() { return ceilingRungLine; }
+    public void setCeilingRung(String rung, int line) { this.ceilingRung = rung; this.ceilingRungLine = line; }
+    /** The artifact this decision proposes ({@code proposes: script}) instead of {@code choices}, or null. */
+    public String getProposes() { return proposes; }
+    public int getProposesLine() { return proposesLine; }
+    public void setProposes(String proposes, int line) { this.proposes = proposes; this.proposesLine = line; }
 }
