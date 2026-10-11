@@ -28,6 +28,7 @@ may not be here, so never send the user to a repository path and never ask them 
 | 10 | Best practices | `docs/guide/10-best-practices.md` | the readiness checklist is ticked |
 | 12 | Java quick reference (imports and calls) | `docs/guide/12-java-quick-reference.md` | read it before writing any Java; never open a jar or run `javap` to find a class or method |
 | 11 | Build the test examples with the user | `docs/guide/11-build-the-dataset-with-the-user.md` | every agent: the user answered the five quality questions, countable things are checked by code, no silent gaps |
+| 13 | Earned autonomy (optional, only when an agent will take over a decision a person makes) | `docs/guide/13-earned-autonomy.md` | the risk owner has read `weave ladder describe`; no level is claimed before real cases have run |
 
 Start with `weave guide readme` if the user is new to the path. When the user wants to change a starter, `weave guide recipes` has tested before-and-after changes (a different model, ask a person before publishing, escalate when a loop gives up, add an agent, add a tool, mask personal data); use them as patterns and give the user the matching "Ask your agent" sentence.
 
@@ -193,7 +194,9 @@ unjudged); a real run does, under a cap you agree first. Offer `weave graph` to 
 
 When you open the eval4j dashboard, **read it before you describe it**: say what is actually on the screen (how many rows, that each row is named "<agent or workflow> · <example>", that every check in a mock run is the wiring check, and which quality dimensions have no results). Never describe a dashboard from this file's wording alone.
 
-## When an agent should earn the right to decide (earned autonomy)
+## When an agent should earn the right to decide (earned autonomy, optional)
+
+This is optional and most workflows do not need it: raise it only when an agent will take over a decision a person makes today, and never add it unasked. Chapter 13 (`weave guide 13`) is the step-by-step; this section is the summary.
 
 If the user wants an agent to make a decision that today a person makes (approve a refund, post a reply), do not give it the power
 at once. Declare a `decision` and let it earn the freedom; the full language is in `LOOM_GUIDE.md` (section "Earned autonomy"), so read it before writing one.
