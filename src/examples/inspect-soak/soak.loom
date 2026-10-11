@@ -123,12 +123,12 @@ agent PublisherGated {
 
 // ---- the run ----------------------------------------------------------------------------------
 
-workflow Soak(topic, pace, ask_human) {
+workflow Soak(topic, ask_human) {
     note "SOAK phase A: brief and research"
     delegate "Write a one paragraph creative brief for a 45 second video about: {topic}" to Showrunner -> brief_text
 
     broadcast "Research for this brief: {brief_text}" to [Researcher, TrendScout, Competitor] -> findings
-    run Pace(seconds = pace) -> rested
+    sleep 90s
 
     note "SOAK phase B: the loop that does not converge"
     loop until (review.verdict == "COMPLETE") max 5 {
@@ -144,7 +144,7 @@ workflow Soak(topic, pace, ask_human) {
             verdict: enum["COMPLETE", "INCOMPLETE"],
             fix: string
         }
-        run Pace(seconds = pace) -> rested
+        sleep 90s
     } on_exhausted {
         note "SOAK loop gave up after {_loopRounds} rounds"
     }
@@ -157,7 +157,7 @@ workflow Soak(topic, pace, ask_human) {
         delegate "Describe a thumbnail for: {shot.description}" to Designer -> {shot.thumb_var}
         delegate "Write a caption for: {shot.description}" to Captioner -> {shot.caption_var}
     }
-    run Pace(seconds = pace) -> rested
+    sleep 90s
 
     delegate "Audit the pack. Feedback: {feedback}. Pack: {plan}" to Auditor -> grade expecting {
         score: number,
@@ -178,6 +178,6 @@ workflow Soak(topic, pace, ask_human) {
     }
 
     note "SOAK saved: {published}"
-    run Pace(seconds = 240) -> rested
+    sleep 4m
     note "SOAK done"
 }

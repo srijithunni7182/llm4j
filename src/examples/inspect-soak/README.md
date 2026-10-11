@@ -10,13 +10,13 @@ invents statistics, a tool pointed at pages that do not exist. They are fixtures
 ## What it does
 
 A short-video studio: a brief, parallel research, a review loop that does not converge, thumbnails and
-captions with a rewind, then a save. Between the model steps a deterministic `Pace` task waits, so the run
-lasts as long as a real long-running one. The timeline, and what each moment should look like in the
+captions with a rewind, then a save. Between the model steps the workflow `sleep`s, so the run
+lasts as long as a real long-running one, and each sleep is a real pause of the durable run. The timeline, and what each moment should look like in the
 console, is in [`CHECKLIST.md`](./CHECKLIST.md).
 
 | Phase | What happens | Why it is there |
 |---|---|---|
-| A | `broadcast` to Researcher, TrendScout and Competitor; Competitor's fetches fail | parallel fan-out, tools in flight, a failing tool |
+| A | `broadcast` to Researcher, TrendScout and Competitor; Competitor's fetches fail; `sleep 90s` | parallel fan-out, tools in flight, a failing tool, a sleep |
 | B | `loop … max 5`: Scriptwriter, then Editor, FactChecker and SEO in `parallel`, then Lead, who is never satisfied | a loop that stops converging, a repeated tool call, invented figures |
 | C | a `checkpoint`, a Planner, `parallel for each` over thumbnails and captions, an Auditor, one `rewind` | a rewind, a budget-window pause, `for each` routing |
 | D | the Publisher saves `report.md`; with `ASK_HUMAN=yes` each write waits for you | an approval wait |
@@ -24,18 +24,18 @@ console, is in [`CHECKLIST.md`](./CHECKLIST.md).
 ## Run it
 
 You need a JDK, the weave jar (build it from the repository root with
-`mvn -DskipTests -pl src/loom/ai-agent4j-loom -am package`) and a Gemini key.
+`mvn -DskipTests -pl src/loom/ai-agent4j-loom -am package`) and a Gemini key. The soak uses Loom's `sleep`, so build the jar from this branch or later.
 
 ```bash
 cd src/examples/inspect-soak
 export GEMINI_API_KEY=...
 ./run-soak.sh                 # about 30 minutes
-PACE=30 ./run-soak.sh         # about 12 minutes, for a quick look
+# for a shorter run, lower the `sleep` durations in soak.loom
 ```
 
-`run-soak.sh` builds `soak-tasks.jar` (the `Pace` task, found through `META-INF/services`) on first use and
-runs the workflow with a durable journal (`runs/soak`) and `--wait`, so the budget-window pause in phase C
-resumes by itself. Use `weave check soak.loom` and `weave audit soak.loom` any time; both pass today.
+`run-soak.sh` runs the workflow with a durable journal (`runs/soak`) and `--wait`. Every `sleep` longer than
+30 seconds pauses the run and holds no thread, and `--wait` wakes it at the recorded time; the budget-window
+pause in phase C resumes the same way. Use `weave check soak.loom` and `weave audit soak.loom` any time; both pass today.
 
 **Cost.** Every agent uses `gemini-2.5-flash`. The run budget is 900,000 tokens and 500 calls, with a warning
 at 80%. Expect something in the low hundreds of thousands of tokens, a few tens of US cents at flash prices.
