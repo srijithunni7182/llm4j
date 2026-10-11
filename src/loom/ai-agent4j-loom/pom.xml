@@ -353,4 +353,49 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Mutation testing of the ladder language and engine: mvn -Pmutation org.pitest:pitest-maven:mutationCoverage -->
+        <profile>
+            <id>mutation</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.17.4</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.1</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>io.github.llm4j.loom.autonomy.expr.*</param>
+                                <param>io.github.llm4j.loom.ladder.*</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.llm4j.loom.autonomy.expr.*Test</param>
+                                <param>io.github.llm4j.loom.ladder.*Test</param>
+                                <param>io.github.llm4j.loom.parser.Ladder*Test</param>
+                                <param>io.github.llm4j.loom.autonomy.LadderRunTest</param>
+                                <param>io.github.llm4j.loom.autonomy.LadderStoresTest</param>
+                                <param>io.github.llm4j.loom.autonomy.LadderVerificationTest</param>
+                            </targetTests>
+                            <excludedTests>
+                                <param>io.github.llm4j.loom.ladder.LadderAuditTest</param>
+                            </excludedTests>
+                            <threads>4</threads>
+                            <timeoutFactor>3</timeoutFactor>
+                            <outputFormats><param>XML</param><param>HTML</param></outputFormats>
+                            <timestampedReports>false</timestampedReports>
+                            <jvmArgs><jvmArg>-Djava.util.logging.config.file=${project.build.testOutputDirectory}/logging.properties</jvmArg></jvmArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
