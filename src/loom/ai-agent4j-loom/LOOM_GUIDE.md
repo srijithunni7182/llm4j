@@ -1694,10 +1694,15 @@ budgets are not metered at all.
 `sleep` makes the workflow wait for a fixed time and then carry on. It is for polling a job that takes a while, a cooldown between rounds of a loop, or a follow-up some hours after a message. It costs nothing: no model, no tokens, and it does not count against a `budget`.
 
 ```loom
+agent Checker {
+    model: "gemini-2.5-flash"
+    system: "You check whether a job has finished. Answer with its state: running or done."
+    output_schema: { state: string }
+}
+
 workflow Poll(job) {
-    run StartJob(id = job) -> started
     loop until (status.state == "done") max 24 {
-        run CheckJob(id = job) -> status
+        delegate "Has job {job} finished?" to Checker -> status
         sleep 5m
     } on_exhausted {
         note "Job {job} is still running after two hours"

@@ -58,6 +58,7 @@ These are changes in `ai-agent4j-loom`, kept as small as possible. Each has a fa
 |---|---|---|---|
 | C1 | **No pause.** `setStopAt` exists but there is no "hold before the next model call". | A `RunControl` object on the executor: `pause()`, `resume()`, `requestStop()`, `requestSuspend()`. The executor checks it before each LLM call and between steps, the same place budgets are enforced. | v1 offers **Stop** (via `setStopAt` on the next step boundary) and **Suspend** only; Pause is hidden. |
 | C2 | **No call-level events.** There is no trace event for an LLM call with tokens, latency and model, and `observation` carries no tool name. | Emit `llm_call` (agent, model, tokens in/out, ms, cost) and add the tool name and duration to `observation`. | Poll `spend()` every second for tokens and cost; derive "tool in flight" from an `action` with no `observation` yet, per agent. Latency is unavailable. |
+| C2a | *(done in phase 0)* No run edges in the trace. | `run_start` and `run_end` trace events: workflow, run id, whether it resumed, and how the run ended (completed, suspended with reason and wake time, stopped, budget, failed with the error). Also a `sleep` event (`start` and `end`). | The mapper cannot tell a run began or ended. |
 | C3 | **No key-health signal.** We cannot say whether the provider accepted or rejected a secret. | Emit `secret_use` (name, outcome: ok, 401, 403, other; never the value). | The Secrets page shows used-by, host, updated and fingerprint, and leaves the Status column out. |
 | C4 | **No `inspect` block in the language.** | Add `inspect <Agent> { ... }` to the parser, AST and `weave check` (see section 6). | Thresholds come from a Java `InspectConfig` with sensible defaults, and the page says "defaults". |
 | C5 | **Nothing is exposed as a whole.** Some getters are public, some package-private, some missing. | One read-only `ObservableRun` interface returned by `executor.observable()`: `runId()`, `journal()`, `script()` (workflows, agents, tools, provider and secret references), `secretStore()`, `ledger()` and `levelStore()`, `budget()` (limits, `warn_at`, per-agent), `spend()`, `variables()` (immutable snapshot), `pending()` (questions and approvals waiting on a person), `clock()`. loom-inspect depends only on this interface, so internals can change without breaking it. | The app passes the pieces to `Inspect.attach`. |
@@ -461,6 +462,16 @@ Not in v1: mutual TLS (client certificates). The per-client signing key already 
 ## 11a. The soak test
 
 A real, long-running workflow is the acceptance test for every phase: `src/examples/inspect-soak/`. It runs about 30 minutes against real models and is built to put every state the console shows on screen at a predictable time: parallel fan-out, a tool that fails, a loop that stops converging, a draft with ungrounded figures, a rewind, a budget-window pause, a task step, and an optional human wait. It is observed from the server (and from the embedded page) while it runs. The minute-by-minute checklist of what each phase must show is in `src/examples/inspect-soak/CHECKLIST.md`.
+
+## 11b. Phase 0 status
+
+Built and tested (all on this branch):
+
+- `loom-inspect-core`: the OpenTelemetry-shaped model (`SpanRec`, `LogRec`, `MetricRec`, `Resource`), deterministic `Ids`, the OTLP/JSON codec (`OtlpJson`, no SDK), the Loom-specific `Hello` and `Heartbeat`, and `RunState` and `RunRegistry`, which build the console's view of a run from records alone. 25 tests.
+- `loom-inspect`: `TraceMapper` (Loom `TraceEvent` to records) and `Detail` (full, truncated, metadata). 18 tests, including one that drives a real executor through a sleep and a resume on a second executor and checks the console view.
+- `ai-agent4j-loom`: `run_start`, `run_end` and `sleep` trace events (C2a), and icons for them in `weave run --trace`.
+
+What the mapper cannot yet do, because the trace lacks it: split a step's tokens into input and output (the delegate reports a total), time individual model calls, or know a tool's real status (a result that starts with "error", "failed", or an HTTP 4xx or 5xx is treated as an error, which is a heuristic and is tested as one). Loop, `for each` and `parallel` blocks have no spans yet, so every step hangs directly under the run's root span. These need the call-level events of C2.
 
 ## 12. Build plan
 

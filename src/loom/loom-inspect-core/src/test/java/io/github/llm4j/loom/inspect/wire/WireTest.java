@@ -1,0 +1,36 @@
+package io.github.llm4j.loom.inspect.wire;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+class WireTest {
+
+    @Test
+    void helloSurvivesARoundTrip() {
+        Hello in = new Hello("billing-svc", "i_9", "10.0.2.7", 988, "5.0", "0.1", Wire.VERSION,
+                List.of(new Hello.Workflow("Support", "ab12"), new Hello.Workflow("RefundTriage", "cd34")));
+        assertThat(Wire.read(Wire.write(in), Hello.class)).isEqualTo(in);
+    }
+
+    @Test
+    void aNewerProcessWithExtraFieldsIsStillUnderstood() {
+        Hello h = Wire.read("{\"client\":\"p\",\"instance\":\"i\",\"wire\":2,\"somethingNew\":{\"a\":1},\"workflows\":[{\"name\":\"W\",\"scriptHash\":\"h\",\"x\":1}]}", Hello.class);
+        assertThat(h.client()).isEqualTo("p");
+        assertThat(h.wire()).isEqualTo(2);
+        assertThat(h.workflows()).extracting(Hello.Workflow::name).containsExactly("W");
+    }
+
+    @Test
+    void heartbeatSurvivesARoundTrip() {
+        Heartbeat in = new Heartbeat("p", "i", "2026-10-11T14:08:52Z");
+        assertThat(Wire.read(Wire.write(in), Heartbeat.class)).isEqualTo(in);
+    }
+
+    @Test
+    void garbageIsAClearError() {
+        assertThatThrownBy(() -> Wire.read("[1,2", Hello.class)).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Hello");
+    }
+}

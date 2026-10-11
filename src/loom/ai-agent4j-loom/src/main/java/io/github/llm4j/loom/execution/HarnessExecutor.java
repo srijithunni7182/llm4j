@@ -121,6 +121,8 @@ public class HarnessExecutor implements LoomEngine {
     private java.time.Clock clock = java.time.Clock.systemUTC();
     private io.github.llm4j.ratelimit.Sleeper sleeper = io.github.llm4j.ratelimit.Sleeper.SYSTEM;
     private int resumes;
+    /** True when this top-level run began by resuming a pause for a limit or a sleep (not counted in {@link #resumes} for a sleep). */
+    private boolean resumedFromPause;
     private io.github.llm4j.loom.trigger.TriggerStore triggerStore;
     private String runId;
     private String scriptRef = "script";
@@ -1438,6 +1440,15 @@ public class HarnessExecutor implements LoomEngine {
         boolean topLevel = parent.isEmpty();
         if (topLevel) beginRun();
         step.set(topLevel ? workflowName : parent + ">" + workflowName);
+        String ended = "completed";
+        Map<String, Object> endData = new java.util.LinkedHashMap<>();
+        if (topLevel) {
+            Map<String, Object> startData = new java.util.LinkedHashMap<>();
+            startData.put("workflow", workflowName);
+            if (runId != null) startData.put("run", runId);
+            startData.put("resumed", String.valueOf(resumedFromPause));
+            trace(TraceEvent.RUN_START, null, "workflow " + workflowName, startData);
+        }
         try {
             rootNext.set(true);
             runBlock(targetWorkflow.getStatements(), "s");
@@ -1445,10 +1456,26 @@ public class HarnessExecutor implements LoomEngine {
         } catch (HandoffSignal hs) {
             log.info("Workflow terminated via handoff: " + hs.getMessage());
         } catch (RunSuspended paused) {
+            ended = "suspended";
+            endData.put("reason", paused.reason().name());
+            if (paused.resumeAt() != null) endData.put("resumeAt", paused.resumeAt().toString());
             if (topLevel && paused.resumeAt() != null) recordSuspension(paused);
             throw paused;
+        } catch (io.github.llm4j.loom.runtime.RunStopped stopped) {
+            ended = "stopped";
+            throw stopped;
+        } catch (RuntimeException | Error failure) {
+            ended = failure instanceof io.github.llm4j.budget.BudgetExceeded ? "budget" : "failed";
+            endData.put("error", String.valueOf(failure.getMessage()));
+            throw failure;
         } finally {
             step.set(parent);
+            if (topLevel) {
+                endData.put("workflow", workflowName);
+                if (runId != null) endData.put("run", runId);
+                endData.put("status", ended);
+                trace(TraceEvent.RUN_END, null, "workflow " + workflowName + " " + ended, endData);
+            }
         }
     }
 
@@ -2533,6 +2560,7 @@ public class HarnessExecutor implements LoomEngine {
                 .map(e -> e.value() instanceof Map<?, ?> m ? new java.util.LinkedHashMap<>(castMap(m)) : null)
                 .orElse(null);
         resumes = last == null ? 0 : (int) number(last.get("resumes"));
+        resumedFromPause = last != null && "suspended".equals(last.get("state"));
         if (last != null && "suspended".equals(last.get("state"))) {
             // A sleep is the script's own choice, not a limit: waking from one is not counted against max_resumes.
             boolean slept = "SLEEP".equals(String.valueOf(last.get("reason")));
