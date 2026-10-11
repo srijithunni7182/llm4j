@@ -47,7 +47,7 @@ public final class LadderChecks {
         for (LadderDef l : ladders.values()) ladder(l);
         for (MeasureDef m : script.getMeasures()) measure(m);
         for (io.github.llm4j.loom.ast.AgentDef a : script.getAgents()) agentDefault(a);
-        for (DecisionDef d : script.getDecisions()) if (d.getLadder() != null) binding(d);
+        for (DecisionDef d : script.getDecisions()) if (d.getLadder() != null && !d.isLadderFromTrust()) binding(d);
         for (LadderDef l : ladders.values()) {
             if (script.getDecisions().stream().noneMatch(d -> l.getName().equals(d.getLadder()))) {
                 c.warn(l.getLine(), "ladder " + l.getName(), "no decision uses it (write ladder: " + l.getName() + " in a decision)");
@@ -69,6 +69,7 @@ public final class LadderChecks {
     private void declarations() {
         Set<String> fieldNames = new HashSet<>(CaseFields.builtin().keySet());
         for (LadderDef l : script.getLadders()) {
+            if (l.isSynthetic()) continue;                                  // written from a trust block: not the script's own
             if (ladders.putIfAbsent(l.getName(), l) != null) error(l.getLine(), "ladder " + l.getName(), "ladder " + l.getName() + " is already declared");
         }
         for (MeasureDef m : script.getMeasures()) {

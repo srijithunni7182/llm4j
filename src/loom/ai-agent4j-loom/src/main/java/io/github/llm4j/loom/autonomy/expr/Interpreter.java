@@ -224,6 +224,7 @@ public final class Interpreter {
             switch (name) {
                 case "count": case "n": return V.num(cs.cases().size());
                 case "span": return span(cs);
+                case "age": return age(cs);
                 default: return V.UNDEFINED;
             }
         }
@@ -239,6 +240,12 @@ public final class Interpreter {
             }
         }
         return V.UNDEFINED;
+    }
+
+    /** How long ago the first case happened: the age of the evidence, to now. Unknown for no cases. */
+    private V age(V.Cs cs) {
+        if (cs.cases().isEmpty()) return V.UNDEFINED;
+        return V.asNumber(cs.cases().get(0).get("at")).map(first -> (V) V.dur(Math.max(0, ctx.nowMillis() - Math.round(first)))).orElse(V.UNDEFINED);
     }
 
     private static V span(V.Cs cs) {

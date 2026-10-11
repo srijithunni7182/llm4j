@@ -84,7 +84,7 @@ final class DecisionChecks {
         if (agent != null && agent.getModel() != null && agent.getModel().toLowerCase(java.util.Locale.ROOT).contains("latest")) {
             c.warn(line, who, "agent " + agent.getName() + " uses the model alias " + agent.getModel() + "; a silent change of model behind an alias cannot be detected unless the provider's reply names the model");
         }
-        if (d.getLadder() == null) trust(d);
+        if (d.getLadder() == null || d.isLadderFromTrust()) trust(d);
     }
 
     /** An agent that proposes an artifact needs a structured output to hold it. */

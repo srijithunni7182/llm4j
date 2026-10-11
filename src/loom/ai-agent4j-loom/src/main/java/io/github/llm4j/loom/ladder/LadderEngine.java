@@ -370,6 +370,13 @@ public final class LadderEngine {
             for (int attempt = 0; attempt < RETRIES; attempt++) {
                 LevelLog.Standing cur = log.current(scope).orElse(null);
                 if (cur == null || cur.rules().equals(fingerprint)) break;
+                if (cur.rules().equals(LevelLog.LEGACY)) {
+                    // a standing the original engine earned: adopted as it stands. The ladder judges what comes next, not what was already granted.
+                    LevelLog.Standing adopted = new LevelLog.Standing(cur.rung(), cur.rungName(), cur.version() + 1, cur.epoch(), cur.identity(), cur.servedModel(), cur.forced(),
+                            now(), "adopted from the original engine", fingerprint);
+                    if (log.write(scope, cur.version(), adopted, "rules", cur.rungName(), "runtime", now(), policy.rulesText())) break;
+                    continue;
+                }
                 V.Cs history = history(scope, cur);
                 long t = now().toEpochMilli();
                 int target = cur.rung();

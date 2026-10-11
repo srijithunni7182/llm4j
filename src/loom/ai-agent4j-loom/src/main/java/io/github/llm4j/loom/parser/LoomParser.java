@@ -73,6 +73,7 @@ public class LoomParser {
         }
 
         script.applyAgentLadders();
+        script.applyTrustLadders();
         return script;
     }
 

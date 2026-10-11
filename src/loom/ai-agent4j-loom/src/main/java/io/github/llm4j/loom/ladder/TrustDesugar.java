@@ -46,7 +46,7 @@ public final class TrustDesugar {
     private static final Pattern NUMBER = Pattern.compile("-?\\d+(\\.\\d+)?");
 
     /** The ladder and measures written for a decision, or the reason none could be. */
-    public record Result(LadderDef ladder, List<MeasureDef> measures, String unsupported) {
+    public record Result(LadderDef ladder, List<MeasureDef> measures, Map<String, String> labels, String unsupported) {
         public boolean supported() { return unsupported == null; }
     }
 
@@ -61,7 +61,7 @@ public final class TrustDesugar {
     }
 
     private static Result no(String why) {
-        return new Result(null, List.of(), why);
+        return new Result(null, List.of(), Map.of(), why);
     }
 
     private static Result build(DecisionDef d, Set<String> scriptMeasures) {
@@ -72,6 +72,7 @@ public final class TrustDesugar {
             if (scriptMeasures.contains(taken)) return no("the script already has a measure called " + taken);
         }
         int line = d.getLine();
+        Map<String, String> labels = new LinkedHashMap<>();
         int window = Math.max(1, d.getWindow());
         boolean dangerous = !d.getDangerous().isEmpty();
 
@@ -88,7 +89,7 @@ public final class TrustDesugar {
 
         for (RungDef r : List.of(suggest, act)) {
             Level level = Level.of(r.getName());
-            String text = climb(d.getUpRules().get(level), window, dangerous);
+            String text = climb(d.getUpRules().get(level), window, dangerous, labels);
             r.setClimb(ExprParser.parse(text), text, d.getUpRules().get(level) == null ? line : d.getUpRules().get(level).line());
         }
 
@@ -98,7 +99,7 @@ public final class TrustDesugar {
             Map<Level, Integer> lines = new LinkedHashMap<>();
             for (DecisionDef.DropRule rule : d.getDropRules()) {
                 if (rule.to().ordinal() >= index) continue;
-                String cond = drop(rule, window, dangerous);
+                String cond = drop(rule, window, dangerous, labels);
                 if (cond == null) continue;
                 byTarget.computeIfAbsent(rule.to(), k -> new ArrayList<>()).add(cond);
                 lines.putIfAbsent(rule.to(), rule.line());
@@ -134,7 +135,7 @@ public final class TrustDesugar {
         measures.add(measure(MALFORMED, "c.proposal.malformed == true", line));
         measures.add(measure(REVERSED, "c.outcomes.reversed == true", line));
         verify(d, ladder, measures);
-        return new Result(ladder, measures, null);
+        return new Result(ladder, measures, labels, null);
     }
 
     private static RungDef rung(String name, RungDef.Mode mode, int line) {
@@ -157,30 +158,40 @@ public final class TrustDesugar {
         return evidence() + ".last(" + window + ")";
     }
 
-    private static String climb(DecisionDef.UpRule rule, int window, boolean dangerous) {
+    /** The condition as written, remembered under the words the trust block would use for it. */
+    private static String said(Map<String, String> labels, String condition, String words) {
+        labels.put(Show.unwrapped(ExprParser.parse(condition).show()), words);
+        return condition;
+    }
+
+    private static String climb(DecisionDef.UpRule rule, int window, boolean dangerous, Map<String, String> labels) {
         if (rule == null) return "false";                                   // the script has no rule for this step: the agent never earns it
         List<String> parts = new ArrayList<>();
-        parts.add(evidence() + ".count >= " + rule.cases());
-        if (window < rule.cases()) parts.add(latest(window) + ".count >= " + rule.cases());
-        if (rule.days() > 0) parts.add(evidence() + ".between(36500d, " + rule.days() + "d).count >= 1");
-        parts.add(latest(window) + ".rate(" + AGREES + ").lower95 >= " + pct(rule.agreeingAtLeast()));
+        parts.add(said(labels, evidence() + ".count >= " + rule.cases(), "cases answered without seeing the proposal"));
+        if (window < rule.cases()) parts.add(said(labels, latest(window) + ".count >= " + rule.cases(), "cases in the window the agent is judged on"));
+        if (rule.days() > 0) parts.add(said(labels, evidence() + ".age >= " + rule.days() + "d", "age of the first such case"));
+        parts.add(said(labels, latest(window) + ".rate(" + AGREES + ").lower95 >= " + pct(rule.agreeingAtLeast()), "agreement with the person (lower bound of the 95% interval)"));
         if (dangerous) {
-            if (rule.noDangerous()) parts.add(latest(window) + ".count(dangerous) == 0");
-            if (rule.dangerousAtMost() != null) parts.add(latest(window) + ".rate(dangerous) <= " + pct(rule.dangerousAtMost()));
+            if (rule.noDangerous()) parts.add(said(labels, latest(window) + ".count(dangerous) == 0", "dangerous mistakes in the window"));
+            if (rule.dangerousAtMost() != null) parts.add(said(labels, latest(window) + ".rate(dangerous) <= " + pct(rule.dangerousAtMost()), "share of dangerous mistakes in the window"));
         }
         return String.join(" and ", parts);
     }
 
-    private static String drop(DecisionDef.DropRule rule, int window, boolean dangerous) {
+    private static String drop(DecisionDef.DropRule rule, int window, boolean dangerous, Map<String, String> labels) {
         switch (rule.count()) {
             case DANGEROUS_MISTAKES:
-                return dangerous ? evidence() + ".last(" + rule.inCases() + ").count(dangerous) >= " + rule.n() : null;
+                return dangerous ? said(labels, evidence() + ".last(" + rule.inCases() + ").count(dangerous) >= " + rule.n(),
+                        "dangerous mistakes in the last " + rule.inCases() + " cases") : null;
             case REVERSALS:
-                return "history.where(" + BY_AGENT + ").last(" + rule.inCases() + ").count(" + REVERSED + ") >= " + rule.n();
+                return said(labels, "history.where(" + BY_AGENT + ").last(" + rule.inCases() + ").count(" + REVERSED + ") >= " + rule.n(),
+                        "reversals of the agent's decisions in the last " + rule.inCases() + " of them");
             case UNUSABLE_PROPOSALS:
-                return "history.last(" + rule.inCases() + ").count(" + MALFORMED + ") >= " + rule.n();
+                return said(labels, "history.last(" + rule.inCases() + ").count(" + MALFORMED + ") >= " + rule.n(),
+                        "unusable proposals in the last " + rule.inCases() + " cases");
             default:
-                return "(" + latest(window) + ".count >= " + Ladder_MIN_FOR_FLOOR + " and " + latest(window) + ".rate(" + AGREES + ") < " + pct(rule.percent()) + ")";
+                return said(labels, "(" + latest(window) + ".count >= " + Ladder_MIN_FOR_FLOOR + " and " + latest(window) + ".rate(" + AGREES + ") < " + pct(rule.percent()) + ")",
+                        "agreement has fallen below " + pct(rule.percent()) + " (judged once there are " + Ladder_MIN_FOR_FLOOR + " cases)");
         }
     }
 
@@ -229,6 +240,7 @@ public final class TrustDesugar {
             d.setLadderFromTrust(true);
             d.setCeilingRung(d.getCeiling().word(), d.getLine());
             d.getTrustMeasures().addAll(r.measures());
+            d.getTrustLabels().putAll(r.labels());
         }
     }
 }

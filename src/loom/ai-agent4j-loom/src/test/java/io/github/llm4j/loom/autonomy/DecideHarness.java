@@ -160,6 +160,55 @@ final class DecideHarness {
         return AgentIdentity.of(parsed, parsed.getDecisions().get(0), dir);
     }
 
+    // ---- where the decision stands, whichever engine runs it ---------------------------------------------------------------------
+
+    private io.github.llm4j.loom.ladder.LadderPolicy policy() {
+        var s = parsed();
+        return io.github.llm4j.loom.ladder.LadderPolicy.of(s, s.getDecisions().get(0));
+    }
+
+    private boolean onLadder() {
+        return parsed().getDecisions().get(0).getLadder() != null;
+    }
+
+    private io.github.llm4j.loom.ladder.LevelLog log() {
+        var p = policy();
+        return new io.github.llm4j.loom.ladder.LevelLog(p.decisionName(), p.rungs(), ledger);
+    }
+
+    /** Puts a scope at a level in the first epoch, as the engine would have after earning it (the agent's identity is the script's, so nothing starts a new epoch). */
+    void seed(String scope, Level level) {
+        if (!onLadder()) {
+            levels.compareAndSet("Refund", scope, null, new LevelState(level, 1, hashOfRefund(), false, T0, "test", 1));
+            return;
+        }
+        var p = policy();
+        var log = log();
+        int have = log.current(scope).map(io.github.llm4j.loom.ladder.LevelLog.Standing::version).orElse(0);
+        int rung = p.indexOf(level.word());
+        log.write(scope, have, new io.github.llm4j.loom.ladder.LevelLog.Standing(rung, p.nameOf(rung), have + 1, 1, hashOfRefund(), null, false, T0, "test", p.fingerprint()),
+                "first", null, "test", T0, p.rulesText());
+    }
+
+    /** The level a scope has earned. */
+    Level levelOf(String scope) {
+        if (!onLadder()) return levels.get("Refund", scope).orElseThrow().level();
+        return Level.of(log().current(scope).orElseThrow().rungName());
+    }
+
+    int epochOf(String scope) {
+        return onLadder() ? log().current(scope).orElseThrow().epoch() : levels.get("Refund", scope).orElseThrow().epoch();
+    }
+
+    String identityOf(String scope) {
+        return onLadder() ? log().current(scope).orElseThrow().identity() : levels.get("Refund", scope).orElseThrow().identity();
+    }
+
+    /** Every scope the decision has seen. */
+    java.util.Set<String> scopes() {
+        return onLadder() ? log().all().keySet() : levels.scopes("Refund").keySet();
+    }
+
     DecideHarness also(java.util.function.Consumer<DecideHarness> change) {
         change.accept(this);
         return this;

@@ -189,7 +189,7 @@ public final class LadderPolicy {
         return out;
     }
 
-    private static List<Term> terms(Expr e, String connective, Interpreter.Context ctx) {
+    private List<Term> terms(Expr e, String connective, Interpreter.Context ctx) {
         List<Expr> leaves = new ArrayList<>();
         flatten(e, connective, leaves);
         List<Term> out = new ArrayList<>();
@@ -203,7 +203,8 @@ public final class LadderPolicy {
                 actual = Show.value(Interpreter.eval(leaf, ctx));
             }
             V whole = Interpreter.eval(leaf, ctx);
-            out.add(new Term(Show.unwrapped(leaf.show()), actual, needed, whole instanceof V.Bool b ? Optional.of(b.value()) : Optional.empty()));
+            String text = Show.unwrapped(leaf.show());
+            out.add(new Term(decision.getTrustLabels().getOrDefault(text, text), actual, needed, whole instanceof V.Bool b ? Optional.of(b.value()) : Optional.empty()));
         }
         return out;
     }

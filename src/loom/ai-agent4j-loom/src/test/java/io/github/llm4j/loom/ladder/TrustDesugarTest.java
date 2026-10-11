@@ -48,10 +48,23 @@ class TrustDesugarTest {
     void eachStepUpIsTheRuleItWasWrittenAs() {
         LadderDef l = of(decision("", FULL)).ladder();
         assertThat(l.rung("suggest").getClimbText()).isEqualTo(
-                "history.where(trust_blind).count >= 100 and history.where(trust_blind).between(36500d, 14d).count >= 1 "
+                "history.where(trust_blind).count >= 100 and history.where(trust_blind).age >= 14d "
                         + "and history.where(trust_blind).last(200).rate(trust_agrees).lower95 >= 90%");
         assertThat(l.rung("act").getClimbText()).contains(">= 300").contains("30d").contains("lower95 >= 97%").contains("count(dangerous) == 0");
         assertThat(l.rung("watch").getClimb()).isNull();
+    }
+
+    @Test
+    void everyPartOfARuleIsNamedInTheWordsOfTheTrustBlock() {
+        LoomScript s = LadderChecksTest.parse(decision("", FULL));
+        DecisionDef d = s.getDecisions().get(0);
+        assertThat(d.getTrustLabels().values()).contains("cases answered without seeing the proposal", "age of the first such case",
+                "agreement with the person (lower bound of the 95% interval)", "dangerous mistakes in the window",
+                "dangerous mistakes in the last 50 cases", "agreement has fallen below 60% (judged once there are 20 cases)");
+        // and a status of the ladder says them, with the figures
+        var policy = LadderPolicy.of(s, d);
+        var terms = policy.explainClimb(1, io.github.llm4j.loom.autonomy.expr.V.cases(List.of()), 0L);
+        assertThat(terms).extracting(LadderPolicy.Term::text).contains("cases answered without seeing the proposal").doesNotContain("history.where(trust_blind).count >= 100");
     }
 
     @Test

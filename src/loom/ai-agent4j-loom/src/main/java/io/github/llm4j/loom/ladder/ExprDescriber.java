@@ -116,6 +116,7 @@ public final class ExprDescriber {
             switch (f.name()) {
                 case "count": case "n": return "the number of cases";
                 case "span": return "the time the cases span";
+                case "age": return "how long ago the first case was";
                 default: break;
             }
         }
@@ -133,6 +134,7 @@ public final class ExprDescriber {
         }
         if (f.name().equals("count") || f.name().equals("n")) return countOf(setOf(f.target()));
         if (f.name().equals("span")) return "the time the " + setOf(f.target()) + " span";
+        if (f.name().equals("age")) return "how long ago the first of the " + setOf(f.target()) + " was";
         return f.show();
     }
 

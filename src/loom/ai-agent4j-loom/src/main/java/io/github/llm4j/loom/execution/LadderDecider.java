@@ -170,6 +170,14 @@ final class LadderDecider {
         try {
             String identity = d.identityOf(def);
             LevelLog.Standing st = engine.standing(scope, identity, served);
+            if (known.isPresent() && known.get().value() instanceof Map<?, ?> began && served != null
+                    && Decider.text(Decider.castMap(began).get("epoch")).equals(String.valueOf(st.epoch()))) {
+                // the reply named the model, and it is the same epoch: the case finishes as it began (a freeze that came since waits for the next case)
+                Map<String, Object> same = new LinkedHashMap<>(Decider.castMap(began));
+                same.put("served", served);
+                journal.put(step + "#level", new RunJournal.Entry("level", same));
+                return same;
+            }
             V.Rec current = HistoryBuilder.record(new LCase(caseId, def.getName(), scope, run.clock().instant(), st.rungName(), "", identity, st.epoch(), 1, false,
                     fields, served, null, null, null, null, false, null, List.of(), false, null, null, null, null, false, null, null, List.of()), def.getRememberTypes());
             LadderEngine.Plan plan = engine.plan(scope, caseId, st, current, engine.history(scope, st.epoch()), run.clock().millis());

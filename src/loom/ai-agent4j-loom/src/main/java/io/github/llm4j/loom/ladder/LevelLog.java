@@ -23,6 +23,9 @@ public final class LevelLog {
     public record Standing(int rung, String rungName, int version, int epoch, String identity, String servedModel, boolean forced, Instant at, String reason,
                            String rules) { }
 
+    /** The rules of a standing written by the original engine, which kept no fingerprint: the standing is adopted as it is, not re-judged. */
+    public static final String LEGACY = "";
+
     private final String decision;
     private final List<String> rungs;
     private final Ledger ledger;
@@ -46,7 +49,7 @@ public final class LevelLog {
     public Map<String, Standing> all() {
         Map<String, Standing> latest = new LinkedHashMap<>();
         for (Rec r : ledger.recordsOfKind(decision, Rec.LEVEL)) {
-            if (r.num("version") == null || r.str("rules") == null) continue;
+            if (r.num("version") == null || !rungs.contains(r.str("to"))) continue;
             String scope = r.str("scope");
             Standing s = standing(r);
             Standing known = latest.get(scope);
@@ -58,7 +61,7 @@ public final class LevelLog {
     private Standing standing(Rec r) {
         int index = r.num("toIndex") == null ? Math.max(0, rungs.indexOf(r.str("to"))) : r.num("toIndex").intValue();
         return new Standing(index, rungs.get(Math.min(index, rungs.size() - 1)), r.num("version").intValue(), r.num("epoch") == null ? 1 : r.num("epoch").intValue(),
-                r.str("identity"), r.str("servedModel"), r.flag("forced"), r.at(), r.str("reason"), r.str("rules"));
+                r.str("identity"), r.str("servedModel"), r.flag("forced"), r.at(), r.str("reason"), r.str("rules") == null ? LEGACY : r.str("rules"));
     }
 
     /**

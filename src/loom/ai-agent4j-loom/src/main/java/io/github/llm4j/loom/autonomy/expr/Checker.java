@@ -170,8 +170,8 @@ public final class Checker {
             }
             case CASES:
                 if (name.equals("count") || name.equals("n")) return T.NUM;
-                if (name.equals("span")) return T.DUR;
-                throw noField(target, f, Set.of("count", "n", "span"));
+                if (name.equals("span") || name.equals("age")) return T.DUR;
+                throw noField(target, f, Set.of("count", "n", "span", "age"));
             case GROUPS: case LIST:
                 if (name.equals("count")) return T.NUM;
                 throw noField(target, f, Set.of("count"));

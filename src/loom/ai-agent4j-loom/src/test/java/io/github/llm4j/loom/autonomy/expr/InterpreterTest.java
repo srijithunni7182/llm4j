@@ -124,6 +124,18 @@ class InterpreterTest {
     // ---------- collections ----------
 
     @Test
+    void theAgeOfTheEvidenceIsHowLongAgoTheFirstCaseWasAndIsUnknownForNone() {
+        var h = List.of(c(30), c(20), c(10, "x", 1));
+        assertThat(eval("history.age", ctx(h))).isEqualTo(V.dur(30 * DAY));
+        assertThat(eval("history.age >= 30d", ctx(h))).isEqualTo(V.bool(true));
+        assertThat(eval("history.age >= 31d", ctx(h))).isEqualTo(V.bool(false));
+        assertThat(eval("history.age", ctx(List.of(c(1))))).isEqualTo(V.dur(1 * DAY));       // one case is enough, unlike span
+        assertThat(eval("history.age", ctx(List.of()))).isEqualTo(V.UNDEFINED);
+        assertThat(Interpreter.test(ExprParser.parse("history.age >= 1d"), ctx(List.of()))).as("no evidence is never old enough").isFalse();
+        assertThat(eval("history.last(1).age", ctx(h))).as("of the cases selected").isEqualTo(V.dur(10 * DAY));
+    }
+
+    @Test
     void countSpanAndFieldAccessOnTheCollection() {
         var h = List.of(c(30), c(20), c(10, "x", 1));
         assertThat(eval("history.count", ctx(h))).isEqualTo(V.num(3));

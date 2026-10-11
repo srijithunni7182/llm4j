@@ -199,8 +199,10 @@ class LadderVerificationTest {
         Map<String, Object> out = null;
         for (int i = 0; i < 3; i++) out = h.runCase("m" + i, h.inputs("gold", 10));
         assertThat(out).containsEntry("verdict", "approve").containsEntry("post", "A post");
-        assertThat(h.ledger.recordsOfKind("Refund", Rec.DECIDED)).hasSize(3);                    // the earlier engine's records
-        assertThat(h.ledger.recordsOfKind("Publish", Rec.RESPONDED)).hasSize(3);                  // the ladder's
+        assertThat(h.parsed().getDecisions().get(0).isLadderFromTrust()).as("the trust block runs as a ladder written from it").isTrue();
+        assertThat(h.ledger.recordsOfKind("Refund", Rec.RESPONDED)).hasSize(3);
+        assertThat(h.ledger.recordsOfKind("Refund", Rec.LEVEL)).isNotEmpty();
+        assertThat(h.ledger.recordsOfKind("Publish", Rec.RESPONDED)).hasSize(3);
         assertThat(h.ledger.recordsOfKind("Publish", Rec.LEVEL)).isNotEmpty();
     }
 

@@ -292,7 +292,7 @@ public final class SecurityAudit {
 
     private static void ladders(LoomScript script, List<Finding> findings) {
         for (DecisionDef d : script.getDecisions()) {
-            if (d.getLadder() == null) continue;
+            if (d.getLadder() == null || d.isLadderFromTrust()) continue;                  // a trust block is audited as one (LA10)
             io.github.llm4j.loom.ast.LadderDef l = script.getLadders().stream().filter(x -> x.getName().equals(d.getLadder())).findFirst().orElse(null);
             if (l == null) continue;
             int ceiling = d.getCeilingRung() == null ? l.getRungs().size() - 1 : Math.max(0, l.indexOf(d.getCeilingRung()));

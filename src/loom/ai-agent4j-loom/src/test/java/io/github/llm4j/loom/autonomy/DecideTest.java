@@ -80,7 +80,7 @@ class DecideTest {
     @Tag("EA-V3.2")
     void atSuggestThePersonSeesTheProposalAndTheirAnswerIsTheVerdictEvenWhenItOverridesIt() {
         DecideHarness h = harness("");
-        h.levels.compareAndSet("Refund", "gold", null, new LevelState(Level.SUGGEST, 1, new DecideHarness(dir, h.ledger, h.levels, h.script).hashOfRefund(), false, DecideHarness.T0, "test", 1));
+        h.seed("gold", Level.SUGGEST);
         h.agent = f -> new String[] {"approve", "fine by policy", "0.9"};
         h.person = f -> "reject";
 
@@ -98,7 +98,7 @@ class DecideTest {
     @Tag("EA-V3.2")
     void atActTheProposalTakesEffectAndNoPersonIsAsked() {
         DecideHarness h = harness("");
-        h.levels.compareAndSet("Refund", "gold", null, new LevelState(Level.ACT, 1, h.hashOfRefund(), false, DecideHarness.T0, "test", 1));
+        h.seed("gold", Level.ACT);
         h.agent = f -> new String[] {"approve", "ok", "0.99"};
 
         Map<String, Object> vars = h.runCase("run-1", h.inputs("gold", 20));
@@ -115,14 +115,14 @@ class DecideTest {
     @Tag("EA-V3.1")
     void aNewScopeStartsAtTheStartLevelAndScopesAreSeparate() {
         DecideHarness h = harness("");
-        h.levels.compareAndSet("Refund", "gold", null, new LevelState(Level.ACT, 1, h.hashOfRefund(), false, DecideHarness.T0, "test", 1));
+        h.seed("gold", Level.ACT);
 
         Map<String, Object> gold = h.runCase("run-1", h.inputs("gold", 20));
         Map<String, Object> basic = h.runCase("run-2", h.inputs("basic", 20));
 
         assertThat(gold.get("verdict_level")).isEqualTo("act");
         assertThat(basic.get("verdict_level")).isEqualTo("watch");
-        assertThat(h.levels.scopes("Refund")).containsOnlyKeys("gold", "basic");
+        assertThat(h.scopes()).containsExactlyInAnyOrder("gold", "basic");
     }
 
     @Test

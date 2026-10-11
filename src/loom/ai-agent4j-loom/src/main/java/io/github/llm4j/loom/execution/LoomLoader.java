@@ -57,6 +57,7 @@ public class LoomLoader {
         // Actually, for now we just merge them. Order might matter for collisions.)
         effectiveScript.merge(script);
         effectiveScript.applyAgentLadders();
+        effectiveScript.applyTrustLadders();
         // The prompts folder is the importing file's own business: imports never choose it (merge leaves it alone).
         effectiveScript.setPromptsDir(script.getPromptsDir(), script.getPromptsDirLine());
 

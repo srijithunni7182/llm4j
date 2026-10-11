@@ -65,7 +65,8 @@ class AgentLadderDefaultTest {
     void aDecisionsOwnTrustBlockWins() {
         LoomScript s = LadderChecksTest.parse(LADDERS + agent("ladder: Cautious")
                 + decision("Refund", "trust { start at watch  never go above suggest  moving up needs approval from: risk-owner }"));
-        assertThat(only(s, "Refund").getLadder()).isNull();
+        assertThat(only(s, "Refund").getLadder()).as("its trust block, written as a ladder, and not the agent's").isEqualTo("trust:Refund");
+        assertThat(only(s, "Refund").isLadderFromAgent()).isFalse();
         assertThat(LadderChecksTest.errors(LADDERS + agent("ladder: Cautious")
                 + decision("Refund", "trust { start at watch  never go above suggest  moving up needs approval from: risk-owner }"))).isEmpty();
     }
@@ -75,7 +76,8 @@ class AgentLadderDefaultTest {
         LoomScript s = LadderChecksTest.parse(LADDERS + agent("ladder: Cautious")
                 + "agent Writer { model: \"ollama/fake\" system: \"s\" output_schema: { choice: string, reasoning: string } }\n"
                 + "decision Post { proposed by: Writer choices: yes, no ask: lead }\n");
-        assertThat(only(s, "Post").getLadder()).isNull();
+        assertThat(only(s, "Post").getLadder()).isNotEqualTo("Cautious");
+        assertThat(only(s, "Post").isLadderFromAgent()).isFalse();
     }
 
     @Test
@@ -98,7 +100,8 @@ class AgentLadderDefaultTest {
     @Test
     void anAgentWithNoLadderChangesNothing() {
         LoomScript s = LadderChecksTest.parse(LADDERS + agent("") + decision("Refund", ""));
-        assertThat(only(s, "Refund").getLadder()).isNull();
+        assertThat(only(s, "Refund").isLadderFromAgent()).isFalse();
+        assertThat(only(s, "Refund").getLadder()).isNotEqualTo("Cautious");
     }
 
     @Test

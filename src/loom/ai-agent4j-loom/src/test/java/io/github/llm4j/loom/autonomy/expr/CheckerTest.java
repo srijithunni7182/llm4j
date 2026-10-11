@@ -38,6 +38,7 @@ class CheckerTest {
     @Test
     void typesOfTheCommonShapes() {
         assertThat(type("history.count >= 100 and history.span >= 14d")).isEqualTo(T.BOOL);
+        assertThat(type("history.age >= 14d")).isEqualTo(T.BOOL);
         assertThat(type("history.rate(shown)")).isEqualTo(T.RATIO);
         assertThat(type("history.rate(shown).lower95")).isEqualTo(T.NUM);
         assertThat(type("history.rate(shown) >= 0.9")).isEqualTo(T.BOOL);
