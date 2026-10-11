@@ -69,6 +69,8 @@ public class DecisionDef implements Node {
     private String proposes;
     private int proposesLine;
     private boolean ladderFromAgent;
+    private boolean ladderFromTrust;
+    private final List<MeasureDef> trustMeasures = new ArrayList<>();
 
     public DecisionDef(String name) { this.name = name; }
 
@@ -130,6 +132,11 @@ public class DecisionDef implements Node {
     /** True when the ladder came from the proposing agent's default and not from this decision. */
     public boolean isLadderFromAgent() { return ladderFromAgent; }
     public void setLadderFromAgent(boolean fromAgent) { this.ladderFromAgent = fromAgent; }
+    /** True when the ladder is the one written from this decision's {@code trust { }} block (or from its having none). */
+    public boolean isLadderFromTrust() { return ladderFromTrust; }
+    public void setLadderFromTrust(boolean fromTrust) { this.ladderFromTrust = fromTrust; }
+    /** The measures the ladder written from {@code trust { }} uses; they belong to this decision and are not part of the script's. */
+    public List<MeasureDef> getTrustMeasures() { return trustMeasures; }
     /** The highest rung of the bound ladder this decision may reach ({@code ceiling: suggest}); null for the first. */
     public String getCeilingRung() { return ceilingRung; }
     public int getCeilingRungLine() { return ceilingRungLine; }

@@ -45,13 +45,15 @@ public final class LadderPolicy {
         LadderDef ladder = script.getLadders().stream().filter(l -> l.getName().equals(decision.getLadder())).findFirst()
                 .orElseThrow(() -> new IllegalStateException("decision " + decision.getName() + " binds ladder " + decision.getLadder() + ", which is not defined"));
         Map<String, Interpreter.Measure> measures = new LinkedHashMap<>();
-        for (MeasureDef m : script.getMeasures()) measures.put(m.getName(), new Interpreter.Measure(m.getName(), m.getParam(), m.getBody()));
+        List<MeasureDef> defs = new ArrayList<>(script.getMeasures());
+        defs.addAll(decision.getTrustMeasures());
+        for (MeasureDef m : defs) measures.put(m.getName(), new Interpreter.Measure(m.getName(), m.getParam(), m.getBody()));
         Interpreter.Measure dangerous = CaseFields.dangerous(decision);
         if (dangerous != null) measures.putIfAbsent("dangerous", dangerous);
         Map<String, V> params = new LinkedHashMap<>();
         Interpreter.Context literals = new Interpreter.Context(Map.of(), Map.of(), 0);
         decision.getLadderArgs().forEach((k, e) -> params.put(k, Interpreter.eval(e, literals)));
-        return new LadderPolicy(ladder, decision, measures, params, script.getMeasures());
+        return new LadderPolicy(ladder, decision, measures, params, defs);
     }
 
     // ---- the shape -----------------------------------------------------------------------------------------------------

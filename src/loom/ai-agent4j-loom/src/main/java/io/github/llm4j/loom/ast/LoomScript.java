@@ -117,6 +117,11 @@ public class LoomScript implements Node {
         }
     }
 
+    /** Writes the ladder of each decision that has none from its {@code trust { }} block, where the language can say it; see {@code TrustDesugar}. */
+    public void applyTrustLadders() {
+        io.github.llm4j.loom.ladder.TrustDesugar.apply(this);
+    }
+
     public void merge(LoomScript other) {
         this.agents.addAll(other.agents);
         this.workflows.addAll(other.workflows);

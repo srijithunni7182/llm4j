@@ -12,6 +12,7 @@ public class LadderDef implements Node {
     private String approver;
     private boolean automatic;
     private boolean climbingStated;
+    private boolean synthetic;
 
     public LadderDef(String name, int line) {
         this.name = name;
@@ -30,6 +31,10 @@ public class LadderDef implements Node {
     public boolean isClimbingStated() { return climbingStated; }
     public void setApprover(String approver) { this.approver = approver; this.automatic = false; this.climbingStated = true; }
     public void setAutomatic() { this.approver = null; this.automatic = true; this.climbingStated = true; }
+
+    /** True for a ladder the runtime wrote from a decision's {@code trust { }} block: it is shown by {@code describe} but never checked as if someone wrote it. */
+    public boolean isSynthetic() { return synthetic; }
+    public void setSynthetic(boolean synthetic) { this.synthetic = synthetic; }
 
     public RungDef rung(String name) {
         for (RungDef r : rungs) if (r.getName().equals(name)) return r;
