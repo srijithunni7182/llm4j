@@ -108,7 +108,7 @@ final class LadderCommands {
                         .append(String.join(", ", stale.subList(0, Math.min(5, stale.size())))).append('\n');
                 s.put("stale", stale);
             }
-            Optional<Rec> last = ledger.recordsOfKind(def.getName(), Rec.LEVEL).stream().filter(r -> scope.equals(r.str("scope"))).reduce((a, b) -> b);
+            Optional<Rec> last = ledger.recordsOfKind(def.getName(), Rec.LEVEL).stream().filter(r -> !"model".equals(r.str("kind")) && scope.equals(r.str("scope"))).reduce((a, b) -> b);
             last.ifPresent(r -> {
                 text.append("    last change: ").append(r.at()).append(' ').append(r.str("from") == null ? "(start)" : r.str("from")).append(" -> ").append(r.str("to")).append(" (")
                         .append(r.str("kind")).append(r.flag("forced") ? ", forced" : "").append(", by ").append(r.str("by")).append("): ").append(r.str("reason")).append('\n');

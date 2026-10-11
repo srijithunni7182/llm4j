@@ -273,7 +273,7 @@ public final class LadderEngine {
             if (cases < Math.ceil(then * 1.2)) return Optional.empty();                    // not asked again until the evidence has grown by a fifth
         }
         String id = decision() + "#promotion#" + scope + "#" + target + "#" + cur.epoch() + "#" + cases;
-        ledger.append(new Rec(id, decision(), Rec.PROMOTION_PROPOSED, now(), "", 1,
+        io.github.llm4j.loom.autonomy.Seal.append(ledger, new Rec(id, decision(), Rec.PROMOTION_PROPOSED, now(), "", 1,
                 Rec.map("scope", scope, "to", target, "cases", cases, "why", why, "approver", policy.approver(), "epoch", cur.epoch())));
         return Optional.of(new Change("proposed", scope, cur.rungName(), target, why + "; waiting for " + policy.approver(), "runtime", false));
     }
@@ -319,7 +319,7 @@ public final class LadderEngine {
             LevelLog.Standing cur = log.current(scope).orElseThrow(() -> new IllegalStateException("no such scope: " + scope));
             LevelLog.Standing next = withRung(cur, policy.indexOf(p.to()), "approved by " + by + ": " + reason, false);
             if (log.write(scope, cur.version(), next, "promoted", cur.rungName(), by, now(), policy.rulesText())) {
-                ledger.append(new Rec(p.id() + "#approved", decision(), Rec.PROMOTION_DECIDED, now(), "", 1, Rec.map("proposal", p.id(), "result", "approved", "by", by, "reason", reason)));
+                io.github.llm4j.loom.autonomy.Seal.append(ledger, new Rec(p.id() + "#approved", decision(), Rec.PROMOTION_DECIDED, now(), "", 1, Rec.map("proposal", p.id(), "result", "approved", "by", by, "reason", reason)));
                 return new Change("promoted", scope, cur.rungName(), next.rungName(), next.reason(), by, false);
             }
         }
@@ -332,7 +332,7 @@ public final class LadderEngine {
         if (policy.approver() != null && !policy.approver().equals(by)) {
             throw new IllegalStateException("only " + policy.approver() + " may decide on moving up (you said " + by + ")");
         }
-        ledger.append(new Rec(p.id() + "#rejected", decision(), Rec.PROMOTION_DECIDED, now(), "", 1,
+        io.github.llm4j.loom.autonomy.Seal.append(ledger, new Rec(p.id() + "#rejected", decision(), Rec.PROMOTION_DECIDED, now(), "", 1,
                 Rec.map("proposal", p.id(), "result", "rejected", "by", by, "reason", reason, "cases", p.cases())));
         LevelLog.Standing cur = log.current(scope).orElseThrow();
         return new Change("rejected", scope, cur.rungName(), p.to(), reason, by, false);

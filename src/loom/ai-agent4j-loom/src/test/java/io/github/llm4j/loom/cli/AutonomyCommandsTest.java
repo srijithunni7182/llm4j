@@ -126,8 +126,8 @@ class AutonomyCommandsTest {
         assertThat(text).contains("Refund").contains("scope gold   level suggest").contains("scope basic   level watch");
         assertThat(text).contains("evidence: 5 blind cases of the latest 20").contains("agreement 100.0%").contains("lower bound").contains("dangerous mistakes 0.0%")
                 .contains("coverage 100.0%").contains("unusable proposals 0");
-        assertThat(text).contains("towards act:").contains("cases answered without seeing the proposal   [5 vs 8]   not met");
-        assertThat(text).contains("towards suggest:").contains("cases answered without seeing the proposal   [2 vs 5]   not met");
+        assertThat(text).contains("towards act:").contains("cases: short (5 cases, needs 8 cases)");
+        assertThat(text).contains("towards suggest:").contains("cases: short (2 cases, needs 5 cases)");
         assertThat(text).contains("last change:").contains("watch -> suggest (promoted,");
 
         outBytes.reset();

@@ -99,7 +99,7 @@ public final class Engine {
         Rec r = new Rec(def.getName() + "#level#" + scope + "#" + to.version(), def.getName(), Rec.LEVEL, now(), "", 1,
                 Rec.map("scope", scope, "from", from == null ? null : from.word(), "to", to.level().word(), "kind", kind, "reason", to.reason(), "by", by,
                         "forced", to.forced() ? true : null, "epoch", to.epoch(), "identity", to.identity(), "version", to.version()));
-        ledger.append(r);
+        Seal.append(ledger, r);
     }
 
     /** A new epoch for the scope (the agent behind the decision changed), starting at {@code level}; null when someone else got there first. */
@@ -143,7 +143,7 @@ public final class Engine {
                 continue;
             }
             int cases = ladder.evidence(scope, state.epoch()).size();
-            ledger.append(new Rec(def.getName() + "#promotion#" + scope + "#" + progress.next().word() + "#" + state.epoch() + "#" + cases, def.getName(), Rec.PROMOTION_PROPOSED, now(), "", 1,
+            Seal.append(ledger, new Rec(def.getName() + "#promotion#" + scope + "#" + progress.next().word() + "#" + state.epoch() + "#" + cases, def.getName(), Rec.PROMOTION_PROPOSED, now(), "", 1,
                     Rec.map("scope", scope, "to", progress.next().word(), "cases", cases, "why", why, "approver", def.getApprover())));
             out.add(new Change("proposed", scope, state.level(), progress.next(), why + "; waiting for " + def.getApprover(), "runtime", false));
             return out;
@@ -164,7 +164,7 @@ public final class Engine {
         if (state.level().compareTo(p.to()) >= 0) throw new IllegalStateException("the scope is already at " + state.level().word());
         LevelState next = state.withLevel(p.to(), false, now(), "approved by " + by + ": " + reason);
         if (!levels.compareAndSet(def.getName(), scope, state, next)) throw new IllegalStateException("the level changed while you were approving; look again");
-        ledger.append(new Rec(p.id() + "#approved", def.getName(), Rec.PROMOTION_DECIDED, now(), "", 1, Rec.map("proposal", p.id(), "result", "approved", "by", by, "reason", reason)));
+        Seal.append(ledger, new Rec(p.id() + "#approved", def.getName(), Rec.PROMOTION_DECIDED, now(), "", 1, Rec.map("proposal", p.id(), "result", "approved", "by", by, "reason", reason)));
         record(next, state.level(), scope, "promoted", by);
         return new Change("promoted", scope, state.level(), p.to(), "approved by " + by + ": " + reason, by, false);
     }
@@ -173,7 +173,7 @@ public final class Engine {
     public Change reject(String scope, String by, String reason) {
         Ladder.Proposal p = openProposal(scope).orElseThrow(() -> new IllegalStateException("there is no open promotion proposal for " + (scope.isEmpty() ? "this decision" : "scope " + scope)));
         if (def.getApprover() != null && !def.getApprover().equals(by)) throw new IllegalStateException("only " + def.getApprover() + " may decide on moving up (you said " + by + ")");
-        ledger.append(new Rec(p.id() + "#rejected", def.getName(), Rec.PROMOTION_DECIDED, now(), "", 1, Rec.map("proposal", p.id(), "result", "rejected", "by", by, "reason", reason)));
+        Seal.append(ledger, new Rec(p.id() + "#rejected", def.getName(), Rec.PROMOTION_DECIDED, now(), "", 1, Rec.map("proposal", p.id(), "result", "rejected", "by", by, "reason", reason)));
         LevelState state = levels.get(def.getName(), scope).orElse(null);
         return new Change("rejected", scope, state == null ? Level.WATCH : state.level(), p.to(), reason, by, false);
     }
@@ -224,13 +224,13 @@ public final class Engine {
     public static void freeze(Ledger ledger, LevelStore levels, Clock clock, String recordIn, String target, String reason) {
         Instant now = clock.instant();
         levels.setFreeze(target, new LevelStore.Freeze(reason, now));
-        ledger.append(new Rec(recordIn + "#freeze#" + now.toEpochMilli() + "#" + target, recordIn, Rec.FROZEN, now, "", 1, Rec.map("frozen", true, "reason", reason, "scope", target)));
+        Seal.append(ledger, new Rec(recordIn + "#freeze#" + now.toEpochMilli() + "#" + target, recordIn, Rec.FROZEN, now, "", 1, Rec.map("frozen", true, "reason", reason, "scope", target)));
     }
 
     public static void unfreeze(Ledger ledger, LevelStore levels, Clock clock, String recordIn, String target, String reason) {
         Instant now = clock.instant();
         levels.clearFreeze(target);
-        ledger.append(new Rec(recordIn + "#unfreeze#" + now.toEpochMilli() + "#" + target, recordIn, Rec.FROZEN, now, "", 1, Rec.map("frozen", false, "reason", reason, "scope", target)));
+        Seal.append(ledger, new Rec(recordIn + "#unfreeze#" + now.toEpochMilli() + "#" + target, recordIn, Rec.FROZEN, now, "", 1, Rec.map("frozen", false, "reason", reason, "scope", target)));
     }
 
     /** Records a later fact about a case; a reversal of a verdict the agent made may demote. */

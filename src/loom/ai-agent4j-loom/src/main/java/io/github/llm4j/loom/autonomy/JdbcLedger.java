@@ -39,6 +39,20 @@ public class JdbcLedger implements Ledger {
         this.dataSource = dataSource;
     }
 
+    private byte[] sealKey;
+
+    /** The key that seals the records of levels, kept in a row of its own, made on first use. */
+    @Override
+    public synchronized byte[] sealKey() {
+        if (sealKey != null) return sealKey;
+        for (int i = 0; i < 3 && sealKey == null; i++) {
+            for (Rec r : records("_seal")) if ("sealkey".equals(r.id()) && r.str("key") != null) sealKey = java.util.Base64.getDecoder().decode(r.str("key"));
+            if (sealKey == null) append(new Rec("sealkey", "_seal", "sealkey", java.time.Instant.now(), "", 1, Rec.map("key", java.util.Base64.getEncoder().encodeToString(Seal.newKey()))));
+        }
+        if (sealKey == null) throw new IllegalStateException("cannot make the seal key");
+        return sealKey;
+    }
+
     public static void createTable(DataSource dataSource) {
         try (Connection c = dataSource.getConnection(); var st = c.createStatement()) {
             st.execute(DDL);

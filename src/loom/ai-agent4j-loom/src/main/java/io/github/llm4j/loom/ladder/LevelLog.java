@@ -45,8 +45,24 @@ public final class LevelLog {
         return Optional.ofNullable(all().get(scope));
     }
 
+    private String verifiedKey;
+
+    /**
+     * Refuses to go on when the record of levels, promotions and freezes does not verify (see {@link io.github.llm4j.loom.autonomy.Seal}). Checked when the
+     * record has grown since it was last checked, which is the first time it is read in a process and then after every change.
+     */
+    public void check() {
+        List<Rec> rs = ledger.recordsOfKind(decision, io.github.llm4j.loom.autonomy.Seal.KINDS.toArray(String[]::new));
+        String key = rs.size() + "|" + (rs.isEmpty() ? "" : rs.get(rs.size() - 1).id());
+        if (key.equals(verifiedKey)) return;
+        io.github.llm4j.loom.autonomy.Seal.Result result = io.github.llm4j.loom.autonomy.Seal.verify(ledger, decision);
+        if (!result.ok()) throw new io.github.llm4j.loom.autonomy.LedgerTampered(decision, result);
+        verifiedKey = key;
+    }
+
     /** Every scope that has a standing. */
     public Map<String, Standing> all() {
+        check();
         Map<String, Standing> latest = new LinkedHashMap<>();
         for (Rec r : ledger.recordsOfKind(decision, Rec.LEVEL)) {
             if (r.num("version") == null || !rungs.contains(r.str("to"))) continue;
@@ -78,7 +94,7 @@ public final class LevelLog {
                 Rec.map("scope", scope, "from", from, "to", next.rungName(), "toIndex", next.rung(), "kind", kind, "reason", next.reason(), "by", by,
                         "forced", next.forced() ? true : null, "epoch", next.epoch(), "identity", next.identity(), "servedModel", next.servedModel(),
                         "version", version, "rules", next.rules(), "rulesText", rulesText, "writer", writer));
-        ledger.append(rec);
+        io.github.llm4j.loom.autonomy.Seal.append(ledger, rec);
         for (Rec r : ledger.recordsOfKind(decision, Rec.LEVEL)) {
             if (r.id().equals(rec.id())) return writer.equals(r.str("writer"));
         }
@@ -87,6 +103,7 @@ public final class LevelLog {
 
     /** Whether autonomy is stopped for the decision: the latest freeze or unfreeze decides. */
     public boolean frozen() {
+        check();
         boolean frozen = false;
         for (Rec r : ledger.recordsOfKind(decision, Rec.FROZEN)) frozen = r.flag("frozen");
         return frozen;
@@ -100,7 +117,7 @@ public final class LevelLog {
     }
 
     public void setFrozen(boolean frozen, String reason, String by, Instant at) {
-        ledger.append(new Rec(decision + (frozen ? "#freeze#" : "#unfreeze#") + at.toEpochMilli() + "#" + Integer.toHexString((reason + by).hashCode()), decision, Rec.FROZEN,
+        io.github.llm4j.loom.autonomy.Seal.append(ledger, new Rec(decision + (frozen ? "#freeze#" : "#unfreeze#") + at.toEpochMilli() + "#" + Integer.toHexString((reason + by).hashCode()), decision, Rec.FROZEN,
                 at, "", 1, Rec.map("frozen", frozen, "reason", reason, "by", by, "scope", decision)));
     }
 }

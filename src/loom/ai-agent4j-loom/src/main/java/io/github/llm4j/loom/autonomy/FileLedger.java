@@ -45,6 +45,38 @@ public class FileLedger implements Ledger {
         this.dir = dir;
     }
 
+    private byte[] sealKey;
+
+    /** The key that seals the records of levels, in {@code .seal-key} next to the ledgers, made on first use and readable by the owner only. */
+    @Override
+    public synchronized byte[] sealKey() {
+        if (sealKey != null) return sealKey;
+        Path file = dir.resolve(".seal-key");
+        synchronized (JVM) {
+            try {
+                Files.createDirectories(dir);
+                if (!Files.exists(file)) {
+                    Path tmp = Files.createTempFile(dir, ".seal-key", ".tmp");
+                    Files.writeString(tmp, java.util.Base64.getEncoder().encodeToString(Seal.newKey()));
+                    try {
+                        Files.setPosixFilePermissions(tmp, java.util.Set.of(java.nio.file.attribute.PosixFilePermission.OWNER_READ, java.nio.file.attribute.PosixFilePermission.OWNER_WRITE));
+                    } catch (UnsupportedOperationException ignored) {
+                        // a file system without POSIX permissions
+                    }
+                    try {
+                        Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE);
+                    } catch (java.nio.file.FileAlreadyExistsException | java.nio.file.AtomicMoveNotSupportedException lost) {
+                        Files.deleteIfExists(tmp);
+                    }
+                }
+                sealKey = java.util.Base64.getDecoder().decode(Files.readString(file).trim());
+                return sealKey;
+            } catch (IOException e) {
+                throw new UncheckedIOException("Cannot read or make the seal key " + file, e);
+            }
+        }
+    }
+
     /** The directory the store keeps its files in. */
     public Path dir() {
         return dir;

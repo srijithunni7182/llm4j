@@ -22,6 +22,8 @@ public record Rec(String id, String decision, String kind, Instant at, String ca
     public static final String EPOCH = "epoch";
     /** The text of an artifact too large to keep in the record that refers to it, stored once under the hash of its content. */
     public static final String BLOB = "blob";
+    /** States the hash of every record of levels, promotions and freezes before it; the records after it carry seals (see {@link Seal}). */
+    public static final String SEAL_BASE = "seal_base";
     public static final String LEVEL = "level";
     public static final String FROZEN = "frozen";
     public static final String PROMOTION_PROPOSED = "promotion_proposed";

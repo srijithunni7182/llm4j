@@ -45,8 +45,8 @@ class DecideSafetyTest {
         assertThat(c.decider()).isEqualTo("support-lead");
         assertThat(c.decidedByAgent()).isFalse();
         assertThat(c.outcomes()).isEmpty();
-        assertThat(kinds(h.ledger)).containsOnly(Rec.LEVEL, Rec.CASE, Rec.PROPOSED, Rec.RESPONDED);     // a level record for the first case and one naming the served model
-        assertThat(kinds(h.ledger).stream().filter(k -> !k.equals(Rec.LEVEL)).toList()).containsExactly(Rec.CASE, Rec.PROPOSED, Rec.RESPONDED);
+        assertThat(kinds(h.ledger)).containsOnly(Rec.LEVEL, Rec.SEAL_BASE, Rec.CASE, Rec.PROPOSED, Rec.RESPONDED);     // the level records (the first case, the served model) and the anchor that seals them
+        assertThat(kinds(h.ledger).stream().filter(k -> !k.equals(Rec.LEVEL) && !k.equals(Rec.SEAL_BASE)).toList()).containsExactly(Rec.CASE, Rec.PROPOSED, Rec.RESPONDED);
     }
 
     @Test

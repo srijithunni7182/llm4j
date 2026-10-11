@@ -217,6 +217,7 @@ final class LadderDecider {
             // fail closed: a ledger that cannot be read never means a higher rung, and never means the agent acts alone
             log.warning("Decision " + def.getName() + ": the ledger failed (" + e.getMessage() + "); asking a person");
             run.audit("autonomy_degraded", Map.of("decision", def.getName(), "case", caseId, "reason", Decider.text(e.getMessage())));
+            if (e instanceof io.github.llm4j.loom.autonomy.LedgerTampered) run.audit("ledger_tampered", Map.of("decision", def.getName(), "case", caseId, "reason", Decider.text(e.getMessage())));
             pick.put("rung", engine.policy().nameOf(0));
             pick.put("mode", RungDef.Mode.BLIND.word());
             pick.put("how", "degraded");
