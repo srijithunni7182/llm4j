@@ -79,47 +79,8 @@ public class WeaveCLI implements Callable<Integer> {
                 description = "Show what agents think and do, live, on stderr (--trace=json for JSON lines).")
         private String trace;
 
-        @Option(names = "--observe", arity = "0..1", fallbackValue = "8787", paramLabel = "port",
-                description = "Show this run live on a web page (needs the loom-inspect add-on on the class path). Default port 8787.")
-        private String observe;
-
-        @Option(names = "--observe-bind", paramLabel = "address", description = "The address the page listens on (default 127.0.0.1).")
-        private String observeBind;
-
-        @Option(names = "--observe-detail", paramLabel = "full|truncated|metadata",
-                description = "How much of what agents say and tools return the page may show (default truncated: 500 characters).")
-        private String observeDetail;
-
-        @Option(names = "--observe-name", paramLabel = "name", description = "This process's name on the page (default local).")
-        private String observeName;
-
-        @Option(names = "--observe-linger", paramLabel = "time",
-                description = "Keep the page up this long after the run ends, e.g. 5m, so its final state can be read.")
-        private String observeLinger;
-
-        @Option(names = "--observe-fabric", paramLabel = "url",
-                description = "Report this process to a Fabric server at this URL (or set LOOM_FABRIC_URL). Needs --observe-name. Events are kept in a local outbox, so a server that is down never affects the run.")
-        private String observeFabric;
-
-        @Option(names = "--observe-ca", paramLabel = "file",
-                description = "A PEM file with the public certificate of the CA that signed the server's certificate (or LOOM_FABRIC_CA). Added to the default roots for this connection only.")
-        private String observeCa;
-
-        @Option(names = "--observe-ca-only", description = "Trust only the CA given with --observe-ca, not the default roots.")
-        private boolean observeCaOnly;
-
-        @Option(names = "--observe-pin", paramLabel = "sha256:hex",
-                description = "Accept only a server whose public key has this SHA-256 (or LOOM_FABRIC_PIN). Printed by the server at start-up.")
-        private String observePin;
-
-        @Option(names = "--observe-outbox", paramLabel = "dir", description = "Where the local outbox is kept (default ./loom-inspect-outbox).")
-        private String observeOutbox;
-
-        @Option(names = "--observe-key-secret", paramLabel = "name", description = "The secret holding this process's key for the server (default LOOM_FABRIC_CLIENT_KEY).")
-        private String observeKeySecret;
-
-        @Option(names = "--observe-flush-timeout", paramLabel = "time", description = "At exit, try this long to deliver what is left (default 5s).")
-        private String observeFlushTimeout;
+        @CommandLine.Mixin
+        private ObserveMixin observeOpts = new ObserveMixin();
 
         @CommandLine.Mixin
         private SecretOptions secrets = new SecretOptions();
@@ -145,38 +106,20 @@ public class WeaveCLI implements Callable<Integer> {
             if (env == null) return 2;
             env = promptOptions.apply(env);
             if (env == null) return 2;
-            io.github.llm4j.loom.observe.ObserveProvider.Session session = null;
-            io.github.llm4j.loom.observe.ObserveOptions observing = null;
-            try {
-                observing = io.github.llm4j.loom.observe.ObserveOptions.fromCommandLine(observe, observeBind, observeDetail, observeName, observeLinger,
-                        observeFabric, observeCa, observeCaOnly, observePin, observeOutbox, observeKeySecret, observeFlushTimeout, System::getenv);
-            } catch (IllegalArgumentException e) {
-                System.err.println("Error: " + e.getMessage());
-                return 2;
-            }
-            if (observing != null) {
-                try {
-                    session = io.github.llm4j.loom.observe.Observe.open(observing, env.out());
-                } catch (IllegalArgumentException | IllegalStateException | io.github.llm4j.loom.observe.Observe.Unavailable e) {
-                    System.err.println("Error: " + e.getMessage());
-                    return 2;
-                }
-                env.out().println("🔭 " + session.summary());
-                env = env.withObserve(session);
-            }
+            ObserveMixin.Opened observed = observeOpts.open(env);
+            if (observed.failed()) return 2;
+            env = observed.env();
             try {
                 return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, prices,
                         journal == null ? null : journal.toPath(), store == null ? null : store.toPath(), waitForResume,
                         lenient, trace, stopAt, maxRewinds, env);
             } finally {
-                if (session != null) {
-                    lingerThenClose(session, observing.linger(), env);
-                }
+                observed.finish();
             }
         }
 
         /** Keeps the page up for {@code linger} after the run, then stops serving. */
-        private static void lingerThenClose(io.github.llm4j.loom.observe.ObserveProvider.Session session, java.time.Duration linger, WeaveEnv env) {
+        static void lingerThenClose(io.github.llm4j.loom.observe.ObserveProvider.Session session, java.time.Duration linger, WeaveEnv env) {
             try {
                 if (!linger.isZero()) {
                     env.out().println("🔭 Keeping " + session.describe() + " up for " + io.github.llm4j.loom.execution.HarnessExecutor.human(linger) + " (Ctrl-C to stop).");
@@ -491,11 +434,20 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin
         private SecretOptions secrets = new SecretOptions();
 
+        @CommandLine.Mixin
+        private ObserveMixin observeOpts = new ObserveMixin();
+
         @Override
         public Integer call() {
             WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
             if (env == null) return 2;
-            return resume(runDir.toPath(), stopAt, env);
+            ObserveMixin.Opened observed = observeOpts.open(env);
+            if (observed.failed()) return 2;
+            try {
+                return resume(runDir.toPath(), stopAt, observed.env());
+            } finally {
+                observed.finish();
+            }
         }
     }
 
@@ -530,11 +482,20 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin
         private SecretOptions secrets = new SecretOptions();
 
+        @CommandLine.Mixin
+        private ObserveMixin observeOpts = new ObserveMixin();
+
         @Override
         public Integer call() {
             WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
             if (env == null) return 2;
-            return tick(store.toPath(), env);
+            ObserveMixin.Opened observed = observeOpts.open(env);
+            if (observed.failed()) return 2;
+            try {
+                return tick(store.toPath(), observed.env());
+            } finally {
+                observed.finish();
+            }
         }
     }
 
@@ -578,11 +539,17 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin
         private SecretOptions secrets = new SecretOptions();
 
+        @CommandLine.Mixin
+        private ObserveMixin observeOpts = new ObserveMixin();
+
         @Override
         public Integer call() throws Exception {
             WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
             if (env == null) return 2;
-            return daemon(store.toPath(), io.github.llm4j.loom.trigger.Schedules.parse(poll), null, env);
+            ObserveMixin.Opened observed = observeOpts.open(env);
+            if (observed.failed()) return 2;
+            observed.closeAtExit(); // a daemon is stopped with Ctrl-C: the session closes then, flushing the outbox
+            return daemon(store.toPath(), io.github.llm4j.loom.trigger.Schedules.parse(poll), null, observed.env());
         }
     }
 
