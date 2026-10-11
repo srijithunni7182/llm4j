@@ -940,12 +940,41 @@ weave ladder test refund.loom Refund --store runs/.loom-triggers       # the run
 **A ladder on an agent.** If every decision an agent proposes for should earn trust the same way, write the ladder once on the agent:
 
 ```loom
+import "loom/autonomy"
+
+ladder RefundLadder {
+    rung watch { mode: blind }
+    rung suggest {
+        mode: confirm
+        climb when history.count >= 50 and history.rate(agrees).lower95 >= 0.8
+    }
+    rung act {
+        mode: autonomous
+        climb when history.count >= 200 and history.rate(agrees).lower95 >= 0.95
+        slip to suggest when history.last(50).rate(agrees) < 0.85
+        sample 5% blind
+    }
+    climbing needs approval from risk-owner
+}
+
 agent Triager {
     model: "gemini-2.5-flash"
     system: "You are Triager."
     output_schema: { choice: string, reasoning: string }
     ladder:  RefundLadder
-    ceiling: suggest          # optional: the highest rung any of its decisions may reach
+    ceiling: suggest          // optional: the highest rung any of its decisions may reach
+}
+
+decision Refund {
+    proposed by: Triager
+    choices:     approve, reject
+    ask:         support-lead
+    when the agent changes: start over
+}
+
+workflow Triage(ticket) {
+    decide Refund -> verdict
+    note "{verdict}"
 }
 ```
 
