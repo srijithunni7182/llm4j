@@ -63,6 +63,8 @@ public final class LadderEngine {
 
     public LevelLog log() { return log; }
 
+    public Ledger ledger() { return ledger; }
+
     private String decision() { return policy.decisionName(); }
 
     private Instant now() { return clock.instant(); }

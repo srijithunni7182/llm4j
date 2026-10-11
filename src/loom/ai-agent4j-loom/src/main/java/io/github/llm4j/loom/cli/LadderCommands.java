@@ -63,13 +63,32 @@ final class LadderCommands {
             s.put("forced", st.forced());
             V.Cs history = engine.history(scope, st.epoch());
             s.put("cases", history.cases().size());
-            text.append("  scope ").append(scope).append("   rung ").append(st.rungName());
+            // a trust block keeps the words and figures its operators know: level, and the evidence line of the original status
+            boolean trust = def.isLadderFromTrust();
+            io.github.llm4j.loom.autonomy.AgreementStats.Figures figures = trust
+                    ? new io.github.llm4j.loom.autonomy.Ladder(def, ledger, clock).figures(scope, st.epoch()) : null;
+            if (trust) {
+                s.put("level", st.rungName());
+                s.put("cases", figures.cases());
+                s.put("agreement", figures.rate());
+                s.put("lowerBound", figures.lowerBound());
+                s.put("dangerousRate", figures.dangerousRate());
+                s.put("coverage", figures.coverage());
+                s.put("malformed", figures.malformed());
+            }
+            text.append("  scope ").append(scope).append(trust ? "   level " : "   rung ").append(st.rungName());
             if (effective != st.rung()) text.append(" (running at ").append(policy.nameOf(effective)).append(")");
-            if (st.forced()) text.append("   FORCED: set by hand, not supported by the record");
+            if (st.forced()) text.append(trust ? "   FORCED: set by hand, not yet supported by the evidence" : "   FORCED: set by hand, not supported by the record");
             text.append("   (epoch ").append(st.epoch()).append(", agent ").append(AgentIdentity.shorten(st.identity())).append(", served model ")
                     .append(st.servedModel() == null ? "unreported" : st.servedModel()).append(")\n");
-            text.append("    ").append(history.cases().size()).append(" answered cases in this epoch\n");
-            if (def.getChoices().contains("escalate") && !history.cases().isEmpty()) {
+            if (trust) {
+                text.append("    evidence: ").append(figures.cases()).append(" blind cases of the latest ").append(def.getWindow()).append(";  agreement ").append(pct(figures.rate()))
+                        .append(" (lower bound ").append(pct(figures.lowerBound())).append(");  dangerous mistakes ").append(pct(figures.dangerousRate()))
+                        .append(";  coverage ").append(pct(figures.coverage())).append(";  unusable proposals ").append(figures.malformed()).append('\n');
+            } else {
+                text.append("    ").append(history.cases().size()).append(" answered cases in this epoch\n");
+            }
+            if (!trust && def.getChoices().contains("escalate") && !history.cases().isEmpty()) {
                 long escalated = history.cases().stream().filter(c -> c.get("proposal") instanceof V.Rec p && p.get("choice") instanceof V.Str ch && ch.value().equals("escalate")).count();
                 double coverage = 1.0 - (double) escalated / history.cases().size();
                 text.append("    coverage ").append(String.format("%.1f%%", coverage * 100)).append(": the share of proposals that were not escalate (an agent that always escalates agrees only when people do)\n");
@@ -102,7 +121,7 @@ final class LadderCommands {
             Instant staleBefore = clock.instant().minus(Duration.ofDays(def.getStaleDays()));
             List<String> stale = cases.stream().filter(c -> !c.superseded() && c.scope().equals(scope) && !c.responded() && c.at().isBefore(staleBefore)).map(LCase::id).toList();
             if (!stale.isEmpty()) {
-                text.append("    stale: ").append(stale.size()).append(" case(s) with no answer after ").append(def.getStaleDays()).append(" days: ")
+                text.append("    stale: ").append(stale.size()).append(" case(s) with no " + (trust ? "verdict" : "answer") + " after ").append(def.getStaleDays()).append(" days: ")
                         .append(String.join(", ", stale.subList(0, Math.min(5, stale.size())))).append('\n');
                 s.put("stale", stale);
             }
@@ -118,6 +137,10 @@ final class LadderCommands {
         if (scopes.isEmpty()) text.append("  no cases yet\n");
         text.append('\n');
         return d;
+    }
+
+    private static String pct(double v) {
+        return String.format("%.1f%%", v * 100);
     }
 
     private static String term(LadderPolicy.Term t) {
@@ -173,6 +196,16 @@ final class LadderCommands {
             data.put("rule", "by hand");
             data.put("reason", reason);
             if (change.forced()) data.put("forced", true);
+            // the figures the record showed at that moment: every answered case of the epoch and, for a trust block, the original agreement figures
+            Map<String, Object> figures = new LinkedHashMap<>();
+            figures.put("cases", engine.history(scope, st.get().epoch()).cases().size());
+            if (def.isLadderFromTrust()) {
+                io.github.llm4j.loom.autonomy.AgreementStats.Figures f = new io.github.llm4j.loom.autonomy.Ladder(def, engine.ledger(), env.clock()).figures(scope, st.get().epoch());
+                figures.put("cases", f.cases());
+                figures.put("agreement", f.rate());
+                figures.put("lowerBound", f.lowerBound());
+            }
+            data.put("figures", figures);
             AutonomyCommands.audit(store, "level_changed", data);
             env.out().println("Moved " + scope + " from " + change.from() + " to " + change.to() + (change.forced() ? " (FORCED: shown as forced until the record supports it)" : "") + ".");
             return 0;

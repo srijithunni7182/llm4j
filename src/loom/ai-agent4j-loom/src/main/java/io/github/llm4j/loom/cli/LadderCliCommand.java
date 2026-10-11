@@ -59,10 +59,24 @@ final class LadderCliCommand implements Callable<Integer> {
             env.err().println("Error: " + e.getMessage());
             return 2;
         }
-        List<LadderDef> ladders = loaded.getLadders().stream().filter(l -> name == null || l.getName().equals(name)).toList();
+        // a decision named here is read as a ladder too: its trust block as the ladder written from it, or the reason it stays on the original engine
+        DecisionDef decision = name == null ? null : loaded.getDecisions().stream().filter(d -> d.getName().equals(name)).findFirst().orElse(null);
+        if (decision != null && decision.isLadderFromTrust()) {
+            LadderDef written = loaded.getLadders().stream().filter(l -> l.getName().equals(decision.getLadder())).findFirst().orElseThrow();
+            env.out().println("The trust block of " + decision.getName() + ", read as a ladder:\n");
+            env.out().println(LadderDescriber.describe(written, decision));
+            return 0;
+        }
+        if (decision != null && decision.getLadder() == null) {
+            env.out().println(decision.getName() + " runs on the original engine, not on a ladder: "
+                    + io.github.llm4j.loom.ladder.TrustDesugar.of(decision, java.util.Set.of()).unsupported() + ".");
+            return 0;
+        }
+        List<LadderDef> declared = loaded.getLadders().stream().filter(l -> !l.isSynthetic()).toList();
+        List<LadderDef> ladders = declared.stream().filter(l -> name == null || l.getName().equals(name)).toList();
         if (ladders.isEmpty()) {
             env.err().println("Error: " + (name == null ? script + " declares no ladder." : "no ladder named " + name + ". Ladders: "
-                    + loaded.getLadders().stream().map(LadderDef::getName).collect(Collectors.joining(", ")) + "."));
+                    + declared.stream().map(LadderDef::getName).collect(Collectors.joining(", ")) + "."));
             return 2;
         }
         for (LadderDef l : ladders) {

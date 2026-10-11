@@ -112,6 +112,21 @@ class AgentLadderDefaultTest {
         assertThat(only(s, "Refund").getLadder()).isEqualTo("Cautious");
     }
 
+    @Test
+    void anAgentInAnotherFileStillGivesItsLadderToADecisionThatSaidNothingOfTrust(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
+        java.nio.file.Files.writeString(dir.resolve("agents.loom"), LADDERS + agent("ladder: Cautious ceiling: suggest"));
+        java.nio.file.Files.writeString(dir.resolve("main.loom"), "import \"agents.loom\"\n" + decision("Refund", "") + decision("Credit", "trust { never go above suggest\n moving up is automatic }") + "workflow W(x) { note \"hi\" }\n");
+        LoomScript s = new io.github.llm4j.loom.execution.LoomLoader().load(dir.resolve("main.loom").toString());
+        DecisionDef refund = only(s, "Refund");
+        assertThat(refund.getLadder()).isEqualTo("Cautious");
+        assertThat(refund.isLadderFromAgent()).isTrue();
+        assertThat(refund.isLadderFromTrust()).isFalse();
+        assertThat(refund.getTrustMeasures()).isEmpty();
+        assertThat(refund.getCeilingRung()).isEqualTo("suggest");
+        assertThat(s.getLadders()).extracting(io.github.llm4j.loom.ast.LadderDef::getName).doesNotContain("trust:Refund").contains("Cautious", "trust:Credit");
+        assertThat(only(s, "Credit").getLadder()).as("a decision with trust of its own keeps it").isEqualTo("trust:Credit");
+    }
+
     // ---- what is wrong is said at load ------------------------------------------------------------------------------------
 
     @Test

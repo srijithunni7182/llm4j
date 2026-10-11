@@ -105,9 +105,18 @@ public class LoomScript implements Node {
      */
     public void applyAgentLadders() {
         for (DecisionDef d : decisions) {
-            if (d.getLadder() != null || d.isTrustGiven() || d.getAgent() == null) continue;
+            // a ladder written from a decision that said nothing of trust is only a stand-in: an agent merged in from another file replaces it
+            boolean standIn = d.isLadderFromTrust() && !d.isTrustGiven();
+            if ((d.getLadder() != null && !standIn) || d.isTrustGiven() || d.getAgent() == null) continue;
             for (AgentDef a : agents) {
                 if (!a.getName().equals(d.getAgent()) || a.getLadder() == null) continue;
+                if (standIn) {
+                    d.setLadderFromTrust(false);
+                    d.getTrustMeasures().clear();
+                    d.getTrustLabels().clear();
+                    ladders.removeIf(l -> l.getName().equals(d.getLadder()));
+                    d.getLadderArgs().clear();
+                }
                 d.setLadder(a.getLadder(), a.getLadderLine());
                 d.setLadderFromAgent(true);
                 d.getLadderArgs().putAll(a.getLadderArgs());

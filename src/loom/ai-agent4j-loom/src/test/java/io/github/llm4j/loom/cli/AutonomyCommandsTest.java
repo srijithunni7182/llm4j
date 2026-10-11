@@ -126,8 +126,8 @@ class AutonomyCommandsTest {
         assertThat(text).contains("Refund").contains("scope gold   level suggest").contains("scope basic   level watch");
         assertThat(text).contains("evidence: 5 blind cases of the latest 20").contains("agreement 100.0%").contains("lower bound").contains("dangerous mistakes 0.0%")
                 .contains("coverage 100.0%").contains("unusable proposals 0");
-        assertThat(text).contains("towards act:").contains("cases: short (5 cases, needs 8 cases)");
-        assertThat(text).contains("towards suggest:").contains("cases: short (2 cases, needs 5 cases)");
+        assertThat(text).contains("towards act:").contains("cases answered without seeing the proposal   [5 vs 8]   not met");
+        assertThat(text).contains("towards suggest:").contains("cases answered without seeing the proposal   [2 vs 5]   not met");
         assertThat(text).contains("last change:").contains("watch -> suggest (promoted,");
 
         outBytes.reset();
@@ -222,15 +222,23 @@ class AutonomyCommandsTest {
 
     /** Puts a scope at a level, as the ladder would have after earning it (the identity is the script's, so nothing starts a new epoch). */
     private void setLevel(String scope, Level level) throws Exception {
-        var levels = new io.github.llm4j.loom.autonomy.FileLevelStore(store.resolve("autonomy"));
-        var old = levels.get("Refund", scope).orElseThrow();
         var loaded = new io.github.llm4j.loom.execution.LoomLoader().load(script.getAbsolutePath());
-        String identity = io.github.llm4j.loom.autonomy.AgentIdentity.of(loaded, loaded.getDecisions().get(0), dir);
-        levels.compareAndSet("Refund", scope, old, new io.github.llm4j.loom.autonomy.LevelState(level, old.epoch(), identity, false, old.since(), "set up by the test", old.version() + 1));
+        var decision = loaded.getDecisions().get(0);
+        var policy = io.github.llm4j.loom.ladder.LadderPolicy.of(loaded, decision);
+        var log = new io.github.llm4j.loom.ladder.LevelLog(decision.getName(), policy.rungs(), new io.github.llm4j.loom.autonomy.FileLedger(store.resolve("autonomy")));
+        var old = log.current(scope).orElseThrow();
+        String identity = io.github.llm4j.loom.autonomy.AgentIdentity.of(loaded, decision, dir);
+        int rung = policy.indexOf(level.word());
+        log.write(scope, old.version(), new io.github.llm4j.loom.ladder.LevelLog.Standing(rung, level.word(), old.version() + 1, old.epoch(), identity, old.servedModel(), false, old.at(),
+                "set up by the test", policy.fingerprint()), "set", old.rungName(), "test", old.at(), policy.rulesText());
     }
 
-    private String levelOf(String scope) {
-        return new io.github.llm4j.loom.autonomy.FileLevelStore(store.resolve("autonomy")).get("Refund", scope).orElseThrow().level().word();
+    private String levelOf(String scope) throws Exception {
+        var loaded = new io.github.llm4j.loom.execution.LoomLoader().load(script.getAbsolutePath());
+        var decision = loaded.getDecisions().get(0);
+        var policy = io.github.llm4j.loom.ladder.LadderPolicy.of(loaded, decision);
+        return new io.github.llm4j.loom.ladder.LevelLog(decision.getName(), policy.rungs(), new io.github.llm4j.loom.autonomy.FileLedger(store.resolve("autonomy")))
+                .current(scope).orElseThrow().rungName();
     }
 
     @Test

@@ -91,7 +91,7 @@ class AutonomySweepTest {
         try (Stream<Path> walk = Files.walk(dir)) {
             files = walk.filter(Files::isRegularFile).toList();
         }
-        assertThat(files.stream().map(p -> p.getFileName().toString())).contains("ledger.jsonl", "levels.json", "log.jsonl", "report.md", "report.json", "journal.json", "run.json");
+        assertThat(files.stream().map(p -> p.getFileName().toString())).contains("ledger.jsonl", "log.jsonl", "report.md", "report.json", "journal.json", "run.json");
         // what the feature writes: its ledger, levels, audit and replays whole; and from each run journal the keys it adds (the rest of the journal is the run's own record)
         com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
         int checkedKeys = 0;
