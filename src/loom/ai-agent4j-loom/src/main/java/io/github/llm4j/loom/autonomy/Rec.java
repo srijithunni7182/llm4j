@@ -18,6 +18,8 @@ public record Rec(String id, String decision, String kind, Instant at, String ca
     public static final String PROPOSED = "proposed";
     public static final String DECIDED = "decided";
     public static final String OUTCOME = "outcome";
+    public static final String RESPONDED = "responded";
+    public static final String EPOCH = "epoch";
     public static final String LEVEL = "level";
     public static final String FROZEN = "frozen";
     public static final String PROMOTION_PROPOSED = "promotion_proposed";
