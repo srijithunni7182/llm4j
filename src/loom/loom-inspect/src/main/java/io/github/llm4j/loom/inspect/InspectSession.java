@@ -1,6 +1,7 @@
 package io.github.llm4j.loom.inspect;
 
 import io.github.llm4j.loom.inspect.http.InspectServer;
+import io.github.llm4j.loom.inspect.map.AutonomyView;
 import io.github.llm4j.loom.inspect.map.Detail;
 import io.github.llm4j.loom.inspect.map.GraphView;
 import io.github.llm4j.loom.inspect.map.TraceMapper;
@@ -61,6 +62,9 @@ public final class InspectSession implements ObserveProvider.Session {
             if (trace != null && !trace.equals(graphed.get())) {
                 graphed.set(trace);
                 registry.setGraph(options.name(), trace, graph.get());
+                if (run.script() != null && !run.script().getDecisions().isEmpty()) {
+                    registry.setLadders(options.name(), trace, () -> AutonomyView.of(run.script(), run.levelStore().orElse(null)));
+                }
             }
             registry.applyLogs(resource, out.logs());
             registry.applySpans(resource, out.spans());

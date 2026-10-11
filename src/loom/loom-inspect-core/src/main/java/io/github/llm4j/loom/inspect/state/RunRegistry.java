@@ -35,6 +35,11 @@ public final class RunRegistry {
         state(client, traceId).setGraph(graph);
     }
 
+    /** Gives a run the way to read its decision ladders. */
+    public void setLadders(String client, String traceId, java.util.function.Supplier<List<Map<String, Object>>> ladders) {
+        state(client, traceId).setLadders(ladders);
+    }
+
     public Optional<RunState> find(String client, String traceId) {
         return Optional.ofNullable(runs.get(client + "/" + traceId));
     }

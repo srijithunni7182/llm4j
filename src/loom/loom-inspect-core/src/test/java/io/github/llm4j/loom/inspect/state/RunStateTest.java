@@ -310,4 +310,16 @@ class RunStateTest {
                 start(1, "z", Semconv.KIND_SLEEP, "loom.sleep", null, null, "W/s0", Semconv.LOOM_SLEEP_WAKE_AT, "2026-10-11T14:05:00Z"));
         assertThat(list(run(reg).view(), "recent").get(1)).containsEntry("text", "sleeping").containsEntry("until", "2026-10-11T14:05:00Z");
     }
+
+    @Test
+    void laddersAreReadWhenTheViewIsBuilt_andAStoreThatFailsDoesNotBreakTheView() {
+        RunRegistry reg = registry(log(0, Semconv.EV_RUN_START, "w", Semconv.LOOM_RUN_ID, RUN, Semconv.LOOM_WORKFLOW, "W"));
+        assertThat(list(run(reg).view(), "ladders")).isEmpty();
+        int[] level = {0};
+        reg.setLadders(PROC.serviceName(), TRACE, () -> List.of(Map.of("name", "Refund", "level", level[0]++ == 0 ? "watch" : "suggest")));
+        assertThat(list(run(reg).view(), "ladders").get(0)).containsEntry("level", "watch");
+        assertThat(list(run(reg).view(), "ladders").get(0)).containsEntry("level", "suggest"); // asked afresh each time
+        reg.setLadders(PROC.serviceName(), TRACE, () -> { throw new IllegalStateException("store gone"); });
+        assertThat(list(run(reg).view(), "ladders")).isEmpty();
+    }
 }

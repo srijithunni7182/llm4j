@@ -525,3 +525,15 @@ Settled since draft 1: run identity (the executor already has `getRunId()` and `
 - Mutual TLS as an alternative to the per-process signing key.
 - A database store for the server's history, and running more than one server instance.
 - Secret rotation through the server (the value would have to be encrypted to a key held only by the process).
+
+## 11d. Phase 1 status
+
+Done, embedded mode, read-only:
+
+- The page follows the Console design (tokens, dark and light, bundled fonts, header, tiles, tabs per workflow run).
+- **Spend chart**: cumulative tokens against the run's clock, bounded to 600 points; a sleep is a flat stretch.
+- **Workflow graph overlay**: `GraphView` gives every statement the step path the executor reports for it (`Main/s2/r.0`: loop rounds and rewind generations share one place, see `StepPaths`); `RunState` keeps each path's state and run count; the page lays the statements out left to right, with what a statement contains in a dashed box beneath it, and marks running, done and failed steps. Statements that leave no step of their own (a `note`) count as done once the block has moved past them. `GET /api/runs/{trace}/graph`. Checked against a real run with a loop and an `alt`: every reported step lands on a node. A called workflow's inner steps light its `call` node, not a graph of their own yet.
+- **Autonomy ladders**: `AutonomyView` reads the run's level store and shows, per decision, the rung (watch, suggest, act, always in words), the ceiling, each scope, forced and frozen. Read-only: looking never creates a level. Evidence against thresholds is not shown yet.
+- Trace lines read as what happened ("sleeping until 14:05", "woke up").
+
+The graph and ladders are delivered by the embedded session. Fabric will carry the same two things in its snapshot (Phase 2).

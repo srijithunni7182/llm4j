@@ -276,6 +276,35 @@
   }
   var lastScroll = null;
 
+  var RUNGS = ['watch', 'suggest', 'act'];
+
+  function renderLadders(list) {
+    $('autonomy').hidden = list.length === 0;
+    var box = $('ladders');
+    box.textContent = '';
+    $('autosub').textContent = list.length + (list.length === 1 ? ' decision' : ' decisions');
+    list.forEach(function (d) {
+      var row = el('div', 'ladder'), left = el('div');
+      left.appendChild(el('span', 'nm', d.name));
+      left.appendChild(el('span', 'faint', (d.agent ? '  ' + d.agent : '') + (d.started ? '' : '  · not asked yet')));
+      row.appendChild(left);
+      var track = el('div', 'track'), at = RUNGS.indexOf(d.level), cap = RUNGS.indexOf(d.ceiling);
+      RUNGS.forEach(function (r, i) {
+        track.appendChild(el('span', 'rung ' + r + (i === at ? ' now' : i < at ? ' passed' : '') + (cap >= 0 && i > cap ? ' over' : ''), r));
+      });
+      row.appendChild(track);
+      if (d.frozen || (d.scopes && d.scopes.length)) {
+        var sc = el('div', 'sc');
+        if (d.frozen) { sc.appendChild(el('span', 'chip err', 'frozen: act is stopped')); }
+        (d.scopes || []).forEach(function (s) {
+          sc.appendChild(el('span', 'chip', (s.scope && s.scope !== 'all' ? s.scope : 'all') + ' · ' + s.level + (s.forced ? ' (forced)' : '')));
+        });
+        row.appendChild(sc);
+      }
+      box.appendChild(row);
+    });
+  }
+
   function render() {
     var v = view;
     if (!v) { return; }
@@ -341,6 +370,7 @@
 
     ensureGraph(selected);
     renderGraph(v);
+    renderLadders(v.ladders || []);
     renderSpend(v.spend || []);
     renderFollow(v);
     $('updated').textContent = 'updated ' + hms(new Date().toISOString());

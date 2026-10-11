@@ -6,14 +6,14 @@
   --ground: #0e0d0b; --surface: #161411; --surface-raised: #1e1b17; --line: #2b2721; --line-strong: #6e6556;
   --ink: #f2ece1; --ink-muted: #b0a794; --ink-faint: #8f8676;
   --live: #f2a93b; --on-live: #1a1204; --live-soft: #3a2a0f;
-  --rung-act: #86efc9; --wait: #6bb4e8; --danger: #f2705e; --danger-soft: #3b1914;
+  --rung-watch: #6f958d; --rung-suggest: #3fbf9f; --rung-act: #86efc9; --wait: #6bb4e8; --danger: #f2705e; --danger-soft: #3b1914;
   color-scheme: dark;
 }
 [data-theme="light"] {
   --ground: #f4efe5; --surface: #fffcf6; --surface-raised: #f0eadd; --line: #e0d8c7; --line-strong: #8a806c;
   --ink: #1c1913; --ink-muted: #574f41; --ink-faint: #6b6254;
   --live: #8f5400; --on-live: #fffcf6; --live-soft: #fdf0d6;
-  --rung-act: #0f6a4f; --wait: #1d5f9a; --danger: #b3321e; --danger-soft: #fbe3dd;
+  --rung-watch: #5f7f78; --rung-suggest: #1b7f68; --rung-act: #0f6a4f; --wait: #1d5f9a; --danger: #b3321e; --danger-soft: #fbe3dd;
   color-scheme: light;
 }
 :root {
@@ -142,6 +142,18 @@ tr.run .task { color: var(--ink); }
   .graph .node.run .ring { animation: ring 1.8s ease-out infinite; transform-box: fill-box; transform-origin: center; }
   @keyframes ring { from { opacity: .8; transform: scale(1); } to { opacity: 0; transform: scale(1.12); } }
 }
+
+/* autonomy ladders: the rung is always written in words, colour only marks it */
+.ladder { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.ladder:first-child { border-top: 0; }
+.ladder .nm { font-weight: 600; } .ladder .sc { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px; }
+.track { display: flex; align-items: center; gap: 6px; }
+.rung { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 12px; border: 1px solid var(--line-strong); color: var(--ink-faint); font: 600 11px/1 var(--font-sans); letter-spacing: .06em; text-transform: uppercase; }
+.rung.passed { color: var(--ink-muted); }
+.rung.watch.now { border-color: var(--rung-watch); color: var(--rung-watch); background: color-mix(in srgb, var(--rung-watch) 14%, transparent); }
+.rung.suggest.now { border-color: var(--rung-suggest); color: var(--rung-suggest); background: color-mix(in srgb, var(--rung-suggest) 14%, transparent); }
+.rung.act.now { border-color: var(--rung-act); color: var(--rung-act); background: color-mix(in srgb, var(--rung-act) 14%, transparent); }
+.rung.over { opacity: .45; text-decoration: line-through; }
 
 /* spend */
 .spend { width: 100%; height: 140px; display: block; }

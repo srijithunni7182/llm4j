@@ -60,6 +60,7 @@ public final class RunState {
     /** Cumulative spend after each finished agent step: [millis since start, tokens, cost]. Thinned past 600 points. */
     private final List<Object[]> spend = new ArrayList<>();
     private Map<String, Object> graph;
+    private java.util.function.Supplier<List<Map<String, Object>>> ladders;
     private String suspendReason;
     private String resumeAt;
     private String sleepWakeAt;
@@ -90,6 +91,11 @@ public final class RunState {
     /** The script's workflows as a graph, each node carrying the step path it runs under; null until a producer sets it. */
     public synchronized Map<String, Object> graph() {
         return graph;
+    }
+
+    /** Where the run's decisions stand on their autonomy ladders; asked for whenever the view is built. Embedded mode only. */
+    public synchronized void setLadders(java.util.function.Supplier<List<Map<String, Object>>> ladders) {
+        this.ladders = ladders;
     }
 
     public synchronized void setGraph(Map<String, Object> graph) {
@@ -384,6 +390,15 @@ public final class RunState {
             steps.add(m);
         }
         v.put("openSteps", steps);
+        List<Map<String, Object>> rungs = List.of();
+        if (ladders != null) {
+            try {
+                rungs = ladders.get();
+            } catch (RuntimeException e) {
+                rungs = List.of(); // a store that cannot be read must not take the page down
+            }
+        }
+        v.put("ladders", rungs);
         Map<String, Object> stepStates = new LinkedHashMap<>();
         this.steps.forEach((k, st) -> stepStates.put(k, Map.of("state", st[0], "runs", st[1])));
         v.put("steps", stepStates);
