@@ -1,6 +1,7 @@
 # Creating Tasks
 
-A **task** is a deterministic step of a workflow: plain Java, no model, no tokens. Where a [tool](Creating-Custom-Tools.md) is
+A **task** is a step of a workflow written as plain Java: deterministic, with no model and no tokens unless you ask for one (see
+[Tasks that use a model](#tasks-that-use-a-model)). Where a [tool](Creating-Custom-Tools.md) is
 something a model *chooses* to call, a task is something the workflow *runs*. Use one for the parts of a process that are too
 important to leave to an LLM: checking a refund against policy, calling a payments API, writing an audit record.
 
@@ -55,6 +56,29 @@ Every collection in a context is an **immutable deep copy**. A task cannot chang
 That is what makes a run replayable.
 
 Outside Loom, build a context yourself: `TaskContext.of(Map.of("amount", 90), Map.of())`. A task is a plain function, so it unit-tests with no model, no network and no workflow.
+
+## Tasks that use a model
+
+Not every code step is symbolic. Classifying an intent or extracting fields from text is one model call with no loop and no tools, which an agent
+would over-serve. A task can make that call through `ctx.llm()`, with the model chosen by the Loom script:
+
+```java
+Task classify = Task.withModel("Classify", ctx -> {
+    String intent = ctx.llm().chat(LLMRequest.builder()
+            .addSystemMessage("Reply with one word: refund, shipping or other.")
+            .addUserMessage(ctx.requireArg("text", String.class))
+            .build()).getContent();
+    return TaskResult.value(intent.trim());
+});
+```
+
+```
+run Classify(text = request.message) model "gemini-2.5-flash" -> intent
+```
+
+In a Loom run the client is metered, traced and mockable like an agent's. A task class overrides `usesModel()` to return `true`; the script must then
+name a model, and `weave check` refuses a `model` on a task that does not use one. Report such a task as `READS`, not `NONE`. Outside Loom,
+`ctx.llm()` fails with `TaskNotPerformed` unless you build the context with a client: `TaskContext.of(args, vars, "", "", mockClient)`.
 
 ## What a task returns: `TaskResult`
 

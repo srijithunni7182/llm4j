@@ -10,8 +10,13 @@ final class FunctionTask implements Task {
     private final TaskEffect effect;
     private final EffectPolicy policy;
     private final TaskFunction body;
+    private final boolean usesModel;
 
     FunctionTask(String name, TaskEffect effect, EffectPolicy policy, TaskFunction body) {
+        this(name, effect, policy, body, false);
+    }
+
+    FunctionTask(String name, TaskEffect effect, EffectPolicy policy, TaskFunction body, boolean usesModel) {
         if (!Task.isValidName(name)) {
             throw new IllegalArgumentException("task name \"" + name + "\" must be a letter followed by letters, digits, _ or -");
         }
@@ -19,6 +24,7 @@ final class FunctionTask implements Task {
         this.effect = Objects.requireNonNull(effect, "effect");
         this.policy = Objects.requireNonNull(policy, "policy");
         this.body = Objects.requireNonNull(body, "body");
+        this.usesModel = usesModel;
     }
 
     @Override
@@ -34,6 +40,11 @@ final class FunctionTask implements Task {
     @Override
     public TaskEffect effect() {
         return effect;
+    }
+
+    @Override
+    public boolean usesModel() {
+        return usesModel;
     }
 
     @Override

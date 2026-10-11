@@ -15,7 +15,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Runs {@code run Task(...) -> result} steps: deterministic code, no model, no tokens. Journaled and replayed like a delegate.
+ * Runs {@code run Task(...) -> result} steps: code, with a model only when the statement names one ({@code model "…"}), which the task reaches
+ * through {@code context.llm()}. Journaled and replayed like a delegate, so a resumed run never asks the model again.
  *
  * <p>A task that {@link TaskEffect#CHANGES changes things} follows the same journal protocol as an effect tool: {@code effect_pending}
  * before the call, {@code effect_done} after it, so a process that dies in between is never silently allowed to repeat a payment.
@@ -122,11 +123,13 @@ final class TaskRunner {
             }
         }
 
-        TaskContext context = TaskContext.of(args, executor.view().getAll(), stepId, idempotencyKey);
+        io.github.llm4j.LLMClient model = stmt.getModel() == null ? null : executor.clientForTask(name, stmt.getModel());
+        TaskContext context = TaskContext.of(args, executor.view().getAll(), stepId, idempotencyKey, model);
         Map<String, Object> startData = data(name, effect, null, 0);
         String shownArgs = executor.maskPii(CanonicalArgs.json(args)); // sorted-key JSON: the same text in every runtime
         startData.put("args", shownArgs);
         startData.put("variable", variable);
+        if (stmt.getModel() != null) startData.put("model", stmt.getModel());
         executor.trace(TraceEvent.TASK_START, null, "run " + name, startData);
 
         int maxAttempts = stmt.getRetryCount() + 1;

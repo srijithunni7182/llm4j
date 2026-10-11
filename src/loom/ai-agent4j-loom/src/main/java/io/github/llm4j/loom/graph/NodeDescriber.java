@@ -150,6 +150,7 @@ final class NodeDescriber {
                 .attrs(Attrs.create()
                         .text("task", r.getTaskName())
                         .text("variable", r.getVariableName())
+                        .text("model", r.getModel())
                         .positive("args", r.getArgs().size())
                         .positive("retry", r.getRetryCount())
                         .positive("backoffMs", r.getBackoffMillis())

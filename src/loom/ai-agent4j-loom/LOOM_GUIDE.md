@@ -1194,7 +1194,7 @@ Loom provides **Symbolic Controls** that ensure your agents follow a rigid seque
 - **`parallel { }`**: Concurrency block. Executes every statement inside the block in its own thread.
 - **`alt` / `loop until`**: Comparison-based branching using `==`, `!=`, `>`, `<`, `>=`, `<=`.
 - **`for each` / `parallel for each`**: Run a block once per item of a list, in order or all at once. See [for each](#for-each).
-- **`run`**: Run a deterministic **task** — plain Java, no model, no tokens. For the steps too important to leave to an LLM. See [Tasks](#tasks-deterministic-steps-run).
+- **`run`**: Run a **task** — plain Java; no model and no tokens unless the statement names one with `model "…"`. For the steps too important to leave to an LLM. See [Tasks](#tasks-deterministic-steps-run).
 - **`human_prompt`**: Ask a person. With a run journal the run suspends instead of holding a thread. See [Durable Runs](#durable-runs-no-new-syntax).
 - **`budget`**: Cap what a run, an agent or a single step may spend on LLM calls. See [Cost Budgets](#cost-budgets).
 
@@ -1324,7 +1324,7 @@ A name registered twice is an error: a deterministic step is never replaced sile
 #### The `run` statement
 
 ```
-run <Task>(<name> = <value>, ...) -> <variable>  [retry N]  [backoff 2s]  [timeout 30s]  [on_failure { ... }]
+run <Task>(<name> = <value>, ...) [model "<name>"] -> <variable>  [retry N]  [backoff 2s]  [timeout 30s]  [on_failure { ... }]
 ```
 
 | An argument written as | is passed to the task as |
@@ -1336,10 +1336,45 @@ run <Task>(<name> = <value>, ...) -> <variable>  [retry N]  [backoff 2s]  [timeo
 
 An argument that names a variable which was never set fails the step *before the task runs*: unlike elsewhere in Loom, where an unset variable reads
 as empty text, a deterministic step must never be handed a silent empty value. `run` is a keyword only at the start of a statement followed by
-`Name(`, so `run` still works as a variable name. A `budget` clause on `run` is an error: a task spends no tokens.
+`Name(`, so `run` still works as a variable name. A `budget` clause on `run` is an error: a task has no budget of its own (a task that uses a
+model counts against the run budget and the budgets around it, see below).
 
 `-> verdict` binds a map: `outcome` (always), `reason` and `value` (when the task gave them) and any data entries, so `alt (verdict.outcome == "approved")`
 and `{verdict.reason}` work like any other variable. The result variable may be `{item.field}` inside a `for each`, as with `delegate`.
+
+#### A task that reasons with a model
+
+Some steps are not symbolic: classifying an intent, pulling fields out of free text, judging a draft. That is one model call with no loop and no tools,
+so an agent is more than it needs. Write it as a task and name the model on the `run` statement, the way an agent names one with `model: "…"`:
+
+```
+run Classify(text = request.message) model "gemini-2.5-flash" -> intent
+```
+
+The task reaches the model with `context.llm()` and says it does, so `weave check` can hold the script to it:
+
+```java
+Task classify = Task.withModel("Classify", ctx -> {
+    String intent = ctx.llm().chat(LLMRequest.builder()
+            .addSystemMessage("Reply with one word: refund, shipping or other.")
+            .addUserMessage(ctx.requireArg("text", String.class))
+            .build()).getContent();
+    return TaskResult.value(intent.trim());
+});
+```
+
+(A class implementing `Task` overrides `usesModel()` to return `true`.) The client is the same kind an agent gets, so:
+
+- the call counts against the run budget and the loop / `for each` budgets around the statement, shows in the spend report under `task Classify`, and is
+  named in the trace (`model`) and in `weave graph`;
+- a provider declared in the script (`model: "Box/llama3"`) works, and `weave eval` and tests that replace the model factory replace this one too;
+- the result is journaled like any task's, so a resumed run does not ask the model again;
+- `weave check` refuses a `usesModel()` task whose `run` names no model, and a `model` on a task that is plain code (it would be ignored). It also
+  checks the model name as it does for an agent;
+- report such a task as `READS` (or `CHANGES`), not `NONE`: a model's answer is not a pure function of its input.
+
+Do not build a client of your own inside a task: it would bypass the budgets, the spend report and the mock models. In a unit test, pass a mock:
+`TaskContext.of(args, vars, "", "", mockClient)`.
 
 #### Failure, retries and crashes
 
