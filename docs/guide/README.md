@@ -42,6 +42,7 @@ Skipping is not hidden: chapter 9 reminds you once that no evaluation exists, an
 | 10 | [Best practices and checklist](10-best-practices.md) | | | | |
 | 11 | [Build the test examples together with the user](11-build-the-dataset-with-the-user.md) | interview the user, per agent, on five qualities; turn answers into the dataset | `weave eval --check` | $0 | every agent has an example per quality; countable things checked by code |
 | 12 | [Java quick reference](12-java-quick-reference.md) | the exact imports and calls for a host, a task, a tool and tests, so no jar needs opening | | $0 | |
+| 13 | [Earned autonomy](13-earned-autonomy.md) *(optional; skip unless an agent will take over a decision a person makes)* | decide with the user what would earn trust; write a `trust` block or a `ladder`; read it back | `weave ladder describe|test`, `weave autonomy` | $0 | the owner of the risk has read the policy; no level is claimed before real cases |
 
 ## The running example
 

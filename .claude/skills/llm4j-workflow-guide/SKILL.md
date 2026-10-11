@@ -28,6 +28,7 @@ may not be here, so never send the user to a repository path and never ask them 
 | 10 | Best practices | `docs/guide/10-best-practices.md` | the readiness checklist is ticked |
 | 12 | Java quick reference (imports and calls) | `docs/guide/12-java-quick-reference.md` | read it before writing any Java; never open a jar or run `javap` to find a class or method |
 | 11 | Build the test examples with the user | `docs/guide/11-build-the-dataset-with-the-user.md` | every agent: the user answered the five quality questions, countable things are checked by code, no silent gaps |
+| 13 | Earned autonomy (optional, only when an agent will take over a decision a person makes) | `docs/guide/13-earned-autonomy.md` | the risk owner has read `weave ladder describe`; no level is claimed before real cases have run |
 
 Start with `weave guide readme` if the user is new to the path. When the user wants to change a starter, `weave guide recipes` has tested before-and-after changes (a different model, ask a person before publishing, escalate when a loop gives up, add an agent, add a tool, mask personal data); use them as patterns and give the user the matching "Ask your agent" sentence.
 
@@ -193,6 +194,27 @@ unjudged); a real run does, under a cap you agree first. Offer `weave graph` to 
 
 When you open the eval4j dashboard, **read it before you describe it**: say what is actually on the screen (how many rows, that each row is named "<agent or workflow> · <example>", that every check in a mock run is the wiring check, and which quality dimensions have no results). Never describe a dashboard from this file's wording alone.
 
+## When an agent should earn the right to decide (earned autonomy, optional)
+
+This is optional and most workflows do not need it: raise it only when an agent will take over a decision a person makes today, and never add it unasked. Chapter 13 (`weave guide 13`) is the step-by-step; this section is the summary.
+
+If the user wants an agent to make a decision that today a person makes (approve a refund, post a reply), do not give it the power
+at once. Declare a `decision` and let it earn the freedom; the full language is in `LOOM_GUIDE.md` (section "Earned autonomy"), so read it before writing one.
+
+- The agent **proposes**, a person **decides**, and a ledger of both moves the agent up a ladder. The three modes are `blind` (people
+  decide without seeing the proposal), `confirm` (people accept, edit or reject it) and `autonomous` (the proposal takes effect; a sample is still checked).
+- **The user writes the policy; you do not choose it for them.** Ask what evidence would make them trust the agent (how many cases,
+  how long, how often it must agree, which mistakes are dangerous, what makes it slip back) and write that as a `ladder` with
+  `climb when`, `slip [to rung] when`, `sample P% blind`, `escalate when` and `measure`s over `history`. The short form is a `trust { }` block, which Loom runs as a three-rung ladder. An agent can name a default with `ladder:` and `ceiling:`; a decision's own ladder wins.
+- Every agent can reach autonomy: the default `ceiling` is the top rung. Do not lower it unless the user says the decision must always have a person.
+- Say plainly that **the agent cannot see or change its own level or the ledger**; never put them in a prompt or a tool.
+- Before it goes live: `weave ladder describe` (the policy in plain words; show it to the user), `weave ladder test` (try it on made-up
+  histories, free), and `weave replay` or `test it on past cases` for a changed prompt or model. At run time: `weave autonomy status|history|promote|demote|freeze|outcome`.
+- `weave autonomy verify <store>` checks the level record was not edited outside Loom. If it says it does not verify, tell the user and
+  do not use `--accept` on your own: that is their decision, with a reason.
+- Large proposals (a script, a document) are kept by reference in the ledger; `proposes: Name` is for a decision that writes something.
+- An untried ladder is not trusted. State in the report that no real case has run, so no level has been earned yet.
+
 ## Things that look like success and are not
 
 - `Tests run: 0` in a Maven build. An old Surefire finds no JUnit 5 tests and says BUILD SUCCESS. The test setup `weave init`
@@ -226,5 +248,7 @@ weave eval workflow.loom --mock                 # run the wiring for free (conte
 weave eval workflow.loom --max-cost 0.50 --prices prices.properties   # a real, capped evaluation (asks first)
 weave run workflow.loom --max-cost 0.50 --prices prices.properties --journal runs/run-1
 weave run workflow.loom --prompt writer@v1      # run one version of a prompt, for a fair comparison
+weave ladder describe workflow.loom             # an earned-autonomy policy in plain words (also: weave ladder test)
+weave autonomy status <store>                   # where each decision stands (also: history, verify, promote, demote, freeze, outcome)
 weave guide 6                                   # read chapter 6
 ```

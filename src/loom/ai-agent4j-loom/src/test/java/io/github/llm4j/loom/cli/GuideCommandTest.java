@@ -99,6 +99,21 @@ class GuideCommandTest {
     // ── the skill ────────────────────────────────────────────────────────────
 
     @Test
+    void theInstalledSkillTeachesEarnedAutonomyAndShipsTheReferenceItPointsAt() throws Exception {
+        assertThat(guide("--install-skill", dir.toString())).isZero();
+
+        Path folder = Guide.skillFolder(dir);
+        assertThat(Files.readString(folder.resolve("SKILL.md")))
+                .contains("earned autonomy", "weave ladder describe", "weave autonomy verify", "cannot see or change its own level");
+        assertThat(Files.readString(folder.resolve("references").resolve("LOOM_GUIDE.md")))
+                .contains("ladder", "weave autonomy verify", "test it on past cases");
+        assertThat(Files.readString(folder.resolve("references").resolve("13-earned-autonomy.md")))
+                .contains("optional", "weave ladder describe", "no level has been earned");
+        assertThat(Files.readString(folder.resolve("SKILL.md"))).contains("docs/guide/13-earned-autonomy.md".replace("docs/guide/", "references/"));
+        assertThat(Files.readString(Path.of("LOOM_PROMPT.md"))).contains("weave autonomy verify", "trust { }", "ceiling");
+    }
+
+    @Test
     void installSkillWritesTheSkillAndThePagesItPointsAtAndPointsThemAtReferences() throws Exception {
         assertThat(guide("--install-skill", dir.toString())).isZero();
 
