@@ -259,4 +259,16 @@ class RunStateTest {
                 log(60, Semconv.EV_RUN_END, "e", Semconv.LOOM_RUN_STATUS, Semconv.STATUS_COMPLETED));
         assertThat(run(ended).view(fiveMinutesIn.plusSeconds(3600)).get("elapsedMillis")).isEqualTo(60_000L);
     }
+
+    @Test
+    void aStartedStepReadsAsWhatItIsDoing() {
+        RunRegistry reg = registry(log(0, Semconv.EV_RUN_START, "w", Semconv.LOOM_RUN_ID, RUN, Semconv.LOOM_WORKFLOW, "W"),
+                start(1, "s0", Semconv.KIND_AGENT, "invoke_agent Editor", "Editor", null, "W/s0", Semconv.LOOM_TEXT, "Edit this script"),
+                start(2, "t1", Semconv.KIND_TOOL, "execute_tool Wiki", "Editor", "Wiki", "W/s0", Semconv.LOOM_TEXT, "{\"q\":\"hooks\"}"),
+                start(3, "t2", Semconv.KIND_TOOL, "execute_tool Fetch", "Editor", "Fetch", "W/s0"));
+        List<Map<String, Object>> recent = list(run(reg).view(), "recent");
+        assertThat(recent.get(1)).containsEntry("kind", "agent").containsEntry("text", "Edit this script");
+        assertThat(recent.get(2)).containsEntry("kind", "tool").containsEntry("text", "Wiki {\"q\":\"hooks\"}");
+        assertThat(recent.get(3)).containsEntry("kind", "tool").containsEntry("text", "Fetch");
+    }
 }

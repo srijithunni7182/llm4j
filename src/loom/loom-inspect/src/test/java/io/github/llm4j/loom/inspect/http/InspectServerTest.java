@@ -85,6 +85,14 @@ class InspectServerTest {
         assertThat(get("/app.css").body()).contains("--live");
         HttpResponse<byte[]> logo = http.send(HttpRequest.newBuilder(URI.create(base + "/logo.png")).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
         assertThat(logo.body()[1]).isEqualTo((byte) 'P'); // a PNG
+        assertThat(page.body()).contains("data-theme=\"dark\"");
+        assertThat(get("/app.css").body()).contains("[data-theme=\"light\"]").contains("/fonts/HankenGrotesk.woff2");
+        for (String font : new String[] {"/fonts/HankenGrotesk.woff2", "/fonts/JetBrainsMono.woff2"}) {
+            HttpResponse<byte[]> f = http.send(HttpRequest.newBuilder(URI.create(base + font)).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
+            assertThat(f.statusCode()).isEqualTo(200);
+            assertThat(f.headers().firstValue("Content-Type")).hasValue("font/woff2");
+            assertThat(new String(f.body(), 0, 4, java.nio.charset.StandardCharsets.ISO_8859_1)).isEqualTo("wOF2");
+        }
     }
 
     @Test

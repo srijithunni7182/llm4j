@@ -1,59 +1,82 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <title>loom-inspect</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
 <link rel="icon" href="/logo.png" type="image/png">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
 <div class="app">
+
   <header class="top">
-    <span class="logo" role="img" aria-label="Loom"></span>
-    <span class="wm">loom<b>·</b>inspect</span>
-    <select id="runs" aria-label="Run"></select>
+    <div class="brand"><span class="logo" role="img" aria-label="Loom"></span><span>loom<b>·</b>inspect</span></div>
+    <div class="crumbs">
+      <span id="client" class="faint"></span>
+      <span id="wfname" class="wf"></span>
+    </div>
     <span id="status" class="pill" hidden></span>
-    <span class="spacer"></span>
-    <span id="updated" class="faint mono"></span>
+    <div class="meta mono" id="meta" hidden>
+      <span>started <b id="started"></b></span>
+      <span>elapsed <b id="elapsed"></b></span>
+    </div>
+    <div class="spacer"></div>
+    <button id="theme" class="btn" type="button" aria-label="Switch theme"><span id="themelbl">Light</span></button>
   </header>
+
+  <nav id="wtabs" class="wtabs" aria-label="Workflows" hidden></nav>
 
   <div id="banner" class="banner" hidden></div>
 
   <section id="empty" class="empty" hidden>
-    <h1>No runs yet</h1>
-    <p class="muted">Start one with <code>weave run flow.loom --observe</code>. It appears here as soon as it begins.</p>
+    <img class="mark" src="/logo.png" alt="" width="64" height="64">
+    <h1>Waiting for a run</h1>
+    <p class="muted">Start one with <code>weave run flow.loom --observe</code>. It appears here the moment it begins.</p>
   </section>
 
   <main id="main" hidden>
-    <h1 id="title"></h1>
-    <section class="kpis" aria-label="Totals">
-      <div class="tile"><div class="eyebrow">Tokens</div><div id="tokens" class="val">0</div></div>
-      <div class="tile"><div class="eyebrow">Cost</div><div id="cost" class="val">$0</div></div>
-      <div class="tile"><div class="eyebrow">LLM calls</div><div id="calls" class="val">0</div></div>
-      <div class="tile"><div class="eyebrow">Running now</div><div id="running" class="val">0</div></div>
-      <div class="tile"><div class="eyebrow">Elapsed</div><div id="elapsed" class="val">0:00</div></div>
+    <section class="kpis" aria-label="Run totals">
+      <div class="tile"><div class="eyebrow">Tokens used</div><div class="val" id="tokens">0</div><div class="foot mono" id="tokensfoot"></div></div>
+      <div class="tile"><div class="eyebrow">Cost so far</div><div class="val" id="cost">$0</div><div class="foot mono" id="costfoot"></div></div>
+      <div class="tile"><div class="eyebrow">Running now</div><div class="val"><span id="running" class="live-t">0</span> <small id="runningof"></small></div><div class="foot mono" id="runningfoot"></div></div>
+      <div class="tile"><div class="eyebrow">Tool calls</div><div class="val" id="toolcalls">0</div><div class="foot mono" id="toolfoot"></div></div>
+      <div class="tile"><div class="eyebrow">Run</div><div class="val sm" id="state">–</div><div class="foot mono" id="statefoot"></div></div>
     </section>
 
-    <section class="panel">
-      <h2>Agents</h2>
-      <table><thead><tr><th>Agent</th><th>State</th><th class="r">Tokens</th><th class="r">Calls</th><th class="r">Cost</th><th>Tools in use</th></tr></thead><tbody id="agents"></tbody></table>
-      <p id="noagents" class="muted" hidden>No agent has started yet.</p>
-    </section>
+    <div class="grid">
+      <section class="panel c8" aria-labelledby="h-agents">
+        <div class="ph"><h2 id="h-agents">Agents</h2><span class="sub mono" id="agentsub"></span></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Agent</th><th>Doing</th><th class="r">Tokens</th><th class="r">Calls</th><th class="r">Cost</th><th>Tools</th></tr></thead>
+            <tbody id="agents"></tbody>
+          </table>
+        </div>
+        <p id="noagents" class="muted pad" hidden>No agent has started yet.</p>
+      </section>
 
-    <section class="panel">
-      <h2>Tools</h2>
-      <table><thead><tr><th>Tool</th><th class="r">Calls</th><th class="r">In flight</th><th class="r">Errors</th><th class="r">Avg</th></tr></thead><tbody id="tools"></tbody></table>
-      <p id="notools" class="muted" hidden>No tool has been called yet.</p>
-    </section>
+      <section class="panel c4 tall" aria-labelledby="h-follow">
+        <div class="ph"><h2 id="h-follow">Following</h2><span class="sub" id="followsub"></span><span class="spacer"></span><span class="chip on" id="livechip" hidden>live</span></div>
+        <div class="focus" id="focus" hidden>
+          <div class="avatar" id="avatar"></div>
+          <div><h3 id="focusname"></h3><div class="mono faint" id="focussub"></div></div>
+        </div>
+        <div class="chips filters" id="filters"></div>
+        <ul class="trace mono" id="trace" aria-label="Live trace"></ul>
+        <p id="notrace" class="muted pad" hidden>Nothing has happened yet.</p>
+      </section>
 
-    <section class="panel">
-      <h2>Latest events</h2>
-      <ol id="recent" class="recent"></ol>
-    </section>
+      <section class="panel c8" aria-labelledby="h-tools">
+        <div class="ph"><h2 id="h-tools">Tool activity</h2><span class="sub mono" id="toolsub"></span></div>
+        <div class="tools" id="tools"></div>
+        <p id="notools" class="muted pad" hidden>No tool has been called yet.</p>
+      </section>
+    </div>
   </main>
 
-  <footer class="foot faint mono">read-only · totals and active agents (phase 0b)</footer>
+  <footer class="foot2 faint mono"><span>read-only · embedded mode</span><span id="updated"></span></footer>
 </div>
 <script src="/app.js"></script>
 </body>

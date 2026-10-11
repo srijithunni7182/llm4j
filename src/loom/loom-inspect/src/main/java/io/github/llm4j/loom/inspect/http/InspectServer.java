@@ -32,8 +32,10 @@ public final class InspectServer {
             "/app.css", new String[] {"app.css", "text/css; charset=utf-8"},
             "/app.js", new String[] {"app.js", "text/javascript; charset=utf-8"},
             "/logo.png", new String[] {"loom-logo.png", "image/png"},
-            "/favicon.ico", new String[] {"loom-logo.png", "image/png"});
-    private static final String CSP = "default-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
+            "/favicon.ico", new String[] {"loom-logo.png", "image/png"},
+            "/fonts/HankenGrotesk.woff2", new String[] {"fonts/HankenGrotesk.woff2", "font/woff2"},
+            "/fonts/JetBrainsMono.woff2", new String[] {"fonts/JetBrainsMono.woff2", "font/woff2"});
+    private static final String CSP = "default-src 'self'; img-src 'self'; font-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 
     private final RunRegistry registry;
     private final HttpServer server;

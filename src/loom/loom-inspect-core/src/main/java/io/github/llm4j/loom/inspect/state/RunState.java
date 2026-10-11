@@ -225,7 +225,17 @@ public final class RunState {
         line.put("event", r.eventName());
         String agent = r.text(Semconv.GEN_AI_AGENT_NAME);
         if (agent != null) line.put("agent", agent);
-        line.put("text", r.body());
+        String text = r.body();
+        String kind = r.text(Semconv.LOOM_SPAN_KIND);
+        if (Semconv.EV_SPAN_START.equals(r.eventName()) && kind != null) {
+            line.put("kind", kind);
+            // a started step reads as what it is doing: the tool and its input, or the task given to the agent
+            String input = r.text(Semconv.LOOM_TEXT);
+            String tool = r.text(Semconv.GEN_AI_TOOL_NAME);
+            if (tool != null) text = tool + (input != null ? " " + input : "");
+            else if (input != null) text = input;
+        }
+        line.put("text", text);
         recent.addLast(line);
         while (recent.size() > RECENT) recent.removeFirst();
     }
@@ -236,6 +246,7 @@ public final class RunState {
         Map<String, Object> line = new LinkedHashMap<>();
         line.put("at", OtlpJson.instant(s.endNanos()).toString());
         line.put("event", "loom." + kind + ".end");
+        line.put("kind", kind);
         String agent = s.text(Semconv.GEN_AI_AGENT_NAME);
         if (agent != null) line.put("agent", agent);
         String text = s.text(Semconv.LOOM_TEXT);
