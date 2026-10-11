@@ -54,7 +54,12 @@ public final class InspectSession implements ObserveProvider.Session {
         if (options.fabric() == null || fabricFailed) return null;
         if (fabric == null) {
             try {
-                String key = run.secretStore() == null ? null : run.secretStore().resolve(options.fabric().keySecret());
+                String key = null;
+                try {
+                    key = run.secretStore() == null ? null : run.secretStore().resolve(options.fabric().keySecret());
+                } catch (RuntimeException missing) {
+                    // not in the store: said below, with what to do
+                }
                 if (key == null || key.isBlank()) {
                     throw new IllegalStateException("the client key is not in the secret store: set it with 'weave secrets set " + options.fabric().keySecret() + "'");
                 }
@@ -90,19 +95,21 @@ public final class InspectSession implements ObserveProvider.Session {
             String trace = out.logs().isEmpty() ? null : out.logs().get(0).traceId();
             if (trace != null && !trace.equals(graphed.get())) {
                 graphed.set(trace);
-                registry.setGraph(options.name(), trace, graph.get());
+                if (server != null) registry.setGraph(options.name(), trace, graph.get());
                 java.util.function.Supplier<List<java.util.Map<String, Object>>> ladders = null;
                 if (run.script() != null && !run.script().getDecisions().isEmpty()) {
                     ladders = () -> AutonomyView.of(run.script(), run.levelStore().orElse(null));
-                    registry.setLadders(options.name(), trace, ladders);
+                    if (server != null) registry.setLadders(options.name(), trace, ladders);
                 }
                 if (link != null) {
                     link.snapshot(new Snapshot(options.name(), resource.instanceId(), trace, run.runId(), firstWorkflow(run), graph.get(), List.of()), ladders);
                 }
             }
             if (link != null) link.offer(out, resource); // to disk first; sending is another thread's business
-            registry.applyLogs(resource, out.logs());
-            registry.applySpans(resource, out.spans());
+            if (server != null) { // a process that only reports keeps no copy of its own: a long-lived daemon must not grow
+                registry.applyLogs(resource, out.logs());
+                registry.applySpans(resource, out.spans());
+            }
         });
         sinks.add(sink);
         run.addTraceListener(sink);

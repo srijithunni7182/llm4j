@@ -48,6 +48,13 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- The real server, to test the sending side against it end to end. Not a dependency of the add-on itself. -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>loom-fabric</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>

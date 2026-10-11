@@ -41,6 +41,12 @@ public final class FabricLink implements AutoCloseable {
     private static final long CAP_BYTES = 256L * 1024 * 1024;
     private static final Duration CAP_AGE = Duration.ofDays(7);
     public static final String DEFAULT_OUTBOX = "loom-inspect-outbox";
+    private static volatile ServerLink.Timing timing = ServerLink.Timing.normal();
+
+    /** Sets the send intervals for links opened from now on. For tests, so an outage and its recovery take milliseconds, not minutes. */
+    public static void useTiming(ServerLink.Timing t) {
+        timing = t == null ? ServerLink.Timing.normal() : t;
+    }
 
     private final Outbox outbox;
     private final ServerLink link;
@@ -66,7 +72,7 @@ public final class FabricLink implements AutoCloseable {
     /** Opens the outbox for this process name and instance, picks up the logs earlier instances left, and starts sending. */
     public static FabricLink open(String name, FabricOptions f, String key, LoomScript script, Clock clock, PrintStream out) {
         javax.net.ssl.SSLContext tls = "https".equalsIgnoreCase(f.url().getScheme()) ? Tls.clientContext(f.ca(), f.caOnly(), f.pin()) : null;
-        return open(name, f, script, clock, out, new HttpTransport(f.url(), tls, name, key, clock), ServerLink.Timing.normal());
+        return open(name, f, script, clock, out, new HttpTransport(f.url(), tls, name, key, clock), timing);
     }
 
     /** As {@link #open(String, FabricOptions, String, LoomScript, Clock, PrintStream)} with the transport and timing given (tests). */
