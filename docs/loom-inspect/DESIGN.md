@@ -22,6 +22,7 @@ The UI mockups are the design system at https://claude.ai/artifact/G8ah58W5edzPP
 | 12 | Processes only connect outward. Pause, suspend and stop arrive on an outbound long-poll the process holds open. Secret values never leave a process, and secret rotation stays in embedded mode. |
 | 20 | **The wire format follows OpenTelemetry.** A run is a trace, steps are spans, live lifecycle events are log records, and totals are metrics, sent as OTLP/HTTP JSON using the GenAI semantic conventions where they exist and `loom.*` attributes for the rest. Only the parts OpenTelemetry has no concept of (hello, snapshot, commands) travel outside it. |
 | 21 | Because the format is standard, a process can also export the same data to any OTLP collector (Grafana, Tempo, Datadog, Honeycomb) with `--observe-otlp <endpoint>`, independently of the inspect server. |
+| 22 | **The emitter is fault tolerant through a local outbox.** Every event is written to a durable file on the workflow machine before it is sent. The inspect server can be down for hours or days without affecting the workflow in any way, and when it returns every missed event is streamed in, in order. |
 | 13 | The server keeps history on disk (retention 30 days or 2 GB, oldest finished runs first) and has its own secret store, which holds each client's key and the admin password. |
 | 14 | One key per process. Every process is named on purpose: `--observe-name` is required with `--observe-server`. |
 | 15 | No merging across processes: each process's workflows get their own tabs, grouped under the process name. |
@@ -105,6 +106,9 @@ loom-inspect/
     wire/                      (core) Hello, Snapshot, Heartbeat, Command: the few Loom-specific messages
     receive/                   (core) Receiver: OTLP endpoints, verify signature, dedup, feed Pump, serve the command long-poll
     emit/
+      Outbox.java              the durable local log: append-only segment files, one writer thread, torn-tail recovery, size and age caps
+      Cursor.java              one acknowledged position per destination (the server, an OTLP collector), stored beside the log
+      Drainer.java             reads the log from a cursor and sends it; also drains the outboxes of earlier or dead instances
       ServerLink.java          one outbound connection to a server: hello, snapshot, OTLP batching, retry, backoff, heartbeat, command long-poll
       OtlpExport.java          the same data to any OTLP collector (--observe-otlp), plain bearer headers
       Signer.java              HMAC-SHA256 over timestamp + body, client key from the secret store
@@ -213,7 +217,7 @@ LOOM_INSPECT_SERVER=https://inspect.example.com:9090 weave run flow.loom --secre
 - `--observe-name <name>` is this process's name on the server. It is **required** with `--observe-server`; there is no default. It must match a client created with `clients add`, and a process that omits it is refused at start-up with a message saying so.
 - The client key is read from the process's own secret store as `LOOM_INSPECT_CLIENT_KEY` (changeable with `--observe-key-secret <name>`), so no key appears on a command line or in the environment.
 - `--observe` (embedded page) and `--observe-server` can be used together.
-- **If the server is unreachable the run goes on.** The process keeps a bounded queue, retries with backoff, and sends a fresh snapshot when the server returns. A wrong key or an unsupported version is reported once on the console and reporting stops; it never stops the workflow.
+- **The server being down never affects the workflow.** See "The local outbox" below: events are written to disk first, sending is a separate background activity, and the run never waits for either. A wrong key or an unsupported version is reported once on the console and reporting stops; it never stops the workflow.
 
 ### What a process sends: OpenTelemetry-shaped
 
@@ -238,7 +242,7 @@ The data follows OpenTelemetry so that anything that understands OTLP can read i
 
 **Live state needs more than finished spans.** OpenTelemetry exports a span when it ends, but a console must show a 30-minute run's step while it is running. So the process sends, for each step, a log record `loom.span.start` (with the trace and span ids and attributes) when the step begins, and the span itself when it ends. The receiver treats a start with no end as "running". A step that crosses a pause or a restart is closed by whoever finishes it: the start time is journaled, and span ids are deterministic, so the process that wakes a `sleep` can export the completed span with its original start time.
 
-**Ordering and loss.** OTLP has no sequence numbers, so every lifecycle log record carries `loom.seq` (continuous per run). The receiver detects a gap from it and asks for a snapshot. Spans are idempotent (the same trace and span id replaces itself), so re-sending is safe. Delivery is at least once; each process has a bounded queue (default 10,000 records) and a `dropped` counter, as before.
+**Ordering and duplicates.** OTLP has no sequence numbers, so every lifecycle log record carries `loom.seq` (continuous per run), and every record written to the outbox also gets an outbox offset. Spans are idempotent (the same trace and span id replaces itself), so re-sending is safe. Delivery is at least once, in order; the server drops what it has already seen and acknowledges by outbox offset.
 
 **Content follows the detail level.** Prompts, answers and tool arguments are attached only at `--observe-detail full` (as the GenAI conventions' opt-in content attributes); `truncated` (the default) cuts them to 500 characters after the guard and redaction rules; `metadata` sends none. Redaction happens in the workflow process, before anything leaves it.
 
@@ -251,6 +255,36 @@ The data follows OpenTelemetry so that anything that understands OTLP can read i
 - **`heartbeat`** every 5 seconds, and **`bye`** on a clean exit.
 
 **Endpoints.** The server accepts OTLP at the standard paths `/v1/traces`, `/v1/logs` and `/v1/metrics`, and the Loom-specific messages under `/loom-inspect/v1/` (`hello`, `snapshot`, `heartbeat`, `commands`). Every request carries the client's signature header `X-Loom-Inspect-Signature: t=<unix>,v1=<HMAC-SHA256(client key, timestamp.body)>`. OTLP exporters accept custom headers, so this needs nothing special on the wire; a standard collector simply ignores it.
+
+### The local outbox: fault tolerance
+
+The emitter never sends an event straight from memory. Every event is appended to a **durable local log on the workflow machine** first, and a separate background drainer sends the log to the server from the last acknowledged position. The inspect server can be down for any length of time, and the workflow neither slows nor fails.
+
+**Not on the run's path.** The trace listener copies the event into a small in-memory ring and returns. One writer thread appends the ring to disk; another thread sends. If the writer falls behind or the disk is full, the ring drops the oldest entries and counts them; it never blocks the workflow, never throws into it, and never retries on the workflow thread. A failure inside the emitter is logged at most once a minute.
+
+**The log.**
+- Append-only segment files (default 8 MB each) of length-prefixed, checksummed records. Each record has a monotonically increasing **outbox offset**. The records are the same OTLP-shaped and Loom-specific messages that would have been sent, already redacted to the registration's detail level, so nothing sensitive is written that would not have been sent.
+- **Location:** `--observe-outbox <dir>` (default: `observe-outbox/` beside the run's journal when `--journal` is given, otherwise `./loom-inspect-outbox/`). Under it, one directory per process name and instance (`<name>/<instance-id>/`). Directories are created `0700` and files `0600`.
+- **Crash safety.** Records are flushed every 200 ms or 1,000 records, whichever first, and fsynced each second. A power loss can lose at most the last second of events; a process crash loses at most the last 200 ms. A record cut off mid-write is detected by its length and checksum and dropped when the log is opened again; the rest is intact.
+- **Caps.** Default 256 MB and 7 days per process name. When the cap is reached the **oldest segments are dropped first**, the number lost is recorded as a gap, and a fresh snapshot follows the next delivery, so the console's current state is correct and only the old detail between is missing. The Processes page shows lost counts.
+
+**Sending from the log.**
+- The drainer keeps a **cursor** per destination (the inspect server; an OTLP collector if `--observe-otlp` is on) in a small file beside the log, updated only after the destination acknowledges. Several destinations read the same log independently, and a segment is deleted when every cursor has passed it.
+- The server persists a batch before it acknowledges, and acknowledges by outbox offset. If the process dies after sending but before recording the acknowledgement, the batch is simply sent again and the server drops the duplicates.
+- **Backoff and reconnect.** Retries use backoff from 1 second to 60 seconds, with jitter. On every reconnect the process sends `hello` first, then the backlog.
+
+**When the server comes back: the backlog streams in.**
+1. `hello`, then a fresh `snapshot` of every live run (so the view is correct at once).
+2. The drainer then replays the log from the cursor, oldest first, in batches of up to 500 records, marked as replay. The server answers `429` with `Retry-After` if it needs the pace lowered. Live events keep being appended to the same log, so replay and live events share one ordered stream and nothing is reordered.
+3. The console shows the process as **Catching up** with the backlog size and falling, then **Live** when it has reached the head of the log. History inside the outage window is filled in, step by step, with its original timestamps, so a run's timeline and cost chart show what actually happened rather than a hole.
+
+**A process that dies, or exits, with events unsent.**
+- On a clean exit the process tries to flush for a few seconds (`--observe-flush-timeout`, default 5 seconds) and then exits, leaving the rest in the log. It never waits for a down server.
+- Any later `weave` process started with the same `--observe-name` and outbox directory first drains the logs of earlier instances (found under `<name>/`; a directory whose lock is not held belongs to a finished or dead process) before its own. A run that paused for a long `sleep` and is resumed days later therefore delivers the events from before the pause as well.
+- `weave observe flush --observe-server <url> --observe-name <name> --observe-outbox <dir>` drains an outbox by hand, and `weave observe purge` deletes one.
+- A run whose process died without a `bye` is shown by the server as "lost contact at …, final state unknown" until the backlog arrives or the run is resumed.
+
+**What it does not promise.** It is a durable buffer, not a database. At most the last second can be lost in a power failure, the cap can drop old events on a long outage, and a machine whose disk is lost loses its backlog. In each case the server's view stays honest: it shows the gap and the loss count rather than inventing events.
 
 ### What comes back
 
@@ -269,7 +303,7 @@ The console is the same as before; what changes is where the tabs come from.
 
 - **Tabs are grouped by process.** Each process's workflows appear as tabs under its name, in the form `getviral-prod / ContentStudio`. There is **no merging**: the same workflow running in prod and staging is two tabs, one under each process, so a run, an incident or a cost is never ambiguous about where it happened. The run picker inside a tab lists only that process's runs of that workflow.
 - With many processes the tab strip groups by process and collapses to the ones with live runs or open incidents first, with the rest under a "more" menu and a search box.
-- **A Processes page** lists every client: name, host, version, workflows, live runs, state (online, lagging, offline since), events per second, queued and dropped counts, and the key's name. It is also where you see an unsupported version, a revoked key, or a process that stopped answering.
+- **A Processes page** lists every client: name, host, version, workflows, live runs, state (online, lagging, offline since), events per second, **backlog on disk** and events lost, and the key's name. It is also where you see an unsupported version, a revoked key, or a process that stopped answering.
 - **Process-level state reaches the runs.** If a process goes quiet, its live runs show "last seen running at …" and the connection chip says Stale, exactly as in the single-process remote view. Runs of a process that sent `bye` are marked finished or suspended according to the last event, not left as running.
 - **Secrets** are shown per process, read-only: names, hosts, fingerprints, used-by. Rotation is not available through the server. The page says where to rotate (the process's host, or its embedded page).
 
@@ -413,12 +447,12 @@ Not in v1: mutual TLS (client certificates). The per-client signing key already 
 ## 11. Testing
 
 - **Replay tests.** A recorded list of `TraceEvent`s drives `Pump` and the detectors; assert the resulting `RunState` and incidents. Fixtures cover: a normal run, a rate-limited agent, a loop, an ungrounded draft, a budget stop.
-- **Concurrency test.** Many threads call the sink at once; assert no event is lost under the queue bound and the run thread never blocks (drop policy, with a counter shown in the UI).
+- **Concurrency test.** Many threads call the sink at once; assert the run thread never blocks and that every event that is accepted reaches the outbox in order. When the ring is full, assert the oldest are dropped and counted.
 - **API tests.** Start the server on an ephemeral port; check each route's JSON shape against golden files.
 - **Secrets tests.** Rotate against `InMemorySecretStore` and `EncryptedFileSecretStore`; read-only store gives a read-only row; no response, log or audit line contains the value.
 - **Security tests.** Unauthenticated, viewer and admin access to every route; CSRF and same-origin rejection; refusal to bind a public address without TLS.
 - **Overhead check.** Run a recorded workflow with and without the sink; the added time should be a small fraction of one model call.
-- **Delivery tests (server mode).** A server that fails, lags or drops: assert ordering by `loom.seq`, idempotent re-sent spans, de-duplication, bounded queue with a drop counter, snapshot after a gap, backoff, and that the run thread never blocks. Signature tests: wrong key, stale timestamp, tampered body, forged command.
+- **Delivery tests (server mode).** A scripted fake transport (no real network), so the tests are fast and deterministic: the server is down for N batches and then up, and every event is delivered once, in order, from the cursor; a batch sent but not acknowledged is re-sent and de-duplicated; a restart resumes from the stored cursor; an outbox directory with a torn last record is recovered; reaching the cap drops the oldest segment, records a gap and triggers a snapshot; an earlier instance's outbox is drained first; and with the transport blocked for a long time the run thread is never delayed. Signature tests: wrong key, stale timestamp, tampered body, forged command.
 - **Parity test.** Feed the same recorded events through embedded mode and through `ServerLink` to the server; assert the resulting `RunState` JSON is identical.
 - **Multi-process test.** Several simulated clients, including two running the same workflow and one that dies mid-run; assert tabs, run pickers, the Processes page and the stale and `bye` handling. Add a revoked key and a client that claims another's name.
 - **Persistence test.** Stop the server mid-run, restart it, and assert live state is rebuilt from disk and processes resync; assert retention removes the oldest finished runs first.
@@ -437,7 +471,7 @@ The server comes right after the console, so the console works across processes 
 | 0. Wire format | `loom-inspect-core` with the OpenTelemetry-shaped model and OTLP/JSON codec, the `TraceEvent` mapper, the Loom-specific messages and `RunState`, used by embedded mode too, so server mode is not a rewrite | none |
 | 0b. Spike | `ObservableRun` (C5), `ObserveProvider` and `--observe` (C6), `EventSink` + `RunState`, `GET /api/runs/{id}` and a bare page showing totals and active agents | C5, C6 (both small, additive) |
 | 1. Console | Graph overlay, agents table, Following trace, spend chart, tools, autonomy ladders (read-only), workflow tabs | C2 helps; C5 or app-supplied stores |
-| 2. Server mode | `ServerLink` in the add-on; the `loom-inspect-server` jar with `init`, `clients`, `serve`, `tls init`; signed OTLP ingest, `hello`, snapshots, resync and heartbeat; `--observe-otlp` export to any collector; the Processes page; tabs grouped by process; disk history with 30-day, 2 GB retention; `--observe-server`, `--observe-name`, `--observe-ca`, `--observe-pin`; the connection chip and stale view; the Docker image. Read-only: commands arrive in Phase 5. | C5, C6 |
+| 2. Server mode | `ServerLink` in the add-on; the `loom-inspect-server` jar with `init`, `clients`, `serve`, `tls init`; the durable outbox with cursors, replay and backlog catch-up; signed OTLP ingest, `hello`, snapshots, resync and heartbeat; `--observe-otlp` export to any collector; the Processes page; tabs grouped by process; disk history with 30-day, 2 GB retention; `--observe-server`, `--observe-name`, `--observe-ca`, `--observe-pin`; the connection chip and stale view; the Docker image. Read-only: commands arrive in Phase 5. | C5, C6 |
 | 3. Incidents | Rate-limit, loop, grounding and budget detectors with default thresholds; the attention strip | none (heuristics) |
 | 4. Script thresholds | `inspect { }` block in the parser and `weave check` | C4 |
 | 5. Controls | Suspend and stop, then pause; through the embedded page directly and through the server as commands on the long-poll | C1 |
@@ -458,6 +492,7 @@ Settled since draft 1: run identity (the executor already has `getRunId()` and `
 4. **Fingerprint in the audit.** OK to record the truncated hash before and after a rotation in the audit log? It is the only way to prove which key was live when.
 5. **Password form.** Accept the plain stored value in v1 and add hashing later, or require the hashed form from the start?
 6. **`--observe` on one-shot runs.** `weave run` ends when the workflow ends, which closes the embedded page. Should `--observe` keep it up for a short time (for example `--observe-linger 5m`) so the final state can be read? Server mode does not have this problem.
+7. **Outbox defaults.** 256 MB and 7 days per process name, fsync every second. Are these right for your machines, and should the default location be beside the run journal (as proposed) or a fixed system directory?
 
 **Deferred past v1**
 
