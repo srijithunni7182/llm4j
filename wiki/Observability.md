@@ -14,7 +14,7 @@ weave daemon triggers/ --secrets keys.store \
       --observe-fabric https://fabric.example.com:9090 --observe-name getviral-prod --observe-ca ca.pem
 ```
 
-![A run on the page: totals, the workflow graph, incidents and the live trace](../docs/images/observability/fabric-run.png)
+![A run on the page: totals, the workflow graph, incidents and the live trace](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/observability/fabric-run.png)
 
 ## Capabilities
 
