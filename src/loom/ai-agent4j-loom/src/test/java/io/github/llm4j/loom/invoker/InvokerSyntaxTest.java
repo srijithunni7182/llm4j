@@ -1,6 +1,7 @@
 package io.github.llm4j.loom.invoker;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.llm4j.loom.ast.LoomScript;
@@ -131,8 +132,9 @@ class InvokerSyntaxTest {
     @Tag("CC-V1.6")
     void anOpenApiToolWithAnInvokerCredentialLoads() throws IOException {
         try (InvokerHarness h = new InvokerHarness(dir)) {
-            h.executor(InvokerHarness.SCRIPT).initialize();
-            h.executor(InvokerHarness.SCRIPT.replace("auth_header: \"Authorization\"", "auth_query: \"access_token\"")).initialize();
+            assertThatCode(() -> h.executor(InvokerHarness.SCRIPT).initialize()).doesNotThrowAnyException();
+            assertThatCode(() -> h.executor(InvokerHarness.SCRIPT.replace("auth_header: \"Authorization\"", "auth_query: \"access_token\"")).initialize())
+                    .doesNotThrowAnyException();
         }
     }
 
@@ -196,6 +198,17 @@ class InvokerSyntaxTest {
         assertThat(identity("invoker.k")).isEqualTo(invoker);
         assertThat(identity("invoker.other")).isNotEqualTo(invoker);
         assertThat(identity("secret.K")).isNotEqualTo(env);
+    }
+
+    /**
+     * Identities of scripts that never used invoker must not move, or the evidence kept for their agents would start over. These are the values
+     * the code gave before invoker credentials existed.
+     */
+    @Test
+    @Tag("CC-V1.9")
+    void existingScriptsKeepTheirAgentIdentity() {
+        assertThat(identity("env.K")).isEqualTo("5af7c341de66e12041780966dfffaf490f9b87ebe7ff83ad5c0d2812b3a2a37f");
+        assertThat(identity("secret.K")).isEqualTo("66cc9fb50e64ba0f8207010361226903b9c3c7b04d05ffe0b2ce09a4f4b7fb27");
     }
 
     @Test

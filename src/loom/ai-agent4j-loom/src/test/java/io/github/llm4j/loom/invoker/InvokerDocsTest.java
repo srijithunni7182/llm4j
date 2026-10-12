@@ -91,6 +91,14 @@ class InvokerDocsTest {
     }
 
     @Test
+    @Tag("CC-V6.6")
+    void theEditorsHoverTextSaysWhereInvokerCanBeUsed() throws Exception {
+        String hover = read(ROOT.resolve("src/loom/vscode-loom/src/lsp/server.ts"));
+
+        assertThat(hover).contains("`auth_value` of `openapi` can also be `invoker.NAME`");
+    }
+
+    @Test
     @Tag("CC-V7.3")
     void theTypesTheDocumentationShowExist() throws Exception {
         assertThat(InvokerCredentials.class.getMethod("get", String.class)).isNotNull();

@@ -1,6 +1,6 @@
 # Design: Invoker Credentials for Loom Tools
 
-**Status:** draft for review. Nothing in this spec is implemented.
+**Status:** implemented. Where the build differs from the draft below, [As built](#as-built) says how and why.
 
 ## Problem
 
@@ -30,7 +30,7 @@ token to the tool:
   credential path safe for it and removes one obstacle; it does not finish the job.
 - Doing the OAuth flow. The host owns login, storage of the refresh token and the refresh call.
 - Per-user LLM provider keys (`provider … api_key: invoker.x` is refused; providers are per-executor clients).
-- `scheduled` or trigger-started runs acting as a user. They have no invoker; see [Runs without a invoker](#runs-without-a-invoker).
+- `scheduled` or trigger-started runs acting as a user. They have no invoker; see [Runs without an invoker](#runs-without-a-invoker).
 
 ## Script syntax
 
@@ -110,7 +110,7 @@ web request ──► executeWorkflow(wf, ctx, invoker)
                   │  invokerScope.set(invoker)            (top-level run only)
                   ▼
         statements ──► delegate ──► runWithTimeout / forkWith / broadcast / callWithTimeout
-                                         │  RunScope.capture() on the submitting thread,
+                                         │  ThreadScope.capture() on the submitting thread,
                                          │  install()/restore() on the pool thread
                                          ▼
                               ReActAgent.run  (tools run on the same thread)
@@ -128,17 +128,17 @@ The executor already keeps per-thread state in four `ThreadLocal`s (`step`, `loc
 `step`, `locals` and `scopes` by hand at each of **four** places that move work to another thread:
 `forkWith`, the broadcast `supplyAsync`, `callWithTimeout`, `runWithTimeout`. Each is a copy of the same capture/set/finally-remove block.
 
-Add a small package-private `RunScope`:
+Add a small package-private `ThreadScope`:
 
 ```java
-final class RunScope {                       // an immutable snapshot of what a worker thread must inherit
+final class ThreadScope {                       // an immutable snapshot of what a worker thread must inherit
     final String step; final Map<String,Object> locals; final List<Budget> budgets; final InvokerCredentials invoker;
     Restore install();                       // sets the thread-locals on the current thread; Restore.close() removes them
 }
-RunScope capture();                          // read from the current thread
+ThreadScope capture();                          // read from the current thread
 ```
 
-The four sites become `RunScope s = capture(); … () -> { try (var r = s.install()) { work } }`. This (a) carries the new
+The four sites become `ThreadScope s = capture(); … () -> { try (var r = s.install()) { work } }`. This (a) carries the new
 `invoker` everywhere without four more copies, (b) fixes the class of bug "a new thread-local was added and one site forgot it",
 and (c) is the first piece of any later re-entrant executor, which would hang the rest of the per-run state off the same object.
 
@@ -149,12 +149,12 @@ Why a thread-local and not a field: two runs on two threads of one executor each
 
 ### 2. Late-bound options in tools
 
-`ToolDef.OptionValue.Source` gains `CALLER`. Because many places write `v.isReference() ? env.apply(v.lookupKey()) : v.value()`,
+`ToolDef.OptionValue.Source` gains `INVOKER`. Because many places write `v.isReference() ? env.apply(v.lookupKey()) : v.value()`,
 a silent fall-through would send the *name* ("token") as a credential. So:
 
-- `isReference()` stays true for ENV and SECRET only; new `fromInvoker()` and `isCredential()` (any non-literal).
-- `lookupKey()` **throws** `IllegalStateException` for CALLER.
-- Every existing call site is made explicit (table below). A grep-based test fails the build if a new `lookupKey()` call appears that does not handle CALLER.
+- `isReference()` stays true for all three kinds of reference (so a place that rejects references, such as agent `memory { }` settings, rejects `invoker.` too); new `fromInvoker()`.
+- `lookupKey()` **throws** `IllegalStateException` for INVOKER.
+- Every existing call site is made explicit (table below). A grep-based test fails the build if a new `lookupKey()` call appears that does not handle INVOKER.
 
 | Call site | Behaviour for `invoker.*` |
 |---|---|
@@ -165,7 +165,7 @@ a silent fall-through would send the *name* ("token") as a credential. So:
 | `HarnessExecutor.credentialValue`, `Decider.secrets` | no value to scrub at load time; the tool scrubs per request |
 | `AgentIdentity.optionValue` | `invoker:NAME` (changing `env.X` to `invoker.x` is a changed agent, which is right) |
 | `SecurityAudit`, `Capabilities.opt` | new finding "acts as the invoker"; see §6 |
-| `LanguageTools` defaults, `AgentVoice` | unchanged (never CALLER) |
+| `LanguageTools` defaults, `AgentVoice` | unchanged (never INVOKER) |
 
 `ToolKind` gains:
 
@@ -180,7 +180,7 @@ passes `() -> binding.get(name)`. The executor's binding is:
 
 ```java
 name -> () -> {
-    InvokerCredentials c = invokerScope.get();
+    InvokerCredentials c = invoker();
     if (c == null) throw new SecretException("this run has no invoker credentials (invoker." + name + ")");
     String v = c.get(name);
     if (v == null) throw new SecretException("the invoker has no credential '" + name + "'");
@@ -207,7 +207,7 @@ Added behaviour:
 
 - **401 retry:** if the response is 401 and the credential came from a `CredentialSource`, call `rejected()`, fetch the value again and retry the
   request **once**. A second 401 is returned as the normal error. (A rejected request had no effect, so a retry of POST/PUT/DELETE is safe.)
-- **https only:** a invoker credential is sent only to an `https://` server, or to `localhost`. The server is `spec.servers[0]`, which the agent
+- **https only:** an invoker credential is sent only to an `https://` server, or to `localhost`. The server is `spec.servers[0]`, which the agent
   cannot change (it picks the path, not the host). This reuses the rule in `HarnessExecutor.checkProviderEndpoint`.
 - **Not cached:** the tool keeps no copy of the value between requests.
 
@@ -219,7 +219,7 @@ Added behaviour:
   fails the tool call, not the run (the agent gets the "credential unavailable" observation).
 - `weave check` / `weave audit` (no invoker): the script is valid; the check prints "uses invoker credentials: token (supplied by the host at run time)".
 
-### 5. Runs without a invoker
+### 5. Runs without an invoker
 
 Triggers, schedules (`TriggerRunner`) and `weave run` have no `InvokerCredentials`. A script using `invoker.*` run that way fails at run start with
 `MissingInvokerCredentialException`, unless a run is started with `--invoker-env NAME=ENVVAR` (the CLI builds `InvokerCredentials.of(...)` from environment
@@ -237,10 +237,11 @@ host that wants a background job to act as a user starts it itself with its own 
 | Token used by an agent that should not have it | Same as any tool: only agents listing the tool; `approve:` still applies | existing |
 | Token across threads/runs | thread-bound scope, re-installed at every fork, removed in `finally` | §1 |
 | Script author uses a user's identity unnoticed | `weave audit` finding "acts as the invoker"; includes methods that write | `SecurityAudit` |
-| A pool thread keeps the previous run's credential | `install()` returns a `Restore` that removes (not restores-to-null-and-forgets); test CC-V3.4 | `RunScope` |
+| A pool thread keeps the previous run's credential | `install()` returns a `Restore` that removes (not restores-to-null-and-forgets); test CC-V3.4 | `ThreadScope` |
 
-`weave audit` finding (new id, severity MEDIUM, LOW if the tool is GET-only): *"Tool Refunds acts as the person running the workflow
-(auth_value: invoker.token) and can POST/PUT/DELETE. Put `approve: Refunds` on the agents that use it."*
+`weave audit` finding LA17 (MEDIUM when some agent using the tool may call it without approval, LOW when every agent using it has it under
+`approve:`): *"Refunds sends invoker.token, so what an agent does with it is done with that person's permissions, and Scout may call it without
+approval. Add approve: [Refunds] to Scout."* The audit does not read an OpenAPI description, so it cannot tell a read-only API from one that writes.
 
 ## Concurrent runs on one executor
 
@@ -256,9 +257,9 @@ use, and no more.** The rest of the executor is per-run state held in fields, so
 | `sessions`, `servedModels`, `createdTools` | executor maps | `createdTools` can stay shared (tools hold no run state after this change); the others per run |
 | `step`, `locals`, `scopes`, `attempt`, **`invokerScope`** | thread-local, already copied at forks | already per thread |
 
-What this spec delivers toward it: `RunScope` as the single place per-thread run state is captured and re-installed, and tools whose
+What this spec delivers toward it: `ThreadScope` as the single place per-thread run state is captured and re-installed, and tools whose
 only run-dependent input arrives through that scope (so `createdTools` can be shared across runs). What it does not: a `Run` object that owns
-the fields above. That is a separate spec (`loom-reentrant-executor`); this one is written so it can adopt `RunScope` unchanged.
+the fields above. That is a separate spec (`loom-reentrant-executor`); this one is written so it can adopt `ThreadScope` unchanged.
 
 Until then: **one top-level run at a time per executor; use one executor per request** (cheap once `initialize()` is cheap; see Decisions taken in review, item 1).
 
@@ -268,7 +269,7 @@ Until then: **one top-level run at a time per executor; use one executor per req
 - **A supplier object, not a token string.** Expiry and refresh belong to the host, which owns the refresh token; Loom only asks again.
 - **Asked on every request, not once per run.** A run can outlive an access token (suspend, approval wait, retries).
 - **Thread-local scope, re-installed at forks, not a field.** Correct for concurrent runs and for parallel branches.
-- **`lookupKey()` throws for CALLER.** A forgotten call site fails loudly in tests instead of sending the name as a credential.
+- **`lookupKey()` throws for INVOKER.** A forgotten call site fails loudly in tests instead of sending the name as a credential.
 - **`openapi` first; `http` next.** `HttpKind` builds from strings through `Options`/`HttpTool.Config`; supporting a supplier there needs
   `HttpSupport` and `Redactor` changes. Listed as an optional task, not mixed into the first change.
 - **No retry beyond one 401.** Anything more is the host's refresh policy.
@@ -282,6 +283,23 @@ Until then: **one top-level run at a time per executor; use one executor per req
 3. **`get` does not take the request.** The name selects among several credentials (`invoker.token`, `invoker.admin_token`) and the host is fixed by the
    spec, so per-request minting adds complexity without a use. Revisit if a real need appears.
 
+## As built
+
+- **`ThreadScope`, not `RunScope`.** One object owns the four thread-locals (`step`, `locals`, budgets, `invoker`); `capture()` gives an immutable
+  `Snapshot`, `Snapshot.install()` returns an `Installed` that removes everything when closed, and `at(step, names)` is how a parallel branch starts at its own place.
+  `install()` of a state with no invoker also removes one left on a reused thread.
+- **`CredentialSource`, not `Supplier<String>`,** is what a tool holds: it has `rejected()` as well as `get()`. A package-private `RequestAuth` in the OpenAPI
+  package owns the three ways a request can carry a credential (given strings, `SecretRef`s, sources); `OpenAPITool` only asks it. `OpenApiKind` was
+  moved out of `ToolFactory`'s constructor into its own class so it can be tested directly.
+- **`ToolFactory.create(def, env, baseDir, context, invoker)`** takes the `Function<String, CredentialSource>`; the older overloads fail with a clear message if the tool needs an invoker.
+- **The run-start check** is `InvokerRefs.require(script, invoker)`, called by the outermost `executeWorkflow` before anything is touched; the guard against a second outermost run is an `AtomicBoolean` released in `finally`.
+- **`--invoker-env`** is on `weave run` and `weave resume`; it is not saved in `run.json` (a credential must not outlive the process), so a resumed run is given the option again. `weave tick` has none: a due resume of a script that needs an invoker fails with the same message.
+- **Only credentials that come from a source are held to the https rule.** Given strings and stored secrets behave exactly as before.
+- **Agent identity of existing scripts is unchanged** (the two pinned hashes in `InvokerSyntaxTest` are the values the code gave before this change).
+- **`approve:` needs a `HumanInterface`** on the executor. A web application must supply one (the guide says so); the doc-example test found this.
+- **`ReActAgent` can keep conversation state** (`ConversationHistory`, set through its builder), so a shared agent is not run-free in general; this matters only for the later reentrant-executor spec.
+- **Editor:** no grammar change is needed (`invoker.NAME` is a plain word like `env.NAME`); the hover text for `use:` names it.
+
 ## Open questions
 
-1. **Does `ReActAgent` keep conversation state across `run()` calls?** Needed for the re-entrancy table; the credential path does not depend on it.
+None for this change. For the later `loom-reentrant-executor` spec: which agents hold conversation state across runs, and whether `activeAgents` can be shared.

@@ -489,6 +489,11 @@
                                 <param>io.github.llm4j.loom.ast.ToolDef*</param>
                                 <param>io.github.llm4j.loom.execution.HarnessExecutor</param>
                                 <param>io.github.llm4j.loom.security.SecurityAudit</param>
+                                <param>io.github.llm4j.loom.parser.LoomParser</param>
+                                <param>io.github.llm4j.loom.autonomy.AgentIdentity</param>
+                                <param>io.github.llm4j.loom.cli.WeaveCLI</param>
+                                <param>io.github.llm4j.loom.cli.WeaveEnv</param>
+                                <param>io.github.llm4j.loom.cli.Runs</param>
                             </targetClasses>
                             <targetTests>
                                 <param>io.github.llm4j.loom.invoker.*Test</param>

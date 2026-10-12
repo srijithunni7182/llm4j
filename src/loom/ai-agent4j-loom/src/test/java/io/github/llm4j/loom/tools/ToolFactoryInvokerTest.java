@@ -87,8 +87,9 @@ class ToolFactoryInvokerTest {
     @Test
     @Tag("CC-V1.3")
     void withoutAnInvokerOptionTheKindGetsNoSources() throws Exception {
-        factory.create(tool("plain", "p"), name -> null, Path.of("."));
+        Tool built = factory.create(tool("plain", "p"), name -> null, Path.of("."));
 
+        assertThat(built.getName()).isEqualTo("T");
         assertThat(kind.lateBound).isEmpty();
         assertThat(kind.options).containsEntry("plain", "p");
     }

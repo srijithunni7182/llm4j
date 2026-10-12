@@ -66,8 +66,8 @@ The downstream API is the only network the tests touch; it runs on `localhost` (
 | V4.2 | A invoker credential is sent to an `https://` server or `localhost`; a spec whose server is `http://example.com` makes the call fail with an error naming the rule, and nothing is sent. |
 | V4.3 | The agent cannot choose the host: a tool argument `endpoint: "http://evil.test/x"` or `endpoint: "@evil.test/x"` is not found / is rejected, and the API log shows no request to another host. |
 | V4.4 | A server that redirects (302) to another host does not receive the `Authorization` header (the HTTP client does not forward it across hosts; test with a second local server). |
-| V4.5 | `weave audit` on a script with `invoker.token` and a tool that can POST reports the "acts as the invoker" finding at MEDIUM; with a GET-only spec, LOW; with `approve:` on every agent using the tool, the finding says it is approved. The existing finding ids are unchanged. |
-| V4.6 | `invoker.*` on a tool nobody uses (no agent lists it) is reported by `weave check` as unused, like any unused tool. |
+| V4.5 | `weave audit` reports LA17 "A tool that acts as the person running the workflow" at MEDIUM when some agent using the tool may call it without approval (naming those agents), and at LOW when every agent using it has it under `approve:` (or `approve: all`). Other credentials are not this finding. |
+| V4.6 | A tool that uses `invoker.NAME` but that no agent lists is not an LA17 finding. |
 
 ## V5: The credential is never written down (secrets sweep)
 
@@ -91,8 +91,8 @@ The sweep runs a full workflow with an agent that uses the tool, with the token 
 | V6.2 | `LoomEngine` implementers outside `HarnessExecutor` compile unchanged (the new method is `default`). |
 | V6.3 | `TriggerRunner`-started and scheduled runs of a script with `invoker.*` fail with V4.1's error and a pointer to the docs; a script without it is unaffected. |
 | V6.4 | `weave run --invoker-env token=MY_TOKEN_VAR script.loom` builds `InvokerCredentials.of(...)` from the environment variable; an unset variable stops the run at its start naming the variable (not its value). |
-| V6.5 | The full existing test suites of `ai-agent4j`, `ai-agent4j-tools` and `ai-agent4j-loom` pass with no test changed except those that assert error text for credential options. |
-| V6.6 | `LoomParser` and the LSP/TextMate grammar in `vscode-loom` highlight `invoker.NAME` like `env.NAME`; completion offers `invoker.` after `auth_value:` (editor checks are covered by the existing `vscode-loom` tests, extended). |
+| V6.5 | The full existing test suites of `ai-agent4j`, `ai-agent4j-tools` and `ai-agent4j-loom` pass with no existing test changed (gate-checked: G4). |
+| V6.6 | The editor extension needs no grammar change (`invoker.NAME` is a plain word, like `env.NAME`); its hover text for `use:` says that `openapi` `auth_value` can be `invoker.NAME`. |
 
 ## V7: Documentation
 
@@ -125,3 +125,16 @@ No hand-made sabotage scripts. Two automated measures instead:
 | G6 package | the Loom CLI package builds; `weave check` works on the demo script |
 | G8 coverage | JaCoCo: the new classes ≥ 90% line and 85% branch coverage (`InvokerCredentials`, `RunScope`, the changed `OpenAPITool` paths) |
 | G9 safety | the V4 and V5 suites are green and the secrets sweep is attached to the evidence |
+
+## Requirement to check
+
+| Requirement | Checks |
+|---|---|
+| R1 A script says who the tool acts as | V1.1–V1.9, V4.5, V4.6 |
+| R2 The host supplies and refreshes the credential | V2.1–V2.11, V6.4 |
+| R3 The credential belongs to the run | V3.1–V3.6 |
+| R4 The credential goes only where it should | V4.1–V4.4 |
+| R5 It is never written down | V5.1–V5.6 |
+| R6 Nothing else changes | V6.1–V6.6 |
+| R7 It is documented | V7.1–V7.3 |
+
