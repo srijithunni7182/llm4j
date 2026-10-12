@@ -1,6 +1,6 @@
 # Implementation Plan
 
-**Prerequisite:** the design in [design.md](design.md) is reviewed and its its open question is answered or deferred. Order: the host API and the tool first (usable from Java on
+**Prerequisite:** the design in [design.md](design.md) is reviewed and its open question is answered or deferred. Order: the host API and the tool first (usable from Java on
 their own), then the scope, then the script syntax, then audit/CLI/docs. Tests are written with each task. See [verification.md](verification.md).
 
 - [ ] 1. **Prerequisite check** — read what the design marks as not yet verified: whether `ReActAgent.run` keeps state between calls (the open question); every `lookupKey()` and `isReference()` call site (design §2 table is complete); that no code moves work to another thread other than the four sites; that `HttpClient` does not forward `Authorization` across hosts on redirect (V4.4).
@@ -34,4 +34,4 @@ their own), then the scope, then the script syntax, then audit/CLI/docs. Tests a
 - [ ] 10. **Quality** — JaCoCo rule for the new classes, `scripts/sabotage_invoker_credentials.py` (S1–S12), regression run.
 - [ ] 11. **Completion** — `scripts/verify-invoker-credentials.sh` (G1–G9), the G5 demo, evidence and `SIGN-OFF.md`.
 - [ ] 12. *(optional, separate change)* `http` kind: late-bound `auth_value` through `HttpTool.Config`, `HttpSupport` and `Redactor`; the same V2/V4/V5 checks for it.
-- [ ] 13. *(optional, separate spec)* `loom-reentrant-executor`: a `Run` object that owns the per-run fields listed in design §Concurrent runs, adopting `RunScope`. Only after task 4.5's characterisation test and the open question are answered.
+- [ ] 13. *(optional, separate spec)* `loom-reentrant-executor`: a `Run` object that owns the per-run fields listed in design §Concurrent runs, adopting `RunScope`. Only after task 4.5's guard test and the open question are answered.
