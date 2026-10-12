@@ -55,4 +55,9 @@ public final class InspectObserveProvider implements ObserveProvider {
         if (problems.isEmpty()) out.println(rulesFile.getFileName() + ": " + parsed.rules().size() + " block(s), all fine");
         return (int) errors;
     }
+
+    @Override
+    public String hashPassword(String password) {
+        return io.github.llm4j.loom.inspect.http.PasswordHash.hash(password);
+    }
 }

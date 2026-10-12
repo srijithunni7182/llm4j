@@ -587,7 +587,7 @@ public class WeaveCLI implements Callable<Integer> {
     }
 
     @Command(name = "observe", description = "Looks after what observing leaves on disk: observe flush delivers an outbox, observe purge removes one.",
-            subcommands = {ObserveFlushCommand.class, ObservePurgeCommand.class, ObserveRulesCommand.class})
+            subcommands = {ObserveFlushCommand.class, ObservePurgeCommand.class, ObserveRulesCommand.class, ObserveHashPasswordCommand.class})
     static class ObserveCommand implements Callable<Integer> {
         @Override
         public Integer call() {
@@ -648,6 +648,32 @@ public class WeaveCLI implements Callable<Integer> {
                 int errors = io.github.llm4j.loom.observe.Observe.provider().checkRules(loaded, file.toPath(), System.out);
                 return errors == 0 ? 0 : 1;
             } catch (io.github.llm4j.loom.observe.Observe.Unavailable | java.io.IOException | RuntimeException e) {
+                System.err.println("Error: " + e.getMessage());
+                return 2;
+            }
+        }
+    }
+
+    @Command(name = "hash-password", description = "Prints a salted hash of the admin password. Store that as LOOM_INSPECT_ADMIN_PASSWORD instead of the password (weave secrets set ... then paste it); signing in still takes the password. The password is read from the environment variable named by --password-env (default LOOM_INSPECT_NEW_PASSWORD), or asked for.")
+    static class ObserveHashPasswordCommand implements Callable<Integer> {
+        @Option(names = "--password-env", paramLabel = "VAR", description = "The environment variable holding the password.", defaultValue = "LOOM_INSPECT_NEW_PASSWORD")
+        private String passwordEnv;
+
+        @Override
+        public Integer call() {
+            String p = System.getenv(passwordEnv);
+            if ((p == null || p.isEmpty()) && System.console() != null) {
+                char[] typed = System.console().readPassword("Admin password: ");
+                p = typed == null ? null : new String(typed);
+            }
+            if (p == null || p.length() < 12) {
+                System.err.println("Error: give a password of at least 12 characters (in " + passwordEnv + ", or typed when asked).");
+                return 2;
+            }
+            try {
+                System.out.println(io.github.llm4j.loom.observe.Observe.provider().hashPassword(p));
+                return 0;
+            } catch (io.github.llm4j.loom.observe.Observe.Unavailable e) {
                 System.err.println("Error: " + e.getMessage());
                 return 2;
             }

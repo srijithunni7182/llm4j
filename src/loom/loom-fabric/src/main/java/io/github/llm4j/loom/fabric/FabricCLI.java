@@ -167,7 +167,7 @@ public final class FabricCLI implements Callable<Integer> {
                     master = masterKey();
                 }
                 Vault v = Vault.create(data.resolve("vault.json"), master);
-                v.put(Vault.ADMIN, password);
+                v.put(Vault.ADMIN, io.github.llm4j.loom.inspect.http.PasswordHash.hash(password)); // a hash, not the password
                 env.out.println("Fabric is set up in " + data);
                 if (generated) env.out.println("The master key is in " + data.resolve("master.key") + ". Keep it somewhere other than the vault's own backup; without it the vault cannot be read.");
                 env.out.println("Next: fabric clients add <name> --data " + data + "      (prints that process's key once)");
@@ -222,7 +222,7 @@ public final class FabricCLI implements Callable<Integer> {
                     env.err.println("Error: set LOOM_FABRIC_ADMIN_PASSWORD to the new password (at least 12 characters).");
                     return 2;
                 }
-                vault().put(Vault.ADMIN, p);
+                vault().put(Vault.ADMIN, io.github.llm4j.loom.inspect.http.PasswordHash.hash(p));
                 env.out.println("The admin password was replaced.");
                 return 0;
             } catch (IOException | RuntimeException e) {

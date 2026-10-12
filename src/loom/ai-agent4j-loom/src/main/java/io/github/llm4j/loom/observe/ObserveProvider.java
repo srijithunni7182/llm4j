@@ -35,6 +35,11 @@ public interface ObserveProvider {
         throw new UnsupportedOperationException(name() + " has no rules to check");
     }
 
+    /** A salted hash of an admin password, to store as the secret instead of the password itself. */
+    default String hashPassword(String password) {
+        throw new UnsupportedOperationException(name() + " has no admin password");
+    }
+
     /** One process's worth of observing. */
     interface Session extends AutoCloseable {
 
