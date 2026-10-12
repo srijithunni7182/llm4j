@@ -12,6 +12,7 @@ flowchart LR
     A --> X["<b>Addons</b><br/>local embeddings, vector stores"]
     A --> T["<b>Tools</b><br/>webhook, email, http, file, shell, sql"]
     A --> V["<b>eval4j</b><br/>tests for agents"]
+    L --> I["<b>loom-inspect + Fabric</b><br/>watch runs live"]
     L --> G["<b>Your application</b>"]
     E --> G
     X --> G
@@ -73,6 +74,24 @@ What the runtime does for you:
 
 👉 [Loom overview](../src/loom/ai-agent4j-loom/README.md) · [**Why Loom?**](../src/loom/ai-agent4j-loom/WHY_LOOM.md) ·
 [Language guide](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md)
+
+### 🔭 [loom-inspect and Fabric](../src/loom/loom-inspect/): *"What is a workflow doing right now, and has it gone wrong?"*
+
+A workflow that runs for days needs a window, not a log file. The optional **loom-inspect** add-on serves a live page for
+a process (`--observe`); **Fabric** is a standalone server that many processes report to, with one tab per process and
+workflow.
+
+- **See it.** Tokens and cost, which agent and tool is active, the workflow graph with the running step marked, sleeps and
+  pauses, autonomy ladders.
+- **Flag it.** Looping calls and answers, failing tools, no progress across loop rounds, figures with no source. The
+  thresholds live in a file beside the script, never in it.
+- **Steer it.** Pause, resume, suspend and stop from the page (admin only, audited), even for a process on another machine;
+  replace a secret's value on an embedded page.
+- **Never lose it.** Events go to a local on-disk outbox first, so a server that is down never slows a workflow.
+- **Standard.** OpenTelemetry-shaped records, optionally exported to any OTLP endpoint.
+
+👉 [Observability guide](OBSERVABILITY.md) · [Fabric server](../wiki/Fabric-Server.md) ·
+[Try it with no model](../src/examples/fabric-sim/README.md)
 
 ### 🧠 [Engram](../src/engram/engram-core/): *"How does an agent remember without drowning in context?"*
 

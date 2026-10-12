@@ -15,6 +15,8 @@
 | [Agent Skills](../src/ai-agent4j/wiki/Agent-Skills-Guide.md) · [Personas](../src/ai-agent4j/wiki/Agent-Personas.md) | [Agentic Workflows with Loom and Engram](AGENTIC_WORKFLOWS_GUIDE.md) | [API Compatibility Policy](API_COMPATIBILITY.md) |
 | [Memory](../src/ai-agent4j/wiki/Memory-and-Persistence.md) · [Semantic Memory](../src/ai-agent4j/wiki/SEMANTIC_MEMORY.md) | [Loom CTK (conformance)](../src/loom/ctk/README.md) | [Version Matrix](VERSION_MATRIX.md) |
 | [RAG](../src/ai-agent4j/wiki/RAG-Support.md) · [Knowledge Graphs](../src/ai-agent4j/wiki/Knowledge-Graphs.md) | [VS Code extension](../src/loom/vscode-loom/README.md) | [Migration Guide 5.0](MIGRATION_GUIDE_5_0.md) |
+| | [**Observability**](OBSERVABILITY.md): watch runs live · [Fabric server](../wiki/Fabric-Server.md) | |
+| | [Incidents and rules](../wiki/Observability-Incidents-and-Rules.md) · [Controls and security](../wiki/Observability-Controls-and-Security.md) · [Reference](../wiki/Observability-Reference.md) | |
 | [MCP](../src/ai-agent4j/wiki/MCP-Integration.md) · [OpenAPI Tool](../src/ai-agent4j/wiki/OpenAPI-Tool.md) · [Prompt Registry](../src/ai-agent4j/wiki/Prompt-Registry-Guide.md) | | |
 | [Sarvam](../src/ai-agent4j/docs/SARVAM.md) · [Ollama](../src/ai-agent4j/docs/OLLAMA.md) | | |
 

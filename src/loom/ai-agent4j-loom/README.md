@@ -361,6 +361,12 @@ java -jar my-app.jar topic="Advanced Agentic Coding"
 # Search for: "Loom DSL"
 ```
 
+### Watching runs live
+
+**loom-inspect and Fabric** — Add `--observe` for a live page about a running workflow: tokens and cost, the active agent and tool, the graph with the running step marked, and incidents (loops, failing tools, figures with no source). Point many processes at one **Fabric** server with `--observe-fabric`. A signed-in admin can pause, suspend or stop a run. Thresholds live in a file beside the script, not in it. Try it with no model: `./fabric-sim.sh`.
+
+[Observability guide](../../../docs/OBSERVABILITY.md) · [Fabric server](../../../wiki/Fabric-Server.md) · [`loom-inspect`](../loom-inspect/README.md) · [`loom-fabric`](../loom-fabric/README.md)
+
 ### Testing & Conformance
 
 **Conformance Test Kit (CTK)** — A canonical suite of test scripts and execution traces that define the behavioral contract for all Loom implementations. The CTK validates runtime parity across Java and Python.

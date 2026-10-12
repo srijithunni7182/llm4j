@@ -62,3 +62,7 @@ Open the server's address in a browser and sign in with the admin password. Fail
 `src/examples/fabric-sim` runs this server with several simulated Loom processes (no model, no key) so you can look at every page, exercise pause, suspend and stop, kill a process or the server and watch recovery, and revoke a key. `./run.sh` there does it in one command.
 
 A change made by `fabric clients add` or `revoke` is picked up by a running server within a second; there is no need to restart it.
+
+## More
+
+[Observability guide](../../../docs/OBSERVABILITY.md) · [Fabric server (wiki)](../../../wiki/Fabric-Server.md) · [Incidents and rules](../../../wiki/Observability-Incidents-and-Rules.md) · [Controls, secrets and security](../../../wiki/Observability-Controls-and-Security.md) · [Reference](../../../wiki/Observability-Reference.md)

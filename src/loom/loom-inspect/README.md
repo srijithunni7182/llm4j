@@ -24,3 +24,5 @@ Setting it up safely:
 - Reporting to a server goes through a local outbox on disk, so a server that is down never slows a workflow.
 
 Design notes and phase-by-phase status: `docs/loom-inspect/DESIGN.md`. The server for many processes: `../loom-fabric/README.md`.
+
+More: [Observability guide](../../../docs/OBSERVABILITY.md) · [Fabric server](../../../wiki/Fabric-Server.md) · [Incidents and rules](../../../wiki/Observability-Incidents-and-Rules.md) · [Controls, secrets and security](../../../wiki/Observability-Controls-and-Security.md) · [Reference](../../../wiki/Observability-Reference.md) · [Try it with no model](../../examples/fabric-sim/README.md)
