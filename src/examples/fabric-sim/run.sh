@@ -13,7 +13,9 @@ cd "$(dirname "$0")"
 ROOT=../../..
 : "${PROCESSES:=3}" "${SPEED:=1.0}" "${PORT:=9090}" "${DATA:=$PWD/fabric-sim-data}" "${DETAIL:=truncated}" "${RUNS:=0}"
 : "${ADMIN_PASSWORD:=simulate-admin-1}"
-if [ "${BUILD:-}" = "1" ]; then
+# build the jars when asked, or when they are not there yet
+if [ "${BUILD:-}" = "1" ] || ! ls $ROOT/src/loom/loom-fabric/target/loom-fabric-*-all.jar $ROOT/src/loom/loom-inspect/target/loom-inspect-[0-9]*.jar $ROOT/src/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar >/dev/null 2>&1; then
+  echo "building the jars (once)..."
   (cd "$ROOT" && mvn -q -DskipTests -pl src/loom/ai-agent4j-loom,src/loom/loom-inspect,src/loom/loom-fabric -am package)
 fi
 WEAVE=$(ls $ROOT/src/loom/ai-agent4j-loom/target/ai-agent4j-loom-*-cli.jar | head -1)
