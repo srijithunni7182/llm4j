@@ -1,5 +1,5 @@
 'use strict';
-// Read-only. Every piece of run text goes in with textContent, never as HTML.
+// Every piece of run text goes in with textContent, never as HTML.
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var selected = null, agentFilter = null, view = null, viewAt = 0;
@@ -368,6 +368,84 @@
     });
   }
 
+  var csrf = null;
+  var ASKS = {
+    pause: ['Pause this run?', 'The run holds before its next step and keeps its thread. Resume continues exactly where it stopped.', 'Pause'],
+    resume: ['Resume this run?', 'The run carries on from the step it was holding before.', 'Resume'],
+    suspend: ['Suspend this run?', 'The run stops at its next step and releases its thread. It can be resumed later from its journal (weave resume).', 'Suspend'],
+    stop: ['Stop this run?', 'The run ends at its next step and cannot be resumed. A step already under way finishes first.', 'Stop']
+  };
+
+  function sessionCsrf() {
+    return fetchJson('/api/session').then(function (s) { csrf = s.csrf || null; return s; });
+  }
+
+  function act(trace, action, errBox, done) {
+    return sessionCsrf().then(function (s) {
+      if (!s.signedIn) { throw new Error('Your session ended. Sign in again.'); }
+      return fetch('/api/runs/' + trace + '/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: '{}' });
+    }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (b) { if (!r.ok) { throw new Error(b.message || b.error || ('Refused (' + r.status + ')')); } done(b); }); })
+      .catch(function (e) { errBox.textContent = e.message; errBox.hidden = false; });
+  }
+
+  function confirmAction(trace, action) {
+    var a = ASKS[action], dlg = $('confirm'), err = $('cf-err');
+    $('cf-title').textContent = a[0];
+    $('cf-text').textContent = a[1];
+    $('cf-ok').textContent = a[2];
+    $('cf-ok').className = 'btn primary' + (action === 'stop' ? ' danger' : '');
+    err.hidden = true;
+    dlg.onclose = function () {
+      if (dlg.returnValue === 'ok') {
+        var box = el('span');
+        act(trace, action, box, function () { tick(); }).then(function () { if (box.textContent) { $('updated').textContent = box.textContent; } });
+      }
+    };
+    dlg.returnValue = 'cancel';
+    dlg.showModal();
+  }
+
+  function renderControls(v) {
+    var box = $('controls'), c = v.controls;
+    box.textContent = '';
+    if (!c) { box.hidden = true; return; }
+    box.hidden = false;
+    var ended = ['finished', 'failed', 'stopped'].indexOf(v.status) >= 0;
+    if (ended) { box.hidden = true; return; }
+    if (v.control && v.control.pending) {
+      box.appendChild(el('span', 'chip', v.control.pending + ' requested' + (v.control.by ? ' by ' + v.control.by : '')));
+    } else if (v.control && v.control.held) {
+      box.appendChild(el('span', 'chip', 'held by operator'));
+    }
+    if (!c.enabled) { box.appendChild(el('span', 'why', 'controls off'));  box.title = c.reason || ''; return; }
+    if (!c.signedIn) {
+      var si = el('button', 'btn', 'Sign in to control');
+      si.type = 'button';
+      si.addEventListener('click', function () { $('si-err').hidden = true; $('signin').showModal(); $('sipw').focus(); });
+      box.appendChild(si);
+      return;
+    }
+    ['pause', 'resume', 'suspend', 'stop'].forEach(function (a) {
+      if ((c.allowed || []).indexOf(a) < 0) { return; }
+      var b = el('button', 'btn' + (a === 'stop' ? ' danger' : ''), ASKS[a][2]);
+      b.type = 'button';
+      b.addEventListener('click', function () { confirmAction(v.traceId, a); });
+      box.appendChild(b);
+    });
+  }
+
+  $('si-cancel').addEventListener('click', function () { $('signin').close(); });
+  $('signinform').addEventListener('submit', function (e) {
+    e.preventDefault();
+    fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: $('sipw').value }) })
+      .then(function (r) {
+        $('sipw').value = '';
+        if (r.ok) { $('signin').close(); tick(); return; }
+        $('si-err').textContent = r.status === 429 ? 'Too many attempts. Wait a moment.' : r.status === 503 ? 'No admin password is set.' : 'Wrong password.';
+        $('si-err').hidden = false;
+      });
+  });
+
   function render() {
     var v = view;
     if (!v) { return; }
@@ -377,6 +455,7 @@
     pill.hidden = false;
     pill.className = 'pill ' + v.status + (v.status === 'running' ? ' pulse' : '');
     pill.textContent = v.status;
+    renderControls(v);
     $('meta').hidden = false;
     $('started').textContent = v.startedAt ? hms(v.startedAt) : '–';
     tickElapsed();
@@ -523,7 +602,7 @@
         .then(function () {
           renderRuns(list.runs);
           renderProcesses();
-          $('mode').textContent = fabric ? 'read-only · Fabric' : 'read-only · embedded mode';
+          $('mode').textContent = fabric ? 'Fabric' : 'embedded mode';
           if (showProcs) { ['status', 'meta', 'conn'].forEach(function (i) { $(i).hidden = true; }); $('wfname').textContent = ''; $('client').textContent = ''; $('banner').hidden = true; }
           return selected && !showProcs ? fetchJson('/api/runs/' + selected).then(function (v) { view = v; viewAt = Date.now(); render(); renderConnection(); }) : null;
         });

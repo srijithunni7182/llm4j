@@ -215,3 +215,14 @@ main.stale { opacity: .55; }
 .wt .inc { margin-left: 2px; }
 tr.flag td:first-child { box-shadow: inset 3px 0 0 var(--live); }
 tr.flag.high td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+
+.controls { display: flex; gap: 6px; align-items: center; margin-right: 8px; }
+.controls .why { color: var(--ink-faint); font: 400 11px/1 var(--font-mono); }
+.btn.danger { border-color: var(--danger); color: var(--danger); }
+.btn.danger:hover { background: var(--danger-soft); }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.dlg { border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); padding: 18px 20px; max-width: 420px; }
+.dlg::backdrop { background: rgba(0, 0, 0, .5); }
+.dlg h2 { margin: 0 0 8px; font-size: 15px; }
+.dlg input { width: 100%; box-sizing: border-box; height: 34px; margin: 8px 0; padding: 0 10px; border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: transparent; color: var(--ink); font: inherit; }
+.dlg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }

@@ -341,4 +341,43 @@ class RunStateTest {
         assertThat(kept).anySatisfy(r -> assertThat(r.get("runId")).isEqualTo("r-done-59"));
         assertThat(kept).noneSatisfy(r -> assertThat(r.get("runId")).isEqualTo("r-done-0"));
     }
+
+    private LogRec control(int second, String action, String state) {
+        return log(second, Semconv.EV_CONTROL, action + " " + state, Semconv.LOOM_CONTROL_ACTION, action, Semconv.LOOM_CONTROL_STATE, state, Semconv.LOOM_CONTROL_BY, "ops");
+    }
+
+    private LogRec runStart() {
+        return log(0, Semconv.EV_RUN_START, "w", Semconv.LOOM_RUN_ID, RUN, Semconv.LOOM_WORKFLOW, "W");
+    }
+
+    @Test
+    void anOperatorPauseShowsAsRequestedThenHeldThenRunningAgain_withoutAnIncident() {
+        RunRegistry reg = registry(runStart(), control(1, "pause", "requested"));
+        Map<String, Object> v = run(reg).view();
+        assertThat(v.get("status")).isEqualTo("running");
+        assertThat(map(v, "control")).containsEntry("pending", "pause").containsEntry("by", "ops").containsEntry("held", false);
+
+        reg.applyLogs(PROC, List.of(control(2, "pause", "held")));
+        v = run(reg).view();
+        assertThat(v.get("status")).isEqualTo("paused");
+        assertThat(map(v, "control")).containsEntry("held", true);
+        assertThat(list(v, "incidents")).isEmpty();
+
+        reg.applyLogs(PROC, List.of(control(3, "pause", "resumed")));
+        v = run(reg).view();
+        assertThat(v.get("status")).isEqualTo("running");
+        assertThat(map(v, "control")).containsEntry("held", false).doesNotContainKey("pending");
+    }
+
+    @Test
+    void aStopRequestStaysPendingUntilTheRunEnds_andAnOperatorSuspensionIsNotAnIncident() {
+        RunRegistry reg = registry(runStart(), control(1, "stop", "requested"), control(2, "stop", "applied"));
+        assertThat(map(run(reg).view(), "control")).doesNotContainKey("pending");
+
+        RunRegistry susp = registry(runStart(), control(1, "suspend", "requested"),
+                log(2, Semconv.EV_RUN_SUSPENDED, "paused", Semconv.LOOM_SUSPEND_REASON, "OPERATOR"));
+        Map<String, Object> v = run(susp).view();
+        assertThat(v.get("status")).isEqualTo("paused");
+        assertThat(list(v, "incidents")).isEmpty();
+    }
 }

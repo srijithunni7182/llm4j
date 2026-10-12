@@ -24,8 +24,34 @@
       <span>elapsed <b id="elapsed"></b></span>
     </div>
     <div class="spacer"></div>
+    <div id="controls" class="controls" hidden></div>
     <button id="theme" class="btn" type="button" aria-label="Switch theme"><span id="themelbl">Light</span></button>
   </header>
+
+  <dialog id="confirm" class="dlg" aria-labelledby="cf-title">
+    <form method="dialog">
+      <h2 id="cf-title"></h2>
+      <p id="cf-text" class="muted"></p>
+      <p id="cf-err" class="danger-t" role="alert" hidden></p>
+      <div class="dlg-actions">
+        <button class="btn" value="cancel" type="submit">Cancel</button>
+        <button class="btn primary" id="cf-ok" value="ok" type="submit">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="signin" class="dlg" aria-labelledby="si-title">
+    <form id="signinform" autocomplete="off">
+      <h2 id="si-title">Sign in to control runs</h2>
+      <label class="sr" for="sipw">Admin password</label>
+      <input id="sipw" type="password" autocomplete="current-password" placeholder="Admin password" required>
+      <p id="si-err" class="danger-t" role="alert" hidden></p>
+      <div class="dlg-actions">
+        <button class="btn" id="si-cancel" type="button">Cancel</button>
+        <button class="btn primary" type="submit">Sign in</button>
+      </div>
+    </form>
+  </dialog>
 
   <nav id="wtabs" class="wtabs" aria-label="Workflows" hidden></nav>
 
@@ -124,7 +150,7 @@
     </div>
   </main>
 
-  <footer class="foot2 faint mono"><span id="mode">read-only · embedded mode</span><span id="updated"></span></footer>
+  <footer class="foot2 faint mono"><span id="mode">embedded mode</span><span id="updated"></span></footer>
 </div>
 <script src="/app.js"></script>
 </body>
