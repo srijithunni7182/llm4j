@@ -56,3 +56,9 @@ Open the server's address in a browser and sign in with the admin password. Fail
 ## Packaging
 
 `Dockerfile` and `fabric.service` (systemd) are in this directory. The Docker image has not been built in CI yet; treat it as a starting point.
+
+## Trying it without a model
+
+`src/examples/fabric-sim` runs this server with several simulated Loom processes (no model, no key) so you can look at every page, exercise pause, suspend and stop, kill a process or the server and watch recovery, and revoke a key. `./run.sh` there does it in one command.
+
+A change made by `fabric clients add` or `revoke` is picked up by a running server within a second; there is no need to restart it.

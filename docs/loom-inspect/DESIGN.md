@@ -638,3 +638,13 @@ Done and tested.
 - **Redaction audit**: a real run at `metadata` detail through a real Fabric, with planted prompt, thought, tool argument, tool result and answer, then every file under both data directories (outbox segments, history, audit), the page's JSON, the graph and the console searched for them, for the process's client key and for the admin password: none found (the vault itself is excluded, being the place keys belong). The code was also searched for any message that prints a key, password or secret: the only ones are the one-time key display of `fabric clients add` and file names.
 - **Packaging**: `Implementation-Version` and title in the manifests of `loom-inspect` and `loom-inspect-core` (the process reports its add-on version in `hello`; it was "dev"), a `loom-inspect` README, and the guide and Fabric README cover the new commands.
 - **Left for later** (stated in earlier sections): per-user accounts and roles; a central rules file on a server; interrupting a step in progress; secrets "test and save" and a key-health column; a browser pass over the Secrets and controls UI (served and tested at the route level; the DOM code is syntax-checked only).
+
+## 11k. Simulator (`fabric-sim`)
+
+A way to exercise Fabric and the page without a model: `Simulate` (in the `loom-inspect` jar) runs the real executor and the real add-on over `sim.loom`, with scripted models and fake tools, and `src/examples/fabric-sim/run.sh` starts a Fabric server and N of them. A unit test runs a fast simulated run against a real server.
+
+**Found by using it** (and fixed):
+- A running Fabric server did not see `fabric clients add` or `revoke` (the vault was read once at start), so a revoked key kept working until a restart. The vault now notices a change to its file, at most once a second.
+- `broadcast` and `handoff` targets emitted no step start or end, so their agents and tokens were missing from the page (their tool calls showed). They now start and end like a delegate. This also affects `soak.loom`'s phase A.
+- A run stopped while held by the operator still showed *held*; an ended run now shows nothing held or pending.
+- Looked at in a real browser for the first time (sign-in, tabs, incidents, controls, confirm dialog): no script errors, and the layout is as designed.

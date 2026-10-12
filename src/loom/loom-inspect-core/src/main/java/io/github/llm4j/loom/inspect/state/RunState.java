@@ -215,6 +215,8 @@ public final class RunState {
         }
         if (status == Status.FINISHED || status == Status.FAILED || status == Status.STOPPED) {
             endedNanos = r.timeNanos();
+            controlPending = null; // nothing can be asked of a run that has ended
+            heldByOperator = false;
             detectors.onRunEnd(r.timeNanos());
         }
         open.clear();

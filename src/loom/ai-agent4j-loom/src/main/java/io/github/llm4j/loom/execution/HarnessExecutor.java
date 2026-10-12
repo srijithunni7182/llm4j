@@ -1570,7 +1570,9 @@ public class HarnessExecutor implements LoomEngine {
             boolean replayed = journal.get(step.get()).isPresent();
             if (agent != null && agentDef != null && !replayed) {
                 String contextBriefing = memoryEngine.assembleContext(agentDef, resolvedPayload, view());
+                trace(TraceEvent.DELEGATE_START, handoff.getTargetAgent(), resolvedPayload, new java.util.LinkedHashMap<>(Map.of("variable", "handoff")));
                 io.github.llm4j.agent.AgentResult result = runUnderLimits(agent, contextBriefing);
+                trace(TraceEvent.DELEGATE_END, handoff.getTargetAgent(), result.getFinalAnswer(), usageData(result));
                 
                 memoryEngine.storeOutcome(agentDef, resolvedPayload, result, context);
                 
@@ -1618,7 +1620,10 @@ public class HarnessExecutor implements LoomEngine {
                             locals.set(names);
                             scopes.set(branchScopes);
                             try {
+                                // each target is a step of its own to anyone watching: it starts and ends like a delegate, with its tokens
+                                trace(TraceEvent.DELEGATE_START, agentName, resolvedPayload, new java.util.LinkedHashMap<>(Map.of("variable", broadcast.getVariableName())));
                                 io.github.llm4j.agent.AgentResult r = runUnderLimits(broadcastAgent, resolvedPayload);
+                                trace(TraceEvent.DELEGATE_END, agentName, r.getFinalAnswer(), usageData(r));
                                 if (r.budgetExhausted()) {
                                     budgetExhausted.set(true);
                                     if (r.getUsage().getLlmCalls() == 0) throw r.getBudgetExceeded();

@@ -42,6 +42,8 @@ public final class Vault {
     private final SecretKey key;
     private final byte[] salt;
     private final Map<String, String> entries = new LinkedHashMap<>(); // name to base64(iv + ciphertext)
+    private long stamp; // the file as last read or written: its modification time and size
+    private long checkedAt;
 
     private Vault(Path file, byte[] salt, SecretKey key) {
         this.file = file;
@@ -59,6 +61,36 @@ public final class Vault {
         return v;
     }
 
+    /**
+     * Picks up a change made by another process (the {@code fabric clients add} and {@code revoke} commands run apart from a running server), at most
+     * once a second: a revoked key must stop working without a restart.
+     */
+    private void refresh() {
+        long now = System.nanoTime();
+        if (checkedAt != 0 && now - checkedAt < 1_000_000_000L) return;
+        checkedAt = now;
+        long current = stampOf();
+        if (current == stamp) return;
+        try {
+            Map<String, Object> raw = JSON.readValue(Files.readAllBytes(file), new TypeReference<>() { });
+            @SuppressWarnings("unchecked")
+            Map<String, String> stored = (Map<String, String>) raw.get("entries");
+            entries.clear();
+            if (stored != null) entries.putAll(stored);
+            stamp = current;
+        } catch (IOException | RuntimeException e) {
+            // half-written or unreadable right now: keep what is held and look again next time
+        }
+    }
+
+    private long stampOf() {
+        try {
+            return Files.getLastModifiedTime(file).toMillis() * 31 + Files.size(file);
+        } catch (IOException e) {
+            return -1;
+        }
+    }
+
     /** Opens an existing vault. A wrong master key is found on the first read, as an {@link IllegalStateException}. */
     public static Vault open(Path file, String masterKey) {
         try {
@@ -68,6 +100,7 @@ public final class Vault {
             @SuppressWarnings("unchecked")
             Map<String, String> stored = (Map<String, String>) raw.get("entries");
             if (stored != null) v.entries.putAll(stored);
+            v.stamp = v.stampOf();
             return v;
         } catch (IOException e) {
             throw new IllegalStateException("cannot read the vault " + file + ": " + e.getMessage(), e);
@@ -85,6 +118,8 @@ public final class Vault {
     }
 
     public synchronized void put(String name, String value) {
+        checkedAt = 0;
+        refresh();
         try {
             byte[] iv = new byte[12];
             RANDOM.nextBytes(iv);
@@ -104,6 +139,7 @@ public final class Vault {
 
     /** The value, or null when there is none. */
     public synchronized String get(String name) {
+        refresh();
         String stored = entries.get(name);
         if (stored == null) return null;
         try {
@@ -118,12 +154,15 @@ public final class Vault {
     }
 
     public synchronized boolean remove(String name) {
+        checkedAt = 0;
+        refresh();
         boolean had = entries.remove(name) != null;
         if (had) save();
         return had;
     }
 
     public synchronized Set<String> names() {
+        refresh();
         return new TreeSet<>(entries.keySet());
     }
 
@@ -141,6 +180,7 @@ public final class Vault {
                 // not a POSIX file system
             }
             Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            stamp = stampOf();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

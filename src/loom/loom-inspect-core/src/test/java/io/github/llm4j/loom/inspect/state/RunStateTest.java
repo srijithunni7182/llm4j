@@ -370,6 +370,15 @@ class RunStateTest {
     }
 
     @Test
+    void aRunStoppedWhileHeldByTheOperatorEndsWithNothingHeldOrPending() {
+        RunRegistry reg = registry(runStart(), control(1, "pause", "requested"), control(2, "pause", "held"), control(3, "stop", "requested"), control(4, "stop", "applied"),
+                log(5, Semconv.EV_RUN_END, "ended", Semconv.LOOM_RUN_STATUS, Semconv.STATUS_STOPPED));
+        Map<String, Object> v = run(reg).view();
+        assertThat(v.get("status")).isEqualTo("stopped");
+        assertThat(map(v, "control")).containsEntry("held", false).doesNotContainKey("pending");
+    }
+
+    @Test
     void aStopRequestStaysPendingUntilTheRunEnds_andAnOperatorSuspensionIsNotAnIncident() {
         RunRegistry reg = registry(runStart(), control(1, "stop", "requested"), control(2, "stop", "applied"));
         assertThat(map(run(reg).view(), "control")).doesNotContainKey("pending");

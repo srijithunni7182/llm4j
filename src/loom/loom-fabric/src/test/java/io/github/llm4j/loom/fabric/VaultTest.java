@@ -63,4 +63,19 @@ class VaultTest {
         v.put("client.z", "lfk_zzz");
         assertThat(v.toString()).doesNotContain("lfk_");
     }
+
+    @Test
+    void aChangeMadeByAnotherProcessIsSeenWithoutARestart_soARevokedKeyStopsWorking(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
+        java.nio.file.Path file = dir.resolve("vault.json");
+        Vault server = Vault.create(file, "a-long-enough-master-key");
+        server.put("client.alpha", "key-one");
+        Vault cli = Vault.open(file, "a-long-enough-master-key"); // the 'fabric clients add' command, a separate process
+        cli.put("client.beta", "key-two");
+        Thread.sleep(1100); // the server looks at most once a second
+        assertThat(server.get("client.beta")).isEqualTo("key-two");
+        cli.remove("client.alpha");
+        Thread.sleep(1100);
+        assertThat(server.get("client.alpha")).isNull();
+        assertThat(server.names()).containsExactly("client.beta");
+    }
 }
