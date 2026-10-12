@@ -6,6 +6,8 @@
 It is a single JAR that needs a JDK and nothing else: no Loom runtime, no model keys, no scripts. Module README:
 [`src/loom/loom-fabric`](../src/loom/loom-fabric/README.md).
 
+![A run on Fabric's page: tokens and cost, the workflow with each step's state, incidents and a live trace](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/observability/fabric-run.png)
+
 ## What it does
 
 | Capability | Detail |
@@ -80,7 +82,7 @@ them, `weave observe purge` removes them.
 
 ## The Processes page
 
-![The Processes page: three processes with state, host, workflows, live runs, events per second, backlog, lost and last seen](../docs/images/observability/fabric-processes.png)
+![The Processes page: three processes with state, host, workflows, live runs, events per second, backlog, lost and last seen](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/observability/fabric-processes.png)
 
 | Column | Meaning |
 |---|---|
@@ -95,7 +97,7 @@ The server's time comes back in every heartbeat answer, but nothing yet warns ab
 
 ## Configuration page
 
-![The Configuration page with inspect rules and a price table saved](../docs/images/observability/fabric-configuration.png)
+![The Configuration page with inspect rules and a price table saved](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/observability/fabric-configuration.png)
 
 Signed in, open **Configuration**. Two documents live on the server, in the same format as the files a process keeps beside its
 script. Each has its own **Save** and **Discard changes**.

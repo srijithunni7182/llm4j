@@ -13,9 +13,9 @@ whether something has gone wrong. **loom-inspect** and **Fabric** do that.
 
 Both show the same page. Neither changes how a workflow behaves, and a missing or broken Fabric never slows or stops a run.
 
-![Fabric's Processes page: three simulated processes with their state, live runs, events per second, backlog and last seen, and the incidents that need attention](images/observability/fabric-processes.png)
+![A run on the page: tokens and cost so far, the whole workflow with each step's state, the incidents raised, and a live trace of what the agents are doing](images/observability/fabric-run.png)
 
-*Fabric's landing page: every process that reports, with one tab per process and workflow along the top, and what needs attention underneath.*
+*The page for one run: total tokens and cost across the top, the workflow with each step marked done, running or waiting, the incidents raised, and a plain-language trace of what agents and tools are doing. Fabric shows one such tab per process and workflow.*
 
 > **Try it first, with no model and no key:** `./fabric-sim.sh` at the repository root starts a Fabric server and
 > several simulated Loom processes. See [fabric-sim](../src/examples/fabric-sim/README.md).
@@ -40,9 +40,9 @@ Both show the same page. Neither changes how a workflow behaves, and a missing o
 
 ## What the page looks like
 
-![One run: tokens, cost, running agents, tool calls, the workflow graph with the running step marked, incidents, and a live trace of what the agents are doing](images/observability/fabric-run.png)
+![Fabric's Processes page: three simulated processes with their state, live runs, events per second, backlog and last seen, and the incidents that need attention](images/observability/fabric-processes.png)
 
-*A run: totals across the top, the workflow graph with each step's state, the incidents raised, and the trace of what agents and tools are doing, in plain language.*
+*Fabric's Processes page: every process that reports, its state, backlog and last seen, with one tab per process and workflow along the top.*
 
 ![The incidents panel of a run that loops: repeated calls, repeated answers, no progress and figures with no source](images/observability/fabric-incidents.png)
 
