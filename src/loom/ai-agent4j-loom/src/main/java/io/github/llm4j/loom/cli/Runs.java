@@ -86,8 +86,8 @@ final class Runs {
         Path pricesFile = pricesFile(spec, new File(spec.script()), env);
         if (spec.maxCost() != null) {
             if (pricesFile == null) {
-                env.err().println("Error: --max-cost needs prices: --prices <file>, or a file named " + baseName(new File(spec.script())) + ".prices or prices.properties beside the script, or LOOM_PRICES"
-                        + " (lines of 'model = input / output' per million tokens).");
+                env.err().println("Error: --max-cost needs --prices <file> (lines of 'model = input / output' per million tokens), or a file named "
+                        + baseName(new File(spec.script())) + ".prices or prices.properties beside the script, or LOOM_PRICES.");
                 return new Result(2, null, null, "bad options");
             }
             cost = new java.math.BigDecimal(spec.maxCost().strip().replaceFirst("^\\$", ""));
