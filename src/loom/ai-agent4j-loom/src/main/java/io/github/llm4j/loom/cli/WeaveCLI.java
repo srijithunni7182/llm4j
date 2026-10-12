@@ -1,22 +1,36 @@
 package io.github.llm4j.loom.cli;
 
-import io.github.llm4j.agent.skill.AgentSkill;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.jar.Attributes;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
+import java.util.zip.ZipException;
+
 import io.github.llm4j.loom.ast.LoomScript;
-import io.github.llm4j.loom.execution.*;
-import io.github.llm4j.loom.lexer.Lexer;
-import io.github.llm4j.loom.parser.LoomParser;
-import io.github.llm4j.loom.runtime.LoomEngine;
+import io.github.llm4j.loom.execution.HarnessExecutor;
+import io.github.llm4j.loom.execution.LLMClientFactory;
+import io.github.llm4j.loom.execution.LoomLoader;
+import io.github.llm4j.loom.execution.LootLoader;
+import io.github.llm4j.loom.execution.ToolRegistry;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
-
-import java.io.*;
-import java.nio.file.*;
-import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.jar.*;
-import java.util.zip.*;
 
 @Command(name = "weave", mixinStandardHelpOptions = true, versionProvider = WeaveCLI.BuildVersion.class,
         description = "Loom Orchestration CLI - Weave workflows into executable reality.")

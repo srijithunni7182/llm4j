@@ -12,6 +12,7 @@ import io.github.llm4j.loom.ast.HandoffStmt;
 import io.github.llm4j.loom.ast.HumanPromptStmt;
 import io.github.llm4j.loom.ast.LoopStmt;
 import io.github.llm4j.loom.ast.NoteStmt;
+import io.github.llm4j.loom.ast.SleepStmt;
 import io.github.llm4j.loom.ast.ObserveStmt;
 import io.github.llm4j.loom.ast.ParallelStmt;
 import io.github.llm4j.loom.ast.RewindStmt;
@@ -125,6 +126,10 @@ final class NodeDescriber {
         if (st instanceof ObserveStmt o) {
             return new Described(Kinds.OBSERVE, "observe " + o.getLabel())
                     .attrs(Attrs.create().text("text", o.getExpression()));
+        }
+        if (st instanceof SleepStmt z) {
+            return new Described(Kinds.SLEEP, "sleep " + z.getText())
+                    .attrs(Attrs.create().text("duration", z.getText()));
         }
         if (st instanceof NoteStmt n) {
             return new Described(Kinds.NOTE, "note").attrs(Attrs.create().text("text", n.getMessage()));

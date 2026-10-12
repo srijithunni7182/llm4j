@@ -40,7 +40,9 @@ class TraceTest {
         List<String> types = h.trace.stream().map(TraceEvent::type).toList();
         assertThat(types).containsSubsequence(TraceEvent.DELEGATE_START, TraceEvent.THOUGHT, TraceEvent.ACTION,
                 TraceEvent.APPROVAL, TraceEvent.APPROVAL, TraceEvent.OBSERVATION, TraceEvent.DELEGATE_END);
-        assertThat(h.trace).filteredOn(t -> !t.type().equals(TraceEvent.APPROVAL))
+        assertThat(h.trace.get(0).type()).isEqualTo(TraceEvent.RUN_START);
+        assertThat(h.trace.get(h.trace.size() - 1).type()).isEqualTo(TraceEvent.RUN_END);
+        assertThat(h.trace).filteredOn(t -> !t.type().equals(TraceEvent.APPROVAL) && !t.type().equals(TraceEvent.RUN_START) && !t.type().equals(TraceEvent.RUN_END))
                 .allSatisfy(t -> {
                     assertThat(t.agent()).isEqualTo("Researcher");
                     assertThat(t.step()).isEqualTo("Main/s0");
@@ -95,7 +97,9 @@ class TraceTest {
         List<JsonNode> lines = new ArrayList<>();
         for (String line : err.split("\\R")) if (line.startsWith("{")) lines.add(json.readTree(line));
         assertThat(lines).extracting(n -> n.get("type").asText()).contains("delegate_start", "action", "observation", "delegate_end");
-        assertThat(lines).allSatisfy(n -> assertThat(n.get("step").asText()).isEqualTo("Main/s0"));
+        assertThat(lines).extracting(n -> n.get("type").asText()).startsWith("run_start").endsWith("run_end");
+        assertThat(lines).filteredOn(n -> !n.get("type").asText().startsWith("run_"))
+                .allSatisfy(n -> assertThat(n.get("step").asText()).isEqualTo("Main/s0"));
 
         assertThat(weave(null, new ByteArrayOutputStream(), new ByteArrayOutputStream())).doesNotContain("🔧").doesNotContain("\"type\"");
 

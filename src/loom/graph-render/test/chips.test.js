@@ -114,3 +114,17 @@ test('a step with no prompt file shows no prompt chip, and a long id is cut', ()
   assert.deepEqual(texts(node('delegate', { retry: 2 })), ['retry 2']);
   assert.ok(texts(node('delegate', { prompt: 'a-very-long-prompt-identifier@v12' }))[0].length <= 26);
 });
+
+test('a sleep is drawn with the clock glyph and its duration, not as an unknown step', () => {
+  const g = { nodes: [
+    { id: 'start', kind: 'start', label: 'Start' },
+    { id: 'n1', kind: 'sleep', label: 'sleep 5m', attrs: { duration: '5m' } },
+    { id: 'end', kind: 'end', label: 'End' }],
+    edges: [{ from: 'start', to: 'n1' }, { from: 'n1', to: 'end' }] };
+  const svg = G.svgText(g, {});
+  assert.ok(svg.includes('sleep 5m'), 'the label is drawn');
+  assert.ok(svg.includes('>5m<'), 'the duration is the subtitle');
+  assert.ok(svg.includes('M8 4.8V8l2.2 1.4'), 'the clock glyph is used');
+  assert.ok(!svg.includes('M8 5.5v3M8 10.6v.2'), 'the unknown glyph is not');
+  assert.deepEqual(G.chips(g.nodes[1]), [], 'a sleep has no chips');
+});

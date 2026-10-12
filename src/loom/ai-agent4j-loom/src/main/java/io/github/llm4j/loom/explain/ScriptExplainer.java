@@ -15,6 +15,7 @@ import io.github.llm4j.loom.ast.HumanPromptStmt;
 import io.github.llm4j.loom.ast.LoomScript;
 import io.github.llm4j.loom.ast.LoopStmt;
 import io.github.llm4j.loom.ast.NoteStmt;
+import io.github.llm4j.loom.ast.SleepStmt;
 import io.github.llm4j.loom.ast.ObserveStmt;
 import io.github.llm4j.loom.ast.ParallelStmt;
 import io.github.llm4j.loom.ast.RewindStmt;
@@ -169,6 +170,7 @@ public final class ScriptExplainer {
             return "A person is asked: " + quote(h.getMessage()) + kept(h.getVariableName());
         }
         if (s instanceof NoteStmt n) return "A note is shown: " + quote(n.getMessage());
+        if (s instanceof SleepStmt z) return "The workflow sleeps for " + z.getText() + ", then carries on";
         if (s instanceof RunStmt r) {
             facts.tasks++;
             if (r.getModel() != null) facts.modelTasks++;

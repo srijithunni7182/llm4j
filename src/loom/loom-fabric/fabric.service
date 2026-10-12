@@ -1,0 +1,26 @@
+# systemd unit for Fabric. Copy to /etc/systemd/system/fabric.service, then:
+#   sudo useradd --system --home-dir /var/lib/fabric --create-home fabric
+#   sudo -u fabric LOOM_FABRIC_ADMIN_PASSWORD='a long password' java -jar /opt/fabric/fabric.jar init --data /var/lib/fabric
+#   sudo systemctl daemon-reload && sudo systemctl enable --now fabric
+#
+# This listens on loopback and expects a reverse proxy to terminate TLS. To serve TLS itself, add
+#   --tls-keystore /var/lib/fabric/tls/server.p12 --tls-password-file /var/lib/fabric/tls/server.password --bind 0.0.0.0
+# in place of --trust-proxy (make them with: fabric tls init --host <name> --out /var/lib/fabric/tls).
+[Unit]
+Description=Loom Fabric
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=fabric
+ExecStart=/usr/bin/java -jar /opt/fabric/fabric.jar serve --data /var/lib/fabric --port 9090 --trust-proxy
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/fabric
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

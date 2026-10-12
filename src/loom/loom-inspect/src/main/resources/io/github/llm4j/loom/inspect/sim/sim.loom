@@ -1,0 +1,67 @@
+// sim.loom: a simulated studio workflow for exercising loom-inspect and Fabric. No model, no network, no key.
+// The "models" are scripted (see Simulate.java) and the agents below are deliberately badly behaved so that every
+// state the console can show appears within a few minutes: parallel fan-out, a failing tool, a sleep, a loop that never
+// converges, a repeated tool call, invented figures, a rewind. They are fixtures, not a pattern to copy.
+
+budget { tokens: 400000  calls: 300  warn_at: 80% }
+
+agent Showrunner   { model: "sim-showrunner" }
+agent Researcher   { model: "sim-researcher"  tools: [Wiki]    max_iterations: 6 }
+agent TrendScout   { model: "sim-trendscout"  tools: [Wiki]    max_iterations: 6 }
+agent Competitor   { model: "sim-competitor"  tools: [Example] max_iterations: 6 }
+agent Scriptwriter { model: "sim-scriptwriter" }
+agent Editor       { model: "sim-editor"      tools: [Wiki]    max_iterations: 4  output_schema: { score: number, fix: string } }
+agent FactChecker  { model: "sim-factchecker" tools: [Wiki]    max_iterations: 8  output_schema: { unsupported: number, claims: list } }
+agent SEO          { model: "sim-seo"         tools: [Wiki]    max_iterations: 4  output_schema: { titles: list, fit: number } }
+agent Lead         { model: "sim-lead" }
+agent Planner      { model: "sim-planner"     output_schema: { shots: list } }
+agent Designer     { model: "sim-designer" }
+agent Captioner    { model: "sim-captioner" }
+agent Auditor      { model: "sim-auditor" }
+agent Publisher    { model: "sim-publisher"   tools: [Notes]   max_iterations: 4 }
+
+workflow Studio(topic) {
+    note "SIM phase A: brief and research"
+    delegate "Write a one paragraph creative brief for a video about: {topic}" to Showrunner -> brief_text
+    broadcast "Research for this brief: {brief_text}" to [Researcher, TrendScout, Competitor] -> findings
+    sleep 6s
+
+    note "SIM phase B: the loop that does not converge"
+    loop until (review.verdict == "COMPLETE") max 4 {
+        delegate "Round {_loopRound}. Write the script. Brief: {brief_text}. Findings: {findings}. Feedback: {review.fix}" to Scriptwriter -> script_text
+        parallel {
+            delegate "Edit this script: {script_text}" to Editor -> edit
+            delegate "Fact-check this script: {script_text}" to FactChecker -> facts
+            delegate "Suggest titles for this script: {script_text}" to SEO -> seo
+        }
+        delegate "Round {_loopRound}. Edit score {edit.score}, unsupported claims {facts.unsupported}, title fit {seo.fit}. Is the script finished?" to Lead -> review expecting {
+            verdict: enum["COMPLETE", "INCOMPLETE"],
+            fix: string
+        }
+        sleep 4s
+    } on_exhausted {
+        note "SIM loop gave up after {_loopRounds} rounds"
+    }
+
+    note "SIM phase C: thumbnails, captions, a rewind"
+    checkpoint polish starting with feedback = "none"
+    delegate "Plan three shots for this script: {script_text}. Feedback: {feedback}" to Planner -> plan
+    parallel for each shot in plan.shots {
+        delegate "Describe a thumbnail for: {shot.description}" to Designer -> {shot.thumb_var}
+        delegate "Write a caption for: {shot.description}" to Captioner -> {shot.caption_var}
+    }
+    delegate "Audit the pack. Feedback: {feedback}. Pack: {plan}" to Auditor -> grade expecting {
+        score: number,
+        notes: string
+    }
+    rewind to polish
+        when (grade.score < 5)
+        at most 1 times
+        carrying feedback = "{grade.notes}"
+        side effects: keep
+        if it still fails { note "SIM audit still failing" }
+
+    note "SIM phase D: publish"
+    delegate "Save the final pack as report.md: {script_text}" to Publisher -> published
+    note "SIM saved: {published}"
+}
