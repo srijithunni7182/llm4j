@@ -102,25 +102,16 @@ The sweep runs a full workflow with an agent that uses the tool, with the token 
 | V7.2 | `LOOM_PROMPT.md` and `OpenAPI-Tool.md` show the syntax; `llms.txt`/`LLM_CONTEXT.md` mention the interface. |
 | V7.3 | Every ```loom block that uses `invoker.` in the docs passes `weave check` (the existing doc-example test extended; it already checks `secret.` blocks). |
 
-## Sabotage (are the tests able to fail?)
+## Are the tests able to fail? (coverage and mutation)
 
-`scripts/sabotage_invoker_credentials.py` applies each change below to a copy of the source and runs the tagged tests. Each must make at least one named
-check fail; a change that nothing notices is a missing test.
+No hand-made sabotage scripts. Two automated measures instead:
 
-| # | Change | Must break |
-|---|---|---|
-| S1 | `RunScope.install` forgets `invoker` | V3.2 (all four mechanisms) |
-| S2 | `forkWith` no longer installs the scope | V3.2 parallel |
-| S3 | `finally` does not remove `invokerScope` | V3.4 |
-| S4 | `get` is called once and cached in the tool | V2.3, V2.4 |
-| S5 | the 401 retry is removed | V2.5 |
-| S6 | the 401 retry loops | V2.6 |
-| S7 | the scrub list omits the resolved value | V5.1, V5.4 |
-| S8 | `lookupKey()` returns the name for CALLER | V1.7 |
-| S9 | the https rule is removed | V4.2 |
-| S10 | the credential is written into the journal entry | V5.1, V5.2 |
-| S11 | the run-start check is removed | V4.1 |
-| S12 | the fork uses an `InheritableThreadLocal` instead of explicit capture | V3.4 (pool threads keep a stale value) |
+- **Coverage (JaCoCo).** The new classes (`InvokerCredentials`, `CredentialSource`, `RunScope`, the invoker binding, the changed `OpenAPITool` paths) keep
+  at least 90% line and 85% branch coverage; JaCoCo `check` rules in the module poms fail the build below that.
+- **Mutation testing (PIT).** `mvn -Pmutation-invoker org.pitest:pitest-maven:mutationCoverage` mutates only the new and changed classes and runs only the
+  tests that cover them. Target: **mutation score ≥ 85%**, and every surviving mutant is either killed by a new test or listed in the sign-off with the reason it is
+  equivalent (for example a log message). The profile lives beside the existing `mutation` profile of `ai-agent4j-loom`, with one more in `ai-agent4j`
+  for the classes that live there.
 
 ## Completion
 
@@ -128,9 +119,9 @@ check fail; a change that nothing notices is a missing test.
 |---|---|
 | G1 build | `mvn -q verify` for `ai-agent4j`, `ai-agent4j-tools`, `ai-agent4j-loom` at one commit |
 | G2 traceability | `verify_spec.py` reports every V-check with a passing test and no unknown tags |
-| G3 sabotage | the table above: every row fails the named checks |
+| G3 mutation | PIT on the new and changed classes: score ≥ 85%, survivors triaged in the sign-off |
 | G4 regression | the whole existing suites pass |
 | G5 end to end | a 40-line demo: a small web handler (JDK `HttpServer`) with a fake OAuth login and token endpoint; two browser-like clients log in as different users, start workflows through one handler, the downstream fake API logs which user each call came from; one user's access token expires mid-run and is refreshed from a refresh token; evidence in `evidence/g5/` |
 | G6 package | the Loom CLI package builds; `weave check` works on the demo script |
-| G8 coverage | JaCoCo: the new classes ≥ 90% line coverage (`InvokerCredentials`, `RunScope`, the changed `OpenAPITool` paths) |
+| G8 coverage | JaCoCo: the new classes ≥ 90% line and 85% branch coverage (`InvokerCredentials`, `RunScope`, the changed `OpenAPITool` paths) |
 | G9 safety | the V4 and V5 suites are green and the secrets sweep is attached to the evidence |

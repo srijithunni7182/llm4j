@@ -31,7 +31,7 @@ their own), then the scope, then the script syntax, then audit/CLI/docs. Tests a
 - [ ] 7. **Safety suites** — the secrets sweep with echoing servers, suspend/resume with a new token, replay, hostile endpoint arguments. V4.3, V5.1–V5.3.
 - [ ] 8. **Editor support** — TextMate grammar and completion for `invoker.` in `vscode-loom`. V6.6.
 - [ ] 9. **Docs** — `LOOM_GUIDE.md` section, `LOOM_PROMPT.md`, `OpenAPI-Tool.md`, `llms.txt`/`LLM_CONTEXT.md`; doc-example test covers new blocks. V7.1–V7.3.
-- [ ] 10. **Quality** — JaCoCo rule for the new classes, `scripts/sabotage_invoker_credentials.py` (S1–S12), regression run.
+- [ ] 10. **Quality** — JaCoCo rules for the new classes, the `mutation-invoker` PIT profiles (score ≥ 85%, survivors killed or justified), regression run.
 - [ ] 11. **Completion** — `scripts/verify-invoker-credentials.sh` (G1–G9), the G5 demo, evidence and `SIGN-OFF.md`.
 - [ ] 12. *(optional, separate change)* `http` kind: late-bound `auth_value` through `HttpTool.Config`, `HttpSupport` and `Redactor`; the same V2/V4/V5 checks for it.
 - [ ] 13. *(optional, separate spec)* `loom-reentrant-executor`: a `Run` object that owns the per-run fields listed in design §Concurrent runs, adopting `RunScope`. Only after task 4.5's guard test and the open question are answered.
