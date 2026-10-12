@@ -78,6 +78,7 @@ agent <AgentName> {
     tool Slack  { use: webhook  url: env.SLACK_WEBHOOK  format: slack }                  // slack | discord | teams | json
     tool Mail   { use: email  host: "smtp.example.com"  username: env.U  password: env.P  from: "a@example.com"  to: "team@example.com" }   // or allow_to: "*@example.com"; outbox: "dir" writes .eml files
     tool Api    { use: http  base_url: "https://api.example.com"  auth_header: "Authorization"  auth_value: env.TOKEN  allow_paths: "/v1/*"  methods: "GET, POST" }
+    tool Mine   { use: openapi  spec: "specs/mine.json"  auth_header: "Authorization"  auth_value: invoker.token }   // acts as the person who runs the workflow: the application supplies invoker.token for each run (openapi auth_value only); put approve: on agents that use it
     tool Notes  { use: file  root: "notes"  mode: readwrite }                             // read | write | readwrite; never outside the script's directory
     tool Ops    { use: shell  allow: "df, du"  unattended: true }                         // programs by name, no shell; the agent must approve it or the tool says unattended: true
     tool Db     { use: sql  url: env.DB_URL  user: env.DB_USER  password: env.DB_PASSWORD }   // read-only: one SELECT per call
