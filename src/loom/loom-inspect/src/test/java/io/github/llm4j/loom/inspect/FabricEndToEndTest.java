@@ -280,4 +280,54 @@ class FabricEndToEndTest {
         until(() -> onServer() != null && "stopped".equals(onServer().view().get("status")));
         assertThat(java.nio.file.Files.readString(dir.resolve("data").resolve("audit.log"))).contains("\"action\":\"stop\"").contains("command-result").doesNotContain("correct horse");
     }
+
+    @Test
+    void atMetadataDetailNoPromptAnswerToolDataOrKeyIsOnDiskOnTheServerOnThePageOrInTheConsole() throws Exception {
+        String key = Vault.newClientKey();
+        server = fabric(freePort(), vault(key));
+        Outbound.useTiming(new ServerLink.Timing(Duration.ofMillis(10), Duration.ofMillis(100), Duration.ofMillis(20), Duration.ofMillis(100)));
+        FabricOptions f = FabricOptions.parse("http://127.0.0.1:" + server.port(), "alpha", null, false, null, dir.resolve("outbox").toString(), null, "3s");
+        session = (InspectSession) new InspectObserveProvider().open(new ObserveOptions(0, null, "metadata", "alpha", Duration.ZERO, false, f), new PrintStream(console));
+
+        String[] planted = {"PROMPT-7731", "ANSWER-4412", "THOUGHT-9083", "ARGUMENT-5520", "TOOLRESULT-6614"};
+        int[] next = {0};
+        List<String> answers = List.of(
+                "```json\n{\"thought\": \"THOUGHT-9083\", \"action\": \"Lookup\", \"action_input\": {\"q\": \"ARGUMENT-5520\"}}\n```",
+                "```json\n{\"thought\": \"t\", \"final_answer\": \"ANSWER-4412 costs $1,234.56\"}\n```");
+        LLMClientFactory factory = model -> new LLMClient() {
+            @Override public LLMResponse chat(LLMRequest request) { return LLMResponse.builder().content(answers.get(next[0]++)).model(model).tokenUsage(10, 5, 15).build(); }
+            @Override public Stream<LLMResponse> chatStream(LLMRequest request) { return Stream.of(chat(request)); }
+        };
+        ToolRegistry tools = new ToolRegistry();
+        tools.register("Lookup", new Tool() {
+            @Override public String getName() { return "Lookup"; }
+            @Override public String getDescription() { return "test"; }
+            @Override public String execute(Map<String, Object> args) { return "TOOLRESULT-6614"; }
+        });
+        HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer("""
+                agent Researcher { model: "m" tools: [Lookup] }
+                workflow Main(topic) { delegate "find {topic}" to Researcher -> out }
+                """).tokenize()).parseScript(), tools, factory);
+        InMemorySecretStore secrets = new InMemorySecretStore();
+        secrets.put("LOOM_FABRIC_CLIENT_KEY", key);
+        e.setSecretStore(secrets);
+        e.setRunId("r-e2e");
+        session.attach(e.observable());
+        e.initialize();
+        e.executeWorkflow("Main", Map.of("topic", "PROMPT-7731"));
+        until(() -> onServer() != null && "finished".equals(onServer().view().get("status")));
+        Thread.sleep(300); // let the last batches land
+
+        StringBuilder everything = new StringBuilder(console.toString()).append(onServer().view()).append(onServer().graph());
+        try (Stream<Path> files = java.nio.file.Files.walk(dir)) {
+            for (Path p : files.filter(java.nio.file.Files::isRegularFile).filter(x -> !x.getFileName().toString().equals("vault.json")).toList()) {
+                everything.append(new String(java.nio.file.Files.readAllBytes(p), java.nio.charset.StandardCharsets.ISO_8859_1));
+            }
+        }
+        String all = everything.toString();
+        for (String s : planted) assertThat(all).as("planted value " + s).doesNotContain(s);
+        assertThat(all).as("the client key").doesNotContain(key);
+        assertThat(all).as("the admin password").doesNotContain("correct horse battery");
+        assertThat(all).contains("tokens=30").contains("resourceLogs"); // and the scan did read the run, the page and the stored batches
+    }
 }
