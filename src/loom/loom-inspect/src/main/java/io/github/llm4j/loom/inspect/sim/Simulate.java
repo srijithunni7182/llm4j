@@ -55,6 +55,7 @@ public final class Simulate {
               --gap SECONDS       wait between runs (default 10)
               --speed F           1.0 is a run of about four minutes; 0.2 is five times faster, 3 is slower
               --topic TEXT        the video topic (default: cold plunges and recovery)
+              --prices FILE       the price table (model = input / output per million tokens); default: the simulated models' own
               --detail LEVEL      full, truncated (default) or metadata
               --outbox DIR        where unsent events wait (default ./loom-sim-outbox)
               --admin-password-env VAR   with --embedded, the page's admin password (from this variable) so its controls are on
@@ -75,6 +76,7 @@ public final class Simulate {
         String detail = "truncated";
         String outbox = "loom-sim-outbox";
         String adminEnv = null;
+        String prices = null;
         for (int i = 0; i < argv.length; i++) {
             String a = argv[i];
             switch (a) {
@@ -93,6 +95,7 @@ public final class Simulate {
                 case "--topic" -> topic = argv[++i];
                 case "--detail" -> detail = argv[++i];
                 case "--outbox" -> outbox = argv[++i];
+                case "--prices" -> prices = argv[++i];
                 case "--admin-password-env" -> adminEnv = argv[++i];
                 case "-h", "--help" -> {
                     System.out.print(HELP);
@@ -108,7 +111,7 @@ public final class Simulate {
             System.err.println("Nothing to show it on: give --fabric URL (with --name) or --embedded.\n\n" + HELP);
             System.exit(2);
         }
-        System.exit(new Simulation(fabric, name, keyEnv, ca, pin, embedded, port, runs, gap, speed, topic, detail, outbox, adminEnv, System.out).run());
+        System.exit(new Simulation(fabric, name, keyEnv, ca, pin, embedded, port, runs, gap, speed, topic, detail, outbox, adminEnv, System.out).withPrices(prices).run());
     }
 
     /** The simulation itself, apart from the command line so a test can run it. */
@@ -129,7 +132,9 @@ public final class Simulate {
         private final String adminEnv;
         private final PrintStream out;
         private volatile boolean stop;
+        private io.github.llm4j.budget.PriceTable priceTable;
         private String key;
+        private String prices;
 
         public Simulation(String fabric, String name, String keyEnv, String ca, String pin, boolean embedded, int port, int runs, int gap, double speed,
                           String topic, String detail, String outbox, String adminEnv, PrintStream out) {
@@ -156,6 +161,12 @@ public final class Simulate {
             return this;
         }
 
+        /** A price table file instead of the packaged one. */
+        public Simulation withPrices(String file) {
+            this.prices = file;
+            return this;
+        }
+
         public void stop() {
             stop = true;
         }
@@ -172,6 +183,8 @@ public final class Simulate {
             Path dir = Files.createTempDirectory("loom-sim");
             Path script = copy("sim.loom", dir);
             copy("sim.inspect", dir);
+            Path priceFile = prices != null ? Path.of(prices) : copy("sim.prices", dir);
+            priceTable = io.github.llm4j.budget.PriceTable.load(priceFile);
             String text = Files.readString(script);
             InMemorySecretStore secrets = new InMemorySecretStore();
             if (key != null) secrets.put(f.keySecret(), key);
@@ -192,6 +205,7 @@ public final class Simulate {
         private void oneRun(ObserveProvider.Session session, Path script, String text, InMemorySecretStore secrets, int n) {
             HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer(text).tokenize()).parseScript(), tools(), factory(new Scripted(speed)));
             e.setSecretStore(secrets);
+            e.setPriceTable(priceTable); // so each step carries a cost, as in a real run with a price file
             e.setSleeper(d -> Thread.sleep((long) (d.toMillis() * speed))); // the workflow's sleeps shrink with the run
             String id = name + "-" + System.currentTimeMillis() % 100000 + "-" + n;
             e.setRunId(id);

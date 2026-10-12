@@ -60,11 +60,34 @@ final class Runs {
         }
     }
 
+    /**
+     * The price table for a run: the file given with {@code --prices}; else {@code <script>.prices} beside the script; else
+     * {@code prices.properties} in the script's folder; else the file named by {@code LOOM_PRICES}; else none (cost is then not reported).
+     * Looking beside the script means {@code daemon}, {@code tick} and {@code resume} price a workflow without a flag.
+     */
+    static Path pricesFile(RunSpec spec, File scriptFile, WeaveEnv env) {
+        if (spec.prices() != null) return Path.of(spec.prices());
+        File dir = scriptFile.getAbsoluteFile().getParentFile();
+        File beside = new File(dir, baseName(scriptFile) + ".prices");
+        if (beside.isFile()) return beside.toPath();
+        File shared = new File(dir, "prices.properties");
+        if (shared.isFile()) return shared.toPath();
+        String fromEnv = env.env() == null ? null : env.env().apply("LOOM_PRICES");
+        if (fromEnv != null && !fromEnv.isBlank() && new File(fromEnv.strip()).isFile()) return Path.of(fromEnv.strip());
+        return null;
+    }
+
+    private static String baseName(File f) {
+        return f.getName().replaceFirst("\\.[^.]*$", "");
+    }
+
     private static Result executeLocked(RunSpec spec, Path runDir, String runId, WeaveEnv env) {
         java.math.BigDecimal cost = null;
+        Path pricesFile = pricesFile(spec, new File(spec.script()), env);
         if (spec.maxCost() != null) {
-            if (spec.prices() == null) {
-                env.err().println("Error: --max-cost needs --prices <file> (lines of 'model = input / output' per million tokens).");
+            if (pricesFile == null) {
+                env.err().println("Error: --max-cost needs prices: --prices <file>, or a file named " + baseName(new File(spec.script())) + ".prices or prices.properties beside the script, or LOOM_PRICES"
+                        + " (lines of 'model = input / output' per million tokens).");
                 return new Result(2, null, null, "bad options");
             }
             cost = new java.math.BigDecimal(spec.maxCost().strip().replaceFirst("^\\$", ""));
@@ -93,7 +116,7 @@ final class Runs {
             executor.setPromptCatalog(io.github.llm4j.loom.prompt.PromptSupport.catalog(script, scriptFile.toPath(), spec.prompts()));
             executor.setClock(env.clock());
             executor.setSleeper(env.sleeper());
-            if (spec.prices() != null) executor.setPriceTable(io.github.llm4j.budget.PriceTable.load(Path.of(spec.prices())));
+            if (pricesFile != null) executor.setPriceTable(io.github.llm4j.budget.PriceTable.load(pricesFile));
             executor.setBudgetOverrides(spec.maxTokens(), spec.maxCalls(), cost);
             if (spec.trace() != null) executor.addTraceListener(new ConsoleTrace(env.err(), "json".equals(spec.trace())));
             if (env.observe() != null) env.observe().attach(executor.observable(), scriptFile.toPath()); // before initialize, so agents report

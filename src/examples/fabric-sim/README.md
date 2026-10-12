@@ -50,6 +50,10 @@ java -cp "..." io.github.llm4j.loom.inspect.sim.Simulate --embedded 8787 --admin
 
 `--help` lists every option. `--embedded` with `--admin-password-env` turns the page's pause, suspend and stop controls on for the simulated run, the same as for a real app.
 
+## Cost
+
+The page shows the cost the Loom runtime reports; loom-inspect and Fabric have no prices of their own. The simulated models are priced from `sim.prices` (packaged in the jar; `--prices FILE` replaces it), in the same `model = input / output` per million tokens format a real workflow uses. For a real workflow put `flow.prices` or `prices.properties` beside the script (or pass `--prices`, or set `LOOM_PRICES`).
+
 ## What it is for, and not
 
 It exercises transport, the server, the page and the controls with realistic traffic; it says nothing about real agents. The workflow is `sim.loom` inside the `loom-inspect` jar (with `sim.inspect`, its thresholds). Its agents are deliberately badly behaved fixtures; do not copy them. The 30-minute soak in `../inspect-soak` is the same idea with a real model.

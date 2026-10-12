@@ -53,6 +53,7 @@ class SimulateTest {
         assertThat(v).containsEntry("status", "finished").containsEntry("workflow", "Studio");
         assertThat(String.valueOf(v.get("agents"))).contains("Researcher").contains("TrendScout").contains("Competitor"); // the broadcast targets are agents too
         assertThat(((Map<?, ?>) v.get("totals")).get("tokens")).isNotEqualTo(0L);
+        assertThat(new java.math.BigDecimal(String.valueOf(((Map<?, ?>) v.get("totals")).get("cost")))).isPositive(); // priced from the price file
         String incidents = String.valueOf(v.get("incidents"));
         assertThat(incidents).contains("Editor").contains("Scriptwriter"); // the repeated call and the invented figures
         assertThat(String.valueOf(v.get("tools"))).contains("Example").contains("Wiki");

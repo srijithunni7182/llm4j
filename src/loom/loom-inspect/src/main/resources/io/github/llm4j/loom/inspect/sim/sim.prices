@@ -1,0 +1,16 @@
+# Prices for the simulated models: model = input / output, per million tokens, in dollars.
+# This is the same file format a real workflow uses (weave run --prices, or flow.prices / prices.properties beside the script).
+sim-showrunner  = 0.30 / 2.50
+sim-researcher  = 0.30 / 2.50
+sim-trendscout  = 0.30 / 2.50
+sim-competitor  = 0.30 / 2.50
+sim-scriptwriter = 3.00 / 15.00
+sim-editor      = 0.30 / 2.50
+sim-factchecker = 3.00 / 15.00
+sim-seo         = 0.30 / 2.50
+sim-lead        = 3.00 / 15.00
+sim-planner     = 0.30 / 2.50
+sim-designer    = 0.30 / 2.50
+sim-captioner   = 0.10 / 0.40
+sim-auditor     = 3.00 / 15.00
+sim-publisher   = 0.30 / 2.50

@@ -1678,6 +1678,7 @@ What happens when a budget runs out:
 - **Money** needs a price table. Prices go stale, so none ship with Loom: write a file of
   `model = input / output` prices per million tokens and pass it with `--prices` (or `setPriceTable`).
   Local `ollama/*` models cost nothing. A cost budget with an unpriced model fails at start-up.
+  The file is found without a flag, in this order: `--prices <file>`; `<script>.prices` beside the script (`flow.prices` for `flow.loom`); `prices.properties` in the script's folder; the file named by the `LOOM_PRICES` environment variable. So `daemon`, `tick` and `resume` are priced too, and the file can live in the repository next to the workflow. The same figures are what loom-inspect and Fabric show as cost: they know no prices of their own, and a model with no price reports no cost (the page shows $0.000, which then means *unpriced*, not free).
 - **Durable.** Each step's usage is journaled. A replayed step is never charged again, and a run stopped
   by its budget can be resumed with a bigger one: it continues from the refused step, and nothing already
   paid for runs twice.

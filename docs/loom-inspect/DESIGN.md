@@ -648,3 +648,9 @@ A way to exercise Fabric and the page without a model: `Simulate` (in the `loom-
 - `broadcast` and `handoff` targets emitted no step start or end, so their agents and tokens were missing from the page (their tool calls showed). They now start and end like a delegate. This also affects `soak.loom`'s phase A.
 - A run stopped while held by the operator still showed *held*; an ended run now shows nothing held or pending.
 - Looked at in a real browser for the first time (sign-in, tabs, incidents, controls, confirm dialog): no script errors, and the layout is as designed.
+
+## 11l. Cost and the price table
+
+Cost on the page is the cost the Loom runtime puts on each step; loom-inspect and Fabric hold no prices. The runtime computes it from a `PriceTable` (`model = input / output` per million tokens; none ship with Loom because prices go stale). A model with no price has no cost, which the page currently shows as $0.000 (unpriced, not free).
+
+What was missing: `--prices` existed only on `weave run`, `eval` and `replay`, so a `daemon`, `tick` or `resume` (the usual way a workflow is watched through Fabric) reported no cost. The file is now found without a flag: `--prices`, then `<script>.prices` or `prices.properties` beside the script, then `LOOM_PRICES`. The simulator reads its own `sim.prices`, and its test checks a priced run reports a positive cost end to end.
