@@ -11,6 +11,7 @@ import io.github.llm4j.agent.tools.WebSearchTool;
 import io.github.llm4j.agent.tools.openapi.OpenAPIParser;
 import io.github.llm4j.agent.tools.openapi.OpenAPITool;
 import io.github.llm4j.loom.ast.ToolDef;
+import io.github.llm4j.secret.CredentialSource;
 import io.github.llm4j.tools.DescribedTool;
 import io.github.llm4j.agent.tool.EffectContext;
 import io.github.llm4j.tools.EffectTool;
@@ -84,6 +85,11 @@ public final class ToolFactory {
             }
 
             @Override
+            public Set<String> lateBound() {
+                return Set.of("auth_value");
+            }
+
+            @Override
             public String check(Map<String, String> o) {
                 boolean header = o.containsKey("auth_header");
                 boolean query = o.containsKey("auth_query");
@@ -96,12 +102,25 @@ public final class ToolFactory {
 
             @Override
             public Tool create(String name, Map<String, String> o, Path dir) {
+                return create(name, o, Map.of(), dir, EffectContext.noop());
+            }
+
+            @Override
+            public Tool create(String name, Map<String, String> o, Map<String, CredentialSource> lateBound, Path dir, EffectContext context) {
                 String spec = o.get("spec");
                 String location = spec.matches("(?i)https?://.*") || Path.of(spec).isAbsolute()
                         ? spec : dir.resolve(spec).toString();
                 OpenAPITool.Builder b = OpenAPITool.builder().name(name).spec(OpenAPIParser.parse(location));
-                if (o.containsKey("auth_header")) b.headerAuth(o.get("auth_header"), o.get("auth_value"));
-                if (o.containsKey("auth_query")) b.apiKeyAuth(o.get("auth_query"), o.get("auth_value"));
+                // a value written invoker.NAME is asked for on every request; any other is the value itself
+                CredentialSource value = lateBound.containsKey("auth_value") ? lateBound.get("auth_value") : null;
+                if (o.containsKey("auth_header")) {
+                    if (value != null) b.headerAuth(o.get("auth_header"), value);
+                    else b.headerAuth(o.get("auth_header"), o.get("auth_value"));
+                }
+                if (o.containsKey("auth_query")) {
+                    if (value != null) b.apiKeyAuth(o.get("auth_query"), value);
+                    else b.apiKeyAuth(o.get("auth_query"), o.get("auth_value"));
+                }
                 return b.build();
             }
         });
@@ -234,6 +253,10 @@ public final class ToolFactory {
                         + (kind.prefixes().isEmpty() ? "" : " and " + kind.prefixes() + "<name>")));
                 continue;
             }
+            if (e.getValue().fromInvoker()) {
+                if (!kind.lateBound().contains(key)) out.add(notInvokerOption(kind, key, e.getValue()));
+                continue;
+            }
             if (kind.secrets().contains(key) && !e.getValue().isReference()) {
                 out.add(key + " must come from the environment or the secret store, e.g. " + key + ": secret."
                         + suggestEnv(kind.name(), def.getName(), key) + " (or env." + suggestEnv(kind.name(), def.getName(), key) + ")");
@@ -264,6 +287,7 @@ public final class ToolFactory {
 
     /** A {@code header.<Name>} option: a credential-looking header must come from the environment. */
     private static String checkPrefixed(String prefix, String key, ToolDef.OptionValue value, Function<String, String> env) {
+        if (value.fromInvoker()) return key + " can't come from " + value + " (not yet); use env.NAME or secret.NAME";
         if (prefix.equals(Options.HEADER_PREFIX) && Options.isSecretHeader(key.substring(prefix.length())) && !value.isReference()) {
             String suggested = key.substring(prefix.length()).toUpperCase(java.util.Locale.ROOT).replaceAll("[^A-Z0-9]+", "_");
             return key + " must come from the environment or the secret store, e.g. " + key + ": secret." + suggested + " (or env." + suggested + ")";
@@ -272,6 +296,13 @@ public final class ToolFactory {
             return notSet(value) + " (for " + key + ")";
         }
         return null;
+    }
+
+    /** Why an option can't be written {@code invoker.NAME}, and where it can. */
+    private String notInvokerOption(ToolKind kind, String key, ToolDef.OptionValue value) {
+        List<String> where = new java.util.ArrayList<>();
+        kinds.values().forEach(k -> k.lateBound().forEach(o -> where.add(o + " of use: " + k.name())));
+        return key + " can't come from " + value + " for use: " + kind.name() + "; invoker credentials are for " + String.join(", ", where);
     }
 
     /** What to say when a reference resolves to nothing. */
@@ -295,12 +326,28 @@ public final class ToolFactory {
      * journaled through {@code context} so a resumed run doesn't repeat them.
      */
     public Tool create(ToolDef def, Function<String, String> env, Path baseDir, EffectContext context) throws Exception {
+        return create(def, env, baseDir, context, name -> {
+            throw new IllegalStateException("tool " + def.getName() + " takes invoker." + name + ", which only a run can supply");
+        });
+    }
+
+    /**
+     * As above, with the way to get a {@link CredentialSource} for a credential of the person running the workflow ({@code invoker.NAME} options).
+     * Nothing is asked of it until the tool makes a request.
+     */
+    public Tool create(ToolDef def, Function<String, String> env, Path baseDir, EffectContext context,
+                       Function<String, CredentialSource> invoker) throws Exception {
         ToolKind kind = kinds.get(def.getKind());
         Map<String, String> options = resolve(kind, def, env);
+        Map<String, CredentialSource> lateBound = new LinkedHashMap<>();
+        def.getOptions().forEach((key, value) -> {
+            if (value.fromInvoker()) lateBound.put(key, invoker.apply(value.value()));
+        });
+        lateBound.keySet().forEach(options::remove);
         String description = options.remove(DESCRIPTION);
         options.remove(REPLAY);
         options.remove(REACH);
-        Tool tool = kind.create(def.getName(), options, baseDir, context);
+        Tool tool = kind.create(def.getName(), options, lateBound, baseDir, context);
         if (tool instanceof Effectful effectful) tool = new EffectTool(effectful, context);
         if (description != null) tool = new DescribedTool(tool, description);
         return new NamedTool(def.getName(), tool);
@@ -311,7 +358,8 @@ public final class ToolFactory {
         Map<String, ToolDef.OptionValue> all = new LinkedHashMap<>(kind.defaults());
         all.putAll(def.getOptions());
         all.forEach((k, v) -> {
-            String value = v.isReference() ? env.apply(v.lookupKey()) : v.value();
+            // an invoker.NAME has no value yet: its text stands in for it while the options are checked, and create() takes it out again
+            String value = v.fromInvoker() ? v.toString() : v.isReference() ? env.apply(v.lookupKey()) : v.value();
             if (!isUnset(value)) out.put(k, value);
         });
         return out;
