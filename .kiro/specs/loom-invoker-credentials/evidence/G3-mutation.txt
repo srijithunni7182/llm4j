@@ -1,0 +1,12 @@
+commit 2ac325e9cf32715b39dc8021139d068fd03cbdb8; changed lines since 724e474
+Mon Oct 12 13:25:02 UTC 2026
+-- src/ai-agent4j
+56/56 killed (100%)
+-- src/loom/ai-agent4j-loom
+NO_COVERAGE WeaveEnv 60 withAskVia | NegateConditionalsMutator | negated conditional
+NO_COVERAGE WeaveEnv 60 withAskVia | NullReturnValsMutator | replaced return value with null for io/github/llm4j/loom/cli/WeaveEnv::withAskVia
+NO_COVERAGE WeaveEnv 83 withEnvLookup | NullReturnValsMutator | replaced return value with null for io/github/llm4j/loom/cli/WeaveEnv::withEnvLookup
+NO_COVERAGE WeaveEnv 92 withPrompts | NullReturnValsMutator | replaced return value with null for io/github/llm4j/loom/cli/WeaveEnv::withPrompts
+NO_COVERAGE WeaveEnv 71 withSecrets | NullReturnValsMutator | replaced return value with null for io/github/llm4j/loom/cli/WeaveEnv::withSecrets
+NO_COVERAGE WeaveEnv 87 withWeave | NullReturnValsMutator | replaced return value with null for io/github/llm4j/loom/cli/WeaveEnv::withWeave
+118/124 killed (95%)

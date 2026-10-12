@@ -32,13 +32,14 @@ g1() {
   echo "== G1: the whole reactor compiles; full tests of the three modules pass, in order and in random order"
   local out="$EVIDENCE/G1-build.txt"
   { echo "commit $SHA"; date -u; } > "$out"
-  if mvn -B -o -DskipTests compile > "$EVIDENCE/.g1-compile.log" 2>&1; then echo "-- all modules compile: BUILD SUCCESS" | tee -a "$out"
+  if mvn -B -DskipTests compile > "$EVIDENCE/.g1-compile.log" 2>&1; then echo "-- all modules compile: BUILD SUCCESS" | tee -a "$out"
   else echo "-- compile: BUILD FAILURE" | tee -a "$out"; FAILED+=("G1 compile"); tail -30 "$EVIDENCE/.g1-compile.log" >> "$out"; fi
   local flags=("" "-Dsurefire.runOrder=random")
   for i in 0 1; do
     echo "-- tests, run $((i+1)) ${flags[$i]}" | tee -a "$out"
+    for m in ${MODULES//,/ }; do rm -rf "$m/target"; done
     # shellcheck disable=SC2086
-    if mvn -B -o -pl "$MODULES" clean test ${flags[$i]} > "$EVIDENCE/.g1-run$i.log" 2>&1; then echo "   BUILD SUCCESS" | tee -a "$out"
+    if mvn -B -pl "$MODULES" test ${flags[$i]} > "$EVIDENCE/.g1-run$i.log" 2>&1; then echo "   BUILD SUCCESS" | tee -a "$out"
     else echo "   BUILD FAILURE" | tee -a "$out"; FAILED+=("G1 run $((i+1))"); tail -30 "$EVIDENCE/.g1-run$i.log" >> "$out"; fi
     echo "   core: $(totals src/ai-agent4j); tools: $(totals src/ai-agent4j-tools); loom: $(totals $LOOM)" | tee -a "$out"
   done
@@ -55,7 +56,7 @@ g3() {
   echo "== G3: mutation testing of the new and changed lines (score >= 85%)"
   local out="$EVIDENCE/G3-mutation.txt"
   { echo "commit $SHA; changed lines since $BASELINE"; date -u; } > "$out"
-  if ! mvn -B -o -pl src/ai-agent4j,$LOOM -Pmutation-invoker -Djacoco.skip=true test-compile org.pitest:pitest-maven:mutationCoverage > "$EVIDENCE/.g3.log" 2>&1; then
+  if ! mvn -B -pl src/ai-agent4j,$LOOM -Pmutation-invoker -Djacoco.skip=true test-compile org.pitest:pitest-maven:mutationCoverage > "$EVIDENCE/.g3.log" 2>&1; then
     echo "PIT failed" | tee -a "$out"; FAILED+=("G3 run"); tail -30 "$EVIDENCE/.g3.log" >> "$out"; return
   fi
   for m in src/ai-agent4j $LOOM; do
@@ -74,8 +75,8 @@ g4() {
   if [ -n "$touched" ]; then echo "existing test files modified or deleted:" | tee -a "$out"; echo "$touched" | tee -a "$out"; FAILED+=("G4 tests touched"); else echo "no existing test file was modified or deleted" | tee -a "$out"; fi
   work=$(mktemp -d)
   git worktree add -q --detach "$work/baseline" "$BASELINE" || { FAILED+=("G4 worktree"); return; }
-  ( cd "$work/baseline" && mvn -B -o -pl "$MODULES" test > "$work/baseline.log" 2>&1 )
-  mvn -B -o -pl "$MODULES" test > "$work/now.log" 2>&1
+  ( cd "$work/baseline" && mvn -B -pl "$MODULES" test > "$work/baseline.log" 2>&1 )
+  mvn -B -pl "$MODULES" test > "$work/now.log" 2>&1
   python3 - "$work/baseline" "$ROOT" >> "$out" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 from pathlib import Path
@@ -103,7 +104,7 @@ PY
 g5() {
   echo "== G5: two people, one script, a token refreshed in the middle (end to end)"
   local out="$EVIDENCE/g5/D1-two-users.txt"
-  { echo "commit $SHA"; date -u; mvn -B -o -pl src/ai-agent4j,$LOOM test -Dtest=InvokerDemoTest -Dsurefire.failIfNoSpecifiedTests=false 2>&1 | grep "DEMO\|Tests run:.*Fail\|BUILD"; } | tee "$out"
+  { echo "commit $SHA"; date -u; mvn -B -pl src/ai-agent4j,$LOOM test -Dtest=InvokerDemoTest -Dsurefire.failIfNoSpecifiedTests=false 2>&1 | grep "DEMO\|Tests run:.*Fail\|BUILD"; } | tee "$out"
   grep -q "BUILD SUCCESS" "$out" || FAILED+=("G5")
 }
 
@@ -111,13 +112,13 @@ g6() {
   echo "== G6: the Loom CLI packages and 'weave check' works on a script that uses invoker"
   local out="$EVIDENCE/G6-package.txt" d
   { echo "commit $SHA"; date -u; } > "$out"
-  if mvn -B -o -pl "$MODULES" package -DskipTests -Djacoco.skip=true >> "$out" 2>&1; then echo "package: BUILD SUCCESS" | tee -a "$out"; else FAILED+=("G6 package"); return; fi
+  if mvn -B -pl "$MODULES" package -DskipTests -Djacoco.skip=true >> "$out" 2>&1; then echo "package: BUILD SUCCESS" | tee -a "$out"; else FAILED+=("G6 package"); return; fi
   d=$(mktemp -d)
   printf 'tool Refunds { use: openapi  spec: "refunds.json"  auth_header: "Authorization"  auth_value: invoker.token }\nagent Scout { model: "ollama/llama3" system: "You are Scout." tools: [Refunds] approve: [Refunds] }\nworkflow Main() { delegate "x" to Scout -> r }\n' > "$d/job.loom"
   printf '{"openapi":"3.0.0","info":{"title":"R","version":"1"},"servers":[{"url":"https://api.example.com"}],"paths":{"/refunds":{"get":{"summary":"List","responses":{"200":{"description":"ok"}}}}}}' > "$d/refunds.json"
   local jar; jar=$(ls "$LOOM"/target/*.jar | grep -v sources | grep -v javadoc | head -1)
   echo "-- weave check ($jar)" | tee -a "$out"
-  java -cp "$jar:$(cd $LOOM && mvn -B -o -q dependency:build-classpath -Dmdep.outputFile=/dev/stdout 2>/dev/null | tail -1)" io.github.llm4j.loom.cli.WeaveCLI check "$d/job.loom" 2>&1 | grep -v "^Picked up" | tee -a "$out"
+  java -cp "$jar:$(cd $LOOM && mvn -B -q dependency:build-classpath -Dmdep.outputFile=/dev/stdout 2>/dev/null | tail -1)" io.github.llm4j.loom.cli.WeaveCLI check "$d/job.loom" 2>&1 | grep -v "^Picked up" | tee -a "$out"
   grep -q "acts as the person who runs it, with their token" "$out" || FAILED+=("G6 check")
   rm -rf "$d"
 }
@@ -126,7 +127,7 @@ g8() {
   echo "== G8: coverage of the new classes (lines >= 90%, branches >= 85%)"
   local out="$EVIDENCE/G8-coverage.txt"
   { echo "commit $SHA"; date -u; } > "$out"
-  mvn -B -o -pl "$MODULES" test > /dev/null 2>&1
+  mvn -B -pl "$MODULES" test > /dev/null 2>&1
   python3 - >> "$out" <<'PY'
 import csv, sys
 NEW = ["ThreadScope", "InvokerSource", "InvokerRefs", "OpenApiKind", "InvokerOptions", "InvokerCredentials", "CredentialSource", "MissingInvokerCredentialException", "RequestAuth"]

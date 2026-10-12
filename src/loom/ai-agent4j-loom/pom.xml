@@ -504,6 +504,8 @@
                                 <param>io.github.llm4j.loom.tools.OpenApiKindTest</param>
                                 <param>io.github.llm4j.loom.tools.ToolFactoryInvokerTest</param>
                                 <param>io.github.llm4j.loom.cli.InvokerCliTest</param>
+                                <param>io.github.llm4j.loom.cli.WeaveEnvTest</param>
+                                <param>io.github.llm4j.loom.execution.LoomEngineCompatTest</param>
                                 <param>io.github.llm4j.loom.security.InvokerAuditTest</param>
                                 <param>io.github.llm4j.loom.parity.ToolsTest</param>
                             </targetTests>
