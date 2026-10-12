@@ -13,6 +13,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class RunRegistry {
 
     private final Map<String, RunState> runs = new ConcurrentHashMap<>();
+    private volatile Map<String, InspectRules> central = Map.of();
+    private volatile PriceBook prices = PriceBook.EMPTY;
 
     /** Applies log records from one resource (one process instance). Records without a trace id are ignored. */
     public void applyLogs(Resource resource, List<LogRec> records) {
@@ -38,6 +40,26 @@ public final class RunRegistry {
     /** Gives a run the per-agent rules of its script's {@code inspect} blocks. */
     public void setRules(String client, String traceId, Map<String, InspectRules> rules) {
         state(client, traceId).setRules(rules);
+    }
+
+    /** The model each agent of a run uses (from its snapshot), for costing steps from a price book. */
+    public void setModels(String client, String traceId, Map<String, String> models) {
+        state(client, traceId).setModels(models);
+    }
+
+    /**
+     * Rules kept at the server: laid over each run's own rules, rule by rule, from now on (for runs already known too). An empty map removes them.
+     * Only the thresholds change what is flagged; a variable to watch for no_progress is still read by the process that owns the script.
+     */
+    public void setCentralRules(Map<String, InspectRules> rules) {
+        central = rules == null ? Map.of() : Map.copyOf(rules);
+        for (RunState r : runs.values()) r.setCentralRules(central);
+    }
+
+    /** Prices kept at the server: a step that reports tokens and no cost is costed from them, from now on. Costs already counted do not change. */
+    public void setPrices(PriceBook book) {
+        prices = book == null ? PriceBook.EMPTY : book;
+        for (RunState r : runs.values()) r.setPrices(prices);
     }
 
     /** Gives a run the way to read its decision ladders. */
@@ -78,7 +100,12 @@ public final class RunRegistry {
         String key = client + "/" + traceId;
         RunState existing = runs.get(key);
         if (existing != null) return existing;
-        RunState created = runs.computeIfAbsent(key, k -> new RunState(client, traceId));
+        RunState created = runs.computeIfAbsent(key, k -> {
+            RunState r = new RunState(client, traceId);
+            r.setCentralRules(central);
+            r.setPrices(prices);
+            return r;
+        });
         evict();
         return created;
     }

@@ -67,6 +67,7 @@ public final class InspectServer {
         AdminSessions sessions;
         Controls controls;
         io.github.llm4j.loom.inspect.control.Secrets secrets;
+        io.github.llm4j.loom.inspect.control.ServerConfig settings;
         AuditSink audit = AuditSink.NONE;
         int threads = 8;
         final Map<String, Route> routes = new LinkedHashMap<>();
@@ -106,6 +107,12 @@ public final class InspectServer {
         /** Let a signed-in administrator list secrets and rotate one: {@code GET /api/secrets}, {@code PUT /api/secrets/{name}}. Needs {@link #sessions}. */
         public Config secrets(io.github.llm4j.loom.inspect.control.Secrets secrets) {
             this.secrets = secrets;
+            return this;
+        }
+
+        /** Let a signed-in administrator read and change the server's settings: {@code GET /api/config}, {@code PUT /api/config/{section}}. Needs {@link #sessions}. */
+        public Config settings(io.github.llm4j.loom.inspect.control.ServerConfig settings) {
+            this.settings = settings;
             return this;
         }
 
@@ -283,6 +290,7 @@ public final class InspectServer {
             m.put("signedIn", s != null);
             if (s != null) m.put("csrf", s.csrf());
             m.put("secretsEnabled", config.secrets != null && admin.passwordSet());
+            m.put("configEnabled", config.settings != null && admin.passwordSet());
             if (config.controls != null) {
                 m.put("controlsEnabled", config.controls.enabled());
                 if (!config.controls.enabled()) m.put("controlsReason", config.controls.disabledReason());
@@ -303,6 +311,10 @@ public final class InspectServer {
             admin.logout(x);
             x.getResponseHeaders().add("Set-Cookie", admin.clearCookie());
             send(x, 200, "application/json", json(Map.of("ok", true)));
+            return true;
+        }
+        if (config.settings != null && path.startsWith("/api/config")) {
+            settings(x, admin, path);
             return true;
         }
         if (config.secrets != null && path.startsWith("/api/secrets")) {
@@ -378,6 +390,71 @@ public final class InspectServer {
     }
 
     private static final int MAX_SECRET_BODY = 16 * 1024;
+    private static final int MAX_CONFIG_BODY = 256 * 1024;
+
+    private void settings(HttpExchange x, AdminSessions admin, String path) throws IOException {
+        String address = x.getRemoteAddress().getAddress().getHostAddress();
+        AdminSessions.Session s = admin.session(x);
+        if (s == null) {
+            send(x, 401, "application/json", json(Map.of("error", "sign in first")));
+            return;
+        }
+        if (path.equals("/api/config") && "GET".equals(x.getRequestMethod())) {
+            send(x, 200, "application/json", json(Map.of("sections", config.settings.view())));
+            return;
+        }
+        String section = path.startsWith("/api/config/") ? path.substring("/api/config/".length()) : "";
+        if (!"PUT".equals(x.getRequestMethod()) || !section.matches("[a-z]{1,20}") || !config.settings.view().containsKey(section)) {
+            send(x, 404, "application/json", json(Map.of("error", "not found")));
+            return;
+        }
+        if (!s.csrf().equals(x.getRequestHeaders().getFirst(AdminSessions.CSRF_HEADER)) || !sameSite(x) || !isJson(x)) {
+            auditConfig(address, section, "refused: bad CSRF token, origin or content type", 0);
+            send(x, 403, "application/json", json(Map.of("error", "cross-site request refused")));
+            return;
+        }
+        byte[] raw;
+        try (java.io.InputStream in = x.getRequestBody()) {
+            raw = in.readNBytes(MAX_CONFIG_BODY + 1);
+        }
+        if (raw.length > MAX_CONFIG_BODY) {
+            send(x, 413, "application/json", json(Map.of("error", "too large")));
+            return;
+        }
+        String text;
+        try {
+            text = JSON.readTree(raw).path("text").asText(null);
+        } catch (IOException e) {
+            send(x, 400, "application/json", json(Map.of("error", "not valid JSON")));
+            return;
+        }
+        if (text == null) {
+            send(x, 400, "application/json", json(Map.of("error", "give the text")));
+            return;
+        }
+        io.github.llm4j.loom.inspect.control.ServerConfig.Result r = config.settings.save(section, text, "admin@" + address);
+        auditConfig(address, section, r.saved() ? "saved" : "refused: " + r.message(), text.length());
+        Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("ok", r.saved());
+        body.put("message", r.message());
+        body.put("problems", r.problems());
+        send(x, r.status(), "application/json", json(body));
+    }
+
+    private void auditConfig(String address, String section, String outcome, int chars) {
+        Map<String, Object> e = new java.util.LinkedHashMap<>();
+        e.put("who", "admin");
+        e.put("address", address);
+        e.put("action", "change-config");
+        e.put("section", section);
+        e.put("characters", chars);
+        e.put("outcome", outcome);
+        try {
+            config.audit.record(e);
+        } catch (RuntimeException ex) {
+            System.err.println("loom-inspect: cannot write the audit log: " + ex.getMessage());
+        }
+    }
 
     private void secrets(HttpExchange x, AdminSessions admin, String path) throws IOException {
         String address = x.getRemoteAddress().getAddress().getHostAddress();

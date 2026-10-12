@@ -2217,6 +2217,8 @@ public class HarnessExecutor implements LoomEngine {
         if (r == null || r.getUsage() == null) return data;
         data.put("calls", r.getUsage().getLlmCalls());
         data.put("tokens", r.getUsage().getTotalTokens());
+        data.put("promptTokens", r.getUsage().getPromptTokens()); // the split lets a server with a price table cost the step
+        data.put("completionTokens", r.getUsage().getCompletionTokens());
         if (r.getUsage().getCost() != null) data.put("cost", r.getUsage().getCost().toPlainString());
         return data;
     }

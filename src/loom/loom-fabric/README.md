@@ -53,6 +53,10 @@ History goes to `<data>/history/<client>/<day>.jsonl` (no database): every accep
 
 Open the server's address in a browser and sign in with the admin password. Failed attempts from an address wait longer each time. Signed in, you can **pause, resume, suspend or stop** a run from its page (with a confirm dialog and a CSRF-protected request). The request is queued as a command that the process collects on its signed long-poll (`/loom-inspect/v1/commands`; the answer is signed with that process's key) and carries out at the run's next step; it expires after 60 seconds, so an offline process never wakes up to an old command. Every request and every result is written to `audit.log` in the data directory (never passwords or secret values). Secrets are not managed here: their values never leave the process, so rotation is on the process's own embedded page.
 
+## Configuration page
+
+Signed in, the **Configuration** page edits the **inspect rules** and the **price table** kept on the server (`<data>/config/rules.inspect`, `prices.properties`), in the same format as the files a process keeps beside its script. A save is checked first (errors come back with line numbers and nothing is kept), takes effect at once, survives a restart, and is audited. Rules are laid over each run's own rule by rule; prices cost a step whose process reported tokens but no cost.
+
 ## Packaging
 
 `Dockerfile` and `fabric.service` (systemd) are in this directory. The Docker image has not been built in CI yet; treat it as a starting point.
@@ -65,4 +69,4 @@ A change made by `fabric clients add` or `revoke` is picked up by a running serv
 
 ## More
 
-[Observability guide](../../../docs/OBSERVABILITY.md) · [Fabric server (wiki)](../../../wiki/Fabric-Server.md) · [Incidents and rules](../../../wiki/Observability-Incidents-and-Rules.md) · [Controls, secrets and security](../../../wiki/Observability-Controls-and-Security.md) · [Reference](../../../wiki/Observability-Reference.md)
+[Deployment guide](../../../docs/OBSERVABILITY_DEPLOYMENT.md) · [Observability guide](../../../docs/OBSERVABILITY.md) · [Fabric server (wiki)](../../../wiki/Fabric-Server.md) · [Incidents and rules](../../../wiki/Observability-Incidents-and-Rules.md) · [Controls, secrets and security](../../../wiki/Observability-Controls-and-Security.md) · [Reference](../../../wiki/Observability-Reference.md)

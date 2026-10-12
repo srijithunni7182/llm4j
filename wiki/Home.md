@@ -46,7 +46,7 @@ Each module answers the question the previous one raises.
 - [Loom Language Guide](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md)
 - [Budgets, Pausing and Scheduling](../src/loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md)
 - [Agentic Workflows with Loom and Engram](../docs/AGENTIC_WORKFLOWS_GUIDE.md)
-- [Observability: watching runs live](Observability.md) · [Fabric server](Fabric-Server.md) · [Incidents and rules](Observability-Incidents-and-Rules.md) · [Controls, secrets and security](Observability-Controls-and-Security.md) · [Reference](Observability-Reference.md)
+- [Observability: watching runs live](Observability.md) · [Deployment guide](../docs/OBSERVABILITY_DEPLOYMENT.md) · [Fabric server](Fabric-Server.md) · [Incidents and rules](Observability-Incidents-and-Rules.md) · [Controls, secrets and security](Observability-Controls-and-Security.md) · [Reference](Observability-Reference.md)
 - [Loom CTK (conformance)](../src/loom/ctk/README.md) · [VS Code extension](../src/loom/vscode-loom/README.md)
 
 ### Ship with confidence

@@ -82,7 +82,7 @@ Fabric has no secrets page: values never leave a process, and a server does not 
 
 ## Audit log
 
-One JSON line per sign-in outcome, control request and secret replacement (and, in Fabric, per command result): who, from
+One JSON line per sign-in outcome, control request, secret replacement and configuration change (and, in Fabric, per command result): who, from
 which address, what, and the outcome. File: `loom-inspect-audit.log` in the working directory for an embedded page
 (`-Dloom.inspect.audit=…` moves it), `<data>/audit.log` in Fabric. **Never** a password, token or secret value.
 

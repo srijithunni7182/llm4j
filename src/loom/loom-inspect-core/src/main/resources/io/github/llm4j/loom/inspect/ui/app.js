@@ -3,7 +3,7 @@
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var selected = null, agentFilter = null, view = null, viewAt = 0;
-  var fabric = false, procs = [], showProcs = false, showSecrets = false, sess = {};
+  var fabric = false, procs = [], showProcs = false, showSecrets = false, showConfig = false, sess = {};
 
   function store(k, v) { try { if (v === undefined) { return localStorage.getItem(k); } localStorage.setItem(k, v); } catch (e) { return null; } return null; }
 
@@ -51,26 +51,32 @@
     if (fabric) {
       var p = el('button', 'wt proc' + (showProcs ? ' on' : ''), 'Processes');
       p.type = 'button';
-      p.addEventListener('click', function () { showProcs = true; renderAll(); });
+      p.addEventListener('click', function () { showProcs = true; showConfig = false; renderAll(); });
       nav.appendChild(p);
     }
     if (sess.secretsEnabled && !fabric) {
       var sb = el('button', 'wt proc' + (showSecrets ? ' on' : ''), 'Secrets');
       sb.type = 'button';
-      sb.addEventListener('click', function () { showSecrets = true; showProcs = false; tick(); });
+      sb.addEventListener('click', function () { showSecrets = true; showProcs = false; showConfig = false; tick(); });
       nav.appendChild(sb);
+    }
+    if (sess.configEnabled && fabric) {
+      var cb = el('button', 'wt proc' + (showConfig ? ' on' : ''), 'Configuration');
+      cb.type = 'button';
+      cb.addEventListener('click', function () { showConfig = true; showProcs = false; showSecrets = false; tick(); });
+      nav.appendChild(cb);
     }
     var clients = {};
     runs.forEach(function (r) { clients[r.client] = true; });
     var grouped = fabric || Object.keys(clients).length > 1;   // one tab per process and workflow, never merged
     runs.forEach(function (r) {
-      var b = el('button', 'wt' + (!showProcs && !showSecrets && r.traceId === selected ? ' on' : ''));
+      var b = el('button', 'wt' + (!showProcs && !showSecrets && !showConfig && r.traceId === selected ? ' on' : ''));
       b.type = 'button';
       b.appendChild(el('span', 'dot ' + tabState(r.status)));
       b.appendChild(el('span', '', (grouped && r.client ? r.client + ' / ' : '') + (r.workflow || 'run')));
       if (r.incidents > 0) { b.appendChild(el('span', 'sev ' + (r.worstIncident || 'warn') + ' inc', String(r.incidents))); }
       b.title = r.status + ' · ' + shortId(r.runId || r.traceId);
-      b.addEventListener('click', function () { selected = r.traceId; agentFilter = null; showProcs = false; showSecrets = false; tick(); });
+      b.addEventListener('click', function () { selected = r.traceId; agentFilter = null; showProcs = false; showSecrets = false; showConfig = false; tick(); });
       nav.appendChild(b);
     });
     nav.hidden = !fabric && runs.length < 2 && !(sess.secretsEnabled && !fabric);
@@ -503,6 +509,65 @@
     }).catch(function (err) { $('ro-err').textContent = err.message; $('ro-err').hidden = false; $('ro-pw').value = ''; });
   });
 
+  // ---- configuration (Fabric): the inspect rules and the price table, edited here and kept on the server
+  var cfgLoaded = false;
+  function sectionUi(name) {
+    return { text: $(name + '-text'), summary: $(name + '-summary'), problems: $(name + '-problems'), msg: $(name + '-msg') };
+  }
+  function showProblems(u, list) {
+    u.problems.textContent = '';
+    (list || []).forEach(function (p) { u.problems.appendChild(el('li', '', p)); });
+    u.problems.hidden = !(list && list.length);
+  }
+  function loadConfig(force) {
+    return fetchJson('/api/config').then(function (d) {
+      ['rules', 'prices'].forEach(function (name) {
+        var u = sectionUi(name), s = d.sections[name];
+        u.summary.textContent = s.summary;
+        if (force || !cfgLoaded || document.activeElement !== u.text) { if (force || !cfgLoaded) { u.text.value = s.text; } }
+        if (!u.problems.dataset.err) { showProblems(u, s.warnings); }
+      });
+      cfgLoaded = true;
+    });
+  }
+  function renderConfig() {
+    var on = showConfig;
+    $('config').hidden = !on;
+    if (!on) { return; }
+    ['main', 'empty', 'processes', 'banner', 'secrets'].forEach(function (i) { $(i).hidden = true; });
+    ['status', 'meta', 'conn'].forEach(function (i) { $(i).hidden = true; });
+    $('wfname').textContent = ''; $('client').textContent = ''; $('controls').hidden = true;
+    $('cfgsignin').hidden = !!sess.signedIn;
+    $('cfgbody').hidden = !sess.signedIn;
+    if (sess.signedIn) { loadConfig(false).catch(function () { }); }
+  }
+  function saveConfig(name) {
+    var u = sectionUi(name);
+    u.msg.textContent = 'saving…';
+    sessionCsrf().then(function (s) {
+      if (!s.signedIn) { throw new Error('Your session ended. Sign in again.'); }
+      return fetch('/api/config/' + name, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify({ text: u.text.value }) });
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (b) {
+        if (!r.ok) {
+          u.problems.dataset.err = '1';
+          showProblems(u, b.problems && b.problems.length ? b.problems : [b.message || b.error || ('Refused (' + r.status + ')')]);
+          u.msg.textContent = b.message || 'not saved';
+          return;
+        }
+        delete u.problems.dataset.err;
+        u.msg.textContent = b.message;
+        showProblems(u, b.problems);
+        return loadConfig(false);
+      });
+    }).catch(function (err) { u.msg.textContent = err.message; });
+  }
+  ['rules', 'prices'].forEach(function (name) {
+    $(name + '-save').addEventListener('click', function () { saveConfig(name); });
+    $(name + '-reset').addEventListener('click', function () { var u = sectionUi(name); delete u.problems.dataset.err; u.msg.textContent = ''; loadConfig(true); });
+  });
+  $('cfgsigninbtn').addEventListener('click', function () { $('si-err').hidden = true; $('signin').showModal(); $('sipw').focus(); });
+
   $('si-cancel').addEventListener('click', function () { $('signin').close(); });
   $('signinform').addEventListener('submit', function (e) {
     e.preventDefault();
@@ -674,6 +739,8 @@
           renderProcesses();
           $('mode').textContent = fabric ? 'Fabric' : 'embedded mode';
           if (showProcs) { ['status', 'meta', 'conn'].forEach(function (i) { $(i).hidden = true; }); $('wfname').textContent = ''; $('client').textContent = ''; $('banner').hidden = true; }
+          if (showConfig) { $('secrets').hidden = true; renderConfig(); return null; }
+          $('config').hidden = true;
           if (showSecrets) { renderSecrets(); return null; }
           $('secrets').hidden = true;
           return selected && !showProcs ? fetchJson('/api/runs/' + selected).then(function (v) { view = v; viewAt = Date.now(); render(); renderConnection(); }) : null;

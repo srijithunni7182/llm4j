@@ -166,7 +166,7 @@ public final class InspectSession implements ObserveProvider.Session {
                     if (server != null) registry.setLadders(options.name(), trace, ladders);
                 }
                 if (link != null) {
-                    link.snapshot(new Snapshot(options.name(), resource.instanceId(), trace, run.runId(), firstWorkflow(run), graph.get(), List.of(), rules), ladders);
+                    link.snapshot(new Snapshot(options.name(), resource.instanceId(), trace, run.runId(), firstWorkflow(run), graph.get(), List.of(), rules, modelsOf(run)), ladders);
                 }
             }
             if (link != null) link.offer(out, resource); // to disk first; sending is another thread's business
@@ -189,6 +189,15 @@ public final class InspectSession implements ObserveProvider.Session {
             for (TraceEvent s : sampler.samples(event)) sink.onEvent(s);
             sink.onEvent(event);
         });
+    }
+
+    /** The model each agent of the script uses, so a server can cost its steps from its own price table. */
+    private static java.util.Map<String, String> modelsOf(ObservableRun run) {
+        java.util.Map<String, String> m = new java.util.LinkedHashMap<>();
+        if (run.script() != null) {
+            for (io.github.llm4j.loom.ast.AgentDef a : run.script().getAgents()) if (a.getModel() != null) m.put(a.getName(), a.getModel());
+        }
+        return m;
     }
 
     private static String firstWorkflow(ObservableRun run) {

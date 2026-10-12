@@ -62,10 +62,12 @@ The embedded server and Fabric serve the same routes (Fabric adds `processes`). 
 | `GET /api/runs/{trace}` | One run's full view: totals, agents, tools, spend series, incidents, recent events, control state, connection state, and (signed in) `controls.allowed` |
 | `GET /api/runs/{trace}/graph` | The workflow graph, with node paths the page marks as the run progresses |
 | `GET /api/processes` | (Fabric) the Processes table |
-| `GET /api/session` | `{signedIn, csrf (when signed in), controlsEnabled, controlsReason, secretsEnabled, passwordSet}` |
+| `GET /api/session` | `{signedIn, csrf (when signed in), controlsEnabled, controlsReason, secretsEnabled, configEnabled, passwordSet}` |
 | `POST /api/login` | JSON `{password}`; sets the cookie, returns `{csrf}`. `429` when throttled, `503` when no password is set |
 | `POST /api/logout` | Ends the session |
 | `POST /api/runs/{trace}/{pause\|resume\|suspend\|stop}` | A control. Needs session, `X-CSRF-Token`, same origin. `202` taken, `401`, `403`, `404`, `409` not available now |
+| `GET /api/config` | (Fabric) the Configuration sections: `rules` and `prices`, each `{text, summary, warnings}` |
+| `PUT /api/config/{rules\|prices}` | (Fabric) `{text}`. Checked, then kept whole or not at all: `200` saved, `422` with `problems` (line numbers), `413`, `403`. Needs session and `X-CSRF-Token` |
 | `GET /api/secrets` | (embedded) secrets with fingerprints, hosts, used-by. Never values |
 | `PUT /api/secrets/{name}` | (embedded) `{value, password}`. Replaces an existing secret |
 
@@ -115,7 +117,7 @@ Log events (`event.name`): `loom.run.start`, `loom.run.end`, `loom.run.suspended
 |---|---|
 | Local outbox | `<--observe-outbox>/<name>/<instance>/` (segments, checksums, cursors; 256 MB or 7 days) |
 | Embedded audit log | `loom-inspect-audit.log` (`-Dloom.inspect.audit=path` moves it) |
-| Fabric data | `<data>/vault.json`, `master.key`, `history/<client>/<day>.jsonl`, `audit.log` |
+| Fabric data | `<data>/vault.json`, `master.key`, `history/<client>/<day>.jsonl`, `audit.log`, `config/rules.inspect`, `config/prices.properties` |
 | Rules file | `<script>.inspect` or `--observe-rules` |
 | Price table | `--prices`, `<script>.prices`, `prices.properties`, `LOOM_PRICES` |
 

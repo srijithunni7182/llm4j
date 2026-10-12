@@ -15,6 +15,7 @@ It is a single JAR that needs a JDK and nothing else: no Loom runtime, no model 
 | **Keeps history** | On disk, one JSON-lines file per client and day. Every accepted batch is forced to disk before it is acknowledged; a restart rebuilds the page from it |
 | **Authenticates processes** | A key per process (HMAC-SHA256 over the timestamp and body, 5-minute replay window). Revoking a key takes effect within a second, no restart |
 | **Authenticates people** | One admin password; session cookie (HttpOnly, SameSite=Strict), CSRF token on every write, growing delay and a global limit on wrong guesses |
+| **Central configuration** | An admin edits the inspect rules and the price table on the Configuration page ([below](#configuration-page)) |
 | **Controls** | Pause, resume, suspend and stop, delivered to the process as signed commands on its long-poll ([details](Observability-Controls-and-Security.md)) |
 | **Protects itself** | Per-client rate limit (answers `429` with `Retry-After`; the process backs off), body size cap (16 MB), no listening on a public address without TLS |
 | **Audits** | Every sign-in outcome, control request and command result goes to `<data>/audit.log`. Never passwords, tokens or secret values |
@@ -90,9 +91,24 @@ them, `weave observe purge` removes them.
 
 The server's time comes back in every heartbeat answer, but nothing yet warns about a skewed clock: keep clocks in sync (NTP), because a signature more than 5 minutes off is refused.
 
+## Configuration page
+
+Signed in, open **Configuration**. Two documents live on the server, in the same format as the files a process keeps beside its
+script. Each has its own **Save** and **Discard changes**.
+
+| Document | What it does | Notes |
+|---|---|---|
+| **Inspect rules** (`<data>/config/rules.inspect`) | What counts as trouble, per agent (`Editor { same_action: 3 times }`, `* { paused_longer_than: 90s }`). Laid over each run's own rules, **rule by rule**, and in force at once for every run, running ones included | The format and the rules are those of [`flow.inspect`](Observability-Incidents-and-Rules.md). A variable for `no_progress` is read in the process, so it only takes effect where that process's own rules name it |
+| **Price table** (`<data>/config/prices.properties`) | `model = input / output`, dollars per million tokens. A step whose process reported tokens but no cost is costed from it | A process with its own price file keeps its own cost. Costs already counted do not change. A model with no price has no cost |
+
+A save is **checked first**. Errors come back with line numbers (an unknown rule with the nearest name suggested, a price
+that is not a number) and **nothing is kept**. A valid save is written atomically, survives a restart, and is recorded in
+`audit.log` (who, which document, how long; not the text). The page shows what is in force now and any warnings. The same
+files can be edited on disk; they are read at start-up, and a file with errors is reported and not used.
+
 ## What it keeps
 
-`<data>/history/<client>/<day>.jsonl` (no database) plus `audit.log`, `vault.json` and `master.key`. Retention is 30 days
+`<data>/history/<client>/<day>.jsonl` (no database) plus `config/` (rules and prices), `audit.log`, `vault.json` and `master.key`. Retention is 30 days
 and 2 GB by default (`--retention-days`, `--retention-size`), oldest day first; it runs at start-up and hourly.
 
 ## Packaging and operation

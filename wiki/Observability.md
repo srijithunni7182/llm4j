@@ -25,6 +25,8 @@ weave daemon triggers/ --secrets keys.store \
 - **Controls**: pause, resume, suspend, stop; admin only, confirm dialog, CSRF, audited, delivered to remote processes as
   signed commands. → [Controls, secrets and security](Observability-Controls-and-Security.md)
 - **Secrets** (embedded): list with fingerprints and used-by; replace a value with the password re-entered.
+- **Central configuration**: an admin sets the inspect rules and the price table from Fabric's Configuration page.
+  → [Fabric server](Fabric-Server.md#configuration-page)
 - **Never loses events**: a local on-disk outbox; a Fabric that is down or restarted affects nothing and catches up.
 - **OpenTelemetry**: OTLP/JSON to Fabric and, optionally, any OTLP endpoint.
 - **Privacy**: `--observe-detail full|truncated|metadata`; the incident rules work at every level.
@@ -40,6 +42,7 @@ weave daemon triggers/ --secrets keys.store \
 | Page | Covers |
 |---|---|
 | [Observability guide](../docs/OBSERVABILITY.md) | The full overview: concepts, how it works, detail levels, cost, embedded vs Fabric, limits |
+| [**Deployment guide**](../docs/OBSERVABILITY_DEPLOYMENT.md) | Setting it up for production, step by step, with a checklist |
 | [Fabric server](Fabric-Server.md) | Install, clients and keys, TLS, retention, the Processes page, packaging, troubleshooting |
 | [Incidents and rules](Observability-Incidents-and-Rules.md) | Every incident, defaults, the `flow.inspect` file, `weave observe rules` |
 | [Controls, secrets and security](Observability-Controls-and-Security.md) | Admin password, sign-in protection, controls, secrets rotation, audit, threat notes |

@@ -53,6 +53,14 @@ Scriptwriter { ungrounded_figures: warn at 2, high at 4 }
   snapshot, so **the server needs neither the script nor the file**.
 - A pause belongs to the run, so the shortest `paused_longer_than` anyone set decides when it becomes a warning.
 
+### Rules kept on the Fabric server
+
+An admin can also keep rules **centrally**, on Fabric's Configuration page, in this same format. They are laid over each run's
+own rules **rule by rule**, so one setting changed centrally does not discard the rest of a process's file, and they apply
+at once to every run, running ones included. Use them to tune thresholds for a whole fleet without touching any machine.
+The one thing a server cannot do is read a workflow variable: for `no_progress`, the process's own rules must name the
+variable, and the rounds set centrally replace its count. See [Fabric server](Fabric-Server.md#configuration-page).
+
 ### Check a rules file without running anything
 
 ```bash
@@ -68,7 +76,6 @@ reported once and **not used** (the defaults apply). The workflow is never affec
 ## Not built
 
 - `unsupported_claims … from <field>` (a reviewer's structured count against a share).
-- A central rules file kept on the Fabric server, so thresholds could change without touching the process's machine.
 - The first round's start is not a loop boundary, so the earliest `no_progress: N rounds` fires is the start of round N+1.
 
 ## See also

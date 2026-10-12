@@ -319,4 +319,29 @@ class IncidentTest {
         toolStart(3, "Editor", "Wiki", "W/s1", "h1");
         assertThat(incidents()).hasSize(2);
     }
+
+    @Test
+    void rulesKeptAtTheServerAreLaidOverTheProcessesOwnRuleByRule_andRemovingThemRestoresTheOriginals() {
+        start();
+        run().setRules(Map.of("Editor", rules(3, null, null, null)));
+        reg.setCentralRules(Map.of("Editor", new InspectRules(2, null, null, null, null, null, null, null)));
+        toolStart(1, "Editor", "Wiki", "W/s1", "h1");
+        toolStart(2, "Editor", "Wiki", "W/s1", "h1");
+        assertThat(incidents()).hasSize(1); // the server's 2 beats the process's 3
+        assertThat(evidence(incidents().get(0))).containsEntry("threshold", 2);
+
+        reg.setCentralRules(Map.of());
+        toolStart(1, "Other", "Wiki", "W/s9", "h2");
+        run().setRules(Map.of("Editor", rules(3, null, null, null)));
+        assertThat(incidents()).hasSize(1); // already open stays; the point is the rules are the process's again
+    }
+
+    @Test
+    void aServerRuleForAnAgentTheProcessDidNotMentionApplies() {
+        start();
+        reg.setCentralRules(Map.of("*", rules(2, null, null, null)));
+        toolStart(1, "Anyone", "Wiki", "W/s1", "h1");
+        toolStart(2, "Anyone", "Wiki", "W/s1", "h1");
+        assertThat(incidents()).hasSize(1);
+    }
 }

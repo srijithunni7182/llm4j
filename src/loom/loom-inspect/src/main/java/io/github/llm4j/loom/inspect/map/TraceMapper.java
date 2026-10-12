@@ -231,6 +231,8 @@ public final class TraceMapper {
         Map<String, Object> extra = new LinkedHashMap<>();
         if (data.get("tokens") != null) extra.put(Semconv.LOOM_USAGE_TOTAL_TOKENS, number(data.get("tokens")));
         if (data.get("calls") != null) extra.put(Semconv.LOOM_USAGE_CALLS, number(data.get("calls")));
+        if (data.get("promptTokens") != null) extra.put(Semconv.GEN_AI_USAGE_INPUT_TOKENS, number(data.get("promptTokens")));
+        if (data.get("completionTokens") != null) extra.put(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS, number(data.get("completionTokens")));
         if (data.get("cost") != null) extra.put(Semconv.LOOM_COST_USD, String.valueOf(data.get("cost")));
         String t = detail.apply(e.text());
         if (t != null) extra.put(Semconv.LOOM_TEXT, t);

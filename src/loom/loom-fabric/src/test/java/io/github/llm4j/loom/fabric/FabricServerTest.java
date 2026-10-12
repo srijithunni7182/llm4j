@@ -243,4 +243,55 @@ class FabricServerTest {
         String audit = java.nio.file.Files.readString(dir.resolve("audit.log"));
         assertThat(audit).contains("\"action\":\"stop\"").contains("command-result").contains("stop requested").doesNotContain("correct horse");
     }
+
+    private HttpResponse<String> put(String path, String body, String cookie, String csrf) throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(base + path)).header("Content-Type", "application/json").PUT(HttpRequest.BodyPublishers.ofString(body));
+        if (cookie != null) b.header("Cookie", cookie);
+        if (csrf != null) b.header("X-CSRF-Token", csrf);
+        return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private String csrf(String cookie) throws Exception {
+        return JSON.readTree(http.send(HttpRequest.newBuilder(URI.create(base + "/api/session")).header("Cookie", cookie).build(), HttpResponse.BodyHandlers.ofString()).body()).get("csrf").asText();
+    }
+
+    @Test
+    void theConfigurationNeedsASessionAndTheToken_aBadFileIsRefusedWithItsLinesAndNothingIsKept() throws Exception {
+        assertThat(api("/api/config", null).statusCode()).isEqualTo(401);
+        String cookie = login();
+        String csrf = csrf(cookie);
+        assertThat(put("/api/config/rules", "{\"text\":\"Editor { same_action: 3 times }\"}", null, null).statusCode()).isEqualTo(401);
+        assertThat(put("/api/config/rules", "{\"text\":\"Editor { same_action: 3 times }\"}", cookie, "wrong").statusCode()).isEqualTo(403);
+
+        HttpResponse<String> bad = put("/api/config/rules", "{\"text\":\"Editor {\\n  same_action: 0 times\\n  made_up: 3\\n}\"}", cookie, csrf);
+        assertThat(bad.statusCode()).isEqualTo(422);
+        assertThat(JSON.readTree(bad.body()).get("problems").toString()).contains("made_up");
+        assertThat(JSON.readTree(api("/api/config", cookie).body()).at("/sections/rules/text").asText()).isEmpty(); // nothing kept
+
+        HttpResponse<String> badPrices = put("/api/config/prices", "{\"text\":\"gemini = cheap\"}", cookie, csrf);
+        assertThat(badPrices.statusCode()).isEqualTo(422);
+        assertThat(put("/api/config/other", "{\"text\":\"x\"}", cookie, csrf).statusCode()).isEqualTo(404);
+    }
+
+    @Test
+    void savedRulesAndPricesAreInForceAtOnce_surviveARestart_andAreAudited() throws Exception {
+        String cookie = login();
+        String csrf = csrf(cookie);
+        assertThat(put("/api/config/rules", "{\"text\":\"* { same_action: 2 times }\\n\"}", cookie, csrf).statusCode()).isEqualTo(200);
+        HttpResponse<String> ok = put("/api/config/prices", "{\"text\":\"m = 1 / 2\\n\"}", cookie, csrf);
+        assertThat(ok.statusCode()).isEqualTo(200);
+        assertThat(JSON.readTree(ok.body()).get("message").asText()).contains("1 model");
+        JsonNode view = JSON.readTree(api("/api/config", cookie).body());
+        assertThat(view.at("/sections/rules/summary").asText()).contains("1 block");
+        assertThat(view.at("/sections/prices/text").asText()).contains("m = 1 / 2");
+
+        server.close();
+        boot(100, 200);
+        String again = login();
+        JsonNode after = JSON.readTree(api("/api/config", again).body());
+        assertThat(after.at("/sections/rules/text").asText()).contains("same_action: 2 times");
+        assertThat(after.at("/sections/prices/summary").asText()).contains("1 model");
+        String audit = java.nio.file.Files.readString(dir.resolve("audit.log"));
+        assertThat(audit).contains("change-config").contains("rules").contains("prices").contains("saved");
+    }
 }

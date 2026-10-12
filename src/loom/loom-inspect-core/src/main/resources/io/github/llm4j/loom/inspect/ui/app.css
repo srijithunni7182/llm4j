@@ -226,3 +226,12 @@ tr.flag.high td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
 .dlg h2 { margin: 0 0 8px; font-size: 15px; }
 .dlg input { width: 100%; box-sizing: border-box; height: 34px; margin: 8px 0; padding: 0 10px; border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: transparent; color: var(--ink); font: inherit; }
 .dlg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+
+.cfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; padding: 12px 16px 16px; }
+.cfgcard { border: 1px solid var(--line); border-radius: var(--radius-md); padding: 14px 16px; background: var(--surface); }
+.cfgcard h3 { margin: 0 0 4px; font-size: 14px; }
+.cfgcard textarea { width: 100%; box-sizing: border-box; margin: 6px 0; padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: transparent; color: var(--ink); font-size: 12.5px; line-height: 1.5; resize: vertical; }
+.cfgcard textarea:focus-visible { outline: 2px solid var(--live); outline-offset: 1px; }
+.cfgactions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.problems { margin: 4px 0 8px; padding-left: 18px; color: var(--danger); font: 400 12px/1.5 var(--font-mono); }
+.small { font-size: 12px; }

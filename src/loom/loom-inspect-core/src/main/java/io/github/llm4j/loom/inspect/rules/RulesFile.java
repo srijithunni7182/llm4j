@@ -1,6 +1,5 @@
 package io.github.llm4j.loom.inspect.rules;
 
-import io.github.llm4j.loom.autonomy.expr.Suggest;
 import io.github.llm4j.loom.inspect.state.InspectRules;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -183,7 +182,7 @@ public final class RulesFile {
             if (RULES.contains(word)) {
                 problems.add(new Problem(line, true, "cannot read '" + rule + "'. " + example(word)));
             } else {
-                problems.add(new Problem(line, true, "unknown rule '" + word + "'" + Suggest.hint(word, RULES) + ". The rules are: " + String.join(", ", RULES) + "."));
+                problems.add(new Problem(line, true, "unknown rule '" + word + "'" + Nearest.hint(word, RULES) + ". The rules are: " + String.join(", ", RULES) + "."));
             }
         }
     }

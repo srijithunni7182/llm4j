@@ -654,3 +654,12 @@ A way to exercise Fabric and the page without a model: `Simulate` (in the `loom-
 Cost on the page is the cost the Loom runtime puts on each step; loom-inspect and Fabric hold no prices. The runtime computes it from a `PriceTable` (`model = input / output` per million tokens; none ship with Loom because prices go stale). A model with no price has no cost, which the page currently shows as $0.000 (unpriced, not free).
 
 What was missing: `--prices` existed only on `weave run`, `eval` and `replay`, so a `daemon`, `tick` or `resume` (the usual way a workflow is watched through Fabric) reported no cost. The file is now found without a flag: `--prices`, then `<script>.prices` or `prices.properties` beside the script, then `LOOM_PRICES`. The simulator reads its own `sim.prices`, and its test checks a priced run reports a positive cost end to end.
+
+## 11m. Central configuration in Fabric
+
+An admin edits the **inspect rules** and the **price table** on a Configuration page; they live in `<data>/config/` (`rules.inspect`, `prices.properties`) in the same formats a process keeps beside its script.
+
+- **Rules** are laid over each run's own rules rule by rule (`RunState` keeps the process's rules and the server's apart and merges them), and applied to existing runs at once. The `RulesFile` parser moved from `loom-inspect` to `loom-inspect-core` (with a copy of Loom's name suggester) so the server can check a file without the Loom runtime; `RulesCheck`, which needs a script, stays in the add-on. A `no_progress` variable is still read in the process.
+- **Prices** (`PriceBook`, same lines as Loom's file): a step that reports tokens and no cost is costed at the server. That needed three things from the process: the prompt/completion token split on the agent step (`gen_ai.usage.input_tokens` and `output_tokens`), and, in the snapshot, the model each agent uses. A process that reports its own cost keeps it. Costs are fixed when a step is ingested, so a price change affects later steps only.
+- **API**: `GET /api/config`, `PUT /api/config/{rules|prices}` (session, CSRF, same origin, 256 KB). A save is validated and written whole or not at all (422 with line-numbered problems); every change is audited (document and length, not the text).
+- **Not built**: rules or prices per client; recomputing the cost of runs already counted; editing the retention settings from the page.

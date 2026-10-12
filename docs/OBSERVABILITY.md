@@ -31,7 +31,8 @@ Both show the same page. Neither changes how a workflow behaves, and a missing o
 | **Fault tolerance** | Events go to a local on-disk outbox first. A server that is down, slow or restarted loses nothing; the page shows *catching up*, then no gaps |
 | **OpenTelemetry** | Traces and logs in OTLP/JSON, to Fabric and optionally to any OTLP endpoint (Collector, Tempo, Honeycomb, Datadog) |
 | **Privacy levels** | `--observe-detail full`, `truncated` (default) or `metadata`: how much of what agents say leaves the process |
-| **Cost** | From your price file; loom-inspect and Fabric hold no prices of their own ([cost](#cost)) |
+| **Central configuration** | In Fabric, an admin edits the **inspect rules** and the **price table** on a Configuration page: checked on save, in force at once, kept across restarts ([details](../wiki/Fabric-Server.md#configuration-page)) |
+| **Cost** | From a price file at the process, or from the price table kept on Fabric ([cost](#cost)) |
 
 ## Quick start
 
@@ -104,9 +105,11 @@ leaks. Secrets never travel at all.
 
 ## Cost
 
-The page shows the cost the Loom runtime reports; loom-inspect and Fabric know no prices. The runtime computes cost from
-a price table: lines of `model = input / output` per million tokens, because prices go stale and none ship with Loom.
-The file is found without a flag, in this order:
+The page shows a cost in dollars. It comes from a price table: Loom's runtime computes it at the process, or Fabric computes it
+from the table an admin keeps on its Configuration page. Either way the table is lines of `model = input / output` per
+million tokens, because prices go stale and none ship with Loom.
+
+**At the process**, the file is found without a flag, in this order:
 
 1. `--prices <file>`
 2. `<script>.prices` beside the script (`flow.prices` for `flow.loom`)
@@ -118,6 +121,9 @@ The file is found without a flag, in this order:
 gemini-2.5-flash = 0.30 / 2.50
 gpt-4o-mini      = 0.15 / 0.60
 ```
+
+**On Fabric**, the same lines go in the Configuration page. A step whose process reported tokens but no cost is costed from
+them; a process that reports its own cost keeps it. Costs already counted do not change when the table does.
 
 A model with no price reports no cost, and the page then shows `$0.000`, which means *unpriced*, not free. Local
 `ollama/*` models are free.
@@ -147,6 +153,7 @@ You can use both at once, and add `--observe-otlp` for an OpenTelemetry backend.
 
 ## Where to go next
 
+- [**Deployment guide**](OBSERVABILITY_DEPLOYMENT.md): setting it up for production, step by step, with a checklist
 - [Fabric server](../wiki/Fabric-Server.md): install, TLS, clients, retention, operations, packaging
 - [Incidents and the rules file](../wiki/Observability-Incidents-and-Rules.md)
 - [Controls, secrets and security](../wiki/Observability-Controls-and-Security.md)

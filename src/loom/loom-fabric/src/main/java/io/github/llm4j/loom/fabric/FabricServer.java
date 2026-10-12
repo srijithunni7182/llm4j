@@ -83,6 +83,7 @@ public final class FabricServer implements AutoCloseable {
     private final Receiver receiver = new Receiver(registry, clock);
     private final History history;
     private final io.github.llm4j.loom.inspect.receive.CommandQueue commands = new io.github.llm4j.loom.inspect.receive.CommandQueue(clock);
+    private final FabricConfig config;
     private final io.github.llm4j.loom.inspect.http.AdminSessions admin;
     private final io.github.llm4j.loom.inspect.control.AuditSink audit;
     private final RateLimiter limiter;
@@ -122,6 +123,8 @@ public final class FabricServer implements AutoCloseable {
         InspectServer.Config c = InspectServer.config().bind(settings.bind(), settings.port());
         if (settings.tls() != null) c.tls(settings.tls());
         if (!loopback || settings.trustProxy()) c.anyAddress();
+        this.config = new FabricConfig(settings.data(), registry, out);
+        c.settings(config);
         c.sessions(admin).audit(audit).controls(new FabricControls(receiver, commands, () -> vault.get(Vault.ADMIN)), audit).threads(64); // many processes each hold a command long-poll open
         c.gate(x -> {
             if (admin.valid(x)) return true;
@@ -143,6 +146,7 @@ public final class FabricServer implements AutoCloseable {
 
     /** Rebuilds live state from the history, starts serving, and starts the retention timer. */
     public void start() {
+        config.load();
         restore();
         http.start();
         janitor.scheduleWithFixedDelay(this::retain, 1, 60, TimeUnit.MINUTES);

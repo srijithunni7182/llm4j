@@ -64,6 +64,10 @@ public final class RunState {
     private String controlPending;
     private String controlBy;
     private boolean heldByOperator;
+    private Map<String, InspectRules> processRules = Map.of();
+    private Map<String, InspectRules> centralRules = Map.of();
+    private Map<String, String> models = Map.of();
+    private PriceBook prices = PriceBook.EMPTY;
     private Map<String, Object> graph;
     private java.util.function.Supplier<List<Map<String, Object>>> ladders;
     private String suspendReason;
@@ -110,7 +114,42 @@ public final class RunState {
 
     /** The per-agent rules a script's {@code inspect} blocks give, by agent name. */
     public synchronized void setRules(Map<String, InspectRules> rules) {
-        detectors.rules(rules);
+        processRules = rules == null ? Map.of() : Map.copyOf(rules);
+        detectors.rules(merged());
+    }
+
+    /** Rules kept at a server, laid over the process's own rule by rule. */
+    public synchronized void setCentralRules(Map<String, InspectRules> rules) {
+        centralRules = rules == null ? Map.of() : Map.copyOf(rules);
+        detectors.rules(merged());
+    }
+
+    private Map<String, InspectRules> merged() {
+        if (centralRules.isEmpty()) return processRules;
+        Map<String, InspectRules> out = new java.util.LinkedHashMap<>(processRules);
+        centralRules.forEach((agent, c) -> out.merge(agent, c, RunState::over));
+        return out;
+    }
+
+    /** {@code top}'s rules where it sets one, else {@code base}'s. */
+    private static InspectRules over(InspectRules base, InspectRules top) {
+        return new InspectRules(
+                top.sameAction() != null ? top.sameAction() : base.sameAction(),
+                top.sameOutput() != null ? top.sameOutput() : base.sameOutput(),
+                top.toolFailures() != null ? top.toolFailures() : base.toolFailures(),
+                top.ungroundedWarn() != null ? top.ungroundedWarn() : base.ungroundedWarn(),
+                top.ungroundedHigh() != null ? top.ungroundedHigh() : base.ungroundedHigh(),
+                top.pausedLongerThanSeconds() != null ? top.pausedLongerThanSeconds() : base.pausedLongerThanSeconds(),
+                top.noProgressRounds() != null ? top.noProgressRounds() : base.noProgressRounds(),
+                top.noProgressVariable() != null ? top.noProgressVariable() : base.noProgressVariable());
+    }
+
+    public synchronized void setModels(Map<String, String> models) {
+        this.models = models == null ? Map.of() : Map.copyOf(models);
+    }
+
+    public synchronized void setPrices(PriceBook prices) {
+        this.prices = prices == null ? PriceBook.EMPTY : prices;
     }
 
     public synchronized void setGraph(Map<String, Object> graph) {
@@ -297,6 +336,11 @@ public final class RunState {
         long t = number(s.attr(Semconv.LOOM_USAGE_TOTAL_TOKENS));
         long c = number(s.attr(Semconv.LOOM_USAGE_CALLS));
         BigDecimal usd = decimal(s.attr(Semconv.LOOM_COST_USD));
+        if (s.attr(Semconv.LOOM_COST_USD) == null && !prices.isEmpty()) {
+            // the process has no price file: cost the step here, from the tokens it reported and the model its agent uses
+            BigDecimal priced = prices.cost(models.get(name), number(s.attr(Semconv.GEN_AI_USAGE_INPUT_TOKENS)), number(s.attr(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS)));
+            if (priced != null) usd = priced;
+        }
         a.tokens += t;
         a.calls += c;
         a.cost = a.cost.add(usd);

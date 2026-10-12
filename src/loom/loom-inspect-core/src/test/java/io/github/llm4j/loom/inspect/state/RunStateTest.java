@@ -389,4 +389,30 @@ class RunStateTest {
         assertThat(v.get("status")).isEqualTo("paused");
         assertThat(list(v, "incidents")).isEmpty();
     }
+
+    @Test
+    void aStepWithTokensAndNoCostIsCostedFromTheServersPriceBook_butAProcessReportedCostWins() {
+        RunRegistry reg = registry(runStart());
+        reg.setModels("getviral-prod", TRACE, Map.of("Writer", "gemini-2.5-flash", "Other", "gemini-2.5-flash"));
+        reg.setPrices(PriceBook.parse("gemini-2.5-flash = 1 / 2").book());
+
+        SpanRec unpriced = split("a1", "Writer", 1, 2, 1_000_000L, 1_000_000L, null);
+        SpanRec priced = split("a2", "Other", 2, 3, 50L, 50L, "0.5");
+        reg.applySpans(PROC, List.of(unpriced, priced));
+
+        // 1M in at 1 + 1M out at 2 = 3, plus the 0.5 the process reported itself
+        assertThat(new java.math.BigDecimal(String.valueOf(map(run(reg).view(), "totals").get("cost")))).isEqualByComparingTo("3.5");
+    }
+
+    private SpanRec split(String key, String agent, int from, int to, long in, long out, String cost) {
+        Map<String, Object> a = new LinkedHashMap<>();
+        a.put(Semconv.LOOM_SPAN_KIND, Semconv.KIND_AGENT);
+        a.put(Semconv.GEN_AI_AGENT_NAME, agent);
+        a.put(Semconv.LOOM_USAGE_TOTAL_TOKENS, in + out);
+        a.put(Semconv.LOOM_USAGE_CALLS, 1L);
+        a.put(Semconv.GEN_AI_USAGE_INPUT_TOKENS, in);
+        a.put(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS, out);
+        if (cost != null) a.put(Semconv.LOOM_COST_USD, cost);
+        return new SpanRec(TRACE, Ids.spanId(RUN, key), null, "invoke_agent " + agent, SpanRec.CLIENT, at(from), at(to), a, SpanRec.STATUS_OK, null, List.of());
+    }
 }

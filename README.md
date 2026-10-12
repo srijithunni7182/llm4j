@@ -115,7 +115,7 @@ and a [Gmail MCP app](src/examples/gmail-mcp-app/). [All examples](docs/EXAMPLES
 [**Docs index**](docs/README.md) ·
 [Quick Start](src/ai-agent4j/wiki/Getting-Started.md) ·
 [Loom guide](src/loom/ai-agent4j-loom/LOOM_GUIDE.md) ·
-[Observability](docs/OBSERVABILITY.md) ·
+[Observability](docs/OBSERVABILITY.md) · [Deploying observability](docs/OBSERVABILITY_DEPLOYMENT.md) ·
 [Secret Store](src/ai-agent4j/wiki/Secret-Store.md) ·
 [Security](SECURITY.md) ·
 [eval4j](src/eval4j/README.md) ·
