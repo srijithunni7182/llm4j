@@ -82,6 +82,7 @@ public final class FabricServer implements AutoCloseable {
     private final RunRegistry registry = new RunRegistry();
     private final Receiver receiver = new Receiver(registry, clock);
     private final History history;
+    private final io.github.llm4j.loom.inspect.receive.CommandQueue commands = new io.github.llm4j.loom.inspect.receive.CommandQueue(clock);
     private final io.github.llm4j.loom.inspect.http.AdminSessions admin;
     private final io.github.llm4j.loom.inspect.control.AuditSink audit;
     private final RateLimiter limiter;
@@ -121,7 +122,7 @@ public final class FabricServer implements AutoCloseable {
         InspectServer.Config c = InspectServer.config().bind(settings.bind(), settings.port());
         if (settings.tls() != null) c.tls(settings.tls());
         if (!loopback || settings.trustProxy()) c.anyAddress();
-        c.sessions(admin).audit(audit).threads(64); // many processes each hold a command long-poll open
+        c.sessions(admin).audit(audit).controls(new FabricControls(receiver, commands, () -> vault.get(Vault.ADMIN)), audit).threads(64); // many processes each hold a command long-poll open
         c.gate(x -> {
             if (admin.valid(x)) return true;
             InspectServer.send(x, 401, "application/json", InspectServer.json(Map.of("error", "login required")));
@@ -135,6 +136,8 @@ public final class FabricServer implements AutoCloseable {
         c.route("/loom-inspect/v1/snapshot", x -> ingest(x, "snapshot"));
         c.route("/loom-inspect/v1/heartbeat", x -> ingest(x, "heartbeat"));
         c.route("/loom-inspect/v1/bye", x -> ingest(x, "bye"));
+        c.route("/loom-inspect/v1/commands", this::commandPoll);
+        c.route("/loom-inspect/v1/command-result", this::commandResult);
         this.http = new InspectServer(registry, c);
     }
 
@@ -169,22 +172,9 @@ public final class FabricServer implements AutoCloseable {
             reply(x, 405, Map.of("error", "POST only"));
             return;
         }
-        String client = x.getRequestHeaders().getFirst(Signer.CLIENT_HEADER);
         byte[] body = readBody(x);
-        if (body == null) {
-            reply(x, 413, Map.of("error", "body too large"));
-            return;
-        }
-        String key = client != null && NAME.matcher(client).matches() ? vault.get("client." + client) : null;
-        if (key == null || !Signer.verify(key, x.getRequestHeaders().getFirst(Signer.HEADER), body, clock.instant())) {
-            reply(x, 401, Map.of("error", "unauthorised")); // the same answer for an unknown, revoked or wrong key
-            return;
-        }
-        if (!limiter.allow(client)) {
-            x.getResponseHeaders().add("Retry-After", "1");
-            reply(x, 429, Map.of("error", "slow down"));
-            return;
-        }
+        String client = authenticate(x, body);
+        if (client == null) return;
         String text = new String(body, StandardCharsets.UTF_8);
         try {
             Object answer = apply(client, kind, text);
@@ -195,6 +185,77 @@ public final class FabricServer implements AutoCloseable {
         } catch (RuntimeException e) {
             out.println("fabric: could not store a " + kind + " from " + client + ": " + e.getMessage());
             reply(x, 500, Map.of("error", "could not store the message"));
+        }
+    }
+
+    /**
+     * Checks size, signature and rate for a request from a process. Answers the failure itself and returns null, or returns the client's name.
+     * An unknown, revoked or wrong key all get the same answer.
+     */
+    private String authenticate(HttpExchange x, byte[] body) throws IOException {
+        String client = x.getRequestHeaders().getFirst(Signer.CLIENT_HEADER);
+        if (body == null) {
+            reply(x, 413, Map.of("error", "body too large"));
+            return null;
+        }
+        String key = client != null && NAME.matcher(client).matches() ? vault.get("client." + client) : null;
+        if (key == null || !Signer.verify(key, x.getRequestHeaders().getFirst(Signer.HEADER), body, clock.instant())) {
+            reply(x, 401, Map.of("error", "unauthorised"));
+            return null;
+        }
+        if (!limiter.allow(client)) {
+            x.getResponseHeaders().add("Retry-After", "1");
+            reply(x, 429, Map.of("error", "slow down"));
+            return null;
+        }
+        return client;
+    }
+
+    /** A process asks for its commands and waits up to the time it names (at most 25 s). The answer is signed with that process's key. */
+    private void commandPoll(HttpExchange x) throws IOException {
+        if (!"POST".equals(x.getRequestMethod())) {
+            x.getResponseHeaders().add("Allow", "POST");
+            reply(x, 405, Map.of("error", "POST only"));
+            return;
+        }
+        byte[] body = readBody(x);
+        String client = authenticate(x, body);
+        if (client == null) return;
+        long wait = 25;
+        try {
+            wait = Math.max(0, Math.min(25, new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).path("wait").asLong(25)));
+        } catch (IOException | RuntimeException e) {
+            // an unreadable body means the default wait
+        }
+        java.util.List<io.github.llm4j.loom.inspect.wire.Command> due;
+        try {
+            due = commands.next(client, java.time.Duration.ofSeconds(wait));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+        byte[] answer = InspectServer.json(Map.of("client", client, "commands", due));
+        x.getResponseHeaders().add(Signer.HEADER, Signer.sign(vault.get("client." + client), clock.instant(), answer));
+        InspectServer.send(x, 200, "application/json", answer);
+    }
+
+    /** A process says what it did with a command; recorded in the audit log. */
+    private void commandResult(HttpExchange x) throws IOException {
+        if (!"POST".equals(x.getRequestMethod())) {
+            x.getResponseHeaders().add("Allow", "POST");
+            reply(x, 405, Map.of("error", "POST only"));
+            return;
+        }
+        byte[] body = readBody(x);
+        String client = authenticate(x, body);
+        if (client == null) return;
+        try {
+            io.github.llm4j.loom.inspect.wire.CommandResult r = read(new String(body, StandardCharsets.UTF_8), io.github.llm4j.loom.inspect.wire.CommandResult.class);
+            commands.result(r);
+            audit.record(new java.util.LinkedHashMap<>(Map.of("event", "command-result", "client", client, "command", String.valueOf(r.id()), "accepted", r.accepted(), "message", String.valueOf(r.message()))));
+            reply(x, 200, Map.of("ok", true));
+        } catch (Receiver.Rejected r) {
+            reply(x, r.status(), Map.of("error", r.getMessage()));
         }
     }
 

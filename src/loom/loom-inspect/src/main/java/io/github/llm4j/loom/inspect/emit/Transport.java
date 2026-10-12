@@ -14,4 +14,9 @@ public interface Transport {
 
     /** Throws {@link IOException} when the server cannot be reached; any answer, even an error status, is a {@link Reply}. */
     Reply post(String path, String body) throws IOException;
+
+    /** As {@link #post}, for an answer that carries orders: an answer not signed by the server with this process's key is an {@link IOException}. */
+    default Reply postVerified(String path, String body) throws IOException {
+        return post(path, body);
+    }
 }

@@ -56,6 +56,8 @@ public final class Outbound implements AutoCloseable {
     private final Duration flushTimeout;
     private final PrintStream out;
     private final Map<String, Supplier<List<Map<String, Object>>>> ladders = new ConcurrentHashMap<>();
+    private Transport transport;
+    private CommandPoller commands;
     private volatile long writeFailures;
     private volatile long lastReport;
 
@@ -126,6 +128,7 @@ public final class Outbound implements AutoCloseable {
                 : new OtlpExport(own, otlpCursor, otlpSender, timing, out, acked -> own.trim(minCursor.getAsLong()));
         Outbound fl = new Outbound(own, link, export, flushTimeout, out);
         self[0] = fl;
+        fl.transport = transport;
         fl.timer.scheduleWithFixedDelay(() -> fl.flush(false), 200, 200, TimeUnit.MILLISECONDS);
         fl.timer.scheduleWithFixedDelay(() -> fl.flush(true), 1000, 1000, TimeUnit.MILLISECONDS);
         if (link != null) link.start();
@@ -179,6 +182,13 @@ public final class Outbound implements AutoCloseable {
         }
     }
 
+    /** Starts listening for the server's commands (pause, suspend, stop). Does nothing without a Fabric link, or when already listening. */
+    public synchronized void listenForCommands(java.util.function.Function<io.github.llm4j.loom.inspect.wire.Command, io.github.llm4j.loom.inspect.wire.CommandResult> handler, String name, Clock clock) {
+        if (transport == null || commands != null) return;
+        commands = new CommandPoller(name, transport, handler, clock, out, 25, 1000);
+        commands.start();
+    }
+
     public ServerLink link() {
         return link;
     }
@@ -191,6 +201,7 @@ public final class Outbound implements AutoCloseable {
     @Override
     public void close() {
         timer.shutdownNow();
+        if (commands != null) commands.close();
         try {
             outbox.sync();
         } catch (RuntimeException e) {

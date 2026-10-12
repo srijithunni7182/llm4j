@@ -33,6 +33,11 @@ final class EmbeddedControls implements Controls {
         latest = run;
     }
 
+    /** The run has ended (or is suspended to resume under a new attach): nothing can be asked of it now. */
+    void unregister(String traceId) {
+        runs.remove(traceId);
+    }
+
     /** The admin password, read from the app's own secret store each time, so rotating it takes effect at once. */
     String password() {
         ObservableRun run = latest;
@@ -57,12 +62,19 @@ final class EmbeddedControls implements Controls {
 
     @Override
     public Set<Action> allowed(String traceId) {
+        return enabled() ? possible(traceId) : EnumSet.noneOf(Action.class);
+    }
+
+    /** What the run itself can do now, whether or not the page's password is set (Fabric commands arrive without it). */
+    Set<Action> possible(String traceId) {
         Set<Action> out = EnumSet.noneOf(Action.class);
         ObservableRun run = runs.get(traceId);
+        if (run == null) return out;
         RunState state = registry.findByTrace(traceId).orElse(null);
-        if (run == null || state == null || !enabled()) return out;
-        RunState.Status st = state.status();
-        if (st == RunState.Status.FINISHED || st == RunState.Status.FAILED || st == RunState.Status.STOPPED) return out;
+        if (state != null) {
+            RunState.Status st = state.status();
+            if (st == RunState.Status.FINISHED || st == RunState.Status.FAILED || st == RunState.Status.STOPPED) return out;
+        }
         RunControl.State c = run.control().state();
         out.add(Action.STOP);
         if (run.journal() != null) out.add(Action.SUSPEND); // suspending needs a journal to resume from
@@ -74,7 +86,12 @@ final class EmbeddedControls implements Controls {
     @Override
     public Outcome request(String traceId, Action action, String who) {
         if (!enabled()) return Outcome.refused(503, disabledReason());
-        if (!allowed(traceId).contains(action)) return Outcome.refused(409, "'" + action.word() + "' is not available for this run now" + (action == Action.SUSPEND ? " (a run without a journal cannot be suspended)" : ""));
+        return perform(traceId, action, who);
+    }
+
+    /** Carries the request out for a caller already authorised (the signed Fabric channel, or the page after its sign-in). */
+    Outcome perform(String traceId, Action action, String who) {
+        if (!possible(traceId).contains(action)) return Outcome.refused(409, "'" + action.word() + "' is not available for this run now" + (action == Action.SUSPEND ? " (a run without a journal cannot be suspended)" : ""));
         ObservableRun run = runs.get(traceId);
         run.control().request(RunControl.Action.valueOf(action.name()), who);
         return Outcome.taken(switch (action) {
@@ -83,5 +100,13 @@ final class EmbeddedControls implements Controls {
             case SUSPEND -> "suspend requested: the run ends cleanly at its next step and can be resumed with the same journal";
             case STOP -> "stop requested: the run ends at its next step (a step already running finishes first)";
         });
+    }
+
+    /** A command from Fabric: the server has already authenticated and queued it; the run decides whether it still fits. */
+    io.github.llm4j.loom.inspect.wire.CommandResult execute(io.github.llm4j.loom.inspect.wire.Command c) {
+        Action action = Action.of(c.action());
+        if (action == null) return new io.github.llm4j.loom.inspect.wire.CommandResult(c.id(), false, "unknown action '" + c.action() + "'");
+        Outcome o = perform(c.trace(), action, c.by() == null ? "fabric" : c.by());
+        return new io.github.llm4j.loom.inspect.wire.CommandResult(c.id(), o.accepted(), o.message());
     }
 }

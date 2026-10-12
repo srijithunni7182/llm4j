@@ -35,10 +35,19 @@ public final class HttpTransport implements Transport {
 
     @Override
     public Reply post(String path, String body) throws IOException {
+        return send(path, body, false);
+    }
+
+    @Override
+    public Reply postVerified(String path, String body) throws IOException {
+        return send(path, body, true);
+    }
+
+    private Reply send(String path, String body, boolean verify) throws IOException {
         byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         String root = base.toString().replaceAll("/+$", "");
         HttpRequest req = HttpRequest.newBuilder(URI.create(root + path))
-                .timeout(Duration.ofSeconds(30))
+                .timeout(Duration.ofSeconds(verify ? 40 : 30))
                 .header("Content-Type", "application/json")
                 .header(Signer.CLIENT_HEADER, client)
                 .header(Signer.HEADER, Signer.sign(key, clock.instant(), bytes))
@@ -46,6 +55,10 @@ public final class HttpTransport implements Transport {
                 .build();
         try {
             HttpResponse<String> r = http.send(req, HttpResponse.BodyHandlers.ofString());
+            if (verify && r.statusCode() / 100 == 2
+                    && !Signer.verify(key, r.headers().firstValue(Signer.HEADER).orElse(null), r.body().getBytes(StandardCharsets.UTF_8), clock.instant())) {
+                throw new IOException("the answer was not signed by the server with this process's key");
+            }
             long retry = r.headers().firstValue("Retry-After").map(HttpTransport::seconds).orElse(0L);
             return new Reply(r.statusCode(), r.body(), retry);
         } catch (InterruptedException e) {

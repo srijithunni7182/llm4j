@@ -82,6 +82,7 @@ public final class InspectSession implements ObserveProvider.Session {
                                 return null;
                             }
                         }), run.script(), java.time.Clock.systemUTC(), console);
+                if (options.fabric() != null) fabric.listenForCommands(controls::execute, options.name(), java.time.Clock.systemUTC());
             } catch (RuntimeException e) {
                 fabricFailed = true;
                 console.println("loom-inspect: not reporting: " + e.getMessage() + ". The workflow is not affected.");
@@ -149,8 +150,8 @@ public final class InspectSession implements ObserveProvider.Session {
             String trace = out.logs().isEmpty() ? null : out.logs().get(0).traceId();
             if (trace != null && !trace.equals(graphed.get())) {
                 graphed.set(trace);
+                controls.register(trace, run);
                 if (server != null) {
-                    controls.register(trace, run);
                     if (!controls.enabled() && !hinted) {
                         hinted = true;
                         console.println("loom-inspect: pause, suspend and stop are off: " + controls.disabledReason());
@@ -172,6 +173,8 @@ public final class InspectSession implements ObserveProvider.Session {
                 registry.applyLogs(resource, out.logs());
                 registry.applySpans(resource, out.spans());
             }
+            if (ending && trace == null) trace = graphed.get();
+            if (ending && trace != null) controls.unregister(trace);
             if (ending) {
                 // this attach is over (finished, or paused to resume under a new attach): free its thread, a daemon fires many runs
                 self[0].finishWhenDrained();

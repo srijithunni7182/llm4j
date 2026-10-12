@@ -211,4 +211,36 @@ class FabricServerTest {
         server.history().replay(e -> kinds.add(e.kind()));
         assertThat(kinds).containsExactly("logs");
     }
+
+    @Test
+    void aStopFromThePageBecomesASignedCommandOnlyItsProcessCanCollect_andItsResultIsAudited() throws Exception {
+        assertThat(post("/loom-inspect/v1/hello", "alpha", keyA, hello("alpha")).statusCode()).isEqualTo(200);
+        assertThat(post("/v1/logs", "alpha", keyA, logs("alpha", 1, Semconv.EV_RUN_START)).statusCode()).isEqualTo(200);
+        String cookie = login();
+        JsonNode session = JSON.readTree(http.send(HttpRequest.newBuilder(URI.create(base + "/api/session")).header("Cookie", cookie).build(), HttpResponse.BodyHandlers.ofString()).body());
+        String csrf = session.get("csrf").asText();
+        JsonNode view = JSON.readTree(api("/api/runs/" + TRACE, cookie).body());
+        assertThat(view.at("/controls/allowed").toString()).contains("stop").contains("pause");
+
+        HttpResponse<String> stop = http.send(HttpRequest.newBuilder(URI.create(base + "/api/runs/" + TRACE + "/stop")).header("Cookie", cookie).header("X-CSRF-Token", csrf)
+                .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString("{}")).build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(stop.statusCode()).isEqualTo(202);
+
+        // another process gets nothing, and an unsigned poll is refused
+        assertThat(post("/loom-inspect/v1/commands", "beta", server == null ? null : vault.get("client.beta"), "{\"wait\":0}").body()).contains("\"commands\":[]");
+        assertThat(post("/loom-inspect/v1/commands", "alpha", null, "{\"wait\":0}").statusCode()).isEqualTo(401);
+
+        HttpResponse<String> poll = post("/loom-inspect/v1/commands", "alpha", keyA, "{\"wait\":0}");
+        assertThat(poll.statusCode()).isEqualTo(200);
+        assertThat(Signer.verify(keyA, poll.headers().firstValue(Signer.HEADER).orElse(null), poll.body().getBytes(StandardCharsets.UTF_8), Instant.now())).isTrue();
+        JsonNode cmd = JSON.readTree(poll.body()).at("/commands/0");
+        assertThat(cmd.get("action").asText()).isEqualTo("stop");
+        assertThat(cmd.get("trace").asText()).isEqualTo(TRACE);
+        assertThat(JSON.readTree(poll.body()).get("client").asText()).isEqualTo("alpha");
+        assertThat(JSON.readTree(post("/loom-inspect/v1/commands", "alpha", keyA, "{\"wait\":0}").body()).get("commands")).isEmpty(); // handed out once
+
+        assertThat(post("/loom-inspect/v1/command-result", "alpha", keyA, "{\"id\":\"" + cmd.get("id").asText() + "\",\"accepted\":true,\"message\":\"stop requested\"}").statusCode()).isEqualTo(200);
+        String audit = java.nio.file.Files.readString(dir.resolve("audit.log"));
+        assertThat(audit).contains("\"action\":\"stop\"").contains("command-result").contains("stop requested").doesNotContain("correct horse");
+    }
 }
