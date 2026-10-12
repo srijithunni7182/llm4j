@@ -259,7 +259,8 @@ public final class ToolFactory {
             }
             if (kind.secrets().contains(key) && !e.getValue().isReference()) {
                 out.add(key + " must come from the environment or the secret store, e.g. " + key + ": secret."
-                        + suggestEnv(kind.name(), def.getName(), key) + " (or env." + suggestEnv(kind.name(), def.getName(), key) + ")");
+                        + suggestEnv(kind.name(), def.getName(), key) + " (or env." + suggestEnv(kind.name(), def.getName(), key) + ")"
+                        + (kind.lateBound().contains(key) ? ", or invoker.NAME for the credential of the person running the workflow" : ""));
                 continue;
             }
             if (e.getValue().isReference()) {

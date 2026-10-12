@@ -1021,7 +1021,7 @@ public class HarnessExecutor implements LoomEngine {
     private Tool createTool(io.github.llm4j.loom.ast.ToolDef def) {
         return createdTools.computeIfAbsent(def.getName(), n -> {
             try {
-                return toolFactory.create(def, credentials, baseDir, effectContext(), name -> new InvokerSource(name, threadScope.invoker::get));
+                return toolFactory.create(def, credentials, baseDir, effectContext(), name -> new InvokerSource(name, this::invoker));
             } catch (Exception e) {
                 throw new LoomLoadException(List.of(new ScriptValidator.Problem(def.getLine(), "tool " + def.getName(),
                         "can't be created: " + e.getMessage(), ScriptValidator.Severity.ERROR)));
@@ -1035,6 +1035,11 @@ public class HarnessExecutor implements LoomEngine {
     private synchronized io.github.llm4j.agent.tool.EffectContext effectContext() {
         if (effectContext == null) effectContext = new RunEffectContext(this);
         return effectContext;
+    }
+
+    /** Whoever the run on this thread is for, or null when this thread is not running one. */
+    InvokerCredentials invoker() {
+        return threadScope.invoker.get();
     }
 
     long currentAttempt() {
