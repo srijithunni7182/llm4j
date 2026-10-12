@@ -66,6 +66,7 @@ public final class InspectServer {
         Gate gate;
         AdminSessions sessions;
         Controls controls;
+        io.github.llm4j.loom.inspect.control.Secrets secrets;
         AuditSink audit = AuditSink.NONE;
         int threads = 8;
         final Map<String, Route> routes = new LinkedHashMap<>();
@@ -99,6 +100,12 @@ public final class InspectServer {
         public Config controls(Controls controls, AuditSink audit) {
             this.controls = controls;
             this.audit = audit == null ? AuditSink.NONE : audit;
+            return this;
+        }
+
+        /** Let a signed-in administrator list secrets and rotate one: {@code GET /api/secrets}, {@code PUT /api/secrets/{name}}. Needs {@link #sessions}. */
+        public Config secrets(io.github.llm4j.loom.inspect.control.Secrets secrets) {
+            this.secrets = secrets;
             return this;
         }
 
@@ -275,6 +282,7 @@ public final class InspectServer {
             m.put("passwordSet", admin.passwordSet());
             m.put("signedIn", s != null);
             if (s != null) m.put("csrf", s.csrf());
+            m.put("secretsEnabled", config.secrets != null && admin.passwordSet());
             if (config.controls != null) {
                 m.put("controlsEnabled", config.controls.enabled());
                 if (!config.controls.enabled()) m.put("controlsReason", config.controls.disabledReason());
@@ -295,6 +303,10 @@ public final class InspectServer {
             admin.logout(x);
             x.getResponseHeaders().add("Set-Cookie", admin.clearCookie());
             send(x, 200, "application/json", json(Map.of("ok", true)));
+            return true;
+        }
+        if (config.secrets != null && path.startsWith("/api/secrets")) {
+            secrets(x, admin, path);
             return true;
         }
         if (config.controls != null && path.startsWith("/api/runs/") && "POST".equals(x.getRequestMethod())) {
@@ -363,6 +375,81 @@ public final class InspectServer {
         Controls.Outcome o = config.controls.request(trace, action, "admin@" + address);
         audit(word, address, trace, registry.findByTrace(trace).map(r -> r.client()).orElse(null), o.accepted() ? "accepted" : "refused: " + o.message());
         send(x, o.status(), "application/json", json(Map.of("ok", o.accepted(), "message", o.message())));
+    }
+
+    private static final int MAX_SECRET_BODY = 16 * 1024;
+
+    private void secrets(HttpExchange x, AdminSessions admin, String path) throws IOException {
+        String address = x.getRemoteAddress().getAddress().getHostAddress();
+        AdminSessions.Session s = admin.session(x);
+        if (s == null) {
+            send(x, 401, "application/json", json(Map.of("error", "sign in first")));
+            return;
+        }
+        if (path.equals("/api/secrets") && "GET".equals(x.getRequestMethod())) {
+            send(x, 200, "application/json", json(Map.of("secrets", config.secrets.list())));
+            return;
+        }
+        String name = path.startsWith("/api/secrets/") ? path.substring("/api/secrets/".length()) : "";
+        if (!"PUT".equals(x.getRequestMethod()) || !name.matches("[A-Za-z0-9_.-]{1,128}")) {
+            send(x, 404, "application/json", json(Map.of("error", "not found")));
+            return;
+        }
+        if (!s.csrf().equals(x.getRequestHeaders().getFirst(AdminSessions.CSRF_HEADER)) || !sameSite(x) || !isJson(x)) {
+            auditSecret(address, name, "refused: bad CSRF token, origin or content type");
+            send(x, 403, "application/json", json(Map.of("error", "cross-site request refused")));
+            return;
+        }
+        byte[] raw;
+        try (java.io.InputStream in = x.getRequestBody()) {
+            raw = in.readNBytes(MAX_SECRET_BODY + 1);
+        }
+        if (raw.length > MAX_SECRET_BODY) {
+            send(x, 413, "application/json", json(Map.of("error", "too large")));
+            return;
+        }
+        String value;
+        String password;
+        try {
+            com.fasterxml.jackson.databind.JsonNode body = JSON.readTree(raw);
+            value = body.path("value").asText(null);
+            password = body.path("password").asText(null);
+        } catch (IOException e) {
+            send(x, 400, "application/json", json(Map.of("error", "not valid JSON")));
+            return;
+        }
+        if (value == null || value.isBlank() || value.length() > 8192) {
+            send(x, 400, "application/json", json(Map.of("error", "give the new value")));
+            return;
+        }
+        if (!admin.confirm(address, password)) { // the password again: a stolen session alone cannot replace a key
+            auditSecret(address, name, "refused: password not confirmed");
+            send(x, 403, "application/json", json(Map.of("error", "the password was not accepted")));
+            return;
+        }
+        char[] chars = value.toCharArray();
+        Controls.Outcome o;
+        try {
+            o = config.secrets.rotate(name, chars, "admin@" + address);
+        } finally {
+            java.util.Arrays.fill(chars, '\0');
+        }
+        auditSecret(address, name, o.accepted() ? "rotated" : "refused: " + o.message());
+        send(x, o.status(), "application/json", json(Map.of("ok", o.accepted(), "message", o.message())));
+    }
+
+    private void auditSecret(String address, String name, String outcome) {
+        Map<String, Object> e = new java.util.LinkedHashMap<>();
+        e.put("who", "admin");
+        e.put("address", address);
+        e.put("action", "rotate-secret");
+        e.put("secret", name);
+        e.put("outcome", outcome);
+        try {
+            config.audit.record(e);
+        } catch (RuntimeException ex) {
+            System.err.println("loom-inspect: cannot write the audit log: " + ex.getMessage());
+        }
     }
 
     private void audit(String action, String address, String trace, String client, String outcome) {

@@ -74,6 +74,14 @@ public final class AdminSessions {
         return new Attempt(s, 0, false);
     }
 
+    /** True when {@code given} is the password. For a sensitive step after sign-in (it counts against the same lockout, and starts no session). */
+    public boolean confirm(String address, String given) {
+        Attempt a = login(address, given);
+        if (a.session() == null) return false;
+        sessions.remove(a.session().token());
+        return true;
+    }
+
     private static String random() {
         byte[] raw = new byte[32];
         RANDOM.nextBytes(raw);

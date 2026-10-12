@@ -77,6 +77,35 @@
     <p id="noproc" class="muted pad" hidden>No process has reported yet. Add one with <code>fabric clients add &lt;name&gt;</code>, then start a workflow with <code>--observe-fabric</code>.</p>
   </section>
 
+  <section id="secrets" class="panel" hidden aria-labelledby="h-sec">
+    <div class="ph"><h2 id="h-sec">Secrets</h2><span class="sub mono" id="secsub"></span></div>
+    <div id="secsignin" class="pad" hidden><p class="muted">Sign in to see this app's secrets and replace a value. Values are never shown.</p><button class="btn" id="secsigninbtn" type="button">Sign in</button></div>
+    <div class="tbl-wrap" id="sectablewrap">
+      <table>
+        <thead><tr><th>Name</th><th>Fingerprint</th><th>Allowed hosts</th><th>Updated</th><th>Used by</th><th></th></tr></thead>
+        <tbody id="sectable"></tbody>
+      </table>
+    </div>
+    <p class="muted pad" id="secnote" hidden>Replacing a value keeps its allowed hosts. A provider key applies from the next request, a tool option from the next run.</p>
+    <p id="secmsg" class="pad mono" role="status" hidden></p>
+  </section>
+
+  <dialog id="rotate" class="dlg" aria-labelledby="ro-title">
+    <form id="rotateform" autocomplete="off">
+      <h2 id="ro-title">Replace a secret</h2>
+      <p class="muted" id="ro-text"></p>
+      <label class="sr" for="ro-value">New value</label>
+      <input id="ro-value" type="password" autocomplete="new-password" placeholder="New value" required>
+      <label class="sr" for="ro-pw">Admin password</label>
+      <input id="ro-pw" type="password" autocomplete="current-password" placeholder="Admin password, again" required>
+      <p id="ro-err" class="danger-t" role="alert" hidden></p>
+      <div class="dlg-actions">
+        <button class="btn" id="ro-cancel" type="button">Cancel</button>
+        <button class="btn primary" type="submit">Replace</button>
+      </div>
+    </form>
+  </dialog>
+
   <div id="banner" class="banner" hidden></div>
 
   <div id="attention" class="attention" role="status" hidden></div>

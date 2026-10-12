@@ -3,7 +3,7 @@
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var selected = null, agentFilter = null, view = null, viewAt = 0;
-  var fabric = false, procs = [], showProcs = false;
+  var fabric = false, procs = [], showProcs = false, showSecrets = false, sess = {};
 
   function store(k, v) { try { if (v === undefined) { return localStorage.getItem(k); } localStorage.setItem(k, v); } catch (e) { return null; } return null; }
 
@@ -54,20 +54,26 @@
       p.addEventListener('click', function () { showProcs = true; renderAll(); });
       nav.appendChild(p);
     }
+    if (sess.secretsEnabled && !fabric) {
+      var sb = el('button', 'wt proc' + (showSecrets ? ' on' : ''), 'Secrets');
+      sb.type = 'button';
+      sb.addEventListener('click', function () { showSecrets = true; showProcs = false; tick(); });
+      nav.appendChild(sb);
+    }
     var clients = {};
     runs.forEach(function (r) { clients[r.client] = true; });
     var grouped = fabric || Object.keys(clients).length > 1;   // one tab per process and workflow, never merged
     runs.forEach(function (r) {
-      var b = el('button', 'wt' + (!showProcs && r.traceId === selected ? ' on' : ''));
+      var b = el('button', 'wt' + (!showProcs && !showSecrets && r.traceId === selected ? ' on' : ''));
       b.type = 'button';
       b.appendChild(el('span', 'dot ' + tabState(r.status)));
       b.appendChild(el('span', '', (grouped && r.client ? r.client + ' / ' : '') + (r.workflow || 'run')));
       if (r.incidents > 0) { b.appendChild(el('span', 'sev ' + (r.worstIncident || 'warn') + ' inc', String(r.incidents))); }
       b.title = r.status + ' · ' + shortId(r.runId || r.traceId);
-      b.addEventListener('click', function () { selected = r.traceId; agentFilter = null; showProcs = false; tick(); });
+      b.addEventListener('click', function () { selected = r.traceId; agentFilter = null; showProcs = false; showSecrets = false; tick(); });
       nav.appendChild(b);
     });
-    nav.hidden = !fabric && runs.length < 2;
+    nav.hidden = !fabric && runs.length < 2 && !(sess.secretsEnabled && !fabric);
   }
 
   function renderRuns(runs) {
@@ -434,6 +440,69 @@
     });
   }
 
+  // ---- secrets (embedded only): names, fingerprints, and one write that replaces a value
+  var rotating = null;
+  function renderSecrets() {
+    var on = showSecrets;
+    $('secrets').hidden = !on;
+    if (!on) { return; }
+    ['main', 'empty', 'processes', 'banner'].forEach(function (i) { $(i).hidden = true; });
+    ['status', 'meta', 'conn'].forEach(function (i) { $(i).hidden = true; });
+    $('wfname').textContent = ''; $('client').textContent = '';
+    $('controls').hidden = true;
+    $('secsignin').hidden = !!sess.signedIn;
+    $('sectablewrap').hidden = !sess.signedIn;
+    $('secnote').hidden = !sess.signedIn;
+    if (!sess.signedIn) { return; }
+    fetchJson('/api/secrets').then(function (d) {
+      var body = $('sectable');
+      body.textContent = '';
+      $('secsub').textContent = d.secrets.length + ' secret' + (d.secrets.length === 1 ? '' : 's');
+      d.secrets.forEach(function (s) {
+        var tr = el('tr');
+        cell(tr, s.name, 'mono');
+        cell(tr, s.present ? (s.fingerprint || '–') : 'not in the store', 'mono' + (s.present ? '' : ' err'));
+        cell(tr, s.present ? ((s.allowedHosts || []).join(', ') || 'any host') : '–', 'mono');
+        cell(tr, s.updatedAt ? new Date(s.updatedAt).toLocaleString() : '–', 'mono');
+        cell(tr, (s.usedBy || []).join('; ') || '–');
+        var td = el('td');
+        if (s.present) {
+          var b = el('button', 'btn', 'Replace');
+          b.type = 'button';
+          b.addEventListener('click', function () {
+            rotating = s.name;
+            $('ro-text').textContent = 'New value for ' + s.name + '. It is stored in the app\'s secret store and is never shown again.';
+            $('ro-err').hidden = true;
+            $('rotate').showModal();
+            $('ro-value').focus();
+          });
+          td.appendChild(b);
+        }
+        tr.appendChild(td);
+        body.appendChild(tr);
+      });
+    }).catch(function () { });
+  }
+  $('secsigninbtn').addEventListener('click', function () { $('si-err').hidden = true; $('signin').showModal(); $('sipw').focus(); });
+  $('ro-cancel').addEventListener('click', function () { $('rotate').close(); });
+  $('rotateform').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var value = $('ro-value').value, pw = $('ro-pw').value;
+    sessionCsrf().then(function (s) {
+      if (!s.signedIn) { throw new Error('Your session ended. Sign in again.'); }
+      return fetch('/api/secrets/' + encodeURIComponent(rotating), { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify({ value: value, password: pw }) });
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (b) {
+        if (!r.ok) { throw new Error(b.message || b.error || ('Refused (' + r.status + ')')); }
+        $('ro-value').value = ''; $('ro-pw').value = '';
+        $('rotate').close();
+        $('secmsg').textContent = rotating + ': ' + b.message;
+        $('secmsg').hidden = false;
+        renderSecrets();
+      });
+    }).catch(function (err) { $('ro-err').textContent = err.message; $('ro-err').hidden = false; $('ro-pw').value = ''; });
+  });
+
   $('si-cancel').addEventListener('click', function () { $('signin').close(); });
   $('signinform').addEventListener('submit', function (e) {
     e.preventDefault();
@@ -595,6 +664,7 @@
   });
 
   function tick() {
+    fetchJson('/api/session').then(function (s) { sess = s; }, function () { });
     fetchJson('/api/runs').then(function (list) {
       showLogin(false);
       // the Processes view exists only on a Fabric server; an embedded page answers 404 and never shows it
@@ -604,6 +674,8 @@
           renderProcesses();
           $('mode').textContent = fabric ? 'Fabric' : 'embedded mode';
           if (showProcs) { ['status', 'meta', 'conn'].forEach(function (i) { $(i).hidden = true; }); $('wfname').textContent = ''; $('client').textContent = ''; $('banner').hidden = true; }
+          if (showSecrets) { renderSecrets(); return null; }
+          $('secrets').hidden = true;
           return selected && !showProcs ? fetchJson('/api/runs/' + selected).then(function (v) { view = v; viewAt = Date.now(); render(); renderConnection(); }) : null;
         });
     }).catch(function (e) {

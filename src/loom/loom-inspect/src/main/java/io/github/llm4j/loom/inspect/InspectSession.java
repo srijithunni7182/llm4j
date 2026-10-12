@@ -50,7 +50,8 @@ public final class InspectSession implements ObserveProvider.Session {
         if (options.embedded()) {
             this.server = new InspectServer(registry, InspectServer.config().bind(options.bind(), options.port())
                     .sessions(new io.github.llm4j.loom.inspect.http.AdminSessions(controls::password, java.time.Clock.systemUTC(), false))
-                    .controls(controls, new io.github.llm4j.loom.inspect.control.FileAuditSink(java.nio.file.Path.of(System.getProperty("loom.inspect.audit", "loom-inspect-audit.log")), java.time.Clock.systemUTC())));
+                    .controls(controls, new io.github.llm4j.loom.inspect.control.FileAuditSink(java.nio.file.Path.of(System.getProperty("loom.inspect.audit", "loom-inspect-audit.log")), java.time.Clock.systemUTC()))
+                    .secrets(new EmbeddedSecrets(controls::latestRun, java.time.Clock.systemUTC())));
             this.server.start();
         } else {
             this.server = null;

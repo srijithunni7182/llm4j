@@ -33,6 +33,11 @@ final class EmbeddedControls implements Controls {
         latest = run;
     }
 
+    /** The most recently attached run: the one whose secret store the page reads. */
+    ObservableRun latestRun() {
+        return latest;
+    }
+
     /** The run has ended (or is suspended to resume under a new attach): nothing can be asked of it now. */
     void unregister(String traceId) {
         runs.remove(traceId);
