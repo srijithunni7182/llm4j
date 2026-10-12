@@ -50,6 +50,7 @@ final class ThreadScope {
             ThreadScope.this.locals.set(locals);
             ThreadScope.this.budgets.set(budgets);
             if (invoker != null) ThreadScope.this.invoker.set(invoker);
+            else ThreadScope.this.invoker.remove(); // never leave an earlier run's behind on a reused thread
             return ThreadScope.this::clear;
         }
     }

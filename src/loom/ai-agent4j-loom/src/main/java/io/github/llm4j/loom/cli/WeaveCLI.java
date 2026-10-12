@@ -91,6 +91,9 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin
         private ClassesOptions classesOptions = new ClassesOptions();
 
+        @CommandLine.Mixin
+        private InvokerOptions invokerOptions = new InvokerOptions();
+
         @Override
         public Integer call() throws Exception {
             if (!scriptFile.exists()) {
@@ -102,6 +105,8 @@ public class WeaveCLI implements Callable<Integer> {
             env = secrets.apply(env, Prompts.console());
             if (env == null) return 2;
             env = promptOptions.apply(env);
+            if (env == null) return 2;
+            env = invokerOptions.apply(env);
             if (env == null) return 2;
             return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, prices,
                     journal == null ? null : journal.toPath(), store == null ? null : store.toPath(), waitForResume,
@@ -348,6 +353,11 @@ public class WeaveCLI implements Callable<Integer> {
         for (String w : keyWarnings) env.out().println((settings.strict() ? "✗ " : "⚠ ") + w);
         for (var p : problems) env.out().println((p.severity() == error || settings.strict() ? "✗ " : "⚠ ") + p);
         if (!notSetYet.isEmpty()) env.out().println("ℹ not set yet (needed to run): " + String.join(", ", notSetYet));
+        java.util.SortedSet<String> invokerNames = io.github.llm4j.loom.execution.InvokerRefs.names(script);
+        if (!invokerNames.isEmpty()) {
+            env.out().println("ℹ acts as the person who runs it, with their " + String.join(", ", invokerNames)
+                    + ": the application supplies these when it runs the workflow (weave run --invoker-env NAME=VARIABLE does it from a terminal)");
+        }
         java.util.Set<String> codeSteps = new java.util.TreeSet<>();
         for (var workflow : script.getWorkflows()) {
             io.github.llm4j.loom.ast.StatementWalker.walk(workflow.getStatements(), st -> {
@@ -410,9 +420,14 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin
         private SecretOptions secrets = new SecretOptions();
 
+        @CommandLine.Mixin
+        private InvokerOptions invokerOptions = new InvokerOptions();
+
         @Override
         public Integer call() {
             WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
+            if (env == null) return 2;
+            env = invokerOptions.apply(env);
             if (env == null) return 2;
             return resume(runDir.toPath(), stopAt, env);
         }

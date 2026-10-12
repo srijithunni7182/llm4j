@@ -59,7 +59,7 @@ final class NextCommand implements Callable<Integer> {
     private static ProjectAdvisor.CheckResult check(Path script, WeaveEnv env) {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         WeaveEnv quiet = new WeaveEnv(env.models(), env.human(), new PrintStream(buffer, true, StandardCharsets.UTF_8), env.err(), env.clock(), env.sleeper(),
-                env.commands(), env.weave(), env.env(), env.askVia(), env.secrets(), env.prompts());
+                env.commands(), env.weave(), env.env(), env.askVia(), env.secrets(), env.prompts(), env.invoker());
         WeaveCLI.check(script.toFile(), null, new WeaveCLI.CheckSettings(false, true, true, false), quiet);
         List<String> errors = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
