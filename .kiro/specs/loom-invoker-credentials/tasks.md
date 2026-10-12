@@ -32,6 +32,6 @@ their own), then the scope, then the script syntax, then audit/CLI/docs. Tests a
 - [x] 8. **Editor support** — TextMate grammar and completion for `invoker.` in `vscode-loom`. V6.6.
 - [x] 9. **Docs** — `LOOM_GUIDE.md` section, `LOOM_PROMPT.md`, `OpenAPI-Tool.md`, `llms.txt`/`LLM_CONTEXT.md`; doc-example test covers new blocks. V7.1–V7.3.
 - [x] 10. **Quality** — JaCoCo rules for the new classes, the `mutation-invoker` PIT profiles (score ≥ 85%, survivors killed or justified), regression run.
-- [ ] 11. **Completion** — `scripts/verify-invoker-credentials.sh` (G1–G9), the G5 demo, evidence and `SIGN-OFF.md`.
+- [x] 11. **Completion** — `scripts/verify-invoker-credentials.sh` (G1–G9), the G5 demo, evidence and `SIGN-OFF.md`.
 - [ ] 12. *(optional, separate change)* `http` kind: late-bound `auth_value` through `HttpTool.Config`, `HttpSupport` and `Redactor`; the same V2/V4/V5 checks for it.
 - [ ] 13. *(optional, separate spec)* `loom-reentrant-executor`: a `Run` object that owns the per-run fields listed in design §Concurrent runs, adopting `ThreadScope`. Only after task 4.5's guard test and the open question are answered.

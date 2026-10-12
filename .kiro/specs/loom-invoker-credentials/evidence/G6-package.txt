@@ -1,5 +1,5 @@
-commit 2ac325e9cf32715b39dc8021139d068fd03cbdb8
-Mon Oct 12 13:38:38 UTC 2026
+commit 9a1f9037301b5b3bcc48bed523c82b1ee683cbae
+Mon Oct 12 14:02:41 UTC 2026
 Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cacerts -Djavax.net.ssl.trustStoreType=JKS -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=42495 -Dhttp.nonProxyHosts=localhost|127.0.0.1|::1|127.*|0.*|::|169.254.*|api.anthropic.com|api-staging.anthropic.com|api-pr-preview.anthropic.com|mcp-proxy.anthropic.com|mcp-proxy-staging.anthropic.com|registry.npmjs.org|jsr.io|npm.jsr.io|pypi.org|files.pythonhosted.org|index.crates.io|proxy.golang.org|host.docker.internal|10.*|172.16.*|172.17.*|172.18.*|172.19.*|172.20.*|172.21.*|172.22.*|172.23.*|172.24.*|172.25.*|172.26.*|172.27.*|172.28.*|172.29.*|172.30.*|172.31.*|192.168.*|100.64.0.0/10|*.svc.cluster.local|*.svc.cluster.local -Djdk.http.auth.tunneling.disabledSchemes= -Djdk.http.auth.proxying.disabledSchemes=
 [INFO] Scanning for projects...
 [INFO] ------------------------------------------------------------------------
@@ -37,6 +37,7 @@ Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cace
 [INFO] Skipping JaCoCo execution because property jacoco.skip is set.
 [INFO] 
 [INFO] --- jar:3.4.1:jar (default-jar) @ ai-agent4j ---
+[INFO] Building jar: /home/user/llm4j/src/ai-agent4j/target/ai-agent4j-5.0.jar
 [INFO] 
 [INFO] -------------< io.github.srijithunni7182:ai-agent4j-tools >-------------
 [INFO] Building AI Agent4J - Tools 5.0                                    [2/3]
@@ -51,13 +52,15 @@ Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cace
 [INFO] skip non existing resourceDirectory /home/user/llm4j/src/ai-agent4j-tools/src/main/resources
 [INFO] 
 [INFO] --- compiler:3.12.1:compile (default-compile) @ ai-agent4j-tools ---
-[INFO] Nothing to compile - all classes are up to date.
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 38 source files with javac [debug release 17] to target/classes
 [INFO] 
 [INFO] --- resources:3.3.1:testResources (default-testResources) @ ai-agent4j-tools ---
 [INFO] Copying 1 resource from src/test/resources to target/test-classes
 [INFO] 
 [INFO] --- compiler:3.12.1:testCompile (default-testCompile) @ ai-agent4j-tools ---
-[INFO] Nothing to compile - all classes are up to date.
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 31 source files with javac [debug release 17] to target/test-classes
 [INFO] 
 [INFO] --- surefire:3.2.5:test (default-test) @ ai-agent4j-tools ---
 [INFO] Tests are skipped.
@@ -66,6 +69,7 @@ Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cace
 [INFO] Skipping JaCoCo execution because property jacoco.skip is set.
 [INFO] 
 [INFO] --- jar:3.4.1:jar (default-jar) @ ai-agent4j-tools ---
+[INFO] Building jar: /home/user/llm4j/src/ai-agent4j-tools/target/ai-agent4j-tools-5.0.jar
 [INFO] 
 [INFO] -------------< io.github.srijithunni7182:ai-agent4j-loom >--------------
 [INFO] Building AI Agent4J Loom 5.0                                       [3/3]
@@ -84,13 +88,21 @@ Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cace
 [INFO] Copying 1 resource from ../../../.claude/skills/llm4j-workflow-guide to target/classes/skill
 [INFO] 
 [INFO] --- compiler:3.12.1:compile (default-compile) @ ai-agent4j-loom ---
-[INFO] Nothing to compile - all classes are up to date.
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 290 source files with javac [debug release 17] to target/classes
+[INFO] /home/user/llm4j/src/loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/eval/Fixtures.java: /home/user/llm4j/src/loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/eval/Fixtures.java uses or overrides a deprecated API.
+[INFO] /home/user/llm4j/src/loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/eval/Fixtures.java: Recompile with -Xlint:deprecation for details.
 [INFO] 
 [INFO] --- resources:3.3.1:testResources (default-testResources) @ ai-agent4j-loom ---
 [INFO] Copying 436 resources from src/test/resources to target/test-classes
 [INFO] 
 [INFO] --- compiler:3.12.1:testCompile (default-testCompile) @ ai-agent4j-loom ---
-[INFO] Nothing to compile - all classes are up to date.
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 291 source files with javac [debug release 17] to target/test-classes
+[INFO] /home/user/llm4j/src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/loom/cli/PreviousReleaseStoreTest.java: /home/user/llm4j/src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/loom/cli/PreviousReleaseStoreTest.java uses or overrides a deprecated API.
+[INFO] /home/user/llm4j/src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/loom/cli/PreviousReleaseStoreTest.java: Recompile with -Xlint:deprecation for details.
+[INFO] /home/user/llm4j/src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/loom/task/TaskRunTest.java: /home/user/llm4j/src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/loom/task/TaskRunTest.java uses unchecked or unsafe operations.
+[INFO] /home/user/llm4j/src/loom/ai-agent4j-loom/src/test/java/io/github/llm4j/loom/task/TaskRunTest.java: Recompile with -Xlint:unchecked for details.
 [INFO] 
 [INFO] --- surefire:3.2.5:test (default-test) @ ai-agent4j-loom ---
 [INFO] Tests are skipped.
@@ -102,70 +114,70 @@ Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cace
 [INFO] Building jar: /home/user/llm4j/src/loom/ai-agent4j-loom/target/ai-agent4j-loom-5.0.jar
 [INFO] 
 [INFO] --- dependency:3.6.1:copy-dependencies (copy-dependencies) @ ai-agent4j-loom ---
-[INFO] io.github.srijithunni7182:ai-agent4j:jar:5.0 already exists in destination.
-[INFO] com.squareup.okhttp3:okhttp-jvm:jar:5.3.2 already exists in destination.
-[INFO] com.squareup.okio:okio-jvm:jar:3.16.4 already exists in destination.
-[INFO] org.slf4j:slf4j-api:jar:2.0.12 already exists in destination.
-[INFO] io.swagger.parser.v3:swagger-parser:jar:2.1.19 already exists in destination.
-[INFO] io.swagger.parser.v3:swagger-parser-v2-converter:jar:2.1.19 already exists in destination.
-[INFO] io.swagger:swagger-core:jar:1.6.12 already exists in destination.
-[INFO] jakarta.xml.bind:jakarta.xml.bind-api:jar:2.3.3 already exists in destination.
-[INFO] org.apache.commons:commons-lang3:jar:3.13.0 already exists in destination.
-[INFO] io.swagger:swagger-models:jar:1.6.12 already exists in destination.
-[INFO] io.swagger:swagger-annotations:jar:1.6.12 already exists in destination.
-[INFO] com.google.guava:guava:jar:32.1.3-android already exists in destination.
-[INFO] com.google.guava:failureaccess:jar:1.0.1 already exists in destination.
-[INFO] com.google.guava:listenablefuture:jar:9999.0-empty-to-avoid-conflict-with-guava already exists in destination.
-[INFO] com.google.code.findbugs:jsr305:jar:3.0.2 already exists in destination.
-[INFO] org.checkerframework:checker-qual:jar:3.37.0 already exists in destination.
-[INFO] com.google.errorprone:error_prone_annotations:jar:2.21.1 already exists in destination.
-[INFO] com.google.j2objc:j2objc-annotations:jar:2.8 already exists in destination.
-[INFO] io.swagger:swagger-parser:jar:1.0.68 already exists in destination.
-[INFO] io.swagger:swagger-compat-spec-parser:jar:1.0.68 already exists in destination.
-[INFO] com.github.java-json-tools:json-schema-validator:jar:2.2.14 already exists in destination.
-[INFO] com.github.java-json-tools:jackson-coreutils-equivalence:jar:1.0 already exists in destination.
-[INFO] com.github.java-json-tools:json-schema-core:jar:1.2.14 already exists in destination.
-[INFO] com.github.java-json-tools:uri-template:jar:0.10 already exists in destination.
-[INFO] org.mozilla:rhino:jar:1.7.7.2 already exists in destination.
-[INFO] joda-time:joda-time:jar:2.10.5 already exists in destination.
-[INFO] com.googlecode.libphonenumber:libphonenumber:jar:8.11.1 already exists in destination.
-[INFO] net.sf.jopt-simple:jopt-simple:jar:5.0.4 already exists in destination.
-[INFO] com.github.java-json-tools:json-patch:jar:1.13 already exists in destination.
-[INFO] com.github.java-json-tools:msg-simple:jar:1.2 already exists in destination.
-[INFO] com.github.java-json-tools:btf:jar:1.3 already exists in destination.
-[INFO] com.github.java-json-tools:jackson-coreutils:jar:2.0 already exists in destination.
-[INFO] org.apache.httpcomponents:httpclient:jar:4.5.14 already exists in destination.
-[INFO] org.apache.httpcomponents:httpcore:jar:4.4.16 already exists in destination.
-[INFO] commons-logging:commons-logging:jar:1.2 already exists in destination.
-[INFO] commons-codec:commons-codec:jar:1.11 already exists in destination.
-[INFO] io.swagger.core.v3:swagger-models:jar:2.2.19 already exists in destination.
-[INFO] io.swagger.parser.v3:swagger-parser-core:jar:2.1.19 already exists in destination.
-[INFO] io.swagger.parser.v3:swagger-parser-v3:jar:2.1.19 already exists in destination.
-[INFO] io.swagger.core.v3:swagger-core:jar:2.2.19 already exists in destination.
-[INFO] com.fasterxml.jackson.datatype:jackson-datatype-jsr310:jar:2.21.3 already exists in destination.
-[INFO] io.swagger.core.v3:swagger-annotations:jar:2.2.19 already exists in destination.
-[INFO] jakarta.validation:jakarta.validation-api:jar:2.0.2 already exists in destination.
-[INFO] io.swagger.parser.v3:swagger-parser-safe-url-resolver:jar:2.1.19 already exists in destination.
-[INFO] org.yaml:snakeyaml:jar:2.2 already exists in destination.
-[INFO] commons-io:commons-io:jar:2.15.0 already exists in destination.
-[INFO] org.apache.commons:commons-math3:jar:3.6.1 already exists in destination.
-[INFO] org.jsoup:jsoup:jar:1.23.2 already exists in destination.
-[INFO] io.github.srijithunni7182:ai-agent4j-addons:jar:5.0 already exists in destination.
-[INFO] com.fasterxml.jackson.core:jackson-core:jar:2.21.3 already exists in destination.
-[INFO] io.github.srijithunni7182:ai-agent4j-tools:jar:5.0 already exists in destination.
-[INFO] org.postgresql:postgresql:jar:42.7.12 already exists in destination.
-[INFO] com.fasterxml.jackson.core:jackson-databind:jar:2.21.3 already exists in destination.
-[INFO] com.fasterxml.jackson.core:jackson-annotations:jar:2.21 already exists in destination.
-[INFO] io.github.srijithunni7182:eval4j:jar:5.0 already exists in destination.
-[INFO] com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:jar:2.21.3 already exists in destination.
-[INFO] org.jetbrains.kotlin:kotlin-stdlib:jar:2.2.21 already exists in destination.
-[INFO] org.jetbrains:annotations:jar:13.0 already exists in destination.
-[INFO] org.eclipse.angus:angus-mail:jar:2.0.3 already exists in destination.
-[INFO] jakarta.activation:jakarta.activation-api:jar:2.1.3 already exists in destination.
-[INFO] jakarta.mail:jakarta.mail-api:jar:2.1.3 already exists in destination.
-[INFO] org.eclipse.angus:angus-activation:jar:2.0.2 already exists in destination.
-[INFO] org.slf4j:slf4j-nop:jar:2.0.16 already exists in destination.
-[INFO] info.picocli:picocli:jar:4.7.5 already exists in destination.
+[INFO] Copying ai-agent4j-5.0.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/ai-agent4j-5.0.jar
+[INFO] Copying okhttp-jvm-5.3.2.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/okhttp-jvm-5.3.2.jar
+[INFO] Copying okio-jvm-3.16.4.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/okio-jvm-3.16.4.jar
+[INFO] Copying slf4j-api-2.0.12.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/slf4j-api-2.0.12.jar
+[INFO] Copying swagger-parser-2.1.19.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/swagger-parser-2.1.19.jar
+[INFO] Copying swagger-parser-v2-converter-2.1.19.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/swagger-parser-v2-converter-2.1.19.jar
+[INFO] Copying swagger-core-1.6.12.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/swagger-core-1.6.12.jar
+[INFO] Copying jakarta.xml.bind-api-2.3.3.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/jakarta.xml.bind-api-2.3.3.jar
+[INFO] Copying commons-lang3-3.13.0.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/commons-lang3-3.13.0.jar
+[INFO] Copying swagger-models-1.6.12.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/swagger-models-1.6.12.jar
+[INFO] Copying swagger-annotations-1.6.12.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/swagger-annotations-1.6.12.jar
+[INFO] Copying guava-32.1.3-android.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/guava-32.1.3-android.jar
+[INFO] Copying failureaccess-1.0.1.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/failureaccess-1.0.1.jar
+[INFO] Copying listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
+[INFO] Copying jsr305-3.0.2.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/jsr305-3.0.2.jar
+[INFO] Copying checker-qual-3.37.0.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/checker-qual-3.37.0.jar
+[INFO] Copying error_prone_annotations-2.21.1.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/error_prone_annotations-2.21.1.jar
+[INFO] Copying j2objc-annotations-2.8.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/j2objc-annotations-2.8.jar
+[INFO] Copying swagger-parser-1.0.68.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/swagger-parser-1.0.68.jar
+[INFO] Copying swagger-compat-spec-parser-1.0.68.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/swagger-compat-spec-parser-1.0.68.jar
+[INFO] Copying json-schema-validator-2.2.14.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/json-schema-validator-2.2.14.jar
+[INFO] Copying jackson-coreutils-equivalence-1.0.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/jackson-coreutils-equivalence-1.0.jar
+[INFO] Copying json-schema-core-1.2.14.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/json-schema-core-1.2.14.jar
+[INFO] Copying uri-template-0.10.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/uri-template-0.10.jar
+[INFO] Copying rhino-1.7.7.2.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/rhino-1.7.7.2.jar
+[INFO] Copying joda-time-2.10.5.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/joda-time-2.10.5.jar
+[INFO] Copying libphonenumber-8.11.1.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/libphonenumber-8.11.1.jar
+[INFO] Copying jopt-simple-5.0.4.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/jopt-simple-5.0.4.jar
+[INFO] Copying json-patch-1.13.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/json-patch-1.13.jar
+[INFO] Copying msg-simple-1.2.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/msg-simple-1.2.jar
+[INFO] Copying btf-1.3.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/btf-1.3.jar
+[INFO] Copying jackson-coreutils-2.0.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/jackson-coreutils-2.0.jar
+[INFO] Copying httpclient-4.5.14.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/httpclient-4.5.14.jar
+[INFO] Copying httpcore-4.4.16.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/httpcore-4.4.16.jar
+[INFO] Copying commons-logging-1.2.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/commons-logging-1.2.jar
+[INFO] Copying commons-codec-1.11.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/commons-codec-1.11.jar
+[INFO] Copying swagger-models-2.2.19.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/swagger-models-2.2.19.jar
+[INFO] Copying swagger-parser-core-2.1.19.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/swagger-parser-core-2.1.19.jar
+[INFO] Copying swagger-parser-v3-2.1.19.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/swagger-parser-v3-2.1.19.jar
+[INFO] Copying swagger-core-2.2.19.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/swagger-core-2.2.19.jar
+[INFO] Copying jackson-datatype-jsr310-2.21.3.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/jackson-datatype-jsr310-2.21.3.jar
+[INFO] Copying swagger-annotations-2.2.19.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/swagger-annotations-2.2.19.jar
+[INFO] Copying jakarta.validation-api-2.0.2.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/jakarta.validation-api-2.0.2.jar
+[INFO] Copying swagger-parser-safe-url-resolver-2.1.19.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/swagger-parser-safe-url-resolver-2.1.19.jar
+[INFO] Copying snakeyaml-2.2.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/snakeyaml-2.2.jar
+[INFO] Copying commons-io-2.15.0.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/commons-io-2.15.0.jar
+[INFO] Copying commons-math3-3.6.1.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/commons-math3-3.6.1.jar
+[INFO] Copying jsoup-1.23.2.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/jsoup-1.23.2.jar
+[INFO] Copying ai-agent4j-addons-5.0.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/ai-agent4j-addons-5.0.jar
+[INFO] Copying jackson-core-2.21.3.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/jackson-core-2.21.3.jar
+[INFO] Copying ai-agent4j-tools-5.0.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/ai-agent4j-tools-5.0.jar
+[INFO] Copying postgresql-42.7.12.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/postgresql-42.7.12.jar
+[INFO] Copying jackson-databind-2.21.3.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/jackson-databind-2.21.3.jar
+[INFO] Copying jackson-annotations-2.21.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/jackson-annotations-2.21.jar
+[INFO] Copying eval4j-5.0.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/eval4j-5.0.jar
+[INFO] Copying jackson-dataformat-yaml-2.21.3.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/jackson-dataformat-yaml-2.21.3.jar
+[INFO] Copying kotlin-stdlib-2.2.21.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/kotlin-stdlib-2.2.21.jar
+[INFO] Copying annotations-13.0.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/annotations-13.0.jar
+[INFO] Copying angus-mail-2.0.3.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/angus-mail-2.0.3.jar
+[INFO] Copying jakarta.activation-api-2.1.3.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/jakarta.activation-api-2.1.3.jar
+[INFO] Copying jakarta.mail-api-2.1.3.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/jakarta.mail-api-2.1.3.jar
+[INFO] Copying angus-activation-2.0.2.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/angus-activation-2.0.2.jar
+[INFO] Copying slf4j-nop-2.0.16.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/slf4j-nop-2.0.16.jar
+[INFO] Copying picocli-4.7.5.jar to /home/user/llm4j/src/loom/ai-agent4j-loom/target/lib/picocli-4.7.5.jar
 [INFO] 
 [INFO] --- shade:3.6.2:shade (default) @ ai-agent4j-loom ---
 [WARNING] Discovered module-info.class. Shading will break its strong encapsulation.
@@ -214,14 +226,14 @@ Picked up JAVA_TOOL_OPTIONS: -Djavax.net.ssl.trustStore=/etc/ssl/certs/java/cace
 [INFO] ------------------------------------------------------------------------
 [INFO] Reactor Summary for AI Agent4J 5.0:
 [INFO] 
-[INFO] AI Agent4J ......................................... SUCCESS [  1.074 s]
-[INFO] AI Agent4J - Tools ................................. SUCCESS [  0.082 s]
-[INFO] AI Agent4J Loom .................................... SUCCESS [  3.268 s]
+[INFO] AI Agent4J ......................................... SUCCESS [  1.187 s]
+[INFO] AI Agent4J - Tools ................................. SUCCESS [  3.274 s]
+[INFO] AI Agent4J Loom .................................... SUCCESS [ 12.241 s]
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
 [INFO] ------------------------------------------------------------------------
-[INFO] Total time:  4.555 s
-[INFO] Finished at: 2026-10-12T13:38:44Z
+[INFO] Total time:  16.851 s
+[INFO] Finished at: 2026-10-12T14:02:59Z
 [INFO] ------------------------------------------------------------------------
 package: BUILD SUCCESS
 -- weave check (src/loom/ai-agent4j-loom/target/ai-agent4j-loom-5.0-cli.jar)
