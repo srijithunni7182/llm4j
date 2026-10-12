@@ -76,6 +76,7 @@ public final class ScriptDrift {
         }
         if (s instanceof io.github.llm4j.loom.ast.HumanPromptStmt h) return h.getMessage();
         if (s instanceof io.github.llm4j.loom.ast.NoteStmt n) return n.getMessage();
+        if (s instanceof io.github.llm4j.loom.ast.SleepStmt z) return "sleep " + z.getText();
         return "";
     }
 }

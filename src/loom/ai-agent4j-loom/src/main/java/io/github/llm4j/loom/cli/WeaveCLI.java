@@ -80,6 +80,9 @@ public class WeaveCLI implements Callable<Integer> {
         private String trace;
 
         @CommandLine.Mixin
+        private ObserveMixin observeOpts = new ObserveMixin();
+
+        @CommandLine.Mixin
         private SecretOptions secrets = new SecretOptions();
 
         @CommandLine.Mixin
@@ -103,9 +106,30 @@ public class WeaveCLI implements Callable<Integer> {
             if (env == null) return 2;
             env = promptOptions.apply(env);
             if (env == null) return 2;
-            return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, prices,
-                    journal == null ? null : journal.toPath(), store == null ? null : store.toPath(), waitForResume,
-                    lenient, trace, stopAt, maxRewinds, env);
+            ObserveMixin.Opened observed = observeOpts.open(env);
+            if (observed.failed()) return 2;
+            env = observed.env();
+            try {
+                return run(scriptFile, lootFile, workflowName, inputs, maxTokens, maxCalls, maxCost, prices,
+                        journal == null ? null : journal.toPath(), store == null ? null : store.toPath(), waitForResume,
+                        lenient, trace, stopAt, maxRewinds, env);
+            } finally {
+                observed.finish();
+            }
+        }
+
+        /** Keeps the page up for {@code linger} after the run, then stops serving. */
+        static void lingerThenClose(io.github.llm4j.loom.observe.ObserveProvider.Session session, java.time.Duration linger, WeaveEnv env) {
+            try {
+                if (!linger.isZero()) {
+                    env.out().println("🔭 Keeping " + session.describe() + " up for " + io.github.llm4j.loom.execution.HarnessExecutor.human(linger) + " (Ctrl-C to stop).");
+                    env.sleeper().sleep(linger);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                session.close();
+            }
         }
     }
 
@@ -410,11 +434,20 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin
         private SecretOptions secrets = new SecretOptions();
 
+        @CommandLine.Mixin
+        private ObserveMixin observeOpts = new ObserveMixin();
+
         @Override
         public Integer call() {
             WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
             if (env == null) return 2;
-            return resume(runDir.toPath(), stopAt, env);
+            ObserveMixin.Opened observed = observeOpts.open(env);
+            if (observed.failed()) return 2;
+            try {
+                return resume(runDir.toPath(), stopAt, observed.env());
+            } finally {
+                observed.finish();
+            }
         }
     }
 
@@ -449,11 +482,20 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin
         private SecretOptions secrets = new SecretOptions();
 
+        @CommandLine.Mixin
+        private ObserveMixin observeOpts = new ObserveMixin();
+
         @Override
         public Integer call() {
             WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
             if (env == null) return 2;
-            return tick(store.toPath(), env);
+            ObserveMixin.Opened observed = observeOpts.open(env);
+            if (observed.failed()) return 2;
+            try {
+                return tick(store.toPath(), observed.env());
+            } finally {
+                observed.finish();
+            }
         }
     }
 
@@ -497,11 +539,17 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin
         private SecretOptions secrets = new SecretOptions();
 
+        @CommandLine.Mixin
+        private ObserveMixin observeOpts = new ObserveMixin();
+
         @Override
         public Integer call() throws Exception {
             WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
             if (env == null) return 2;
-            return daemon(store.toPath(), io.github.llm4j.loom.trigger.Schedules.parse(poll), null, env);
+            ObserveMixin.Opened observed = observeOpts.open(env);
+            if (observed.failed()) return 2;
+            observed.closeAtExit(); // a daemon is stopped with Ctrl-C: the session closes then, flushing the outbox
+            return daemon(store.toPath(), io.github.llm4j.loom.trigger.Schedules.parse(poll), null, observed.env());
         }
     }
 
@@ -536,6 +584,121 @@ public class WeaveCLI implements Callable<Integer> {
             runner.stop();
         }
         return 0;
+    }
+
+    @Command(name = "observe", description = "Looks after what observing leaves on disk: observe flush delivers an outbox, observe purge removes one.",
+            subcommands = {ObserveFlushCommand.class, ObservePurgeCommand.class, ObserveRulesCommand.class, ObserveHashPasswordCommand.class})
+    static class ObserveCommand implements Callable<Integer> {
+        @Override
+        public Integer call() {
+            CommandLine.usage(this, System.out);
+            return 0;
+        }
+    }
+
+    @Command(name = "flush", description = "Delivers what an earlier process left in its local outbox to the Fabric server (the server must know this name's key).")
+    static class ObserveFlushCommand implements Callable<Integer> {
+        @CommandLine.Mixin
+        private ObserveMixin observeOpts = new ObserveMixin();
+
+        @CommandLine.Mixin
+        private SecretOptions secrets = new SecretOptions();
+
+        @Override
+        public Integer call() {
+            WeaveEnv env = secrets.apply(WeaveEnv.system(), Prompts.console());
+            if (env == null) return 2;
+            try {
+                io.github.llm4j.loom.observe.ObserveOptions options = observeOpts.parsed();
+                if (options == null || options.fabric() == null) {
+                    System.err.println("Error: observe flush needs --observe-fabric (or LOOM_FABRIC_URL) and --observe-name.");
+                    return 2;
+                }
+                long left = io.github.llm4j.loom.observe.Observe.provider().flush(options, env.secrets(), env.out());
+                return left == 0 ? 0 : 1;
+            } catch (IllegalArgumentException | io.github.llm4j.loom.observe.Observe.Unavailable e) {
+                System.err.println("Error: " + e.getMessage());
+                return 2;
+            }
+        }
+    }
+
+    @Command(name = "rules", description = "Checks a rules file (what counts as trouble for each agent) against a script, without running anything. Default file: <script>.inspect beside the script.")
+    static class ObserveRulesCommand implements Callable<Integer> {
+        @Parameters(index = "0", description = "The .loom script the rules are for.")
+        private File script;
+
+        @Option(names = "--observe-rules", paramLabel = "file", description = "The rules file (default: <script>.inspect).")
+        private File rules;
+
+        @Override
+        public Integer call() {
+            if (!script.exists()) {
+                System.err.println("Error: Script file not found: " + script);
+                return 2;
+            }
+            try {
+                File file = rules != null ? rules : new File(script.getParentFile() == null ? new File(".") : script.getParentFile(),
+                        script.getName().replaceFirst("\\.[^.]*$", "") + ".inspect");
+                if (!file.exists()) {
+                    System.err.println("Error: no rules file: " + file + " (create it, or pass --observe-rules)");
+                    return 2;
+                }
+                LoomScript loaded = new io.github.llm4j.loom.execution.LoomLoader().load(script.getAbsolutePath());
+                int errors = io.github.llm4j.loom.observe.Observe.provider().checkRules(loaded, file.toPath(), System.out);
+                return errors == 0 ? 0 : 1;
+            } catch (io.github.llm4j.loom.observe.Observe.Unavailable | java.io.IOException | RuntimeException e) {
+                System.err.println("Error: " + e.getMessage());
+                return 2;
+            }
+        }
+    }
+
+    @Command(name = "hash-password", description = "Prints a salted hash of the admin password. Store that as LOOM_INSPECT_ADMIN_PASSWORD instead of the password (weave secrets set ... then paste it); signing in still takes the password. The password is read from the environment variable named by --password-env (default LOOM_INSPECT_NEW_PASSWORD), or asked for.")
+    static class ObserveHashPasswordCommand implements Callable<Integer> {
+        @Option(names = "--password-env", paramLabel = "VAR", description = "The environment variable holding the password.", defaultValue = "LOOM_INSPECT_NEW_PASSWORD")
+        private String passwordEnv;
+
+        @Override
+        public Integer call() {
+            String p = System.getenv(passwordEnv);
+            if ((p == null || p.isEmpty()) && System.console() != null) {
+                char[] typed = System.console().readPassword("Admin password: ");
+                p = typed == null ? null : new String(typed);
+            }
+            if (p == null || p.length() < 12) {
+                System.err.println("Error: give a password of at least 12 characters (in " + passwordEnv + ", or typed when asked).");
+                return 2;
+            }
+            try {
+                System.out.println(io.github.llm4j.loom.observe.Observe.provider().hashPassword(p));
+                return 0;
+            } catch (io.github.llm4j.loom.observe.Observe.Unavailable e) {
+                System.err.println("Error: " + e.getMessage());
+                return 2;
+            }
+        }
+    }
+
+    @Command(name = "purge", description = "Deletes a process name's local outbox that no running process is using. Undelivered events in it are lost.")
+    static class ObservePurgeCommand implements Callable<Integer> {
+        @CommandLine.Mixin
+        private ObserveMixin observeOpts = new ObserveMixin();
+
+        @Override
+        public Integer call() {
+            if (observeOpts.name() == null || observeOpts.name().isBlank()) {
+                System.err.println("Error: observe purge needs --observe-name.");
+                return 2;
+            }
+            try {
+                io.github.llm4j.loom.observe.Observe.provider().purge(observeOpts.name().trim(), observeOpts.outbox(), System.out);
+                return 0;
+            } catch (io.github.llm4j.loom.observe.Observe.Unavailable e) {
+                System.err.println("Error: " + e.getMessage());
+                return 2;
+            }
+        }
     }
 
     @Command(name = "triggers", description = "Lists and manages stored triggers, and installs system triggers.%n"
@@ -778,6 +941,7 @@ public class WeaveCLI implements Callable<Integer> {
                 .addSubcommand(new ResumeCommand())
                 .addSubcommand(new TickCommand())
                 .addSubcommand(new DaemonCommand())
+                .addSubcommand(new ObserveCommand())
                 .addSubcommand(new TriggersCommand())
                 .addSubcommand(new ScheduleCommand())
                 .addSubcommand(new PackageCommand())

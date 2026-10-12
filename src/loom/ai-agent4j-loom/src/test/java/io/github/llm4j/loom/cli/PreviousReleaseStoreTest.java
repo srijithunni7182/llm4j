@@ -205,7 +205,8 @@ class PreviousReleaseStoreTest {
 
     private static List<String> lines(String text) {
         List<String> out = new ArrayList<>();
-        for (String line : text.split("\n", -1)) out.add(line.replaceAll("r[0-9a-f]{8,}-[0-9a-f]{1,4}", "r…"));
+        for (String line : text.split("\n", -1)) out.add(line.replaceAll("r[0-9a-f]{8,}-[0-9a-f]{1,4}", "r…")
+                .replaceAll("operator:[A-Za-z0-9_.\\-]+", "operator:USER")); // the fixtures were written as one user; the operator is whoever runs the test
         return out;
     }
 

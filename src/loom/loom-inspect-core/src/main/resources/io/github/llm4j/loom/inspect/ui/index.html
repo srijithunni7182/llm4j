@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<title>loom-inspect</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="/logo.png" type="image/png">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="top">
+    <div class="brand"><span class="logo" role="img" aria-label="Loom"></span><span>loom<b>·</b>inspect</span></div>
+    <div class="crumbs">
+      <span id="client" class="faint"></span>
+      <span id="wfname" class="wf"></span>
+    </div>
+    <span id="status" class="pill" hidden></span>
+    <span id="conn" class="conn" hidden></span>
+    <div class="meta mono" id="meta" hidden>
+      <span>started <b id="started"></b></span>
+      <span>elapsed <b id="elapsed"></b></span>
+    </div>
+    <div class="spacer"></div>
+    <div id="controls" class="controls" hidden></div>
+    <button id="theme" class="btn" type="button" aria-label="Switch theme"><span id="themelbl">Light</span></button>
+  </header>
+
+  <dialog id="confirm" class="dlg" aria-labelledby="cf-title">
+    <form method="dialog">
+      <h2 id="cf-title"></h2>
+      <p id="cf-text" class="muted"></p>
+      <p id="cf-err" class="danger-t" role="alert" hidden></p>
+      <div class="dlg-actions">
+        <button class="btn" value="cancel" type="submit">Cancel</button>
+        <button class="btn primary" id="cf-ok" value="ok" type="submit">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="signin" class="dlg" aria-labelledby="si-title">
+    <form id="signinform" autocomplete="off">
+      <h2 id="si-title">Sign in to control runs</h2>
+      <label class="sr" for="sipw">Admin password</label>
+      <input id="sipw" type="password" autocomplete="current-password" placeholder="Admin password" required>
+      <p id="si-err" class="danger-t" role="alert" hidden></p>
+      <div class="dlg-actions">
+        <button class="btn" id="si-cancel" type="button">Cancel</button>
+        <button class="btn primary" type="submit">Sign in</button>
+      </div>
+    </form>
+  </dialog>
+
+  <nav id="wtabs" class="wtabs" aria-label="Workflows" hidden></nav>
+
+  <section id="login" class="login" hidden>
+    <img class="mark" src="/logo.png" alt="" width="64" height="64">
+    <h1>Sign in</h1>
+    <form id="loginform" autocomplete="off">
+      <label class="sr" for="pw">Admin password</label>
+      <input id="pw" type="password" autocomplete="current-password" placeholder="Admin password" required>
+      <button class="btn primary" type="submit">Sign in</button>
+    </form>
+    <p id="loginerr" class="danger-t" role="alert" hidden></p>
+  </section>
+
+  <section id="processes" class="panel" hidden aria-labelledby="h-proc">
+    <div class="ph"><h2 id="h-proc">Processes</h2><span class="sub mono" id="procsub"></span></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Process</th><th>State</th><th>Host</th><th>Workflows</th><th class="r">Live runs</th><th class="r">Events/s</th><th class="r">Backlog</th><th class="r">Lost</th><th>Last seen</th></tr></thead>
+        <tbody id="proctable"></tbody>
+      </table>
+    </div>
+    <p id="noproc" class="muted pad" hidden>No process has reported yet. Add one with <code>fabric clients add &lt;name&gt;</code>, then start a workflow with <code>--observe-fabric</code>.</p>
+  </section>
+
+  <section id="secrets" class="panel" hidden aria-labelledby="h-sec">
+    <div class="ph"><h2 id="h-sec">Secrets</h2><span class="sub mono" id="secsub"></span></div>
+    <div id="secsignin" class="pad" hidden><p class="muted">Sign in to see this app's secrets and replace a value. Values are never shown.</p><button class="btn" id="secsigninbtn" type="button">Sign in</button></div>
+    <div class="tbl-wrap" id="sectablewrap">
+      <table>
+        <thead><tr><th>Name</th><th>Fingerprint</th><th>Allowed hosts</th><th>Updated</th><th>Used by</th><th></th></tr></thead>
+        <tbody id="sectable"></tbody>
+      </table>
+    </div>
+    <p class="muted pad" id="secnote" hidden>Replacing a value keeps its allowed hosts. A provider key applies from the next request, a tool option from the next run.</p>
+    <p id="secmsg" class="pad mono" role="status" hidden></p>
+  </section>
+
+  <section id="config" class="panel" hidden aria-labelledby="h-cfg">
+    <div class="ph"><h2 id="h-cfg">Configuration</h2><span class="sub mono" id="cfgsub">kept on this server</span></div>
+    <div id="cfgsignin" class="pad" hidden><p class="muted">Sign in to change this server's settings.</p><button class="btn" id="cfgsigninbtn" type="button">Sign in</button></div>
+    <div id="cfgbody" class="cfg">
+      <section class="cfgcard" aria-labelledby="h-rules">
+        <h3 id="h-rules">Inspect rules</h3>
+        <p class="muted" id="rules-summary"></p>
+        <p class="muted small">What counts as trouble, per agent. Laid over each run's own rules, rule by rule; in force at once for every run. Same format as <code>flow.inspect</code>.</p>
+        <label class="sr" for="rules-text">Inspect rules</label>
+        <textarea id="rules-text" class="mono" rows="14" spellcheck="false" placeholder="Editor { same_action: 3 times }&#10;*      { paused_longer_than: 90s }"></textarea>
+        <ul id="rules-problems" class="problems" role="alert" hidden></ul>
+        <div class="cfgactions"><button class="btn primary" id="rules-save" type="button">Save rules</button><button class="btn" id="rules-reset" type="button">Discard changes</button><span class="mono small" id="rules-msg" role="status"></span></div>
+      </section>
+      <section class="cfgcard" aria-labelledby="h-prices">
+        <h3 id="h-prices">Price table</h3>
+        <p class="muted" id="prices-summary"></p>
+        <p class="muted small">Dollars per million tokens: <code>model = input / output</code>. Costs a step whose process reported tokens but no cost (a process with its own price file reports its own). Costs already counted do not change.</p>
+        <label class="sr" for="prices-text">Price table</label>
+        <textarea id="prices-text" class="mono" rows="10" spellcheck="false" placeholder="gemini-2.5-flash = 0.30 / 2.50"></textarea>
+        <ul id="prices-problems" class="problems" role="alert" hidden></ul>
+        <div class="cfgactions"><button class="btn primary" id="prices-save" type="button">Save prices</button><button class="btn" id="prices-reset" type="button">Discard changes</button><span class="mono small" id="prices-msg" role="status"></span></div>
+      </section>
+    </div>
+  </section>
+
+  <dialog id="rotate" class="dlg" aria-labelledby="ro-title">
+    <form id="rotateform" autocomplete="off">
+      <h2 id="ro-title">Replace a secret</h2>
+      <p class="muted" id="ro-text"></p>
+      <label class="sr" for="ro-value">New value</label>
+      <input id="ro-value" type="password" autocomplete="new-password" placeholder="New value" required>
+      <label class="sr" for="ro-pw">Admin password</label>
+      <input id="ro-pw" type="password" autocomplete="current-password" placeholder="Admin password, again" required>
+      <p id="ro-err" class="danger-t" role="alert" hidden></p>
+      <div class="dlg-actions">
+        <button class="btn" id="ro-cancel" type="button">Cancel</button>
+        <button class="btn primary" type="submit">Replace</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <div id="attention" class="attention" role="status" hidden></div>
+
+  <section id="empty" class="empty" hidden>
+    <img class="mark" src="/logo.png" alt="" width="64" height="64">
+    <h1>Waiting for a run</h1>
+    <p class="muted">Start one with <code>weave run flow.loom --observe</code>. It appears here the moment it begins.</p>
+  </section>
+
+  <main id="main" hidden>
+    <section class="kpis" aria-label="Run totals">
+      <div class="tile"><div class="eyebrow">Tokens used</div><div class="val" id="tokens">0</div><div class="foot mono" id="tokensfoot"></div></div>
+      <div class="tile"><div class="eyebrow">Cost so far</div><div class="val" id="cost">$0</div><div class="foot mono" id="costfoot"></div></div>
+      <div class="tile"><div class="eyebrow">Running now</div><div class="val"><span id="running" class="live-t">0</span> <small id="runningof"></small></div><div class="foot mono" id="runningfoot"></div></div>
+      <div class="tile"><div class="eyebrow">Tool calls</div><div class="val" id="toolcalls">0</div><div class="foot mono" id="toolfoot"></div></div>
+      <div class="tile"><div class="eyebrow">Run</div><div class="val sm" id="state">–</div><div class="foot mono" id="statefoot"></div></div>
+    </section>
+
+    <div class="grid">
+      <section class="panel c8" aria-labelledby="h-graph">
+        <div class="ph"><h2 id="h-graph">Workflow</h2><span class="sub mono" id="graphsub"></span></div>
+        <div class="graph-wrap" id="graphwrap"><svg id="graph" class="graph" role="img" aria-label="Workflow graph"></svg></div>
+        <p id="nograph" class="muted pad" hidden>The workflow graph is not available for this run.</p>
+      </section>
+
+      <section class="panel c4 tall" aria-labelledby="h-follow">
+        <div class="ph"><h2 id="h-follow">Following</h2><span class="sub" id="followsub"></span><span class="spacer"></span><span class="chip on" id="livechip" hidden>live</span></div>
+        <div class="focus" id="focus" hidden>
+          <div class="avatar" id="avatar"></div>
+          <div><h3 id="focusname"></h3><div class="mono faint" id="focussub"></div></div>
+        </div>
+        <div class="chips filters" id="filters"></div>
+        <ul class="trace mono" id="trace" aria-label="Live trace"></ul>
+        <p id="notrace" class="muted pad" hidden>Nothing has happened yet.</p>
+      </section>
+
+      <section class="panel c8" id="incidents" aria-labelledby="h-inc" hidden>
+        <div class="ph"><h2 id="h-inc">Incidents</h2><span class="sub mono" id="incsub"></span></div>
+        <div id="inclist"></div>
+      </section>
+
+      <section class="panel c8" aria-labelledby="h-agents">
+        <div class="ph"><h2 id="h-agents">Agents</h2><span class="sub mono" id="agentsub"></span></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Agent</th><th>Doing</th><th class="r">Tokens</th><th class="r">Calls</th><th class="r">Cost</th><th>Tools</th></tr></thead>
+            <tbody id="agents"></tbody>
+          </table>
+        </div>
+        <p id="noagents" class="muted pad" hidden>No agent has started yet.</p>
+      </section>
+
+
+      <section class="panel c8" id="autonomy" aria-labelledby="h-auto" hidden>
+        <div class="ph"><h2 id="h-auto">Autonomy</h2><span class="sub mono" id="autosub"></span></div>
+        <div id="ladders"></div>
+      </section>
+
+      <section class="panel c8" aria-labelledby="h-spend">
+        <div class="ph"><h2 id="h-spend">Spend over time</h2><span class="sub mono" id="spendsub"></span></div>
+        <svg id="spend" class="spend" viewBox="0 0 600 140" preserveAspectRatio="none" role="img" aria-label="Cumulative tokens over time"></svg>
+        <p id="nospend" class="muted pad" hidden>No model call has finished yet.</p>
+      </section>
+
+      <section class="panel c8" aria-labelledby="h-tools">
+        <div class="ph"><h2 id="h-tools">Tool activity</h2><span class="sub mono" id="toolsub"></span></div>
+        <div class="tools" id="tools"></div>
+        <p id="notools" class="muted pad" hidden>No tool has been called yet.</p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="foot2 faint mono"><span id="mode">embedded mode</span><span id="updated"></span></footer>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

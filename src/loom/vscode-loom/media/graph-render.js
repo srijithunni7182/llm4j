@@ -40,6 +40,7 @@
     decide: { k: 'call', g: 'scale', shape: 'rect' },
     observe: { k: 'misc', g: 'eye', shape: 'rect' },
     note: { k: 'misc', g: 'note', shape: 'rect', dashed: true },
+    sleep: { k: 'misc', g: 'clock', shape: 'rect' },
     unknown: { k: 'misc', g: 'unknown', shape: 'rect', dashed: true },
     statement: { k: 'misc', g: 'unknown', shape: 'rect', dashed: true }
   };
@@ -62,6 +63,7 @@
     scale: '<path d="M8 2.5v11M4 13.5h8M3 5.5h10M3 5.5L1.8 9h2.4zM13 5.5L11.8 9h2.4z"/>',
     eye: '<path d="M1.5 8S4 3.8 8 3.8 14.5 8 14.5 8 12 12.2 8 12.2 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="1.9"/>',
     note: '<path d="M3 3h10v10H3zM5.5 6h5M5.5 8.5h5M5.5 11h3"/>',
+    clock: '<circle cx="8" cy="8" r="5.5"/><path d="M8 4.8V8l2.2 1.4"/>',
     person: '<circle cx="8" cy="5.2" r="2.4"/><path d="M3.2 13.5c0-3 2-4.6 4.8-4.6s4.8 1.6 4.8 4.6"/>',
     q: '<path d="M6 6a2 2 0 114 0c0 1.6-2 1.6-2 3.2M8 12v.3"/>',
     hand: '<path d="M5 8.5V4.2a1 1 0 012 0V7V3.4a1 1 0 012 0V7V4a1 1 0 012 0v5.5c0 2.4-1.8 4-4 4S4 12 4 10l-1-2a1 1 0 012 .3z"/>',
@@ -180,6 +182,7 @@
       case 'human_prompt':
       case 'note': return a.text ? cut(a.text, 40) : null;
       case 'observe': return a.text ? cut(a.text, 40) : null;
+      case 'sleep': return a.duration || null;
       case 'rewind': return a.condition ? cut(a.condition, 40) : null;
       case 'task': return a.args ? plural(a.args, 'arg') : null;
       case 'call':

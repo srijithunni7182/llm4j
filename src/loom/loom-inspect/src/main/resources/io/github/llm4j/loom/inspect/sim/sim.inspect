@@ -1,0 +1,4 @@
+# How loom-inspect watches sim.loom (the soak's rules, with a lower bar so a short run reaches them).
+Editor { same_action: 3 times }
+Lead { no_progress: 2 rounds on review.fix }
+Scriptwriter { ungrounded_figures: warn at 2, high at 4 }

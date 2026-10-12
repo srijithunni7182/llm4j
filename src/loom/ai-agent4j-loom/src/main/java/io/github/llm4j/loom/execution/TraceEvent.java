@@ -15,6 +15,10 @@ import java.util.Map;
  */
 public record TraceEvent(String type, String agent, String step, String text, Map<String, Object> data, Instant at) {
 
+    /** A top-level run (or a resumed one) begins: {@code data} has {@code workflow}, {@code run} (the run id, when there is one) and {@code resumed}. */
+    public static final String RUN_START = "run_start";
+    /** A top-level run leaves {@code executeWorkflow}: {@code data.status} is completed, suspended, stopped, budget or failed. */
+    public static final String RUN_END = "run_end";
     public static final String DELEGATE_START = "delegate_start";
     public static final String DELEGATE_END = "delegate_end";
     public static final String DELEGATE_REPLAYED = "delegate_replayed";
@@ -27,6 +31,10 @@ public record TraceEvent(String type, String agent, String step, String text, Ma
     public static final String GUARD = "guard";
     public static final String VOICE = "voice";
     public static final String SUSPENDED = "suspended";
+    /** An observer's control on the run: {@code data.action} is pause, resume, suspend or stop; {@code data.state} is requested, held, resumed, applied or cancelled; {@code data.by} says who. */
+    public static final String CONTROL = "control";
+    /** A {@code sleep} step: {@code data.state} is "start" (with {@code wakeAt} and {@code millis}) or "end". */
+    public static final String SLEEP = "sleep";
     public static final String TOOL = "tool";
     public static final String CHECKPOINT = "checkpoint";
     public static final String REWIND = "rewind";

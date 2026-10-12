@@ -84,6 +84,7 @@ SqlQuery    = com.mycompany.tools.DatabaseTool
 | `loop until` | Repeats a block until a symbolic condition is met; `max N … on_exhausted` bounds it |
 | `for each` | Runs a block per list item (`parallel for each` for all at once); targets may come from the item |
 | `human_prompt` | Asks a person; with a run journal the run suspends (no thread held) and resumes on the answer |
+| `sleep` | Waits a fixed time (`sleep 5m`); with a run journal the run pauses, holds no thread, and wakes on time |
 | `budget` | Caps a run, an agent or a step in tokens, calls or money; enforced before each LLM call. `per day` makes it refill |
 | `checkpoint` / `rewind` | Name a point and go back to it when a late check fails, carrying what was learned and keeping the old attempt as history: `rewind to collected when (review.score < 7) at most 2 times carrying feedback = "{review.notes}"`. Identical side effects and answers are never repeated; `weave timeline`, `rewind`, `reset` and `fork` do the same from outside |
 | `decision` / `decide` | Earned autonomy: an agent proposes, a person decides, and the record of both moves the agent up a ladder (`watch`, `suggest`, `act`) or back down. Written in plain phrases (`to act: after 300 cases over 30 days, agreeing at least 97%, with no dangerous mistakes`); `weave autonomy` operates it and `weave replay` tries a changed prompt or model on past cases with nothing sent |
@@ -359,6 +360,12 @@ java -jar my-app.jar topic="Advanced Agentic Coding"
 # Install from VS Code Marketplace
 # Search for: "Loom DSL"
 ```
+
+### Watching runs live
+
+**loom-inspect and Fabric** — Add `--observe` for a live page about a running workflow: tokens and cost, the active agent and tool, the graph with the running step marked, and incidents (loops, failing tools, figures with no source). Point many processes at one **Fabric** server with `--observe-fabric`. A signed-in admin can pause, suspend or stop a run. Thresholds live in a file beside the script, not in it. Try it with no model: `./fabric-sim.sh`.
+
+[Observability guide](../../../docs/OBSERVABILITY.md) · [Fabric server](../../../wiki/Fabric-Server.md) · [`loom-inspect`](../loom-inspect/README.md) · [`loom-fabric`](../loom-fabric/README.md)
 
 ### Testing & Conformance
 

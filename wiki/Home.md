@@ -22,6 +22,7 @@ Each module answers the question the previous one raises.
 | **Engram** | How does an agent remember without drowning in context? | [Engram](../src/engram/engram-core/README.md) · [Loom + Engram workflows](../docs/AGENTIC_WORKFLOWS_GUIDE.md) |
 | **Addons** | How do I keep my data private and my costs at zero? | [Addons](../src/ai-agent4j-addons/) (ONNX and DJL embeddings, pgvector, Pinecone) |
 | **Tools** | How do I let an agent act on the world safely? | [Ready-made tools](../src/ai-agent4j-tools/docs/README.md) (`webhook`, `email`, `http`, `file`, `shell`, `sql`) |
+| **Observability** | How do I see what a workflow is doing right now? | [Overview](Observability.md) · [Fabric server](Fabric-Server.md) |
 | **eval4j** | How do I know it works, and keeps working? | [eval4j guide](../src/eval4j/README.md) · [Dashboard guide](../src/eval4j-report/docs/USER-GUIDE.md) |
 
 ---
@@ -45,6 +46,7 @@ Each module answers the question the previous one raises.
 - [Loom Language Guide](../src/loom/ai-agent4j-loom/LOOM_GUIDE.md)
 - [Budgets, Pausing and Scheduling](../src/loom/ai-agent4j-loom/BUDGETS_AND_SCHEDULING.md)
 - [Agentic Workflows with Loom and Engram](../docs/AGENTIC_WORKFLOWS_GUIDE.md)
+- [Observability: watching runs live](Observability.md) · [Deployment guide](../docs/OBSERVABILITY_DEPLOYMENT.md) · [Fabric server](Fabric-Server.md) · [Incidents and rules](Observability-Incidents-and-Rules.md) · [Controls, secrets and security](Observability-Controls-and-Security.md) · [Reference](Observability-Reference.md)
 - [Loom CTK (conformance)](../src/loom/ctk/README.md) · [VS Code extension](../src/loom/vscode-loom/README.md)
 
 ### Ship with confidence

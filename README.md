@@ -87,6 +87,7 @@ see [API keys in the Quick Start](src/ai-agent4j/wiki/Getting-Started.md#set-up-
 |---|---|---|
 | 🏗️ [**ai-agent4j**](src/ai-agent4j/) | How do I build an agent? | ReAct agents, tools, skills, memory, RAG, budgets, one contract over Gemini, Claude, Sarvam and Ollama |
 | 🧵 [**Loom**](src/loom/ai-agent4j-loom/) | How do many agents work together, reliably, for days? | A small workflow language: journaled, resumable, budgeted, scheduled, with deterministic tasks and earned autonomy ([why](src/loom/ai-agent4j-loom/WHY_LOOM.md)) |
+| 🔭 [**loom-inspect and Fabric**](src/loom/loom-inspect/) | What is a workflow doing right now, and has it gone wrong? | A live page per process or one server for many ([Fabric](src/loom/loom-fabric/)): cost, active agents, the running step, incidents (loops, failing tools, unsourced figures), pause / suspend / stop, secrets rotation. No model needed to [try it](src/examples/fabric-sim/README.md) ([guide](docs/OBSERVABILITY.md)) |
 | 🧠 [**Engram**](src/engram/engram-core/) | How does an agent remember without drowning in context? | Retrieve-and-synthesise memory that keeps prompts small |
 | 🧩 [**Addons**](src/ai-agent4j-addons/) | How do I keep data private and costs at zero? | Local ONNX/DJL embeddings, pgvector and Pinecone |
 | 🔧 [**Tools**](src/ai-agent4j-tools/) | How do I let an agent act safely? | `webhook`, `email`, `http`, `file`, `shell`, read-only `sql`, with allow-lists and journals |
@@ -114,6 +115,7 @@ and a [Gmail MCP app](src/examples/gmail-mcp-app/). [All examples](docs/EXAMPLES
 [**Docs index**](docs/README.md) ·
 [Quick Start](src/ai-agent4j/wiki/Getting-Started.md) ·
 [Loom guide](src/loom/ai-agent4j-loom/LOOM_GUIDE.md) ·
+[Observability](docs/OBSERVABILITY.md) · [Deploying observability](docs/OBSERVABILITY_DEPLOYMENT.md) ·
 [Secret Store](src/ai-agent4j/wiki/Secret-Store.md) ·
 [Security](SECURITY.md) ·
 [eval4j](src/eval4j/README.md) ·

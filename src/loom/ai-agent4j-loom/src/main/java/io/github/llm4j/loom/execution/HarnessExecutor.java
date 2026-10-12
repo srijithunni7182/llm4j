@@ -114,11 +114,15 @@ public class HarnessExecutor implements LoomEngine {
     /** Journal key of the run's latest pause for a limit. */
     public static final String SUSPENSION = "#suspension";
     static final int DEFAULT_MAX_RESUMES = 50;
+    /** A sleep this short is waited out in place even with a durable journal: pausing the run costs more than it saves. */
+    static final Duration INLINE_SLEEP = Duration.ofSeconds(30);
     static final Duration DEFAULT_MAX_INLINE_WAIT = Duration.ofMinutes(5);
     static final Duration DEFAULT_MAX_SUSPEND = Duration.ofDays(7);
     private java.time.Clock clock = java.time.Clock.systemUTC();
     private io.github.llm4j.ratelimit.Sleeper sleeper = io.github.llm4j.ratelimit.Sleeper.SYSTEM;
     private int resumes;
+    /** True when this top-level run began by resuming a pause for a limit or a sleep (not counted in {@link #resumes} for a sleep). */
+    private boolean resumedFromPause;
     private io.github.llm4j.loom.trigger.TriggerStore triggerStore;
     private String runId;
     private String scriptRef = "script";
@@ -348,6 +352,23 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     private String stopAt;
+    private final RunControl control = new RunControl();
+
+    {
+        control.addListener(this::traceControl);
+    }
+
+    private void traceControl(RunControl.Event e) {
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("action", e.action().name().toLowerCase(java.util.Locale.ROOT));
+        data.put("state", e.state());
+        if (e.by() != null) data.put("by", e.by());
+        if (e.step() != null) data.put("step", e.step());
+        trace(TraceEvent.CONTROL, null, e.action().name().toLowerCase(java.util.Locale.ROOT) + " " + e.state() + (e.by() == null ? "" : " by " + e.by()), data);
+    }
+
+    /** What an observer may do to this run: pause, resume, suspend, stop. Takes effect between steps. */
+    public RunControl control() { return control; }
     /** Ends the run cleanly, as {@link io.github.llm4j.loom.runtime.RunStopped}, once the named step or checkpoint has completed. */
     public void setStopAt(String point) { this.stopAt = point; }
     /** A place a run can be told to stop at: a step id (with or without its attempt) or a checkpoint's name. */
@@ -391,6 +412,50 @@ public class HarnessExecutor implements LoomEngine {
     public String awaitHuman(String key, String message) {
         String id = step.get() + "#" + key;
         return journal.get(id).map(e -> String.valueOf(e.value())).orElseThrow(() -> new RunSuspended(id, message));
+    }
+
+    /**
+     * {@code sleep 90s}. The wake time is journaled before anything waits, so a resumed run (or a second
+     * executor on the same journal) keeps the original wake time and never lengthens the sleep. With a
+     * durable journal a sleep longer than {@link #INLINE_SLEEP} pauses the run ({@link RunSuspended},
+     * reason SLEEP) and holds no thread; otherwise the sleep is waited out in place.
+     */
+    private void executeSleep(io.github.llm4j.loom.ast.SleepStmt sleep) {
+        String stepId = step.get();
+        var recorded = journal.get(stepId).filter(e -> "sleep".equals(e.kind()));
+        boolean resumed = recorded.isPresent();
+        Instant wakeAt;
+        if (resumed) {
+            wakeAt = Instant.parse(String.valueOf(recorded.get().value()));
+        } else {
+            wakeAt = clock.instant().plus(sleep.getDuration());
+            journal.put(stepId, new RunJournal.Entry("sleep", wakeAt.toString()));
+        }
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        data.put("wakeAt", wakeAt.toString());
+        data.put("millis", String.valueOf(sleep.getDuration().toMillis()));
+        data.put("step", stepId);
+        if (!resumed) {
+            data.put("state", "start");
+            trace(TraceEvent.SLEEP, null, "sleeping " + sleep.getText() + ", until " + wakeAt, data);
+            auditLogger.logConversationEvent(sessionId, null, "sleep_started", new java.util.LinkedHashMap<>(data));
+        }
+        Duration remaining = Duration.between(clock.instant(), wakeAt);
+        if (!remaining.isNegative() && !remaining.isZero()) {
+            if (journal.isDurable() && remaining.compareTo(INLINE_SLEEP) > 0) {
+                throw new RunSuspended(stepId, wakeAt, "sleeping " + sleep.getText());
+            }
+            try {
+                sleeper.sleep(remaining);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted while sleeping at " + stepId, e);
+            }
+        }
+        Map<String, Object> done = new java.util.LinkedHashMap<>(data);
+        done.put("state", "end");
+        trace(TraceEvent.SLEEP, null, "woke after " + sleep.getText(), done);
+        auditLogger.logConversationEvent(sessionId, null, "sleep_ended", new java.util.LinkedHashMap<>(done));
     }
 
     /**
@@ -483,6 +548,29 @@ public class HarnessExecutor implements LoomEngine {
                 trace(TraceEvent.BUDGET, agentName, event.kind() + " " + event.budget() + ": spent " + event.spent()
                         + " of " + event.limits(), Map.of("budget", event.budget(), "kind", String.valueOf(event.kind())));
             }
+        };
+    }
+
+    /**
+     * A read-only view of this run for an observer (see {@link io.github.llm4j.loom.observe.ObservableRun}). Take it and add
+     * its listeners before {@link #initialize()}.
+     */
+    public io.github.llm4j.loom.observe.ObservableRun observable() {
+        HarnessExecutor self = this;
+        return new io.github.llm4j.loom.observe.ObservableRun() {
+            @Override public String runId() { return self.runId; }
+            @Override public RunJournal journal() { return self.journal; }
+            @Override public LoomScript script() { return self.script; }
+            @Override public io.github.llm4j.secret.SecretStore secretStore() { return self.secretStore; }
+            @Override public java.util.Optional<io.github.llm4j.loom.autonomy.Ledger> ledger() { return java.util.Optional.ofNullable(self.ledger); }
+            @Override public java.util.Optional<io.github.llm4j.loom.autonomy.LevelStore> levelStore() { return java.util.Optional.ofNullable(self.levelStore); }
+            @Override public io.github.llm4j.budget.Budget runBudget() { return self.getRunBudget(); }
+            @Override public SpendReport spend() { return self.spend(); }
+            @Override public RunControl control() { return self.control; }
+            @Override public Map<String, Object> variables() { return java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(self.context.getAll())); }
+            @Override public java.time.Clock clock() { return self.clock; }
+            @Override public void addTraceListener(TraceListener listener) { self.addTraceListener(listener); }
+            @Override public void addSuspensionListener(java.util.function.Consumer<RunSuspended> listener) { self.addSuspensionListener(listener); }
         };
     }
 
@@ -1081,6 +1169,7 @@ public class HarnessExecutor implements LoomEngine {
                     if (generation > 1) context.setVariable("_generation", String.valueOf(generation));
                 }
                 try {
+                    control.checkpoint(step.get()); // an observer may have paused, suspended or stopped the run
                     executeStatement(statements.get(i));
                     if (stopAt != null) stopPoint(step.get());
                 } catch (Rewinder.RewindSignal signal) {
@@ -1390,8 +1479,21 @@ public class HarnessExecutor implements LoomEngine {
 
         String parent = step.get();
         boolean topLevel = parent.isEmpty();
-        if (topLevel) beginRun();
+        if (topLevel) control.reset(); // a stop asked for an earlier run is not meant for this one
+        if (topLevel) {
+            beginRun();
+            control.reset(); // a stop asked for an earlier run is not meant for this one
+        }
         step.set(topLevel ? workflowName : parent + ">" + workflowName);
+        String ended = "completed";
+        Map<String, Object> endData = new java.util.LinkedHashMap<>();
+        if (topLevel) {
+            Map<String, Object> startData = new java.util.LinkedHashMap<>();
+            startData.put("workflow", workflowName);
+            if (runId != null) startData.put("run", runId);
+            startData.put("resumed", String.valueOf(resumedFromPause));
+            trace(TraceEvent.RUN_START, null, "workflow " + workflowName, startData);
+        }
         try {
             rootNext.set(true);
             runBlock(targetWorkflow.getStatements(), "s");
@@ -1399,10 +1501,26 @@ public class HarnessExecutor implements LoomEngine {
         } catch (HandoffSignal hs) {
             log.info("Workflow terminated via handoff: " + hs.getMessage());
         } catch (RunSuspended paused) {
+            ended = "suspended";
+            endData.put("reason", paused.reason().name());
+            if (paused.resumeAt() != null) endData.put("resumeAt", paused.resumeAt().toString());
             if (topLevel && paused.resumeAt() != null) recordSuspension(paused);
             throw paused;
+        } catch (io.github.llm4j.loom.runtime.RunStopped stopped) {
+            ended = "stopped";
+            throw stopped;
+        } catch (RuntimeException | Error failure) {
+            ended = failure instanceof io.github.llm4j.budget.BudgetExceeded ? "budget" : "failed";
+            endData.put("error", String.valueOf(failure.getMessage()));
+            throw failure;
         } finally {
             step.set(parent);
+            if (topLevel) {
+                endData.put("workflow", workflowName);
+                if (runId != null) endData.put("run", runId);
+                endData.put("status", ended);
+                trace(TraceEvent.RUN_END, null, "workflow " + workflowName + " " + ended, endData);
+            }
         }
     }
 
@@ -1432,6 +1550,8 @@ public class HarnessExecutor implements LoomEngine {
             String noteText = resolvePayload(note.getMessage());
             log.info("NOTE: " + noteText);
             trace(TraceEvent.NOTE, null, noteText, null);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.SleepStmt sleep) {
+            executeSleep(sleep);
         } else if (stmt instanceof io.github.llm4j.loom.ast.RunStmt run) {
             taskRunner.run(run);
         } else if (stmt instanceof DelegateStmt del) {
@@ -1450,7 +1570,9 @@ public class HarnessExecutor implements LoomEngine {
             boolean replayed = journal.get(step.get()).isPresent();
             if (agent != null && agentDef != null && !replayed) {
                 String contextBriefing = memoryEngine.assembleContext(agentDef, resolvedPayload, view());
+                trace(TraceEvent.DELEGATE_START, handoff.getTargetAgent(), resolvedPayload, new java.util.LinkedHashMap<>(Map.of("variable", "handoff")));
                 io.github.llm4j.agent.AgentResult result = runUnderLimits(agent, contextBriefing);
+                trace(TraceEvent.DELEGATE_END, handoff.getTargetAgent(), result.getFinalAnswer(), usageData(result));
                 
                 memoryEngine.storeOutcome(agentDef, resolvedPayload, result, context);
                 
@@ -1498,7 +1620,10 @@ public class HarnessExecutor implements LoomEngine {
                             locals.set(names);
                             scopes.set(branchScopes);
                             try {
+                                // each target is a step of its own to anyone watching: it starts and ends like a delegate, with its tokens
+                                trace(TraceEvent.DELEGATE_START, agentName, resolvedPayload, new java.util.LinkedHashMap<>(Map.of("variable", broadcast.getVariableName())));
                                 io.github.llm4j.agent.AgentResult r = runUnderLimits(broadcastAgent, resolvedPayload);
+                                trace(TraceEvent.DELEGATE_END, agentName, r.getFinalAnswer(), usageData(r));
                                 if (r.budgetExhausted()) {
                                     budgetExhausted.set(true);
                                     if (r.getUsage().getLlmCalls() == 0) throw r.getBudgetExceeded();
@@ -2092,6 +2217,8 @@ public class HarnessExecutor implements LoomEngine {
         if (r == null || r.getUsage() == null) return data;
         data.put("calls", r.getUsage().getLlmCalls());
         data.put("tokens", r.getUsage().getTotalTokens());
+        data.put("promptTokens", r.getUsage().getPromptTokens()); // the split lets a server with a price table cost the step
+        data.put("completionTokens", r.getUsage().getCompletionTokens());
         if (r.getUsage().getCost() != null) data.put("cost", r.getUsage().getCost().toPlainString());
         return data;
     }
@@ -2485,11 +2612,14 @@ public class HarnessExecutor implements LoomEngine {
                 .map(e -> e.value() instanceof Map<?, ?> m ? new java.util.LinkedHashMap<>(castMap(m)) : null)
                 .orElse(null);
         resumes = last == null ? 0 : (int) number(last.get("resumes"));
+        resumedFromPause = last != null && "suspended".equals(last.get("state"));
         if (last != null && "suspended".equals(last.get("state"))) {
-            resumes++;
+            // A sleep is the script's own choice, not a limit: waking from one is not counted against max_resumes.
+            boolean slept = "SLEEP".equals(String.valueOf(last.get("reason")));
+            if (!slept) resumes++;
             Instant now = clock.instant();
             last.put("resumes", resumes);
-            if (resumes > maxResumes()) {
+            if (!slept && resumes > maxResumes()) {
                 last.put("state", "failed");
                 journal.put(SUSPENSION, new RunJournal.Entry("suspension", last));
                 throw new IllegalStateException("Run paused for limits and resumed " + (resumes - 1)
@@ -2533,6 +2663,8 @@ public class HarnessExecutor implements LoomEngine {
         if (paused.limit() != null) {
             rec.putAll(limitData(paused.limit()));
             rec.put("detail", paused.limit().describe());
+        } else if (paused.detail() != null) {
+            rec.put("detail", paused.detail());
         }
         journal.put(SUSPENSION, new RunJournal.Entry("suspension", rec));
         if (triggerStore != null && runId != null) {

@@ -115,6 +115,8 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**use** `: webhook | email | http | file | shell | sql | serpapi | duckduckgo | google_search | openapi | calculator | datetime | current_time | class`\n\nIn a `tool Name { }` block: the kind of tool. `webhook` posts to Slack, Discord or Teams; `email` sends over SMTP; `http` calls a REST API; `file` reads and writes text files in one directory; `shell` runs named programs; `sql` runs read-only queries. Secret options (`url`, `password`, `api_key`, `auth_value`, and credential headers) must be `env.NAME`.',
     checkpoint:
         '**checkpoint** `Name [starting with name = "value", ...]`\n\nNames a point in a workflow that a later `rewind` can go back to. `start` is the point before the first statement.',
+    sleep:
+        '**sleep** `30s | 5m | 2h | 1d`\n\nWaits a fixed time, then carries on. With a run journal the run pauses (no thread is held) and wakes at the recorded time; without one it waits in place. It costs no tokens and is not counted against `max_resumes`.',
     rewind:
         '**rewind** `to Name [when (condition)] at most N times [carrying name = "value"] [side effects: ask first | keep | repeat] [if it still fails { ... }] [if blocked { ... }]`\n\nGoes back to a checkpoint and runs what came after it again, as a new attempt that keeps the old one as history. A model call runs again; an identical side effect or an identical answer from a person is not repeated.',
     decision:

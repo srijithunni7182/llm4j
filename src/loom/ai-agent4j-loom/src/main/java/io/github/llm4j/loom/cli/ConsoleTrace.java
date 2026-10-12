@@ -16,6 +16,9 @@ final class ConsoleTrace implements TraceListener {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss").withZone(ZoneId.systemDefault());
     private static final Map<String, String> ICONS = Map.ofEntries(
+            Map.entry(TraceEvent.RUN_START, "🚀"),
+            Map.entry(TraceEvent.RUN_END, "🏁"),
+            Map.entry(TraceEvent.SLEEP, "💤"),
             Map.entry(TraceEvent.DELEGATE_START, "▶"),
             Map.entry(TraceEvent.DELEGATE_END, "✔"),
             Map.entry(TraceEvent.DELEGATE_REPLAYED, "↺"),

@@ -19,7 +19,8 @@ record WeaveEnv(LLMClientFactory models, HumanInterface human, PrintStream out, 
                 Sleeper sleeper, CommandRunner commands, List<String> weave,
                 java.util.function.Function<String, String> env, String askVia,
                 io.github.llm4j.secret.SecretStore secrets,
-                io.github.llm4j.loom.prompt.PromptSettings prompts) {
+                io.github.llm4j.loom.prompt.PromptSettings prompts,
+                io.github.llm4j.loom.observe.ObserveProvider.Session observe) {
 
     WeaveEnv {
         prompts = prompts == null ? io.github.llm4j.loom.prompt.PromptSettings.NONE : prompts;
@@ -27,8 +28,15 @@ record WeaveEnv(LLMClientFactory models, HumanInterface human, PrintStream out, 
 
     WeaveEnv(LLMClientFactory models, HumanInterface human, PrintStream out, PrintStream err, Clock clock,
              Sleeper sleeper, CommandRunner commands, List<String> weave,
+             java.util.function.Function<String, String> env, String askVia, io.github.llm4j.secret.SecretStore secrets,
+             io.github.llm4j.loom.prompt.PromptSettings prompts) {
+        this(models, human, out, err, clock, sleeper, commands, weave, env, askVia, secrets, prompts, null);
+    }
+
+    WeaveEnv(LLMClientFactory models, HumanInterface human, PrintStream out, PrintStream err, Clock clock,
+             Sleeper sleeper, CommandRunner commands, List<String> weave,
              java.util.function.Function<String, String> env, String askVia, io.github.llm4j.secret.SecretStore secrets) {
-        this(models, human, out, err, clock, sleeper, commands, weave, env, askVia, secrets, null);
+        this(models, human, out, err, clock, sleeper, commands, weave, env, askVia, secrets, null, null);
     }
 
     WeaveEnv(LLMClientFactory models, HumanInterface human, PrintStream out, PrintStream err, Clock clock,
@@ -49,7 +57,7 @@ record WeaveEnv(LLMClientFactory models, HumanInterface human, PrintStream out, 
 
     /** The same, asking through a channel ({@code --ask-via}) whatever the store says. */
     WeaveEnv withAskVia(String channel) {
-        return channel == null ? this : new WeaveEnv(models, human, out, err, clock, sleeper, commands, weave, env, channel, secrets, prompts);
+        return channel == null ? this : new WeaveEnv(models, human, out, err, clock, sleeper, commands, weave, env, channel, secrets, prompts, observe);
     }
 
     /**
@@ -60,7 +68,7 @@ record WeaveEnv(LLMClientFactory models, HumanInterface human, PrintStream out, 
         if (store == null) return this;
         LLMClientFactory factory = models instanceof io.github.llm4j.loom.execution.DefaultLLMClientFactory
                 ? new io.github.llm4j.loom.execution.DefaultLLMClientFactory(env, store) : models;
-        return new WeaveEnv(factory, human, out, err, clock, sleeper, commands, weave, env, askVia, store, prompts);
+        return new WeaveEnv(factory, human, out, err, clock, sleeper, commands, weave, env, askVia, store, prompts, observe);
     }
 
     static WeaveEnv system() {
@@ -72,16 +80,21 @@ record WeaveEnv(LLMClientFactory models, HumanInterface human, PrintStream out, 
     WeaveEnv withEnvLookup(java.util.function.Function<String, String> lookup) {
         LLMClientFactory factory = models instanceof io.github.llm4j.loom.execution.DefaultLLMClientFactory
                 ? new io.github.llm4j.loom.execution.DefaultLLMClientFactory(lookup, secrets) : models;
-        return new WeaveEnv(factory, human, out, err, clock, sleeper, commands, weave, lookup, askVia, secrets, prompts);
+        return new WeaveEnv(factory, human, out, err, clock, sleeper, commands, weave, lookup, askVia, secrets, prompts, observe);
     }
 
     WeaveEnv withWeave(List<String> command) {
-        return new WeaveEnv(models, human, out, err, clock, sleeper, commands, command, env, askVia, secrets, prompts);
+        return new WeaveEnv(models, human, out, err, clock, sleeper, commands, command, env, askVia, secrets, prompts, observe);
     }
 
     /** The same, with the prompt folder and pins the command line gave. */
     WeaveEnv withPrompts(io.github.llm4j.loom.prompt.PromptSettings settings) {
-        return new WeaveEnv(models, human, out, err, clock, sleeper, commands, weave, env, askVia, secrets, settings);
+        return new WeaveEnv(models, human, out, err, clock, sleeper, commands, weave, env, askVia, secrets, settings, observe);
+    }
+
+    /** The same, with an observing session the runs it builds are attached to. */
+    WeaveEnv withObserve(io.github.llm4j.loom.observe.ObserveProvider.Session session) {
+        return new WeaveEnv(models, human, out, err, clock, sleeper, commands, weave, env, askVia, secrets, prompts, session);
     }
 
     /** {@code java -cp <this classpath> io.github.llm4j.loom.cli.WeaveCLI}: runs this weave again later. */

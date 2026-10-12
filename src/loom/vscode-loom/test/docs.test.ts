@@ -30,7 +30,7 @@ test('the README says what happens on failure and that nothing is run', () => {
 });
 
 test('the README covers every node kind the panel draws', () => {
-    for (const word of ['delegate', 'run', 'parallel', 'alt', 'loop', 'for each', 'call', 'checkpoint', 'rewind', 'guardrail', 'decide', 'observe', 'note']) {
+    for (const word of ['delegate', 'run', 'parallel', 'alt', 'loop', 'for each', 'call', 'checkpoint', 'rewind', 'guardrail', 'decide', 'observe', 'sleep', 'note']) {
         assert.ok(readme.includes(word), word);
     }
 });
