@@ -51,7 +51,7 @@
     if (fabric) {
       var p = el('button', 'wt proc' + (showProcs ? ' on' : ''), 'Processes');
       p.type = 'button';
-      p.addEventListener('click', function () { showProcs = true; showConfig = false; renderAll(); });
+      p.addEventListener('click', function () { showProcs = true; showConfig = false; $('controls').hidden = true; renderAll(); });
       nav.appendChild(p);
     }
     if (sess.secretsEnabled && !fabric) {
@@ -420,7 +420,7 @@
   function renderControls(v) {
     var box = $('controls'), c = v.controls;
     box.textContent = '';
-    if (!c) { box.hidden = true; return; }
+    if (!c || showProcs || showSecrets || showConfig) { box.hidden = true; return; } // a run's controls belong to the run's own page
     box.hidden = false;
     var ended = ['finished', 'failed', 'stopped'].indexOf(v.status) >= 0;
     if (ended) { box.hidden = true; return; }
@@ -738,7 +738,7 @@
           renderRuns(list.runs);
           renderProcesses();
           $('mode').textContent = fabric ? 'Fabric' : 'embedded mode';
-          if (showProcs) { ['status', 'meta', 'conn'].forEach(function (i) { $(i).hidden = true; }); $('wfname').textContent = ''; $('client').textContent = ''; $('banner').hidden = true; }
+          if (showProcs) { ['status', 'meta', 'conn', 'controls'].forEach(function (i) { $(i).hidden = true; }); $('wfname').textContent = ''; $('client').textContent = ''; $('banner').hidden = true; }
           if (showConfig) { $('secrets').hidden = true; renderConfig(); return null; }
           $('config').hidden = true;
           if (showSecrets) { renderSecrets(); return null; }

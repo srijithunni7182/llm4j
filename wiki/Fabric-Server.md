@@ -80,6 +80,8 @@ them, `weave observe purge` removes them.
 
 ## The Processes page
 
+![The Processes page: three processes with state, host, workflows, live runs, events per second, backlog, lost and last seen](../docs/images/observability/fabric-processes.png)
+
 | Column | Meaning |
 |---|---|
 | State | **online** (a message in the last 15 s; heartbeats come every 5 s), **catching up** (online with a backlog), **offline** |
@@ -92,6 +94,8 @@ them, `weave observe purge` removes them.
 The server's time comes back in every heartbeat answer, but nothing yet warns about a skewed clock: keep clocks in sync (NTP), because a signature more than 5 minutes off is refused.
 
 ## Configuration page
+
+![The Configuration page with inspect rules and a price table saved](../docs/images/observability/fabric-configuration.png)
 
 Signed in, open **Configuration**. Two documents live on the server, in the same format as the files a process keeps beside its
 script. Each has its own **Save** and **Discard changes**.

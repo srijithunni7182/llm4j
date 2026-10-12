@@ -13,6 +13,10 @@ whether something has gone wrong. **loom-inspect** and **Fabric** do that.
 
 Both show the same page. Neither changes how a workflow behaves, and a missing or broken Fabric never slows or stops a run.
 
+![Fabric's Processes page: three simulated processes with their state, live runs, events per second, backlog and last seen, and the incidents that need attention](images/observability/fabric-processes.png)
+
+*Fabric's landing page: every process that reports, with one tab per process and workflow along the top, and what needs attention underneath.*
+
 > **Try it first, with no model and no key:** `./fabric-sim.sh` at the repository root starts a Fabric server and
 > several simulated Loom processes. See [fabric-sim](../src/examples/fabric-sim/README.md).
 
@@ -33,6 +37,20 @@ Both show the same page. Neither changes how a workflow behaves, and a missing o
 | **Privacy levels** | `--observe-detail full`, `truncated` (default) or `metadata`: how much of what agents say leaves the process |
 | **Central configuration** | In Fabric, an admin edits the **inspect rules** and the **price table** on a Configuration page: checked on save, in force at once, kept across restarts ([details](../wiki/Fabric-Server.md#configuration-page)) |
 | **Cost** | From a price file at the process, or from the price table kept on Fabric ([cost](#cost)) |
+
+## What the page looks like
+
+![One run: tokens, cost, running agents, tool calls, the workflow graph with the running step marked, incidents, and a live trace of what the agents are doing](images/observability/fabric-run.png)
+
+*A run: totals across the top, the workflow graph with each step's state, the incidents raised, and the trace of what agents and tools are doing, in plain language.*
+
+![The incidents panel of a run that loops: repeated calls, repeated answers, no progress and figures with no source](images/observability/fabric-incidents.png)
+
+*Incidents. This run (from the [simulator](../src/examples/fabric-sim/README.md)) is built to trip every rule; each incident says what was measured against which threshold.*
+
+![Fabric's Configuration page: the inspect rules and the price table, each with Save and Discard](images/observability/fabric-configuration.png)
+
+*Configuration (Fabric, signed in): the inspect rules and the price table, checked on save and in force at once.*
 
 ## Quick start
 

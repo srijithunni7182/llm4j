@@ -22,6 +22,8 @@ watched differently in test and in production.
 An incident opens when its rule fires and closes when its condition clears or the step ends. Suspect-output incidents carry
 the signals that fired and are never closed by the tool as "resolved".
 
+![The incidents panel of a run that loops, with the measurement and threshold behind each incident](../docs/images/observability/fabric-incidents.png)
+
 ### How they are decided, and why they work at every detail level
 
 The checks use **hashes and counts computed in the process** (a hash of each tool call, a hash of each answer, the count of
