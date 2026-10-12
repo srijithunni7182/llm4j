@@ -270,4 +270,92 @@ class InspectProviderTest {
         assertThat(out.toString()).contains("no agent named Nobody");
         assertThat(script).exists();
     }
+
+    private static final String SLOW = """
+            workflow Main() {
+                note "before"
+                sleep 5s
+                note "after"
+                note "later"
+            }
+            """;
+
+    private String post(HttpClient http, String url, String body, String cookie, String csrf) throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(url)).header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body));
+        if (cookie != null) b.header("Cookie", cookie);
+        if (csrf != null) b.header("X-CSRF-Token", csrf);
+        HttpResponse<String> r = http.send(b.build(), HttpResponse.BodyHandlers.ofString());
+        return r.statusCode() + " " + r.body() + (r.headers().firstValue("Set-Cookie").map(c -> " COOKIE=" + c.split(";")[0]).orElse(""));
+    }
+
+    @Test
+    void aStopFromThePageEndsARealRunAtItsNextStep_afterASignInWithThePasswordFromTheAppsSecretStore() throws Exception {
+        java.nio.file.Path audit = dir.resolve("audit.log");
+        System.setProperty("loom.inspect.audit", audit.toString());
+        try (InspectSession session = (InspectSession) new InspectObserveProvider().open(ObserveOptions.parse("0", null, "metadata", "local", null), null)) {
+            HarnessExecutor e = executor(List.of(), SLOW);
+            io.github.llm4j.secret.InMemorySecretStore secrets = new io.github.llm4j.secret.InMemorySecretStore();
+            secrets.put("LOOM_INSPECT_ADMIN_PASSWORD", "correct horse battery");
+            e.setSecretStore(secrets);
+            java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+            e.setSleeper(d -> release.await()); // the run waits here, in the middle of the sleep step, until the test says so
+            e.setRunId("r-stop");
+            session.attach(e.observable());
+            e.initialize();
+            java.util.concurrent.atomic.AtomicReference<Throwable> ended = new java.util.concurrent.atomic.AtomicReference<>();
+            Thread run = new Thread(() -> {
+                try {
+                    e.executeWorkflow("Main", Map.of());
+                } catch (Throwable t) {
+                    ended.set(t);
+                }
+            });
+            run.start();
+            String trace = io.github.llm4j.loom.inspect.otel.Ids.traceId("r-stop");
+            String base = "http://127.0.0.1:" + session.port();
+            HttpClient http = HttpClient.newHttpClient();
+            long until = System.currentTimeMillis() + 5000;
+            while (System.currentTimeMillis() < until && session.registry().findByTrace(trace).isEmpty()) Thread.sleep(10);
+            Thread.sleep(100);
+            String login = post(http, base + "/api/login", "{\"password\":\"correct horse battery\"}", null, null);
+            assertThat(login).startsWith("200");
+            String cookie = login.substring(login.indexOf("COOKIE=") + 7);
+            String csrf = JSON.readTree(login.substring(4, login.indexOf(" COOKIE="))).get("csrf").asText();
+
+            JsonNode view = JSON.readTree(http.send(HttpRequest.newBuilder(URI.create(base + "/api/runs/" + trace)).header("Cookie", cookie).build(), HttpResponse.BodyHandlers.ofString()).body());
+            assertThat(view.at("/controls/allowed").toString()).contains("stop").contains("pause");
+            assertThat(post(http, base + "/api/runs/" + trace + "/stop", "{}", cookie, csrf)).startsWith("202");
+            release.countDown();
+            run.join(5000);
+            assertThat(run.isAlive()).isFalse();
+            assertThat(ended.get()).isInstanceOf(io.github.llm4j.loom.runtime.RunStopped.class);
+            assertThat(session.awaitIdle(Duration.ofSeconds(3))).isTrue();
+            JsonNode after = JSON.readTree(http.send(HttpRequest.newBuilder(URI.create(base + "/api/runs/" + trace)).build(), HttpResponse.BodyHandlers.ofString()).body());
+            assertThat(after.get("status").asText()).isEqualTo("stopped");
+            assertThat(after.at("/control/pending").isMissingNode()).isTrue();
+            assertThat(java.nio.file.Files.readString(audit)).contains("\"action\":\"stop\"").contains("accepted").doesNotContain("correct horse");
+        } finally {
+            System.clearProperty("loom.inspect.audit");
+        }
+    }
+
+    @Test
+    void withoutAnAdminPasswordInTheStoreThePageOffersNoControlsAndSaysHowToGetThem() throws Exception {
+        java.io.ByteArrayOutputStream console = new java.io.ByteArrayOutputStream();
+        try (InspectSession session = (InspectSession) new InspectObserveProvider().open(ObserveOptions.parse("0", null, "metadata", "local", null), new java.io.PrintStream(console))) {
+            HarnessExecutor e = executor(List.of(), SLOW);
+            e.setSleeper(d -> { });
+            e.setRunId("r-nopw");
+            session.attach(e.observable());
+            e.initialize();
+            e.executeWorkflow("Main", Map.of());
+            assertThat(session.awaitIdle(Duration.ofSeconds(3))).isTrue();
+            HttpClient http = HttpClient.newHttpClient();
+            JsonNode s = JSON.readTree(http.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + session.port() + "/api/session")).build(), HttpResponse.BodyHandlers.ofString()).body());
+            assertThat(s.get("controlsEnabled").asBoolean()).isFalse();
+            assertThat(s.get("controlsReason").asText()).contains("LOOM_INSPECT_ADMIN_PASSWORD");
+            assertThat(post(http, "http://127.0.0.1:" + session.port() + "/api/login", "{\"password\":\"guess-guess-guess\"}", null, null)).startsWith("503");
+        }
+        assertThat(console.toString()).contains("pause, suspend and stop are off");
+    }
 }

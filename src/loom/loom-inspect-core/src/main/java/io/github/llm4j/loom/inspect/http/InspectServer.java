@@ -5,6 +5,8 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import com.sun.net.httpserver.HttpsConfigurator;
 import com.sun.net.httpserver.HttpsServer;
+import io.github.llm4j.loom.inspect.control.AuditSink;
+import io.github.llm4j.loom.inspect.control.Controls;
 import io.github.llm4j.loom.inspect.state.RunRegistry;
 import io.github.llm4j.loom.inspect.state.RunState;
 import java.io.IOException;
@@ -62,6 +64,10 @@ public final class InspectServer {
         SSLContext tls;
         boolean loopbackOnly = true;
         Gate gate;
+        AdminSessions sessions;
+        Controls controls;
+        AuditSink audit = AuditSink.NONE;
+        int threads = 8;
         final Map<String, Route> routes = new LinkedHashMap<>();
         final Map<String, Supplier<Object>> api = new LinkedHashMap<>();
 
@@ -80,6 +86,31 @@ public final class InspectServer {
         /** Allow a non-loopback address and any Host header. The caller has put a gate and TLS (or a trusted proxy) in front. */
         public Config anyAddress() {
             this.loopbackOnly = false;
+            return this;
+        }
+
+        /** Sign-in for the administrator: {@code POST /api/login}, {@code /api/logout} and {@code GET /api/session}. */
+        public Config sessions(AdminSessions sessions) {
+            this.sessions = sessions;
+            return this;
+        }
+
+        /** Let a signed-in administrator pause, resume, suspend and stop runs: {@code POST /api/runs/{trace}/{action}}. Needs {@link #sessions}. */
+        public Config controls(Controls controls, AuditSink audit) {
+            this.controls = controls;
+            this.audit = audit == null ? AuditSink.NONE : audit;
+            return this;
+        }
+
+        /** Where sign-ins and controls are recorded. */
+        public Config audit(AuditSink audit) {
+            this.audit = audit == null ? AuditSink.NONE : audit;
+            return this;
+        }
+
+        /** Worker threads. A server that holds requests open (Fabric's command long-poll) needs many. */
+        public Config threads(int threads) {
+            this.threads = threads;
             return this;
         }
 
@@ -144,7 +175,7 @@ public final class InspectServer {
         } catch (IOException e) {
             throw new IllegalStateException("cannot listen on " + config.bind + ":" + config.port + ": " + e.getMessage(), e);
         }
-        this.pool = Executors.newFixedThreadPool(8, r -> {
+        this.pool = Executors.newFixedThreadPool(config.threads, r -> {
             Thread t = new Thread(r, "loom-inspect-http");
             t.setDaemon(true);
             return t;
@@ -179,6 +210,8 @@ public final class InspectServer {
                 route.handle(x);
                 return;
             }
+            String p = x.getRequestURI().getPath();
+            if (config.sessions != null && handleAdmin(x, p)) return;
             if (!"GET".equals(x.getRequestMethod()) && !"HEAD".equals(x.getRequestMethod())) {
                 x.getResponseHeaders().add("Allow", "GET, HEAD");
                 send(x, 405, "application/json", json(Map.of("error", "this page is read-only")));
@@ -204,7 +237,7 @@ public final class InspectServer {
                 if (wantsGraph) trace = trace.substring(0, trace.length() - "/graph".length());
                 Optional<RunState> run = trace.matches("[0-9a-f]{32}") ? registry.findByTrace(trace) : Optional.empty();
                 if (run.isPresent() && wantsGraph) send(x, 200, "application/json", json(run.get().graph() == null ? Map.of() : run.get().graph()));
-                else if (run.isPresent()) send(x, 200, "application/json", json(run.get().view()));
+                else if (run.isPresent()) send(x, 200, "application/json", json(withControls(run.get().view(), run.get().traceId(), x)));
                 else send(x, 404, "application/json", json(Map.of("error", "no such run")));
             } else {
                 send(x, 404, "application/json", json(Map.of("error", "not found")));
@@ -214,6 +247,150 @@ public final class InspectServer {
         } finally {
             x.close();
         }
+    }
+
+    // ------------------------------------------------------------------------------ the administrator
+
+    /** The run's view, with what the page may do to it now: nothing at all unless controls are on here. */
+    private Map<String, Object> withControls(Map<String, Object> view, String trace, HttpExchange x) {
+        if (config.controls == null) return view;
+        Map<String, Object> out = new java.util.LinkedHashMap<>(view);
+        Map<String, Object> c = new java.util.LinkedHashMap<>();
+        c.put("enabled", config.controls.enabled());
+        if (!config.controls.enabled()) c.put("reason", config.controls.disabledReason());
+        boolean in = config.sessions != null && config.sessions.valid(x);
+        c.put("signedIn", in);
+        c.put("allowed", in ? config.controls.allowed(trace).stream().map(Controls.Action::word).sorted().toList() : java.util.List.of());
+        out.put("controls", c);
+        return out;
+    }
+
+    /** Sign-in, sign-out, the session's state and the control requests. Returns true when it answered. */
+    private boolean handleAdmin(HttpExchange x, String path) throws IOException {
+        AdminSessions admin = config.sessions;
+        if (path.equals("/api/session") && "GET".equals(x.getRequestMethod())) {
+            AdminSessions.Session s = admin.session(x);
+            Map<String, Object> m = new java.util.LinkedHashMap<>();
+            m.put("authRequired", config.gate != null);
+            m.put("passwordSet", admin.passwordSet());
+            m.put("signedIn", s != null);
+            if (s != null) m.put("csrf", s.csrf());
+            if (config.controls != null) {
+                m.put("controlsEnabled", config.controls.enabled());
+                if (!config.controls.enabled()) m.put("controlsReason", config.controls.disabledReason());
+            }
+            send(x, 200, "application/json", json(m));
+            return true;
+        }
+        if (path.equals("/api/login")) {
+            login(x, admin);
+            return true;
+        }
+        if (path.equals("/api/logout")) {
+            if (!"POST".equals(x.getRequestMethod())) {
+                x.getResponseHeaders().add("Allow", "POST");
+                send(x, 405, "application/json", json(Map.of("error", "POST only")));
+                return true;
+            }
+            admin.logout(x);
+            x.getResponseHeaders().add("Set-Cookie", admin.clearCookie());
+            send(x, 200, "application/json", json(Map.of("ok", true)));
+            return true;
+        }
+        if (config.controls != null && path.startsWith("/api/runs/") && "POST".equals(x.getRequestMethod())) {
+            String rest = path.substring("/api/runs/".length());
+            int slash = rest.indexOf('/');
+            if (slash > 0) {
+                control(x, admin, rest.substring(0, slash), rest.substring(slash + 1));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void login(HttpExchange x, AdminSessions admin) throws IOException {
+        if (!"POST".equals(x.getRequestMethod())) {
+            x.getResponseHeaders().add("Allow", "POST");
+            send(x, 405, "application/json", json(Map.of("error", "POST only")));
+            return;
+        }
+        if (!sameSite(x) || !isJson(x)) {
+            send(x, 403, "application/json", json(Map.of("error", "cross-site or malformed login")));
+            return;
+        }
+        String password = null;
+        try (InputStream in = x.getRequestBody()) {
+            com.fasterxml.jackson.databind.JsonNode n = JSON.readTree(in.readNBytes(4096));
+            if (n != null && n.hasNonNull("password")) password = n.get("password").asText();
+        } catch (IOException e) {
+            // treated as a wrong password
+        }
+        String address = x.getRemoteAddress().getAddress().getHostAddress();
+        AdminSessions.Attempt a = admin.login(address, password);
+        if (a.noPasswordSet()) {
+            send(x, 503, "application/json", json(Map.of("error", "no admin password is set")));
+        } else if (a.retryAfterSeconds() > 0) {
+            x.getResponseHeaders().add("Retry-After", Long.toString(a.retryAfterSeconds()));
+            audit("login", address, null, null, "throttled");
+            send(x, 429, "application/json", json(Map.of("error", "too many attempts, wait")));
+        } else if (a.session() == null) {
+            audit("login", address, null, null, "wrong password"); // never the attempted value
+            send(x, 401, "application/json", json(Map.of("error", "wrong password")));
+        } else {
+            audit("login", address, null, null, "signed in");
+            x.getResponseHeaders().add("Set-Cookie", admin.setCookie(a.session()));
+            send(x, 200, "application/json", json(Map.of("ok", true, "csrf", a.session().csrf())));
+        }
+    }
+
+    private void control(HttpExchange x, AdminSessions admin, String trace, String word) throws IOException {
+        String address = x.getRemoteAddress().getAddress().getHostAddress();
+        AdminSessions.Session s = admin.session(x);
+        if (s == null) {
+            send(x, 401, "application/json", json(Map.of("error", "sign in first")));
+            return;
+        }
+        if (!s.csrf().equals(x.getRequestHeaders().getFirst(AdminSessions.CSRF_HEADER)) || !sameSite(x)) {
+            audit(word, address, trace, null, "refused: bad CSRF token or origin");
+            send(x, 403, "application/json", json(Map.of("error", "cross-site request refused")));
+            return;
+        }
+        Controls.Action action = Controls.Action.of(word);
+        if (action == null || !trace.matches("[0-9a-f]{32}") || registry.findByTrace(trace).isEmpty()) {
+            send(x, 404, "application/json", json(Map.of("error", "no such run or action")));
+            return;
+        }
+        Controls.Outcome o = config.controls.request(trace, action, "admin@" + address);
+        audit(word, address, trace, registry.findByTrace(trace).map(r -> r.client()).orElse(null), o.accepted() ? "accepted" : "refused: " + o.message());
+        send(x, o.status(), "application/json", json(Map.of("ok", o.accepted(), "message", o.message())));
+    }
+
+    private void audit(String action, String address, String trace, String client, String outcome) {
+        Map<String, Object> e = new java.util.LinkedHashMap<>();
+        e.put("who", "admin");
+        e.put("address", address);
+        e.put("action", action);
+        if (trace != null) e.put("run", trace);
+        if (client != null) e.put("client", client);
+        e.put("outcome", outcome);
+        try {
+            config.audit.record(e);
+        } catch (RuntimeException ex) {
+            // an audit that cannot be written must be seen, but must not turn a refusal into success
+            System.err.println("loom-inspect: cannot write the audit log: " + ex.getMessage());
+        }
+    }
+
+    private static boolean isJson(HttpExchange x) {
+        String type = x.getRequestHeaders().getFirst("Content-Type");
+        return type != null && type.toLowerCase(java.util.Locale.ROOT).startsWith("application/json");
+    }
+
+    /** A write must come from this page: when the browser says where it came from, that must be this host. */
+    private static boolean sameSite(HttpExchange x) {
+        String origin = x.getRequestHeaders().getFirst("Origin");
+        String host = x.getRequestHeaders().getFirst("Host");
+        return origin == null || host == null || origin.endsWith("//" + host);
     }
 
     private boolean hostAllowed(String host) {

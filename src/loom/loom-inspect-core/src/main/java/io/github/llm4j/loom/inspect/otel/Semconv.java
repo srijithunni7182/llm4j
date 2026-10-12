@@ -74,6 +74,11 @@ public final class Semconv {
     public static final String EV_OBSERVATION = "loom.observation";
     public static final String EV_BUDGET = "loom.budget";
     /** A workflow variable read at the boundary between two loop rounds, for the no_progress rule. */
+    /** An observer's control on the run (pause, resume, suspend, stop) and what became of it. */
+    public static final String EV_CONTROL = "loom.control";
+    public static final String LOOM_CONTROL_ACTION = "loom.control.action";
+    public static final String LOOM_CONTROL_STATE = "loom.control.state";
+    public static final String LOOM_CONTROL_BY = "loom.control.by";
     public static final String EV_INSPECT_SAMPLE = "loom.inspect.sample";
     public static final String LOOM_INSPECT_AGENT = "loom.inspect.agent";
     public static final String LOOM_INSPECT_VAR = "loom.inspect.variable";

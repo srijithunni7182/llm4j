@@ -85,6 +85,7 @@ public final class TraceMapper {
             case TraceEvent.RUN_START -> runStart(e, data, now, logs);
             case TraceEvent.RUN_END -> runEnd(e, data, now, logs, spans);
             case ProgressSampler.SAMPLE -> sample(data, now, logs);
+            case TraceEvent.CONTROL -> control(e, data, now, logs);
             case TraceEvent.DELEGATE_START -> delegateStart(e, data, now, logs);
             case TraceEvent.DELEGATE_END -> delegateEnd(e, data, now, spans);
             case TraceEvent.DELEGATE_REPLAYED -> delegateReplayed(e, now, spans);
@@ -116,6 +117,16 @@ public final class TraceMapper {
         a.put(Semconv.LOOM_INSPECT_LOOP, text(data.get("loop"), ""));
         a.put(Semconv.LOOM_INSPECT_HASH, text(data.get("hash"), ""));
         logs.add(record(now, LogRec.INFO, Semconv.EV_INSPECT_SAMPLE, text(data.get("variable"), "") + " sampled", a, null));
+    }
+
+    /** An observer's pause, resume, suspend or stop, and the step where it took effect. Who asked travels: it is for the audit trail. */
+    private void control(TraceEvent e, Map<String, Object> data, long now, List<LogRec> logs) {
+        Map<String, Object> a = new LinkedHashMap<>();
+        a.put(Semconv.LOOM_CONTROL_ACTION, text(data.get("action"), ""));
+        a.put(Semconv.LOOM_CONTROL_STATE, text(data.get("state"), ""));
+        if (data.get("by") != null) a.put(Semconv.LOOM_CONTROL_BY, String.valueOf(data.get("by")));
+        if (data.get("step") != null) a.put(Semconv.LOOM_STEP, String.valueOf(data.get("step")));
+        logs.add(record(now, LogRec.WARN, Semconv.EV_CONTROL, e.text(), a, null));
     }
 
     // ------------------------------------------------------------------------------ the run

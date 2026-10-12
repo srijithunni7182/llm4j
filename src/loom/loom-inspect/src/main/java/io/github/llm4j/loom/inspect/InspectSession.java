@@ -35,9 +35,11 @@ public final class InspectSession implements ObserveProvider.Session {
     private final ObserveOptions options;
     private final RunRegistry registry = new RunRegistry();
     private final InspectServer server;
+    private boolean hinted;
     private Outbound fabric;
     private boolean fabricFailed;
     private final java.io.PrintStream console;
+    private final EmbeddedControls controls = new EmbeddedControls(registry);
     private final List<EventSink> sinks = new CopyOnWriteArrayList<>();
     private final String instance = "i_" + UUID.randomUUID().toString().substring(0, 8);
     private final AtomicInteger attached = new AtomicInteger();
@@ -46,7 +48,9 @@ public final class InspectSession implements ObserveProvider.Session {
         this.options = options;
         this.console = console == null ? System.err : console;
         if (options.embedded()) {
-            this.server = new InspectServer(registry, options.bind(), options.port());
+            this.server = new InspectServer(registry, InspectServer.config().bind(options.bind(), options.port())
+                    .sessions(new io.github.llm4j.loom.inspect.http.AdminSessions(controls::password, java.time.Clock.systemUTC(), false))
+                    .controls(controls, new io.github.llm4j.loom.inspect.control.FileAuditSink(java.nio.file.Path.of(System.getProperty("loom.inspect.audit", "loom-inspect-audit.log")), java.time.Clock.systemUTC())));
             this.server.start();
         } else {
             this.server = null;
@@ -146,6 +150,11 @@ public final class InspectSession implements ObserveProvider.Session {
             if (trace != null && !trace.equals(graphed.get())) {
                 graphed.set(trace);
                 if (server != null) {
+                    controls.register(trace, run);
+                    if (!controls.enabled() && !hinted) {
+                        hinted = true;
+                        console.println("loom-inspect: pause, suspend and stop are off: " + controls.disabledReason());
+                    }
                     registry.setGraph(options.name(), trace, graph.get());
                     registry.setRules(options.name(), trace, rules);
                 }

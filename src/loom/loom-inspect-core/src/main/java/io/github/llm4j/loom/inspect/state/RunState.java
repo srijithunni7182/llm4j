@@ -61,6 +61,9 @@ public final class RunState {
     private final List<Object[]> spend = new ArrayList<>();
     private final Incidents incidents = new Incidents();
     private final Detectors detectors = new Detectors(incidents, Thresholds.defaults());
+    private String controlPending;
+    private String controlBy;
+    private boolean heldByOperator;
     private Map<String, Object> graph;
     private java.util.function.Supplier<List<Map<String, Object>>> ladders;
     private String suspendReason;
@@ -149,6 +152,7 @@ public final class RunState {
             case Semconv.EV_RUN_SUSPENDED -> runSuspended(r);
             case Semconv.EV_SPAN_START -> spanStart(r);
             case Semconv.EV_INSPECT_SAMPLE -> detectors.onSample(r.text(Semconv.LOOM_INSPECT_AGENT), r.text(Semconv.LOOM_INSPECT_VAR), r.text(Semconv.LOOM_INSPECT_LOOP), r.text(Semconv.LOOM_INSPECT_HASH), r.timeNanos());
+            case Semconv.EV_CONTROL -> control(r);
             case Semconv.EV_BUDGET -> detectors.onBudget(String.valueOf(r.text("loom.data.budget")), r.text("loom.data.kind"), r.body(), r.timeNanos());
             default -> { }
         }
@@ -193,6 +197,8 @@ public final class RunState {
         resumeAt = null;
         sleepWakeAt = null;
         open.clear(); // whatever the earlier process had open ended with it
+        controlPending = null;
+        heldByOperator = false;
         detectors.onResumed(r.timeNanos());
     }
 
@@ -212,6 +218,39 @@ public final class RunState {
             detectors.onRunEnd(r.timeNanos());
         }
         open.clear();
+        controlPending = null;
+    }
+
+    /** A pause, resume, suspend or stop an operator asked for: queued until the run reaches a step, then in effect. Not an incident: someone meant it. */
+    private void control(LogRec r) {
+        String action = r.text(Semconv.LOOM_CONTROL_ACTION);
+        String state = r.text(Semconv.LOOM_CONTROL_STATE);
+        String by = r.text(Semconv.LOOM_CONTROL_BY);
+        if (action == null || state == null) return;
+        switch (state) {
+            case "requested" -> {
+                controlPending = action;
+                controlBy = by;
+            }
+            case "held" -> {
+                heldByOperator = true;
+                controlPending = null;
+                status = Status.PAUSED;
+                suspendReason = "OPERATOR";
+            }
+            case "resumed", "cancelled" -> {
+                if (action.equals(controlPending) || "pause".equals(action)) controlPending = null;
+                if (heldByOperator) {
+                    heldByOperator = false;
+                    if (status == Status.PAUSED && "OPERATOR".equals(suspendReason)) {
+                        status = Status.RUNNING;
+                        suspendReason = null;
+                    }
+                }
+            }
+            case "applied" -> controlPending = null; // the run ends next (stopped, or suspended by the operator)
+            default -> { }
+        }
     }
 
     private void runSuspended(LogRec r) {
@@ -222,6 +261,8 @@ public final class RunState {
             sleepWakeAt = resumeAt;
         } else if ("HUMAN".equals(suspendReason)) {
             status = Status.WAITING;
+        } else if ("OPERATOR".equals(suspendReason)) {
+            status = Status.PAUSED; // suspended by a person: shown as paused, and not an incident
         } else {
             status = Status.PAUSED;
             detectors.onPaused(suspendReason, resumeAt, r.timeNanos());
@@ -444,6 +485,11 @@ public final class RunState {
 
         v.put("gaps", gaps);
         v.put("incidents", incidents.view());
+        Map<String, Object> ctl = new LinkedHashMap<>();
+        ctl.put("held", heldByOperator);
+        if (controlPending != null) ctl.put("pending", controlPending);
+        if (controlBy != null && (controlPending != null || heldByOperator)) ctl.put("by", controlBy);
+        v.put("control", ctl);
         v.put("duplicates", duplicates);
         v.put("recent", new ArrayList<>(recent));
         return v;

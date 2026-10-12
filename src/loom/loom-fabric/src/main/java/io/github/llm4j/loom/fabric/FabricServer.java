@@ -82,7 +82,8 @@ public final class FabricServer implements AutoCloseable {
     private final RunRegistry registry = new RunRegistry();
     private final Receiver receiver = new Receiver(registry, clock);
     private final History history;
-    private final Admin admin;
+    private final io.github.llm4j.loom.inspect.http.AdminSessions admin;
+    private final io.github.llm4j.loom.inspect.control.AuditSink audit;
     private final RateLimiter limiter;
     private final InspectServer http;
     private final ScheduledExecutorService janitor = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -101,7 +102,12 @@ public final class FabricServer implements AutoCloseable {
         this.vault = vault;
         this.out = out;
         this.history = new History(settings.data(), clock);
-        this.admin = new Admin(vault, clock, settings.tls() != null || settings.trustProxy());
+        this.admin = new io.github.llm4j.loom.inspect.http.AdminSessions(() -> vault.get(Vault.ADMIN), clock, settings.tls() != null || settings.trustProxy());
+        io.github.llm4j.loom.inspect.control.AuditSink file = new io.github.llm4j.loom.inspect.control.FileAuditSink(settings.data().resolve("audit.log"), clock);
+        this.audit = entry -> {
+            file.record(entry);
+            if ("login".equals(entry.get("action")) && String.valueOf(entry.get("outcome")).startsWith("wrong")) out.println("fabric: failed login from " + entry.get("address")); // never the attempted value
+        };
         this.limiter = new RateLimiter(clock, ratePerSecond, burst);
         boolean loopback;
         try {
@@ -115,19 +121,13 @@ public final class FabricServer implements AutoCloseable {
         InspectServer.Config c = InspectServer.config().bind(settings.bind(), settings.port());
         if (settings.tls() != null) c.tls(settings.tls());
         if (!loopback || settings.trustProxy()) c.anyAddress();
+        c.sessions(admin).audit(audit).threads(64); // many processes each hold a command long-poll open
         c.gate(x -> {
             if (admin.valid(x)) return true;
             InspectServer.send(x, 401, "application/json", InspectServer.json(Map.of("error", "login required")));
             return false;
         });
-        c.api("session", () -> Map.of("ok", true));
         c.api("processes", () -> Map.of("processes", receiver.processes()));
-        c.route("/api/login", this::login);
-        c.route("/api/logout", x -> {
-            admin.logout(x);
-            x.getResponseHeaders().add("Set-Cookie", admin.clearCookie());
-            InspectServer.send(x, 200, "application/json", InspectServer.json(Map.of("ok", true)));
-        });
         c.route("/v1/logs", x -> ingest(x, "logs"));
         c.route("/v1/traces", x -> ingest(x, "traces"));
         c.route("/v1/metrics", x -> ingest(x, "metrics"));
@@ -240,44 +240,6 @@ public final class FabricServer implements AutoCloseable {
 
     private static void reply(HttpExchange x, int status, Object body) throws IOException {
         InspectServer.send(x, status, "application/json", InspectServer.json(body));
-    }
-
-    // ------------------------------------------------------------------------------ login
-
-    private void login(HttpExchange x) throws IOException {
-        if (!"POST".equals(x.getRequestMethod())) {
-            x.getResponseHeaders().add("Allow", "POST");
-            reply(x, 405, Map.of("error", "POST only"));
-            return;
-        }
-        String type = x.getRequestHeaders().getFirst("Content-Type");
-        String origin = x.getRequestHeaders().getFirst("Origin");
-        String host = x.getRequestHeaders().getFirst("Host");
-        if (type == null || !type.toLowerCase().startsWith("application/json") || (origin != null && host != null && !origin.endsWith("//" + host))) {
-            reply(x, 403, Map.of("error", "cross-site or malformed login"));
-            return;
-        }
-        String password = null;
-        try (InputStream in = x.getRequestBody()) {
-            JsonNode n = JSON.readTree(in.readNBytes(4096));
-            if (n != null && n.hasNonNull("password")) password = n.get("password").asText();
-        } catch (IOException e) {
-            // treated as a wrong password
-        }
-        String address = x.getRemoteAddress().getAddress().getHostAddress();
-        Admin.Attempt a = admin.login(address, password);
-        if (a.noPasswordSet()) {
-            reply(x, 503, Map.of("error", "no admin password is set: run 'fabric init' or 'fabric admin set-password'"));
-        } else if (a.retryAfterSeconds() > 0) {
-            x.getResponseHeaders().add("Retry-After", Long.toString(a.retryAfterSeconds()));
-            reply(x, 429, Map.of("error", "too many attempts, wait"));
-        } else if (a.token() == null) {
-            out.println("fabric: failed login from " + address); // never the attempted value
-            reply(x, 401, Map.of("error", "wrong password"));
-        } else {
-            x.getResponseHeaders().add("Set-Cookie", admin.setCookie(a.token()));
-            reply(x, 200, Map.of("ok", true));
-        }
     }
 
     // ------------------------------------------------------------------------------ history
