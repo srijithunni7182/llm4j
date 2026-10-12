@@ -8,8 +8,6 @@ import io.github.llm4j.agent.tools.DateTimeTool;
 import io.github.llm4j.agent.tools.DuckDuckGoSearchTool;
 import io.github.llm4j.agent.tools.SerpApiSearchTool;
 import io.github.llm4j.agent.tools.WebSearchTool;
-import io.github.llm4j.agent.tools.openapi.OpenAPIParser;
-import io.github.llm4j.agent.tools.openapi.OpenAPITool;
 import io.github.llm4j.loom.ast.ToolDef;
 import io.github.llm4j.secret.CredentialSource;
 import io.github.llm4j.tools.DescribedTool;
@@ -63,67 +61,7 @@ public final class ToolFactory {
                 : new SerpApiSearchTool(o.get("api_key"))));
         register(simple("google_search", Set.of("api_key", "cx"), Set.of(), Set.of("api_key"),
                 (n, o, dir) -> new WebSearchTool(o.get("api_key"), o.get("cx"))));
-        register(new ToolKind() {
-            @Override
-            public String name() {
-                return "openapi";
-            }
-
-            @Override
-            public Set<String> required() {
-                return Set.of("spec");
-            }
-
-            @Override
-            public Set<String> optional() {
-                return Set.of("auth_header", "auth_query", "auth_value");
-            }
-
-            @Override
-            public Set<String> secrets() {
-                return Set.of("auth_value");
-            }
-
-            @Override
-            public Set<String> lateBound() {
-                return Set.of("auth_value");
-            }
-
-            @Override
-            public String check(Map<String, String> o) {
-                boolean header = o.containsKey("auth_header");
-                boolean query = o.containsKey("auth_query");
-                if (header && query) return "use auth_header or auth_query, not both";
-                if ((header || query) != o.containsKey("auth_value")) {
-                    return "auth_value goes with exactly one of auth_header or auth_query";
-                }
-                return null;
-            }
-
-            @Override
-            public Tool create(String name, Map<String, String> o, Path dir) {
-                return create(name, o, Map.of(), dir, EffectContext.noop());
-            }
-
-            @Override
-            public Tool create(String name, Map<String, String> o, Map<String, CredentialSource> lateBound, Path dir, EffectContext context) {
-                String spec = o.get("spec");
-                String location = spec.matches("(?i)https?://.*") || Path.of(spec).isAbsolute()
-                        ? spec : dir.resolve(spec).toString();
-                OpenAPITool.Builder b = OpenAPITool.builder().name(name).spec(OpenAPIParser.parse(location));
-                // a value written invoker.NAME is asked for on every request; any other is the value itself
-                CredentialSource value = lateBound.containsKey("auth_value") ? lateBound.get("auth_value") : null;
-                if (o.containsKey("auth_header")) {
-                    if (value != null) b.headerAuth(o.get("auth_header"), value);
-                    else b.headerAuth(o.get("auth_header"), o.get("auth_value"));
-                }
-                if (o.containsKey("auth_query")) {
-                    if (value != null) b.apiKeyAuth(o.get("auth_query"), value);
-                    else b.apiKeyAuth(o.get("auth_query"), o.get("auth_value"));
-                }
-                return b.build();
-            }
-        });
+        register(new OpenApiKind());
         register(simple("calculator", Set.of(), Set.of(), Set.of(), (n, o, dir) -> new CalculatorTool()));
         register(simple("datetime", Set.of(), Set.of(), Set.of(), (n, o, dir) -> new DateTimeTool()));
         register(simple("current_time", Set.of(), Set.of(), Set.of(), (n, o, dir) -> new CurrentTimeTool()));

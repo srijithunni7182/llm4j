@@ -30,8 +30,10 @@ class ThreadScopeTest {
     void aSnapshotCarriesEverythingToAnotherThreadAndTakesItAwayAgain() throws Exception {
         InvokerCredentials who = InvokerCredentials.of(Map.of("token", "t"));
         Map<String, Object> names = Map.of("item", 1);
+        Budget budget = Budget.unlimited("step");
         scope.step.set("Main/s1");
         scope.locals.set(names);
+        scope.budgets.set(List.of(budget));
         scope.invoker.set(who);
         ThreadScope.Snapshot snapshot = scope.capture();
         ExecutorService pool = Executors.newSingleThreadExecutor();
@@ -41,15 +43,16 @@ class ThreadScopeTest {
                     return new Object[] {scope.step.get(), scope.locals.get(), scope.budgets.get(), scope.invoker.get()};
                 }
             }).get();
-            Object[] after = pool.submit(() -> new Object[] {scope.step.get(), scope.locals.get(), scope.invoker.get()}).get();
+            Object[] after = pool.submit(() -> new Object[] {scope.step.get(), scope.locals.get(), scope.invoker.get(), scope.budgets.get()}).get();
 
             assertThat(seen[0]).isEqualTo("Main/s1");
             assertThat(seen[1]).isSameAs(names);
-            assertThat(seen[2]).isEqualTo(List.<Budget>of());
+            assertThat(seen[2]).isEqualTo(List.of(budget));
             assertThat(seen[3]).isSameAs(who);
             assertThat(after[0]).isEqualTo("");
             assertThat((Map<?, ?>) after[1]).isEmpty();
             assertThat(after[2]).isNull();
+            assertThat((List<?>) after[3]).isEmpty();
         } finally {
             pool.shutdownNow();
         }
@@ -123,12 +126,14 @@ class ThreadScopeTest {
     void clearRemovesEverythingFromTheCurrentThread() {
         scope.step.set("x");
         scope.locals.set(Map.of("a", 1));
+        scope.budgets.set(List.of(Budget.unlimited("loop")));
         scope.invoker.set(InvokerCredentials.none());
 
         scope.clear();
 
         assertThat(scope.step.get()).isEmpty();
         assertThat(scope.locals.get()).isEmpty();
+        assertThat(scope.budgets.get()).isEmpty();
         assertThat(scope.invoker.get()).isNull();
     }
 }

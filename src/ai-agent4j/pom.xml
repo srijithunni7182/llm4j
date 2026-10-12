@@ -139,6 +139,19 @@
                         <configuration>
                             <rules>
                                 <rule>
+                                    <element>CLASS</element>
+                                    <includes>
+                                        <include>io.github.llm4j.secret.InvokerCredentials*</include>
+                                        <include>io.github.llm4j.secret.CredentialSource</include>
+                                        <include>io.github.llm4j.secret.MissingInvokerCredentialException</include>
+                                        <include>io.github.llm4j.agent.tools.openapi.RequestAuth*</include>
+                                    </includes>
+                                    <limits>
+                                        <limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit>
+                                        <limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit>
+                                    </limits>
+                                </rule>
+                                <rule>
                                     <element>BUNDLE</element>
                                     <limits>
                                         <limit>
