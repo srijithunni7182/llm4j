@@ -2032,7 +2032,10 @@ weave daemon triggers/ --secrets keys.store \
   ```
 
   `weave observe rules flow.loom` checks the file against the script without running anything: it refuses an agent the script does not have and a variable nothing sets (and suggests the nearest name). A file with errors is reported once when a run starts and not used.
-- The pages are read-only in this release; pausing, stopping and rotating secrets from them come later.
+- **Pause, suspend and stop** are on the page for a signed-in administrator, and nowhere else. In an embedded page, set `LOOM_INSPECT_ADMIN_PASSWORD` in the app's secret store (`weave secrets set LOOM_INSPECT_ADMIN_PASSWORD`); without it the page offers no controls and says how to turn them on. On a Fabric server the admin password is Fabric's own. A request goes through a confirm dialog, needs the signed-in session and its CSRF token, and is written to an audit log (`loom-inspect-audit.log`, or `audit.log` in Fabric's data directory; passwords and secret values never appear in it).
+  - **Pause** holds the run before its next step and keeps its thread; **Resume** carries on. **Suspend** ends the run cleanly at its next step and releases the thread; resume it later with `weave resume` (it needs a journal). **Stop** ends it at its next step for good.
+  - A request takes effect **between steps**: an agent step or tool call already under way finishes first. Through Fabric the request becomes a signed command the process collects on a long-poll; it expires after 60 seconds, so a process that was offline never wakes up to an old "stop".
+  - Rotating secrets from the page comes later.
 
 ## ☕ 5. Advanced: Custom Java Integration
 

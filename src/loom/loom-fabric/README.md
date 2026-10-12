@@ -51,7 +51,7 @@ History goes to `<data>/history/<client>/<day>.jsonl` (no database): every accep
 
 ## Sign in
 
-Open the server's address in a browser and sign in with the admin password. Failed attempts from an address wait longer each time. Pages are read-only in this release: commands (pause, suspend, stop) and secret rotation come later.
+Open the server's address in a browser and sign in with the admin password. Failed attempts from an address wait longer each time. Signed in, you can **pause, resume, suspend or stop** a run from its page (with a confirm dialog and a CSRF-protected request). The request is queued as a command that the process collects on its signed long-poll (`/loom-inspect/v1/commands`; the answer is signed with that process's key) and carries out at the run's next step; it expires after 60 seconds, so an offline process never wakes up to an old command. Every request and every result is written to `audit.log` in the data directory (never passwords or secret values). Secret rotation comes later.
 
 ## Packaging
 

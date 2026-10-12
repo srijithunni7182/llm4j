@@ -228,4 +228,56 @@ class FabricEndToEndTest {
             collector.stop(0);
         }
     }
+
+    @Test
+    void aStopFromTheFabricPageReachesTheRunInAnotherProcessAndEndsIt() throws Exception {
+        String key = Vault.newClientKey();
+        server = fabric(freePort(), vault(key));
+        session = openSession(server.port());
+        HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer("""
+                workflow Main() {
+                    note "before"
+                    sleep 5s
+                    note "after"
+                }
+                """).tokenize()).parseScript(), new ToolRegistry(), model -> null);
+        InMemorySecretStore secrets = new InMemorySecretStore();
+        secrets.put("LOOM_FABRIC_CLIENT_KEY", key);
+        e.setSecretStore(secrets);
+        e.setRunId("r-e2e");
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        e.setSleeper(d -> release.await());
+        session.attach(e.observable());
+        e.initialize();
+        java.util.concurrent.atomic.AtomicReference<Throwable> ended = new java.util.concurrent.atomic.AtomicReference<>();
+        Thread run = new Thread(() -> {
+            try {
+                e.executeWorkflow("Main", Map.of());
+            } catch (Throwable t) {
+                ended.set(t);
+            }
+        });
+        run.start();
+        until(() -> onServer() != null && !server.receiver().processes().isEmpty() && "online".equals(server.receiver().processes().get(0).get("state")));
+
+        java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
+        String base = "http://127.0.0.1:" + server.port();
+        java.net.http.HttpResponse<String> login = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/login")).header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"password\":\"correct horse battery\"}")).build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+        String cookie = login.headers().firstValue("Set-Cookie").orElseThrow().split(";")[0];
+        String csrf = new com.fasterxml.jackson.databind.ObjectMapper().readTree(login.body()).get("csrf").asText();
+        java.net.http.HttpResponse<String> stop = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/runs/" + Ids.traceId("r-e2e") + "/stop"))
+                .header("Cookie", cookie).header("X-CSRF-Token", csrf).header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{}")).build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+        assertThat(stop.statusCode()).isEqualTo(202);
+
+        // the command travels on the process's long-poll; the run is in its sleep step and sees the stop at the next step
+        until(() -> e.control().state().pending() != null);
+        release.countDown();
+        run.join(5000);
+        assertThat(run.isAlive()).isFalse();
+        assertThat(ended.get()).isInstanceOf(io.github.llm4j.loom.runtime.RunStopped.class);
+        until(() -> onServer() != null && "stopped".equals(onServer().view().get("status")));
+        assertThat(java.nio.file.Files.readString(dir.resolve("data").resolve("audit.log"))).contains("\"action\":\"stop\"").contains("command-result").doesNotContain("correct horse");
+    }
 }
