@@ -6,6 +6,8 @@
 It is a single JAR that needs a JDK and nothing else: no Loom runtime, no model keys, no scripts. Module README:
 [`src/loom/loom-fabric`](../src/loom/loom-fabric/README.md).
 
+![A run on Fabric's page: tokens and cost, the workflow with each step's state, incidents and a live trace](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/observability/fabric-run.png)
+
 ## What it does
 
 | Capability | Detail |

@@ -2,7 +2,7 @@
 
 One console for every workflow of every Loom process. Processes report to it; it never connects to them. It needs a JDK and nothing else: no Loom runtime, no model keys, no scripts.
 
-![Fabric's Processes page with three simulated processes](../../../docs/images/observability/fabric-processes.png)
+![A run on Fabric's page: tokens and cost, the workflow with each step's state, incidents and a live trace](../../../docs/images/observability/fabric-run.png)
 
 ## Set it up
 
