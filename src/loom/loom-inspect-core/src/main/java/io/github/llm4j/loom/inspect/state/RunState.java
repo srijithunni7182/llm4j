@@ -144,6 +144,17 @@ public final class RunState {
                 top.noProgressVariable() != null ? top.noProgressVariable() : base.noProgressVariable());
     }
 
+    /** The agents this run has shown or declared, and the model each declared agent uses. */
+    public synchronized java.util.Set<String> agentNames() {
+        java.util.Set<String> out = new java.util.TreeSet<>(agents.keySet());
+        out.addAll(models.keySet());
+        return out;
+    }
+
+    public synchronized Map<String, String> models() {
+        return models;
+    }
+
     public synchronized void setModels(Map<String, String> models) {
         this.models = models == null ? Map.of() : Map.copyOf(models);
     }

@@ -62,6 +62,19 @@ public final class RunRegistry {
         for (RunState r : runs.values()) r.setPrices(prices);
     }
 
+    /** What the runs known so far say they have: every agent, and each model with the agents that use it. For a page that offers them as choices. */
+    public Map<String, Object> catalog() {
+        java.util.Set<String> agents = new java.util.TreeSet<>();
+        Map<String, java.util.Set<String>> models = new java.util.TreeMap<>();
+        for (RunState r : runs.values()) {
+            agents.addAll(r.agentNames());
+            r.models().forEach((agent, model) -> models.computeIfAbsent(model, k -> new java.util.TreeSet<>()).add(agent));
+        }
+        List<Map<String, Object>> modelRows = new ArrayList<>();
+        models.forEach((m, a) -> modelRows.add(Map.of("model", m, "agents", List.copyOf(a))));
+        return Map.of("agents", List.copyOf(agents), "models", modelRows);
+    }
+
     /** Gives a run the way to read its decision ladders. */
     public void setLadders(String client, String traceId, java.util.function.Supplier<List<Map<String, Object>>> ladders) {
         state(client, traceId).setLadders(ladders);

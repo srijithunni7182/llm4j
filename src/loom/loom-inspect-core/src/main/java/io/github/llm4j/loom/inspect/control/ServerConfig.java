@@ -23,6 +23,16 @@ public interface ServerConfig {
     /** Each section by name ({@code rules}, {@code prices}): its text, a one-line summary of what it does now, and any warnings. */
     Map<String, Map<String, Object>> view();
 
+    /** The choices the page may offer, from what is known of the runs: {@code agents} and {@code models}. */
+    default Map<String, Object> catalog() {
+        return Map.of();
+    }
+
+    /** As {@link #save}, from the page's structured editor: {@code json} is the section's structure (see {@link #view}'s {@code structured}). */
+    default Result saveStructured(String section, String json, String who) {
+        return Result.refused(400, "this section cannot be edited that way", List.of());
+    }
+
     /** Checks and keeps the text of {@code section}, on behalf of {@code who}. Nothing is kept unless it is whole and valid. */
     Result save(String section, String text, String who);
 }

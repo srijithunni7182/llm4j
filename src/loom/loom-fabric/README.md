@@ -59,7 +59,7 @@ Open the server's address in a browser and sign in with the admin password. Fail
 
 ![The Configuration page](../../../docs/images/observability/fabric-configuration.png)
 
-Signed in, the **Configuration** page edits the **inspect rules** and the **price table** kept on the server (`<data>/config/rules.inspect`, `prices.properties`), in the same format as the files a process keeps beside its script. A save is checked first (errors come back with line numbers and nothing is kept), takes effect at once, survives a restart, and is audited. Rules are laid over each run's own rule by rule; prices cost a step whose process reported tokens but no cost.
+Signed in, the **Configuration** page edits the **inspect rules** (pick an agent, a behaviour and a threshold) and the **price table** (pick a model from those your runs use and set its input and output price) kept on the server (`<data>/config/rules.inspect`, `prices.properties`), in the same format as the files a process keeps beside its script. A save is checked first (errors come back with line numbers and nothing is kept), takes effect at once, survives a restart, and is audited. Rules are laid over each run's own rule by rule; prices cost a step whose process reported tokens but no cost.
 
 ## Packaging
 

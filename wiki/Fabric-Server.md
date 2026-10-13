@@ -100,7 +100,23 @@ The server's time comes back in every heartbeat answer, but nothing yet warns ab
 ![The Configuration page with inspect rules and a price table saved](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/observability/fabric-configuration.png)
 
 Signed in, open **Configuration**. Two documents live on the server, in the same format as the files a process keeps beside its
-script. Each has its own **Save** and **Discard changes**.
+script. You edit them with pickers, not by typing syntax; each has its own **Save** and **Discard changes**, and an
+**Edit as text** section for anyone who prefers the file.
+
+**Inspect rules: pick an agent, a behaviour, then a threshold.**
+
+1. **Agent**: *All agents*, or one of the agents your runs have shown (read from the runs and their snapshots), or *Another agent…* to type a name.
+2. **Behaviour**: *Same tool call repeated*, *Same answer repeated*, *Tool keeps failing*, *Figures with no source*, *Paused for too long* or
+   *No progress across loop rounds*. A line under the picker says what it flags and the default.
+3. **Threshold**: the fields change with the behaviour: a count of times; *warn at* and *high at* for figures; a number with a unit (seconds
+   to days) for a pause; rounds and the workflow variable for no progress.
+
+**Add rule** puts it in the table (agent, behaviour, threshold, and the default it replaces); **Remove** takes one out. Nothing is kept until
+**Save rules**. The table is built from the saved rules, so a file written by hand shows up in it too.
+
+**Price table: pick a model, then set its input and output price.** The table lists the models your runs use, with the agents that use each
+and its prices, or *not priced*. **Set price** (or **Edit**) on a row opens its two fields, **Input** and **Output**, in dollars per million
+tokens, apart. **Another model** adds one that has not run yet. **Save prices** keeps the table.
 
 | Document | What it does | Notes |
 |---|---|---|

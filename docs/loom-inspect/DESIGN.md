@@ -663,3 +663,8 @@ An admin edits the **inspect rules** and the **price table** on a Configuration 
 - **Prices** (`PriceBook`, same lines as Loom's file): a step that reports tokens and no cost is costed at the server. That needed three things from the process: the prompt/completion token split on the agent step (`gen_ai.usage.input_tokens` and `output_tokens`), and, in the snapshot, the model each agent uses. A process that reports its own cost keeps it. Costs are fixed when a step is ingested, so a price change affects later steps only.
 - **API**: `GET /api/config`, `PUT /api/config/{rules|prices}` (session, CSRF, same origin, 256 KB). A save is validated and written whole or not at all (422 with line-numbered problems); every change is audited (document and length, not the text).
 - **Not built**: rules or prices per client; recomputing the cost of runs already counted; editing the retention settings from the page.
+
+### 11m (addendum). The editors are structured
+
+The Configuration page edits by choosing, not by typing syntax. `GET /api/config` returns each section's `structured` form (rules by agent and behaviour, prices as model / input / output) and a `catalog` of the agents and models the runs known so far have shown (agents from the runs and from each snapshot's agent-to-model map; models with the agents that use them). `PUT` accepts `{structured}`; the server writes the same text a person would (`RulesFile.write`, `PriceBook.write`), then validates and keeps it exactly as a text save. The text editor remains, under "Edit as text"; saving the structured editor rewrites the file, so comments in a hand-written file are not kept. Defaults are shown beside each rule so the effect of a threshold is visible.
+

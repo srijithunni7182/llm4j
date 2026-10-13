@@ -294,4 +294,38 @@ class FabricServerTest {
         String audit = java.nio.file.Files.readString(dir.resolve("audit.log"));
         assertThat(audit).contains("change-config").contains("rules").contains("prices").contains("saved");
     }
+
+    @Test
+    void theStructuredEditorsSaveRulesAndPricesAsText_theCatalogOffersTheChoices_andABadStructureIsRefused() throws Exception {
+        assertThat(post("/loom-inspect/v1/hello", "alpha", keyA, hello("alpha")).statusCode()).isEqualTo(200);
+        assertThat(post("/v1/logs", "alpha", keyA, logs("alpha", 1, Semconv.EV_RUN_START)).statusCode()).isEqualTo(200);
+        assertThat(post("/loom-inspect/v1/snapshot", "alpha", keyA, Wire.write(new io.github.llm4j.loom.inspect.wire.Snapshot("alpha", "i_1", TRACE, RUN, "Main", Map.of(), List.of(),
+                Map.of(), Map.of("Writer", "gemini-2.5-flash", "Editor", "gemini-2.5-flash")))).statusCode()).isEqualTo(200);
+        String cookie = login();
+        String csrf = csrf(cookie);
+
+        JsonNode view = JSON.readTree(api("/api/config", cookie).body());
+        assertThat(view.at("/catalog/agents").toString()).contains("Editor").contains("Writer");
+        assertThat(view.at("/catalog/models/0/model").asText()).isEqualTo("gemini-2.5-flash");
+        assertThat(view.at("/sections/rules/defaults/same_action").asInt()).isEqualTo(4);
+
+        HttpResponse<String> rules = put("/api/config/rules", "{\"structured\":{\"Editor\":{\"same_action\":3,\"no_progress\":{\"rounds\":2,\"variable\":\"review.fix\"}},"
+                + "\"*\":{\"paused_longer_than\":5400,\"ungrounded_figures\":{\"warn\":2,\"high\":4}}}}", cookie, csrf);
+        assertThat(rules.statusCode()).isEqualTo(200);
+        JsonNode after = JSON.readTree(api("/api/config", cookie).body());
+        assertThat(after.at("/sections/rules/text").asText()).contains("Editor {").contains("same_action: 3 times").contains("paused_longer_than: 90m").contains("no_progress: 2 rounds on review.fix");
+        assertThat(after.at("/sections/rules/structured/Editor/same_action").asInt()).isEqualTo(3);
+        assertThat(after.at("/sections/rules/structured/*/ungrounded_figures/high").asInt()).isEqualTo(4);
+
+        HttpResponse<String> prices = put("/api/config/prices", "{\"structured\":[{\"model\":\"gemini-2.5-flash\",\"input\":\"0.30\",\"output\":\"2.5\"}]}", cookie, csrf);
+        assertThat(prices.statusCode()).isEqualTo(200);
+        JsonNode p2 = JSON.readTree(api("/api/config", cookie).body());
+        assertThat(p2.at("/sections/prices/structured/0/input").asText()).isEqualTo("0.3");
+        assertThat(p2.at("/sections/prices/structured/0/output").asText()).isEqualTo("2.5");
+
+        // a bad structure is refused with its reason, and nothing is kept
+        assertThat(put("/api/config/prices", "{\"structured\":[{\"model\":\"x\",\"input\":\"cheap\",\"output\":\"1\"}]}", cookie, csrf).statusCode()).isEqualTo(400);
+        assertThat(put("/api/config/rules", "{\"structured\":{\"Editor\":{\"same_action\":0}}}", cookie, csrf).statusCode()).isEqualTo(422);
+        assertThat(JSON.readTree(api("/api/config", cookie).body()).at("/sections/prices/structured").size()).isEqualTo(1);
+    }
 }

@@ -33,4 +33,17 @@ class PriceBookTest {
         assertThat(p.ok()).isFalse();
         assertThat(p.problems()).extracting(PriceBook.Problem::line).containsExactly(2, 3, 4, 5, 6);
     }
+
+    @Test
+    void entriesWrittenReadBackTheSame_inputAndOutputApart() {
+        java.util.List<PriceBook.Entry> in = java.util.List.of(new PriceBook.Entry("b-model", new BigDecimal("0.30"), new BigDecimal("2.50")),
+                new PriceBook.Entry("a-model", new BigDecimal("3"), new BigDecimal("15.000")));
+        String text = PriceBook.write(in);
+        assertThat(text).contains("a-model = 3 / 15").contains("b-model = 0.3 / 2.5");
+        PriceBook.Parsed back = PriceBook.parse(text);
+        assertThat(back.ok()).isTrue();
+        assertThat(back.book().entries()).extracting(PriceBook.Entry::model).containsExactly("a-model", "b-model");
+        assertThat(back.book().cost("b-model", 1_000_000, 0)).isEqualByComparingTo("0.3");
+        assertThat(back.book().cost("b-model", 0, 1_000_000)).isEqualByComparingTo("2.5");
+    }
 }

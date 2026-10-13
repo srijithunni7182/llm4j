@@ -35,7 +35,7 @@ Both show the same page. Neither changes how a workflow behaves, and a missing o
 | **Fault tolerance** | Events go to a local on-disk outbox first. A server that is down, slow or restarted loses nothing; the page shows *catching up*, then no gaps |
 | **OpenTelemetry** | Traces and logs in OTLP/JSON, to Fabric and optionally to any OTLP endpoint (Collector, Tempo, Honeycomb, Datadog) |
 | **Privacy levels** | `--observe-detail full`, `truncated` (default) or `metadata`: how much of what agents say leaves the process |
-| **Central configuration** | In Fabric, an admin edits the **inspect rules** and the **price table** on a Configuration page: checked on save, in force at once, kept across restarts ([details](../wiki/Fabric-Server.md#configuration-page)) |
+| **Central configuration** | In Fabric, an admin edits the **inspect rules** (pick an agent, a behaviour, a threshold) and the **price table** (pick a model, set its input and output price) on a Configuration page: checked on save, in force at once, kept across restarts ([details](../wiki/Fabric-Server.md#configuration-page)) |
 | **Cost** | From a price file at the process, or from the price table kept on Fabric ([cost](#cost)) |
 
 ## What the page looks like
@@ -50,7 +50,7 @@ Both show the same page. Neither changes how a workflow behaves, and a missing o
 
 ![Fabric's Configuration page: the inspect rules and the price table, each with Save and Discard](images/observability/fabric-configuration.png)
 
-*Configuration (Fabric, signed in): the inspect rules and the price table, checked on save and in force at once.*
+*Configuration (Fabric, signed in): choose an agent, a behaviour and a threshold for the rules; choose a model from those your runs use and set its input and output price. Checked on save, in force at once.*
 
 ## Quick start
 

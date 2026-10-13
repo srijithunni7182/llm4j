@@ -66,6 +66,25 @@ public final class PriceBook {
         return new Parsed(new PriceBook(out), problems);
     }
 
+    /** One priced model: dollars per million input and output tokens. */
+    public record Entry(String model, BigDecimal input, BigDecimal output) { }
+
+    public List<Entry> entries() {
+        List<Entry> out = new ArrayList<>();
+        prices.forEach((m, p) -> out.add(new Entry(m, p[0], p[1])));
+        out.sort(java.util.Comparator.comparing(Entry::model));
+        return out;
+    }
+
+    /** The file for these entries, as {@link #parse} reads it back. */
+    public static String write(List<Entry> entries) {
+        StringBuilder out = new StringBuilder("# model = input / output, dollars per million tokens\n");
+        for (Entry e : entries.stream().sorted(java.util.Comparator.comparing(Entry::model)).toList()) {
+            out.append(e.model()).append(" = ").append(e.input().stripTrailingZeros().toPlainString()).append(" / ").append(e.output().stripTrailingZeros().toPlainString()).append('\n');
+        }
+        return out.toString();
+    }
+
     public int size() {
         return prices.size();
     }

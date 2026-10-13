@@ -5,7 +5,11 @@ import io.github.llm4j.loom.inspect.rules.RulesFile;
 import io.github.llm4j.loom.inspect.state.InspectRules;
 import io.github.llm4j.loom.inspect.state.PriceBook;
 import io.github.llm4j.loom.inspect.state.RunRegistry;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.llm4j.loom.inspect.state.Thresholds;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -31,6 +35,7 @@ final class FabricConfig implements ServerConfig {
     private final Path dir;
     private final RunRegistry registry;
     private final PrintStream out;
+    private static final ObjectMapper JSON = new ObjectMapper();
     private String rulesText = "";
     private String pricesText = "";
     private RulesFile.Parsed rules = RulesFile.parse("");
@@ -78,12 +83,101 @@ final class FabricConfig implements ServerConfig {
         r.put("text", rulesText);
         r.put("summary", rules.rules().isEmpty() ? "no rules: every run is watched with its own rules, or the defaults" : rules.rules().size() + " block(s), laid over each run's own rules");
         r.put("warnings", warnings(rules));
+        r.put("structured", structuredRules(rules.rules()));
+        r.put("defaults", defaults());
         out.put(RULES, r);
         Map<String, Object> p = new LinkedHashMap<>();
         p.put("text", pricesText);
         p.put("summary", prices.book().isEmpty() ? "no prices: only a process with its own price file reports cost" : prices.book().size() + " model(s) priced");
         p.put("warnings", List.of());
+        List<Map<String, Object>> entries = new ArrayList<>();
+        for (PriceBook.Entry e : prices.book().entries()) entries.add(Map.of("model", e.model(), "input", e.input().stripTrailingZeros().toPlainString(), "output", e.output().stripTrailingZeros().toPlainString()));
+        p.put("structured", entries);
         out.put(PRICES, p);
+        return out;
+    }
+
+    @Override
+    public Map<String, Object> catalog() {
+        return registry.catalog();
+    }
+
+    private static Map<String, Object> defaults() {
+        Thresholds t = Thresholds.defaults();
+        Map<String, Object> d = new LinkedHashMap<>();
+        d.put("same_action", t.sameAction());
+        d.put("same_output", t.sameOutput());
+        d.put("tool_failures", t.toolFailures());
+        d.put("ungrounded_figures", Map.of("warn", t.ungroundedWarn(), "high", t.ungroundedHigh()));
+        d.put("paused_longer_than", t.pausedLongerThanSeconds());
+        return d;
+    }
+
+    private static Map<String, Object> structuredRules(Map<String, InspectRules> rules) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        rules.forEach((agent, r) -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            if (r.sameAction() != null) m.put("same_action", r.sameAction());
+            if (r.sameOutput() != null) m.put("same_output", r.sameOutput());
+            if (r.toolFailures() != null) m.put("tool_failures", r.toolFailures());
+            if (r.ungroundedWarn() != null || r.ungroundedHigh() != null) {
+                Map<String, Object> u = new LinkedHashMap<>();
+                if (r.ungroundedWarn() != null) u.put("warn", r.ungroundedWarn());
+                if (r.ungroundedHigh() != null) u.put("high", r.ungroundedHigh());
+                m.put("ungrounded_figures", u);
+            }
+            if (r.pausedLongerThanSeconds() != null) m.put("paused_longer_than", r.pausedLongerThanSeconds());
+            if (r.noProgressRounds() != null) m.put("no_progress", Map.of("rounds", r.noProgressRounds(), "variable", String.valueOf(r.noProgressVariable())));
+            out.put(agent, m);
+        });
+        return out;
+    }
+
+    /** From the page's editors: the structure is turned into the same text a person would write, then checked and kept exactly as a text save is. */
+    @Override
+    public synchronized Result saveStructured(String section, String json, String who) {
+        try {
+            JsonNode n = JSON.readTree(json);
+            return switch (section) {
+                case RULES -> save(RULES, RulesFile.write(rulesOf(n)), who);
+                case PRICES -> save(PRICES, PriceBook.write(pricesOf(n)), who);
+                default -> Result.refused(404, "no such section", List.of());
+            };
+        } catch (IOException | IllegalArgumentException e) {
+            return Result.refused(400, "could not read what was sent: " + e.getMessage(), List.of());
+        }
+    }
+
+    private static Map<String, InspectRules> rulesOf(JsonNode n) {
+        Map<String, InspectRules> out = new LinkedHashMap<>();
+        if (!n.isObject()) throw new IllegalArgumentException("rules are an object of agent to rules");
+        n.fields().forEachRemaining(e -> {
+            JsonNode r = e.getValue();
+            JsonNode u = r.path("ungrounded_figures");
+            JsonNode np = r.path("no_progress");
+            out.put(e.getKey(), new InspectRules(whole(r, "same_action"), whole(r, "same_output"), whole(r, "tool_failures"), whole(u, "warn"), whole(u, "high"),
+                    r.hasNonNull("paused_longer_than") ? r.get("paused_longer_than").asLong() : null, whole(np, "rounds"),
+                    np.hasNonNull("variable") && !np.get("variable").asText().isBlank() ? np.get("variable").asText().strip() : null));
+        });
+        return out;
+    }
+
+    private static Integer whole(JsonNode n, String key) {
+        return n.hasNonNull(key) ? n.get(key).asInt() : null;
+    }
+
+    private static List<PriceBook.Entry> pricesOf(JsonNode n) {
+        if (!n.isArray()) throw new IllegalArgumentException("prices are a list of models");
+        List<PriceBook.Entry> out = new ArrayList<>();
+        for (JsonNode e : n) {
+            String model = e.path("model").asText("").strip();
+            if (model.isEmpty()) throw new IllegalArgumentException("a price needs a model");
+            try {
+                out.add(new PriceBook.Entry(model, new BigDecimal(e.path("input").asText().strip()), new BigDecimal(e.path("output").asText().strip())));
+            } catch (NumberFormatException bad) {
+                throw new IllegalArgumentException("the prices for " + model + " must be numbers");
+            }
+        }
         return out;
     }
 
@@ -120,8 +214,6 @@ final class FabricConfig implements ServerConfig {
     private static List<String> warnings(RulesFile.Parsed parsed) {
         List<String> w = new ArrayList<>();
         parsed.problems().forEach(p -> w.add(p.toString()));
-        boolean variable = parsed.rules().values().stream().anyMatch(r -> r.noProgressVariable() != null);
-        if (variable) w.add("no_progress names a variable here, but the variable is read in the process: it only takes effect where that process's own rules name the same variable (the rounds here replace its count)");
         return w;
     }
 

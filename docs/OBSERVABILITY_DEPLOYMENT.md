@@ -125,10 +125,10 @@ Controls take effect **between steps** and only reach a process that is online. 
 Sign in to Fabric and open the **Configuration** page. Two documents are kept on the server, in the same format as the files a
 process keeps beside its script:
 
-- **Inspect rules**: what counts as trouble per agent (`same_action: 4 times`, `ungrounded_figures: warn at 2, high at 4`, …).
+- **Inspect rules**: what counts as trouble per agent. Pick an agent (one your runs have shown, or all agents), a behaviour (repeated tool call, repeated answer, failing tool, figures with no source, long pause, no progress) and a threshold. 
   They are laid over each run's own rules, rule by rule, and apply at once to every run. Use this to tune thresholds for
   the whole fleet without touching any machine.
-- **Price table**: `model = input / output` dollars per million tokens. A step whose process reported tokens but no cost is
+- **Price table**: the models your runs use are listed; pick one and set its **input** and **output** price (dollars per million tokens). A step whose process reported tokens but no cost is
   costed from it. A process with its own price file keeps reporting its own cost, which wins.
 
 A save is checked first: errors come back with line numbers and **nothing is kept**; a valid save is written to

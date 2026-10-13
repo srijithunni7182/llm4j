@@ -8,6 +8,7 @@ import io.github.llm4j.loom.lexer.Lexer;
 import io.github.llm4j.loom.parser.LoomParser;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /** The rules file: what it reads, what it refuses, and how it meets a script. The script never mentions any of it. */
@@ -97,5 +98,26 @@ class RulesFileTest {
         assertThat(against("Edtor { same_action: 2 times }")).singleElement().asString().contains("no agent named Edtor").contains("Editor");
         assertThat(against("Editor { no_progress: 3 rounds on reveiw.score }")).singleElement().asString().contains("no workflow variable named reveiw").contains("review");
         assertThat(against("Editor { no_progress: 3 rounds on topic }")).isEmpty(); // a parameter is a variable too
+    }
+
+    @Test
+    void rulesWrittenFromTheStructureReadBackAsTheSameRules_starFirst_andSpansInTheirLargestUnit() {
+        Map<String, InspectRules> rules = new java.util.LinkedHashMap<>();
+        rules.put("Editor", new InspectRules(3, null, null, null, null, null, 2, "review.fix"));
+        rules.put("*", new InspectRules(null, null, 5, null, null, 5400L, null, null));
+        rules.put("Scriptwriter", new InspectRules(null, 2, null, 2, 4, 120L, null, null));
+        rules.put("Onlywarn", new InspectRules(null, null, null, 3, null, null, null, null));
+        String text = RulesFile.write(rules);
+        assertThat(text.indexOf("* {")).isLessThan(text.indexOf("Editor {"));
+        assertThat(text).contains("paused_longer_than: 90m").contains("paused_longer_than: 2m").contains("ungrounded_figures: warn at 2, high at 4")
+                .contains("ungrounded_figures: warn at 3\n").contains("no_progress: 2 rounds on review.fix");
+        RulesFile.Parsed back = RulesFile.parse(text);
+        assertThat(back.ok()).isTrue();
+        assertThat(back.rules()).isEqualTo(rules);
+    }
+
+    @Test
+    void anAgentWithNothingSetIsLeftOut() {
+        assertThat(RulesFile.write(Map.of("Editor", new InspectRules(null, null, null, null, null, null, null, null)))).doesNotContain("Editor");
     }
 }

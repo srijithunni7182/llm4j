@@ -509,25 +509,189 @@
     }).catch(function (err) { $('ro-err').textContent = err.message; $('ro-err').hidden = false; $('ro-pw').value = ''; });
   });
 
-  // ---- configuration (Fabric): the inspect rules and the price table, edited here and kept on the server
-  var cfgLoaded = false;
-  function sectionUi(name) {
-    return { text: $(name + '-text'), summary: $(name + '-summary'), problems: $(name + '-problems'), msg: $(name + '-msg') };
-  }
+  // ---- configuration (Fabric): inspect rules and the price table, chosen from what the runs show, kept on the server
+  var cfg = { catalog: { agents: [], models: [] }, defaults: {}, rules: {}, prices: [], loaded: false, rulesDirty: false, pricesDirty: false, picked: null };
+  var BEHAVIOURS = [
+    { key: 'same_action', label: 'Same tool call repeated', hint: 'the same tool called with the same input this many times in one step' },
+    { key: 'same_output', label: 'Same answer repeated', hint: 'the same answer from the same step this many times in a row' },
+    { key: 'tool_failures', label: 'Tool keeps failing', hint: 'a tool failing this many times in a row' },
+    { key: 'ungrounded_figures', label: 'Figures with no source', hint: 'figures in an answer found in nothing the step saw: warn at one count, high at a larger one' },
+    { key: 'paused_longer_than', label: 'Paused for too long', hint: 'a pause (rate limit, budget window) longer than this becomes a warning' },
+    { key: 'no_progress', label: 'No progress across loop rounds', hint: 'a workflow variable unchanged at the end of this many loop rounds in a row. One agent only. It applies to runs whose process already watches this variable in its own rules; the rounds set here replace that count' }
+  ];
+  function behaviour(key) { return BEHAVIOURS.filter(function (b) { return b.key === key; })[0]; }
+  function sectionUi(name) { return { text: $(name + '-text'), summary: $(name + '-summary'), problems: $(name + '-problems'), msg: $(name + '-msg') }; }
   function showProblems(u, list) {
     u.problems.textContent = '';
-    (list || []).forEach(function (p) { u.problems.appendChild(el('li', '', p)); });
+    (list || []).forEach(function (p) { u.problems.appendChild(el('li', /^warning/.test(p) ? 'note' : '', p)); });
     u.problems.hidden = !(list && list.length);
   }
+  function opt(sel, value, label) { var o = el('option', '', label); o.value = value; sel.appendChild(o); }
+  function describe(key, v) {
+    if (key === 'ungrounded_figures') { return [v.warn != null ? 'warn at ' + v.warn : null, v.high != null ? 'high at ' + v.high : null].filter(Boolean).join(', '); }
+    if (key === 'paused_longer_than') { return span(v); }
+    if (key === 'no_progress') { return v.rounds + ' rounds on ' + v.variable; }
+    return v + ' times';
+  }
+  function span(s) { return s % 86400 === 0 ? s / 86400 + 'd' : s % 3600 === 0 ? s / 3600 + 'h' : s % 60 === 0 ? s / 60 + 'm' : s + 's'; }
+  function defaultOf(key) {
+    var d = cfg.defaults[key];
+    if (d == null) { return '–'; }
+    return key === 'ungrounded_figures' ? describe(key, d) : key === 'paused_longer_than' ? span(d) : d + ' times';
+  }
+
+  // ---- rules: agent, behaviour, threshold
+  function buildFields() {
+    var key = $('rb-rule').value, box = $('rb-fields'), d = cfg.defaults;
+    box.textContent = '';
+    function num(id, label, value) {
+      var l = el('label', '', label + ' '), i = el('input'); i.type = 'number'; i.min = '1'; i.id = id; i.value = value == null ? '' : value;
+      l.appendChild(i); box.appendChild(l);
+    }
+    if (key === 'same_action' || key === 'same_output' || key === 'tool_failures') { num('rf-n', 'Flag at', d[key]); box.appendChild(el('span', 'muted', 'times')); }
+    if (key === 'ungrounded_figures') { num('rf-warn', 'Warn at', d.ungrounded_figures && d.ungrounded_figures.warn); num('rf-high', 'High at', d.ungrounded_figures && d.ungrounded_figures.high); }
+    if (key === 'paused_longer_than') {
+      num('rf-n', 'Longer than', 60);
+      var u = el('select'); u.id = 'rf-unit'; opt(u, 's', 'seconds'); opt(u, 'm', 'minutes'); opt(u, 'h', 'hours'); opt(u, 'd', 'days'); u.value = 'm'; $('rf-n').value = 1; box.appendChild(u);
+    }
+    if (key === 'no_progress') {
+      num('rf-n', 'Flag after', 3); box.appendChild(el('span', 'muted', 'rounds on'));
+      var v = el('input'); v.type = 'text'; v.id = 'rf-var'; v.placeholder = 'review.score'; v.spellcheck = false; box.appendChild(v);
+    }
+    $('rb-hint').textContent = (behaviour(key) || {}).hint ? 'Flags ' + behaviour(key).hint + '. Default: ' + defaultOf(key) + '.' : '';
+  }
+  function agentChosen() { return $('rb-agent').value === '__other' ? $('rb-other').value.trim() : $('rb-agent').value; }
+  function renderBuilder() {
+    var sel = $('rb-agent'), keep = sel.value;
+    sel.textContent = '';
+    opt(sel, '*', 'All agents (*)');
+    cfg.catalog.agents.forEach(function (a) { opt(sel, a, a); });
+    Object.keys(cfg.rules).forEach(function (a) { if (a !== '*' && cfg.catalog.agents.indexOf(a) < 0) { opt(sel, a, a); } });
+    opt(sel, '__other', 'Another agent…');
+    if (keep) { sel.value = keep; }
+    if (!$('rb-rule').options.length) { BEHAVIOURS.forEach(function (b) { opt($('rb-rule'), b.key, b.label); }); buildFields(); }
+    $('rb-other-wrap').hidden = sel.value !== '__other';
+  }
+  function addRule() {
+    var u = sectionUi('rules'), agent = agentChosen(), key = $('rb-rule').value, problem = null, value;
+    function whole(id) { var n = Number($(id).value); return isFinite(n) && n >= 1 && Math.floor(n) === n ? n : null; }
+    if (!agent) { problem = 'Name the agent.'; }
+    else if (!/^(\*|[A-Za-z_][A-Za-z0-9_]*)$/.test(agent)) { problem = 'An agent name is letters, digits and _.'; }
+    if (!problem) {
+      if (key === 'ungrounded_figures') {
+        var w = whole('rf-warn'), hh = whole('rf-high');
+        if (w == null && hh == null) { problem = 'Give a whole number for warn, for high, or both.'; }
+        else if (w != null && hh != null && w >= hh) { problem = 'Warn must be lower than high.'; }
+        else { value = {}; if (w != null) { value.warn = w; } if (hh != null) { value.high = hh; } }
+      } else if (key === 'paused_longer_than') {
+        var n = whole('rf-n'); if (n == null) { problem = 'Give a whole number.'; } else { value = n * { s: 1, m: 60, h: 3600, d: 86400 }[$('rf-unit').value]; }
+      } else if (key === 'no_progress') {
+        var r = whole('rf-n'), name = $('rf-var').value.trim();
+        if (agent === '*') { problem = 'A loop variable belongs to one agent: pick that agent.'; }
+        else if (r == null) { problem = 'Give a whole number of rounds.'; }
+        else if (!/^[A-Za-z_][A-Za-z0-9_.]*$/.test(name)) { problem = 'Name the workflow variable, like review.score.'; }
+        else { value = { rounds: r, variable: name }; }
+      } else {
+        var c = whole('rf-n'); if (c == null) { problem = 'Give a whole number.'; } else { value = c; }
+      }
+    }
+    if (problem) { showProblems(u, [problem]); return; }
+    showProblems(u, []);
+    (cfg.rules[agent] = cfg.rules[agent] || {})[key] = value;
+    cfg.rulesDirty = true;
+    renderRules();
+    u.msg.textContent = 'unsaved changes';
+  }
+  function renderRules() {
+    var body = $('rules-table'), rows = 0;
+    body.textContent = '';
+    Object.keys(cfg.rules).sort(function (a, b) { return a === '*' ? -1 : b === '*' ? 1 : a < b ? -1 : 1; }).forEach(function (agent) {
+      BEHAVIOURS.forEach(function (b) {
+        var v = cfg.rules[agent][b.key];
+        if (v == null) { return; }
+        rows++;
+        var tr = el('tr');
+        cell(tr, agent === '*' ? 'All agents' : agent, 'mono');
+        cell(tr, b.label);
+        cell(tr, describe(b.key, v), 'mono');
+        cell(tr, defaultOf(b.key), 'mono faint');
+        var td = el('td'), rm = el('button', 'btn', 'Remove');
+        rm.type = 'button';
+        rm.addEventListener('click', function () {
+          delete cfg.rules[agent][b.key];
+          if (!Object.keys(cfg.rules[agent]).length) { delete cfg.rules[agent]; }
+          cfg.rulesDirty = true; sectionUi('rules').msg.textContent = 'unsaved changes'; renderRules();
+        });
+        td.appendChild(rm); tr.appendChild(td); body.appendChild(tr);
+      });
+    });
+    $('rules-none').hidden = rows > 0;
+    renderBuilder();
+  }
+
+  // ---- prices: the models in use, input and output set apart
+  function pricedIndex(model) { for (var i = 0; i < cfg.prices.length; i++) { if (cfg.prices[i].model === model) { return i; } } return -1; }
+  function renderPrices() {
+    var body = $('prices-table'), models = {}, order = [];
+    body.textContent = '';
+    cfg.catalog.models.forEach(function (m) { models[m.model] = m.agents; order.push(m.model); });
+    cfg.prices.forEach(function (p) { if (!(p.model in models)) { models[p.model] = []; order.push(p.model); } });
+    if (cfg.picked && !(cfg.picked in models)) { models[cfg.picked] = []; order.push(cfg.picked); }
+    order.sort();
+    order.forEach(function (model) {
+      var i = pricedIndex(model), p = i >= 0 ? cfg.prices[i] : null, tr = el('tr', cfg.picked === model ? 'sel' : '');
+      cell(tr, model, 'mono');
+      cell(tr, models[model].join(', ') || '–', 'mono faint');
+      cell(tr, p ? p.input : 'not priced', 'r mono' + (p ? '' : ' unpriced'));
+      cell(tr, p ? p.output : 'not priced', 'r mono' + (p ? '' : ' unpriced'));
+      var td = el('td'), b = el('button', 'btn', p ? 'Edit' : 'Set price');
+      b.type = 'button';
+      b.addEventListener('click', function () { pickModel(model); });
+      td.appendChild(b); tr.appendChild(td); body.appendChild(tr);
+    });
+    $('prices-none').hidden = order.length > 0;
+    $('pb').hidden = !cfg.picked;
+  }
+  function pickModel(model) {
+    cfg.picked = model;
+    var i = pricedIndex(model);
+    $('pb-model').textContent = model;
+    $('pb-in').value = i >= 0 ? cfg.prices[i].input : '';
+    $('pb-out').value = i >= 0 ? cfg.prices[i].output : '';
+    renderPrices();
+    $('pb-in').focus();
+  }
+  function setPrice() {
+    var u = sectionUi('prices'), a = $('pb-in').value.trim(), b = $('pb-out').value.trim();
+    if (!/^\d+(\.\d+)?$/.test(a) || !/^\d+(\.\d+)?$/.test(b)) { showProblems(u, ['Give the input and the output price as numbers, in dollars per million tokens.']); return; }
+    showProblems(u, []);
+    var i = pricedIndex(cfg.picked), entry = { model: cfg.picked, input: String(Number(a)), output: String(Number(b)) };
+    if (i >= 0) { cfg.prices[i] = entry; } else { cfg.prices.push(entry); }
+    cfg.pricesDirty = true; cfg.picked = null; u.msg.textContent = 'unsaved changes'; renderPrices();
+  }
+  function removePrice() {
+    var i = pricedIndex(cfg.picked);
+    if (i >= 0) { cfg.prices.splice(i, 1); cfg.pricesDirty = true; sectionUi('prices').msg.textContent = 'unsaved changes'; }
+    cfg.picked = null; renderPrices();
+  }
+
+  // ---- load and save
   function loadConfig(force) {
     return fetchJson('/api/config').then(function (d) {
+      cfg.catalog = d.catalog && d.catalog.agents ? d.catalog : { agents: [], models: [] };
+      var r = d.sections.rules, p = d.sections.prices;
+      cfg.defaults = r.defaults || {};
       ['rules', 'prices'].forEach(function (name) {
         var u = sectionUi(name), s = d.sections[name];
         u.summary.textContent = s.summary;
-        if (force || !cfgLoaded || document.activeElement !== u.text) { if (force || !cfgLoaded) { u.text.value = s.text; } }
+        if (force || !cfg.loaded) { u.text.value = s.text; }
         if (!u.problems.dataset.err) { showProblems(u, s.warnings); }
       });
-      cfgLoaded = true;
+      if (force || !cfg.loaded || !cfg.rulesDirty) { cfg.rules = JSON.parse(JSON.stringify(r.structured || {})); cfg.rulesDirty = false; }
+      if (force || !cfg.loaded || !cfg.pricesDirty) { cfg.prices = JSON.parse(JSON.stringify(p.structured || [])); cfg.pricesDirty = false; }
+      cfg.loaded = true;
+      renderRules();
+      renderPrices();
     });
   }
   function renderConfig() {
@@ -541,12 +705,12 @@
     $('cfgbody').hidden = !sess.signedIn;
     if (sess.signedIn) { loadConfig(false).catch(function () { }); }
   }
-  function saveConfig(name) {
+  function put(name, payload) {
     var u = sectionUi(name);
     u.msg.textContent = 'saving…';
     sessionCsrf().then(function (s) {
       if (!s.signedIn) { throw new Error('Your session ended. Sign in again.'); }
-      return fetch('/api/config/' + name, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify({ text: u.text.value }) });
+      return fetch('/api/config/' + name, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf }, body: JSON.stringify(payload) });
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (b) {
         if (!r.ok) {
@@ -558,13 +722,26 @@
         delete u.problems.dataset.err;
         u.msg.textContent = b.message;
         showProblems(u, b.problems);
-        return loadConfig(false);
+        return loadConfig(true);
       });
     }).catch(function (err) { u.msg.textContent = err.message; });
   }
   ['rules', 'prices'].forEach(function (name) {
-    $(name + '-save').addEventListener('click', function () { saveConfig(name); });
-    $(name + '-reset').addEventListener('click', function () { var u = sectionUi(name); delete u.problems.dataset.err; u.msg.textContent = ''; loadConfig(true); });
+    $(name + '-save').addEventListener('click', function () { put(name, { structured: name === 'rules' ? cfg.rules : cfg.prices }); });
+    $(name + '-savetext').addEventListener('click', function () { put(name, { text: sectionUi(name).text.value }); });
+    $(name + '-reset').addEventListener('click', function () { var u = sectionUi(name); delete u.problems.dataset.err; u.msg.textContent = ''; cfg.picked = null; loadConfig(true); });
+  });
+  $('rb-agent').addEventListener('change', function () { $('rb-other-wrap').hidden = $('rb-agent').value !== '__other'; });
+  $('rb-rule').addEventListener('change', buildFields);
+  $('rb-add').addEventListener('click', addRule);
+  $('pb-set').addEventListener('click', setPrice);
+  $('pb-remove').addEventListener('click', removePrice);
+  $('pb-cancel').addEventListener('click', function () { cfg.picked = null; renderPrices(); });
+  $('pb-add').addEventListener('click', function () {
+    var m = $('pb-new').value.trim();
+    if (!m) { return; }
+    $('pb-new').value = '';
+    pickModel(m);
   });
   $('cfgsigninbtn').addEventListener('click', function () { $('si-err').hidden = true; $('signin').showModal(); $('sipw').focus(); });
 
