@@ -66,8 +66,8 @@ The embedded server and Fabric serve the same routes (Fabric adds `processes`). 
 | `POST /api/login` | JSON `{password}`; sets the cookie, returns `{csrf}`. `429` when throttled, `503` when no password is set |
 | `POST /api/logout` | Ends the session |
 | `POST /api/runs/{trace}/{pause\|resume\|suspend\|stop}` | A control. Needs session, `X-CSRF-Token`, same origin. `202` taken, `401`, `403`, `404`, `409` not available now |
-| `GET /api/config` | (Fabric) the Configuration sections: `rules` and `prices`, each `{text, summary, warnings}` |
-| `PUT /api/config/{rules\|prices}` | (Fabric) `{text}`. Checked, then kept whole or not at all: `200` saved, `422` with `problems` (line numbers), `413`, `403`. Needs session and `X-CSRF-Token` |
+| `GET /api/config` | (Fabric) `{sections, catalog}`: `rules` and `prices`, each `{text, summary, warnings, structured}` (rules also `defaults`); `catalog` is `{agents, models:[{model, agents}]}` from the runs known so far |
+| `PUT /api/config/{rules\|prices}` | (Fabric) `{text}`, or `{structured}` from the page's editors (rules: `{agent: {same_action, same_output, tool_failures, ungrounded_figures:{warn,high}, paused_longer_than (seconds), no_progress:{rounds, variable}}}`; prices: `[{model, input, output}]`), turned into the same text and checked the same way. Checked, then kept whole or not at all: `200` saved, `422` with `problems` (line numbers), `413`, `403`. Needs session and `X-CSRF-Token` |
 | `GET /api/secrets` | (embedded) secrets with fingerprints, hosts, used-by. Never values |
 | `PUT /api/secrets/{name}` | (embedded) `{value, password}`. Replaces an existing secret |
 

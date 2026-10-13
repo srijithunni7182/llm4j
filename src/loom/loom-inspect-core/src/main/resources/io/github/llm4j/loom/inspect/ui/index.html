@@ -97,20 +97,55 @@
       <section class="cfgcard" aria-labelledby="h-rules">
         <h3 id="h-rules">Inspect rules</h3>
         <p class="muted" id="rules-summary"></p>
-        <p class="muted small">What counts as trouble, per agent. Laid over each run's own rules, rule by rule; in force at once for every run. Same format as <code>flow.inspect</code>.</p>
-        <label class="sr" for="rules-text">Inspect rules</label>
-        <textarea id="rules-text" class="mono" rows="14" spellcheck="false" placeholder="Editor { same_action: 3 times }&#10;*      { paused_longer_than: 90s }"></textarea>
+        <p class="muted small">What counts as trouble, per agent. Pick an agent, a behaviour and a threshold. Laid over each run's own rules, rule by rule; in force at once for every run.</p>
+        <div class="builder" id="rb">
+          <label>Agent <select id="rb-agent"></select></label>
+          <label id="rb-other-wrap" hidden>Name <input id="rb-other" type="text" placeholder="agent name" spellcheck="false"></label>
+          <label>Behaviour <select id="rb-rule"></select></label>
+          <span id="rb-fields" class="builder-fields"></span>
+          <button class="btn" id="rb-add" type="button">Add rule</button>
+        </div>
+        <p class="muted small" id="rb-hint"></p>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Agent</th><th>Behaviour</th><th>Threshold</th><th>Default</th><th></th></tr></thead>
+          <tbody id="rules-table"></tbody>
+        </table></div>
+        <p class="muted pad small" id="rules-none" hidden>No rules set here: every run is watched with its own rules, or the defaults.</p>
         <ul id="rules-problems" class="problems" role="alert" hidden></ul>
         <div class="cfgactions"><button class="btn primary" id="rules-save" type="button">Save rules</button><button class="btn" id="rules-reset" type="button">Discard changes</button><span class="mono small" id="rules-msg" role="status"></span></div>
+        <details class="adv"><summary>Edit as text</summary>
+          <p class="muted small">The same rules as a file (the format of <code>flow.inspect</code>). Saving the visual editor rewrites it, so comments written here are not kept.</p>
+          <label class="sr" for="rules-text">Inspect rules as text</label>
+          <textarea id="rules-text" class="mono" rows="10" spellcheck="false" placeholder="Editor { same_action: 3 times }&#10;*      { paused_longer_than: 90s }"></textarea>
+          <div class="cfgactions"><button class="btn" id="rules-savetext" type="button">Save text</button></div>
+        </details>
       </section>
       <section class="cfgcard" aria-labelledby="h-prices">
         <h3 id="h-prices">Price table</h3>
         <p class="muted" id="prices-summary"></p>
-        <p class="muted small">Dollars per million tokens: <code>model = input / output</code>. Costs a step whose process reported tokens but no cost (a process with its own price file reports its own). Costs already counted do not change.</p>
-        <label class="sr" for="prices-text">Price table</label>
-        <textarea id="prices-text" class="mono" rows="10" spellcheck="false" placeholder="gemini-2.5-flash = 0.30 / 2.50"></textarea>
+        <p class="muted small">The models your runs use. Select one and set its input and output price, in dollars per million tokens. Costs a step whose process reported tokens but no cost; costs already counted do not change.</p>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Model</th><th>Used by</th><th class="r">Input $/M</th><th class="r">Output $/M</th><th></th></tr></thead>
+          <tbody id="prices-table"></tbody>
+        </table></div>
+        <p class="muted pad small" id="prices-none" hidden>No model has been seen yet. Add one below, or start a run.</p>
+        <div class="builder" id="pb" hidden>
+          <strong id="pb-model" class="mono"></strong>
+          <label>Input <input id="pb-in" type="number" min="0" step="any" inputmode="decimal"> <span class="muted">$ per 1M tokens</span></label>
+          <label>Output <input id="pb-out" type="number" min="0" step="any" inputmode="decimal"> <span class="muted">$ per 1M tokens</span></label>
+          <button class="btn" id="pb-set" type="button">Set price</button>
+          <button class="btn" id="pb-remove" type="button">Remove price</button>
+          <button class="btn" id="pb-cancel" type="button">Cancel</button>
+        </div>
+        <div class="builder"><label>Another model <input id="pb-new" type="text" placeholder="model name" spellcheck="false"></label><button class="btn" id="pb-add" type="button">Add</button></div>
         <ul id="prices-problems" class="problems" role="alert" hidden></ul>
         <div class="cfgactions"><button class="btn primary" id="prices-save" type="button">Save prices</button><button class="btn" id="prices-reset" type="button">Discard changes</button><span class="mono small" id="prices-msg" role="status"></span></div>
+        <details class="adv"><summary>Edit as text</summary>
+          <p class="muted small">The same table as a file: <code>model = input / output</code>.</p>
+          <label class="sr" for="prices-text">Price table as text</label>
+          <textarea id="prices-text" class="mono" rows="8" spellcheck="false" placeholder="gemini-2.5-flash = 0.30 / 2.50"></textarea>
+          <div class="cfgactions"><button class="btn" id="prices-savetext" type="button">Save text</button></div>
+        </details>
       </section>
     </div>
   </section>

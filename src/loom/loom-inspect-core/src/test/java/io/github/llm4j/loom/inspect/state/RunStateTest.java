@@ -415,4 +415,14 @@ class RunStateTest {
         if (cost != null) a.put(Semconv.LOOM_COST_USD, cost);
         return new SpanRec(TRACE, Ids.spanId(RUN, key), null, "invoke_agent " + agent, SpanRec.CLIENT, at(from), at(to), a, SpanRec.STATUS_OK, null, List.of());
     }
+
+    @Test
+    void theCatalogListsEveryAgentAndEachModelWithTheAgentsThatUseIt() {
+        RunRegistry reg = registry(runStart());
+        reg.setModels("getviral-prod", TRACE, Map.of("Writer", "gemini-2.5-flash", "Editor", "gemini-2.5-flash", "Lead", "claude-sonnet"));
+        reg.applySpans(PROC, List.of(agentSpan("a1", "Planner", 1, 2, 10, 1, "0")));
+        Map<String, Object> catalog = reg.catalog();
+        assertThat(String.valueOf(catalog.get("agents"))).isEqualTo("[Editor, Lead, Planner, Writer]");
+        assertThat(String.valueOf(catalog.get("models"))).contains("claude-sonnet").contains("gemini-2.5-flash").contains("Editor, Writer");
+    }
 }

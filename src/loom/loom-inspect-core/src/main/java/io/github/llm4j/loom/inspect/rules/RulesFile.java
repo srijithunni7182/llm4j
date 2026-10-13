@@ -128,6 +128,44 @@ public final class RulesFile {
         return new Parsed(out, lines, problems);
     }
 
+    /**
+     * The file for these rules, as {@link #parse} reads it back: {@code *} first, then agents by name; one rule per line. Comments are not kept (a file
+     * written from the page's editor is generated), so what a person wrote by hand should be kept by editing it as text.
+     */
+    public static String write(Map<String, InspectRules> rules) {
+        StringBuilder out = new StringBuilder("# Inspect rules, kept on the server. Laid over each run's own rules, rule by rule.\n");
+        List<String> names = new ArrayList<>(rules.keySet());
+        java.util.Collections.sort(names);
+        if (names.remove(ALL)) names.add(0, ALL);
+        for (String name : names) {
+            InspectRules r = rules.get(name);
+            List<String> lines = new ArrayList<>();
+            if (r.sameAction() != null) lines.add("same_action: " + r.sameAction() + " times");
+            if (r.sameOutput() != null) lines.add("same_output: " + r.sameOutput() + " times");
+            if (r.toolFailures() != null) lines.add("tool_failures: " + r.toolFailures() + " times");
+            if (r.ungroundedWarn() != null || r.ungroundedHigh() != null) {
+                String w = r.ungroundedWarn() == null ? null : "warn at " + r.ungroundedWarn();
+                String h = r.ungroundedHigh() == null ? null : "high at " + r.ungroundedHigh();
+                lines.add("ungrounded_figures: " + (w == null ? h : h == null ? w : w + ", " + h));
+            }
+            if (r.pausedLongerThanSeconds() != null) lines.add("paused_longer_than: " + span(r.pausedLongerThanSeconds()));
+            if (r.noProgressRounds() != null && r.noProgressVariable() != null) lines.add("no_progress: " + r.noProgressRounds() + " rounds on " + r.noProgressVariable());
+            if (lines.isEmpty()) continue;
+            out.append('\n').append(name).append(" {\n");
+            for (String l : lines) out.append("    ").append(l).append('\n');
+            out.append("}\n");
+        }
+        return out.toString();
+    }
+
+    /** Seconds as the largest whole unit: {@code 90s}, {@code 5m}, {@code 2h}, {@code 1d}. */
+    static String span(long seconds) {
+        if (seconds % 86400 == 0) return (seconds / 86400) + "d";
+        if (seconds % 3600 == 0) return (seconds / 3600) + "h";
+        if (seconds % 60 == 0) return (seconds / 60) + "m";
+        return seconds + "s";
+    }
+
     private static final class Builder {
         Integer sameAction;
         Integer sameOutput;

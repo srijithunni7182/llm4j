@@ -235,3 +235,16 @@ tr.flag.high td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
 .cfgactions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .problems { margin: 4px 0 8px; padding-left: 18px; color: var(--danger); font: 400 12px/1.5 var(--font-mono); }
 .small { font-size: 12px; }
+
+.builder { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin: 10px 0; }
+.builder label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-muted); }
+.builder select, .builder input { height: 30px; padding: 0 8px; border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: transparent; color: var(--ink); font: inherit; }
+.builder input[type=number] { width: 84px; }
+.builder input[type=text] { width: 170px; }
+.builder select option { background: var(--surface); color: var(--ink); }
+.builder-fields { display: inline-flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.cfgcard .tbl-wrap { margin-top: 6px; }
+.cfgcard table td .btn { height: 26px; padding: 0 9px; font-size: 12px; }
+.ok-t { color: var(--live); } .unpriced { color: var(--ink-faint); }
+.adv { margin-top: 12px; } .adv summary { cursor: pointer; font-size: 12.5px; color: var(--ink-muted); }
+.cfgcard tr.sel td { background: var(--live-soft); }

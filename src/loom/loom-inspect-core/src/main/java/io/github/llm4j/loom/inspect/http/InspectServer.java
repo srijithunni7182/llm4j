@@ -400,7 +400,7 @@ public final class InspectServer {
             return;
         }
         if (path.equals("/api/config") && "GET".equals(x.getRequestMethod())) {
-            send(x, 200, "application/json", json(Map.of("sections", config.settings.view())));
+            send(x, 200, "application/json", json(Map.of("sections", config.settings.view(), "catalog", config.settings.catalog())));
             return;
         }
         String section = path.startsWith("/api/config/") ? path.substring("/api/config/".length()) : "";
@@ -422,18 +422,23 @@ public final class InspectServer {
             return;
         }
         String text;
+        String structured = null;
         try {
-            text = JSON.readTree(raw).path("text").asText(null);
+            com.fasterxml.jackson.databind.JsonNode body = JSON.readTree(raw);
+            text = body.path("text").asText(null);
+            if (body.has("structured")) structured = body.get("structured").toString();
         } catch (IOException e) {
             send(x, 400, "application/json", json(Map.of("error", "not valid JSON")));
             return;
         }
-        if (text == null) {
+        if (text == null && structured == null) {
             send(x, 400, "application/json", json(Map.of("error", "give the text")));
             return;
         }
-        io.github.llm4j.loom.inspect.control.ServerConfig.Result r = config.settings.save(section, text, "admin@" + address);
-        auditConfig(address, section, r.saved() ? "saved" : "refused: " + r.message(), text.length());
+        io.github.llm4j.loom.inspect.control.ServerConfig.Result r = structured != null
+                ? config.settings.saveStructured(section, structured, "admin@" + address)
+                : config.settings.save(section, text, "admin@" + address);
+        auditConfig(address, section, (structured != null ? "structured " : "") + (r.saved() ? "saved" : "refused: " + r.message()), structured != null ? structured.length() : text.length());
         Map<String, Object> body = new java.util.LinkedHashMap<>();
         body.put("ok", r.saved());
         body.put("message", r.message());
