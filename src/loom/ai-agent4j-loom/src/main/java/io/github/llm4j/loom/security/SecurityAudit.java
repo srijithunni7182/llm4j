@@ -51,6 +51,7 @@ public final class SecurityAudit {
 
         for (AgentDef a : script.getAgents()) profiles.add(agent(a, script, tools, lootReach, findings));
         toolSettings(script, findings);
+        actingAsInvoker(script, findings);
         supplyChain(script, findings);
         providerEndpoints(script, findings);
         if (script.getBudget() == null) {
@@ -196,6 +197,25 @@ public final class SecurityAudit {
                             + (secret ? ", unless the stored secret is bound to hosts." : "."),
                     secret ? "Store the secret with --allow-host for that host (weave secrets set NAME --allow-host <host>), so it is refused anywhere else."
                             : "Keep the key in a secret store with a host binding (api_key: secret.NAME), and use https."));
+        }
+    }
+
+    /** A tool that uses the credentials of whoever runs the workflow: the agent does whatever it can do as that person. */
+    private static void actingAsInvoker(LoomScript script, List<Finding> findings) {
+        for (ToolDef t : script.getTools()) {
+            List<String> credentials = t.getOptions().values().stream().filter(ToolDef.OptionValue::fromInvoker).map(ToolDef.OptionValue::toString).toList();
+            if (credentials.isEmpty()) continue;
+            List<String> unapproved = script.getAgents().stream()
+                    .filter(a -> a.getTools().contains(t.getName()) && !a.isApproveAll() && !a.getApprove().contains(t.getName()))
+                    .map(AgentDef::getName).toList();
+            boolean used = script.getAgents().stream().anyMatch(a -> a.getTools().contains(t.getName()));
+            if (!used) continue;
+            findings.add(new Finding("LA17", unapproved.isEmpty() ? Severity.LOW : Severity.MEDIUM, List.of(Owasp.LLM06, Owasp.LLM02), "tool " + t.getName(), t.getLine(),
+                    "A tool that acts as the person running the workflow",
+                    t.getName() + " sends " + String.join(", ", credentials) + ", so what an agent does with it is done with that person's permissions"
+                            + (unapproved.isEmpty() ? " (every agent using it must have each call approved)." : ", and " + String.join(", ", unapproved) + " may call it without approval."),
+                    unapproved.isEmpty() ? "Give the downstream API the narrowest scopes for the token."
+                            : "Add approve: [" + t.getName() + "] to " + String.join(", ", unapproved) + ", and give the downstream API the narrowest scopes for the token."));
         }
     }
 

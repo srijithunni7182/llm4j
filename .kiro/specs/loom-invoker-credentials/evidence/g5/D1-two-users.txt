@@ -1,0 +1,17 @@
+commit 9a1f9037301b5b3bcc48bed523c82b1ee683cbae
+Mon Oct 12 14:02:33 UTC 2026
+DEMO idp   ann logged in
+DEMO idp   bob logged in
+DEMO api   200 for ann (asked about ann)
+DEMO api   200 for bob (asked about bob)
+DEMO api   200 for bob (asked about bob)
+DEMO api   401 for ann's token access-ann-1
+DEMO api   200 for bob (asked about bob)
+DEMO idp   refresh for ann -> new access token
+DEMO api   200 for ann (asked about ann)
+DEMO api   200 for ann (asked about ann)
+DEMO ann: 1 refresh(es), access token changed: true
+DEMO bob: 0 refresh(es)
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.722 s -- in io.github.llm4j.loom.invoker.InvokerDemoTest
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS

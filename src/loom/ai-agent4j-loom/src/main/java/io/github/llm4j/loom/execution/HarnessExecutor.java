@@ -23,6 +23,7 @@ import io.github.llm4j.mcp.McpClient;
 import io.github.llm4j.mcp.McpToolAdapter;
 import io.github.llm4j.mcp.StdioMcpTransport;
 import io.github.llm4j.privacy.PIIDetector;
+import io.github.llm4j.secret.InvokerCredentials;
 import io.github.llm4j.privacy.RegexPIIDetector;
 import io.github.llm4j.routing.CostAwareRoutingStrategy;
 import io.github.llm4j.routing.ProviderTier;
@@ -71,7 +72,10 @@ public class HarnessExecutor implements LoomEngine {
     private boolean simulate;
     private boolean simulateTasks;
     /** The id of the step this thread is executing: its position in the script (stable across runs). */
-    private final ThreadLocal<String> step = ThreadLocal.withInitial(() -> "");
+    private final ThreadScope threadScope = new ThreadScope();
+    /** True while an outermost workflow is running on this executor. */
+    private final java.util.concurrent.atomic.AtomicBoolean running = new java.util.concurrent.atomic.AtomicBoolean();
+    private final ThreadLocal<String> step = threadScope.step;
     /** Counts delegates started on this thread, so a retried delegate's tool calls are numbered afresh. */
     private final java.util.concurrent.atomic.AtomicLong delegateAttempts = new java.util.concurrent.atomic.AtomicLong();
     private final ThreadLocal<Long> attempt = ThreadLocal.withInitial(() -> 0L);
@@ -85,16 +89,14 @@ public class HarnessExecutor implements LoomEngine {
         t.setDaemon(true);
         return t;
     });
-    /** Block-local names (a for-each item, _error) visible to the statements of that block. */
-    private final ThreadLocal<Map<String, Object>> locals = ThreadLocal.withInitial(Map::of);
+    private final ThreadLocal<Map<String, Object>> locals = threadScope.locals;
 
     // ── Budgets ──────────────────────────────────────────────────────────
     /** True when the script (or an override) declares any budget; only then are clients metered. */
     private boolean budgeting;
     private io.github.llm4j.budget.Budget runBudget;
     private final Map<String, io.github.llm4j.budget.Budget> agentBudgets = new HashMap<>();
-    /** Step, loop and for-each budgets enclosing the statement this thread is running. */
-    private final ThreadLocal<List<io.github.llm4j.budget.Budget>> scopes = ThreadLocal.withInitial(List::of);
+    private final ThreadLocal<List<io.github.llm4j.budget.Budget>> scopes = threadScope.budgets;
     private io.github.llm4j.budget.PriceTable priceTable;
     private io.github.llm4j.budget.TokenEstimator tokenEstimator;
     private Long overrideTokens;
@@ -648,6 +650,7 @@ public class HarnessExecutor implements LoomEngine {
 
     /** The value of an option that is a reference (null when unset), for scrubbing it from anything recorded. */
     String credentialValue(io.github.llm4j.loom.ast.ToolDef.OptionValue v) {
+        if (v.fromInvoker()) return null; // known only to a run, and scrubbed there
         try {
             return v.isReference() ? credentials.apply(v.lookupKey()) : v.value();
         } catch (RuntimeException e) {
@@ -752,6 +755,10 @@ public class HarnessExecutor implements LoomEngine {
                 continue;
             }
             for (var e : p.getOptions().entrySet()) {
+                if (e.getValue().fromInvoker()) {
+                    c.error(p.getLine(), who, e.getKey() + " can't be " + e.getValue() + ": invoker credentials are for tools, not for the model provider");
+                    continue;
+                }
                 switch (e.getKey()) {
                     case "base_url" -> { }
                     case "api_key" -> {
@@ -1102,7 +1109,7 @@ public class HarnessExecutor implements LoomEngine {
     private Tool createTool(io.github.llm4j.loom.ast.ToolDef def) {
         return createdTools.computeIfAbsent(def.getName(), n -> {
             try {
-                return toolFactory.create(def, credentials, baseDir, effectContext());
+                return toolFactory.create(def, credentials, baseDir, effectContext(), name -> new InvokerSource(name, this::invoker));
             } catch (Exception e) {
                 throw new LoomLoadException(List.of(new ScriptValidator.Problem(def.getLine(), "tool " + def.getName(),
                         "can't be created: " + e.getMessage(), ScriptValidator.Severity.ERROR)));
@@ -1116,6 +1123,11 @@ public class HarnessExecutor implements LoomEngine {
     private synchronized io.github.llm4j.agent.tool.EffectContext effectContext() {
         if (effectContext == null) effectContext = new RunEffectContext(this);
         return effectContext;
+    }
+
+    /** Whoever the run on this thread is for, or null when this thread is not running one. */
+    InvokerCredentials invoker() {
+        return threadScope.invoker.get();
     }
 
     long currentAttempt() {
@@ -1184,19 +1196,12 @@ public class HarnessExecutor implements LoomEngine {
         }
     }
 
-    /** Runs {@code work} on another thread with this thread's step id and block-local names. */
+    /** Runs {@code work} on another thread with this thread's run state, at the given step and with the given block-local names. */
     private CompletableFuture<Void> forkWith(String stepId, Map<String, Object> names, Runnable work) {
-        List<io.github.llm4j.budget.Budget> budgets = scopes.get();
+        ThreadScope.Snapshot scope = threadScope.capture().at(stepId, names);
         return CompletableFuture.runAsync(() -> {
-            step.set(stepId);
-            locals.set(names);
-            scopes.set(budgets);
-            try {
+            try (ThreadScope.Installed ignored = scope.install()) {
                 work.run();
-            } finally {
-                step.remove();
-                locals.remove();
-                scopes.remove();
             }
         }, BRANCHES);
     }
@@ -1461,6 +1466,38 @@ public class HarnessExecutor implements LoomEngine {
 
     @Override
     public void executeWorkflow(String workflowName, Map<String, String> initialContext) {
+        executeWorkflow(workflowName, initialContext, null);
+    }
+
+    /**
+     * Runs a workflow for whoever {@code invoker} stands for. Only the outermost call uses it; a workflow {@code call}ed from another keeps the one
+     * its run started with. An executor runs one outermost workflow at a time: its variables, journal and budgets belong to that run.
+     *
+     * @throws io.github.llm4j.secret.MissingInvokerCredentialException before anything runs, if the script needs credentials {@code invoker} cannot supply
+     * @throws IllegalStateException if another outermost workflow is running on this executor
+     */
+    @Override
+    public void executeWorkflow(String workflowName, Map<String, String> initialContext, InvokerCredentials invoker) {
+        if (!step.get().isEmpty()) {
+            runWorkflow(workflowName, initialContext);
+            return;
+        }
+        if (!running.compareAndSet(false, true)) {
+            throw new IllegalStateException("this executor is already running a workflow; an executor runs one at a time, "
+                    + "so create one HarnessExecutor for each run");
+        }
+        try {
+            InvokerCredentials who = invoker != null ? invoker : InvokerCredentials.none();
+            InvokerRefs.require(script, who);
+            threadScope.invoker.set(who);
+            runWorkflow(workflowName, initialContext);
+        } finally {
+            threadScope.invoker.remove();
+            running.set(false);
+        }
+    }
+
+    private void runWorkflow(String workflowName, Map<String, String> initialContext) {
         // Hydrate initial variables
         if (initialContext != null) {
             initialContext.forEach(context::setVariable);
@@ -1609,17 +1646,13 @@ public class HarnessExecutor implements LoomEngine {
                     scopes.set(plus(outerScopes, newBudget("step " + stepId, broadcast.getBudget())));
                 }
                 try {
-                    Map<String, Object> names = locals.get();
-                    List<io.github.llm4j.budget.Budget> branchScopes = scopes.get();
+                    ThreadScope.Snapshot scope = threadScope.capture().at(stepId, locals.get());
                     List<CompletableFuture<String>> answers = new java.util.ArrayList<>();
                     for (String agentName : broadcast.getTargetAgents()) {
                         ReActAgent broadcastAgent = activeAgents.get(agentName);
                         if (broadcastAgent == null) throw new IllegalStateException("Agent not found: " + agentName);
                         answers.add(CompletableFuture.supplyAsync(() -> {
-                            step.set(stepId);
-                            locals.set(names);
-                            scopes.set(branchScopes);
-                            try {
+                            try (ThreadScope.Installed ignored = scope.install()) {
                                 // each target is a step of its own to anyone watching: it starts and ends like a delegate, with its tokens
                                 trace(TraceEvent.DELEGATE_START, agentName, resolvedPayload, new java.util.LinkedHashMap<>(Map.of("variable", broadcast.getVariableName())));
                                 io.github.llm4j.agent.AgentResult r = runUnderLimits(broadcastAgent, resolvedPayload);
@@ -1629,10 +1662,6 @@ public class HarnessExecutor implements LoomEngine {
                                     if (r.getUsage().getLlmCalls() == 0) throw r.getBudgetExceeded();
                                 }
                                 return r.getFinalAnswer();
-                            } finally {
-                                step.remove();
-                                locals.remove();
-                                scopes.remove();
                             }
                         }, BRANCHES));
                     }
@@ -2169,20 +2198,11 @@ public class HarnessExecutor implements LoomEngine {
 
     /** Runs {@code work} on another thread, with this thread's step id and names, and gives up after {@code timeoutMillis}. */
     <T> T callWithTimeout(java.util.concurrent.Callable<T> work, long timeoutMillis, String what) throws Exception {
-        String stepId = step.get();
-        Map<String, Object> names = locals.get();
-        List<io.github.llm4j.budget.Budget> budgets = scopes.get();
+        ThreadScope.Snapshot scope = threadScope.capture();
         // submit() (not a CompletableFuture): cancel(true) on its Future interrupts the thread that is running the work
         java.util.concurrent.Future<T> future = BRANCHES.submit(() -> {
-            step.set(stepId);
-            locals.set(names);
-            scopes.set(budgets);
-            try {
+            try (ThreadScope.Installed ignored = scope.install()) {
                 return work.call();
-            } finally {
-                step.remove();
-                locals.remove();
-                scopes.remove();
             }
         });
         try {
@@ -2234,19 +2254,10 @@ public class HarnessExecutor implements LoomEngine {
     }
 
     private io.github.llm4j.agent.AgentResult runWithTimeout(ReActAgent agent, String task, long timeoutMillis) throws Exception {
-        String stepId = step.get();
-        Map<String, Object> names = locals.get();
-        List<io.github.llm4j.budget.Budget> budgets = scopes.get();
+        ThreadScope.Snapshot scope = threadScope.capture();
         CompletableFuture<io.github.llm4j.agent.AgentResult> future = CompletableFuture.supplyAsync(() -> {
-            step.set(stepId);
-            locals.set(names);
-            scopes.set(budgets);
-            try {
+            try (ThreadScope.Installed ignored = scope.install()) {
                 return agent.run(task);
-            } finally {
-                step.remove();
-                locals.remove();
-                scopes.remove();
             }
         }, BRANCHES);
         try {

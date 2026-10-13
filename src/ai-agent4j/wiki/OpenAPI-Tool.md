@@ -78,6 +78,23 @@ The `OpenAPITool` builder supports common authentication methods:
 .headerAuth("X-API-Key", "YOUR_KEY")
 ```
 
+### A credential asked for on every request
+
+When the API must be called **as the person the agent works for** (an OAuth access token that expires), give the tool a `CredentialSource`
+instead of a string. It is asked for on every request, so a token refreshed since the last one is used at once:
+
+```java
+.headerAuth("Authorization", new CredentialSource() {
+    public String get() { return "Bearer " + tokens.accessTokenFor(userId); }   // refresh with the refresh token when expired
+    public void rejected() { tokens.dropAccessToken(userId); }                  // the server said 401
+})
+```
+
+- On a 401 the tool calls `rejected()`, asks for the credential again and repeats the request **once**.
+- A credential from a source is only sent over `https://` (or to this machine). The agent chooses the path, never the host.
+- A value the source cannot give becomes the observation `Error: credential unavailable: …`; a token is never in the error or the log, and is masked if the API echoes it.
+- In a Loom script this is `auth_value: invoker.token`; see "Running as the person who runs the workflow" in the Loom guide.
+
 ## How It Works
 
 1. **Parsing**: The tool parses the OpenAPI spec and extracts all `GET`, `POST`, `PUT`, `DELETE` operations.

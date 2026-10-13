@@ -171,7 +171,7 @@ final class Runs {
 
         env.out().println("🚀 Executing workflow: " + spec.workflow() + "...");
         try {
-            executor.executeWorkflow(spec.workflow(), spec.inputs());
+            executor.executeWorkflow(spec.workflow(), spec.inputs(), env.invoker());
             env.out().println("✅ Workflow completed successfully.");
             return new Result(0, null, null, null);
         } catch (RunSuspended paused) {

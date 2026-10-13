@@ -1,22 +1,36 @@
 package io.github.llm4j.loom.cli;
 
-import io.github.llm4j.agent.skill.AgentSkill;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.jar.Attributes;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.jar.JarOutputStream;
+import java.util.jar.Manifest;
+import java.util.zip.ZipException;
+
 import io.github.llm4j.loom.ast.LoomScript;
-import io.github.llm4j.loom.execution.*;
-import io.github.llm4j.loom.lexer.Lexer;
-import io.github.llm4j.loom.parser.LoomParser;
-import io.github.llm4j.loom.runtime.LoomEngine;
+import io.github.llm4j.loom.execution.HarnessExecutor;
+import io.github.llm4j.loom.execution.LLMClientFactory;
+import io.github.llm4j.loom.execution.LoomLoader;
+import io.github.llm4j.loom.execution.LootLoader;
+import io.github.llm4j.loom.execution.ToolRegistry;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
-
-import java.io.*;
-import java.nio.file.*;
-import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.jar.*;
-import java.util.zip.*;
 
 @Command(name = "weave", mixinStandardHelpOptions = true, versionProvider = WeaveCLI.BuildVersion.class,
         description = "Loom Orchestration CLI - Weave workflows into executable reality.")
@@ -94,6 +108,9 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin
         private ClassesOptions classesOptions = new ClassesOptions();
 
+        @CommandLine.Mixin
+        private InvokerOptions invokerOptions = new InvokerOptions();
+
         @Override
         public Integer call() throws Exception {
             if (!scriptFile.exists()) {
@@ -105,6 +122,8 @@ public class WeaveCLI implements Callable<Integer> {
             env = secrets.apply(env, Prompts.console());
             if (env == null) return 2;
             env = promptOptions.apply(env);
+            if (env == null) return 2;
+            env = invokerOptions.apply(env);
             if (env == null) return 2;
             ObserveMixin.Opened observed = observeOpts.open(env);
             if (observed.failed()) return 2;
@@ -372,6 +391,11 @@ public class WeaveCLI implements Callable<Integer> {
         for (String w : keyWarnings) env.out().println((settings.strict() ? "✗ " : "⚠ ") + w);
         for (var p : problems) env.out().println((p.severity() == error || settings.strict() ? "✗ " : "⚠ ") + p);
         if (!notSetYet.isEmpty()) env.out().println("ℹ not set yet (needed to run): " + String.join(", ", notSetYet));
+        java.util.SortedSet<String> invokerNames = io.github.llm4j.loom.execution.InvokerRefs.names(script);
+        if (!invokerNames.isEmpty()) {
+            env.out().println("ℹ acts as the person who runs it, with their " + String.join(", ", invokerNames)
+                    + ": the application supplies these when it runs the workflow (weave run --invoker-env NAME=VARIABLE does it from a terminal)");
+        }
         java.util.Set<String> codeSteps = new java.util.TreeSet<>();
         for (var workflow : script.getWorkflows()) {
             io.github.llm4j.loom.ast.StatementWalker.walk(workflow.getStatements(), st -> {
@@ -435,11 +459,16 @@ public class WeaveCLI implements Callable<Integer> {
         private SecretOptions secrets = new SecretOptions();
 
         @CommandLine.Mixin
+        private InvokerOptions invokerOptions = new InvokerOptions();
+
+        @CommandLine.Mixin
         private ObserveMixin observeOpts = new ObserveMixin();
 
         @Override
         public Integer call() {
             WeaveEnv env = secrets.apply(WeaveEnv.system().withAskVia(askVia), Prompts.console());
+            if (env == null) return 2;
+            env = invokerOptions.apply(env);
             if (env == null) return 2;
             ObserveMixin.Opened observed = observeOpts.open(env);
             if (observed.failed()) return 2;

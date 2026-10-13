@@ -1,0 +1,16 @@
+commit 9a1f9037301b5b3bcc48bed523c82b1ee683cbae
+Mon Oct 12 14:03:02 UTC 2026
+ok  InvokerCredentials                   lines 8/8 (100%) branches 0/0 (100%)
+ok  InvokerCredentials.Fixed             lines 7/7 (100%) branches 0/0 (100%)
+ok  CredentialSource                     lines 3/3 (100%) branches 0/0 (100%)
+ok  InvokerCredentials.Supplied          lines 7/7 (100%) branches 2/2 (100%)
+ok  MissingInvokerCredentialException    lines 4/4 (100%) branches 0/0 (100%)
+ok  RequestAuth                          lines 45/45 (100%) branches 24/24 (100%)
+ok  RequestAuth.Resolved                 lines 20/20 (100%) branches 4/4 (100%)
+ok  ThreadScope.Snapshot                 lines 13/13 (100%) branches 2/2 (100%)
+ok  ThreadScope                          lines 11/11 (100%) branches 0/0 (100%)
+ok  InvokerSource                        lines 12/12 (100%) branches 6/6 (100%)
+ok  InvokerRefs                          lines 8/8 (100%) branches 6/6 (100%)
+ok  OpenApiKind                          lines 24/24 (100%) branches 21/22 (95%)
+ok  InvokerOptions.FromVariables         lines 6/6 (100%) branches 8/8 (100%)
+ok  InvokerOptions                       lines 12/12 (100%) branches 9/10 (90%)

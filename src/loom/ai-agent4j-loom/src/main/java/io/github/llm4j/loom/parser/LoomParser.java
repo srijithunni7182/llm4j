@@ -1719,7 +1719,7 @@ public class LoomParser {
         throw error(peek(), message);
     }
 
-    /** A string, number, true/false, a word, or {@code env.NAME}. */
+    /** A string, number, true/false, a word, or {@code env.NAME}, {@code secret.NAME} or {@code invoker.NAME}. */
     private io.github.llm4j.loom.ast.ToolDef.OptionValue optionValue() {
         if (check(TokenType.NUMBER_LITERAL)) {
             Token number = advance();
@@ -1728,7 +1728,7 @@ public class LoomParser {
         if (check(TokenType.STRING_LITERAL)) {
             return io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(advance().getValue());
         }
-        Token w = word("Expect a value: a \"string\", a number, true/false, env.NAME or secret.NAME");
+        Token w = word("Expect a value: a \"string\", a number, true/false, env.NAME, secret.NAME or invoker.NAME");
         if (w.getValue().startsWith("env.")) {
             String var = w.getValue().substring(4);
             if (var.isEmpty() || var.contains(".")) throw error(w, "an environment reference is env.NAME, got " + w.getValue());
@@ -1740,6 +1740,13 @@ public class LoomParser {
                 throw error(w, "a secret reference is secret.NAME (a letter, then letters, digits, _ or -), got " + w.getValue());
             }
             return io.github.llm4j.loom.ast.ToolDef.OptionValue.secret(name);
+        }
+        if (w.getValue().startsWith("invoker.")) {
+            String name = w.getValue().substring(8);
+            if (!io.github.llm4j.secret.SecretNames.isValid(name)) {
+                throw error(w, "an invoker reference is invoker.NAME (a letter, then letters, digits, _ or -), got " + w.getValue());
+            }
+            return io.github.llm4j.loom.ast.ToolDef.OptionValue.invoker(name);
         }
         return io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(w.getValue());
     }

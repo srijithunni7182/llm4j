@@ -1,0 +1,9 @@
+commit 0f74a1bcac527a2b0e6fdf9a848d7432307ae30e
+Mon Oct 12 13:42:05 UTC 2026
+-- all modules compile: BUILD SUCCESS
+-- tests, run 1 
+   BUILD SUCCESS
+   core: tests=869 failures=0 errors=0 skipped=2; tools: tests=364 failures=0 errors=0 skipped=0; loom: tests=1686 failures=0 errors=0 skipped=1
+-- tests, run 2 -Dsurefire.runOrder=random
+   BUILD SUCCESS
+   core: tests=869 failures=0 errors=0 skipped=2; tools: tests=364 failures=0 errors=0 skipped=0; loom: tests=1686 failures=0 errors=0 skipped=1

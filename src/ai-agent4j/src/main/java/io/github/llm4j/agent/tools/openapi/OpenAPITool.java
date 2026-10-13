@@ -1,8 +1,8 @@
 package io.github.llm4j.agent.tools.openapi;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.llm4j.secret.CredentialSource;
 import io.github.llm4j.secret.SecretException;
-import io.github.llm4j.secret.SecretMetadata;
 import io.github.llm4j.secret.SecretRef;
 import io.github.llm4j.agent.Tool;
 import java.net.URI;
@@ -25,22 +25,14 @@ public class OpenAPITool implements Tool {
     private final String name;
     private final OpenAPISpec spec;
     private final HttpClient httpClient;
-    private final Map<String, String> authHeaders;
-    private final Map<String, String> authQueryParams;
-    /** Credentials held by reference: fetched for each request, never kept. */
-    private final Map<String, SecretRef> authQuerySecrets;
-    private final Map<String, SecretRef> authHeaderSecrets;
+    private final RequestAuth auth;
 
     private OpenAPITool(Builder builder) {
         this.name = builder.name;
         this.spec = builder.spec;
         this.httpClient =
                 builder.httpClient != null ? builder.httpClient : HttpClient.newHttpClient();
-        this.authHeaders = builder.authHeaders != null ? builder.authHeaders : new HashMap<>();
-        this.authQueryParams =
-                builder.authQueryParams != null ? builder.authQueryParams : new HashMap<>();
-        this.authQuerySecrets = builder.authQuerySecrets != null ? builder.authQuerySecrets : new HashMap<>();
-        this.authHeaderSecrets = builder.authHeaderSecrets != null ? builder.authHeaderSecrets : new HashMap<>();
+        this.auth = builder.auth;
     }
 
     @Override
@@ -121,24 +113,52 @@ public class OpenAPITool implements Tool {
                 }
             }
         }
+        if (!SUPPORTED_METHODS.contains(endpoint.getMethod().toUpperCase())) {
+            return "Error: Unsupported HTTP method: " + endpoint.getMethod();
+        }
 
         String baseUrl = spec.getServers().isEmpty() ? "" : spec.getServers().get(0);
-        String path = endpoint.getPath();
-        Map<String, String> pathParams = new HashMap<>();
-        Map<String, String> queryParams = new HashMap<>(authQueryParams);
-        String requestHost = SecretMetadata.hostOf(baseUrl);
-        // every credential this request carries, so none can come back out in a log line or an error
-        java.util.List<String> credentials = new java.util.ArrayList<>(authQueryParams.values());
-        credentials.addAll(authHeaders.values());
         try {
-            for (Map.Entry<String, SecretRef> secret : authQuerySecrets.entrySet()) {
-                String value = secret.getValue().resolveFor(requestHost);
-                queryParams.put(secret.getKey(), value);
-                credentials.add(value);
+            Exchange exchange = send(endpoint, parameters, body, baseUrl);
+            if (exchange.refused()) {
+                // a credential the server refuses may have expired since it was fetched: ask again once, then give the answer as it is
+                exchange.credentials().rejected();
+                exchange = send(endpoint, parameters, body, baseUrl);
             }
+            return render(exchange.response(), exchange.credentials().secrets());
         } catch (SecretException e) {
             return "Error: credential unavailable: " + e.getMessage();
         }
+    }
+
+    /** One request and what it was sent with. */
+    private record Exchange(HttpResponse<String> response, RequestAuth.Resolved credentials) {
+        /** The server said 401 to a credential that could now be different. */
+        boolean refused() {
+            return response.statusCode() == 401 && credentials.canRetry();
+        }
+    }
+
+    private Exchange send(
+            OpenAPIEndpoint endpoint, Map<String, Object> parameters, Map<String, Object> body, String baseUrl)
+            throws Exception {
+        RequestAuth.Resolved credentials = auth.resolve(baseUrl);
+        HttpRequest request = buildRequest(endpoint, parameters, body, baseUrl, credentials);
+        return new Exchange(httpClient.send(request, HttpResponse.BodyHandlers.ofString()), credentials);
+    }
+
+    private static final java.util.Set<String> SUPPORTED_METHODS = java.util.Set.of("GET", "POST", "PUT", "DELETE");
+
+    private HttpRequest buildRequest(
+            OpenAPIEndpoint endpoint,
+            Map<String, Object> parameters,
+            Map<String, Object> body,
+            String baseUrl,
+            RequestAuth.Resolved credentials)
+            throws Exception {
+        String path = endpoint.getPath();
+        Map<String, String> pathParams = new HashMap<>();
+        Map<String, String> queryParams = new HashMap<>(credentials.query());
 
         if (endpoint.getParameters() != null) {
             for (OpenAPIParameter param : endpoint.getParameters()) {
@@ -179,44 +199,32 @@ public class OpenAPITool implements Tool {
                 endpoint.getMethod());
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder().uri(URI.create(fullUrl));
-        authHeaders.forEach(requestBuilder::header);
-        try {
-            for (Map.Entry<String, SecretRef> secret : authHeaderSecrets.entrySet()) {
-                String value = secret.getValue().resolveFor(requestHost);
-                requestBuilder.header(secret.getKey(), value);
-                credentials.add(value);
-                int space = value.indexOf(' ');
-                if (space > 0) credentials.add(value.substring(space + 1)); // "Bearer <token>": the token alone
-            }
-        } catch (SecretException e) {
-            return "Error: credential unavailable: " + e.getMessage();
-        }
+        credentials.headers().forEach(requestBuilder::header);
 
         switch (endpoint.getMethod().toUpperCase()) {
             case "GET":
                 requestBuilder.GET();
                 break;
             case "POST":
-                String requestBody = body != null ? objectMapper.writeValueAsString(body) : "";
-                requestBuilder.POST(HttpRequest.BodyPublishers.ofString(requestBody));
+                requestBuilder.POST(HttpRequest.BodyPublishers.ofString(jsonOf(body)));
                 requestBuilder.header("Content-Type", "application/json");
                 break;
             case "PUT":
-                String putBody = body != null ? objectMapper.writeValueAsString(body) : "";
-                requestBuilder.PUT(HttpRequest.BodyPublishers.ofString(putBody));
+                requestBuilder.PUT(HttpRequest.BodyPublishers.ofString(jsonOf(body)));
                 requestBuilder.header("Content-Type", "application/json");
                 break;
-            case "DELETE":
+            default:
                 requestBuilder.DELETE();
                 break;
-            default:
-                return "Error: Unsupported HTTP method: " + endpoint.getMethod();
         }
+        return requestBuilder.build();
+    }
 
-        HttpRequest request = requestBuilder.build();
-        HttpResponse<String> response =
-                httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    private static String jsonOf(Map<String, Object> body) throws Exception {
+        return body != null ? objectMapper.writeValueAsString(body) : "";
+    }
 
+    private static String render(HttpResponse<String> response, java.util.List<String> credentials) {
         String safeBody = scrub(response.body(), credentials);
         logger.info(
                 "OpenAPI Tool Response - Status: {}, Body: {}",
@@ -224,11 +232,10 @@ public class OpenAPITool implements Tool {
                 safeBody);
 
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
-            String responseBody = safeBody;
-            if (responseBody.length() > 2000) {
-                return responseBody.substring(0, 2000) + "\n... (truncated due to length)";
+            if (safeBody.length() > 2000) {
+                return safeBody.substring(0, 2000) + "\n... (truncated due to length)";
             }
-            return responseBody;
+            return safeBody;
         } else {
             return String.format(
                     "Error: API returned status code %d. Body: %s",
@@ -252,10 +259,7 @@ public class OpenAPITool implements Tool {
         private String name;
         private OpenAPISpec spec;
         private HttpClient httpClient;
-        private Map<String, String> authHeaders;
-        private Map<String, String> authQueryParams;
-        private Map<String, SecretRef> authQuerySecrets;
-        private Map<String, SecretRef> authHeaderSecrets;
+        private final RequestAuth auth = new RequestAuth();
 
         public Builder name(String name) {
             this.name = name;
@@ -273,28 +277,39 @@ public class OpenAPITool implements Tool {
         }
 
         public Builder apiKeyAuth(String paramName, String apiKey) {
-            if (this.authQueryParams == null) this.authQueryParams = new HashMap<>();
-            this.authQueryParams.put(paramName, apiKey);
+            auth.query(paramName, apiKey);
             return this;
         }
 
         /** An API key kept in a {@link io.github.llm4j.secret.SecretStore}: fetched for each request and not held by the tool. */
         public Builder apiKeyAuth(String paramName, SecretRef apiKey) {
-            if (this.authQuerySecrets == null) this.authQuerySecrets = new HashMap<>();
-            this.authQuerySecrets.put(paramName, apiKey);
+            auth.query(paramName, apiKey);
+            return this;
+        }
+
+        /**
+         * An API key asked for on each request, for instance the token of the person the run is for. It is only sent over https (or to this
+         * machine); a 401 makes the tool call {@link CredentialSource#rejected()}, ask again and repeat the request once.
+         */
+        public Builder apiKeyAuth(String paramName, CredentialSource apiKey) {
+            auth.query(paramName, apiKey);
             return this;
         }
 
         /** A header credential (for example {@code Authorization} with its whole value) kept in a store, fetched for each request. */
         public Builder headerAuth(String headerName, SecretRef value) {
-            if (this.authHeaderSecrets == null) this.authHeaderSecrets = new HashMap<>();
-            this.authHeaderSecrets.put(headerName, value);
+            auth.header(headerName, value);
+            return this;
+        }
+
+        /** As {@link #apiKeyAuth(String, CredentialSource)}, for a header. */
+        public Builder headerAuth(String headerName, CredentialSource value) {
+            auth.header(headerName, value);
             return this;
         }
 
         public Builder headerAuth(String headerName, String value) {
-            if (this.authHeaders == null) this.authHeaders = new HashMap<>();
-            this.authHeaders.put(headerName, value);
+            auth.header(headerName, value);
             return this;
         }
 

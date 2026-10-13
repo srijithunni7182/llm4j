@@ -213,6 +213,20 @@
                             <rules>
                                 <rule>
                                     <element>CLASS</element>
+                                    <includes>
+                                        <include>io.github.llm4j.loom.execution.ThreadScope*</include>
+                                        <include>io.github.llm4j.loom.execution.InvokerSource</include>
+                                        <include>io.github.llm4j.loom.execution.InvokerRefs</include>
+                                        <include>io.github.llm4j.loom.tools.OpenApiKind</include>
+                                        <include>io.github.llm4j.loom.cli.InvokerOptions*</include>
+                                    </includes>
+                                    <limits>
+                                        <limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit>
+                                        <limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit>
+                                    </limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
                                     <includes><include>io.github.llm4j.loom.autonomy.expr.Interpreter</include></includes>
                                     <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
                                 </rule>
@@ -444,6 +458,64 @@
                             <excludedTests>
                                 <param>io.github.llm4j.loom.ladder.LadderAuditTest</param>
                             </excludedTests>
+                            <threads>4</threads>
+                            <timeoutFactor>3</timeoutFactor>
+                            <outputFormats><param>XML</param><param>HTML</param></outputFormats>
+                            <timestampedReports>false</timestampedReports>
+                            <jvmArgs><jvmArg>-Djava.util.logging.config.file=${project.build.testOutputDirectory}/logging.properties</jvmArg></jvmArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <!-- Mutation testing of the invoker-credential path: mvn -Pmutation-invoker org.pitest:pitest-maven:mutationCoverage
+             (the big classes it touches are judged on the methods that changed: see scripts/pit_survivors.py) -->
+        <profile>
+            <id>mutation-invoker</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.17.4</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.1</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>io.github.llm4j.loom.execution.ThreadScope*</param>
+                                <param>io.github.llm4j.loom.execution.InvokerSource</param>
+                                <param>io.github.llm4j.loom.execution.InvokerRefs</param>
+                                <param>io.github.llm4j.loom.tools.OpenApiKind</param>
+                                <param>io.github.llm4j.loom.cli.InvokerOptions*</param>
+                                <param>io.github.llm4j.loom.tools.ToolFactory*</param>
+                                <param>io.github.llm4j.loom.ast.ToolDef*</param>
+                                <param>io.github.llm4j.loom.execution.HarnessExecutor</param>
+                                <param>io.github.llm4j.loom.security.SecurityAudit</param>
+                                <param>io.github.llm4j.loom.parser.LoomParser</param>
+                                <param>io.github.llm4j.loom.autonomy.AgentIdentity</param>
+                                <param>io.github.llm4j.loom.cli.WeaveCLI</param>
+                                <param>io.github.llm4j.loom.cli.WeaveEnv</param>
+                                <param>io.github.llm4j.loom.cli.Runs</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.llm4j.loom.invoker.*Test</param>
+                                <param>io.github.llm4j.loom.execution.ThreadScopeTest</param>
+                                <param>io.github.llm4j.loom.execution.InvokerSourceTest</param>
+                                <param>io.github.llm4j.loom.execution.ConcurrentTopLevelRunsTest</param>
+                                <param>io.github.llm4j.loom.execution.CredentialValueTest</param>
+                                <param>io.github.llm4j.loom.tools.OpenApiKindTest</param>
+                                <param>io.github.llm4j.loom.tools.ToolFactoryInvokerTest</param>
+                                <param>io.github.llm4j.loom.cli.InvokerCliTest</param>
+                                <param>io.github.llm4j.loom.cli.WeaveEnvTest</param>
+                                <param>io.github.llm4j.loom.execution.LoomEngineCompatTest</param>
+                                <param>io.github.llm4j.loom.security.InvokerAuditTest</param>
+                                <param>io.github.llm4j.loom.parity.ToolsTest</param>
+                            </targetTests>
                             <threads>4</threads>
                             <timeoutFactor>3</timeoutFactor>
                             <outputFormats><param>XML</param><param>HTML</param></outputFormats>

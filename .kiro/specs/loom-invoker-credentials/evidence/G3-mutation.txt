@@ -1,0 +1,6 @@
+commit 0f74a1bcac527a2b0e6fdf9a848d7432307ae30e; changed lines since 724e474
+Mon Oct 12 13:48:51 UTC 2026
+-- src/ai-agent4j
+56/56 killed (100%)
+-- src/loom/ai-agent4j-loom
+124/124 killed (100%)

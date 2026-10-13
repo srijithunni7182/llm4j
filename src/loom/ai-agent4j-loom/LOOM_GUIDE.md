@@ -268,7 +268,7 @@ For your own (`class`) tools, `reach:` says what the tool does to the outside wo
 | `duckduckgo` | `base_url?` |
 | `serpapi` | `api_key` (env), `base_url?` |
 | `google_search` | `api_key` (env), `cx` |
-| `openapi` | `spec` (path or URL), and optionally `auth_header` or `auth_query` with `auth_value` (env) |
+| `openapi` | `spec` (path or URL), and optionally `auth_header` or `auth_query` with `auth_value` (`env.`, `secret.` or [`invoker.`](#running-as-the-person-who-runs-the-workflow)) |
 | `calculator`, `datetime`, `current_time` | none |
 | `class` | `class` |
 | `translate`, `transliterate`, `detect_language`, `speak`, `transcribe` | see [Memory, Voice and Languages](#memory-voice-and-languages) |
@@ -347,7 +347,7 @@ They share these rules:
   (see [Secrets](#secrets-the-secret-store)). A literal is a load error. A secret never appears in a result, an error, the trace, the audit log or the run journal.
 - **Everything is checked when the script loads.** A missing option, an unknown option, a value out of range or an
   unset variable is an error that names the tool and the option. Nothing connects to a network at load.
-- **Options** are strings, numbers, `true`/`false`, `env.NAME` or `secret.NAME`. Lists are comma-separated strings
+- **Options** are strings, numbers, `true`/`false`, `env.NAME` or `secret.NAME` (and, for `auth_value` of `openapi`, `invoker.NAME`). Lists are comma-separated strings
   (`hosts: "a.com, b.com"`). Durations are `500ms`, `20s`, `2m`; sizes are `64k`, `1m`. Fixed request headers are
   written `header.Name`, quoted when the name has a hyphen: `"header.X-Trace-Id": "abc"`.
 - **`description:`** on any tool adds your own text to what the model is told. Each kind already tells the model its
@@ -1450,6 +1450,49 @@ agent Support {
   steps aren't checked again.
 
 URLs are not treated as personal data.
+
+### Running as the person who runs the workflow
+
+A web application logs a user in (OAuth, say) and runs a workflow for them. The tool that calls the user's API must send **that user's** token, not
+one shared key. Write `invoker.NAME` where the credential goes, and the application supplies it when it runs the workflow:
+
+```loom
+tool Refunds { use: openapi  spec: "specs/refunds.json"  auth_header: "Authorization"  auth_value: invoker.token }
+agent Support { model: "gemini-2.5-flash"  system: "You are Support."  tools: [Refunds]  approve: [Refunds] }
+workflow Main(question) { delegate "{question}" to Support -> answer }
+```
+
+The application implements `InvokerCredentials` and passes it with the run. Loom asks it for the value **on every request**, so the
+implementation can keep an access token fresh with the user's refresh token:
+
+```java
+class UserTokens implements InvokerCredentials {
+    public String get(String name) {                       // called for every request, from any thread
+        return "token".equals(name) ? "Bearer " + tokens.accessTokenFor(userId) : null;   // refreshes when it has expired
+    }
+    public void invalidate(String name) { tokens.dropAccessToken(userId); }              // the server said 401: forget it
+    public boolean provides(String name) { return "token".equals(name); }               // lets the run refuse to start without it
+}
+
+HarnessExecutor executor = new HarnessExecutor(script, registry, models);   // one executor for each run
+executor.initialize();
+executor.executeWorkflow("Main", Map.of("question", q), new UserTokens(tokens, user.id()));
+```
+
+- **Per request, per run.** The tool keeps no copy of the token. Two users' runs, even at the same time and on the same worker threads, each send their own.
+  A workflow that is `call`ed from another keeps the run's invoker; so do `parallel` branches, `broadcast` and steps with a `timeout`.
+- **A refused token is asked for again, once.** On a 401 the tool calls `invalidate`, asks for the credential again and repeats the request one time.
+- **It stops before it starts.** A run whose script uses `invoker.token`, started with credentials that do not provide `token`, stops before its first step with
+  `MissingInvokerCredentialException`; nothing is sent to a model or an API.
+- **Only over https.** An invoker credential is sent to the API's `servers` address if that is `https://` (or on this machine). The agent chooses the path, never the host.
+- **Never written down.** The token is not in a prompt, the trace, the audit log, the run journal, an error or a result (an API that echoes it back has it masked).
+  A run that paused is resumed with a **new** `InvokerCredentials`; nothing is stored for it.
+- **One run at a time on an executor.** A second `executeWorkflow` that starts while another is running on the same executor throws `IllegalStateException`:
+  its variables, journal and budgets belong to the run. Create a `HarnessExecutor` for each run (the parsed script can be shared).
+- **From a terminal**, `weave run job.loom --invoker-env token=MY_API_TOKEN` supplies `invoker.token` from an environment variable (`weave resume` takes the option too).
+  `weave check` lists the credentials a script asks for; `weave audit` reports a tool that acts as the person (`LA17`) and asks you to put `approve:` on it.
+- **`approve:` needs someone to ask.** A web application sets a `HumanInterface` on the executor (`executor.setHumanInterface(...)`) that asks the user in its own screens, or throws `RunSuspended` to pause the run until the user answers.
+- **Only `auth_value` of `openapi`** can be `invoker.NAME` for now. A scheduled or triggered run has no invoker and cannot use such a script.
 
 ### Secrets: the secret store
 
