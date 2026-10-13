@@ -1,28 +1,20 @@
 package io.github.llm4j.secret;
 
 /**
- * Where a tool gets a credential <em>for each request it makes</em>, instead of holding one value for its lifetime: the credential of the
- * person a run is for. {@link #get()} is called on every request, from any thread, so an implementation must be thread-safe and should
- * return the current value (a token that was refreshed since the last call is picked up on the next request).
- *
- * <p>When the server refuses what {@link #get()} gave (a 401), the tool calls {@link #rejected()}, asks again and repeats the request once.
- * A source that caches can drop its cached value in {@link #rejected()}.
- *
- * <p>An implementation must not put the value in an exception message; a failure should be a {@link SecretException} that names the
- * credential, not the value.
+ * Where a tool gets a credential from <em>each time it makes a request</em>. It is the tool-side view of {@link InvokerCredentials}: the tool
+ * holds a source, never the value, so a token that was refreshed since the last request is used on the next.
  */
-@FunctionalInterface
 public interface CredentialSource {
 
-    /** The credential to send now. Null or blank means there is none, which fails the request before it is sent. */
-    String get() throws SecretException;
+    /** The value now. @throws SecretException when it cannot be obtained; the message never contains a value */
+    String get();
 
-    /** Called when the server refused the value last given; the next {@link #get()} may give a different one. Does nothing by default. */
-    default void rejected() {
-    }
+    /** The server refused the value last returned. The next {@link #get} should return a fresh one. The default does nothing. */
+    default void rejected() { }
 
-    /** A source that always gives {@code value}. */
+    /** A source that always returns {@code value}. */
     static CredentialSource of(String value) {
+        java.util.Objects.requireNonNull(value, "value");
         return () -> value;
     }
 }
