@@ -66,7 +66,7 @@
   function add(node, child) {
     if (child == null || child === false) { return; }
     if (Array.isArray(child)) { child.forEach(function (c) { add(node, c); }); return; }
-    node.appendChild(typeof child === 'object' ? child : document.createTextNode(String(child)));
+    node.appendChild(typeof Node !== 'undefined' && child instanceof Node ? child : document.createTextNode(String(child)));
   }
   function baseName(path) { var parts = String(path || '').split(/[\\/]/); return parts[parts.length - 1]; }
   function px(n) { return Math.round(n * 10) / 10 + 'px'; }
@@ -189,9 +189,9 @@
   /* ----------------------------------------------------------------- outline */
 
   function treeRows(ctx) {
-    var m = ctx.model, rows = [], kids = {};
+    var m = ctx.model, rows = [], kids = Object.create(null);
     m.nodes.forEach(function (n) { if (n.parent) { kids[n.parent] = (kids[n.parent] || 0) + 1; } });
-    var shown = {}; M.visibleOrder(m, ctx.collapsed).forEach(function (n) { shown[n.id] = true; });
+    var shown = Object.create(null); M.visibleOrder(m, ctx.collapsed).forEach(function (n) { shown[n.id] = true; });
     m.sections.forEach(function (s, i) {
       if (m.hasSections) {
         rows.push(el('div', { class: 'sechead' + (m.by[ctx.selected] && m.by[ctx.selected].section === i ? ' here' : ''), role: 'presentation' },
@@ -225,7 +225,7 @@
     } else {
       wrap.appendChild(el('h3', { class: 'sechd' }, el('span', { class: 'tt', text: m.name })));
     }
-    var shown = {}; M.visibleOrder(m, ctx.collapsed).forEach(function (n) { shown[n.id] = true; });
+    var shown = Object.create(null); M.visibleOrder(m, ctx.collapsed).forEach(function (n) { shown[n.id] = true; });
     var inSection = m.nodes.filter(function (n) { return n.section === idx && (shown[n.id] || n.kind === 'start' || n.kind === 'end'); });
     inSection.forEach(function (n, i) {
       var incoming = m.inn[n.id].filter(function (e) { return e.label && m.by[e.from].section === idx; })[0];
@@ -296,7 +296,7 @@
 
   /** The positions of everything in the Flow view, from the model alone (so it can be tested without a page). */
   function flowLayout(m) {
-    var F = FLOW, pos = {}, drops = [], paths = [], labels = [], maxY = F.SY + F.SH;
+    var F = FLOW, pos = Object.create(null), drops = [], paths = [], labels = [], maxY = F.SY + F.SH;
     function edgeLabel(a, b) { var e = m.out[a].filter(function (x) { return x.to === b; })[0]; return e && e.label; }
     m.main.forEach(function (id, i) {
       var n = m.by[id], pill = n.vk === 'term';
@@ -325,7 +325,7 @@
       var last = pos[off[off.length - 1].id];
       paths.push({ d: 'M' + lx + ' ' + (F.SY + F.SH) + 'V' + (last.y + F.DH / 2), cls: 'p-detour' });
       labels.push({ t: why, x: lx + 30, y: F.SY + F.SH + 10 });
-      var inGroup = {}; off.forEach(function (n) { inGroup[n.id] = true; });
+      var inGroup = Object.create(null); off.forEach(function (n) { inGroup[n.id] = true; });
       var k = 0;
       m.nodes.forEach(function (n) {
         if (!inGroup[n.id]) { return; }
@@ -345,7 +345,7 @@
       maxY = Math.max(maxY, y);
     });
     // a step on the main path that goes round again to an earlier one on it (a loop with its body on the path)
-    var seenBack = {};
+    var seenBack = Object.create(null);
     m.main.forEach(function (id) {
       m.out[id].forEach(function (e) {
         if (e.label !== 'again' || !m.by[e.to].main || !pos[e.to] || !pos[id] || pos[e.to].x >= pos[id].x) { return; }

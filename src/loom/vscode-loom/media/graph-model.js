@@ -52,6 +52,7 @@
   var BACK = { again: 1, rewind: 1 };
   var HANDLERS = { failure: 1, exhausted: 1, violation: 1, 'still fails': 1, blocked: 1 };
 
+  function has(table, key) { return Object.prototype.hasOwnProperty.call(table, key); }
   function attrsOf(node) { return node.attrs || {}; }
   function parentOf(node) { return node.parent != null ? node.parent : attrsOf(node).parent; }
   function lineOf(node) { return node.source && typeof node.source.line === 'number' ? node.source.line : null; }
@@ -91,7 +92,7 @@
     var raw = workflow.nodes || [], edges = workflow.edges || [];
 
     // source order: by line where there is one, otherwise where the graph listed the step; start first, end last
-    var order = {};
+    var order = Object.create(null);
     raw.forEach(function (n, i) { order[n.id] = i; });
     var sorted = raw.slice().sort(function (a, b) {
       if (a.kind === 'start' || b.kind === 'end') { return a.kind === b.kind ? 0 : -1; }
@@ -101,7 +102,7 @@
       return order[a.id] - order[b.id];
     });
 
-    var by = {}, nodes = sorted.map(function (n, i) {
+    var by = Object.create(null), nodes = sorted.map(function (n, i) {
       var vm = { id: n.id, raw: n, kind: n.kind, label: n.label || n.id, line: lineOf(n), file: n.source ? n.source.file : null, agent: n.agent || null,
         parent: parentOf(n) || null, branch: n.branch != null ? n.branch : attrsOf(n).branch, depth: 0, section: 0, main: false, exit: false, vk: 'unknown', index: i, children: [] };
       by[n.id] = vm;
@@ -115,7 +116,7 @@
       if (n.parent) { by[n.parent].children.push(n.id); }
     });
 
-    var out = {}, inn = {};
+    var out = Object.create(null), inn = Object.create(null);
     nodes.forEach(function (n) { out[n.id] = []; inn[n.id] = []; });
     edges.forEach(function (e) {
       if (!by[e.from] || !by[e.to]) { return; }
@@ -145,24 +146,23 @@
     });
 
     // kinds
-    var producers = {};
+    var producers = Object.create(null);
     nodes.forEach(function (n) { var v = attrsOf(n.raw).variable; if (v && !producers[v]) { producers[v] = n.raw; } });
     nodes.forEach(function (n) {
       if (n.exit) { n.vk = 'exit'; }
       else if (n.kind === 'alt') { n.vk = classifyAlt(n.raw, producers); }
-      else { n.vk = BY_KIND[n.kind] || 'unknown'; }
+      else { n.vk = has(BY_KIND, n.kind) ? BY_KIND[n.kind] : 'unknown'; }
     });
 
     var main = mainPath(nodes, by, out, inn);
-    var onMain = {};
+    var onMain = Object.create(null);
     main.forEach(function (id) { onMain[id] = true; by[id].main = true; });
     nodes.forEach(function (n) { n.anchor = anchorOf(n, by, onMain, nodes); });
 
-    var counts = {};
     sections.forEach(function (s, i) { s.index = i; s.main = main.filter(function (id) { return by[id].section === i; }); });
 
     var endless = !main.some(function (id) { return by[id].kind === 'end'; });
-    return { name: workflow.name, nodes: nodes, by: by, out: out, inn: inn, sections: sections, main: main, endless: endless, hasSections: sections.length > 1 || !!sections[0].real, counts: counts };
+    return { name: workflow.name, nodes: nodes, by: by, out: out, inn: inn, sections: sections, main: main, endless: endless, hasSections: sections.length > 1 || !!sections[0].real };
   }
 
   function normalizeSections(list, workflow, nodes) {
@@ -176,7 +176,7 @@
 
   /* -------------------------------------------------------------- main path */
 
-  function isBack(edge) { return !!BACK[edge.label]; }
+  function isBack(edge) { return has(BACK, edge.label); }
 
   /**
    * The happy path: from start, at each step the forward edge that does not turn into an exit and does not go round
@@ -185,7 +185,7 @@
   function mainPath(nodes, by, out, inn) {
     var start = nodes.filter(function (n) { return n.kind === 'start'; })[0];
     if (!start) { return []; }
-    var path = [], seen = {}, cur = start, guard = 0;
+    var path = [], seen = Object.create(null), cur = start, guard = 0;
 
     function inSubtree(id, rootId) {
       var p = by[id], hops = 0;
@@ -194,13 +194,13 @@
     }
     function enclosingLoop(n) {
       var p = n.parent ? by[n.parent] : null, hops = 0;
-      while (p && hops++ < 200) { if (LOOPS[p.kind]) { return p; } p = p.parent ? by[p.parent] : null; }
+      while (p && hops++ < 200) { if (has(LOOPS, p.kind)) { return p; } p = p.parent ? by[p.parent] : null; }
       return null;
     }
     // an alt in a loop whose every way on leads back into the loop only decides whether to go round again
     function repeatDecision(n) {
       if (n.kind !== 'alt' || !enclosingLoop(n)) { return false; }
-      var todo = [n.id], visited = {}, any = false;
+      var todo = [n.id], visited = Object.create(null), any = false;
       while (todo.length) {
         var id = todo.pop();
         if (visited[id]) { continue; }
@@ -222,7 +222,7 @@
       if (plain.length) { cands = plain; }
       var yes = cands.filter(function (e) { return forced(by[e.to]) === true; });
       if (yes.length) { return yes[0].to; }
-      if (LOOPS[n.kind]) { // a loop is entered by its body first; `done` is taken from the end of the body
+      if (has(LOOPS, n.kind)) { // a loop is entered by its body first; `done` is taken from the end of the body
         var body = cands.filter(function (e) { return e.label !== 'done'; });
         if (body.length && !n.entered) { n.entered = true; return body[0].to; }
       }
@@ -236,9 +236,9 @@
         var els = cands.filter(function (e) { return e.label === 'else'; });
         return (els[0] || cands[0]).to;
       }
-      var nonHandler = cands.filter(function (e) { return !HANDLERS[e.label]; });
+      var nonHandler = cands.filter(function (e) { return !has(HANDLERS, e.label); });
       var rank = { '': 0, then: 1, round: 2, else: 3 };
-      var pool = (nonHandler.length ? nonHandler : cands).slice().sort(function (a, b) { return (rank[a.label] == null ? 4 : rank[a.label]) - (rank[b.label] == null ? 4 : rank[b.label]); });
+      var pool = (nonHandler.length ? nonHandler : cands).slice().sort(function (a, b) { return (has(rank, a.label) ? rank[a.label] : 4) - (has(rank, b.label) ? rank[b.label] : 4); });
       return pool[0].to;
     }
     function loopDone(n) {
@@ -282,7 +282,7 @@
 
   var EDGE_WORDS = { again: 'loops back', done: 'when done', round: 'each round', rewind: 'rewinds' };
   /** The words on the line between two steps in the Focus view. */
-  function edgeWord(label) { return label ? (EDGE_WORDS[label] || label) : 'next'; }
+  function edgeWord(label) { return label ? (has(EDGE_WORDS, label) ? EDGE_WORDS[label] : label) : 'next'; }
 
   /** Steps in the order of a tree walk: the order the arrow keys and the Outline use. */
   function visibleOrder(model, collapsed) {

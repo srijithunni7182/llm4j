@@ -166,3 +166,18 @@ test('Flow: the way round of an endless loop is drawn between steps on the spine
     assert.ok(L.labels.some((l) => l.t === 'again forever'));
     assert.equal(Object.keys(L.pos).length, 4);
 });
+
+test('ids and kinds named like Object.prototype members are plain names, not a way to change the prototype', () => {
+    const wf = { name: 'W', nodes: [
+        { id: 'start', kind: 'start', label: 'Start' },
+        { id: '__proto__', kind: 'constructor', label: 'x' },
+        { id: 'constructor', kind: 'toString', label: 'y', parent: '__proto__' },
+        { id: 'end', kind: 'end', label: 'End' }],
+      edges: [{ from: 'start', to: '__proto__', label: 'constructor' }, { from: '__proto__', to: 'constructor' }, { from: 'constructor', to: 'end' }] };
+    const m = M.build(wf);
+    assert.equal({}.polluted, undefined);
+    assert.equal(Object.getPrototypeOf({}), Object.prototype);
+    assert.deepEqual(m.main, ['start', '__proto__', 'constructor', 'end']);
+    assert.deepEqual(m.nodes.map((n) => n.vk), ['term', 'unknown', 'unknown', 'term']);
+    assert.equal(M.edgeWord('constructor'), 'constructor');
+});

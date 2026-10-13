@@ -32,7 +32,7 @@
   function add(node, child) {
     if (child == null || child === false) { return; }
     if (Array.isArray(child)) { child.forEach(function (c) { add(node, c); }); return; }
-    node.appendChild(typeof child === 'object' ? child : document.createTextNode(String(child)));
+    node.appendChild(typeof Node !== 'undefined' && child instanceof Node ? child : document.createTextNode(String(child)));
   }
   function clear(node) { while (node.firstChild) { node.removeChild(node.firstChild); } return node; }
   function baseName(path) { var parts = String(path || '').split(/[\\/]/); return parts[parts.length - 1]; }
@@ -42,7 +42,7 @@
     return list.filter(function (w) { return w.name === name && (file == null || w.file === file); })[0] || list.filter(function (w) { return w.name === name; })[0];
   }
   function agentMap() {
-    var out = {};
+    var out = Object.create(null);
     ((state.result && state.result.agents) || []).forEach(function (a) { out[a.name] = a; });
     return out;
   }
@@ -118,7 +118,7 @@
   function renderWorkflowSelect(selected) {
     var select = $('workflow'); clear(select);
     if (!state.result) { return; }
-    var entryFile = state.result.entry, groups = {}, order = [];
+    var entryFile = state.result.entry, groups = Object.create(null), order = [];
     state.result.workflows.forEach(function (w) {
       if (!groups[w.file]) { groups[w.file] = []; order.push(w.file); }
       groups[w.file].push(w);
@@ -268,7 +268,7 @@
   }
 
   function scrollsOf(host) {
-    var out = {};
+    var out = Object.create(null);
     ['.tree', '.centre', '.flow', '.focus'].forEach(function (sel) { var e = host.querySelector(sel); if (e) { out[sel] = [e.scrollLeft, e.scrollTop]; } });
     return out;
   }
