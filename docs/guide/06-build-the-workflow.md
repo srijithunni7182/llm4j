@@ -303,7 +303,7 @@ What to know before you cut (each of these has caught people out):
   as its own workflow; in VS Code, **Loom: Show Workflow Graph** on the entry file). A golden dataset and `weave eval` work on the entry file as before.
   Number the parts of the script with `// 1. Title` comments and the graph groups the steps by them and shows the main path along the bottom:
 
-  ![The workflow graph in VS Code: Outline view with sections and the main path](../images/vscode-loom/graph-outline.png)
+  ![The workflow graph in VS Code: Outline view with sections and the main path](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/vscode-loom/graph-outline.png)
 - **Do not split just to split.** Two small files that always change together are one file. Split where a reader would want to open one thing and not the other.
 
 ## Things that bit us (so they do not bite you)
