@@ -1,0 +1,751 @@
+{
+ "result": {
+  "version": 1,
+  "entry": "/work/laptop-doctor/main.loom",
+  "files": [
+   {
+    "path": "/work/laptop-doctor/main.loom",
+    "imports": []
+   }
+  ],
+  "workflows": [
+   {
+    "name": "Main",
+    "file": "/work/laptop-doctor/main.loom",
+    "line": 16,
+    "params": [
+     "laptop_issue"
+    ],
+    "nodes": [
+     {
+      "id": "start",
+      "kind": "start",
+      "label": "Start"
+     },
+     {
+      "id": "n1",
+      "kind": "delegate",
+      "label": "Collect evidence",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 20
+      },
+      "agent": "Diagnostician",
+      "attrs": {
+       "variable": "evidence_text"
+      }
+     },
+     {
+      "id": "n2",
+      "kind": "loop",
+      "label": "loop until verdict == \"ENOUGH\"",
+      "bound": 4,
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 22
+      },
+      "attrs": {
+       "max": 4
+      }
+     },
+     {
+      "id": "n3",
+      "kind": "delegate",
+      "label": "Research the evidence",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 23
+      },
+      "agent": "Researcher",
+      "parent": "n2",
+      "attrs": {
+       "expecting": "{verdict, findings, request}",
+       "variable": "research_result"
+      },
+      "branch": "round"
+     },
+     {
+      "id": "n4",
+      "kind": "alt",
+      "label": "verdict == \"NEED_MORE\"",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 24
+      },
+      "parent": "n2",
+      "attrs": {
+       "condition": "verdict == \"NEED_MORE\""
+      }
+     },
+     {
+      "id": "n5",
+      "kind": "alt",
+      "label": "_loopRound != \"4\"",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 26
+      },
+      "parent": "n4",
+      "attrs": {
+       "condition": "_loopRound != \"4\""
+      },
+      "branch": "then"
+     },
+     {
+      "id": "n6",
+      "kind": "delegate",
+      "label": "Collect the extra checks",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 27
+      },
+      "agent": "Diagnostician",
+      "parent": "n5",
+      "attrs": {
+       "variable": "evidence_text"
+      },
+      "branch": "then"
+     },
+     {
+      "id": "n7",
+      "kind": "delegate",
+      "label": "Write a fix script",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 33
+      },
+      "agent": "ScriptAuthor",
+      "attrs": {
+       "expecting": "{has_script, script, summary}",
+       "variable": "fix_draft"
+      }
+     },
+     {
+      "id": "n8",
+      "kind": "alt",
+      "label": "has_script == \"NO\"",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 35
+      },
+      "attrs": {
+       "condition": "has_script == \"NO\""
+      }
+     },
+     {
+      "id": "n9",
+      "kind": "note",
+      "label": "No safe fix was found",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 36
+      },
+      "parent": "n8",
+      "branch": "then"
+     },
+     {
+      "id": "n10",
+      "kind": "task",
+      "label": "ValidateScript",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 39
+      },
+      "attrs": {
+       "variable": "check_result"
+      }
+     },
+     {
+      "id": "n11",
+      "kind": "alt",
+      "label": "outcome == \"blocked\"",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 40
+      },
+      "attrs": {
+       "condition": "outcome == \"blocked\""
+      }
+     },
+     {
+      "id": "n12",
+      "kind": "delegate",
+      "label": "Rewrite 1 of 2",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 41
+      },
+      "agent": "ScriptAuthor",
+      "parent": "n11",
+      "attrs": {
+       "variable": "fix_draft"
+      },
+      "branch": "then"
+     },
+     {
+      "id": "n13",
+      "kind": "task",
+      "label": "ValidateScript",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 42
+      },
+      "parent": "n11",
+      "attrs": {
+       "variable": "check_result"
+      }
+     },
+     {
+      "id": "n14",
+      "kind": "alt",
+      "label": "outcome == \"blocked\"",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 43
+      },
+      "parent": "n11",
+      "attrs": {
+       "condition": "outcome == \"blocked\""
+      }
+     },
+     {
+      "id": "n15",
+      "kind": "delegate",
+      "label": "Rewrite 2 of 2",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 44
+      },
+      "agent": "ScriptAuthor",
+      "parent": "n14",
+      "attrs": {
+       "variable": "fix_draft"
+      },
+      "branch": "then"
+     },
+     {
+      "id": "n16",
+      "kind": "task",
+      "label": "ValidateScript",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 45
+      },
+      "parent": "n14",
+      "attrs": {
+       "variable": "check_result"
+      }
+     },
+     {
+      "id": "n17",
+      "kind": "alt",
+      "label": "outcome == \"blocked\"",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 49
+      },
+      "attrs": {
+       "condition": "outcome == \"blocked\""
+      }
+     },
+     {
+      "id": "n18",
+      "kind": "note",
+      "label": "Stopped. Every draft blocked",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 50
+      },
+      "parent": "n17",
+      "branch": "then"
+     },
+     {
+      "id": "n19",
+      "kind": "alt",
+      "label": "outcome == \"ask\"",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 53
+      },
+      "attrs": {
+       "condition": "outcome == \"ask\""
+      }
+     },
+     {
+      "id": "n20",
+      "kind": "human_prompt",
+      "label": "Check could not tell. Approve anyway?",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 54
+      },
+      "parent": "n19",
+      "attrs": {
+       "variable": "first_approval"
+      },
+      "branch": "then"
+     },
+     {
+      "id": "n21",
+      "kind": "human_prompt",
+      "label": "Nothing deletes data. Approve?",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 56
+      },
+      "parent": "n19",
+      "attrs": {
+       "variable": "first_approval"
+      },
+      "branch": "else"
+     },
+     {
+      "id": "n22",
+      "kind": "alt",
+      "label": "first_approval == \"yes\"",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 59
+      },
+      "attrs": {
+       "condition": "first_approval == \"yes\""
+      }
+     },
+     {
+      "id": "n23",
+      "kind": "note",
+      "label": "Not approved. Nothing saved or run",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 74
+      },
+      "parent": "n22",
+      "branch": "else"
+     },
+     {
+      "id": "n24",
+      "kind": "task",
+      "label": "SaveScript",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 60
+      },
+      "attrs": {
+       "variable": "saved_file"
+      }
+     },
+     {
+      "id": "n25",
+      "kind": "human_prompt",
+      "label": "Saved. Run it now?",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 62
+      },
+      "attrs": {
+       "variable": "second_approval"
+      }
+     },
+     {
+      "id": "n26",
+      "kind": "alt",
+      "label": "second_approval == \"yes\"",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 63
+      },
+      "attrs": {
+       "condition": "second_approval == \"yes\""
+      }
+     },
+     {
+      "id": "n27",
+      "kind": "note",
+      "label": "Not run. Script kept on disk",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 71
+      },
+      "parent": "n26",
+      "branch": "else"
+     },
+     {
+      "id": "n28",
+      "kind": "task",
+      "label": "RunScript",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 65
+      },
+      "attrs": {
+       "variable": "run_outcome"
+      }
+     },
+     {
+      "id": "n29",
+      "kind": "note",
+      "label": "The script finished",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 67
+      }
+     },
+     {
+      "id": "n30",
+      "kind": "delegate",
+      "label": "Report the result",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 68
+      },
+      "agent": "Remediator",
+      "attrs": {
+       "variable": "final_text"
+      }
+     },
+     {
+      "id": "n31",
+      "kind": "note",
+      "label": "{final_text}",
+      "source": {
+       "file": "/work/laptop-doctor/main.loom",
+       "line": 69
+      }
+     },
+     {
+      "id": "end",
+      "kind": "end",
+      "label": "End"
+     }
+    ],
+    "edges": [
+     {
+      "from": "start",
+      "to": "n1"
+     },
+     {
+      "from": "n1",
+      "to": "n2"
+     },
+     {
+      "from": "n2",
+      "to": "n3",
+      "label": "round"
+     },
+     {
+      "from": "n3",
+      "to": "n4"
+     },
+     {
+      "from": "n4",
+      "to": "n5",
+      "label": "then"
+     },
+     {
+      "from": "n4",
+      "to": "n2",
+      "label": "again"
+     },
+     {
+      "from": "n5",
+      "to": "n6",
+      "label": "then"
+     },
+     {
+      "from": "n5",
+      "to": "n2",
+      "label": "again"
+     },
+     {
+      "from": "n6",
+      "to": "n2",
+      "label": "again"
+     },
+     {
+      "from": "n2",
+      "to": "n7",
+      "label": "done"
+     },
+     {
+      "from": "n7",
+      "to": "n8"
+     },
+     {
+      "from": "n8",
+      "to": "n9",
+      "label": "then"
+     },
+     {
+      "from": "n8",
+      "to": "n10",
+      "label": "else"
+     },
+     {
+      "from": "n9",
+      "to": "end"
+     },
+     {
+      "from": "n10",
+      "to": "n11"
+     },
+     {
+      "from": "n11",
+      "to": "n12",
+      "label": "then"
+     },
+     {
+      "from": "n11",
+      "to": "n17",
+      "label": "else"
+     },
+     {
+      "from": "n12",
+      "to": "n13"
+     },
+     {
+      "from": "n13",
+      "to": "n14"
+     },
+     {
+      "from": "n14",
+      "to": "n15",
+      "label": "then"
+     },
+     {
+      "from": "n14",
+      "to": "n17",
+      "label": "else"
+     },
+     {
+      "from": "n15",
+      "to": "n16"
+     },
+     {
+      "from": "n16",
+      "to": "n17"
+     },
+     {
+      "from": "n17",
+      "to": "n18",
+      "label": "then"
+     },
+     {
+      "from": "n17",
+      "to": "n19",
+      "label": "else"
+     },
+     {
+      "from": "n18",
+      "to": "end"
+     },
+     {
+      "from": "n19",
+      "to": "n20",
+      "label": "then"
+     },
+     {
+      "from": "n19",
+      "to": "n21",
+      "label": "else"
+     },
+     {
+      "from": "n20",
+      "to": "n22"
+     },
+     {
+      "from": "n21",
+      "to": "n22"
+     },
+     {
+      "from": "n22",
+      "to": "n24",
+      "label": "then"
+     },
+     {
+      "from": "n22",
+      "to": "n23",
+      "label": "else"
+     },
+     {
+      "from": "n23",
+      "to": "end"
+     },
+     {
+      "from": "n24",
+      "to": "n25"
+     },
+     {
+      "from": "n25",
+      "to": "n26"
+     },
+     {
+      "from": "n26",
+      "to": "n28",
+      "label": "then"
+     },
+     {
+      "from": "n26",
+      "to": "n27",
+      "label": "else"
+     },
+     {
+      "from": "n27",
+      "to": "end"
+     },
+     {
+      "from": "n28",
+      "to": "n29"
+     },
+     {
+      "from": "n29",
+      "to": "n30"
+     },
+     {
+      "from": "n30",
+      "to": "n31"
+     },
+     {
+      "from": "n31",
+      "to": "end"
+     }
+    ]
+   }
+  ],
+  "agents": [
+   {
+    "name": "Diagnostician",
+    "model": "gemini-2.5-flash",
+    "temperature": 0.1,
+    "tools": [
+     "Inspect"
+    ],
+    "maxIterations": 10,
+    "prompt": {
+     "ref": "diagnostician",
+     "version": "v1",
+     "file": "/work/laptop-doctor/prompts/diagnostician.md"
+    },
+    "source": {
+     "file": "/work/laptop-doctor/main.loom",
+     "line": 3
+    }
+   },
+   {
+    "name": "Researcher",
+    "model": "gemini-2.5-flash",
+    "temperature": 0.2,
+    "tools": [
+     "web_search"
+    ],
+    "prompt": {
+     "ref": "researcher",
+     "version": "v1",
+     "file": "/work/laptop-doctor/prompts/researcher.md"
+    },
+    "source": {
+     "file": "/work/laptop-doctor/main.loom",
+     "line": 3
+    }
+   },
+   {
+    "name": "ScriptAuthor",
+    "model": "gemini-2.5-flash",
+    "temperature": 0.2,
+    "tools": [
+     "web_search"
+    ],
+    "prompt": {
+     "ref": "scriptauthor",
+     "version": "v1",
+     "file": "/work/laptop-doctor/prompts/scriptauthor.md"
+    },
+    "source": {
+     "file": "/work/laptop-doctor/main.loom",
+     "line": 3
+    }
+   },
+   {
+    "name": "Remediator",
+    "model": "gemini-2.5-flash",
+    "temperature": 0.1,
+    "tools": [
+     "Inspect"
+    ],
+    "maxIterations": 6,
+    "prompt": {
+     "ref": "remediator",
+     "version": "v1",
+     "file": "/work/laptop-doctor/prompts/remediator.md"
+    },
+    "source": {
+     "file": "/work/laptop-doctor/main.loom",
+     "line": 3
+    }
+   }
+  ],
+  "runBudget": {
+   "tokens": 400000
+  },
+  "diagnostics": []
+ },
+ "sections": [
+  {
+   "n": 1,
+   "title": "Look and research",
+   "hint": "Diagnose, research, maybe collect more (≤3 extra rounds)",
+   "line": 16
+  },
+  {
+   "n": 2,
+   "title": "Write a fix script",
+   "hint": "Stop if no safe fix is supported",
+   "line": 32
+  },
+  {
+   "n": 3,
+   "title": "Safety check",
+   "hint": "Code, not a model. At most 2 rewrites",
+   "line": 38
+  },
+  {
+   "n": 4,
+   "title": "First approval",
+   "hint": "The person reads the script",
+   "line": 52
+  },
+  {
+   "n": 5,
+   "title": "Save, second approval",
+   "hint": "Keep the file, run later if you like",
+   "line": 60
+  },
+  {
+   "n": 6,
+   "title": "Run and report",
+   "hint": "Only the saved file, checksum-checked",
+   "line": 64
+  }
+ ],
+ "main": [
+  "start",
+  "n1",
+  "n2",
+  "n3",
+  "n7",
+  "n8",
+  "n10",
+  "n11",
+  "n17",
+  "n19",
+  "n21",
+  "n22",
+  "n24",
+  "n25",
+  "n26",
+  "n28",
+  "n29",
+  "n30",
+  "n31",
+  "end"
+ ]
+}

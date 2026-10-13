@@ -274,3 +274,39 @@ test('R7.1: the panel may open the prompt file of an agent, and no other file in
     assert.deepEqual(s.host.opened.map((o) => o.file), ['/p/prompts/researcher/v2.md']);
     assert.equal(s.host.reports.length, 1);
 });
+
+test('the graph message carries the sections read from the sources', async () => {
+    const s = setup();
+    const result = sampleResult();
+    result.workflows[1].line = 1; result.workflows[0].line = 100;
+    const controller = new GraphPanelController({ entry: '/p/main.loom', cursor: { file: '/p/main.loom', line: 12 }, runner: s.runner, host: s.host, scheduler: s.scheduler, readText: async () => 'workflow Second() {\n // 1. First part\n // 2. Second part\n}' });
+    const load = controller.load();
+    s.runner.finish(json(result));
+    await load;
+    const graph = s.host.ofType('graph')[0];
+    assert.deepEqual(graph.sections?.['Second@/p/main.loom'].map((x) => x.title), ['First part', 'Second part']);
+});
+
+const PNG = 'data:image/png;base64,' + Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2]).toString('base64');
+
+test('a picture from the panel is saved through the host and the panel is told the file', async () => {
+    const s = await loaded();
+    s.controller.handle({ type: 'exportPng', name: '../evil/main-Main-flow.png', dataUrl: PNG });
+    await settle();
+    assert.equal(s.host.saved.length, 1);
+    assert.equal(s.host.saved[0].name, '.._evil_main-Main-flow.png'.replace(/^\.+/, ''), 'path separators are removed');
+    assert.equal(s.host.saved[0].bytes.length, 10);
+    assert.deepEqual(s.host.ofType('exported'), [{ type: 'exported', file: 'saved.png' }]);
+});
+
+test('a cancelled save says so, and bytes that are not a PNG are refused', async () => {
+    const s = await loaded();
+    s.host.savedAs = undefined;
+    s.controller.handle({ type: 'exportPng', name: 'a.png', dataUrl: PNG });
+    await settle();
+    assert.deepEqual(s.host.ofType('exported'), [{ type: 'exported', file: null }]);
+    s.controller.handle({ type: 'exportPng', name: 'a.png', dataUrl: 'data:image/png;base64,AAAAAAAAAAAAAAAA' });
+    await settle();
+    assert.equal(s.host.saved.length, 1);
+    assert.match(s.host.reports.at(-1)!.message, /not a PNG/);
+});

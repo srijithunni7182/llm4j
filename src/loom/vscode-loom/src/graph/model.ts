@@ -25,6 +25,14 @@ export interface GraphEdge {
     label?: string;
 }
 
+/** A numbered `// 1. Title` comment of a workflow: where the steps after it start. */
+export interface SectionInfo {
+    n: number;
+    title: string;
+    hint?: string;
+    line: number;
+}
+
 export interface WorkflowGraph {
     name: string;
     file: string;
@@ -32,6 +40,8 @@ export interface WorkflowGraph {
     params: string[];
     nodes: GraphNode[];
     edges: GraphEdge[];
+    /** Optional: `weave graph` may name the sections itself; otherwise the extension reads them from the source. */
+    sections?: SectionInfo[];
 }
 
 export interface ImportFile {

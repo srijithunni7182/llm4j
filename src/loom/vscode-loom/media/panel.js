@@ -1,18 +1,23 @@
 /* The workflow graph panel, inside a VS Code webview. It draws what the extension sends (see src/graph/protocol.ts)
-   with the shared renderer (graph-render.js) and sends back only the messages that protocol lists. Text from a script
-   is put in the page with textContent, never as HTML. */
+   as three views of one graph (Outline, Focus, Flow; see views.js) over a main-path rail, and sends back only the
+   messages that protocol lists. Text from a script is put in the page with textContent, never as HTML. */
 (function () {
   'use strict';
   var vscode = acquireVsCodeApi();
   var $ = function (id) { return document.getElementById(id); };
-  var G = window.LoomGraph;
+  var G = window.LoomGraph, M = window.LoomModel, V = window.LoomViews;
+  var VIEWS = ['outline', 'focus', 'flow'];
 
-  var state = { result: null, workflow: null, stack: [], selected: null, fromCursor: false, view: null, stale: null, diagOpen: false };
+  var saved = (function () { try { return vscode.getState() || {}; } catch (e) { return {}; } })();
+  var state = {
+    result: null, workflow: null, stack: [], sections: {}, model: null, selected: null, fromCursor: false,
+    view: VIEWS.indexOf(saved.view) >= 0 ? saved.view : 'outline', collapsed: new Set(), stale: null, diagOpen: false, toastTimer: null
+  };
 
   /* ------------------------------------------------------------ helpers */
 
   function el(tag, attrs) {
-    var node = document.createElement(tag), i, child;
+    var node = document.createElement(tag), i;
     Object.keys(attrs || {}).forEach(function (key) {
       var value = attrs[key];
       if (value == null || value === false) { return; }
@@ -21,7 +26,7 @@
       else if (key.slice(0, 2) === 'on') { node.addEventListener(key.slice(2), value); }
       else { node.setAttribute(key, value === true ? '' : value); }
     });
-    for (i = 2; i < arguments.length; i++) { child = arguments[i]; add(node, child); }
+    for (i = 2; i < arguments.length; i++) { add(node, arguments[i]); }
     return node;
   }
   function add(node, child) {
@@ -45,14 +50,19 @@
     var text = G.budgetText(b || {});
     return text ? text.replace(/^budget /, '') : '';
   }
+  function currentWorkflow() { return workflowNamed(state.workflow); }
+  function persist() { try { vscode.setState({ view: state.view }); } catch (e) { /* the state is a convenience */ } }
 
   /* -------------------------------------------------------------- states */
 
   function show(which) {
     $('loading').hidden = which !== 'loading';
     $('empty').hidden = which !== 'empty';
-    ['zoomOut', 'zoomIn', 'fit', 'mermaid', 'workflow', 'legendButton'].forEach(function (id) { $(id).disabled = which !== 'graph'; });
-    if (state.view) { state.view.svg.style.visibility = which === 'graph' ? 'visible' : 'hidden'; }
+    ['mermaid', 'exportPng', 'workflow'].forEach(function (id) { $(id).disabled = which !== 'graph'; });
+    Array.prototype.forEach.call(document.querySelectorAll('.vbtn'), function (b) { b.disabled = which !== 'graph'; });
+    $('viewHost').hidden = which !== 'graph';
+    $('footer').hidden = which !== 'graph';
+    if (which !== 'graph') { $('crumbs').hidden = true; }
   }
 
   function showLoading(file) {
@@ -72,12 +82,13 @@
   function applyGraph(message) {
     var previous = state.workflow;
     state.result = message.result;
+    state.sections = message.sections || {};
     state.stale = null; $('stale').hidden = true;
     renderRunBudget(); renderFiles(); renderDiagnostics();
-    if (!message.result.workflows.length) { renderWorkflowSelect(null); showEmpty(); return; }
+    if (!message.result.workflows.length) { renderWorkflowSelect(null); state.model = null; showEmpty(); return; }
     var wanted = (previous && workflowNamed(previous)) ? previous : message.workflow;
     if (!workflowNamed(wanted)) { wanted = message.result.workflows[0].name; } // the extension named one that is not there
-    var keep = !!previous && wanted === previous && !!state.view;
+    var keep = !!previous && wanted === previous && !!state.model;
     state.stack = keep ? state.stack.filter(function (n) { return !!workflowNamed(n); }) : [];
     show('graph');
     showWorkflow(wanted, keep);
@@ -87,31 +98,20 @@
     var wf = workflowNamed(name);
     if (!wf) { return; }
     state.workflow = wf.name;
-    if (!state.view) {
-      state.view = new G.View($('canvas'), {
-        embedCss: false,
-        onSelect: selectedByClick,
-        onActivate: activated,
-        onHover: hovered,
-        onZoom: function (k) { $('zoomLabel').textContent = Math.round(k * 100) + '%'; }
-      });
-    }
-    var stillThere = state.selected && wf.nodes.some(function (n) { return n.id === state.selected; });
-    if (!stillThere) { state.selected = null; }
-    state.view.selected = state.selected;
-    var context = { agents: agentMap(), currentFile: wf.file };
-    if (keep) {
-      // blocks folded before the refresh stay folded, for the steps that are still there
-      var ids = {}; wf.nodes.forEach(function (n) { ids[n.id] = true; });
-      context.collapsed = new Set(Array.from(state.view.collapsed).filter(function (id) { return ids[id]; }));
-    }
-    state.view.setGraph({ nodes: wf.nodes, edges: wf.edges }, context, keep);
-    state.view.svg.style.visibility = 'visible';
-    renderWorkflowSelect(wf.name); renderCrumbs(wf); renderSelected();
+    state.model = M.build(wf, { sections: state.sections[wf.name + '@' + wf.file] });
+    if (!keep) { state.collapsed = new Set(); }
+    else { state.collapsed = new Set(Array.from(state.collapsed).filter(function (id) { return !!state.model.by[id]; })); }
+    if (!state.selected || !state.model.by[state.selected]) { state.selected = defaultSelection(); }
+    renderWorkflowSelect(wf.name);
+    renderAll(true);
     send({ type: 'selectWorkflow', name: wf.name });
   }
 
-  function currentWorkflow() { return workflowNamed(state.workflow); }
+  function defaultSelection() {
+    var m = state.model;
+    var first = m.main.filter(function (id) { return m.by[id].kind !== 'start'; })[0];
+    return first || (m.nodes[0] && m.nodes[0].id) || null;
+  }
 
   /* -------------------------------------------------------------- toolbar */
 
@@ -130,6 +130,18 @@
     if (selected) { select.value = selected; }
   }
 
+  function renderAgents() {
+    var box = clear($('agents')), list = (state.result && state.result.agents) || [];
+    $('agentsBox').hidden = !list.length;
+    list.forEach(function (a) {
+      var tools = a.tools || [], asks = a.approveAll ? tools : (a.approve || []);
+      var uses = state.model ? state.model.nodes.filter(function (n) { return n.agent === a.name; })[0] : null;
+      box.appendChild(uses ? el('button', { class: 'an', type: 'button', text: a.name, onclick: function () { select(uses.id, { source: true, reveal: true }); } }) : el('span', { text: a.name }));
+      box.appendChild(el('span', { class: 'muted', text: a.model || '' }));
+      box.appendChild(el('span', { class: 'chips' }, tools.length ? tools.map(function (t) { return el('span', { class: 'chip tool' + (asks.indexOf(t) >= 0 ? ' asks' : ''), text: t }); }) : el('span', { class: 'chip tool none', text: 'no tools' })));
+    });
+  }
+
   function renderRunBudget() {
     var chip = $('runbudget'), b = state.result && state.result.runBudget;
     var text = b && Object.keys(b).length ? budgetLine(b) : '';
@@ -140,18 +152,38 @@
     }
   }
 
-  function renderCrumbs(wf) {
-    var bar = $('crumbs');
-    if (!state.stack.length) { bar.hidden = true; return; }
+  function renderViewSwitch() {
+    Array.prototype.forEach.call(document.querySelectorAll('.vbtn'), function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-view') === state.view)); });
+  }
+
+  function setView(view) {
+    if (VIEWS.indexOf(view) < 0 || view === state.view) { return; }
+    state.view = view; persist();
+    renderAll(true);
+  }
+
+  /* ------------------------------------------------------------ breadcrumb */
+
+  function renderCrumbs() {
+    var bar = $('crumbs'), wf = currentWorkflow();
+    if (!wf || !state.model) { bar.hidden = true; return; }
     bar.hidden = false; clear(bar);
-    bar.appendChild(el('button', { type: 'button', text: '‹ Back', onclick: goBack }));
-    var path = state.stack.concat([wf.name]);
-    path.forEach(function (name, i) {
-      var last = i === path.length - 1;
-      bar.appendChild(last ? el('span', { class: 'here', text: name }) : el('button', { type: 'button', text: name, onclick: function () { state.stack = path.slice(0, i); state.selected = null; showWorkflow(name, false); } }));
-      if (!last) { bar.appendChild(el('span', { class: 'muted', text: '›' })); }
+    if (state.stack.length) { bar.appendChild(el('button', { class: 'crumb', type: 'button', text: '‹ Back', onclick: goBack })); }
+    var label = wf.name + '(' + wf.params.join(', ') + ')';
+    var list = V.crumbs(state.model, state.selected, label, baseName(wf.file), state.stack);
+    list.forEach(function (c, i) {
+      var last = i === list.length - 1;
+      bar.appendChild(el('button', { class: 'crumb' + (c.mono ? ' mono' : '') + (last ? ' here' : ''), type: 'button', text: c.text, 'aria-current': last ? 'location' : null, onclick: function () { crumbAction(c.act, wf); } }));
+      if (!last) { bar.appendChild(el('span', { class: 'sep', 'aria-hidden': 'true', text: '›' })); }
     });
     if (wf.file !== state.result.entry) { bar.appendChild(el('span', { class: 'filechip', text: baseName(wf.file) })); }
+  }
+
+  function crumbAction(act, wf) {
+    if (act.file) { send({ type: 'openSource', file: wf.file, line: wf.line || 1, beside: true }); }
+    else if (act.pop != null) { var target = state.stack[act.pop]; state.stack = state.stack.slice(0, act.pop); state.selected = null; showWorkflow(target, false); }
+    else if (act.workflow) { select(defaultSelection(), { source: false, reveal: true }); }
+    else if (act.select) { select(act.select, { source: false, reveal: true }); }
   }
 
   function goBack() {
@@ -168,85 +200,171 @@
 
   /* ----------------------------------------------------------- selection */
 
-  function selectedByClick(id, node) {
-    state.selected = id; state.fromCursor = false;
-    renderSelected();
-    if (node && node.source) { send({ type: 'openSource', file: node.source.file, line: node.source.line, beside: true }); }
+  /** Selects a step. `source`: also show its line beside the panel. `reveal`: scroll to it. */
+  function select(id, how) {
+    how = how || {};
+    var node = id && state.model && state.model.by[id];
+    if (!node) { return; }
+    var before = state.selected;
+    state.selected = id; state.fromCursor = !!how.fromCursor;
+    renderAll(how.reveal !== false || before !== id);
+    if (how.source && node.file && node.line != null) { send({ type: 'openSource', file: node.file, line: node.line, beside: true }); }
   }
 
-  function activated(id, node, how) {
-    if (!node || node.kind !== 'call' || !node.call || node.unresolved) { return; }
-    if (how.ctrl) {
-      var callee = workflowNamed(node.call.workflow, node.call.file);
+  function activate(node, how) {
+    if (!node || node.kind !== 'call' || !node.raw.call || node.raw.unresolved) { return; }
+    if (how && how.ctrl) {
+      var callee = workflowNamed(node.raw.call.workflow, node.raw.call.file);
       if (callee) { send({ type: 'openSource', file: callee.file, line: callee.line || 1, beside: true }); }
       return;
     }
-    drill(node.call);
+    drill(node.raw.call);
   }
 
   function highlight(id) {
-    if (!state.view) { return; }
-    if (id) {
-      state.selected = id; state.fromCursor = true;
-      state.view.select(id); state.view.revealNode(id); renderSelected();
-    } else if (state.fromCursor && state.selected) {
-      state.selected = null; state.fromCursor = false;
-      state.view.select(null); renderSelected();
+    if (!state.model) { return; }
+    if (id && state.model.by[id]) {
+      select(id, { fromCursor: true, reveal: true });
+    } else if (!id && state.fromCursor && state.selected) {
+      state.fromCursor = false; // the step the cursor left stays selected: nothing else would tell the person where they were
     }
   }
 
-  function renderSelected() {
-    var box = clear($('selected')), wf = currentWorkflow();
-    var node = wf && state.selected && wf.nodes.filter(function (n) { return n.id === state.selected; })[0];
-    if (!node || node.kind === 'start' || node.kind === 'end') {
-      box.appendChild(el('p', { class: 'muted', text: 'Click a step to see its settings and jump to its line. Double-click a call to open it.' }));
+  /* ------------------------------------------------------------- drawing */
+
+  function context() {
+    return {
+      view: state.view, model: state.model, selected: state.selected, collapsed: state.collapsed, agents: agentMap(),
+      chips: function (raw) { return G.chips(raw); }, budgetLine: budgetLine,
+      on: {
+        select: function (id, reveal) { select(id, { source: true, reveal: reveal !== false }); },
+        source: function (n) { if (n.file) { send({ type: 'openSource', file: n.file, line: n.line || 1, beside: true }); } },
+        prompt: function (agent) { if (agent.prompt && agent.prompt.file) { send({ type: 'openSource', file: agent.prompt.file, line: 1, beside: true }); } },
+        drill: function (n) { activate(n, {}); },
+        view: setView,
+        toggle: function (id) { if (state.collapsed.has(id)) { state.collapsed.delete(id); } else { state.collapsed.add(id); } renderAll(false); },
+        expandAll: function () { state.collapsed = new Set(); renderAll(false); },
+        collapseAll: function () { state.collapsed = new Set(state.model.nodes.filter(function (n) { return n.children.length; }).map(function (n) { return n.id; })); renderAll(false); }
+      }
+    };
+  }
+
+  function focusMemory() {
+    var a = document.activeElement;
+    if (!a || a === document.body) { return null; }
+    var where = ['viewHost', 'rail', 'railSecs'].filter(function (id) { return $(id).contains(a); })[0];
+    if (!where) { return null; }
+    return { where: where, cls: a.classList.contains('card') ? 'card' : a.classList.contains('row') ? 'row' : null, id: a.getAttribute('data-id'), index: Array.prototype.indexOf.call($(where).children, a), toggle: a.getAttribute('data-toggle'), tag: a.tagName };
+  }
+
+  function restoreFocus(mem) {
+    if (!mem) { return; }
+    var root = $(mem.where), target = null;
+    if (mem.id && mem.cls) { target = root.querySelector('.' + mem.cls + '[data-id="' + mem.id.replace(/"/g, '') + '"]'); }
+    else if (mem.id) { target = root.querySelector('[data-id="' + mem.id.replace(/"/g, '') + '"]'); }
+    else if (mem.toggle) { target = root.querySelector('[data-toggle="' + mem.toggle.replace(/"/g, '') + '"]'); }
+    else if (mem.index >= 0 && root.children[mem.index] && root.children[mem.index].tagName === mem.tag) { target = root.children[mem.index]; }
+    if (target && typeof target.focus === 'function') { target.focus({ preventScroll: true }); }
+  }
+
+  function scrollsOf(host) {
+    var out = {};
+    ['.tree', '.centre', '.flow', '.focus'].forEach(function (sel) { var e = host.querySelector(sel); if (e) { out[sel] = [e.scrollLeft, e.scrollTop]; } });
+    return out;
+  }
+
+  var drawn = { view: null, workflow: null };
+
+  /** Draws the current view, the rail and the breadcrumb. `reveal`: bring the selected step into view afterwards. */
+  function renderAll(reveal) {
+    if (!state.model) { return; }
+    var host = $('viewHost'), mem = focusMemory(), same = drawn.view === state.view && drawn.workflow === state.workflow, scrolls = same ? scrollsOf(host) : {};
+    var ctx = context();
+    clear(host);
+    host.appendChild(V.render(ctx));
+    Object.keys(scrolls).forEach(function (sel) { var e = host.querySelector(sel); if (e) { e.scrollLeft = scrolls[sel][0]; e.scrollTop = scrolls[sel][1]; } });
+    drawn = { view: state.view, workflow: state.workflow };
+    if (reveal) { V.reveal(host, ctx); }
+    renderViewSwitch(); renderCrumbs(); renderAgents();
+    V.rail(ctx, { note: $('railNote'), bar: $('rail'), sections: $('railSecs') });
+    restoreFocus(mem);
+  }
+
+  /* ----------------------------------------------------- interaction in views */
+
+  function nodeOfEvent(e) {
+    var item = e.target.closest && e.target.closest('.card[data-id], .row[data-id]');
+    return item ? state.model && state.model.by[item.getAttribute('data-id')] : null;
+  }
+
+  $('viewHost').addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('[data-toggle], button')) { return; }
+    var n = nodeOfEvent(e);
+    if (!n) { return; }
+    if ((e.ctrlKey || e.metaKey) && n.kind === 'call') { activate(n, { ctrl: true }); return; }
+    select(n.id, { source: true, reveal: false });
+    // a double-click is the second click (detail 2): the first one redrew the view, so the browser's own dblclick would miss
+    if (e.detail === 2) { activate(n, {}); }
+  });
+  $('viewHost').addEventListener('keydown', function (e) {
+    var item = e.target.closest && e.target.closest('.card[data-id], .row[data-id]');
+    if (!item || e.target !== item) { return; }
+    var n = state.model.by[item.getAttribute('data-id')];
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (e.shiftKey && e.key === 'Enter') { activate(n, {}); } else { select(n.id, { source: true, reveal: false }); }
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (!state.model || e.ctrlKey || e.metaKey || e.altKey) { return; }
+    var tag = e.target && e.target.tagName;
+    if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') { return; }
+    if (e.key === '1' || e.key === '2' || e.key === '3') { setView(VIEWS[Number(e.key) - 1]); return; }
+    var m = state.model, order = M.visibleOrder(m, state.collapsed), at = order.map(function (n) { return n.id; }).indexOf(state.selected);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      var step = e.key === 'ArrowDown' ? 1 : -1, active = document.activeElement, onItem = active && active.getAttribute && active.getAttribute('data-id') && active.closest('#viewHost');
+      var from = onItem ? order.map(function (n) { return n.id; }).indexOf(active.getAttribute('data-id')) : at;
+      var next = order[from + step] || (from < 0 ? order[0] : null);
+      if (!next) { return; }
+      e.preventDefault();
+      if (state.view === 'focus' || !onItem) { select(next.id, { source: false, reveal: true }); return; }
+      var target = $('viewHost').querySelector((state.view === 'outline' ? '.row' : '.stage .card') + '[data-id="' + next.id + '"]');
+      if (target) { target.focus(); }
       return;
     }
-    var rows = [el('dt', { text: 'Kind' }), el('dd', { text: node.kind }), el('dt', { text: 'Step' }), el('dd', { text: node.label })];
-    var sub = G.subtitle(node, { agents: agentMap(), currentFile: wf.file });
-    if (sub) { rows.push(el('dt', { text: 'Uses' }), el('dd', { text: sub })); }
-    var chips = G.chips(node);
-    if (chips.length) { rows.push(el('dt', { text: 'Settings' }), el('dd', null, el('span', { class: 'chips' }, chips.map(function (c) { return el('span', { class: 'chip ' + (c.v || ''), text: c.t }); })))); }
-    var where = [];
-    if (node.source) {
-      where.push(el('span', { class: 'filechip', text: baseName(node.source.file) + ':' + node.source.line }), ' ',
-        el('button', { class: 'link', type: 'button', text: 'Go to source', onclick: function () { send({ type: 'openSource', file: node.source.file, line: node.source.line, beside: true }); } }));
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && state.view === 'focus') {
+      var edges = e.key === 'ArrowLeft' ? m.inn[state.selected] : m.out[state.selected];
+      var other = edges && edges[0] && (e.key === 'ArrowLeft' ? edges[0].from : edges[0].to);
+      if (other) { e.preventDefault(); select(other, { source: false, reveal: true }); }
     }
-    if (node.kind === 'call' && node.call && !node.unresolved) {
-      where.push(' ', el('button', { class: 'link', type: 'button', text: 'Open ' + node.call.workflow, onclick: function () { drill(node.call); } }));
-    }
-    var promptAgent = node.agent && agentMap()[node.agent];
-    if (promptAgent && promptAgent.prompt && promptAgent.prompt.file) {
-      where.push(' ', el('button', { class: 'link', type: 'button', text: 'Open prompt ' + (promptAgent.prompt.ref || ''), onclick: function () { send({ type: 'openSource', file: promptAgent.prompt.file, line: 1, beside: true }); } }));
-    }
-    if (where.length) { rows.push(el('dt', { text: 'Source' }), el('dd', null, where)); }
-    box.appendChild(el('dl', null, rows));
+  });
+
+  /* --------------------------------------------------------------- toast */
+
+  function toast(text) {
+    var box = $('toast');
+    box.textContent = text; box.hidden = false;
+    if (state.toastTimer) { clearTimeout(state.toastTimer); }
+    state.toastTimer = setTimeout(function () { box.hidden = true; state.toastTimer = null; }, 2600);
   }
 
-  /* --------------------------------------------------------- agent card */
+  /* -------------------------------------------------------------- export */
 
-  function hovered(id, node, element) {
-    var card = $('card');
-    var agent = node && node.agent && agentMap()[node.agent];
-    if (!agent) { card.hidden = true; return; }
-    var rows = [];
-    function row(label, value) { if (value) { rows.push(el('dt', { text: label }), el('dd', { text: value })); } }
-    row('Model', [agent.model, agent.temperature != null ? 'temp ' + agent.temperature : null].filter(Boolean).join(' · '));
-    row('Persona', agent.persona);
-    row('Prompt', agent.prompt ? agent.prompt.ref + (agent.prompt.version ? ' (' + agent.prompt.version + ')' : ' (not found)') : '');
-    row('Tools', (agent.tools || []).length ? agent.tools.join(', ') : 'none');
-    row('Approval', agent.approveAll ? 'Needs approval for every tool' : (agent.approve || []).length ? 'Needs approval: ' + agent.approve.join(', ') : 'none');
-    row('Budget', agent.budget && Object.keys(agent.budget).length ? budgetLine(agent.budget) : 'none');
-    row('Limit', agent.maxIterations ? 'max ' + agent.maxIterations + ' iterations' : '');
-    clear(card);
-    card.appendChild(el('h3', null, agent.name, agent.source ? el('span', { class: 'filechip', text: baseName(agent.source.file) + ':' + agent.source.line }) : null));
-    card.appendChild(el('dl', null, rows));
-    card.hidden = false;
-    var wrap = $('canvas').getBoundingClientRect(), r = element.getBoundingClientRect();
-    var left = r.right - wrap.left + 10;
-    if (left + 260 > wrap.width) { left = Math.max(8, r.left - wrap.left - 270); }
-    card.style.left = left + 'px';
-    card.style.top = Math.min(Math.max(8, r.top - wrap.top), Math.max(8, wrap.height - 200)) + 'px';
+  function exportName() {
+    var wf = currentWorkflow(), script = baseName(state.result.entry).replace(/\.[^.]*$/, '');
+    return (script + '-' + (wf ? wf.name : 'workflow') + '-' + state.view + '.png').replace(/[^\w.\- ]+/g, '_');
+  }
+
+  function exportPng() {
+    var target = $('viewHost').querySelector('[data-export]');
+    if (!target || !state.model) { return; }
+    var background = getComputedStyle(document.body).backgroundColor || '#ffffff', name = exportName();
+    V.snapshot(target, background, 2).then(function (url) {
+      return url.length > 40 * 1024 * 1024 ? V.snapshot(target, background, 1) : url;
+    }).then(function (url) {
+      send({ type: 'exportPng', name: name, dataUrl: url });
+    }).catch(function () { toast('The picture could not be drawn.'); });
   }
 
   /* ------------------------------------------------- files, diagnostics */
@@ -294,19 +412,11 @@
   /* ------------------------------------------------------------ controls */
 
   $('workflow').addEventListener('change', function (e) { state.stack = []; state.selected = null; showWorkflow(e.target.value, false); });
-  $('zoomIn').addEventListener('click', function () { if (state.view) { state.view.zoomBy(1.2); } });
-  $('zoomOut').addEventListener('click', function () { if (state.view) { state.view.zoomBy(1 / 1.2); } });
-  $('fit').addEventListener('click', function () { if (state.view) { state.view.fit(); } });
+  Array.prototype.forEach.call(document.querySelectorAll('.vbtn'), function (b) { b.addEventListener('click', function () { setView(b.getAttribute('data-view')); }); });
   $('mermaid').addEventListener('click', function () { if (state.workflow) { send({ type: 'copyMermaid', name: state.workflow }); } });
-  $('legendButton').addEventListener('click', function () {
-    var legend = $('legend'), open = legend.hidden;
-    if (open) {
-      clear(legend);
-      G.legend().forEach(function (item) { legend.appendChild(el('span', { class: 'lg-' + item[0] }, el('i'), item[1])); });
-    }
-    legend.hidden = !open;
-    $('legendButton').setAttribute('aria-expanded', String(open));
-  });
+  $('exportPng').addEventListener('click', exportPng);
+  $('exportIcon').appendChild(V.svg('download'));
+  V.legend($('legend'));
 
   window.addEventListener('message', function (event) {
     var message = event.data || {};
@@ -314,8 +424,10 @@
     else if (message.type === 'graph') { applyGraph(message); }
     else if (message.type === 'stale') { showStale(message); }
     else if (message.type === 'highlight') { highlight(message.id); }
+    else if (message.type === 'exported') { if (message.file) { toast('Saved ' + message.file); } }
   });
 
   show('loading');
+  renderViewSwitch();
   send({ type: 'ready' });
 })();

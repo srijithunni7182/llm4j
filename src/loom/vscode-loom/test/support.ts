@@ -104,6 +104,8 @@ export class FakeHost implements PanelHost {
     opened: Array<{ file: string; line: number; beside: boolean }> = [];
     reports: Array<{ message: string; kind: string }> = [];
     copied: string[] = [];
+    saved: Array<{ name: string; bytes: Uint8Array }> = [];
+    savedAs: string | undefined = 'saved.png';
     post(message: HostMessage): void {
         this.posted.push(message);
     }
@@ -115,6 +117,10 @@ export class FakeHost implements PanelHost {
     }
     async copy(text: string): Promise<void> {
         this.copied.push(text);
+    }
+    async savePng(name: string, bytes: Uint8Array): Promise<string | undefined> {
+        this.saved.push({ name, bytes });
+        return this.savedAs;
     }
     ofType<T extends HostMessage['type']>(type: T): Array<Extract<HostMessage, { type: T }>> {
         return this.posted.filter((m) => m.type === type) as Array<Extract<HostMessage, { type: T }>>;
