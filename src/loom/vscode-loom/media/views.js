@@ -66,7 +66,7 @@
   function add(node, child) {
     if (child == null || child === false) { return; }
     if (Array.isArray(child)) { child.forEach(function (c) { add(node, c); }); return; }
-    node.appendChild(typeof Node !== 'undefined' && child instanceof Node ? child : document.createTextNode(String(child)));
+    node.append(child instanceof Node ? child : String(child)); // append() turns a string into a text node, never markup
   }
   function baseName(path) { var parts = String(path || '').split(/[\\/]/); return parts[parts.length - 1]; }
   function px(n) { return Math.round(n * 10) / 10 + 'px'; }
