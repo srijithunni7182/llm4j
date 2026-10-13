@@ -197,7 +197,7 @@
   "scripts": {
     "compile": "tsc -p ./",
     "pretest": "tsc -p tsconfig.test.json",
-    "test": "node --test out-test/test/*.test.js test/*.browser.test.js",
+    "test": "node --test out-test/test/*.test.js test/*.unit.test.js test/*.browser.test.js",
     "vscode:prepublish": "npm run compile && node -e \"require('fs').accessSync('bin/weave.jar')\" || (echo 'bin/weave.jar is missing: run scripts/build-vsix.sh from the repository root' && exit 1)"
   },
   "icon": "media/loom-mark-128.png"

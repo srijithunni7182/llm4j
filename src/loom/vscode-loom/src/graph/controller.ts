@@ -1,9 +1,10 @@
 import { chooseWorkflow } from './chooseWorkflow';
 import { GraphAbortedError, GraphExitError } from './errors';
-import { GraphResult, parseGraph } from './model';
+import { GraphResult, SectionInfo, parseGraph } from './model';
 import { samePath } from './paths';
 import { HostMessage, parseWebviewMessage } from './protocol';
 import { GraphRunner } from './runner';
+import { readSections } from './sections';
 
 /** What the controller needs from the editor; the real one wraps VS Code, tests use a fake. */
 export interface PanelHost {
@@ -11,6 +12,8 @@ export interface PanelHost {
     openSource(file: string, line: number, beside: boolean): void;
     report(message: string, kind: 'error' | 'warning' | 'info'): void;
     copy(text: string): Promise<void>;
+    /** Asks where to save a picture (suggesting `name` beside the script) and writes it. Resolves to the file name written, or undefined when the person cancelled. */
+    savePng(name: string, bytes: Uint8Array): Promise<string | undefined>;
 }
 
 export interface TimerHandle {
@@ -29,6 +32,8 @@ export interface ControllerOptions {
     runner: GraphRunner;
     host: PanelHost;
     scheduler: Scheduler;
+    /** Reads a source file, for the section comments; without it the panel shows each workflow as one section. */
+    readText?: (file: string) => Promise<string | undefined>;
     /** Wait this long after the last save before running again. */
     debounceMs?: number;
 }
@@ -44,6 +49,7 @@ export type LoadOutcome = { ok: true; result: GraphResult } | { ok: false; error
  */
 export class GraphPanelController {
     private current: GraphResult | undefined;
+    private sections: Record<string, SectionInfo[]> = {};
     private selected: string | undefined;
     private cursor: { file: string; line: number };
     private timer: TimerHandle | undefined;
@@ -142,6 +148,9 @@ export class GraphPanelController {
             case 'copyMermaid':
                 void this.copyMermaid(message.name);
                 return;
+            case 'exportPng':
+                void this.exportPng(message.name, message.dataUrl);
+                return;
         }
     }
 
@@ -189,7 +198,14 @@ export class GraphPanelController {
         if (run.signal.aborted || this.disposed) {
             throw new GraphAbortedError();
         }
-        return parseGraph(text);
+        const result = parseGraph(text);
+        const read = this.options.readText;
+        const sections = read ? await readSections(result, read) : {};
+        if (run.signal.aborted || this.disposed) {
+            throw new GraphAbortedError();
+        }
+        this.sections = sections;
+        return result;
     }
 
     /** Files the panel may ask to open: the entry, its imports, files that have a problem reported, the file of the last error, and the prompt files of its agents. */
@@ -205,7 +221,7 @@ export class GraphPanelController {
 
     private postGraph(): void {
         if (this.current) {
-            this.options.host.post({ type: 'graph', result: this.current, workflow: this.selected ?? '' });
+            this.options.host.post({ type: 'graph', result: this.current, workflow: this.selected ?? '', ...(Object.keys(this.sections).length ? { sections: this.sections } : {}) });
         }
     }
 
@@ -231,6 +247,23 @@ export class GraphPanelController {
             this.options.host.report(`Copied the Mermaid diagram of ${name}.`, 'info');
         } catch (e) {
             this.options.host.report(`Loom: could not copy the diagram. ${(e as Error).message}`, 'error');
+        }
+    }
+
+    private async exportPng(name: string, dataUrl: string): Promise<void> {
+        const file = name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/^\.+/, '').slice(0, 120);
+        const bytes = Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
+        // the signature of a PNG: what a picture the panel drew always starts with
+        if (!file || bytes.length < 8 || bytes.readUInt32BE(0) !== 0x89504e47) {
+            this.options.host.report('Loom: the picture could not be saved because it is not a PNG.', 'error');
+            return;
+        }
+        try {
+            const saved = await this.options.host.savePng(file.endsWith('.png') ? file : `${file}.png`, bytes);
+            this.options.host.post({ type: 'exported', file: saved ?? null });
+        } catch (e) {
+            this.options.host.report(`Loom: could not save the picture. ${(e as Error).message}`, 'error');
+            this.options.host.post({ type: 'exported', file: null });
         }
     }
 }

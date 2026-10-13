@@ -39,7 +39,7 @@ test('V9.5: the package includes the webview files, the logos, the compiled code
     assert.ok(manifest.files.includes('media/**/*'));
     assert.ok(manifest.files.includes('out/**/*'));
     assert.ok(manifest.files.includes('bin/**/*'));
-    for (const file of ['graph-render.js', 'graph-render.css', 'panel.js', 'panel.css', 'loom-mark-128.png', 'loom-logo-320.png']) {
+    for (const file of ['graph-render.js', 'graph-render.css', 'graph-model.js', 'views.js', 'panel.js', 'panel.css', 'loom-mark-128.png', 'loom-logo-320.png']) {
         assert.ok(fs.existsSync(path.join(root, 'media', file)), file);
     }
 });

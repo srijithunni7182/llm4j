@@ -9,7 +9,7 @@ listing="$(unzip -Z1 "$vsix")"
 status=0
 for required in \
   extension/package.json extension/out/extension.js extension/out/views/GraphPanel.js extension/bin/weave.jar \
-  extension/media/graph-render.js extension/media/graph-render.css extension/media/panel.js extension/media/panel.css \
+  extension/media/graph-render.js extension/media/graph-render.css extension/media/graph-model.js extension/media/views.js extension/media/panel.js extension/media/panel.css \
   extension/media/loom-mark-128.png extension/media/loom-logo-320.png; do
   if ! grep -qx "$required" <<<"$listing"; then echo "MISSING from the package: $required" >&2; status=1; fi
 done

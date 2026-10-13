@@ -1,9 +1,10 @@
-import { GraphResult } from './model';
+import { GraphResult, SectionInfo } from './model';
 
 /** What the extension tells the panel. */
 export type HostMessage =
     | { type: 'loading'; file: string }
-    | { type: 'graph'; result: GraphResult; workflow: string }
+    | { type: 'graph'; result: GraphResult; workflow: string; sections?: Record<string, SectionInfo[]> }
+    | { type: 'exported'; file: string | null }
     | { type: 'stale'; message: string; file?: string; line?: number }
     | { type: 'highlight'; id: string | null };
 
@@ -12,10 +13,14 @@ export type WebviewMessage =
     | { type: 'ready' }
     | { type: 'openSource'; file: string; line: number; beside: boolean }
     | { type: 'selectWorkflow'; name: string }
-    | { type: 'copyMermaid'; name: string };
+    | { type: 'copyMermaid'; name: string }
+    | { type: 'exportPng'; name: string; dataUrl: string };
 
 const MAX_LINE = 10_000_000;
 const MAX_TEXT = 4096;
+const PNG_PREFIX = 'data:image/png;base64,';
+/** The largest picture the panel may hand over (as the text of its data URL). */
+export const MAX_PNG_CHARS = 48 * 1024 * 1024;
 
 function isObject(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -42,6 +47,11 @@ export function parseWebviewMessage(raw: unknown): WebviewMessage | undefined {
             return text(raw.name) ? { type: 'selectWorkflow', name: raw.name } : undefined;
         case 'copyMermaid':
             return text(raw.name) ? { type: 'copyMermaid', name: raw.name } : undefined;
+        case 'exportPng':
+            if (text(raw.name) && typeof raw.dataUrl === 'string' && raw.dataUrl.length <= MAX_PNG_CHARS && raw.dataUrl.startsWith(PNG_PREFIX) && /^[A-Za-z0-9+/]+={0,2}$/.test(raw.dataUrl.slice(PNG_PREFIX.length))) {
+                return { type: 'exportPng', name: raw.name, dataUrl: raw.dataUrl };
+            }
+            return undefined;
         default:
             return undefined;
     }

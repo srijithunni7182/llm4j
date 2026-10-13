@@ -6,14 +6,17 @@ import { contentSecurityPolicy, newNonce, renderPanelHtml } from '../src/graph/h
 const html = (nonce = 'abc123') => renderPanelHtml({ cspSource: 'vscode-webview://x', nonce, uri: (name) => `vscode-webview://x/media/${name}` });
 
 test('the policy allows nothing but the extension\'s own files and nonce-marked scripts', () => {
-    assert.equal(contentSecurityPolicy('vscode-webview://x', 'abc'), "default-src 'none'; img-src vscode-webview://x; style-src vscode-webview://x; script-src 'nonce-abc'");
+    assert.equal(contentSecurityPolicy('vscode-webview://x', 'abc'), "default-src 'none'; img-src vscode-webview://x data: blob:; style-src vscode-webview://x; script-src 'nonce-abc'");
     const page = html();
-    assert.ok(!/unsafe-inline|unsafe-eval|data:|https?:/.test(page.match(/Content-Security-Policy" content="([^"]*)"/)![1]));
+    // data: and blob: are for images only: the panel draws its PNG export to a canvas through an image
+    const policy = page.match(/Content-Security-Policy" content="([^"]*)"/)![1];
+    assert.ok(!/unsafe-inline|unsafe-eval|https?:/.test(policy));
+    assert.ok(!/(script|style|default)-src[^;]*(data:|blob:)/.test(policy));
 });
 
 test('every script has the nonce and loads a file of the extension, and there is no inline script', () => {
     const scripts = html('N0nce').match(/<script[^>]*>/g)!;
-    assert.equal(scripts.length, 2);
+    assert.equal(scripts.length, 4);
     scripts.forEach((s) => assert.ok(/nonce="N0nce"/.test(s) && /src="vscode-webview:\/\/x\/media\//.test(s), s));
     assert.ok(!/<script[^>]*>[^<]+<\/script>/.test(html()), 'a script element with a body');
 });
@@ -28,7 +31,7 @@ test('there are no inline styles and no event handler attributes', () => {
 test('nothing is loaded from outside the extension', () => {
     const page = html();
     const loads = [...page.matchAll(/(?:src|href)="([^"]+)"/g)].map((m) => m[1]);
-    assert.ok(loads.length >= 6);
+    assert.ok(loads.length >= 7);
     loads.forEach((url) => assert.ok(url.startsWith('vscode-webview://x/media/'), url));
 });
 
@@ -40,7 +43,7 @@ test('the toolbar logo is decorative and the loading and empty states carry the 
 
 test('the page has the regions the panel script fills in', () => {
     const page = html();
-    for (const id of ['workflow', 'zoomIn', 'zoomOut', 'fit', 'legendButton', 'mermaid', 'crumbs', 'stale', 'diagnostics', 'canvas', 'loading', 'empty', 'legend', 'card', 'files', 'selected']) {
+    for (const id of ['workflow', 'viewOutline', 'viewFocus', 'viewFlow', 'mermaid', 'exportPng', 'crumbs', 'stale', 'diagnostics', 'canvas', 'viewHost', 'loading', 'empty', 'legend', 'files', 'agents', 'rail', 'railSecs', 'railNote', 'toast']) {
         assert.ok(page.includes(`id="${id}"`), id);
     }
 });
