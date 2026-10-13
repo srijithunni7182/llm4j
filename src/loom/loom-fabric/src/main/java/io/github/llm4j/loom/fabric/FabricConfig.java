@@ -214,8 +214,6 @@ final class FabricConfig implements ServerConfig {
     private static List<String> warnings(RulesFile.Parsed parsed) {
         List<String> w = new ArrayList<>();
         parsed.problems().forEach(p -> w.add(p.toString()));
-        boolean variable = parsed.rules().values().stream().anyMatch(r -> r.noProgressVariable() != null);
-        if (variable) w.add("no_progress names a variable here, but the variable is read in the process: it only takes effect where that process's own rules name the same variable (the rounds here replace its count)");
         return w;
     }
 

@@ -517,13 +517,13 @@
     { key: 'tool_failures', label: 'Tool keeps failing', hint: 'a tool failing this many times in a row' },
     { key: 'ungrounded_figures', label: 'Figures with no source', hint: 'figures in an answer found in nothing the step saw: warn at one count, high at a larger one' },
     { key: 'paused_longer_than', label: 'Paused for too long', hint: 'a pause (rate limit, budget window) longer than this becomes a warning' },
-    { key: 'no_progress', label: 'No progress across loop rounds', hint: 'a workflow variable unchanged at the end of this many loop rounds in a row (one agent only; the variable is read in the process)' }
+    { key: 'no_progress', label: 'No progress across loop rounds', hint: 'a workflow variable unchanged at the end of this many loop rounds in a row. One agent only. It applies to runs whose process already watches this variable in its own rules; the rounds set here replace that count' }
   ];
   function behaviour(key) { return BEHAVIOURS.filter(function (b) { return b.key === key; })[0]; }
   function sectionUi(name) { return { text: $(name + '-text'), summary: $(name + '-summary'), problems: $(name + '-problems'), msg: $(name + '-msg') }; }
   function showProblems(u, list) {
     u.problems.textContent = '';
-    (list || []).forEach(function (p) { u.problems.appendChild(el('li', '', p)); });
+    (list || []).forEach(function (p) { u.problems.appendChild(el('li', /^warning/.test(p) ? 'note' : '', p)); });
     u.problems.hidden = !(list && list.length);
   }
   function opt(sel, value, label) { var o = el('option', '', label); o.value = value; sel.appendChild(o); }

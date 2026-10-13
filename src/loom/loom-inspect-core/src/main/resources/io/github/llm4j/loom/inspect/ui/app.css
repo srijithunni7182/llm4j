@@ -248,3 +248,4 @@ tr.flag.high td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
 .ok-t { color: var(--live); } .unpriced { color: var(--ink-faint); }
 .adv { margin-top: 12px; } .adv summary { cursor: pointer; font-size: 12.5px; color: var(--ink-muted); }
 .cfgcard tr.sel td { background: var(--live-soft); }
+.problems li.note { color: var(--ink-muted); list-style: none; margin-left: -18px; }
