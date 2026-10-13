@@ -40,8 +40,8 @@ logs/
 *api-key*
 *secret*
 # ...but not the secret-store source, tests and specs (they hold no credentials)
-!ai-agent4j/src/main/java/io/github/llm4j/secret/
-!ai-agent4j/src/test/java/io/github/llm4j/secret/
+!src/ai-agent4j/src/main/java/io/github/llm4j/secret/
+!src/ai-agent4j/src/test/java/io/github/llm4j/secret/
 !.kiro/specs/secret-store/
 
 # GetViral runtime data (Engram memories, voice samples, audit logs)
