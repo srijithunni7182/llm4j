@@ -1424,8 +1424,8 @@ Because a task is plain Java you also unit-test it directly, with no model and n
 
 ### Context and Compaction
 
-> **Status: in progress.** An agent with a `context` block is compacted while it runs, using the window configured for its model, and your own strategies plug in with a `.loct`
-> file (this section). The new trace events and run statistics are in (below); the transcript memory bound is too. Still to come: `weave audit` and the example. Design: [`docs/specs/03-loom-integration`](../../../docs/specs/03-loom-integration/DESIGN.md).
+> **Status: complete.** The `context` block, the windows files, `.loct` strategies, the trace events and run statistics, the transcript bound and `weave audit` are all in.
+> Design: [`docs/specs/03-loom-integration`](../../../docs/specs/03-loom-integration/DESIGN.md). A runnable example is in [`src/examples/loom-context`](../../examples/loom-context/README.md).
 
 A long tool loop makes the prompt grow until the model's context window is full. An agent's `context` block says **how it keeps the prompt inside the window**. The strategies are
 those of ai-agent4j ([Context and Compaction](../../ai-agent4j/wiki/Context-and-Compaction.md)):
@@ -1451,6 +1451,7 @@ agent Researcher {
 - Options of a strategy are further keys of the block: `max_summary_tokens` for `summarize`, `max_chars` for `trim_tool_results`.
 - Defaults when a key is left out: `trigger: 80%`, `target: 50%`, `keep_recent: 4`, `max_compactions: 8`. A run that adds a lot between model calls can need a higher
   `max_compactions`; once it is reached the agent stops compacting (and a provider's "prompt too long" error then fails the step as it always did).
+- `weave audit` lists every agent's strategy, the window of its model and the file it comes from, and the strategies mapped in `.loct` files (it never loads the classes).
 - `weave check` rejects an unknown strategy (with the nearest guess and the known names), a bad number, `target` at or above `trigger`, a window written in the script,
   and a `summarizer` that is not a usable model. It warns when `summarize` has no `summarizer` (it falls back to `drop_oldest`) and when no window is known for the agent's
   model. It calls no model and runs none of your code.

@@ -227,6 +227,21 @@
                                 </rule>
                                 <rule>
                                     <element>CLASS</element>
+                                    <includes>
+                                        <include>io.github.llm4j.loom.context.CompactorRegistry</include>
+                                        <include>io.github.llm4j.loom.context.WindowLayers</include>
+                                        <include>io.github.llm4j.loom.context.ContextFiles</include>
+                                        <include>io.github.llm4j.loom.execution.ContextWiring</include>
+                                        <include>io.github.llm4j.loom.execution.ContextSettings</include>
+                                        <include>io.github.llm4j.loom.memory.TranscriptAccumulationEngine</include>
+                                    </includes>
+                                    <limits>
+                                        <limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit>
+                                        <limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.75</minimum></limit>
+                                    </limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
                                     <includes><include>io.github.llm4j.loom.autonomy.expr.Interpreter</include></includes>
                                     <limits><limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit></limits>
                                 </rule>

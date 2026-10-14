@@ -57,6 +57,9 @@ class RepositoryScriptsTest {
             }
             e.setTaskRegistry(hostTasks);
             e.setBaseDir(script.getParent());
+            // as `weave` does: a .loct file beside the script maps the names of its own compaction strategies
+            java.nio.file.Path loct = io.github.llm4j.loom.context.ContextFiles.sibling(script, "loct");
+            if (java.nio.file.Files.isRegularFile(loct)) e.loadCompactors(loct);
             // as `weave` does: the prompt files a script names are the ones beside it (or the folder it names)
             e.setPromptCatalog(io.github.llm4j.loom.prompt.PromptSupport.catalog(parsed, script, null));
             // A value that is also a well-formed URL, since env vars feed URL options of the generic tools.

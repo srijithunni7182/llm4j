@@ -35,9 +35,13 @@ final class AuditCommand implements Callable<Integer> {
     @picocli.CommandLine.Mixin
     PromptOptions promptOptions = new PromptOptions();
 
+    @picocli.CommandLine.Mixin
+    ContextOptions contextOptions = new ContextOptions();
+
     @Override
     public Integer call() {
         WeaveEnv env = promptOptions.apply(WeaveEnv.system());
+        if (env != null && !contextOptions.apply(script.toPath(), env)) return 2;
         return env == null ? 2 : audit(this, env);
     }
 
@@ -78,6 +82,7 @@ final class AuditCommand implements Callable<Integer> {
         AuditReport report = SecurityAudit.audit(loaded, c.script.getName(), reach);
         var catalog = io.github.llm4j.loom.prompt.PromptSupport.catalog(loaded, c.script.toPath(), env.prompts());
         if (catalog != null) report = report.withPrompts(catalog.usesOf(loaded));
+        report = io.github.llm4j.loom.context.ContextAudit.add(report, loaded, c.script.toPath());
         String text = c.format.equals("json") ? report.json() : report.markdown();
         env.out().println(text);
         if (c.out != null) {

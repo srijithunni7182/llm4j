@@ -1,0 +1,2 @@
+# model = window / tokens reserved for the answer
+demo-model = 6000 / 1000

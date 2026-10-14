@@ -1,6 +1,6 @@
 # Phase 3 verification plan: Loom integration
 
-Status: **draft for review**. Run top to bottom at the end of sub-phase 3e, and the relevant rows after each sub-phase. Results are recorded in §7.
+Status: **verified offline; awaiting review** (live checks owed). Run top to bottom at the end of sub-phase 3e, and the relevant rows after each sub-phase. Results are recorded in §7.
 
 ## 1. Acceptance criteria
 
@@ -23,7 +23,7 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 3e, and 
 | Req | Tests | Status |
 |---|---|---|
 | R1 | `ContextBlockParserTest` | ✅ 3a |
-| R2 | `LoomBackwardCompatTest`, `ContextBlockParserTest#theWordContextElsewhere` | ◐ 3a: parser pins; full golden in 3c |
+| R2 | `LoomBackwardCompatTest`, `ContextBlockParserTest#theWordContextElsewhere` | ✅ 3e (whole Loom suite unchanged) |
 | R3 | `ContextBlockCheckTest` | ✅ 3a (names; `.loct` names in 3b) |
 | R4 | `ContextBlockCheckTest` | ✅ 3a |
 | R5 | `ContextWindowsLayeringTest` | ✅ 3b |
@@ -36,15 +36,15 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 3e, and 
 | R12 | `ContextLoomSoakTest` | ✅ 3b |
 | R13 | `TranscriptCompactionTest` (engine, rewind across compactions, through a script) | ✅ 3d |
 | R14 | `RunStatsInLoomTest` | ✅ 3c |
-| R15 | `WeaveCheckContextTest`, audit test | ☐ |
+| R15 | `ContextBlockCheckTest`, `LoctCheckTest`, `ContextAuditTest` | ✅ 3e |
 | R16 | `ReplayNoDuplicateEventsTest` | ✅ 3c |
 | R17 | extended redaction audit | ✅ 3c |
-| R18 | dependency diff | ☐ |
+| R18 | dependency diff | ✅ 3e |
 | R19 | `LoctLoaderTest` | ✅ 3b |
 | R20 | `LoctLoaderTest`, `LoctCheckTest` | ✅ 3b |
 | R21 | `LoctProviderOptionsTest` | ✅ 3b |
 | R22 | `LoctFaultTest` | ✅ 3b |
-| R23 | `LoctCheckTest#auditDoesNotLoad` | ◐ 3b: check never loads/runs; audit listing in 3e |
+| R23 | `ContextAuditTest#theAuditNeverRunsTheStrategy` | ✅ 3b, 3e |
 
 ## 3. Quality gates
 
@@ -73,19 +73,20 @@ Stack-level pages are owed once at the end of the whole work.
 
 ## 6. Exit checklist
 
-- [ ] Decisions in DESIGN.md §9 confirmed and recorded
-- [ ] Acceptance criteria A1–A10 have evidence
-- [ ] Every requirement R1–R23 has a passing test
-- [ ] Quality gates in §3 pass
-- [ ] Manual checks done or listed as owed with the reason
-- [ ] Docs complete; §7 has a row for every sub-phase
-- [ ] DESIGN.md reflects what was built
-- [ ] Status table in `docs/specs/README.md` updated
+- [x] Decisions in DESIGN.md §9 confirmed and recorded
+- [x] Acceptance criteria A1–A10 have evidence
+- [x] Every requirement R1–R23 has a passing test
+- [x] Quality gates in §3 pass
+- [ ] Manual checks done or listed as owed with the reason — **owed**: a real long run against a real provider, the summariser choice on real cost, a deployer editing the windows file in the field, and the VS Code highlighting by eye; none can run in CI
+- [x] Docs complete; §7 has a row for every sub-phase
+- [x] DESIGN.md reflects what was built
+- [x] Status table in `docs/specs/README.md` updated
 
 ## 7. Results
 
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
+| 2026-10-14 | 3e | Pass | `weave audit` section, example `src/examples/loom-context` (run), JaCoCo gate on the new classes (all met), pom change is a coverage rule only (no dependency), public API additions only. Whole Loom suite 1,837 tests green; inspect-core 108, inspect 108, fabric 34 |
 | 2026-10-14 | 3d | Pass | Engine tests (limit, pairs, latest kept, marked, faults, mixed agents, rewind across compactions, old-style mark), and three script-level tests (memory `max_tokens`, a quarter of the window from a context block, unbounded as before). 11 tests |
 | 2026-10-14 | 3c | Pass | Tests first for the four new event types (data, no text, order, failures, soft failures, no listener), statistics equal to the events, `run_end` totals, replay without duplicate events, a planted secret. 15 new tests; Loom 1,821, inspect-core 108, inspect 108, fabric 34 tests green. Finding: a listener makes ai-agent4j build a context manager, so agents without a block also report context use (no window) |
 | 2026-10-14 | 3b | Pass | Windows layering (5 layers), `.loct` loader and registry, `--context-windows`/`--loct`, agent wiring (policy, smallest window, summarizer client, chain, options), faults, a 150-step soak. 48 new tests. Findings: the default `max_compactions` (8) is too low for a very long loop (documented); load problems of a `.loct` had to be kept to be shown by `weave check` |
@@ -99,8 +100,8 @@ Stack-level pages are owed once at the end of the whole work.
 | 3b | ✅ guide: windows files, `.loct`, defaults, CLI options | ✅ `ContextAgentBuildTest`, `LoctCheckTest` | ✅ `WindowLayers`, `CompactorRegistry`, `ContextFiles`, executor methods | ✅ (VS Code unchanged) | deferred to the end | ✅ traceability, results |
 | 3c | ✅ guide: the trace events and `ObservableRun.stats()` (see below) | ✅ `ContextTraceEventsTest`, `RunStatsInLoomTest` | ✅ `TraceEvent` constants, `ObservableRun.stats` | n/a | deferred to the end | ✅ DESIGN section 10, traceability, results |
 | 3d | ✅ guide: bounding the transcript | ✅ `TranscriptCompactionTest` | ✅ `TranscriptAccumulationEngine.Limit` | n/a | deferred to the end | ✅ DESIGN section 10, traceability, results |
-| 3e | | | | | | |
+| 3e | ✅ guide status complete, audit, example | ✅ `ContextAuditTest` | ✅ | ✅ `llms.txt` | owed, see below | ✅ DESIGN section 10, traceability, results, exit checklist |
 
 ### Owed to the stack-level pages (updated once, at the end of the whole work)
 
-- (filled in as sub-phases land)
+- 3: Loom scripts keep an agent inside its model's window with a `context { compact: … }` block; each model's window is configured outside the script; your own strategies plug in with a `.loct` file; the trace gains context, compaction, model-call and tool-call events; `memory { max_tokens }` bounds the shared transcript; `weave audit` shows strategies and windows.

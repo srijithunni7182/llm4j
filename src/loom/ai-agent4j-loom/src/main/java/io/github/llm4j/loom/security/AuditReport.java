@@ -9,19 +9,37 @@ import java.util.Map;
 
 /** The result of {@link SecurityAudit}: who can do what, what was found, and how it lines up with the OWASP Top 10 for LLM Applications. */
 public record AuditReport(String script, List<SecurityAudit.AgentProfile> agents, List<Finding> findings, Map<Owasp, List<String>> controls,
-                          List<io.github.llm4j.loom.prompt.PromptUse> prompts) {
+                          List<io.github.llm4j.loom.prompt.PromptUse> prompts, List<ContextUse> contexts, List<CustomStrategy> strategies) {
+
+    /** How one agent keeps its prompt inside the window: its strategies, the window of its model and the file that window comes from. */
+    public record ContextUse(String agent, int line, String strategies, String window, String source, String summarizer) { }
+
+    /** A strategy mapped in a {@code .loct} file, as written (the class is never loaded by the audit). */
+    public record CustomStrategy(String name, String className, String file, int line) { }
 
     public AuditReport {
         prompts = prompts == null ? List.of() : List.copyOf(prompts);
+        contexts = contexts == null ? List.of() : List.copyOf(contexts);
+        strategies = strategies == null ? List.of() : List.copyOf(strategies);
+    }
+
+    public AuditReport(String script, List<SecurityAudit.AgentProfile> agents, List<Finding> findings, Map<Owasp, List<String>> controls,
+                       List<io.github.llm4j.loom.prompt.PromptUse> prompts) {
+        this(script, agents, findings, controls, prompts, List.of(), List.of());
     }
 
     public AuditReport(String script, List<SecurityAudit.AgentProfile> agents, List<Finding> findings, Map<Owasp, List<String>> controls) {
-        this(script, agents, findings, controls, List.of());
+        this(script, agents, findings, controls, List.of(), List.of(), List.of());
     }
 
     /** The same report listing which prompt each agent would run (id, version and a hash, never the text). */
     public AuditReport withPrompts(List<io.github.llm4j.loom.prompt.PromptUse> uses) {
-        return new AuditReport(script, agents, findings, controls, uses);
+        return new AuditReport(script, agents, findings, controls, uses, contexts, strategies);
+    }
+
+    /** The same report listing each agent's compaction strategy and window, and the strategies mapped in {@code .loct} files. */
+    public AuditReport withContext(List<ContextUse> uses, List<CustomStrategy> mapped) {
+        return new AuditReport(script, agents, findings, controls, prompts, uses, mapped);
     }
 
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -63,6 +81,20 @@ public record AuditReport(String script, List<SecurityAudit.AgentProfile> agents
                 b.append("| ").append(u.agent()).append(" (line ").append(u.line()).append(") | ").append(u.reference()).append(" | ")
                         .append(u.resolved() ? u.version() : "**not found**").append(" | ").append(u.resolved() ? u.hash() : "-").append(" |\n");
             }
+            b.append('\n');
+        }
+
+        if (!contexts.isEmpty()) {
+            b.append("## Context and compaction\n\n| Agent | Strategy | Window | Where the window comes from | Summarizer |\n|---|---|---|---|---|\n");
+            for (var u : contexts) {
+                b.append("| ").append(u.agent()).append(" (line ").append(u.line()).append(") | ").append(u.strategies()).append(" | ").append(u.window())
+                        .append(" | ").append(u.source()).append(" | ").append(u.summarizer() == null ? "-" : u.summarizer()).append(" |\n");
+            }
+            b.append('\n');
+        }
+        if (!strategies.isEmpty()) {
+            b.append("## Your own compaction strategies\n\nMapped in `.loct` files; the audit never loads the classes.\n\n| Name | Class | Mapped at |\n|---|---|---|\n");
+            for (var c : strategies) b.append("| ").append(c.name()).append(" | ").append(c.className()).append(" | ").append(c.file()).append(" line ").append(c.line()).append(" |\n");
             b.append('\n');
         }
 
@@ -120,6 +152,32 @@ public record AuditReport(String script, List<SecurityAudit.AgentProfile> agents
                 ps.add(x);
             }
             m.put("prompts", ps);
+        }
+        if (!contexts.isEmpty()) {
+            List<Map<String, Object>> cs = new ArrayList<>();
+            for (var u : contexts) {
+                Map<String, Object> x = new LinkedHashMap<>();
+                x.put("agent", u.agent());
+                x.put("line", u.line());
+                x.put("strategies", u.strategies());
+                x.put("window", u.window());
+                x.put("source", u.source());
+                x.put("summarizer", u.summarizer());
+                cs.add(x);
+            }
+            m.put("context", cs);
+        }
+        if (!strategies.isEmpty()) {
+            List<Map<String, Object>> ss = new ArrayList<>();
+            for (var c : strategies) {
+                Map<String, Object> x = new LinkedHashMap<>();
+                x.put("name", c.name());
+                x.put("class", c.className());
+                x.put("file", c.file());
+                x.put("line", c.line());
+                ss.add(x);
+            }
+            m.put("customStrategies", ss);
         }
         List<Map<String, Object>> fs = new ArrayList<>();
         for (Finding f : findings) {

@@ -1,0 +1,18 @@
+// A researcher that calls a lookup tool many times. Its prompt would outgrow the model's window; the context block keeps it inside.
+// The size of the window is NOT here: it is configured per model in research.windows.
+agent Researcher {
+    model: "demo-model"
+    tools: [lookup]
+    max_iterations: 60
+    context {
+        compact: chain(trim_tool_results, keep_newest, drop_oldest)    // keep_newest is our own strategy, registered by name
+        trigger: 80%
+        target: 50%
+        keep_recent: 4
+        max_compactions: 50
+    }
+}
+
+workflow Main() {
+    delegate "research the topic" to Researcher -> findings
+}
