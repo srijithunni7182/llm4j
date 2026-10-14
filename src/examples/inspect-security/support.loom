@@ -1,0 +1,18 @@
+// A support assistant that reads a customer's web page, looks the customer up and answers by mail: all three legs of the "lethal trifecta" in one agent.
+// A second agent, Researcher, is meant to read the web and nothing else.
+agent Support {
+    model: "support-model"
+    tools: [Fetch, CustomerDB, SendEmail]
+    max_iterations: 10
+}
+
+agent Researcher {
+    model: "research-model"
+    tools: [Fetch, CustomerDB]
+    max_iterations: 10
+}
+
+workflow Main() {
+    delegate "answer the customer: summarise their page and reply" to Support -> reply
+    delegate "find what else is known about this customer" to Researcher -> notes
+}

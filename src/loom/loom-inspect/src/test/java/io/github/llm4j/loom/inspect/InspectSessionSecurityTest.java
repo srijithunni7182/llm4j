@@ -59,4 +59,21 @@ class InspectSessionSecurityTest {
         assertThat((List<?>) reader.get("outward")).isEmpty();
         assertThat((List<?>) profile.get(1).get("untrusted")).isEmpty();
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aReachDeclaredInTheLootFileIsUsedNotAssumed() {
+        String source = """
+                agent Researcher { model: "m" tools: [Fetch, DB] }
+                workflow Main() { delegate "go" to Researcher -> r }
+                """;
+        HarnessExecutor e = new HarnessExecutor(new LoomParser(new Lexer(source).tokenize()).parseScript(), new ToolRegistry(), model -> null);
+        Map<String, Object> assumed = InspectSession.securityProfile(e.observable()).get(0);
+        assertThat((List<Object>) assumed.get("outward")).as("host tools nobody described are assumed to reach everything").containsExactlyInAnyOrder("Fetch", "DB");
+        e.setToolReach(Map.of("Fetch", "fetches", "DB", "reads"));
+        Map<String, Object> declared = InspectSession.securityProfile(e.observable()).get(0);
+        assertThat((List<Object>) declared.get("untrusted")).containsExactly("Fetch");
+        assertThat((List<Object>) declared.get("private")).containsExactly("DB");
+        assertThat((List<Object>) declared.get("outward")).isEmpty();
+    }
 }

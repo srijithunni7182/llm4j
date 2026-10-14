@@ -203,11 +203,11 @@ public final class InspectSession implements ObserveProvider.Session {
     }
 
     /** What each agent can reach, from the static audit of the script ({@code weave audit}): the tools of each leg of the lethal trifecta. Empty without a script. */
-    static java.util.List<java.util.Map<String, Object>> securityProfile(ObservableRun run) {
+    public static java.util.List<java.util.Map<String, Object>> securityProfile(ObservableRun run) {
         if (run.script() == null) return java.util.List.of();
         try {
             java.util.List<java.util.Map<String, Object>> out = new java.util.ArrayList<>();
-            for (io.github.llm4j.loom.security.SecurityAudit.AgentProfile p : io.github.llm4j.loom.security.SecurityAudit.audit(run.script(), "run").agents()) {
+            for (io.github.llm4j.loom.security.SecurityAudit.AgentProfile p : io.github.llm4j.loom.security.SecurityAudit.audit(run.script(), "run", run.toolReach()).agents()) {
                 java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
                 m.put("agent", p.agent());
                 m.put("untrusted", p.untrusted());

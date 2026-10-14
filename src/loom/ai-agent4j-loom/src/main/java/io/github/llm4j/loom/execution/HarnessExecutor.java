@@ -682,6 +682,7 @@ public class HarnessExecutor implements LoomEngine {
             @Override public RunJournal journal() { return self.journal; }
             @Override public LoomScript script() { return self.script; }
             @Override public io.github.llm4j.secret.SecretStore secretStore() { return self.secretStore; }
+            @Override public java.util.Map<String, String> toolReach() { return self.toolReach; }
             @Override public java.util.Optional<io.github.llm4j.loom.autonomy.Ledger> ledger() { return java.util.Optional.ofNullable(self.ledger); }
             @Override public java.util.Optional<io.github.llm4j.loom.autonomy.LevelStore> levelStore() { return java.util.Optional.ofNullable(self.levelStore); }
             @Override public io.github.llm4j.budget.Budget runBudget() { return self.getRunBudget(); }

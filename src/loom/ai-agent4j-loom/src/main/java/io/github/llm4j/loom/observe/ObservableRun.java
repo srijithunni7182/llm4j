@@ -34,6 +34,11 @@ public interface ObservableRun {
     /** The secret store the run uses, or null when it has none. */
     SecretStore secretStore();
 
+    /** What the {@code .loot} file declares your own tools reach ({@code Name.reach = reads}); empty when it declares none. The same answer the trace uses. */
+    default java.util.Map<String, String> toolReach() {
+        return java.util.Map.of();
+    }
+
     /** Where decisions keep their cases, when the run has an autonomy store. */
     Optional<Ledger> ledger();
 
