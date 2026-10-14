@@ -56,5 +56,5 @@ done, so that what we learn building a lower layer shapes the spec above it.
 
 | # | Spec | Tests | Code | Verified |
 |---|---|---|---|---|
-| 1 | drafted, awaiting review | – | – | – |
+| 1 | approved (decisions recorded) | 1a written | 1a done; 1b next | 1a verified |
 | 2–6 | not started | | | |

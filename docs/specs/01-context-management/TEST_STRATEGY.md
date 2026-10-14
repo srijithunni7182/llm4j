@@ -41,13 +41,13 @@ For every strategy, over each fixture conversation and each target in {95 %, 50 
 | C7 idempotent | A second pass over the result gains less than `minGain` or reports `NO_GAIN` |
 | C8 marked | Any message not equal to an input message carries `llm4j.compaction` |
 
-**Fixture conversations** (hand-written, in `src/test/resources/context/`): empty; only system+task; short (fits); long with
+**Fixture conversations** (hand-written, built in Java by the `Convo` helper so the tests read as the conversations they describe): empty; only system+task; short (fits); long with
 many small turns; long with a few huge tool results; many parallel tool calls in one assistant message; a tool result
 that is the last message; an already-compacted conversation containing a prior summary; non-ASCII and very long single lines.
 
 **Generated conversations** (a small seeded generator, no new library): random numbers of exchanges, tool calls per exchange (0–5),
 sizes (0–20 000 chars), with pinned messages sprinkled in. 500 cases per strategy per run with a fixed seed, plus a
-`-Dseed=` override to reproduce a failure. The seed is printed on failure.
+`-Dseed=` override to reproduce a failure. Each case and each fixture is run with `keepRecent` of 0, 4 and 12. The seed is printed on failure.
 
 ## 4. Unit tests: points to cover
 

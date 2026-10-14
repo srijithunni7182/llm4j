@@ -1,0 +1,4 @@
+io.github.llm4j.context.BuiltInProviders$None
+io.github.llm4j.context.BuiltInProviders$DropOldestProvider
+io.github.llm4j.context.BuiltInProviders$TrimToolResultsProvider
+io.github.llm4j.context.BuiltInProviders$ChainProvider

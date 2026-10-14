@@ -26,14 +26,14 @@ Filled in as tests are written; a row without a test blocks the exit. (Class nam
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 | `LambdaCompactorContractTest`, `ContextCompactorsTest` | ☐ |
-| R2 | `{None,DropOldest,TrimToolResults,Chain,Summarize}ContractTest` | ☐ |
-| R3 | `ContextCompactorsByNameTest` (ServiceLoader, unknown name suggestion) | ☐ |
+| R1 | `LambdaCompactorContractTest`, `ContextCompactorsTest` | ✅ 1a |
+| R2 | `{None,DropOldest,TrimToolResults,Chain,Summarize}ContractTest` | ◐ 1a: all but `summarize` (1d) |
+| R3 | `ContextCompactorsByNameTest` (ServiceLoader, unknown name suggestion) | ✅ 1a |
 | R4 | `RequestStabilityTest` (native + text) | ☐ |
 | R5 | `ReActAgentContextEventsTest` | ☐ |
 | R6 | `ContextManagerTest`, `ReActAgentCompactionNativeTest`, `CompactionSoakTest` | ☐ |
-| R7 | Contract C2; `ReActAgentCompactionNativeTest#protectedMessagesSurvive` | ☐ |
-| R8 | Contract C3; request walker in both loop tests | ☐ |
+| R7 | Contract C2; `ReActAgentCompactionNativeTest#protectedMessagesSurvive` | ◐ 1a: contract; loop test in 1b |
+| R8 | Contract C3; request walker in both loop tests | ◐ 1a: contract; loop tests in 1b/1c |
 | R9 | `ContextManagerTest#noGain`, `CompactionFaultTest#biggerResult` | ☐ |
 | R10 | `ContextManagerTest#thrashGuard`, `…NativeTest#thrash` | ☐ |
 | R11 | `CompactionFaultTest#throws`, `ContextManagerTest#failOpen` | ☐ |
@@ -44,10 +44,10 @@ Filled in as tests are written; a row without a test blocks the exit. (Class nam
 | R16 | `ContextManagerTest#neverAboveWindow`, `…NativeTest#preCallCheck` | ☐ |
 | R17 | `ScratchpadTest#byteIdentical`, `RequestStabilityTest#text` | ☐ |
 | R18 | `ReActAgentCompactionTextTest#sameFinalAnswer` | ☐ |
-| R19 | `ContextWindowsTest` | ☐ |
+| R19 | `ContextWindowsTest` | ✅ 1a |
 | R20 | `ConversationHistoryCompactionTest` | ☐ |
 | R21 | `RequestStabilityTest#oldListenerCompiles`, whole existing suite | ☐ |
-| R22 | Build dependency check (§3) | ☐ |
+| R22 | Build dependency check (§3) | ◐ 1a: none added so far |
 | R23 | `CompactionConcurrencyTest` | ☐ |
 
 ## 3. Quality gates
@@ -100,4 +100,4 @@ Filled in when the phase is verified.
 
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
-| | | | |
+| 2026-10-14 | 1a | Pass | 233+ new tests in `io.github.llm4j.context`; whole module 1,102 tests green; new package line 97.6 % / branch 89.4 %; contract run with 3 seeds and keepRecent 0/4/12. Seed list of `ContextWindows` deferred to 1g as decided |

@@ -1,6 +1,6 @@
 # Phase 1 design: context management and compaction (ai-agent4j)
 
-Status: **draft for review**. Layer: ai-agent4j (the core). Nothing in this phase knows about Loom, Fabric or OpenTelemetry.
+Status: **approved; decisions in §9**. Layer: ai-agent4j (the core). Nothing in this phase knows about Loom, Fabric or OpenTelemetry.
 Companion documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md), [roadmap](../README.md).
 
 ## 1. Problem
@@ -131,7 +131,7 @@ compactor can still be run by hand; see 4.9).
 | `ContextUsage` | `used`, `window` (nullable), `source` (`REPORTED` from the provider's last prompt count, or `ESTIMATED`); `fraction()` is empty without a window |
 | `ContextPolicy` | `window`, `triggerAt` (default 0.80), `targetAt` (default 0.50), `keepRecent` (default 4 messages), `maxCompactions` (default 8), `minGain` (default 0.10), `pinned` (a `Predicate<Message>`, default none), `onOverflow` (default `RETRY_ONCE`) |
 | `CompactionRequest` | `targetTokens`, `window`, `estimator`, `keepRecent`, `pinned`, `reason` (`THRESHOLD`, `OVERFLOW`, `MANUAL`) |
-| `CompactionResult` | `messages`, `strategy`, `outcome` (`COMPACTED`, `NO_GAIN`, `SKIPPED`), message and token counts before and after, `droppedMessages`, `summarizerUsage` (nullable `AgentResult.Usage`) |
+| `CompactionResult` | `messages`, `strategy`, `outcome` (`COMPACTED`, `NO_GAIN`, `SKIPPED`), message and token counts before and after, `droppedMessages`, `summarizerUsage` (nullable `CompactionUsage`: calls, prompt and completion tokens, cost; a small record in this package so it does not depend on the agent package) |
 | `CompactionEvent` | a `CompactionResult` plus `reason`, the iteration, and the `ContextUsage` before and after |
 
 Validation is in the constructors (`triggerAt` in (0,1], `targetAt` < `triggerAt`, positive sizes). Builders have defaults;
@@ -245,7 +245,7 @@ unchanged. Stored messages are not rewritten on disk by a compaction unless the 
 | R10 | After `maxCompactions`, or two `NO_GAIN` in a row, compaction stops for the run and one `SKIPPED` event says why |
 | R11 | A compactor that throws does not fail the run; the failure is reported and the uncompacted messages are used |
 | R12 | `summarize` falls back to `dropOldest` on exception, empty output, longer-than-input output, or a refused budget, and the result says it fell back |
-| R13 | Summariser usage is added to the agent's `Usage` and reported in the event |
+| R13 | Summariser usage (`CompactionUsage`) is added to the agent's `Usage` and reported in the event |
 | R14 | `ContextOverflowException` is raised for the recorded overflow errors of each supported provider and is an `InvalidRequestException` |
 | R15 | On overflow with a compactor, the agent compacts once with the lower target and retries once; a second overflow fails with the exception |
 | R16 | Before a call that would exceed the usable window even after compaction, the agent fails with `ContextOverflowException` without calling the provider |
@@ -288,11 +288,15 @@ Each ends with its tests passing and is a separate commit, so review stays small
 | Provider error patterns change | Patterns live in one classifier with recorded-fixture tests; unknown errors keep today's behaviour |
 | Prompt injection laundered through a summary | The summary is framed as data; tool text is not re-labelled as instructions; documented limit |
 
-## 9. Open questions (to settle at review)
+## 9. Decisions (settled at review)
 
-1. **Default for an agent with a known window and no compactor.** Recommendation: do nothing automatic (opt-in, R4), but report usage; fail fast under R16 rather than send a doomed call. Alternative: default to `dropOldest()` at 90 %.
-2. **Which client summarises by default.** Recommendation: none by default; `summarize(client)` requires one, so the cost is a visible choice.
-3. **Seed entries for `ContextWindows`.** Recommendation: only models this repository already names, each checked against the provider's documentation when added; everything overridable by file.
-4. **Pinning.** Recommendation: a `Predicate<Message>` in the policy plus a `Message` convenience `pinned()` marker in `providerData`, so a message can be pinned at the place it is created.
-5. **Where `ContextOverflowException` is detected** (HTTP layer vs each provider class). Recommendation: one classifier called by the provider layer, fed the status and body.
-6. **Summary role.** User-role message (recommended; works with every provider) or system. Providers that reject a system message mid-conversation decide this.
+| # | Question | Decision |
+|---|---|---|
+| 1 | Default for an agent with a known window and no compactor | Nothing automatic (opt-in, R4). Usage is still reported, and the agent fails fast under R16 rather than send a call that is certain to be rejected |
+| 2 | Which client summarises | None by default. `summarize(client)` requires one, so the cost is a visible choice |
+| 3 | Seed entries for `ContextWindows` | The loader, `with(...)` and the lookup ship in 1a with **no built-in entries**, as `PriceTable` ships no prices. A short seed list (only models this repository already names) is added in 1g, each entry checked against the provider's documentation on a recorded date (VERIFICATION §4.5) |
+| 4 | Pinning | A `Predicate<Message>` in the policy, plus `Message` support for a `pinned` marker in `providerData` (`Messages.pinned(message)` / `Messages.isPinned(message)`), so a message can be pinned where it is created |
+| 5 | Where overflow is detected | One `ContextOverflowClassifier`, called by the provider layer with the status and body |
+| 6 | Summary role | A user-role message, introduced by a fixed sentence; works with every provider |
+
+Strategy names used for discovery are lower snake case: `none`, `drop_oldest`, `trim_tool_results`, `summarize`, `chain`.
