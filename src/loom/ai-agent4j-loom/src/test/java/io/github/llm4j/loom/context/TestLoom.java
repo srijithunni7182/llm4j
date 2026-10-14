@@ -35,6 +35,8 @@ final class TestLoom {
     volatile long refuseAbove = Long.MAX_VALUE;
     /** When set, every model call fails with this. */
     volatile RuntimeException failWith;
+    /** When set, every reply is a final answer with this text (no tool calls). */
+    volatile String answerWith;
 
     TestLoom(Path dir, String source, int steps) {
         this(dir, source, steps, true);
@@ -77,7 +79,7 @@ final class TestLoom {
                 int i = calls.getAndIncrement();
                 long prompt = CharsPerTokenEstimator.INSTANCE.prompt(request);
                 if (prompt > refuseAbove) throw new io.github.llm4j.exception.ContextOverflowException("prompt is too long: " + prompt + " tokens");
-                String content = i < steps ? call(i) : done();
+                String content = answerWith != null ? "```json\n{\"thought\": \"t\", \"final_answer\": \"" + answerWith + "\"}\n```" : i < steps ? call(i) : done();
                 return LLMResponse.builder().content(content).model(model).tokenUsage((int) prompt, 20, (int) prompt + 20).build();
             }
 

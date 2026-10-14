@@ -1425,7 +1425,7 @@ Because a task is plain Java you also unit-test it directly, with no model and n
 ### Context and Compaction
 
 > **Status: in progress.** An agent with a `context` block is compacted while it runs, using the window configured for its model, and your own strategies plug in with a `.loct`
-> file (this section). The new trace events and run statistics are in (below); the transcript memory follows. Design: [`docs/specs/03-loom-integration`](../../../docs/specs/03-loom-integration/DESIGN.md).
+> file (this section). The new trace events and run statistics are in (below); the transcript memory bound is too. Still to come: `weave audit` and the example. Design: [`docs/specs/03-loom-integration`](../../../docs/specs/03-loom-integration/DESIGN.md).
 
 A long tool loop makes the prompt grow until the model's context window is full. An agent's `context` block says **how it keeps the prompt inside the window**. The strategies are
 those of ai-agent4j ([Context and Compaction](../../ai-agent4j/wiki/Context-and-Compaction.md)):
@@ -1491,6 +1491,23 @@ agent Researcher { model: "claude-sonnet-5-5"  context { compact: chain(trim_too
   about a class that is not on the class path yet (build your project, or use `--classes`).
 - Your strategy is held to the same rules as the built-ins (it must not change its input, must keep a tool call with its results, and must not return more than it was
   given). The agent discards a result that breaks them, and carries on with the conversation as it was.
+
+#### Bounding Loom's shared transcript
+
+By default Loom hands each agent a briefing that holds every earlier task and answer of the run (the *transcript*), and it grows without limit. Bound it with `max_tokens`:
+
+```loom
+agent Writer {
+    model: "claude-sonnet-5-5"
+    memory { max_tokens: 4000  compact: drop_oldest }     // the shared transcript never exceeds about 4,000 tokens
+}
+```
+
+- When the transcript is over the limit, the strategy named by `compact` (default `drop_oldest`; any non-model strategy, yours from a `.loct` file included) is applied to it. The
+  latest two exchanges are kept, and a task is never separated from its answer. A line says that earlier exchanges were removed (or carries the strategy's notes).
+- An agent that has a `context` block and a known window, and no `max_tokens`, bounds the transcript to **a quarter of its usable window** with its own strategy.
+- `rewind` still restores the transcript to what it was at the checkpoint. A strategy that fails or does not make the transcript smaller leaves it as it was.
+- `memory { max_tokens: … }` is enough on its own; it does not need `conversation` or `facts`.
 
 #### What you can see: trace events and statistics
 

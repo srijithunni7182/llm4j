@@ -12,7 +12,7 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 3e, and 
 | A4 | `weave check` rejects a mistyped strategy with the line and the known names, and warns about a model with no known window | `ContextBlockCheckTest`, `WeaveCheckContextTest` |
 | A5 | See context fill, compactions, model calls and tool calls (with real outcomes) in the trace | `ContextTraceEventsTest` |
 | A6 | Read the run's statistics from an observer | `RunStatsInLoomTest` |
-| A7 | Loom's own transcript memory stays bounded and `rewind` still works | `TranscriptCompactionTest`, `RewindWithCompactionTest` |
+| A7 | Loom's own transcript memory stays bounded and `rewind` still works | `TranscriptCompactionTest` (engine, rewind across compactions, through a script) |
 | A8 | A script that does not use any of this behaves and traces exactly as before | `LoomBackwardCompatTest` |
 | A9 | `weave audit` shows each agent's strategy and window source | audit test |
 | A10a | Plug in my own strategy with a `.loct` file and use its name in the script | `LoctLoaderTest`, `ContextAgentBuildTest` |
@@ -34,7 +34,7 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 3e, and 
 | R10 | `ContextTraceEventsTest` | ✅ 3c |
 | R11 | `ContextTraceEventsTest#noEventsWithoutListeners` | ✅ 3c |
 | R12 | `ContextLoomSoakTest` | ✅ 3b |
-| R13 | `TranscriptCompactionTest`, `RewindWithCompactionTest` | ☐ |
+| R13 | `TranscriptCompactionTest` (engine, rewind across compactions, through a script) | ✅ 3d |
 | R14 | `RunStatsInLoomTest` | ✅ 3c |
 | R15 | `WeaveCheckContextTest`, audit test | ☐ |
 | R16 | `ReplayNoDuplicateEventsTest` | ✅ 3c |
@@ -86,6 +86,7 @@ Stack-level pages are owed once at the end of the whole work.
 
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
+| 2026-10-14 | 3d | Pass | Engine tests (limit, pairs, latest kept, marked, faults, mixed agents, rewind across compactions, old-style mark), and three script-level tests (memory `max_tokens`, a quarter of the window from a context block, unbounded as before). 11 tests |
 | 2026-10-14 | 3c | Pass | Tests first for the four new event types (data, no text, order, failures, soft failures, no listener), statistics equal to the events, `run_end` totals, replay without duplicate events, a planted secret. 15 new tests; Loom 1,821, inspect-core 108, inspect 108, fabric 34 tests green. Finding: a listener makes ai-agent4j build a context manager, so agents without a block also report context use (no window) |
 | 2026-10-14 | 3b | Pass | Windows layering (5 layers), `.loct` loader and registry, `--context-windows`/`--loct`, agent wiring (policy, smallest window, summarizer client, chain, options), faults, a 150-step soak. 48 new tests. Findings: the default `max_compactions` (8) is too low for a very long loop (documented); load problems of a `.loct` had to be kept to be shown by `weave check` |
 | 2026-10-14 | 3a | Pass | Tests first for the parser (every key, `chain()`, `[a, b]`, percent forms, the word `context` elsewhere) and the check (unknown strategy with a guess, `target` vs `trigger`, a window written in the script, summarizer, references). 24 new tests; Loom suite 1,759 tests green |
@@ -97,7 +98,7 @@ Stack-level pages are owed once at the end of the whole work.
 | 3a | ✅ guide section "Context and Compaction" (marked in progress) | ✅ checked by `ContextBlock*Test` | ✅ `AgentDef.ContextConfig` | ✅ VS Code grammar and hover | deferred to the end | ✅ traceability, results |
 | 3b | ✅ guide: windows files, `.loct`, defaults, CLI options | ✅ `ContextAgentBuildTest`, `LoctCheckTest` | ✅ `WindowLayers`, `CompactorRegistry`, `ContextFiles`, executor methods | ✅ (VS Code unchanged) | deferred to the end | ✅ traceability, results |
 | 3c | ✅ guide: the trace events and `ObservableRun.stats()` (see below) | ✅ `ContextTraceEventsTest`, `RunStatsInLoomTest` | ✅ `TraceEvent` constants, `ObservableRun.stats` | n/a | deferred to the end | ✅ DESIGN section 10, traceability, results |
-| 3d | | | | | | |
+| 3d | ✅ guide: bounding the transcript | ✅ `TranscriptCompactionTest` | ✅ `TranscriptAccumulationEngine.Limit` | n/a | deferred to the end | ✅ DESIGN section 10, traceability, results |
 | 3e | | | | | | |
 
 ### Owed to the stack-level pages (updated once, at the end of the whole work)

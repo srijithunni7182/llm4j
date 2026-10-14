@@ -930,7 +930,7 @@ public class HarnessExecutor implements LoomEngine {
     // ── Agent memory, voice and guard settings ──────────────────────────────────────────────
 
     private static final java.util.Set<String> MEMORY_KEYS = java.util.Set.of(
-            "conversation", "limit", "session", "facts", "embedding", "recall", "min_similarity");
+            "conversation", "limit", "session", "facts", "embedding", "recall", "min_similarity", "max_tokens", "compact");
     private static final java.util.Set<String> VOICE_KEYS = java.util.Set.of("listen", "speak", "language", "voice", "out");
     private static final java.util.Set<String> GUARD_KEYS = java.util.Set.of("pii", "bias", "bias_model");
 
@@ -964,8 +964,20 @@ public class HarnessExecutor implements LoomEngine {
 
     private void checkMemory(ScriptValidator.Checker c, String who, AgentDef.MemoryConfig m) {
         checkKeys(c, who, "memory", m, MEMORY_KEYS);
-        if (!m.has("conversation") && !m.has("facts")) {
-            c.error(m.getLine(), who, "memory needs conversation: \"<directory>\" | memory, or facts: \"<file>\" | memory (or both)");
+        if (!m.has("conversation") && !m.has("facts") && !m.has("max_tokens")) {
+            c.error(m.getLine(), who, "memory needs conversation: \"<directory>\" | memory, or facts: \"<file>\" | memory (or both), or max_tokens: <n> to bound the shared transcript");
+        }
+        wholeNumber(c, who, m, "max_tokens");
+        if (m.has("compact")) {
+            if (!m.has("max_tokens")) c.warn(m.lineOf("compact"), who, "memory compact: only applies with max_tokens:");
+            String name = m.get("compact");
+            java.util.TreeSet<String> known = ContextSettings.knownNames(customCompactorNames());
+            known.remove("chain");
+            if (name != null && !known.contains(name)) {
+                c.error(m.lineOf("compact"), who, "memory compact: unknown strategy '" + name + "'" + io.github.llm4j.loom.autonomy.expr.Suggest.hint(name, known) + "; use one of " + String.join(", ", known));
+            } else if ("summarize".equals(name)) {
+                c.warn(m.lineOf("compact"), who, "memory compact: summarize needs a model of its own, which the transcript does not have; it falls back to drop_oldest");
+            }
         }
         wholeNumber(c, who, m, "limit");
         wholeNumber(c, who, m, "recall");
@@ -1083,6 +1095,39 @@ public class HarnessExecutor implements LoomEngine {
         }
     }
 
+    private final Map<String, io.github.llm4j.context.ContextCompactor> contextCompactors = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Bounds Loom's shared transcript when an agent asks for it: {@code memory { max_tokens, compact }}, or else a quarter of the usable window of an
+     * agent that has a {@code context} block, with that agent's strategy. Other memory engines are left as the host made them.
+     */
+    private void boundTranscript() {
+        if (!(memoryEngine instanceof TranscriptAccumulationEngine transcript) || transcript.bounded()) return;
+        boolean asked = script.getAgents().stream().anyMatch(a -> a.getMemory() != null && a.getMemory().has("max_tokens") || a.getContext() != null);
+        if (asked) transcript.limits(this::transcriptLimit);
+    }
+
+    private TranscriptAccumulationEngine.Limit transcriptLimit(AgentDef a) {
+        AgentDef.MemoryConfig mem = a.getMemory();
+        if (mem != null && mem.has("max_tokens")) {
+            io.github.llm4j.context.ContextCompactor compactor;
+            String name = mem.getCompact();
+            try {
+                compactor = compactors().has(name) ? compactors().create(name, Map.of(), null)
+                        : io.github.llm4j.context.ContextCompactors.byName("summarize".equals(name) ? "drop_oldest" : name, Map.of());
+            } catch (RuntimeException e) {
+                compactor = io.github.llm4j.context.ContextCompactors.dropOldest();
+            }
+            return new TranscriptAccumulationEngine.Limit(mem.getMaxTokens(), compactor, 0.5, 2);
+        }
+        AgentDef.ContextConfig cfg = a.getContext();
+        io.github.llm4j.context.ContextCompactor compactor = cfg == null ? null : contextCompactors.get(a.getName());
+        if (compactor == null) return null;
+        return ContextWiring.governing(contextWindows(), modelsOf(a))
+                .map(f -> new TranscriptAccumulationEngine.Limit(Math.max(1, f.window().usableInput() / 4), compactor, 0.5, 2))
+                .orElse(null);
+    }
+
     /** Gives an agent with a {@code context} block its policy, its model's window and its compaction strategy. Agents without one are left as they were. */
     private void applyContext(AgentDef agentDef, ReActAgent.Builder builder) {
         AgentDef.ContextConfig cfg = agentDef.getContext();
@@ -1093,7 +1138,10 @@ public class HarnessExecutor implements LoomEngine {
                 : metered(clientFor(cfg.getSummarizer()), agentDef, cfg.getSummarizer());
         try {
             io.github.llm4j.context.ContextCompactor compactor = ContextWiring.compactor(cfg, compactors(), summarizer);
-            if (compactor != null) builder.compaction(compactor);
+            if (compactor != null) {
+                builder.compaction(compactor);
+                contextCompactors.put(agentDef.getName(), compactor);
+            }
         } catch (IllegalArgumentException e) {
             throw new LoomLoadException(List.of(new ScriptValidator.Problem(cfg.getLine(), "agent " + agentDef.getName(), "context: " + e.getMessage(), ScriptValidator.Severity.ERROR)));
         }
@@ -1584,6 +1632,7 @@ public class HarnessExecutor implements LoomEngine {
             customizeAgent(agentDef, agentBuilder);
             ReActAgent agent = agentBuilder.build();
             activeAgents.put(agentDef.getName(), agent);
+            boundTranscript();
             
             log.info("Initialized Agent: " + agentDef.getName());
         }

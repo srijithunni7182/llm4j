@@ -137,6 +137,10 @@ public class AgentDef implements Node {
         public String getEmbedding() { return get("embedding"); }
         public int getRecall() { return getInt("recall", 5); }
         public double getMinSimilarity() { return getDouble("min_similarity", 0.7); }
+        /** The most Loom's shared transcript may hold, in tokens, before it is compacted by this agent's {@link #getCompact} strategy; null for no bound. */
+        public Integer getMaxTokens() { return has("max_tokens") ? getInt("max_tokens", 0) : null; }
+        /** The strategy that bounds the transcript (default drop_oldest). */
+        public String getCompact() { return get("compact", "drop_oldest"); }
     }
 
     /** {@code voice { listen: "sarvam/…"  speak: "sarvam/…"  language: "hi-IN"  voice: "…"  out: "audio" }}. */
