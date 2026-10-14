@@ -1,0 +1,102 @@
+=== request 1 ===
+temperature=0.7 maxTokens=null
+--- SYSTEM
+Answer the following questions as best you can. You have access to the following tools:
+
+- search: test tool search
+
+
+Use the following format as a JSON object inside a ```json code block:
+
+{
+  "plan": "one short sentence on the next step",
+  "action": "the action to take, should be one of [search]",
+  "action_input": {
+    "parameter_name": "parameter_value"
+  }
+}
+
+When you have the final answer, use this format:
+{
+  "plan": "I have the answer",
+  "final_answer": "the final answer to the original input question"
+}
+
+IMPORTANT: If you do not need to use any tool to answer the question, or if you are simply acknowledging a statement, you must provide your response directly in the "final_answer" field.
+You must ONLY provide a single valid JSON object inside a ```json code block. Do NOT generate the Observation yourself.
+
+--- USER
+Question: Compare the plans.
+
+=== request 2 ===
+temperature=0.7 maxTokens=null
+--- SYSTEM
+Answer the following questions as best you can. You have access to the following tools:
+
+- search: test tool search
+
+
+Use the following format as a JSON object inside a ```json code block:
+
+{
+  "plan": "one short sentence on the next step",
+  "action": "the action to take, should be one of [search]",
+  "action_input": {
+    "parameter_name": "parameter_value"
+  }
+}
+
+When you have the final answer, use this format:
+{
+  "plan": "I have the answer",
+  "final_answer": "the final answer to the original input question"
+}
+
+IMPORTANT: If you do not need to use any tool to answer the question, or if you are simply acknowledging a statement, you must provide your response directly in the "final_answer" field.
+You must ONLY provide a single valid JSON object inside a ```json code block. Do NOT generate the Observation yourself.
+
+--- USER
+Question: Compare the plans.
+Plan: I should search.
+Action: search
+Action Input: {"q":"plans"}
+Observation: result text for search
+
+=== request 3 ===
+temperature=0.7 maxTokens=null
+--- SYSTEM
+Answer the following questions as best you can. You have access to the following tools:
+
+- search: test tool search
+
+
+Use the following format as a JSON object inside a ```json code block:
+
+{
+  "plan": "one short sentence on the next step",
+  "action": "the action to take, should be one of [search]",
+  "action_input": {
+    "parameter_name": "parameter_value"
+  }
+}
+
+When you have the final answer, use this format:
+{
+  "plan": "I have the answer",
+  "final_answer": "the final answer to the original input question"
+}
+
+IMPORTANT: If you do not need to use any tool to answer the question, or if you are simply acknowledging a statement, you must provide your response directly in the "final_answer" field.
+You must ONLY provide a single valid JSON object inside a ```json code block. Do NOT generate the Observation yourself.
+
+--- USER
+Question: Compare the plans.
+Plan: I should search.
+Action: search
+Action Input: {"q":"plans"}
+Observation: result text for search
+Plan: Now prices.
+Action: search
+Action Input: {"q":"prices"}
+Observation: result text for search
+
