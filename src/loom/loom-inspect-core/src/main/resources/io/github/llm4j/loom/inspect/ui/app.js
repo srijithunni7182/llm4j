@@ -500,7 +500,7 @@
     var title = svgEl.querySelector('title');
     svgEl.textContent = '';
     svgEl.appendChild(title);
-    var L = 34, R = 548, T = 14, B = 168;
+    var L = 44, R = 940, T = 16, B = 190;
     var fracs = pts.some(function (p) { return p.fraction != null; });
     var maxUsed = Math.max.apply(null, pts.map(function (p) { return p.used; }).concat([1]));
     var top = fracs ? Math.max(1.05, Math.max.apply(null, pts.map(function (p) { return p.fraction || 0; }))) : maxUsed;
@@ -527,8 +527,8 @@
       var t = svg('title', {}); t.textContent = label; m.appendChild(t);
       svgEl.appendChild(m);
     });
-    var l0 = svg('text', { x: L, y: 184 }); l0.textContent = 'call ' + n0; svgEl.appendChild(l0);
-    var l1 = svg('text', { x: R - 40, y: 184 }); l1.textContent = 'call ' + n1; svgEl.appendChild(l1);
+    var l0 = svg('text', { x: L, y: 208 }); l0.textContent = 'call ' + n0; svgEl.appendChild(l0);
+    var l1 = svg('text', { x: R - 44, y: 208 }); l1.textContent = 'call ' + n1; svgEl.appendChild(l1);
     $('ctxlegend').textContent = fracs ? 'Share of the usable window after each model call. Dashed lines: where this agent warns and where it becomes high. Dots: compactions.' : 'Tokens in the prompt after each model call. No window is known, so no fraction and no thresholds. Dots: compactions.';
     var body = $('ctxtable').querySelector('tbody');
     body.textContent = '';

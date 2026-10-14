@@ -27,14 +27,14 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 5e; the 
 | R4 | `WindowsConfigTest`, `WindowBookTest` | ✅ 5a |
 | R5 | `WindowCatalogTest` | ✅ 5a |
 | R6 | `RunSummariesTest`, `FabricFleetRoutesTest` | ✅ 5a |
-| R7 | `run.page.test.js` (banner and diverted line) | ⬜ |
-| R8 | `run.page.test.js` (cards, gauges, no-window) | ⬜ |
-| R9 | `run.page.test.js` (timeline, markers, table equivalent) | ⬜ |
-| R10 | `run.page.test.js` (tools and tasks table) | ⬜ |
-| R11 | `run.page.test.js` (security panel) | ⬜ |
+| R7 | `run.page.test.js` (banner and diverted line) | ✅ 5b |
+| R8 | `run.page.test.js` (cards, gauges, no-window) | ✅ 5b |
+| R9 | `run.page.test.js` (timeline, markers, table equivalent) | ✅ 5b |
+| R10 | `run.page.test.js` (tools and tasks table) | ✅ 5b |
+| R11 | `run.page.test.js` (security panel) | ✅ 5b |
 | R12 | `fleet.page.test.js` (Tools & tasks) | ⬜ |
 | R13 | `fleet.page.test.js` (Security) | ⬜ |
-| R14 | `run.page.test.js` (incidents) | ⬜ |
+| R14 | `run.page.test.js` (incidents) | ✅ 5b |
 | R15 | `config.page.test.js`, `FabricConfigPhase5Test` | ⬜ |
 | R16 | `config.page.test.js` (windows), `WindowsConfigTest` | ⬜ |
 | R17 | `ContrastTest`, `a11y.page.test.js` | ⬜ |
@@ -80,12 +80,14 @@ Stack-level pages are owed once at the end of the whole work.
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
 | 2026-10-14 | 5a | Pass | Tests first for the view additions, the window catalog and its file, the `windows` configuration section, the two fleet routes (embedded and Fabric), the summaries and the thirteen scenarios (and a live one through a real Fabric): 77 new tests. Findings while building: `trifecta` and `trifecta-accepted` are two scenarios (the design said one with and without); an acceptance saved after an incident was raised does not lower it (rules are normally in place before the run), noted in the docs; a short run exited before its last events reached the server, so the simulator waits for delivery; the scenario path did not hand the executor the secret store that holds the server key. The scenarios are thirteen, not twelve |
+| 2026-10-14 | 5b | Pass | The run page: `RunViewForPageTest` (view shape the page reads), the fixture server (`sim/Fixtures`) and 13 browser tests (Playwright, Chromium) over eleven scenarios: banner and diverted line, Context and Tasks cards, hatched bar without a window, timeline with markers and table equivalent, tools and tasks table with expansion, Security panel (trifecta, accepted, injected page, refused access) and the new incident kinds. Full inspect-core and inspect suites pass (199 Java tests in the two modules). Findings from screenshots: the timeline was drawn in a small viewBox and sat narrow in a wide panel (now 960 wide); security card values inherited upper-casing |
 
 ### Documentation record (per sub-phase)
 
 | Sub-phase | Docs | Samples tested | Javadoc | llms.txt | Stack-level pages | Specs |
 |---|---|---|---|---|---|---|
 | 5a | ✅ wiki Fabric-Server (windows section, fleet routes), loom-inspect DESIGN §11o, fabric-sim README (scenarios) | ✅ scenarios run in tests | ✅ | n/a | deferred to the end | ✅ traceability, results |
+| 5b | ✅ loom-inspect DESIGN §11o, specs | ✅ browser tests run the scenarios | ✅ | n/a | deferred to the end | ✅ traceability, results |
 
 ### Owed to the stack-level pages (updated once, at the end of the whole work)
 

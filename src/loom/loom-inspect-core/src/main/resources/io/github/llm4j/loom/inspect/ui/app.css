@@ -279,13 +279,13 @@ tr.flag.high td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
 .ctxrow .note { margin-top: 6px; color: var(--ink-muted); }
 .ctxtimeline { margin-top: var(--space-5); }
 .ctxpick { display: flex; gap: var(--space-3); align-items: center; margin-bottom: var(--space-2); flex-wrap: wrap; }
-.ctxline { width: 100%; height: auto; max-height: 260px; background: var(--surface-raised); border-radius: var(--radius-md); }
+.ctxline { width: 100%; height: auto; background: var(--surface-raised); border-radius: var(--radius-md); }
 .ctxline .axis { stroke: var(--line-strong); } .ctxline .threshold { stroke-dasharray: 4 4; stroke-width: 1; }
 .ctxline .threshold.warn { stroke: var(--live); } .ctxline .threshold.high { stroke: var(--danger); }
 .ctxline polyline { fill: none; stroke: var(--live); stroke-width: 2; }
 .ctxline .point { fill: var(--live); }
 .ctxline .event { fill: var(--rung-suggest); stroke: var(--ground); stroke-width: 1.5; cursor: pointer; }
-.ctxline text { fill: var(--ink-muted); font: 400 10px var(--font-mono); }
+.ctxline text { fill: var(--ink-muted); font: 400 11px var(--font-mono); }
 
 .tt-table td, .tt-table th { vertical-align: middle; }
 tr.tt { cursor: pointer; } tr.tt:hover { background: var(--surface-raised); }
@@ -310,3 +310,4 @@ tr.tt.failing { background: var(--danger-soft); }
 .verdict { font: 600 11px/1 var(--font-mono); padding: 3px 8px; border-radius: 10px; border: 1px solid currentColor; }
 .verdict.exercised { color: var(--danger); } .verdict.armed { color: var(--live); } .verdict.accepted { color: var(--wait); } .verdict.none, .verdict.one, .verdict.two { color: var(--ink-muted); }
 .seckpis { margin-bottom: var(--space-4); }
+.seckpis .tile .val.sm { text-transform: none; font-size: 20px; line-height: 28px; }
