@@ -143,6 +143,8 @@ public final class Semconv {
     public static final String EV_NOTE = "loom.note";
     public static final String EV_CONTEXT = "loom.context";
     public static final String EV_COMPACTION = "loom.compaction";
+    /** A guard acted: {@code loom.data.event} says which (pii_masked, pii_blocked, pii_detected, bias_detected, bias_blocked). */
+    public static final String EV_GUARD = "loom.guard";
     /** Prefix for any other Loom trace event: {@code loom.approval}, {@code loom.rewind}, {@code loom.guard}, … */
     public static final String EV_PREFIX = "loom.";
 

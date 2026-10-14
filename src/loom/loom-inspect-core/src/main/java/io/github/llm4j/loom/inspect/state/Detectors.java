@@ -333,7 +333,8 @@ final class Detectors {
 
     /** The run ended for good (completed, failed, stopped): what was open is over. A pause that only suspends the run stays. */
     void onRunEnd(long now) {
-        incidents.closeAll("", now, "the run ended");
+        // what a security review should still find afterwards (a trifecta used, an injection suspected) stays open; the rest is over with the run
+        incidents.closeAllExcept(now, "the run ended", "sec:trifecta:", "sec:injection:");
         pausedAt = 0;
     }
 }

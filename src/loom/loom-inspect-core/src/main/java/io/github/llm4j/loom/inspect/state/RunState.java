@@ -93,6 +93,8 @@ public final class RunState {
     private final List<Object[]> spend = new ArrayList<>();
     private final Incidents incidents = new Incidents();
     private final Detectors detectors = new Detectors(incidents, Thresholds.defaults());
+    private final SecurityState security = new SecurityState(incidents, detectors::thresholdsFor);
+    private java.util.function.Supplier<List<Map<String, Object>>> securityProfile;
     private String controlPending;
     private String controlBy;
     private boolean heldByOperator;
@@ -135,6 +137,14 @@ public final class RunState {
     /** The script's workflows as a graph, each node carrying the step path it runs under; null until a producer sets it. */
     public synchronized Map<String, Object> graph() {
         return graph;
+    }
+
+    /**
+     * What each agent can reach, from the static audit (one map per agent: {@code agent} and the tools of each leg, {@code untrusted}, {@code private}, {@code outward});
+     * asked for whenever the view is built, so the page can show what an agent could do next to what it did. Without it nothing is guessed.
+     */
+    public synchronized void setSecurityProfile(java.util.function.Supplier<List<Map<String, Object>>> profile) {
+        this.securityProfile = profile;
     }
 
     /** Where the run's decisions stand on their autonomy ladders; asked for whenever the view is built. Embedded mode only. */
@@ -243,6 +253,7 @@ public final class RunState {
             case Semconv.EV_CONTEXT -> contextSample(r);
             case Semconv.EV_COMPACTION -> compactionSeen(r);
             case Semconv.EV_FAILURE -> failureSeen(r);
+            case Semconv.EV_GUARD -> security.onGuard(r.text("loom.data.event"));
             case Semconv.EV_BUDGET -> detectors.onBudget(String.valueOf(r.text("loom.data.budget")), r.text("loom.data.kind"), r.body(), r.timeNanos());
             default -> { }
         }
@@ -417,6 +428,9 @@ public final class RunState {
     private void toolEnded(SpanRec s, Open was) {
         String name = s.text(Semconv.GEN_AI_TOOL_NAME);
         if (name == null) return;
+        security.onTool(s.text(Semconv.GEN_AI_AGENT_NAME), name, s.text(Semconv.LOOM_TOOL_REACH), !Boolean.FALSE.equals(s.attr(Semconv.LOOM_TOOL_REACH_KNOWN)),
+                s.text(Semconv.LOOM_INJECTION_PATTERNS), number(s.attr(Semconv.LOOM_INJECTION_COUNT)), s.text(Semconv.ERROR_TYPE),
+                Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_NO_RESULT)), s.text(Semconv.LOOM_STEP), s.endNanos());
         Tool t = tools.computeIfAbsent(name, k -> new Tool());
         if (t.tally == null) t.tally = new ToolTally(name);
         t.calls++;
@@ -677,6 +691,7 @@ public final class RunState {
             toolList.add(m);
         }
         v.put("tools", toolList);
+        v.put("security", security.view(securityProfile == null ? List.of() : securityProfile.get()));
         List<Map<String, Object>> taskList = new ArrayList<>();
         tasks.forEach((name, t) -> {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -749,6 +764,11 @@ public final class RunState {
         v.put("duplicates", duplicates);
         v.put("recent", new ArrayList<>(recent));
         return v;
+    }
+
+    /** The security counts of this run, for a server to add up across runs. */
+    public synchronized Map<String, Long> securityCounts() {
+        return security.counts();
     }
 
     /** Every tool this run has seen, with its health (see {@link ToolSummary}); for a server to merge across runs. */
