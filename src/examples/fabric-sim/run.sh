@@ -8,7 +8,9 @@
 #
 # Environment: PROCESSES (3), SPEED (1.0; 0.2 is five times faster), PORT (9090), DATA (./fabric-sim-data),
 #              NO_PRICES=1 (the simulated processes report no cost, so the Fabric price table does the costing),
-#              ADMIN_PASSWORD (default: simulate-admin-1, printed), DETAIL (truncated), RUNS (0 = until Ctrl-C)
+#              ADMIN_PASSWORD (default: simulate-admin-1, printed), DETAIL (truncated), RUNS (0 = until Ctrl-C),
+#              SCENARIO (comma separated: run these small scenarios instead of the studio workflow; see README.md for the names, e.g.
+#              SCENARIO=flaky-tool,task-broken,trifecta,injected-page ./run.sh)
 set -euo pipefail
 cd "$(dirname "$0")"
 ROOT=../../..
@@ -40,7 +42,7 @@ for i in $(seq 1 "$PROCESSES"); do
   key=$(fabric clients add "$name" --data "$DATA" | awk '/^    lfk_/ {print $1}')
   SIM_FABRIC_KEY="$key" java -cp "$WEAVE:$INSPECT:$CORE" io.github.llm4j.loom.inspect.sim.Simulate \
       --fabric "http://127.0.0.1:$PORT" --name "$name" --runs "$RUNS" --speed "$SPEED" --detail "$DETAIL" \
-      ${NO_PRICES:+--no-prices} --outbox "$DATA/outbox" --gap 15 >"$DATA/$name.log" 2>&1 &
+      ${NO_PRICES:+--no-prices} ${SCENARIO:+--scenario "$SCENARIO"} --outbox "$DATA/outbox" --gap 15 >"$DATA/$name.log" 2>&1 &
   pids+=($!)
   sleep 2   # stagger them, so the processes are at different steps
 done

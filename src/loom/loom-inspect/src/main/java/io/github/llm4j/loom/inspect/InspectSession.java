@@ -272,6 +272,24 @@ public final class InspectSession implements ObserveProvider.Session {
         return all;
     }
 
+    /**
+     * Waits until every event so far has reached the registry and, when reporting to a server, the server has been sent it (or the timeout). For the end of a short
+     * run, so that a process about to exit does not leave its last events in the outbox.
+     */
+    public boolean awaitDelivered(Duration timeout) {
+        long end = System.nanoTime() + timeout.toNanos();
+        boolean idle = awaitIdle(timeout);
+        while (idle && fabric != null && fabric.link() != null && fabric.link().backlog() > 0 && System.nanoTime() < end) {
+            try {
+                Thread.sleep(20);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+        return idle && (fabric == null || fabric.link() == null || fabric.link().backlog() == 0);
+    }
+
     @Override
     public void close() {
         for (EventSink s : sinks) s.close();
