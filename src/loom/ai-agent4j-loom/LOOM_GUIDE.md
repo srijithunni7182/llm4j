@@ -1520,8 +1520,9 @@ With `weave run --trace` (or any trace listener) the run shows, for every agent,
 | `compaction` | a compaction was tried | `strategy`, `outcome` (`COMPACTED`, `NO_GAIN`, `SKIPPED`, `FAILED`), `reason`, `before` and `after` in tokens, `messages_before` and `messages_after`, and the tokens and cost of a model-written summary |
 | `model_call` | each model call | `model`, `duration_ms`, `waited_ms`, `attempts`, `failovers`, token counts, `finish_reason`, `truncated`, `outcome`, and for a failure the `category` (`RATE_LIMITED`, `TIMEOUT`, `CONTEXT_OVERFLOW`, ...) |
 | `tool_call` | each tool call | `tool`, `outcome`, `duration_ms`, `approval_ms`, `result_chars`, `soft_failure` (the tool returned its error as text) and for a failure the `category` |
+| `failure` | a task or delegate failed | `kind` (`task` or `delegate`), `name`, `step`, `category`, `error_type`, `attempts`, `handled` (`true` when its `on_failure` took over, `false` when the run fails) and `error`. It is told on every path: retries used up, bad arguments, no approval, a refused effect, a replayed failure. A failed `task_end` carries the same `category`, `error_type` and `attempts` |
 
-`run_end` carries the totals (`model_calls`, `tool_calls`, `tool_failures`, `retries`, `failovers`, `compactions`). A host reads the statistics of the run so far (per tool and per
+`run_end` carries the totals (`model_calls`, `tool_calls`, `tool_failures`, `retries`, `failovers`, `compactions`). A run that failed because of a task or delegate also names it: `failed_kind`, `failed_name`, `failed_step`, `failed_category`. A host reads the statistics of the run so far (per tool and per
 model, with success rates and latency percentiles) from `executor.stats()` or `ObservableRun.stats()`; they are kept whether or not anyone traces.
 An agent without a `context` block reports `context` events too (its use, with no window); what it sends to the model is unchanged.
 

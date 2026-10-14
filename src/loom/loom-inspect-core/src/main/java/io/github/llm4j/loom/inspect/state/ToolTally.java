@@ -10,6 +10,7 @@ import java.util.TreeMap;
 final class ToolTally {
 
     private final String name;
+    private final String kind;
     private long calls;
     private long ran;
     private long successes;
@@ -24,7 +25,12 @@ final class ToolTally {
     private final long[] histogram = new long[ToolSummary.BOUNDS.length + 1];
 
     ToolTally(String name) {
+        this(name, "tool");
+    }
+
+    ToolTally(String name, String kind) {
         this.name = name;
+        this.kind = kind;
     }
 
     /** A call the runtime never ran. */
@@ -65,6 +71,6 @@ final class ToolTally {
         ToolHealth.Verdict v = ToolHealth.classify(ran, successes, consecutive, r, lastFailureCategory, t);
         List<Long> h = new ArrayList<>();
         for (long x : histogram) h.add(x);
-        return new ToolSummary(name, calls, ran, successes, softFailures, failures, byAgent, consecutive, lastFailureCategory, lastFailureAt, lastSuccessAt, r, h, v.state(), v.reason());
+        return new ToolSummary(name, kind, calls, ran, successes, softFailures, failures, byAgent, consecutive, lastFailureCategory, lastFailureAt, lastSuccessAt, r, h, v.state(), v.reason());
     }
 }

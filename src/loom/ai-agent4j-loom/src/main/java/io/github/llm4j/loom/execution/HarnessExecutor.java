@@ -1771,6 +1771,13 @@ public class HarnessExecutor implements LoomEngine {
         } catch (RuntimeException | Error failure) {
             ended = failure instanceof io.github.llm4j.budget.BudgetExceeded ? "budget" : "failed";
             endData.put("error", String.valueOf(failure.getMessage()));
+            Map<String, Object> culprit = unhandledFailure.get();
+            if (culprit != null) {
+                endData.put("failed_kind", culprit.get("kind"));
+                endData.put("failed_name", culprit.get("name"));
+                endData.put("failed_step", culprit.get("step"));
+                endData.put("failed_category", culprit.get("category"));
+            }
             throw failure;
         } finally {
             step.set(parent);
@@ -2472,8 +2479,32 @@ public class HarnessExecutor implements LoomEngine {
         return data;
     }
 
+    private final java.util.concurrent.atomic.AtomicReference<Map<String, Object>> unhandledFailure = new java.util.concurrent.atomic.AtomicReference<>();
+
+    /** The category a failure belongs to: the given one, or the one the exception says (the same words a tool failure uses). */
+    io.github.llm4j.telemetry.ErrorCategory failureCategory(Throwable cause, io.github.llm4j.telemetry.ErrorCategory given) {
+        if (given != null) return given;
+        return cause == null ? io.github.llm4j.telemetry.ErrorCategory.OTHER : io.github.llm4j.telemetry.ErrorCategory.of(cause);
+    }
+
+    /** Tells the trace a task or delegate failed, and remembers it for {@code run_end} when nothing handles it. */
+    void traceFailure(String kind, String name, String message, Throwable cause, io.github.llm4j.telemetry.ErrorCategory given, int attempts, boolean handled) {
+        Map<String, Object> d = new java.util.LinkedHashMap<>();
+        d.put("kind", kind);
+        d.put("name", name);
+        d.put("step", currentStep());
+        d.put("category", failureCategory(cause, given).name());
+        if (cause != null) d.put("error_type", cause.getClass().getSimpleName());
+        d.put("attempts", attempts);
+        d.put("handled", handled);
+        d.put("error", message == null ? "" : message);
+        if (!handled) unhandledFailure.set(d);
+        trace(TraceEvent.FAILURE, null, kind + " " + name + (handled ? " failed; on_failure took over" : " failed"), d);
+    }
+
     /** Runs the on_failure block with {@code _error} in scope, or fails the workflow. */
     private void handleExhausted(DelegateStmt del, String agentName, String message, Exception cause) {
+        traceFailure("delegate", agentName, message, cause, null, del.getRetryCount() + 1, !del.getOnFailure().isEmpty());
         if (!del.getOnFailure().isEmpty()) {
             runFailureHandler(del.getOnFailure(), message);
         } else {
@@ -2848,6 +2879,7 @@ public class HarnessExecutor implements LoomEngine {
 
     /** Start of a top-level run: counts a resume after a pause, and publishes {@code _run}. */
     private void beginRun() {
+        unhandledFailure.set(null);
         Map<String, Object> last = journal.get(SUSPENSION)
                 .map(e -> e.value() instanceof Map<?, ?> m ? new java.util.LinkedHashMap<>(castMap(m)) : null)
                 .orElse(null);

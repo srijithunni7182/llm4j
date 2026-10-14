@@ -45,6 +45,20 @@ public final class Semconv {
     public static final String LOOM_COST_USD = "loom.cost.usd";
     public static final String LOOM_TASK = "loom.task";
     public static final String LOOM_TASK_OUTCOME = "loom.task.outcome";
+    public static final String LOOM_TASK_ATTEMPTS = "loom.task.attempts";
+    /** A task or delegate failed: its kind, name, failure category, attempts, and whether {@code on_failure} took over. */
+    public static final String EV_FAILURE = "loom.failure";
+    public static final String LOOM_FAILURE_KIND = "loom.failure.kind";
+    public static final String LOOM_FAILURE_NAME = "loom.failure.name";
+    public static final String LOOM_FAILURE_CATEGORY = "loom.failure.category";
+    public static final String LOOM_FAILURE_ATTEMPTS = "loom.failure.attempts";
+    public static final String LOOM_FAILURE_HANDLED = "loom.failure.handled";
+    public static final String LOOM_FAILURE_ERROR = "loom.failure.error";
+    /** On the run's end: the task or delegate that broke the run. */
+    public static final String LOOM_RUN_FAILED_KIND = "loom.run.failed_kind";
+    public static final String LOOM_RUN_FAILED_NAME = "loom.run.failed_name";
+    public static final String LOOM_RUN_FAILED_STEP = "loom.run.failed_step";
+    public static final String LOOM_RUN_FAILED_CATEGORY = "loom.run.failed_category";
     public static final String LOOM_TEXT = "loom.text";
     /** A tool call that got no result: the runtime blocked it as an exact repeat of an earlier one. */
     public static final String LOOM_TOOL_NO_RESULT = "loom.tool.no_result";

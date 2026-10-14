@@ -22,6 +22,8 @@ watched differently in test and in production.
 | **Compaction thrash** | warn | **4** compactions of one agent within **10** model calls, or **3** in a row that freed little | compaction is not keeping up: the window is too small, the tool results too big, or the strategy too gentle |
 | **Tool success rate** | warn below **70 %**, high below **40 %** | a tool's success rate over its last **10** calls (at least 5) | the tool is failing often; the evidence names the most common failure category |
 | **Latency spike** | info, warn on a second in a row | a model or tool call lasts more than **5×** the running median of its kind (and over 2 s, after 10 samples) | a provider or dependency is slow right now |
+| **Workflow diverted** | warn | a task (`run`) or delegate failed and its `on_failure` block took over | the workflow went on by another road; the evidence names the step, the failure category and the attempts. Closes when the run ends |
+| **Workflow broken** | high | the run ended failed because a task or delegate failed with no `on_failure` | the run stopped here; the incident names the step, the task or delegate and the category, and stays open after the run ends so the page still says why |
 | **Budget** | warn when nearly spent, high when it ran out | a budget reaches its `warn_at`, then its limit | the budget is nearly or fully used |
 
 An incident opens when its rule fires and closes when its condition clears or the step ends. Suspect-output incidents carry
@@ -49,6 +51,8 @@ Every tool a run uses has a **health**, worked out by one set of rules so that a
 
 Each state has a one-line reason ("never succeeded in 7 calls", "4 of 6 recent calls succeeded"). A row also carries the recent and overall success rate, the failures by category (`timeout`, `not_found`, `rate_limited`, ...), the last failure and last success, a per-agent breakdown (is one agent misusing the tool, or is the tool broken?) and a latency histogram. A call the runtime never ran (a blocked repeat, an unknown tool, a rejection) is not a failure of the tool. A tool that returns an error as text (`Error: 404 ...`) is counted as failed, with a category read from the text.
 A server adds the accounts of every run it knows, with the failing tools first, in `RunRegistry.toolRollup()`. A runnable example is in [`src/examples/inspect-tools`](../src/examples/inspect-tools/README.md).
+
+Tasks get the same account. A run's view lists its tasks beside its tools (calls, success rate, failures by category, latency percentiles, health), and the cross-run roll-up has a `kind` of `task` for them, so a task and a tool with one name stay two rows. A task that fails and is retried counts once, with its attempts in the trace; a task replayed from the journal on a resume counts for nothing in the new process.
 
 ## The rules file
 

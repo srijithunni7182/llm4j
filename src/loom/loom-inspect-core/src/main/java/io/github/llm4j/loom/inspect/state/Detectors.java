@@ -315,6 +315,22 @@ final class Detectors {
 
     // ------------------------------------------------------------------------------ the end
 
+    /** A task or delegate failed and its {@code on_failure} took over: the workflow went on by another road. Closes when the run ends. */
+    void onDiverted(String kind, String name, String step, String category, long attempts, long now) {
+        String where = StepPaths.normalize(step);
+        incidents.raise("diverted:" + where, Incidents.Kind.DIVERTED, "warn", null, where, now,
+                "The " + kind + " " + name + " failed and on_failure took over",
+                List.of(Incidents.evidence("on_failure", attempts, null, name + " failed (" + (category == null ? "other" : category) + ") after " + attempts + " attempt(s); the workflow went on through its on_failure block")));
+    }
+
+    /** The run ended failed and a named task or delegate is why. Raised after the run's end closes the rest, so it stays open for whoever looks. */
+    void onBroken(String kind, String name, String step, String category, long now) {
+        String where = StepPaths.normalize(step);
+        incidents.raise("broken", Incidents.Kind.BROKEN, "high", null, where, now,
+                "The run stopped: the " + kind + " " + name + " failed",
+                List.of(Incidents.evidence("run_failed", name, null, "The " + kind + " " + name + " failed (" + (category == null ? "other" : category) + ") with no on_failure to take over, so the run failed")));
+    }
+
     /** The run ended for good (completed, failed, stopped): what was open is over. A pause that only suspends the run stays. */
     void onRunEnd(long now) {
         incidents.closeAll("", now, "the run ended");

@@ -123,6 +123,7 @@ public final class TraceMapper {
             case TraceEvent.BUDGET -> logs.add(log(now, LogRec.WARN, Semconv.EV_BUDGET, e.text(), e, data));
             case TraceEvent.TASK_START -> taskStart(e, data, now, logs);
             case TraceEvent.TASK_END -> taskEnd(e, data, now, spans);
+            case TraceEvent.FAILURE -> failure(e, data, now, logs);
             case TraceEvent.TASK_REPLAYED -> taskReplayed(e, data, now, spans);
             case TraceEvent.SLEEP -> sleep(e, data, now, logs, spans);
             case TraceEvent.NOTE -> logs.add(log(now, LogRec.INFO, Semconv.EV_NOTE, detail.apply(e.text()), e, null));
@@ -205,6 +206,8 @@ public final class TraceMapper {
         if (data.get("error") != null) a.put(Semconv.ERROR_TYPE, "run_failed");
         Map<String, Object> totals = runTotals(data);
         a.putAll(totals);
+        Map<String, Object> culprit = failedBy(data);
+        a.putAll(culprit);
         logs.add(record(now, bad ? LogRec.ERROR : LogRec.INFO, Semconv.EV_RUN_END, "workflow " + workflow + " " + status, a, null));
 
         Map<String, Object> root = new LinkedHashMap<>();
@@ -213,6 +216,7 @@ public final class TraceMapper {
         root.put(Semconv.LOOM_RUN_ID, runId);
         root.put(Semconv.LOOM_RUN_STATUS, status);
         root.putAll(totals);
+        root.putAll(culprit);
         spans.add(new SpanRec(traceId, rootSpanId(), null, "loom.workflow " + workflow, SpanRec.INTERNAL, runStartNanos == 0 ? now : runStartNanos, now, root,
                 bad ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK, bad ? text(data.get("error"), status) : null, List.of()));
     }
@@ -474,6 +478,17 @@ public final class TraceMapper {
         return t;
     }
 
+    /** The task or delegate that broke the run, when the run end names one. */
+    private static Map<String, Object> failedBy(Map<String, Object> data) {
+        Map<String, Object> t = new LinkedHashMap<>();
+        if (data.get("failed_name") == null) return t;
+        t.put(Semconv.LOOM_RUN_FAILED_KIND, text(data.get("failed_kind"), "task"));
+        t.put(Semconv.LOOM_RUN_FAILED_NAME, text(data.get("failed_name"), "unknown"));
+        if (data.get("failed_step") != null) t.put(Semconv.LOOM_RUN_FAILED_STEP, text(data.get("failed_step"), ""));
+        if (data.get("failed_category") != null) t.put(Semconv.LOOM_RUN_FAILED_CATEGORY, String.valueOf(data.get("failed_category")).toLowerCase(java.util.Locale.ROOT));
+        return t;
+    }
+
     /**
      * A heuristic: Loom's trace gives a tool's result as text with no status, so a result that begins with "error", "failed" or
      * "exception", or with an HTTP 4xx or 5xx status, is treated as a failed call.
@@ -511,8 +526,28 @@ public final class TraceMapper {
         boolean failed = "failed".equals(outcome) || "unknown".equals(outcome);
         Map<String, Object> extra = new LinkedHashMap<>();
         extra.put(Semconv.LOOM_TASK_OUTCOME, outcome);
-        if (failed) extra.put(Semconv.ERROR_TYPE, "task_failed");
-        spans.add(span(p, now, failed ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK, failed ? text(data.get("error"), outcome) : null, extra));
+        String category = data.get("category") == null ? null : String.valueOf(data.get("category")).toLowerCase(java.util.Locale.ROOT);
+        if (failed) extra.put(Semconv.ERROR_TYPE, category != null ? category : "task_failed");
+        if (data.get("attempts") != null) extra.put(Semconv.LOOM_TASK_ATTEMPTS, number(data.get("attempts")));
+        String why = failed ? detail.apply(text(data.get("error"), null)) : null;
+        spans.add(span(p, now, failed ? SpanRec.STATUS_ERROR : SpanRec.STATUS_OK, failed ? (why != null ? why : category != null ? category : outcome) : null, extra));
+    }
+
+    /** A task or delegate failed: names and numbers always; the error text only as far as the detail level lets text out. */
+    private void failure(TraceEvent e, Map<String, Object> data, long now, List<LogRec> logs) {
+        boolean handled = Boolean.TRUE.equals(data.get("handled")) || "true".equals(String.valueOf(data.get("handled")));
+        Map<String, Object> a = new LinkedHashMap<>();
+        a.put(Semconv.LOOM_FAILURE_KIND, text(data.get("kind"), "task"));
+        a.put(Semconv.LOOM_FAILURE_NAME, text(data.get("name"), "unknown"));
+        a.put(Semconv.LOOM_STEP, text(data.get("step"), e.step()));
+        if (data.get("category") != null) a.put(Semconv.LOOM_FAILURE_CATEGORY, String.valueOf(data.get("category")).toLowerCase(java.util.Locale.ROOT));
+        if (data.get("error_type") != null) a.put(Semconv.ERROR_TYPE, String.valueOf(data.get("error_type")));
+        if (data.get("attempts") != null) a.put(Semconv.LOOM_FAILURE_ATTEMPTS, number(data.get("attempts")));
+        a.put(Semconv.LOOM_FAILURE_HANDLED, handled);
+        String error = detail.apply(text(data.get("error"), null));
+        if (error != null) a.put(Semconv.LOOM_FAILURE_ERROR, error);
+        String body = a.get(Semconv.LOOM_FAILURE_KIND) + " " + a.get(Semconv.LOOM_FAILURE_NAME) + (handled ? " failed; on_failure took over" : " failed");
+        logs.add(record(now, handled ? LogRec.WARN : LogRec.ERROR, Semconv.EV_FAILURE, body, a, null));
     }
 
     private void taskReplayed(TraceEvent e, Map<String, Object> data, long now, List<SpanRec> spans) {

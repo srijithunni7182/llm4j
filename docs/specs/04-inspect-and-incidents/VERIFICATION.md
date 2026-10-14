@@ -44,6 +44,12 @@ Status: **verified offline; awaiting review** (live checks owed). Run top to bot
 | R19 | `ToolRollupTest#eachRowOfARunsViewCarriesItsHealth`, `ToolHealthTest` | ✅ 4c |
 | R20 | `ToolSummaryMergeTest` | ✅ 4c |
 | R21 | `ToolRollupTest` | ✅ 4c |
+| R22 | `TaskFailureTraceTest` (handled, unhandled, never started, delegate) | ✅ 4f |
+| R23 | `TaskFailureTraceTest` | ✅ 4f |
+| R24 | `TaskFailureTraceTest`, `TaskFailureMappingTest` | ✅ 4f |
+| R25 | `TaskHealthTest` | ✅ 4f |
+| R26 | `TaskIncidentsTest` | ✅ 4f |
+| R27 | `TaskFailureMappingTest` | ✅ 4f |
 
 ## 3. Quality gates
 
@@ -81,6 +87,7 @@ inspect section, `llms.txt`, a runnable example under `src/examples/`. Stack-lev
 
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
+| 2026-10-14 | 4f | Targeted tests pass; full run pending | Tests first for the gap found after 4e: a task (or delegate) that throws was not told apart in the trace, a failed run named no cause, and tasks had no health. Loom: `failure` event on every failure path, failed `task_end` with category/type/attempts, `run_end` `failed_*`. Inspect: mapping (with detail levels), per-task health and rollup `kind`, `DIVERTED` and `BROKEN` incidents. 27 new tests |
 | 2026-10-14 | 4e | Pass | Runnable example `src/examples/inspect-tools` (run); JaCoCo gate on the new inspect-core classes (met; measured 93–100 % line, 81–94 % branch); docs. Found by the full run: with logs sent before spans, a page could show "finished" before the last spans arrived, so the run-end record now goes last in its batch (with a test). Whole set: Loom 1,837, inspect-core 189, inspect 139, fabric 39 tests green |
 | 2026-10-14 | 4d | Pass | OTLP round trips for the chat span, tool outcome attributes, context and compaction logs and run totals (4 tests); a real Loom run with a context block, a window and a failing tool through the real add-on to the real Fabric server (the view shows context, compactions, models, tool health `failing`, a `TOOL_RATE` incident, and the registry rollup). 5 new tests |
 | 2026-10-14 | 4c | Pass | Tests first for the five incidents (below, at and above each threshold; escalation; closing; per-agent and central layering; replay), the tool health heuristics (every boundary), summary merging, the cross-run rollup, the new rules grammar and its write/read round trip, the central form in Fabric's config, and the wire compatibility. 70 new tests; one existing test adjusted (`IncidentTest`: four failures in five calls is now also, rightly, a `TOOL_RATE` incident, so it asks about `FAILED` ones). Loom 1,837, inspect-core 182, inspect 137, fabric 39 tests green |

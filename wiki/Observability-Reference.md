@@ -135,3 +135,13 @@ Log events (`event.name`): `loom.run.start`, `loom.run.end`, `loom.run.suspended
 [Observability](../docs/OBSERVABILITY.md) · [Fabric server](Fabric-Server.md) ·
 [Incidents and rules](Observability-Incidents-and-Rules.md) · [Controls, secrets and security](Observability-Controls-and-Security.md) ·
 [Design and status](../docs/loom-inspect/DESIGN.md)
+
+## Failure records (4f)
+
+| Record | Where | Attributes |
+|---|---|---|
+| `loom.failure` (log; warn if handled, error if not) | a task or delegate failed | `loom.failure.kind` (`task`/`delegate`), `.name`, `.category`, `.attempts`, `.handled`, `error.type`, `loom.step`; `loom.failure.error` only as far as the detail level allows text |
+| `loom.task` span | a failed task | `error.type` is the failure category; `loom.task.attempts` |
+| `loom.run.end` log and the workflow span | a run broken by a task or delegate | `loom.run.failed_kind`, `.failed_name`, `.failed_step`, `.failed_category` |
+
+The run view has `tasks` (like `tools`: calls, errors, success rate, p50/p95, failures, health); the incident kinds `DIVERTED` and `BROKEN` are new.

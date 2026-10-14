@@ -14,6 +14,7 @@ import java.util.TreeMap;
  * <p>A <b>call that never ran</b> (the runtime blocked a repeat, the tool was unknown, a person rejected it) counts in {@code calls} but is neither a
  * success nor a failure of the tool.
  *
+ * @param kind {@code tool} or {@code task}: a tool and a task of one name are two rows
  * @param calls every call, run or not
  * @param ran calls that actually ran the tool
  * @param successes calls that ran and worked
@@ -26,7 +27,7 @@ import java.util.TreeMap;
  * @param state {@code unused}, {@code healthy}, {@code degraded} or {@code failing}
  * @param reason one line saying why
  */
-public record ToolSummary(String name, long calls, long ran, long successes, long softFailures, Map<String, Long> failures, Map<String, Tally> byAgent,
+public record ToolSummary(String name, String kind, long calls, long ran, long successes, long softFailures, Map<String, Long> failures, Map<String, Tally> byAgent,
                           long consecutiveFailures, String lastFailureCategory, String lastFailureAt, String lastSuccessAt, List<String> recent,
                           List<Long> histogram, String state, String reason) {
 
@@ -41,6 +42,7 @@ public record ToolSummary(String name, long calls, long ran, long successes, lon
     }
 
     public ToolSummary {
+        kind = kind == null ? "tool" : kind;
         failures = failures == null ? Map.of() : java.util.Collections.unmodifiableMap(new TreeMap<>(failures));
         byAgent = byAgent == null ? Map.of() : java.util.Collections.unmodifiableMap(new TreeMap<>(byAgent));
         recent = recent == null ? List.of() : List.copyOf(recent);
@@ -81,7 +83,7 @@ public record ToolSummary(String name, long calls, long ran, long successes, lon
 
     /** Both accounts of the same tool as one, with the verdict taken again: the worse of the two, or worse still if the counts together say so. */
     public ToolSummary merge(ToolSummary o, Thresholds t) {
-        if (!name.equals(o.name)) throw new IllegalArgumentException("cannot merge " + name + " with " + o.name);
+        if (!name.equals(o.name) || !kind.equals(o.kind)) throw new IllegalArgumentException("cannot merge " + name + " with " + o.name);
         Map<String, Long> f = new TreeMap<>(failures);
         o.failures.forEach((k, v) -> f.merge(k, v, Long::sum));
         Map<String, Tally> a = new TreeMap<>(byAgent);
@@ -99,7 +101,7 @@ public record ToolSummary(String name, long calls, long ran, long successes, lon
         ToolHealth.Verdict floor = ToolHealth.worse(new ToolHealth.Verdict(state, reason), new ToolHealth.Verdict(o.state, o.reason));
         ToolHealth.Verdict v = ToolHealth.rank(own.state()) >= ToolHealth.rank(floor.state()) ? own : floor;
         if (ToolHealth.rank(own.state()) < ToolHealth.rank(floor.state()) && ToolHealth.rank(floor.state()) == 0) v = own;
-        return new ToolSummary(name, calls + o.calls, ranTotal, okTotal, softFailures + o.softFailures, f, a, Math.max(consecutiveFailures, o.consecutiveFailures),
+        return new ToolSummary(name, kind, calls + o.calls, ranTotal, okTotal, softFailures + o.softFailures, f, a, Math.max(consecutiveFailures, o.consecutiveFailures),
                 lastFailureCategoryMerged, lastFailureAtMerged, success, List.of(), h, v.state(), v.reason());
     }
 
@@ -130,6 +132,7 @@ public record ToolSummary(String name, long calls, long ran, long successes, lon
     public Map<String, Object> toMap() {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("name", name);
+        m.put("kind", kind);
         m.put("calls", calls);
         m.put("ran", ran);
         m.put("successes", successes);

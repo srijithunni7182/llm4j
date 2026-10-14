@@ -49,6 +49,8 @@ public record TraceEvent(String type, String agent, String step, String text, Ma
     public static final String MODEL_CALL = "model_call";
     /** One tool call: {@code tool}, {@code outcome}, {@code duration_ms}, {@code approval_ms}, {@code result_chars}, {@code soft_failure} and, for a failure, {@code category}. */
     public static final String TOOL_CALL = "tool_call";
+    /** A task or delegate failed: {@code kind} (task or delegate), {@code name}, {@code step}, {@code category}, {@code error_type}, {@code attempts}, {@code handled} (true when its {@code on_failure} took over; false when the run fails) and {@code error}. */
+    public static final String FAILURE = "failure";
     public static final String TASK_START = "task_start";
     public static final String TASK_END = "task_end";
     public static final String TASK_REPLAYED = "task_replayed";

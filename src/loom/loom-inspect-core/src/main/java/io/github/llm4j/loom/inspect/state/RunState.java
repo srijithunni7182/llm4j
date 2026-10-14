@@ -110,6 +110,7 @@ public final class RunState {
     private final Map<String, Open> open = new LinkedHashMap<>();
     private final Map<String, Agent> agents = new LinkedHashMap<>();
     private final Map<String, Tool> tools = new LinkedHashMap<>();
+    private final Map<String, Tool> tasks = new LinkedHashMap<>();
     private final Map<String, ModelStat> modelStats = new LinkedHashMap<>();
     private final Map<String, ContextStat> contexts = new LinkedHashMap<>();
     /** Where each statement of the script stands, by {@link StepPaths#normalize normalized} step id: state and how often it ran. */
@@ -240,6 +241,7 @@ public final class RunState {
             case Semconv.EV_CONTROL -> control(r);
             case Semconv.EV_CONTEXT -> contextSample(r);
             case Semconv.EV_COMPACTION -> compactionSeen(r);
+            case Semconv.EV_FAILURE -> failureSeen(r);
             case Semconv.EV_BUDGET -> detectors.onBudget(String.valueOf(r.text("loom.data.budget")), r.text("loom.data.kind"), r.body(), r.timeNanos());
             default -> { }
         }
@@ -270,6 +272,7 @@ public final class RunState {
                 // a call the runtime blocked as a repeat says nothing about whether the tool works: neither a failure nor a success
                 if (!Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_NO_RESULT))) detectors.onToolEnd(s.text(Semconv.GEN_AI_AGENT_NAME), s.text(Semconv.GEN_AI_TOOL_NAME), s.statusCode() == SpanRec.STATUS_ERROR, s.text(Semconv.LOOM_STEP), s.endNanos());
             }
+            case Semconv.KIND_TASK -> taskEnded(s);
             case Semconv.KIND_SLEEP -> {
                 sleepWakeAt = null;
                 if (status == Status.SLEEPING) status = Status.RUNNING;
@@ -309,6 +312,10 @@ public final class RunState {
             controlPending = null; // nothing can be asked of a run that has ended
             heldByOperator = false;
             detectors.onRunEnd(r.timeNanos());
+            if (status == Status.FAILED && r.text(Semconv.LOOM_RUN_FAILED_NAME) != null) {
+                detectors.onBroken(r.text(Semconv.LOOM_RUN_FAILED_KIND), r.text(Semconv.LOOM_RUN_FAILED_NAME), r.text(Semconv.LOOM_RUN_FAILED_STEP),
+                        r.text(Semconv.LOOM_RUN_FAILED_CATEGORY), r.timeNanos());
+            }
         }
         open.clear();
         controlPending = null;
@@ -433,6 +440,34 @@ public final class RunState {
         } else {
             t.tally.skipped();
         }
+    }
+
+    /** A task finished: it counts like a tool call (a replayed or simulated one ran nowhere, so it counts for nothing). */
+    private void taskEnded(SpanRec s) {
+        String name = s.text(Semconv.LOOM_TASK);
+        if (name == null || Boolean.TRUE.equals(s.attr("loom.replayed")) || "simulated".equals(s.text(Semconv.LOOM_TASK_OUTCOME))) return;
+        Tool t = tasks.computeIfAbsent(name, k -> new Tool());
+        if (t.tally == null) t.tally = new ToolTally(name, "task");
+        boolean failed = s.statusCode() == SpanRec.STATUS_ERROR;
+        long millis = Math.max(0, s.endNanos() - s.startNanos()) / 1_000_000L;
+        t.calls++;
+        t.totalNanos += Math.max(0, s.endNanos() - s.startNanos());
+        if (failed) {
+            t.errors++;
+            String category = s.text(Semconv.ERROR_TYPE);
+            t.failures.merge(category == null ? "other" : category, 1L, Long::sum);
+        } else {
+            t.successes++;
+        }
+        t.latency.add(millis);
+        t.tally.record(null, !failed, s.text(Semconv.ERROR_TYPE), OtlpJson.instant(s.endNanos()).toString(), millis, false);
+    }
+
+    /** A task or delegate failed. If its {@code on_failure} took over, that is an incident; if not, the run's end says so. */
+    private void failureSeen(LogRec r) {
+        if (!Boolean.TRUE.equals(r.attr(Semconv.LOOM_FAILURE_HANDLED))) return;
+        detectors.onDiverted(r.text(Semconv.LOOM_FAILURE_KIND), r.text(Semconv.LOOM_FAILURE_NAME), r.text(Semconv.LOOM_STEP), r.text(Semconv.LOOM_FAILURE_CATEGORY),
+                number(r.attr(Semconv.LOOM_FAILURE_ATTEMPTS)), r.timeNanos());
     }
 
     private void modelEnded(SpanRec s) {
@@ -641,6 +676,22 @@ public final class RunState {
             toolList.add(m);
         }
         v.put("tools", toolList);
+        List<Map<String, Object>> taskList = new ArrayList<>();
+        tasks.forEach((name, t) -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("name", name);
+            m.put("calls", t.calls);
+            m.put("errors", t.errors);
+            m.put("successes", t.successes);
+            if (t.calls > 0) m.put("successRate", t.successes / (double) t.calls);
+            m.put("avgMillis", t.calls == 0 ? 0L : t.totalNanos / t.calls / 1_000_000L);
+            m.put("failures", new LinkedHashMap<>(t.failures));
+            m.put("p50Ms", t.latency.p50());
+            m.put("p95Ms", t.latency.p95());
+            m.put("health", t.tally.snapshot(detectors.thresholdsFor(null)).toHealthMap());
+            taskList.add(m);
+        });
+        v.put("tasks", taskList);
         List<Map<String, Object>> modelList = new ArrayList<>();
         modelStats.forEach((name, ms) -> {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -704,6 +755,7 @@ public final class RunState {
         List<ToolSummary> out = new ArrayList<>();
         Thresholds t = detectors.thresholdsFor(null);
         for (Tool tool : tools.values()) if (tool.tally != null) out.add(tool.tally.snapshot(t));
+        for (Tool task : tasks.values()) if (task.tally != null) out.add(task.tally.snapshot(t));
         return out;
     }
 

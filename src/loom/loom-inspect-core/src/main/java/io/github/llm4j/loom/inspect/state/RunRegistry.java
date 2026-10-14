@@ -85,7 +85,7 @@ public final class RunRegistry {
         Map<String, ToolSummary> merged = new java.util.TreeMap<>();
         for (RunState r : runs.values()) {
             if (client != null && !client.equals(r.client())) continue;
-            for (ToolSummary s : r.toolSummaries()) merged.merge(s.name(), s, (a, b) -> a.merge(b, t));
+            for (ToolSummary s : r.toolSummaries()) merged.merge(s.kind() + ":" + s.name(), s, (a, b) -> a.merge(b, t));
         }
         List<ToolSummary> out = new ArrayList<>(merged.values());
         out.sort((a, b) -> {

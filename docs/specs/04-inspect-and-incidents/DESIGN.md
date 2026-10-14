@@ -139,6 +139,12 @@ Researcher {
 | R19 | Each row of `view().tools` has `health` with state, reason, recent and overall rates, consecutive failures, last failure and last success, failures by category and the per-agent breakdown; the old fields are unchanged |
 | R20 | `ToolSummary.merge` is associative and commutative on counts, categories, per-agent tallies and histograms; the merged state is the worst of the parts, and `failing` when the merged counts say it never succeeded |
 | R21 | `RunRegistry.toolRollup()` equals the merge of every run's summaries, can be limited to one client, and lists failing tools first, then degraded, then by calls |
+| R22 | A failed task or delegate emits one `failure` event: `kind` (task or delegate), `name`, `step`, `category` (the shared `ErrorCategory`), `error_type`, `attempts`, `handled` (true when `on_failure` took over) and the error text. It is emitted on every failure path (bad arguments, no approval, refused effect, replay of a recorded failure, retries used up), not only after retries |
+| R23 | A failed `task_end` carries `category`, `error_type`, `attempts` and `millis`, so a task has the same failure vocabulary as a tool |
+| R24 | When a run fails because of a task or delegate, `run_end` names it: `failed_kind`, `failed_name`, `failed_step`, `failed_category`; a run that fails otherwise has none of these. Old traces map as before |
+| R25 | `RunState` keeps a health account per task (calls, successes, failure categories, latency, health verdict) in the same shape as a tool's, shown in the view as `tasks` and in `toolSummaries()` / the rollup with `kind` = `task` (a tool and a task with one name stay apart) |
+| R26 | Two incidents: `BROKEN` (high; the run ended failed because of a named task or delegate; it stays open after the run ends) and `DIVERTED` (warn; a step failed and its `on_failure` took over; closes when the run ends). Both are replay-stable and carry the step, kind, name, category |
+| R27 | The failure text follows the detail level (no raw error text at `none`), and a `failure` event adds no secrets |
 
 ## 8. Sub-phases
 
@@ -148,6 +154,7 @@ Researcher {
 | 4b | `RunState` statistics, percentile helper, `view()` and `summary()` fields | R8, R9, R15 |
 | 4c | Detectors, incidents, thresholds, `.inspect` grammar and checks | R10 to R13 |
 | 4d | OTLP export of the new records, Fabric end-to-end (a recorded run through the server), compatibility fixtures | R14, R16 |
+| 4f | Task and delegate failures: `failure` event, enriched `task_end`, `run_end` attribution, task health, `BROKEN` and `DIVERTED` incidents | R22 to R27 |
 | 4e | Documentation (observability pages, loom-inspect design, guide), example, verification run | all |
 
 ## 9. Decisions

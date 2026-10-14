@@ -19,7 +19,7 @@ final class Incidents {
 
     static final int KEEP_CLOSED = 20;
 
-    enum Kind { PAUSED, LOOPING, SUSPECT_OUTPUT, FAILED, BUDGET, CONTEXT, TRUNCATED, THRASH, TOOL_RATE, SPIKE }
+    enum Kind { PAUSED, LOOPING, SUSPECT_OUTPUT, FAILED, BUDGET, CONTEXT, TRUNCATED, THRASH, TOOL_RATE, SPIKE, BROKEN, DIVERTED }
 
     private static final List<String> ORDER = List.of("info", "warn", "high");
 
