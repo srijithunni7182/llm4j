@@ -177,7 +177,8 @@ public final class RunState {
                 top.pausedLongerThanSeconds() != null ? top.pausedLongerThanSeconds() : base.pausedLongerThanSeconds(),
                 top.noProgressRounds() != null ? top.noProgressRounds() : base.noProgressRounds(),
                 top.noProgressVariable() != null ? top.noProgressVariable() : base.noProgressVariable(),
-                top.telemetry() == null ? base.telemetry() : top.telemetry().over(base.telemetry()));
+                top.telemetry() == null ? base.telemetry() : top.telemetry().over(base.telemetry()),
+                top.security() == null ? base.security() : top.security().over(base.security()));
     }
 
     /** The agents this run has shown or declared, and the model each declared agent uses. */

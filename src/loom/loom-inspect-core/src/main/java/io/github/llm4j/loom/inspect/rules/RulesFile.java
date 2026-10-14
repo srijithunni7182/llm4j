@@ -38,7 +38,7 @@ public final class RulesFile {
     public static final String ALL = "*";
 
     public static final List<String> RULES = List.of("same_action", "same_output", "tool_failures", "no_progress", "ungrounded_figures", "paused_longer_than",
-            "context_nearly_full", "truncated_answers", "compaction_thrash", "tool_success_rate", "latency_spike");
+            "context_nearly_full", "truncated_answers", "compaction_thrash", "tool_success_rate", "latency_spike", "access_denied", "injection_scan", "trifecta");
 
     /** Something wrong with the file or with how it meets the script. */
     public record Problem(int line, boolean error, String message) {
@@ -64,9 +64,42 @@ public final class RulesFile {
     private static final Pattern THRASH = Pattern.compile("compaction_thrash\\s*:\\s*(\\d+)\\s+in\\s+(\\d+)\\s+calls");
     private static final Pattern TOOL_RATE = Pattern.compile("tool_success_rate\\s*:\\s*below\\s+(\\d+)\\s*%\\s+over\\s+(\\d+)\\s+calls");
     private static final Pattern SPIKE = Pattern.compile("latency_spike\\s*:\\s*(\\d+(?:\\.\\d+)?)\\s*x\\s+p50");
+    private static final Pattern ACCESS = Pattern.compile("access_denied\\s*:\\s*(\\d+)\\s+in\\s+(\\d+)\\s*([smh])");
+    private static final Pattern INJECTION = Pattern.compile("injection_scan\\s*:\\s*(on|off)");
+    private static final Pattern TRIFECTA = Pattern.compile("trifecta\\s*:\\s*accepted\\s+\"([^\"]*)\"");
     private static final Pattern OPEN = Pattern.compile("^(\\*|[A-Za-z_][A-Za-z0-9_]*)\\s*\\{(.*)$");
 
     private RulesFile() { }
+
+    /** The line without its {@code #} or {@code //} comment; a comment mark inside a quoted reason is part of the reason. */
+    private static String stripComment(String line) {
+        boolean quoted = false;
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '"') quoted = !quoted;
+            else if (!quoted && (c == '#' || (c == '/' && i + 1 < line.length() && line.charAt(i + 1) == '/'))) return line.substring(0, i);
+        }
+        return line;
+    }
+
+    /** The rules on one line, separated by {@code ;} (a {@code ;} inside a quoted reason does not separate). */
+    private static List<String> splitRules(String line) {
+        List<String> parts = new ArrayList<>();
+        StringBuilder cur = new StringBuilder();
+        boolean quoted = false;
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '"') quoted = !quoted;
+            if (c == ';' && !quoted) {
+                parts.add(cur.toString());
+                cur.setLength(0);
+            } else {
+                cur.append(c);
+            }
+        }
+        parts.add(cur.toString());
+        return parts;
+    }
 
     /** {@code flow.loom} to {@code flow.inspect}, in the same folder. */
     public static Path sidecarFor(Path script) {
@@ -92,7 +125,7 @@ public final class RulesFile {
         String[] all = text.split("\\R", -1);
         for (int i = 0; i < all.length; i++) {
             int no = i + 1;
-            String line = all[i].replaceAll("(#|//).*$", "").strip();
+            String line = stripComment(all[i]).strip();
             if (line.isEmpty()) continue;
             if (current == null) {
                 Matcher m = OPEN.matcher(line);
@@ -110,7 +143,7 @@ public final class RulesFile {
             }
             boolean closes = line.endsWith("}");
             if (closes) line = line.substring(0, line.length() - 1).strip();
-            for (String part : line.split(";")) {
+            for (String part : splitRules(line)) {
                 String rule = part.strip();
                 if (!rule.isEmpty()) apply(rule, no, current, name, problems);
             }
@@ -132,6 +165,9 @@ public final class RulesFile {
             }
             if (ALL.equals(b.getKey()) && v.progressVar != null) {
                 problems.add(new Problem(lines.get(b.getKey()), true, "no_progress names a variable that belongs to one agent's loop: put it in that agent's block, not in *"));
+            }
+            if (ALL.equals(b.getKey()) && v.trifectaAccepted != null) {
+                problems.add(new Problem(lines.get(b.getKey()), false, "* accepts the lethal trifecta for every agent that does not say otherwise: that hides the signal where it matters most. Accept it for the agents you have reviewed, by name."));
             }
             out.put(b.getKey(), v.build());
         }
@@ -172,6 +208,12 @@ public final class RulesFile {
                 if (t.toolRate() != null && t.toolRateWindow() != null) lines.add("tool_success_rate: below " + pct(t.toolRate()) + " over " + t.toolRateWindow() + " calls");
                 if (t.spikeFactor() != null) lines.add("latency_spike: " + (t.spikeFactor() == Math.rint(t.spikeFactor()) ? String.valueOf(t.spikeFactor().longValue()) : String.valueOf(t.spikeFactor())) + "x p50");
             }
+            InspectRules.Security sec = r.security();
+            if (sec != null) {
+                if (sec.accessDeniedCount() != null && sec.accessDeniedSeconds() != null) lines.add("access_denied: " + sec.accessDeniedCount() + " in " + span(sec.accessDeniedSeconds()));
+                if (sec.injectionScan() != null) lines.add("injection_scan: " + (sec.injectionScan() ? "on" : "off"));
+                if (sec.trifectaAccepted() != null) lines.add("trifecta: accepted \"" + sec.trifectaAccepted() + "\"");
+            }
             if (lines.isEmpty()) continue;
             out.append('\n').append(name).append(" {\n");
             for (String l : lines) out.append("    ").append(l).append('\n');
@@ -209,10 +251,18 @@ public final class RulesFile {
         Double toolRate;
         Integer toolWindow;
         Double spike;
+        Integer accessCount;
+        Long accessSeconds;
+        Boolean injectionScan;
+        String trifectaAccepted;
+
+        InspectRules.Security security() {
+            return new InspectRules.Security(accessCount, accessSeconds, injectionScan, trifectaAccepted);
+        }
 
         boolean empty() {
             return sameAction == null && sameOutput == null && toolFailures == null && warn == null && high == null && paused == null && rounds == null
-                    && telemetry().isEmpty();
+                    && telemetry().isEmpty() && security().isEmpty();
         }
 
         InspectRules.Telemetry telemetry() {
@@ -221,7 +271,7 @@ public final class RulesFile {
 
         InspectRules build() {
             InspectRules.Telemetry t = telemetry();
-            return new InspectRules(sameAction, sameOutput, toolFailures, warn, high, paused, rounds, progressVar, t.isEmpty() ? null : t);
+            return new InspectRules(sameAction, sameOutput, toolFailures, warn, high, paused, rounds, progressVar, t.isEmpty() ? null : t, security().isEmpty() ? null : security());
         }
     }
 
@@ -292,6 +342,28 @@ public final class RulesFile {
                 return;
             }
             b.spike = factor;
+        } else if ((m = ACCESS.matcher(rule)).matches()) {
+            Integer n = whole(m.group(1), rule, line, problems);
+            long span = Long.parseLong(m.group(2));
+            if (n == null) return;
+            if (span < 1) {
+                problems.add(new Problem(line, true, "'" + rule + "': the span must be at least 1. Write it as access_denied: 3 in 60s"));
+                return;
+            }
+            b.accessCount = n;
+            b.accessSeconds = span * switch (m.group(3)) {
+                case "s" -> 1L;
+                case "m" -> 60L;
+                default -> 3600L;
+            };
+        } else if ((m = INJECTION.matcher(rule)).matches()) {
+            b.injectionScan = "on".equals(m.group(1));
+        } else if ((m = TRIFECTA.matcher(rule)).matches()) {
+            if (m.group(1).isBlank()) {
+                problems.add(new Problem(line, true, "'" + rule + "': an accepted trifecta needs a reason, written in quotes, so the acceptance is never silent. " + example("trifecta")));
+                return;
+            }
+            b.trifectaAccepted = m.group(1).strip();
         } else {
             String word = rule.contains(":") ? rule.substring(0, rule.indexOf(':')).strip() : rule;
             if (RULES.contains(word)) {
@@ -337,6 +409,9 @@ public final class RulesFile {
             case "compaction_thrash" -> "Write it as compaction_thrash: 4 in 10 calls";
             case "tool_success_rate" -> "Write it as tool_success_rate: below 70% over 10 calls";
             case "latency_spike" -> "Write it as latency_spike: 5x p50";
+            case "access_denied" -> "Write it as access_denied: 3 in 60s (s, m or h)";
+            case "injection_scan" -> "Write it as injection_scan: on, or injection_scan: off";
+            case "trifecta" -> "Write it as trifecta: accepted \"customer support: reads tickets, looks up the account, replies\" (the reason is required and has no double quotes)";
             default -> "Write it as " + rule + ": 4 times";
         };
     }

@@ -115,6 +115,8 @@ final class FabricConfig implements ServerConfig {
         d.put("compaction_thrash", Map.of("count", t.thrashCompactions(), "of_calls", t.thrashOfCalls()));
         d.put("tool_success_rate", Map.of("below", (int) Math.round(t.toolRate() * 100), "over_calls", t.toolRateWindow()));
         d.put("latency_spike", t.spikeFactor());
+        d.put("access_denied", Map.of("count", t.accessDeniedCount(), "seconds", (int) t.accessDeniedSeconds()));
+        d.put("injection_scan", t.injectionScan());
         return d;
     }
 
@@ -145,6 +147,12 @@ final class FabricConfig implements ServerConfig {
                 if (t.thrashCompactions() != null && t.thrashOfCalls() != null) m.put("compaction_thrash", Map.of("count", t.thrashCompactions(), "of_calls", t.thrashOfCalls()));
                 if (t.toolRate() != null && t.toolRateWindow() != null) m.put("tool_success_rate", Map.of("below", (int) Math.round(t.toolRate() * 100), "over_calls", t.toolRateWindow()));
                 if (t.spikeFactor() != null) m.put("latency_spike", t.spikeFactor());
+            }
+            InspectRules.Security sec = r.security();
+            if (sec != null) {
+                if (sec.accessDeniedCount() != null && sec.accessDeniedSeconds() != null) m.put("access_denied", Map.of("count", sec.accessDeniedCount(), "seconds", sec.accessDeniedSeconds().intValue()));
+                if (sec.injectionScan() != null) m.put("injection_scan", sec.injectionScan());
+                if (sec.trifectaAccepted() != null) m.put("trifecta_accepted", sec.trifectaAccepted());
             }
             out.put(agent, m);
         });
@@ -178,10 +186,15 @@ final class FabricConfig implements ServerConfig {
             JsonNode tr = r.path("tool_success_rate");
             InspectRules.Telemetry telemetry = new InspectRules.Telemetry(percent(cx, "warn"), percent(cx, "high"), whole(r, "truncated_answers"), whole(th, "count"),
                     whole(th, "of_calls"), percent(tr, "below"), whole(tr, "over_calls"), r.hasNonNull("latency_spike") ? r.get("latency_spike").asDouble() : null);
+            JsonNode ad = r.path("access_denied");
+            String accepted = r.hasNonNull("trifecta_accepted") ? r.get("trifecta_accepted").asText() : null;
+            if (accepted != null && accepted.isBlank()) throw new IllegalArgumentException(e.getKey() + ": an accepted trifecta needs a reason");
+            InspectRules.Security security = new InspectRules.Security(whole(ad, "count"), ad.hasNonNull("seconds") ? ad.get("seconds").asLong() : null,
+                    r.hasNonNull("injection_scan") ? r.get("injection_scan").asBoolean() : null, accepted == null ? null : accepted.strip());
             out.put(e.getKey(), new InspectRules(whole(r, "same_action"), whole(r, "same_output"), whole(r, "tool_failures"), whole(u, "warn"), whole(u, "high"),
                     r.hasNonNull("paused_longer_than") ? r.get("paused_longer_than").asLong() : null, whole(np, "rounds"),
                     np.hasNonNull("variable") && !np.get("variable").asText().isBlank() ? np.get("variable").asText().strip() : null,
-                    telemetry.isEmpty() ? null : telemetry));
+                    telemetry.isEmpty() ? null : telemetry, security.isEmpty() ? null : security));
         });
         return out;
     }

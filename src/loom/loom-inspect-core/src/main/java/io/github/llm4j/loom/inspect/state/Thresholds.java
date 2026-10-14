@@ -18,16 +18,29 @@ package io.github.llm4j.loom.inspect.state;
  * @param toolRate a tool whose success rate over its last {@code toolRateWindow} calls is below this (0 to 1) is raised
  * @param toolRateWindow how many of a tool's latest calls the rate is taken over
  * @param spikeFactor a call this many times slower than the running median of its kind is a latency spike
+ * @param accessDeniedCount a tool refusing access this many times within {@code accessDeniedSeconds} is raised
+ * @param accessDeniedSeconds the span the refusals are counted over
+ * @param injectionScan whether results of untrusted tools are scanned for injected instructions
+ * @param trifectaAccepted the written reason this agent's use of all three legs of the lethal trifecta is accepted, or null when it is not
  */
 public record Thresholds(int sameAction, int sameOutput, int ungroundedWarn, int ungroundedHigh, int toolFailures, long pausedLongerThanSeconds,
                          double contextWarn, double contextHigh, int truncatedAnswers, int thrashCompactions, int thrashOfCalls,
-                         double toolRate, int toolRateWindow, double spikeFactor) {
+                         double toolRate, int toolRateWindow, double spikeFactor,
+                         int accessDeniedCount, long accessDeniedSeconds, boolean injectionScan, String trifectaAccepted) {
 
     /** The fewest calls a success rate is judged on, and a spike needs this many earlier samples. */
     public static final int MIN_RATE_CALLS = 5;
     public static final int MIN_SPIKE_SAMPLES = 10;
     /** A call under this many milliseconds is never a spike, however slow it is relative to a very fast median. */
     public static final long SPIKE_FLOOR_MILLIS = 2_000;
+
+    /** The rules that existed before the security ones, with the defaults for those. */
+    public Thresholds(int sameAction, int sameOutput, int ungroundedWarn, int ungroundedHigh, int toolFailures, long pausedLongerThanSeconds,
+                      double contextWarn, double contextHigh, int truncatedAnswers, int thrashCompactions, int thrashOfCalls,
+                      double toolRate, int toolRateWindow, double spikeFactor) {
+        this(sameAction, sameOutput, ungroundedWarn, ungroundedHigh, toolFailures, pausedLongerThanSeconds, contextWarn, contextHigh, truncatedAnswers,
+                thrashCompactions, thrashOfCalls, toolRate, toolRateWindow, spikeFactor, 3, 60, true, null);
+    }
 
     /** The rules that existed before the telemetry ones, with the defaults for those. */
     public Thresholds(int sameAction, int sameOutput, int ungroundedWarn, int ungroundedHigh, int toolFailures, long pausedLongerThanSeconds) {
