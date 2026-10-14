@@ -139,3 +139,7 @@ Researcher {
 | 4 | Wire compatibility for the extended `InspectRules` | New fields are nullable and optional in JSON; an older server ignores them; a newer server accepts older rules |
 | 5 | Percentiles in the core module | A small own implementation (nearest-rank, bounded reservoir) because core depends on neither ai-agent4j nor Loom |
 | 6 | Defaults of the five rules | As in §5; all overridable per agent and centrally; none changes a run's behaviour |
+
+## 10. As built: notes by sub-phase
+
+- **4a.** As §3, with these refinements. The `chat` span is parented to the workflow root like the tool spans (not the agent span), so every kind of step shares one parent. The held tool span is only used once the trace has shown a `model_call` or `context` event, so a trace from an older runtime maps exactly as before and tool spans are not delayed. A tool call that did not run (blocked repeat, unknown tool, rejected, approval unavailable, budget) closes with status unset and `loom.tool.no_result`, not as a failure. `ServerLink` now sends one request per kind of record in a batch (see the loom-inspect design §11n).

@@ -6,15 +6,15 @@ Status: **draft**. Run top to bottom at the end of sub-phase 4e; relevant rows a
 
 | # | Criterion | Evidence |
 |---|---|---|
-| A1 | A tool that returns an error as text, or fails with a category, shows that outcome and category on its span, without guessing from text | `ToolOutcomeMappingTest` |
-| A2 | Every model call is a `chat` span with tokens, finish reason, attempts and category | `ModelSpanMappingTest` |
-| A3 | Context fill and compactions are in the records and in the run's view | `ContextLogMappingTest`, `RunStateViewTest` |
+| A1 | A tool that returns an error as text, or fails with a category, shows that outcome and category on its span, without guessing from text | `NewEventsMappingTest` (tool outcome) |
+| A2 | Every model call is a `chat` span with tokens, finish reason, attempts and category | `NewEventsMappingTest` (chat span) |
+| A3 | Context fill and compactions are in the records and in the run's view | `NewEventsMappingTest`, `RunStateViewTest` |
 | A4 | Per model and per tool: calls, success rate, failures by category, p50 and p95 | `RunStateStatsTest` |
 | A5 | An incident is raised for a nearly full context, a truncated answer, compaction thrash, a collapsing tool success rate and a latency spike, with evidence | the five incident tests |
 | A6 | The thresholds are set per agent in the `.inspect` file and centrally | `NewRulesFileTest`, `ConfigLayeringTest` |
 | A7 | An older trace, rules file or snapshot behaves exactly as before | the compatibility tests |
 | A8 | Replaying a recorded run gives the same incidents | `IncidentReplayTest` |
-| A9 | Nothing new carries prompt, answer, argument or result text | `NewRecordsHoldNoTextTest` |
+| A9 | Nothing new carries prompt, answer, argument or result text | `NewEventsMappingTest#noNewRecordHoldsTextAtAnyDetailLevel` |
 | A10 | It works through Fabric end to end | `FabricContextEndToEndTest` |
 | A11 | Documented, with a runnable example | docs review (§5) |
 
@@ -22,13 +22,13 @@ Status: **draft**. Run top to bottom at the end of sub-phase 4e; relevant rows a
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 | `ToolOutcomeMappingTest` | ☐ |
-| R2 | `MapperBackwardCompatTest` | ☐ |
-| R3 | `HeldSpanFlushTest` | ☐ |
-| R4 | `ModelSpanMappingTest` | ☐ |
-| R5 | `ContextLogMappingTest` | ☐ |
-| R6 | `ContextLogMappingTest#runTotals` | ☐ |
-| R7 | `NewRecordsHoldNoTextTest` | ☐ |
+| R1 | `NewEventsMappingTest` (tool outcome) | ✅ 4a |
+| R2 | `NewEventsMappingTest#anOldTraceWithoutTheNewEventsMapsAsBefore`, `TraceMapperTest`, `RealRunTest` | ✅ 4a (`anOldTraceWithoutTheNewEventsMapsAsBefore`, whole `TraceMapperTest` and `RealRunTest` unchanged) |
+| R3 | `NewEventsMappingTest` (held span) | ✅ 4a |
+| R4 | `NewEventsMappingTest` (chat span) | ✅ 4a |
+| R5 | `NewEventsMappingTest` | ✅ 4a |
+| R6 | `NewEventsMappingTest#runTotalsReachTheRunRecord` | ✅ 4a |
+| R7 | `NewEventsMappingTest#noNewRecordHoldsTextAtAnyDetailLevel` | ✅ 4a |
 | R8 | `RunStateStatsTest`, `PercentilesTest` | ☐ |
 | R9 | `RunStateViewTest` | ☐ |
 | R10 | the five incident tests, `ConfigLayeringTest` | ☐ |
@@ -76,12 +76,13 @@ inspect section, `llms.txt`, a runnable example under `src/examples/`. Stack-lev
 
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
+| 2026-10-14 | 4a | Pass | Tests first for the mapping (19 tests: real outcome, soft failure, never-run calls, old traces, held span and every flush, two agents, chat span, failed call, context, compaction, totals, no text at any detail level). Found by the simulator test: more records alternate in a batch, and the link sent a request per change of kind, tripping the server's rate limit; the link now sends one request per kind (with a regression test). Loom 1,837, inspect-core 108, inspect 128, fabric 34 tests green |
 
 ### Documentation record (per sub-phase)
 
 | Sub-phase | Docs | Samples tested | Javadoc | llms.txt | Stack-level pages | Specs |
 |---|---|---|---|---|---|---|
-| 4a | | | | | | |
+| 4a | ✅ loom-inspect DESIGN §11n | ✅ n/a (no samples yet) | ✅ `Semconv` | n/a | deferred to the end | ✅ traceability, results |
 | 4b | | | | | | |
 | 4c | | | | | | |
 | 4d | | | | | | |

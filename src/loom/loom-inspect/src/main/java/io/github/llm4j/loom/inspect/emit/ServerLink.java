@@ -217,16 +217,20 @@ public final class ServerLink implements AutoCloseable {
                 if (s.orphan() && !keepOrphans) finished(s); // we hold its lock, so nobody else is writing to it
                 continue;
             }
-            int i = 0;
-            while (i < batch.size()) {
-                char type = (char) batch.get(i).payload()[0];
-                int j = i;
-                while (j < batch.size() && (char) batch.get(j).payload()[0] == type) j++;
-                send(type, batch.subList(i, j));
-                s.cursor().advance(batch.get(j - 1).offset());
-                sent += j - i;
-                i = j;
+            // One request per kind of record in the batch, logs first and then spans, each in the order it was written. A batch is mostly alternating
+            // logs and spans, and sending every change of kind as its own request would cost hundreds of requests for a few hundred records. The
+            // server tolerates the order (a span that ends before its start log is seen is counted once), and the cursor moves only when the whole
+            // batch has been acknowledged, so a failure part-way resends it and the server drops the repeats.
+            for (char type : new char[] {'L', 'S'}) {
+                List<Outbox.Entry> same = new ArrayList<>();
+                for (Outbox.Entry e : batch) if ((char) e.payload()[0] == type) same.add(e);
+                if (!same.isEmpty()) send(type, same);
             }
+            List<Outbox.Entry> unknown = new ArrayList<>();
+            for (Outbox.Entry e : batch) if ((char) e.payload()[0] != 'L' && (char) e.payload()[0] != 'S') unknown.add(e);
+            if (!unknown.isEmpty()) send('?', unknown);
+            s.cursor().advance(batch.get(batch.size() - 1).offset());
+            sent += batch.size();
             long limit = s.cursor().get();
             if (!s.orphan() && trimLimit != null) limit = Math.min(limit, trimLimit.getAsLong());
             s.outbox().trim(limit);

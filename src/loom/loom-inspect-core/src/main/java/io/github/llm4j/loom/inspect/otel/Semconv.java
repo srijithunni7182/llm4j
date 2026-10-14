@@ -58,12 +58,48 @@ public final class Semconv {
     /** A few of the ungrounded figures, for the evidence line. Absent at the metadata detail level. */
     public static final String LOOM_GROUNDING_EXAMPLES = "loom.grounding.examples";
 
+    // ---- Model calls, tool outcomes, context and compaction (Phase 4) ----
+    public static final String OP_CHAT = "chat";
+    public static final String GEN_AI_RESPONSE_MODEL = "gen_ai.response.model";
+    public static final String GEN_AI_RESPONSE_FINISH_REASONS = "gen_ai.response.finish_reasons";
+    public static final String LOOM_MODEL_ATTEMPTS = "loom.model.attempts";
+    public static final String LOOM_MODEL_WAITED_MS = "loom.model.waited_ms";
+    public static final String LOOM_MODEL_FAILOVERS = "loom.model.failovers";
+    public static final String LOOM_MODEL_TRUNCATED = "loom.model.truncated";
+    public static final String LOOM_MODEL_DURATION_MS = "loom.model.duration_ms";
+    public static final String LOOM_TOOL_OUTCOME = "loom.tool.outcome";
+    public static final String LOOM_TOOL_SOFT_FAILURE = "loom.tool.soft_failure";
+    public static final String LOOM_TOOL_RESULT_CHARS = "loom.tool.result_chars";
+    public static final String LOOM_TOOL_APPROVAL_MS = "loom.tool.approval_ms";
+    public static final String LOOM_TOOL_DURATION_MS = "loom.tool.duration_ms";
+    public static final String LOOM_CONTEXT_USED = "loom.context.used";
+    public static final String LOOM_CONTEXT_WINDOW = "loom.context.window";
+    public static final String LOOM_CONTEXT_USABLE = "loom.context.usable";
+    public static final String LOOM_CONTEXT_FRACTION = "loom.context.fraction";
+    public static final String LOOM_CONTEXT_SOURCE = "loom.context.source";
+    public static final String LOOM_COMPACTION_STRATEGY = "loom.compaction.strategy";
+    public static final String LOOM_COMPACTION_OUTCOME = "loom.compaction.outcome";
+    public static final String LOOM_COMPACTION_REASON = "loom.compaction.reason";
+    public static final String LOOM_COMPACTION_BEFORE = "loom.compaction.before";
+    public static final String LOOM_COMPACTION_AFTER = "loom.compaction.after";
+    public static final String LOOM_COMPACTION_MESSAGES_BEFORE = "loom.compaction.messages_before";
+    public static final String LOOM_COMPACTION_MESSAGES_AFTER = "loom.compaction.messages_after";
+    public static final String LOOM_COMPACTION_SUMMARY_TOKENS = "loom.compaction.summary_tokens";
+    public static final String LOOM_COMPACTION_SUMMARY_COST = "loom.compaction.summary_cost";
+    public static final String LOOM_RUN_MODEL_CALLS = "loom.run.model_calls";
+    public static final String LOOM_RUN_TOOL_CALLS = "loom.run.tool_calls";
+    public static final String LOOM_RUN_TOOL_FAILURES = "loom.run.tool_failures";
+    public static final String LOOM_RUN_RETRIES = "loom.run.retries";
+    public static final String LOOM_RUN_FAILOVERS = "loom.run.failovers";
+    public static final String LOOM_RUN_COMPACTIONS = "loom.run.compactions";
+
     // ---- Values of loom.span.kind ----
     public static final String KIND_WORKFLOW = "workflow";
     public static final String KIND_AGENT = "agent";
     public static final String KIND_TOOL = "tool";
     public static final String KIND_TASK = "task";
     public static final String KIND_SLEEP = "sleep";
+    public static final String KIND_MODEL = "model";
 
     // ---- Log record event names ----
     public static final String EV_RUN_START = "loom.run.start";
@@ -85,6 +121,8 @@ public final class Semconv {
     public static final String LOOM_INSPECT_LOOP = "loom.inspect.loop";
     public static final String LOOM_INSPECT_HASH = "loom.inspect.hash";
     public static final String EV_NOTE = "loom.note";
+    public static final String EV_CONTEXT = "loom.context";
+    public static final String EV_COMPACTION = "loom.compaction";
     /** Prefix for any other Loom trace event: {@code loom.approval}, {@code loom.rewind}, {@code loom.guard}, … */
     public static final String EV_PREFIX = "loom.";
 
