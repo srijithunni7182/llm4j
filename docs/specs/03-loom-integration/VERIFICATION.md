@@ -31,14 +31,14 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 3e, and 
 | R7 | `ContextAgentBuildTest#routingAgentUsesTheSmallestWindow` | ✅ 3b |
 | R8 | `ContextBlockCheckTest`, `ContextAgentBuildTest` | ✅ 3b (check warning and run) |
 | R9 | `ContextAgentBuildTest#summariserSharesTheFactory` | ✅ 3b |
-| R10 | `ContextTraceEventsTest` | ☐ |
-| R11 | `ContextTraceEventsTest#noEventsWithoutListeners` | ☐ |
+| R10 | `ContextTraceEventsTest` | ✅ 3c |
+| R11 | `ContextTraceEventsTest#noEventsWithoutListeners` | ✅ 3c |
 | R12 | `ContextLoomSoakTest` | ✅ 3b |
 | R13 | `TranscriptCompactionTest`, `RewindWithCompactionTest` | ☐ |
-| R14 | `RunStatsInLoomTest` | ☐ |
+| R14 | `RunStatsInLoomTest` | ✅ 3c |
 | R15 | `WeaveCheckContextTest`, audit test | ☐ |
-| R16 | `ReplayNoDuplicateEventsTest` | ☐ |
-| R17 | extended redaction audit | ☐ |
+| R16 | `ReplayNoDuplicateEventsTest` | ✅ 3c |
+| R17 | extended redaction audit | ✅ 3c |
 | R18 | dependency diff | ☐ |
 | R19 | `LoctLoaderTest` | ✅ 3b |
 | R20 | `LoctLoaderTest`, `LoctCheckTest` | ✅ 3b |
@@ -86,6 +86,7 @@ Stack-level pages are owed once at the end of the whole work.
 
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
+| 2026-10-14 | 3c | Pass | Tests first for the four new event types (data, no text, order, failures, soft failures, no listener), statistics equal to the events, `run_end` totals, replay without duplicate events, a planted secret. 15 new tests; Loom 1,821, inspect-core 108, inspect 108, fabric 34 tests green. Finding: a listener makes ai-agent4j build a context manager, so agents without a block also report context use (no window) |
 | 2026-10-14 | 3b | Pass | Windows layering (5 layers), `.loct` loader and registry, `--context-windows`/`--loct`, agent wiring (policy, smallest window, summarizer client, chain, options), faults, a 150-step soak. 48 new tests. Findings: the default `max_compactions` (8) is too low for a very long loop (documented); load problems of a `.loct` had to be kept to be shown by `weave check` |
 | 2026-10-14 | 3a | Pass | Tests first for the parser (every key, `chain()`, `[a, b]`, percent forms, the word `context` elsewhere) and the check (unknown strategy with a guess, `target` vs `trigger`, a window written in the script, summarizer, references). 24 new tests; Loom suite 1,759 tests green |
 
@@ -95,7 +96,7 @@ Stack-level pages are owed once at the end of the whole work.
 |---|---|---|---|---|---|---|
 | 3a | ✅ guide section "Context and Compaction" (marked in progress) | ✅ checked by `ContextBlock*Test` | ✅ `AgentDef.ContextConfig` | ✅ VS Code grammar and hover | deferred to the end | ✅ traceability, results |
 | 3b | ✅ guide: windows files, `.loct`, defaults, CLI options | ✅ `ContextAgentBuildTest`, `LoctCheckTest` | ✅ `WindowLayers`, `CompactorRegistry`, `ContextFiles`, executor methods | ✅ (VS Code unchanged) | deferred to the end | ✅ traceability, results |
-| 3c | | | | | | |
+| 3c | ✅ guide: the trace events and `ObservableRun.stats()` (see below) | ✅ `ContextTraceEventsTest`, `RunStatsInLoomTest` | ✅ `TraceEvent` constants, `ObservableRun.stats` | n/a | deferred to the end | ✅ DESIGN section 10, traceability, results |
 | 3d | | | | | | |
 | 3e | | | | | | |
 

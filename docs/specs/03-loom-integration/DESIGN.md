@@ -116,7 +116,7 @@ New constants in `TraceEvent`, each with numbers and names only (no prompt or re
 
 | type | when | `data` |
 |---|---|---|
-| `context` | after each model call, when a window is known | `used`, `window`, `usable`, `fraction`, `source` (`REPORTED` or `ESTIMATED`) |
+| `context` | after each model call | `used`, `source` (`REPORTED` or `ESTIMATED`) and, when the model's window is known, `window`, `usable`, `fraction` |
 | `compaction` | when a compaction ran, was skipped, or failed | `strategy`, `outcome`, `before`, `after`, `messages_before`, `messages_after`, `cost`, `reason` |
 | `model_call` | after each model call | `model`, `requested_model`, `duration_ms`, `waited_ms`, `attempts`, `failovers`, `prompt_tokens`, `completion_tokens`, `finish_reason`, `truncated`, `outcome`, `category` |
 | `tool_call` | after each tool call | `tool`, `outcome`, `duration_ms`, `approval_ms`, `result_chars`, `soft_failure`, `category` |
@@ -211,3 +211,9 @@ Each ends with its tests passing and its documents updated (see [the rule](../RE
 | 5 | Does the transcript memory share the agent's strategy? | Yes by default; a `memory { max_tokens, compact }` can override |
 | 6 | Statistics on `ObservableRun` now, interpretation later | Yes: this phase exposes `stats()` and the events; incidents and gauges are phases 4 and 5 |
 | 7 | Plugging in a custom strategy | **Decided by you:** a `.loct` file maps a name to a class, mirroring `.loot`; recommended additions: also accept a `ContextCompactorProvider` class for strategies that need options or a model, and refuse names that shadow built-ins |
+
+## 10. As built: notes by sub-phase
+
+- **3a.** `AgentDef.ContextConfig` (a `Settings` subclass) with its own parser method, because `compact:` takes names and `chain(...)` and percentages are written with a sign. The check lives in `ContextSettings`.
+- **3b.** `io.github.llm4j.loom.context`: `WindowLayers` (the layered windows), `CompactorRegistry` (the `.loct` file and code registrations), `ContextFiles` (what the command line named, held for the process as `--classes` is). `ContextWiring` turns a block into a `ContextPolicy` and a strategy. Options of a block that no strategy takes are a load error; options go only to the strategy that owns them (`max_chars` to `trim_tool_results`, `max_summary_tokens` to `summarize`, every other key to a `.loct` provider). A `.loct` class is loaded when the strategy is built, not when the file is read; `weave check` looks at it without running it (`Class.forName` without initialisation). The default `max_compactions` of ai-agent4j (8) is low for a very long loop; documented. Load problems of a `.loct` file are kept by the registry so that `weave check` can show them.
+- **3c.** Every agent now carries an always-on statistics listener (`StatsCollector` plus a compaction counter); the trace adapter is added only when someone listens, as before. Because a listener makes ai-agent4j build a context manager, an agent **without** a `context` block now also reports `context` events (use and source, no window); it still sends exactly the same requests. `run_end` carries the totals; `ObservableRun.stats()` has a default method returning the empty statistics, so other implementers are unaffected.

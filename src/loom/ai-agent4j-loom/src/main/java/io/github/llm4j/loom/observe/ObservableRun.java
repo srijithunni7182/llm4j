@@ -49,6 +49,11 @@ public interface ObservableRun {
     /** A shallow copy of the workflow's variables now. The values are the run's own: read them, do not change them. */
     Map<String, Object> variables();
 
+    /** The statistics of the model and tool calls made so far: per tool and per model, success rates, latency percentiles, failures by category. */
+    default io.github.llm4j.telemetry.RunStats stats() {
+        return io.github.llm4j.telemetry.RunStats.EMPTY;
+    }
+
     /** The clock the run uses for budget windows, rate limits and sleeps. */
     Clock clock();
 

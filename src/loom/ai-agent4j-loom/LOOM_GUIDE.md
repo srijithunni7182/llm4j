@@ -1425,7 +1425,7 @@ Because a task is plain Java you also unit-test it directly, with no model and n
 ### Context and Compaction
 
 > **Status: in progress.** An agent with a `context` block is compacted while it runs, using the window configured for its model, and your own strategies plug in with a `.loct`
-> file (this section). Trace events, run statistics and the transcript memory follow. Design: [`docs/specs/03-loom-integration`](../../../docs/specs/03-loom-integration/DESIGN.md).
+> file (this section). The new trace events and run statistics are in (below); the transcript memory follows. Design: [`docs/specs/03-loom-integration`](../../../docs/specs/03-loom-integration/DESIGN.md).
 
 A long tool loop makes the prompt grow until the model's context window is full. An agent's `context` block says **how it keeps the prompt inside the window**. The strategies are
 those of ai-agent4j ([Context and Compaction](../../ai-agent4j/wiki/Context-and-Compaction.md)):
@@ -1491,6 +1491,21 @@ agent Researcher { model: "claude-sonnet-5-5"  context { compact: chain(trim_too
   about a class that is not on the class path yet (build your project, or use `--classes`).
 - Your strategy is held to the same rules as the built-ins (it must not change its input, must keep a tool call with its results, and must not return more than it was
   given). The agent discards a result that breaks them, and carries on with the conversation as it was.
+
+#### What you can see: trace events and statistics
+
+With `weave run --trace` (or any trace listener) the run shows, for every agent, numbers and names only; never a prompt, an answer, an argument or a result:
+
+| event | when | data |
+|---|---|---|
+| `context` | after each model call | `used` tokens and `source` (`REPORTED`: the provider's own count; `ESTIMATED`); with a known window also `window`, `usable`, `fraction` |
+| `compaction` | a compaction was tried | `strategy`, `outcome` (`COMPACTED`, `NO_GAIN`, `SKIPPED`, `FAILED`), `reason`, `before` and `after` in tokens, `messages_before` and `messages_after`, and the tokens and cost of a model-written summary |
+| `model_call` | each model call | `model`, `duration_ms`, `waited_ms`, `attempts`, `failovers`, token counts, `finish_reason`, `truncated`, `outcome`, and for a failure the `category` (`RATE_LIMITED`, `TIMEOUT`, `CONTEXT_OVERFLOW`, ...) |
+| `tool_call` | each tool call | `tool`, `outcome`, `duration_ms`, `approval_ms`, `result_chars`, `soft_failure` (the tool returned its error as text) and for a failure the `category` |
+
+`run_end` carries the totals (`model_calls`, `tool_calls`, `tool_failures`, `retries`, `failovers`, `compactions`). A host reads the statistics of the run so far (per tool and per
+model, with success rates and latency percentiles) from `executor.stats()` or `ObservableRun.stats()`; they are kept whether or not anyone traces.
+An agent without a `context` block reports `context` events too (its use, with no window); what it sends to the model is unchanged.
 
 ### Agent Guards
 

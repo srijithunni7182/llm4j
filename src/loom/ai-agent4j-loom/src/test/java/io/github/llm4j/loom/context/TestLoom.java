@@ -33,8 +33,14 @@ final class TestLoom {
     private final AtomicInteger calls = new AtomicInteger();
     /** A prompt above this many tokens is refused as the provider would refuse it. */
     volatile long refuseAbove = Long.MAX_VALUE;
+    /** When set, every model call fails with this. */
+    volatile RuntimeException failWith;
 
     TestLoom(Path dir, String source, int steps) {
+        this(dir, source, steps, true);
+    }
+
+    TestLoom(Path dir, String source, int steps, boolean listen) {
         tools.register("lookup", lookup());
         LoomScript script = new LoomParser(new Lexer(source).tokenize()).parseScript();
         executor = new HarnessExecutor(script, tools, model -> {
@@ -43,7 +49,7 @@ final class TestLoom {
         });
         executor.setBaseDir(dir);
         executor.setHumanInterface(message -> "yes");
-        executor.addTraceListener(trace::add);
+        if (listen) executor.addTraceListener(trace::add);
     }
 
     static Tool lookup() {
@@ -67,6 +73,7 @@ final class TestLoom {
             @Override
             public LLMResponse chat(LLMRequest request) {
                 requests.add(request);
+                if (failWith != null) throw failWith;
                 int i = calls.getAndIncrement();
                 long prompt = CharsPerTokenEstimator.INSTANCE.prompt(request);
                 if (prompt > refuseAbove) throw new io.github.llm4j.exception.ContextOverflowException("prompt is too long: " + prompt + " tokens");
