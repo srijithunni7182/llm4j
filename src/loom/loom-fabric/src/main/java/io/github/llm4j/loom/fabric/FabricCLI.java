@@ -68,7 +68,12 @@ public final class FabricCLI implements Callable<Integer> {
     }
 
     public static void main(String[] args) {
-        System.exit(new CommandLine(new FabricCLI(), new Factory(new Env())).execute(args));
+        System.exit(commandLine().execute(args));
+    }
+
+    /** The command line as picocli sees it: what the documentation may name, for checks that it still exists. */
+    static CommandLine commandLine() {
+        return new CommandLine(new FabricCLI(), new Factory(new Env()));
     }
 
     /** Runs with the given environment (tests). */

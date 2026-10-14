@@ -180,6 +180,17 @@
                 <targetPath>skill</targetPath>
                 <includes><include>SKILL.md</include></includes>
             </resource>
+            <!-- the deployer skill: its chapters, its SKILL.md and its launch scripts (the jars it launches are not here: they travel in the skill package) -->
+            <resource>
+                <directory>../../../docs/deploy</directory>
+                <targetPath>deploy</targetPath>
+                <includes><include>*.md</include></includes>
+            </resource>
+            <resource>
+                <directory>../../../.claude/skills/llm4j-loom-deployer</directory>
+                <targetPath>skill-deployer</targetPath>
+                <includes><include>SKILL.md</include><include>scripts/*</include></includes>
+            </resource>
         </resources>
         <plugins>
             <plugin>
