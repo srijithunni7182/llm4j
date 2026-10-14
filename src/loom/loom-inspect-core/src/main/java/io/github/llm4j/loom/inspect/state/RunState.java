@@ -29,6 +29,7 @@ public final class RunState {
     public enum Status { RUNNING, SLEEPING, PAUSED, WAITING, FINISHED, FAILED, STOPPED }
 
     private static final int RECENT = 200;
+    private static final int SERIES = 60;
 
     /** A step that has started and not yet ended. */
     private record Open(String spanId, String name, String kind, String agent, String tool, String step, long startNanos) { }
@@ -44,6 +45,36 @@ public final class RunState {
         long calls;
         long errors;
         long totalNanos;
+        long successes;
+        long softFailures;
+        final Map<String, Long> failures = new java.util.TreeMap<>();
+        final Percentiles latency = new Percentiles();
+    }
+
+    /** One model's calls, as the chat spans report them. */
+    private static final class ModelStat {
+        long calls;
+        long prompt;
+        long completion;
+        long retries;
+        long failovers;
+        long truncated;
+        long waited;
+        final Map<String, Long> failures = new java.util.TreeMap<>();
+        final Percentiles latency = new Percentiles();
+    }
+
+    /** What an agent's context looks like now, and how it got there. */
+    private static final class ContextStat {
+        long used;
+        Long window;
+        Long usable;
+        Double fraction;
+        String source;
+        long compactions;
+        long compactionAttempts;
+        Map<String, Object> last;
+        final ArrayDeque<Double> series = new ArrayDeque<>();
     }
 
     private final String client;
@@ -78,6 +109,8 @@ public final class RunState {
     private final Map<String, Open> open = new LinkedHashMap<>();
     private final Map<String, Agent> agents = new LinkedHashMap<>();
     private final Map<String, Tool> tools = new LinkedHashMap<>();
+    private final Map<String, ModelStat> modelStats = new LinkedHashMap<>();
+    private final Map<String, ContextStat> contexts = new LinkedHashMap<>();
     /** Where each statement of the script stands, by {@link StepPaths#normalize normalized} step id: state and how often it ran. */
     private final Map<String, Object[]> steps = new LinkedHashMap<>();
     private final Set<String> finished = new HashSet<>();
@@ -203,10 +236,12 @@ public final class RunState {
             case Semconv.EV_SPAN_START -> spanStart(r);
             case Semconv.EV_INSPECT_SAMPLE -> detectors.onSample(r.text(Semconv.LOOM_INSPECT_AGENT), r.text(Semconv.LOOM_INSPECT_VAR), r.text(Semconv.LOOM_INSPECT_LOOP), r.text(Semconv.LOOM_INSPECT_HASH), r.timeNanos());
             case Semconv.EV_CONTROL -> control(r);
+            case Semconv.EV_CONTEXT -> contextSample(r);
+            case Semconv.EV_COMPACTION -> compactionSeen(r);
             case Semconv.EV_BUDGET -> detectors.onBudget(String.valueOf(r.text("loom.data.budget")), r.text("loom.data.kind"), r.body(), r.timeNanos());
             default -> { }
         }
-        remember(r);
+        if (!Semconv.EV_CONTEXT.equals(r.eventName())) remember(r); // one per model call: the feed would be all context lines
     }
 
     /** Applies a finished span. */
@@ -216,6 +251,10 @@ public final class RunState {
         Open was = open.remove(s.spanId());
         String kind = s.text(Semconv.LOOM_SPAN_KIND);
         if (kind == null) return;
+        if (Semconv.KIND_MODEL.equals(kind)) { // a model call belongs to its agent's step: it adds to the statistics, not to the steps or the feed
+            modelEnded(s);
+            return;
+        }
         rememberEnd(s, kind);
         stepState(s.text(Semconv.LOOM_STEP), kind, s.statusCode() == SpanRec.STATUS_ERROR ? "failed" : "done");
         switch (kind) {
@@ -370,8 +409,69 @@ public final class RunState {
         if (name == null) return;
         Tool t = tools.computeIfAbsent(name, k -> new Tool());
         t.calls++;
-        if (s.statusCode() == SpanRec.STATUS_ERROR) t.errors++;
-        t.totalNanos += Math.max(0, s.endNanos() - s.startNanos());
+        long nanos = Math.max(0, s.endNanos() - s.startNanos());
+        t.totalNanos += nanos;
+        boolean noResult = Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_NO_RESULT));
+        if (s.statusCode() == SpanRec.STATUS_ERROR) {
+            t.errors++;
+            String category = s.text(Semconv.ERROR_TYPE);
+            t.failures.merge(category == null ? "other" : category, 1L, Long::sum);
+            if (Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_SOFT_FAILURE))) t.softFailures++;
+        } else if (!noResult) {
+            t.successes++;
+        }
+        if (!noResult) t.latency.add(s.attr(Semconv.LOOM_TOOL_DURATION_MS) != null ? number(s.attr(Semconv.LOOM_TOOL_DURATION_MS)) : nanos / 1_000_000L);
+    }
+
+    private void modelEnded(SpanRec s) {
+        String model = s.text(Semconv.GEN_AI_RESPONSE_MODEL);
+        if (model == null) model = s.text(Semconv.GEN_AI_REQUEST_MODEL);
+        ModelStat m = modelStats.computeIfAbsent(model == null ? "unknown" : model, k -> new ModelStat());
+        m.calls++;
+        m.prompt += number(s.attr(Semconv.GEN_AI_USAGE_INPUT_TOKENS));
+        m.completion += number(s.attr(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS));
+        long attempts = s.attr(Semconv.LOOM_MODEL_ATTEMPTS) == null ? 1 : number(s.attr(Semconv.LOOM_MODEL_ATTEMPTS));
+        m.retries += Math.max(0, attempts - 1);
+        m.waited += number(s.attr(Semconv.LOOM_MODEL_WAITED_MS));
+        String failovers = s.text(Semconv.LOOM_MODEL_FAILOVERS);
+        if (failovers != null && !failovers.isBlank()) m.failovers += failovers.split(",").length;
+        if (Boolean.TRUE.equals(s.attr(Semconv.LOOM_MODEL_TRUNCATED))) m.truncated++;
+        if (s.statusCode() == SpanRec.STATUS_ERROR) {
+            String category = s.text(Semconv.ERROR_TYPE);
+            m.failures.merge(category == null ? "other" : category, 1L, Long::sum);
+        }
+        m.latency.add(s.attr(Semconv.LOOM_MODEL_DURATION_MS) != null ? number(s.attr(Semconv.LOOM_MODEL_DURATION_MS)) : Math.max(0, s.endNanos() - s.startNanos()) / 1_000_000L);
+    }
+
+    private void contextSample(LogRec r) {
+        String agent = r.text(Semconv.GEN_AI_AGENT_NAME);
+        if (agent == null) return;
+        ContextStat c = contexts.computeIfAbsent(agent, k -> new ContextStat());
+        c.used = number(r.attr(Semconv.LOOM_CONTEXT_USED));
+        c.window = r.attr(Semconv.LOOM_CONTEXT_WINDOW) == null ? null : number(r.attr(Semconv.LOOM_CONTEXT_WINDOW));
+        c.usable = r.attr(Semconv.LOOM_CONTEXT_USABLE) == null ? null : number(r.attr(Semconv.LOOM_CONTEXT_USABLE));
+        c.fraction = r.attr(Semconv.LOOM_CONTEXT_FRACTION) instanceof Number f ? f.doubleValue() : null;
+        c.source = r.text(Semconv.LOOM_CONTEXT_SOURCE);
+        if (c.fraction != null) {
+            c.series.addLast(c.fraction);
+            while (c.series.size() > SERIES) c.series.removeFirst();
+        }
+    }
+
+    private void compactionSeen(LogRec r) {
+        String agent = r.text(Semconv.GEN_AI_AGENT_NAME);
+        if (agent == null) return;
+        ContextStat c = contexts.computeIfAbsent(agent, k -> new ContextStat());
+        c.compactionAttempts++;
+        String outcome = r.text(Semconv.LOOM_COMPACTION_OUTCOME);
+        if ("COMPACTED".equals(outcome)) c.compactions++;
+        Map<String, Object> last = new LinkedHashMap<>();
+        last.put("strategy", r.text(Semconv.LOOM_COMPACTION_STRATEGY));
+        last.put("outcome", outcome);
+        last.put("before", number(r.attr(Semconv.LOOM_COMPACTION_BEFORE)));
+        last.put("after", number(r.attr(Semconv.LOOM_COMPACTION_AFTER)));
+        last.put("at", OtlpJson.instant(r.timeNanos()).toString());
+        c.last = last;
     }
 
     /** A tool call shares its step id with the agent that made it, so only agent, task and sleep spans speak for a step. */
@@ -470,6 +570,7 @@ public final class RunState {
         List<Map<String, Object>> agentList = new ArrayList<>();
         Set<String> names = new java.util.LinkedHashSet<>(agents.keySet());
         for (Open o : open.values()) if (o.agent() != null) names.add(o.agent());
+        names.addAll(contexts.keySet());
         for (String name : names) {
             Agent a = agents.getOrDefault(name, new Agent());
             List<String> activeTools = new ArrayList<>();
@@ -492,6 +593,8 @@ public final class RunState {
             m.put("calls", a.calls);
             m.put("cost", a.cost.toPlainString());
             m.put("activeTools", activeTools);
+            ContextStat cs = contexts.get(name);
+            if (cs != null) m.put("context", contextView(cs));
             agentList.add(m);
         }
         v.put("agents", agentList);
@@ -508,9 +611,33 @@ public final class RunState {
             m.put("errors", t.errors);
             m.put("inFlight", inFlight);
             m.put("avgMillis", t.calls == 0 ? 0L : t.totalNanos / t.calls / 1_000_000L);
+            m.put("successes", t.successes);
+            long ran = t.successes + t.errors; // a call the runtime never ran says nothing about whether the tool works
+            if (ran > 0) m.put("successRate", t.successes / (double) ran);
+            m.put("softFailures", t.softFailures);
+            m.put("failures", new LinkedHashMap<>(t.failures));
+            m.put("p50Ms", t.latency.p50());
+            m.put("p95Ms", t.latency.p95());
             toolList.add(m);
         }
         v.put("tools", toolList);
+        List<Map<String, Object>> modelList = new ArrayList<>();
+        modelStats.forEach((name, ms) -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("name", name);
+            m.put("calls", ms.calls);
+            m.put("failures", new LinkedHashMap<>(ms.failures));
+            m.put("promptTokens", ms.prompt);
+            m.put("completionTokens", ms.completion);
+            m.put("retries", ms.retries);
+            m.put("failovers", ms.failovers);
+            m.put("truncated", ms.truncated);
+            m.put("waitedMs", ms.waited);
+            m.put("p50Ms", ms.latency.p50());
+            m.put("p95Ms", ms.latency.p95());
+            modelList.add(m);
+        });
+        v.put("models", modelList);
 
         List<Map<String, Object>> steps = new ArrayList<>();
         for (Open o : open.values()) {
@@ -552,6 +679,20 @@ public final class RunState {
         return v;
     }
 
+    private static Map<String, Object> contextView(ContextStat c) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("used", c.used);
+        if (c.window != null) m.put("window", c.window);
+        if (c.usable != null) m.put("usable", c.usable);
+        if (c.fraction != null) m.put("fraction", c.fraction);
+        if (c.source != null) m.put("source", c.source);
+        m.put("compactions", c.compactions);
+        m.put("attempts", c.compactionAttempts);
+        if (c.last != null) m.put("lastCompaction", new LinkedHashMap<>(c.last));
+        if (!c.series.isEmpty()) m.put("series", new ArrayList<>(c.series));
+        return m;
+    }
+
     /** A short view for a list of runs: who, what, how it is going, and the totals. */
     public synchronized Map<String, Object> summary() {
         Map<String, Object> v = new LinkedHashMap<>();
@@ -569,6 +710,7 @@ public final class RunState {
         v.put("totals", totals);
         v.put("runningAgents", open.values().stream().filter(o -> Semconv.KIND_AGENT.equals(o.kind())).count());
         v.put("incidents", incidents.openCount());
+        contexts.values().stream().map(c -> c.fraction).filter(java.util.Objects::nonNull).max(Double::compare).ifPresent(f -> v.put("contextFraction", f));
         if (incidents.worst() != null) v.put("worstIncident", incidents.worst());
         return v;
     }

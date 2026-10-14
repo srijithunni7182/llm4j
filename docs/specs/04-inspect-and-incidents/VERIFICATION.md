@@ -29,14 +29,14 @@ Status: **draft**. Run top to bottom at the end of sub-phase 4e; relevant rows a
 | R5 | `NewEventsMappingTest` | ✅ 4a |
 | R6 | `NewEventsMappingTest#runTotalsReachTheRunRecord` | ✅ 4a |
 | R7 | `NewEventsMappingTest#noNewRecordHoldsTextAtAnyDetailLevel` | ✅ 4a |
-| R8 | `RunStateStatsTest`, `PercentilesTest` | ☐ |
-| R9 | `RunStateViewTest` | ☐ |
+| R8 | `RunStateStatsTest`, `PercentilesTest` | ✅ 4b |
+| R9 | `RunStateViewTest` | ✅ 4b |
 | R10 | the five incident tests, `ConfigLayeringTest` | ☐ |
 | R11 | `IncidentReplayTest` | ☐ |
 | R12 | `NewRulesFileTest`, `NewRulesCheckTest` | ☐ |
 | R13 | `RulesBackwardCompatTest`, `SnapshotCompatTest` | ☐ |
 | R14 | `OtlpNewRecordsTest` | ☐ |
-| R15 | `RunStateSoakTest` | ☐ |
+| R15 | `RunStateStatsTest#statisticsAreBoundedAndTotalsStayExactThroughASoak` (20,000 model and 20,000 tool calls), `PercentilesTest#beyondTheCapacity…` | ✅ 4b |
 | R16 | `InspectContextEndToEndTest`, `FabricContextEndToEndTest` | ☐ |
 | R17 | pom diff | ☐ |
 
@@ -76,6 +76,7 @@ inspect section, `llms.txt`, a runnable example under `src/examples/`. Stack-lev
 
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
+| 2026-10-14 | 4b | Pass | Tests first for percentiles (exact, bounded, deterministic) and `RunState` statistics (models, tools, context, compactions, the series, the summary field, the feed not flooded, old view fields intact, a 20,000-call soak). 23 new tests |
 | 2026-10-14 | 4a | Pass | Tests first for the mapping (19 tests: real outcome, soft failure, never-run calls, old traces, held span and every flush, two agents, chat span, failed call, context, compaction, totals, no text at any detail level). Found by the simulator test: more records alternate in a batch, and the link sent a request per change of kind, tripping the server's rate limit; the link now sends one request per kind (with a regression test). Loom 1,837, inspect-core 108, inspect 128, fabric 34 tests green |
 
 ### Documentation record (per sub-phase)
@@ -83,7 +84,7 @@ inspect section, `llms.txt`, a runnable example under `src/examples/`. Stack-lev
 | Sub-phase | Docs | Samples tested | Javadoc | llms.txt | Stack-level pages | Specs |
 |---|---|---|---|---|---|---|
 | 4a | ✅ loom-inspect DESIGN §11n | ✅ n/a (no samples yet) | ✅ `Semconv` | n/a | deferred to the end | ✅ traceability, results |
-| 4b | | | | | | |
+| 4b | ✅ loom-inspect DESIGN §11n | n/a | ✅ | n/a | deferred to the end | ✅ traceability, results |
 | 4c | | | | | | |
 | 4d | | | | | | |
 | 4e | | | | | | |
