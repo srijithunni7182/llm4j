@@ -15,6 +15,7 @@ public final class RunRegistry {
     private final Map<String, RunState> runs = new ConcurrentHashMap<>();
     private volatile Map<String, InspectRules> central = Map.of();
     private volatile PriceBook prices = PriceBook.EMPTY;
+    private volatile WindowBook windows = WindowBook.EMPTY;
 
     /** Applies log records from one resource (one process instance). Records without a trace id are ignored. */
     public void applyLogs(Resource resource, List<LogRec> records) {
@@ -60,6 +61,12 @@ public final class RunRegistry {
     public void setPrices(PriceBook book) {
         prices = book == null ? PriceBook.EMPTY : book;
         for (RunState r : runs.values()) r.setPrices(prices);
+    }
+
+    /** Context windows kept at the server: an agent whose process did not report one gets one by its model, in every run, from now on. */
+    public void setWindows(WindowBook book) {
+        windows = book == null ? WindowBook.EMPTY : book;
+        for (RunState r : runs.values()) r.setWindows(windows);
     }
 
     /** What the runs known so far say they have: every agent, and each model with the agents that use it. For a page that offers them as choices. */
@@ -157,6 +164,7 @@ public final class RunRegistry {
             RunState r = new RunState(client, traceId);
             r.setCentralRules(central);
             r.setPrices(prices);
+            r.setWindows(windows);
             return r;
         });
         evict();

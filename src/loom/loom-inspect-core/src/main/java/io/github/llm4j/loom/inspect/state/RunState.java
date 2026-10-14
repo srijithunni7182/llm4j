@@ -76,6 +76,25 @@ public final class RunState {
         long compactionAttempts;
         Map<String, Object> last;
         final ArrayDeque<Double> series = new ArrayDeque<>();
+        long calls;
+        long lastNanos;
+        /** The last {@link #POINTS} model calls: call number, tokens used, and the fraction the process reported (null when it did not know the window). */
+        final ArrayDeque<Object[]> points = new ArrayDeque<>();
+        /** The last {@link #EVENTS} compactions, each with the call number it followed. */
+        final ArrayDeque<Map<String, Object>> events = new ArrayDeque<>();
+    }
+
+    private static final int POINTS = 120;
+    private static final int EVENTS = 60;
+
+    /** What an agent's window is, from the process or, failing that, from the server's catalog. */
+    private record Window(Long window, Long usable, Double fraction, String source) { }
+
+    private Window windowOf(String agent, ContextStat c) {
+        if (c.window != null || c.usable != null || c.fraction != null) return new Window(c.window, c.usable, c.fraction, "process");
+        Long fromCatalog = windows.usable(models.get(agent));
+        if (fromCatalog == null) return new Window(null, null, null, null);
+        return new Window(null, fromCatalog, c.used / (double) fromCatalog, "catalog");
     }
 
     private final String client;
@@ -102,6 +121,7 @@ public final class RunState {
     private Map<String, InspectRules> centralRules = Map.of();
     private Map<String, String> models = Map.of();
     private PriceBook prices = PriceBook.EMPTY;
+    private WindowBook windows = WindowBook.EMPTY;
     private Map<String, Object> graph;
     private java.util.function.Supplier<List<Map<String, Object>>> ladders;
     private String suspendReason;
@@ -204,6 +224,24 @@ public final class RunState {
 
     public synchronized void setModels(Map<String, String> models) {
         this.models = models == null ? Map.of() : Map.copyOf(models);
+    }
+
+    /**
+     * Context windows kept at the server: an agent whose process did not report a window gets one from here, by its model, from now on and in what it already showed.
+     * What a process reports wins.
+     */
+    public synchronized void setWindows(WindowBook windows) {
+        this.windows = windows == null ? WindowBook.EMPTY : windows;
+        for (Map.Entry<String, ContextStat> e : contexts.entrySet()) {
+            ContextStat c = e.getValue();
+            if (c.calls == 0) continue;
+            Window w = windowOf(e.getKey(), c);
+            detectors.onContext(e.getKey(), w.fraction(), c.used, w.usable(), c.compactions, c.lastNanos);
+        }
+    }
+
+    public synchronized WindowBook windows() {
+        return windows;
     }
 
     public synchronized void setPrices(PriceBook prices) {
@@ -524,7 +562,12 @@ public final class RunState {
             c.series.addLast(c.fraction);
             while (c.series.size() > SERIES) c.series.removeFirst();
         }
-        detectors.onContext(agent, c.fraction, c.used, c.usable, c.compactions, r.timeNanos());
+        c.calls++;
+        c.lastNanos = r.timeNanos();
+        c.points.addLast(new Object[] {c.calls, c.used, c.fraction});
+        while (c.points.size() > POINTS) c.points.removeFirst();
+        Window w = windowOf(agent, c);
+        detectors.onContext(agent, w.fraction(), c.used, w.usable(), c.compactions, r.timeNanos());
     }
 
     private void compactionSeen(LogRec r) {
@@ -541,6 +584,14 @@ public final class RunState {
         last.put("after", number(r.attr(Semconv.LOOM_COMPACTION_AFTER)));
         last.put("at", OtlpJson.instant(r.timeNanos()).toString());
         c.last = last;
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("n", c.calls);
+        event.put("strategy", last.get("strategy"));
+        event.put("outcome", outcome);
+        event.put("before", last.get("before"));
+        event.put("after", last.get("after"));
+        c.events.addLast(event);
+        while (c.events.size() > EVENTS) c.events.removeFirst();
         detectors.onCompaction(agent, outcome, number(r.attr(Semconv.LOOM_COMPACTION_BEFORE)), number(r.attr(Semconv.LOOM_COMPACTION_AFTER)), r.timeNanos());
     }
 
@@ -664,7 +715,7 @@ public final class RunState {
             m.put("cost", a.cost.toPlainString());
             m.put("activeTools", activeTools);
             ContextStat cs = contexts.get(name);
-            if (cs != null) m.put("context", contextView(cs));
+            if (cs != null) m.put("context", contextView(name, cs));
             agentList.add(m);
         }
         v.put("agents", agentList);
@@ -781,17 +832,33 @@ public final class RunState {
         return out;
     }
 
-    private static Map<String, Object> contextView(ContextStat c) {
+    private Map<String, Object> contextView(String agent, ContextStat c) {
+        Window w = windowOf(agent, c);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("used", c.used);
-        if (c.window != null) m.put("window", c.window);
-        if (c.usable != null) m.put("usable", c.usable);
-        if (c.fraction != null) m.put("fraction", c.fraction);
+        if (w.window() != null) m.put("window", w.window());
+        if (w.usable() != null) m.put("usable", w.usable());
+        if (w.fraction() != null) m.put("fraction", w.fraction());
+        if (w.source() != null) m.put("windowSource", w.source());
         if (c.source != null) m.put("source", c.source);
         m.put("compactions", c.compactions);
         m.put("attempts", c.compactionAttempts);
         if (c.last != null) m.put("lastCompaction", new LinkedHashMap<>(c.last));
         if (!c.series.isEmpty()) m.put("series", new ArrayList<>(c.series));
+        List<Map<String, Object>> pts = new ArrayList<>();
+        for (Object[] p : c.points) {
+            Map<String, Object> pm = new LinkedHashMap<>();
+            pm.put("n", p[0]);
+            pm.put("used", p[1]);
+            Double reported = (Double) p[2];
+            if (reported != null) pm.put("fraction", reported);
+            else if (w.source() != null && w.usable() != null) pm.put("fraction", ((Number) p[1]).longValue() / (double) w.usable());
+            pts.add(pm);
+        }
+        m.put("points", pts);
+        List<Map<String, Object>> evs = new ArrayList<>();
+        for (Map<String, Object> e : c.events) evs.add(new LinkedHashMap<>(e));
+        m.put("events", evs);
         return m;
     }
 
@@ -812,7 +879,7 @@ public final class RunState {
         v.put("totals", totals);
         v.put("runningAgents", open.values().stream().filter(o -> Semconv.KIND_AGENT.equals(o.kind())).count());
         v.put("incidents", incidents.openCount());
-        contexts.values().stream().map(c -> c.fraction).filter(java.util.Objects::nonNull).max(Double::compare).ifPresent(f -> v.put("contextFraction", f));
+        contexts.entrySet().stream().map(e -> windowOf(e.getKey(), e.getValue()).fraction()).filter(java.util.Objects::nonNull).max(Double::compare).ifPresent(f -> v.put("contextFraction", f));
         if (incidents.worst() != null) v.put("worstIncident", incidents.worst());
         return v;
     }
