@@ -168,6 +168,50 @@
 
   <div id="banner" class="banner" hidden></div>
 
+  <section id="fleettools" class="panel" hidden aria-labelledby="h-ft">
+    <div class="ph"><h2 id="h-ft">Tools and tasks</h2><span class="sub mono" id="ftsub"></span></div>
+    <div class="kpis ftkpis">
+      <div class="tile fc failing" id="ft-failing"><div class="eyebrow">Failing</div><div class="val" data-v>0</div></div>
+      <div class="tile fc degraded" id="ft-degraded"><div class="eyebrow">Degraded</div><div class="val" data-v>0</div></div>
+      <div class="tile fc healthy" id="ft-healthy"><div class="eyebrow">Healthy</div><div class="val" data-v>0</div></div>
+      <div class="tile fc" id="ft-unused"><div class="eyebrow">Unused</div><div class="val" data-v>0</div></div>
+    </div>
+    <div class="filters">
+      <span class="eyebrow">Show</span><span id="ftf-health" class="chips" role="group" aria-label="Show by health"></span>
+      <span class="eyebrow">Kind</span><span id="ftf-kind" class="chips" role="group" aria-label="Show by kind"></span>
+      <span class="eyebrow">Process</span><span id="ftf-proc" class="chips" role="group" aria-label="Show by process"></span>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tt-table">
+        <thead><tr><th>Name</th><th>Kind</th><th class="r">Calls</th><th>Success (all runs)</th><th>Last 10</th><th class="r">p50 / p95</th><th>Health</th><th>Why, and the usual failure</th></tr></thead>
+        <tbody id="ftrows"></tbody>
+      </table>
+    </div>
+    <p id="noft" class="muted pad" hidden>No tool or task has run yet on this server.</p>
+    <p class="faint mono small pad">Open a row for its failures by category, who calls it, its latency and a link to the run it last failed in.</p>
+  </section>
+
+  <section id="fleetsec" class="panel" hidden aria-labelledby="h-fs">
+    <div class="ph"><h2 id="h-fs">Security</h2><span class="sub mono" id="fssub">every run this server knows</span></div>
+    <div class="kpis seckpis">
+      <div class="tile" id="fs-trifecta"><div class="eyebrow">Lethal trifecta</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+      <div class="tile" id="fs-injection"><div class="eyebrow">Prompt injection</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+      <div class="tile" id="fs-access"><div class="eyebrow">Access</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+      <div class="tile" id="fs-data"><div class="eyebrow">Personal data</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+    </div>
+    <h3 class="sub3">Agents that matter</h3>
+    <p class="muted small">Agents whose run used all three legs of the trifecta (<b>exercised</b>), whose use was <b>accepted</b> in writing, or that <b>could</b> but have not (<b>armed</b>).</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Run</th><th>Agent</th><th>Verdict</th><th>Why</th></tr></thead>
+      <tbody id="fsagents"></tbody>
+    </table></div>
+    <p id="nofsagents" class="muted pad" hidden>No agent has used all three, and none is armed to.</p>
+    <h3 class="sub3">Open findings</h3>
+    <div id="fsfind"></div>
+    <p id="nofsfind" class="muted pad" hidden>No open security finding in any run.</p>
+    <p id="fsstatement" class="statement"></p>
+  </section>
+
   <div id="attention" class="attention" role="status" hidden></div>
 
   <section id="empty" class="empty" hidden>

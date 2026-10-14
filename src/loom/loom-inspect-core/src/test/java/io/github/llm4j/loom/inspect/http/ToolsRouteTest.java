@@ -118,4 +118,35 @@ class ToolsRouteTest {
             assertThat((System.nanoTime() - start) / 1_000_000L).isLessThan(3_000L);
         }
     }
+
+    @Test
+    void theRunListCarriesTheFailingCountForTheTabBadge() throws Exception {
+        try (FleetFixtures f = new FleetFixtures().start()) {
+            assertThat(f.json("/api/runs").get("fleet").get("toolsFailing").asInt()).isZero();
+            for (int i = 0; i < 6; i++) f.tool("shop", "r1", "Editor", "Wiki", "private", null, i + 1);
+            for (int i = 0; i < 4; i++) f.tool("shop", "r2", "Writer", "Search", "untrusted", "timeout", 10 + i);
+            assertThat(f.json("/api/runs").get("fleet").get("toolsFailing").asInt()).isEqualTo(1);
+            assertThat(f.json("/api/runs").get("runs")).hasSize(2);
+        }
+    }
+
+    @Test
+    void eachRowCarriesTheLastTenOutcomesAcrossRunsAndTheLatencyBounds() throws Exception {
+        try (FleetFixtures f = new FleetFixtures().start()) {
+            for (int i = 0; i < 6; i++) f.tool("shop", "r1", "Editor", "Wiki", "private", null, i + 1);
+            for (int i = 0; i < 4; i++) f.tool("shop", "r2", "Writer", "Search", "untrusted", "timeout", 10 + i);
+            for (int i = 0; i < 9; i++) f.tool("blog", "r3", "Editor", "Search", "untrusted", null, 30 + i);
+            JsonNode a = f.json("/api/tools");
+            JsonNode search = null;
+            JsonNode wiki = null;
+            for (JsonNode r : a.get("rows")) {
+                if (r.get("name").asText().equals("Search")) search = r;
+                if (r.get("name").asText().equals("Wiki")) wiki = r;
+            }
+            assertThat(search.get("recent")).hasSize(10);
+            assertThat(wiki.get("recent")).hasSize(6);
+            wiki.get("recent").forEach(o -> assertThat(o.asText()).isEmpty());
+            assertThat(search.get("histogramBounds").size()).isEqualTo(search.get("histogram").size() - 1);
+        }
+    }
 }

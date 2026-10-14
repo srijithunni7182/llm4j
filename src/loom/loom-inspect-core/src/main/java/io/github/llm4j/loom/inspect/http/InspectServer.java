@@ -249,7 +249,7 @@ public final class InspectServer {
             } else if (path.equals("/api/health")) {
                 send(x, 200, "application/json", json(Map.of("status", "ok", "runs", registry.summaries().size())));
             } else if (path.equals("/api/runs")) {
-                send(x, 200, "application/json", json(Map.of("runs", registry.summaries())));
+                send(x, 200, "application/json", json(Map.of("runs", registry.summaries(), "fleet", Map.of("toolsFailing", registry.toolsFailing()))));
             } else if (path.startsWith("/api/runs/")) {
                 String trace = path.substring("/api/runs/".length());
                 boolean wantsGraph = trace.endsWith("/graph");

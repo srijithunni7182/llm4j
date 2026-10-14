@@ -312,3 +312,14 @@ tr.tt.failing { background: var(--danger-soft); }
 .verdict.exercised { color: var(--danger); } .verdict.armed { color: var(--live); } .verdict.accepted { color: var(--wait); } .verdict.none, .verdict.one, .verdict.two { color: var(--ink-muted); }
 .seckpis { margin-bottom: var(--space-4); }
 .seckpis .tile .val.sm { text-transform: none; font-size: 20px; line-height: 28px; }
+.ftkpis { margin-bottom: var(--space-4); }
+.tile.fc.failing { border-color: var(--danger); } .tile.fc.failing .val { color: var(--danger); }
+.tile.fc.degraded { border-color: var(--live); } .tile.fc.degraded .val { color: var(--live); }
+.tile.fc.healthy .val { color: var(--rung-suggest); }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-bottom: var(--space-4); }
+.ftkpis .tile .val { margin-top: 2px; }
+td.why { color: var(--ink-muted); }
+button.runlink { background: none; border: 0; padding: 0; color: var(--live); font: inherit; text-decoration: underline; cursor: pointer; }
+button.runlink:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; }
+.incident .runlinkrow { margin-top: var(--space-2); }
+

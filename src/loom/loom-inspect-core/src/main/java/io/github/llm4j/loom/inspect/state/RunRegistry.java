@@ -145,12 +145,33 @@ public final class RunRegistry {
                 }
             }
         }
+        // the last ten outcomes of a tool across runs: each run's own last ten, oldest run first (a merged summary has none of its own)
+        List<RunState> oldestFirst = new ArrayList<>();
+        for (RunState r : runs.values()) if (client == null || client.equals(r.client())) oldestFirst.add(r);
+        oldestFirst.sort((a, b) -> {
+            java.time.Instant x = a.lastEventAt();
+            java.time.Instant y = b.lastEventAt();
+            if (x == null || y == null) return x == y ? 0 : x == null ? -1 : 1;
+            return x.compareTo(y);
+        });
+        Map<String, List<String>> recent = new java.util.HashMap<>();
+        for (RunState r : oldestFirst) {
+            for (ToolSummary s : r.toolSummaries()) {
+                List<String> all = recent.computeIfAbsent(s.kind() + ":" + s.name(), k -> new ArrayList<>());
+                all.addAll(s.recent());
+                while (all.size() > 10) all.remove(0);
+            }
+        }
+        List<Long> bounds = new ArrayList<>();
+        for (long b : ToolSummary.BOUNDS) bounds.add(b);
         List<Map<String, Object>> rows = new ArrayList<>();
         Map<String, Long> counts = new java.util.LinkedHashMap<>();
         for (String state : List.of("failing", "degraded", "healthy", "unused")) counts.put(state, 0L);
         for (ToolSummary s : rollup) {
             Map<String, Object> m = new java.util.LinkedHashMap<>(s.toMap());
             m.put("agents", new ArrayList<>(s.byAgent().keySet()));
+            m.put("recent", recent.getOrDefault(s.kind() + ":" + s.name(), List.of()));
+            m.put("histogramBounds", bounds);
             Map<String, Object> lastRun = last.get(s.kind() + ":" + s.name());
             if (lastRun != null) m.put("lastRun", lastRun);
             rows.add(m);
@@ -160,6 +181,11 @@ public final class RunRegistry {
         out.put("rows", rows);
         out.put("counts", counts);
         return out;
+    }
+
+    /** How many tools and tasks, across every run, are failing now: what the Tools & tasks tab shows. */
+    public long toolsFailing() {
+        return toolRollup(null).stream().filter(s -> "failing".equals(s.state())).count();
     }
 
     /** The agent rows listed on a security page, and the open incidents shown on it. */

@@ -3,7 +3,7 @@
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var selected = null, agentFilter = null, view = null, viewAt = 0;
-  var fabric = false, procs = [], showProcs = false, showSecrets = false, showConfig = false, sess = {};
+  var fabric = false, procs = [], showProcs = false, showSecrets = false, showConfig = false, showFleet = '', fleetFailing = 0, fleetSecOpen = 0, clientNames = [], sess = {};
 
   function store(k, v) { try { if (v === undefined) { return localStorage.getItem(k); } localStorage.setItem(k, v); } catch (e) { return null; } return null; }
 
@@ -51,32 +51,41 @@
     if (fabric) {
       var p = el('button', 'wt proc' + (showProcs ? ' on' : ''), 'Processes');
       p.type = 'button';
-      p.addEventListener('click', function () { showProcs = true; showConfig = false; $('controls').hidden = true; renderAll(); });
+      p.addEventListener('click', function () { showProcs = true; showConfig = false; showFleet = ''; $('controls').hidden = true; renderAll(); });
       nav.appendChild(p);
+    }
+    if (fabric || runs.length > 1) {
+      [['tools', 'Tools & tasks', fleetFailing, 'high'], ['security', 'Security', fleetSecOpen, 'warn']].forEach(function (f) {
+        var fb = el('button', 'wt proc' + (showFleet === f[0] ? ' on' : ''), f[1]);
+        fb.type = 'button';
+        if (f[2] > 0) { fb.appendChild(el('span', 'sev ' + f[3] + ' inc', String(f[2]))); }
+        fb.addEventListener('click', function () { showFleet = f[0]; showProcs = false; showSecrets = false; showConfig = false; $('controls').hidden = true; tick(); });
+        nav.appendChild(fb);
+      });
     }
     if (sess.secretsEnabled && !fabric) {
       var sb = el('button', 'wt proc' + (showSecrets ? ' on' : ''), 'Secrets');
       sb.type = 'button';
-      sb.addEventListener('click', function () { showSecrets = true; showProcs = false; showConfig = false; tick(); });
+      sb.addEventListener('click', function () { showSecrets = true; showProcs = false; showConfig = false; showFleet = ''; tick(); });
       nav.appendChild(sb);
     }
     if (sess.configEnabled && fabric) {
       var cb = el('button', 'wt proc' + (showConfig ? ' on' : ''), 'Configuration');
       cb.type = 'button';
-      cb.addEventListener('click', function () { showConfig = true; showProcs = false; showSecrets = false; tick(); });
+      cb.addEventListener('click', function () { showConfig = true; showProcs = false; showSecrets = false; showFleet = ''; tick(); });
       nav.appendChild(cb);
     }
     var clients = {};
     runs.forEach(function (r) { clients[r.client] = true; });
     var grouped = fabric || Object.keys(clients).length > 1;   // one tab per process and workflow, never merged
     runs.forEach(function (r) {
-      var b = el('button', 'wt' + (!showProcs && !showSecrets && !showConfig && r.traceId === selected ? ' on' : ''));
+      var b = el('button', 'wt' + (!showProcs && !showSecrets && !showConfig && !showFleet && r.traceId === selected ? ' on' : ''));
       b.type = 'button';
       b.appendChild(el('span', 'dot ' + tabState(r.status)));
       b.appendChild(el('span', '', (grouped && r.client ? r.client + ' / ' : '') + (r.workflow || 'run')));
       if (r.incidents > 0) { b.appendChild(el('span', 'sev ' + (r.worstIncident || 'warn') + ' inc', String(r.incidents))); }
       b.title = r.status + ' · ' + shortId(r.runId || r.traceId);
-      b.addEventListener('click', function () { selected = r.traceId; agentFilter = null; showProcs = false; showSecrets = false; showConfig = false; tick(); });
+      b.addEventListener('click', function () { selected = r.traceId; agentFilter = null; showProcs = false; showSecrets = false; showConfig = false; showFleet = ''; tick(); });
       nav.appendChild(b);
     });
     nav.hidden = !fabric && runs.length < 2 && !(sess.secretsEnabled && !fabric);
@@ -86,9 +95,11 @@
     var ids = runs.map(function (r) { return r.traceId; });
     if (ids.indexOf(selected) < 0) { selected = ids.length ? ids[0] : null; }
     renderTabs(runs);
-    $('empty').hidden = runs.length > 0 || showProcs;
-    $('main').hidden = runs.length === 0 || showProcs;
+    $('empty').hidden = runs.length > 0 || showProcs || !!showFleet;
+    $('main').hidden = runs.length === 0 || showProcs || !!showFleet;
     $('processes').hidden = !showProcs;
+    $('fleettools').hidden = showFleet !== 'tools';
+    $('fleetsec').hidden = showFleet !== 'security';
     if (!runs.length) { ['status', 'meta'].forEach(function (i) { $(i).hidden = true; }); $('wfname').textContent = ''; $('banner').hidden = true; }
   }
 
@@ -548,7 +559,7 @@
   }
 
   function ttRow(kind, t) {
-    var h = t.health || {}, ran = (t.successes || 0) + (t.errors || 0);
+    var h = t.health || {}, ran = t.ran != null ? t.ran : (t.successes || 0) + (t.errors || 0);
     return { kind: kind, key: kind + ':' + t.name, name: t.name, calls: t.calls, ran: ran, successes: t.successes || 0, errors: t.errors || 0, state: h.state || 'unused', reason: h.reason || '',
       p50: t.p50Ms || 0, p95: t.p95Ms || 0, inFlight: t.inFlight || 0, failures: h.failures || t.failures || {}, byAgent: h.byAgent || {}, recent: t.recent || [], histogram: t.histogram || [],
       bounds: t.histogramBounds || [], last: h.lastFailure };
@@ -605,9 +616,29 @@
     });
   }
 
-  function ttDetail(r, v) {
+  function recentStrip(all) {
+    var strip = el('span', 'recent'), recent = (all || []).slice(-10);
+    strip.setAttribute('role', 'img');
+    strip.setAttribute('aria-label', 'Last ' + recent.length + ' outcomes, oldest first: ' + (recent.map(function (o) { return o === '' ? 'ok' : o; }).join(', ') || 'none'));
+    for (var k = 0; k < 10 - recent.length; k++) { var e0 = el('i', 'o'); e0.setAttribute('aria-hidden', 'true'); strip.appendChild(e0); }
+    recent.forEach(function (o) { var e1 = el('i', o === '' ? '' : 'x'); e1.setAttribute('aria-hidden', 'true'); e1.title = o === '' ? 'ok' : o; strip.appendChild(e1); });
+    return strip;
+  }
+
+  function rateCell(tr, r) {
+    var rate = cell(tr, '');
+    var wrap = el('span', 'rate');
+    var bar = el('span', 'bar'), fill = el('i', r.ran && r.successes / r.ran < 0.4 ? 'bad' : r.ran && r.successes / r.ran < 0.7 ? 'warn' : '');
+    fill.style.width = (r.ran ? r.successes / r.ran * 100 : 0) + '%';
+    bar.appendChild(fill);
+    wrap.appendChild(bar);
+    wrap.appendChild(el('span', 'mono', r.ran ? r.successes + ' of ' + r.ran : 'no call ran'));
+    rate.appendChild(wrap);
+  }
+
+  function ttDetail(r, v, span) {
     var tr = el('tr', 'ttdetail'), td = el('td');
-    td.colSpan = 7;
+    td.colSpan = span || 7;
     var d = el('div', 'ttd');
     var a = el('div'); a.appendChild(el('h4', '', 'Failures by category'));
     var cats = Object.keys(r.failures), total = 0;
@@ -629,11 +660,7 @@
     b2.appendChild(agents.length ? ul : el('p', 'muted mono small', 'no agent'));
     d.appendChild(b2);
     var c = el('div'); c.appendChild(el('h4', '', 'Last ten outcomes'));
-    var strip = el('span', 'recent'), recent = r.recent.slice(-10);
-    strip.setAttribute('role', 'img');
-    strip.setAttribute('aria-label', 'Last ' + recent.length + ' outcomes, oldest first: ' + (recent.map(function (o) { return o === '' ? 'ok' : o; }).join(', ') || 'none'));
-    for (var k = 0; k < 10 - recent.length; k++) { var e0 = el('i', 'o'); e0.setAttribute('aria-hidden', 'true'); strip.appendChild(e0); }
-    recent.forEach(function (o) { var e1 = el('i', o === '' ? '' : 'x'); e1.setAttribute('aria-hidden', 'true'); e1.title = o === '' ? 'ok' : o; strip.appendChild(e1); });
+    var strip = recentStrip(r.recent);
     c.appendChild(strip);
     c.appendChild(el('h4', '', 'Latency'));
     var hist = svg('svg', { 'class': 'hist', viewBox: '0 0 240 60', role: 'img', 'aria-label': 'Latency histogram: ' + (r.histogram.join(', ') || 'no calls') });
@@ -719,6 +746,142 @@
     });
   }
 
+
+  // ---- fleet pages: Tools & tasks and Security across every run (5c)
+  var ftHealth = 'all', ftKind = 'all', ftProc = '', ftOpen = {}, ftOrder = [];
+
+  function openRunTab(trace, tab) {
+    selected = trace; agentFilter = null; runTab = tab;
+    showProcs = false; showSecrets = false; showConfig = false; showFleet = '';
+    tick();
+  }
+
+  function runLink(label, trace, tab) {
+    var b = el('button', 'runlink', label);
+    b.type = 'button';
+    b.addEventListener('click', function (e) { e.stopPropagation(); openRunTab(trace, tab); });
+    return b;
+  }
+
+  function chipRow(box, id, options, current, pick) {
+    box.textContent = '';
+    options.forEach(function (o) {
+      var b = el('button', '', o[1]);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(current === o[0]));
+      b.setAttribute('data-fk', id + ':' + o[0]);
+      b.addEventListener('click', function () { withFocus(function () { pick(o[0]); }); });
+      box.appendChild(b);
+    });
+  }
+
+  function renderFleet() {
+    if (showFleet === 'tools') {
+      return fetchJson('/api/tools' + (ftProc ? '?client=' + encodeURIComponent(ftProc) : '')).then(function (a) { withFocus(function () { renderFleetTools(a); }); });
+    }
+    return fetchJson('/api/security').then(function (a) { withFocus(function () { renderFleetSecurity(a); }); });
+  }
+
+  function renderFleetTools(a) {
+    ['failing', 'degraded', 'healthy', 'unused'].forEach(function (k) { $('ft-' + k).querySelector('[data-v]').textContent = String((a.counts || {})[k] || 0); });
+    var rows = (a.rows || []).map(function (t) { var r = ttRow(t.kind || 'tool', t); r.agents = t.agents || []; r.lastRun = t.lastRun; return r; });
+    var again = function () { renderFleetTools(a); };
+    chipRow($('ftf-health'), 'fth', [['all', 'all'], ['failing', 'failing'], ['degraded', 'degraded'], ['healthy', 'healthy']], ftHealth, function (v) { ftHealth = v; again(); });
+    chipRow($('ftf-kind'), 'ftk', [['all', 'tools and tasks'], ['tool', 'tools'], ['task', 'tasks']], ftKind, function (v) { ftKind = v; again(); });
+    chipRow($('ftf-proc'), 'ftp', [['', 'all']].concat(clientNames.map(function (n) { return [n, n]; })), ftProc, function (v) { ftProc = v; tick(); });
+    var any = false;
+    Object.keys(ftOpen).forEach(function (k) { if (ftOpen[k]) { any = true; } });
+    if (any) {   // an open row keeps the order it was opened in, so nothing moves under the pointer
+      rows.sort(function (x, y) {
+        var i = ftOrder.indexOf(x.key), j = ftOrder.indexOf(y.key);
+        return (i < 0 ? 1e9 : i) - (j < 0 ? 1e9 : j);
+      });
+    } else {
+      ftOrder = rows.map(function (r) { return r.key; });
+    }
+    var shown = rows.filter(function (r) { return (ftHealth === 'all' || r.state === ftHealth) && (ftKind === 'all' || r.kind === ftKind); });
+    $('ftsub').textContent = 'every run this server knows · ' + plural(rows.filter(function (r) { return r.kind === 'tool'; }).length, 'tool') + ' · ' + plural(rows.filter(function (r) { return r.kind === 'task'; }).length, 'task') + (ftProc ? ' · ' + ftProc : '');
+    var body = $('ftrows');
+    body.textContent = '';
+    $('noft').hidden = rows.length > 0;
+    shown.forEach(function (r) {
+      var open = !!ftOpen[r.key];
+      var tr = el('tr', 'tt ' + r.state);
+      tr.tabIndex = 0;
+      tr.setAttribute('aria-expanded', String(open));
+      var first = cell(tr, '', 'mono nm-cell');
+      first.appendChild(el('span', 'nm', r.name));
+      if (r.inFlight > 0) { first.appendChild(el('span', 'chip on', r.inFlight + ' in flight')); }
+      cell(tr, r.kind, 'mono');
+      cell(tr, num(r.calls), 'r mono');
+      rateCell(tr, r);
+      cell(tr, '').appendChild(recentStrip(r.recent));
+      cell(tr, r.ran ? num(r.p50) + ' / ' + num(r.p95) + ' ms' : '–', 'r mono');
+      var hc = cell(tr, '');
+      var hw = el('span', 'hw ' + r.state, r.state);
+      hw.title = r.reason;
+      hc.appendChild(hw);
+      var top = Object.keys(r.failures).sort(function (x, y) { return r.failures[y] - r.failures[x]; })[0];
+      cell(tr, (r.reason || '') + (top ? ' · mostly ' + top : ''), 'why small');
+      function toggle() { withFocus(function () { ftOpen[r.key] = !ftOpen[r.key]; again(); }); }
+      tr.setAttribute('data-fk', 'ft:' + r.key);
+      tr.addEventListener('click', toggle);
+      tr.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+      body.appendChild(tr);
+      if (open) {
+        var d = ttDetail(r, { incidents: [] }, 8);
+        var box = d.querySelector('.ttd');
+        var extra = el('div');
+        extra.appendChild(el('h4', '', 'Last failure'));
+        if (r.lastRun) {
+          extra.appendChild(runLink('Open the run it last failed in', r.lastRun.traceId, 'tools'));
+          extra.appendChild(el('p', 'faint mono small', r.lastRun.client + ' · ' + r.lastRun.category + ' · ' + ago(r.lastRun.at)));
+        } else { extra.appendChild(el('p', 'muted mono small', 'it has not failed')); }
+        box.appendChild(extra);
+        body.appendChild(d);
+      }
+    });
+  }
+
+  function renderFleetSecurity(a) {
+    var c = a.counts || {}, agents = a.agents || [];
+    function card(id, value, foot, cls) { var t = $(id), v = t.querySelector('[data-v]'); v.textContent = value; v.className = 'val sm' + (cls ? ' ' + cls : ''); t.querySelector('[data-f]').textContent = foot; }
+    var armed = agents.filter(function (x) { return x.verdict === 'armed'; }).length;
+    if (c.trifectaExercised) { card('fs-trifecta', plural(c.trifectaExercised, 'agent') + ' exercised it', 'used untrusted content, private data and a way out in one run', 'high'); }
+    else if (c.trifectaAccepted) { card('fs-trifecta', plural(c.trifectaAccepted, 'agent') + ' accepted', 'used all three; accepted in writing', 'warn'); }
+    else if (armed) { card('fs-trifecta', 'none used', plural(armed, 'agent') + ' could (armed)', ''); }
+    else { card('fs-trifecta', 'none', 'no agent used all three', ''); }
+    card('fs-injection', c.injectionSuspect ? plural(c.injectionSuspect, 'suspect result') : 'none suspected', 'a heuristic, not a verdict', c.injectionSuspect ? 'warn' : '');
+    card('fs-access', (c.accessRefused || 0) + ' refused', plural(c.unknownTools || 0, 'unknown tool') + ' · ' + plural(c.approvalsRefused || 0, 'approval') + ' refused', c.accessRefused ? 'warn' : '');
+    card('fs-data', (c.piiMasked || 0) + ' masked', (c.piiBlocked || 0) + ' blocked · ' + (c.piiDetected || 0) + ' detected', '');
+    var body = $('fsagents');
+    body.textContent = '';
+    $('nofsagents').hidden = agents.length > 0;
+    agents.forEach(function (x) {
+      var tr = el('tr');
+      var run = cell(tr, '', 'mono');
+      run.appendChild(runLink((x.client || '') + ' / ' + (x.workflow || 'run'), x.traceId, 'security'));
+      cell(tr, x.agent, 'mono');
+      var vc = cell(tr, '');
+      vc.appendChild(el('span', 'verdict ' + x.verdict, x.verdict));
+      if (x.assumed) { vc.appendChild(el('span', 'chip', 'assumed')); }
+      cell(tr, x.acceptedReason ? 'accepted: ' + x.acceptedReason : x.verdict === 'armed' ? 'could use all three; has not' : 'used all three in this run', 'small');
+      body.appendChild(tr);
+    });
+    var box = $('fsfind');
+    box.textContent = '';
+    var finds = a.incidents || [];
+    $('nofsfind').hidden = finds.length > 0;
+    finds.forEach(function (i) {
+      var row = incidentRow(i);
+      var l = el('div', 'runlinkrow');
+      l.appendChild(runLink('Open the run (' + (i.client || '') + ')', i.traceId, 'security'));
+      row.appendChild(l);
+      box.appendChild(row);
+    });
+    $('fsstatement').textContent = STATEMENT;
+  }
+
   var RUNGS = ['watch', 'suggest', 'act'];
 
   function renderLadders(list) {
@@ -788,7 +951,7 @@
   function renderControls(v) {
     var box = $('controls'), c = v.controls;
     box.textContent = '';
-    if (!c || showProcs || showSecrets || showConfig) { box.hidden = true; return; } // a run's controls belong to the run's own page
+    if (!c || showProcs || showSecrets || showConfig || showFleet) { box.hidden = true; return; } // a run's controls belong to the run's own page
     box.hidden = false;
     var ended = ['finished', 'failed', 'stopped'].indexOf(v.status) >= 0;
     if (ended) { box.hidden = true; return; }
@@ -1229,7 +1392,7 @@
   function renderConnection() {
     var chip = $('conn'), main = $('main');
     var p = view && procs.filter(function (x) { return x.name === view.client; })[0];
-    if (!fabric || !p || showProcs) { chip.hidden = true; main.classList.remove('stale'); return; }
+    if (!fabric || !p || showProcs || showFleet) { chip.hidden = true; main.classList.remove('stale'); return; }
     chip.hidden = false;
     var cls = 'conn', text;
     if (p.state === 'online') { cls += ' live'; text = 'Live'; }
@@ -1268,9 +1431,9 @@
     if (view) { render(); }
     renderConnection();
     $('processes').hidden = !showProcs;
-    $('main').hidden = showProcs || !selected;
-    $('empty').hidden = showProcs || !!selected;
-    $('banner').hidden = showProcs || $('banner').hidden;
+    $('main').hidden = showProcs || !!showFleet || !selected;
+    $('empty').hidden = showProcs || !!showFleet || !!selected;
+    $('banner').hidden = showProcs || !!showFleet || $('banner').hidden;
   }
 
   function showLogin(on, message) {
@@ -1297,6 +1460,9 @@
     fetchJson('/api/session').then(function (s) { sess = s; }, function () { });
     fetchJson('/api/runs').then(function (list) {
       showLogin(false);
+      fleetFailing = (list.fleet && list.fleet.toolsFailing) || 0;
+      fleetSecOpen = list.runs.reduce(function (n, r) { return n + (r.security || 0); }, 0);
+      clientNames = Object.keys(list.runs.reduce(function (m, r) { if (r.client) { m[r.client] = true; } return m; }, {})).sort();
       // the Processes view exists only on a Fabric server; an embedded page answers 404 and never shows it
       return fetchJson('/api/processes').then(function (p) { fabric = true; procs = p.processes || []; }, function (e) { if (e.status === 401) { throw e; } fabric = false; })
         .then(function () {
@@ -1304,7 +1470,9 @@
           renderProcesses();
           $('mode').textContent = fabric ? 'Fabric' : 'embedded mode';
           brand();
-          if (showProcs) { ['status', 'meta', 'conn', 'controls'].forEach(function (i) { $(i).hidden = true; }); $('wfname').textContent = ''; $('client').textContent = ''; $('banner').hidden = true; }
+          if (!showFleet) { $('fleettools').hidden = true; $('fleetsec').hidden = true; }
+          if (showProcs || showFleet) { ['status', 'meta', 'conn', 'controls'].forEach(function (i) { $(i).hidden = true; }); $('wfname').textContent = ''; $('client').textContent = ''; $('banner').hidden = true; }
+          if (showFleet) { $('secrets').hidden = true; $('config').hidden = true; return renderFleet(); }
           if (showConfig) { $('secrets').hidden = true; renderConfig(); return null; }
           $('config').hidden = true;
           if (showSecrets) { renderSecrets(); return null; }
