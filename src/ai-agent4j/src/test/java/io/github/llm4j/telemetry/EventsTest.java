@@ -107,4 +107,11 @@ class EventsTest {
         assertThat(ToolOutcome.EXECUTION_ERROR.defaultCategory()).isEqualTo(ErrorCategory.OTHER);
         assertThat(ToolOutcome.EXECUTED.defaultCategory()).isNull();
     }
+
+    @Test
+    void theModelEventBuilderChains() {
+        ModelCallEvent e = ModelCallEvent.builder().usageEstimated(true).model("m").durationMillis(5).build();
+        assertThat(e.usageEstimated()).isTrue();
+        assertThat(e.model()).isEqualTo("m");
+    }
 }

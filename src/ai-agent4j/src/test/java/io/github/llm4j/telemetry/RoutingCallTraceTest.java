@@ -74,4 +74,15 @@ class RoutingCallTraceTest {
         assertThat(r.getContent()).isEqualTo("ok");
         assertThat(CallTrace.active()).isFalse();
     }
+
+    @Test
+    void anAnonymousClientIsStillNamed() {
+        LLMClient anonymous = new LLMClient() {
+            @Override public LLMResponse chat(LLMRequest r) { throw new RuntimeException("down"); }
+            @Override public Stream<LLMResponse> chatStream(LLMRequest r) { return Stream.empty(); }
+        };
+        CallTrace.begin();
+        route(anonymous, new Second(false), new Third(false)).chat(REQUEST);
+        assertThat(CallTrace.end().failovers()).singleElement().asString().isNotBlank().contains("RoutingCallTraceTest");
+    }
 }

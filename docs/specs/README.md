@@ -74,5 +74,5 @@ done, so that what we learn building a lower layer shapes the spec above it.
 | # | Spec | Tests | Code | Verified |
 |---|---|---|---|---|
 | 1 | approved (decisions recorded) | all written | all done | verified (live and manual checks owed, see VERIFICATION §4); **awaiting review** |
-| 2 | approved (decisions recorded) | 2a–2d written | 2a–2d done; 2e next | 2a–2d verified |
+| 2 | approved (decisions recorded) | all written | all done (2a–2e) | verified (live and manual checks owed, see VERIFICATION §4); **awaiting review** |
 | 3–6 | not started | | | |

@@ -148,4 +148,14 @@ class StatsAccumulatorTest {
         assertThat(s.tools().keySet()).containsExactly("alpha", "zeta");
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> s.tools().put("x", s.tool("alpha"))).isInstanceOf(UnsupportedOperationException.class);
     }
+
+    @Test
+    void aHardFailureIsNotASoftFailureAndAnUnlabelledOneUsesTheOutcomesDefault() {
+        StatsAccumulator a = new StatsAccumulator();
+        a.onToolCall(ToolCallEvent.builder().tool("t").outcome(ToolOutcome.UNKNOWN_TOOL, null, null).build());
+        a.onToolCall(ToolCallEvent.builder().tool("t").outcome(ToolOutcome.EXECUTION_ERROR, null, null).build());
+        ToolStats t = a.snapshot().tool("t");
+        assertThat(t.softFailures()).isZero();
+        assertThat(t.failures()).containsEntry(ErrorCategory.UNKNOWN_TOOL, 1L).containsEntry(ErrorCategory.OTHER, 1L);
+    }
 }

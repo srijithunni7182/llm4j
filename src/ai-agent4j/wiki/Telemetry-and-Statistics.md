@@ -4,9 +4,9 @@ When an agent runs, you want to know more than what it answered: **how long** ea
 **why** a call failed, how often, and how the numbers add up. This page is about the events and statistics ai-agent4j keeps for that, and about writing a
 tool so that it is observed well.
 
-> **Status: in progress.** Everything in this page works: the failure vocabulary, `ToolException`, reading a tool's text result, the event types, latency percentiles, `StatsCollector`,
-> a tool-call event and a model-call event for every call in both loops (including the retries, waits and fail-overs beneath a model call), and the statistics of the run on its result.
-> What remains is the final verification of the phase. The design is in [`docs/specs/02-call-telemetry`](../../../docs/specs/02-call-telemetry/DESIGN.md).
+> **Status: complete for ai-agent4j.** The failure vocabulary, `ToolException`, reading a tool's text result, the event types, latency percentiles, `StatsCollector`,
+> a tool-call event and a model-call event for every call in both loops (including the retries, waits and fail-overs beneath a model call), and the statistics of the run on its
+> result. The layers above (Loom, the inspector, Fabric) build on it next. The design is in [`docs/specs/02-call-telemetry`](../../../docs/specs/02-call-telemetry/DESIGN.md).
 
 Everything here is opt-in and changes nothing for code that does not use it. Events and statistics hold **numbers and names only**: never a prompt, an
 answer, a tool's arguments or its result.
@@ -256,6 +256,9 @@ try {
 - Work done on **other threads** (a tool that fans out) is not attributed; its figures are absent, never wrong.
 - `waitedMillis` never exceeds `durationMillis`; with a frozen test clock the wait is capped to the duration the agent saw.
 - `failovers` holds the simple class name of each client that failed, in order.
+
+A runnable example, with no model and no key, is in [`src/examples/call-telemetry`](../../examples/call-telemetry/README.md): it prints one line per call and then the
+per-tool success rates, latency percentiles and failures by category, with a provider that is down so you see a fail-over.
 
 See also: [Context and Compaction](Context-and-Compaction.md) · [Budgets and Rate Limits](Budgets-and-Rate-Limits.md) ·
 [ReAct Agent Guide](ReAct-Agent-Guide.md)

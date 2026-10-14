@@ -1,6 +1,6 @@
 # Phase 2 verification plan: call-level telemetry
 
-Status: **draft for review**. Run top to bottom at the end of sub-phase 2e, and the relevant rows after each sub-phase. Results are recorded in §7.
+Status: **verified offline; awaiting review** (live checks owed). Run top to bottom at the end of sub-phase 2e, and the relevant rows after each sub-phase. Results are recorded in §7.
 
 ## 1. Acceptance criteria
 
@@ -38,13 +38,13 @@ Filled in as tests are written; a row without a test blocks the exit.
 | R13 | `HttpCallTraceTest#withNoTraceTheBehaviourIsUnchanged`, `RoutingCallTraceTest#withNoTraceRoutingBehavesAsBefore`, `CallTraceTest#withNoTraceInForceEveryHookDoesNothing` | ✅ 2d |
 | R14 | `CallTraceTest#aNestedTraceDoesNotDisturbTheOuterOne`, `ModelCallTraceTest#anAgentInsideAToolHasItsOwnTrace`, `#theTraceIsAlwaysPoppedEvenAfterAFailure` | ✅ 2d |
 | R15 | `StatsAccumulatorTest`, `StatsCollectorTest`, `RunStatsIntegrationTest#theStatisticsAreExactlyTheEventsAddedUp` | ✅ 2a, 2b, 2c |
-| R16 | `LatencyStatsTest`, `StatsSoakTest` | ◐ 2a: exact to the capacity, bounded beyond it; the soak in 2e |
-| R17 | `StatsCollectorTest#manyThreadsGiveTheSumAndASnapshotIsAlwaysConsistent` (16 threads, snapshots taken while writing), `StatsConcurrencyTest` | ◐ 2a: collector under threads; agents sharing one in 2e |
+| R16 | `LatencyStatsTest`, `StatsSoakTest` | ✅ 2a, 2e |
+| R17 | `StatsCollectorTest#manyThreadsGiveTheSumAndASnapshotIsAlwaysConsistent` (16 threads, snapshots taken while writing), `StatsConcurrencyTest` | ✅ 2a, 2e |
 | R18 | `RunStatsIntegrationTest#everyKindOfResultHasStats`, `#aRunThatNeverCalledATool`, `#aCopyOfAResultKeepsItsStats` | ✅ 2b |
 | R19 | `RequestStabilityTest` (Phase 1 golden requests, unchanged), `TelemetryCompatibilityTest` | ✅ 2b |
 | R20 | `TelemetryCompatibilityTest#anOldStyleListenerWithOnlyTheOriginalMethodsStillWorks` | ✅ 2b |
 | R21 | `TelemetryFaultTest#aListenerThatThrowsFromTheToolCallbackDoesNotFailTheRun` | ✅ 2b, 2c |
-| R22 | Build dependency check (§3) | ◐ none added through 2c |
+| R22 | Build dependency check (§3) | ✅ none added (the pom change is two PIT profiles; no `<dependency>` added) |
 | R23 | `ModelCallEventsTest#summariserCallsAreNotModelCalls` | ✅ 2c |
 
 ## 3. Quality gates
@@ -76,14 +76,14 @@ the Advanced Configuration error table.
 
 ## 6. Exit checklist
 
-- [ ] Proposed decisions in DESIGN.md §9 confirmed and recorded
-- [ ] All acceptance criteria A1–A10 have evidence
-- [ ] Every requirement R1–R23 has a passing test
-- [ ] All quality gates in §3 pass
-- [ ] Manual checks in §4 done and recorded, or listed as owed with the reason
-- [ ] Docs in §5 complete, and the per-sub-phase record in §7 has a row for every sub-phase
-- [ ] DESIGN.md reflects what was built
-- [ ] Status table in `docs/specs/README.md` updated
+- [x] Proposed decisions in DESIGN.md §9 confirmed and recorded
+- [x] All acceptance criteria A1–A10 have evidence
+- [x] Every requirement R1–R23 has a passing test
+- [x] All quality gates in §3 pass
+- [ ] Manual checks in §4 done and recorded, or listed as owed with the reason — **owed**: all four need a real provider or real failing targets (keys and network are not available in CI); the offline equivalents are tested
+- [x] Docs in §5 complete, and the per-sub-phase record in §7 has a row for every sub-phase
+- [x] DESIGN.md reflects what was built
+- [x] Status table in `docs/specs/README.md` updated
 
 ## 7. Results
 
@@ -93,6 +93,9 @@ the Advanced Configuration error table.
 | 2026-10-14 | 2b | Pass | Tests first for tool-call events (every outcome in both loops, timing from a fake clock, approvals), statistics on the result, faults and compatibility. 95 telemetry tests in all; whole module 2,633 tests green including the Phase 1 golden requests. A latent fragility removed during review: the outcome mapping is an exhaustive switch |
 | 2026-10-14 | 2c | Pass | Tests first for model-call events in both loops (success, truncated, cost and estimated usage, failures propagate unchanged, rate limit, budget, overflow retry as two events, stats equal events added up, summariser not counted). Whole module 2,658 tests green, coverage gates met |
 | 2026-10-14 | 2d | Pass | Tests first for the recorder (nesting, threads, no-op), the HTTP layer against a mock server (attempts, sleeps, rate-limit wait, failures), the routing client (order of fail-overs, all failing) and the agent (event carries the figures, failed call, frozen clock, nested agent). 25 new tests |
+| 2026-10-14 | 2e | Pass | Soak (1,000 calls, bounded reservoir) and concurrency (64 agents, one collector; recorders on 16 threads) tests; runnable example; PIT on `telemetry.*`: 209 mutants, 204 killed (98 %), five survivors reviewed below; module 2,695 tests green, coverage gates met; Loom suite green (1,735 tests); public API: additions only. Finding from the example: an anonymous client has an empty simple name, so the fail-over list falls back to the class name |
+
+**Mutation survivors (PIT, `-Pmutation-telemetry`), justified.** Two in `ErrorCategory.ofStatus` (`>= 400` to `> 400`, `< 500` to `<= 500`): equivalent, since 400 and 500 are matched by earlier branches. Three in `CallTrace` (`ThreadLocal.remove()`): hygiene so a pooled thread keeps no empty stack; not observable from outside. Killed by tests added during the run: the cause-chain depth limit, the status-range edges (399, 499, 600), a hard failure not counting as soft, the default category for an unlabelled failure, and the model builder chaining.
 
 ### Documentation record (per sub-phase)
 
@@ -102,10 +105,12 @@ the Advanced Configuration error table.
 | 2b | ✅ status box, sections 5 to 7 (in an agent, timing in tests, what is measured), what is coming | ✅ 3 new samples (7 checked against the page) | ✅ `ReActAgent.Builder.clock`, `AgentResult.getStats`, the listener methods | ✅ README line, wiki Home, `llms.txt` | deferred to the end by decision | ✅ DESIGN section 10, traceability, results |
 | 2c | ✅ status box, model-call section (listener, failures, overflow retry as two events, summariser not counted), model statistics | ✅ 2 new samples (9 checked against the page) | ✅ listener methods, event builders | ✅ README line, wiki Home, both `llms.txt` | deferred to the end by decision | ✅ DESIGN section 10, traceability, results |
 | 2d | ✅ status box, new section 8 (retries, waits, fail-overs; `CallTrace` usage and limits) | ✅ 1 new sample (10 checked against the page) | ✅ `CallTrace`, `Totals` | ✅ README line, wiki Home, `llms.txt` | deferred to the end by decision | ✅ DESIGN section 10, traceability, results |
-| 2e | | | | | | |
+| 2e | ✅ status box now "complete for ai-agent4j", example link, Advanced Configuration table row | ✅ all 10 samples checked against the page | ✅ | ✅ README, wiki Home, `llms.txt` | owed, see below | ✅ DESIGN section 10, traceability, results, exit checklist |
 
 ### Owed to the stack-level pages (updated once, at the end of the whole work)
 
 - 2a: telemetry and statistics in ai-agent4j (failure categories, tool soft failures, per-tool and per-model statistics); more as the events land.
 - 2b: every tool call of an agent is reported and each result carries statistics (a tool that returns an error as text counts as failed there, though its step outcome stays EXECUTED).
 - 2c: every model call of an agent is reported, failures included, and the result's statistics carry per-model calls, tokens and latency percentiles.
+- 2d: model-call events show retries, rate-limit waits and fail-overs (`CallTrace`).
+- 2e: Phase 2 as a whole: one failure vocabulary, call-level events and per-run statistics in ai-agent4j, with a runnable example.

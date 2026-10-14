@@ -287,3 +287,6 @@ is a separate commit.
   nothing was in force). `HttpClientWrapper.send` calls `attempt()` before each request and `waited(backoff)` after each sleep; `RoutingLLMClient.chat` calls `failover(simpleName)` when a client fails
   (streaming is not traced: the agent does not stream). `chatObserved` opens a recorder around each model call, closes it on every path (an `Error` too), and clamps `waitedMillis` to the
   measured duration so a frozen test clock cannot produce an invalid event. The thread-local is removed when the stack empties, so a pooled thread keeps nothing.
+- **2e.** `StatsSoakTest` (a thousand tool and model calls through one collector, reservoir bounded) and `StatsConcurrencyTest` (64 agents on a pool sharing one `StatsCollector`; recorders on 16 threads do not mix),
+  the `mutation-telemetry` profile, and the example `src/examples/call-telemetry`. The example showed that an anonymous client has an empty simple name, so `RoutingLLMClient` now falls back to the binary class name
+  for the fail-over list (test first).

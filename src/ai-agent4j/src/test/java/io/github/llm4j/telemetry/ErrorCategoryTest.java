@@ -168,4 +168,22 @@ class ErrorCategoryTest {
         assertThat(ErrorCategory.ofStatus(302)).isEqualTo(ErrorCategory.OTHER);
         assertThat(ErrorCategory.ofStatus(0)).isEqualTo(ErrorCategory.OTHER);
     }
+
+    @Test
+    void theBoundariesOfTheStatusRanges() {
+        assertThat(ErrorCategory.ofStatus(399)).isEqualTo(ErrorCategory.OTHER);
+        assertThat(ErrorCategory.ofStatus(499)).isEqualTo(ErrorCategory.CLIENT_ERROR);
+        assertThat(ErrorCategory.ofStatus(600)).isEqualTo(ErrorCategory.OTHER);
+    }
+
+    @Test
+    void onlyTheFirstFiveLinksOfACauseChainAreAsked() {
+        Throwable deepest = new io.github.llm4j.exception.RateLimitException("slow down");
+        Throwable fifth = deepest;
+        // links 1..5 are inspected: a known exception at the 5th link is found, at the 6th it is not
+        Throwable chain5 = new RuntimeException(new RuntimeException(new RuntimeException(new RuntimeException(fifth))));
+        assertThat(ErrorCategory.of(chain5)).isEqualTo(ErrorCategory.RATE_LIMITED);
+        Throwable chain6 = new RuntimeException(chain5);
+        assertThat(ErrorCategory.of(chain6)).isEqualTo(ErrorCategory.OTHER);
+    }
 }
