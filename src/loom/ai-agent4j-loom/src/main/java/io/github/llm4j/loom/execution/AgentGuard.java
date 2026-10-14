@@ -36,10 +36,10 @@ final class AgentGuard {
     private final Pii pii;
     private final Bias bias;
     private final BiasMonitor monitor;
-    private final HarnessExecutor executor;
+    private final RunServices executor;
     private final PIIDetector detector = new RegexPIIDetector();
 
-    AgentGuard(String agent, AgentDef.GuardConfig config, BiasMonitor monitor, HarnessExecutor executor) {
+    AgentGuard(String agent, AgentDef.GuardConfig config, BiasMonitor monitor, RunServices executor) {
         this.agent = agent;
         this.pii = config.getPii() == null ? null : Pii.valueOf(config.getPii().toUpperCase(Locale.ROOT));
         this.bias = config.getBias() == null ? null : Bias.valueOf(config.getBias().toUpperCase(Locale.ROOT));

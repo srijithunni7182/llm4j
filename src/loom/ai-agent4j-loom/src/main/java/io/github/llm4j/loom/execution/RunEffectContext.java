@@ -14,9 +14,9 @@ import java.util.Set;
 /** The executor's view for generic tools: the run's audit log, trace, journal, clock and current step. */
 final class RunEffectContext implements EffectContext {
 
-    private final HarnessExecutor executor;
+    private final RunServices executor;
 
-    RunEffectContext(HarnessExecutor executor) {
+    RunEffectContext(RunServices executor) {
         this.executor = executor;
     }
 
@@ -34,18 +34,18 @@ final class RunEffectContext implements EffectContext {
     private final EffectJournal journal = new EffectJournal() {
         @Override
         public Optional<Entry> get(String key) {
-            return executor.getJournal().get(key).map(e -> new Entry(e.kind(), e.value()));
+            return executor.journal().get(key).map(e -> new Entry(e.kind(), e.value()));
         }
 
         @Override
         public void put(String key, Entry entry) {
-            executor.getJournal().put(key, new RunJournal.Entry(entry.kind(), entry.value()));
+            executor.journal().put(key, new RunJournal.Entry(entry.kind(), entry.value()));
         }
 
         @Override
         public Map<String, Entry> all() {
             Map<String, Entry> out = new LinkedHashMap<>();
-            executor.getJournal().all().forEach((k, e) -> out.put(k, new Entry(e.kind(), e.value())));
+            executor.journal().all().forEach((k, e) -> out.put(k, new Entry(e.kind(), e.value())));
             return out;
         }
     };

@@ -91,6 +91,22 @@ public class HarnessExecutor implements LoomEngine {
     });
     private final ThreadLocal<Map<String, Object>> locals = threadScope.locals;
 
+    /** What approvals, effects, guards and recorded tools see of this run; the executor's own members stay package-private. */
+    private final RunServices services = new RunServices() {
+        @Override public RunJournal journal() { return HarnessExecutor.this.journal(); }
+        @Override public void trace(String type, String agent, String text, Map<String, Object> data) { HarnessExecutor.this.trace(type, agent, text, data); }
+        @Override public void audit(String event, Map<String, Object> data) { HarnessExecutor.this.audit(event, data); }
+        @Override public String currentStep() { return HarnessExecutor.this.currentStep(); }
+        @Override public String identityStep() { return HarnessExecutor.this.identityStep(); }
+        @Override public long currentAttempt() { return HarnessExecutor.this.currentAttempt(); }
+        @Override public java.time.Clock clock() { return HarnessExecutor.this.clock(); }
+        @Override public io.github.llm4j.ratelimit.Sleeper sleeper() { return HarnessExecutor.this.sleeper(); }
+        @Override public String maskPii(String text) { return HarnessExecutor.this.maskPii(text); }
+        @Override public boolean simulating() { return HarnessExecutor.this.simulating(); }
+        @Override public HumanInterface humanInterface() { return HarnessExecutor.this.humanInterface(); }
+        @Override public java.util.Set<Path> reservedPaths() { return HarnessExecutor.this.reservedPaths(); }
+    };
+
     // ── Budgets ──────────────────────────────────────────────────────────
     /** True when the script (or an override) declares any budget; only then are clients metered. */
     private boolean budgeting;
@@ -1090,7 +1106,7 @@ public class HarnessExecutor implements LoomEngine {
     private Tool resolveTool(String name) {
         Tool tool = resolveToolAsDeclared(name);
         if (simulate) return SimulatingTool.of(tool);
-        return rewindsUsed && !SimulatingTool.runsAsItIs(tool) ? new RecordingTool(tool, this) : tool;
+        return rewindsUsed && !SimulatingTool.runsAsItIs(tool) ? new RecordingTool(tool, services) : tool;
     }
 
     private Tool resolveToolAsDeclared(String name) {
@@ -1121,7 +1137,7 @@ public class HarnessExecutor implements LoomEngine {
 
     /** What generic tools need from this run: audit, trace, the journal, the current step, and files to keep out of reach. */
     private synchronized io.github.llm4j.agent.tool.EffectContext effectContext() {
-        if (effectContext == null) effectContext = new RunEffectContext(this);
+        if (effectContext == null) effectContext = new RunEffectContext(services);
         return effectContext;
     }
 
@@ -1157,7 +1173,7 @@ public class HarnessExecutor implements LoomEngine {
     private ApprovalGate approvalGate;
 
     synchronized ApprovalGate approvals() {
-        if (approvalGate == null) approvalGate = new ApprovalGate(this);
+        if (approvalGate == null) approvalGate = new ApprovalGate(services);
         return approvalGate;
     }
 
@@ -1329,7 +1345,7 @@ public class HarnessExecutor implements LoomEngine {
                 io.github.llm4j.fairness.BiasMonitor monitor = judge == null
                         ? new io.github.llm4j.fairness.RuleBasedBiasMonitor()
                         : new io.github.llm4j.fairness.LLMBiasMonitor(metered(clientFor(judge), agentDef, judge));
-                AgentGuard guard = new AgentGuard(agentDef.getName(), agentDef.getGuard(), monitor, this);
+                AgentGuard guard = new AgentGuard(agentDef.getName(), agentDef.getGuard(), monitor, services);
                 guards.put(agentDef.getName(), guard);
                 llmClient = guard.wrap(llmClient);
             }

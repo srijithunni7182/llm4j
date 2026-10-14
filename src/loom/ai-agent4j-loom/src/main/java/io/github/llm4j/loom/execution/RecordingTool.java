@@ -15,9 +15,9 @@ final class RecordingTool implements Tool {
     static final String MARK = "#unclassified:";
 
     private final Tool real;
-    private final HarnessExecutor run;
+    private final RunServices run;
 
-    RecordingTool(Tool real, HarnessExecutor run) {
+    RecordingTool(Tool real, RunServices run) {
         this.real = real;
         this.run = run;
     }

@@ -14,15 +14,15 @@ import java.util.Map;
  */
 final class ApprovalGate {
 
-    private final HarnessExecutor executor;
+    private final RunServices executor;
 
-    ApprovalGate(HarnessExecutor executor) {
+    ApprovalGate(RunServices executor) {
         this.executor = executor;
     }
 
     boolean approve(String agent, String tool, Map<String, Object> args, String thought) {
         String key = key(executor.identityStep(), tool, args);
-        RunJournal journal = executor.getJournal();
+        RunJournal journal = executor.journal();
         String masked = executor.maskPii(String.valueOf(args));
         audit("approval_requested", agent, tool, masked);
         String answer = journal.get(key).map(e -> String.valueOf(e.value())).orElse(null);
@@ -40,7 +40,7 @@ final class ApprovalGate {
     /** Asks before a {@code run} step's task runs (a task with {@code requiresApproval}); journaled like a tool call's approval. */
     boolean approveTask(String task, Map<String, Object> args) {
         String key = key(executor.identityStep(), task, args);
-        RunJournal journal = executor.getJournal();
+        RunJournal journal = executor.journal();
         String masked = executor.maskPii(String.valueOf(args));
         audit("approval_requested", null, task, masked);
         String answer = journal.get(key).map(e -> String.valueOf(e.value())).orElse(null);
