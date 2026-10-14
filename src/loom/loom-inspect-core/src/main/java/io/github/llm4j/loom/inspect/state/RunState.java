@@ -818,6 +818,56 @@ public final class RunState {
         return v;
     }
 
+    private static final java.util.Set<String> SECURITY_KINDS = java.util.Set.of("TRIFECTA", "INJECTION", "ACCESS");
+
+    /** Open security incidents (trifecta, injection, access), as the incident view shows them. */
+    private List<Map<String, Object>> openSecurityIncidents() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Map<String, Object> i : incidents.view()) if ("open".equals(i.get("state")) && SECURITY_KINDS.contains(String.valueOf(i.get("kind")))) out.add(i);
+        return out;
+    }
+
+    /** How many security incidents are open now: what a tab shows. */
+    public synchronized int openSecurityCount() {
+        return openSecurityIncidents().size();
+    }
+
+    /** The open security incidents of this run, each with the run it belongs to. For a server's security page. */
+    public synchronized List<Map<String, Object>> securityIncidents() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Map<String, Object> i : openSecurityIncidents()) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("client", client);
+            m.put("traceId", traceId);
+            m.put("runId", runId);
+            m.putAll(i);
+            out.add(m);
+        }
+        return out;
+    }
+
+    /** The agents of this run whose security verdict matters (exercised, accepted or armed), each with the run it belongs to. */
+    public synchronized List<Map<String, Object>> securityAgents() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> all = (List<Map<String, Object>>) security.view(securityProfile == null ? List.of() : securityProfile.get()).get("agents");
+        for (Map<String, Object> a : all) {
+            String verdict = String.valueOf(a.get("verdict"));
+            if (!verdict.equals("exercised") && !verdict.equals("accepted") && !verdict.equals("armed")) continue;
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("client", client);
+            m.put("traceId", traceId);
+            m.put("runId", runId);
+            m.put("workflow", workflow);
+            m.put("agent", a.get("agent"));
+            m.put("verdict", verdict);
+            if (a.get("acceptedReason") != null) m.put("acceptedReason", a.get("acceptedReason"));
+            m.put("assumed", a.get("assumed"));
+            out.add(m);
+        }
+        return out;
+    }
+
     /** The security counts of this run, for a server to add up across runs. */
     public synchronized Map<String, Long> securityCounts() {
         return security.counts();
@@ -879,6 +929,7 @@ public final class RunState {
         v.put("totals", totals);
         v.put("runningAgents", open.values().stream().filter(o -> Semconv.KIND_AGENT.equals(o.kind())).count());
         v.put("incidents", incidents.openCount());
+        v.put("security", openSecurityIncidents().size());
         contexts.entrySet().stream().map(e -> windowOf(e.getKey(), e.getValue()).fraction()).filter(java.util.Objects::nonNull).max(Double::compare).ifPresent(f -> v.put("contextFraction", f));
         if (incidents.worst() != null) v.put("worstIncident", incidents.worst());
         return v;

@@ -122,6 +122,76 @@ public final class RunRegistry {
         return total;
     }
 
+    /**
+     * The tools and tasks of every run (or one client's) for a fleet view: each row is a {@link ToolSummary} as a map, plus the agents that use it and, when it has
+     * ever failed, the run it last failed in ({@code lastRun}: client, trace id, time, category); and the number of rows in each health state. Failing first.
+     */
+    public Map<String, Object> toolRows(String client) {
+        List<ToolSummary> rollup = toolRollup(client);
+        Map<String, Map<String, Object>> last = new java.util.HashMap<>();
+        for (RunState r : runs.values()) {
+            if (client != null && !client.equals(r.client())) continue;
+            for (ToolSummary s : r.toolSummaries()) {
+                if (s.lastFailureAt() == null) continue;
+                String key = s.kind() + ":" + s.name();
+                Map<String, Object> best = last.get(key);
+                if (best == null || s.lastFailureAt().compareTo(String.valueOf(best.get("at"))) > 0) {
+                    Map<String, Object> m = new java.util.LinkedHashMap<>();
+                    m.put("client", r.client());
+                    m.put("traceId", r.traceId());
+                    m.put("at", s.lastFailureAt());
+                    m.put("category", s.lastFailureCategory());
+                    last.put(key, m);
+                }
+            }
+        }
+        List<Map<String, Object>> rows = new ArrayList<>();
+        Map<String, Long> counts = new java.util.LinkedHashMap<>();
+        for (String state : List.of("failing", "degraded", "healthy", "unused")) counts.put(state, 0L);
+        for (ToolSummary s : rollup) {
+            Map<String, Object> m = new java.util.LinkedHashMap<>(s.toMap());
+            m.put("agents", new ArrayList<>(s.byAgent().keySet()));
+            Map<String, Object> lastRun = last.get(s.kind() + ":" + s.name());
+            if (lastRun != null) m.put("lastRun", lastRun);
+            rows.add(m);
+            counts.merge(s.state(), 1L, Long::sum);
+        }
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("rows", rows);
+        out.put("counts", counts);
+        return out;
+    }
+
+    /** The agent rows listed on a security page, and the open incidents shown on it. */
+    public static final int SECURITY_AGENTS = 200;
+    public static final int SECURITY_INCIDENTS = 100;
+
+    /**
+     * The security picture across runs (or one client's): the added-up counts, the agents whose verdict matters (exercised, accepted or armed), and the open
+     * security incidents, newest run first and bounded.
+     */
+    public Map<String, Object> securityOverview(String client) {
+        List<RunState> newestFirst = new ArrayList<>();
+        for (RunState r : runs.values()) if (client == null || client.equals(r.client())) newestFirst.add(r);
+        newestFirst.sort((a, b) -> {
+            java.time.Instant x = a.lastEventAt();
+            java.time.Instant y = b.lastEventAt();
+            if (x == null || y == null) return x == y ? 0 : x == null ? 1 : -1;
+            return y.compareTo(x);
+        });
+        List<Map<String, Object>> agents = new ArrayList<>();
+        List<Map<String, Object>> incidents = new ArrayList<>();
+        for (RunState r : newestFirst) {
+            for (Map<String, Object> a : r.securityAgents()) if (agents.size() < SECURITY_AGENTS) agents.add(a);
+            for (Map<String, Object> i : r.securityIncidents()) if (incidents.size() < SECURITY_INCIDENTS) incidents.add(i);
+        }
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("counts", securityRollup(client));
+        out.put("agents", agents);
+        out.put("incidents", incidents);
+        return out;
+    }
+
     /** Gives a run the way to read its decision ladders. */
     public void setLadders(String client, String traceId, java.util.function.Supplier<List<Map<String, Object>>> ladders) {
         state(client, traceId).setLadders(ladders);

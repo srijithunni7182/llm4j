@@ -241,6 +241,10 @@ public final class InspectServer {
                 return; // the gate has answered
             } else if (config.api.containsKey(path)) {
                 send(x, 200, "application/json", json(config.api.get(path).get()));
+            } else if (path.equals("/api/tools")) {
+                send(x, 200, "application/json", json(registry.toolRows(clientParam(x))));
+            } else if (path.equals("/api/security")) {
+                send(x, 200, "application/json", json(registry.securityOverview(clientParam(x))));
             } else if (path.equals("/api/health")) {
                 send(x, 200, "application/json", json(Map.of("status", "ok", "runs", registry.summaries().size())));
             } else if (path.equals("/api/runs")) {
@@ -266,6 +270,19 @@ public final class InspectServer {
     // ------------------------------------------------------------------------------ the administrator
 
     /** The run's view, with what the page may do to it now: nothing at all unless controls are on here. */
+    /** The {@code client} query parameter of a fleet route, or null for every client. */
+    private static String clientParam(HttpExchange x) {
+        String query = x.getRequestURI().getRawQuery();
+        if (query == null) return null;
+        for (String pair : query.split("&")) {
+            if (pair.startsWith("client=")) {
+                String v = java.net.URLDecoder.decode(pair.substring("client=".length()), java.nio.charset.StandardCharsets.UTF_8);
+                return v.isEmpty() ? null : v;
+            }
+        }
+        return null;
+    }
+
     private Map<String, Object> withControls(Map<String, Object> view, String trace, HttpExchange x) {
         if (config.controls == null) return view;
         Map<String, Object> out = new java.util.LinkedHashMap<>(view);
