@@ -154,6 +154,7 @@ The price table is unchanged.
 | R24 | No new dependency; the page remains four static files plus fonts and the two marks; the server answers the new routes read-only (405 for other methods) |
 | R25 | Against a Fabric server the page is branded Fabric: the name in the header, the page title, the favicon and a mark of its own (`/fabric-logo.svg`, a woven grid); an embedded page keeps loom·inspect and the Loom mark. The brand is decided by the same probe that turns on the Processes view |
 | R26 | Run and workflow tabs keep the order in which they first appeared and never reorder between polls; a new run is added at the end and never takes the selection; the selected run and view never change unless the person changes them |
+| R35 | Finding a run scales: the tab row shows only what needs eyes (the selected run, runs that are live, and runs with an open high incident), at most 8; every other run is in a **Runs** list (a filterable table: process, workflow, status, started, incidents, cost) opened from one button, grouped by process and workflow, newest first within a group; two runs of one workflow are told apart by their start time; a finished run leaves the tab row on its own after it has been shown for a minute unless it is selected |
 | R27 | Tables whose rows are ordered by live numbers (tools and tasks, on a run and across runs) keep each row where it is while the page is open; when the live order differs a chip says "order changed" and **Re-sort** applies it |
 | R28 | A **Live / Paused** control: Paused stops every redraw; the header says "Paused at HH:MM:SS" and counts what changed since (new runs, new incidents, state changes) from the cheap run list alone; Live redraws at once |
 | R29 | `GET /api/runs/{trace}/timeline` returns the run's marks (start, each incident opened or closed, each failure, each compaction, each state change, end), bounded to 300, oldest first, each with a sequence number and a time |
@@ -192,7 +193,7 @@ The price table is unchanged.
 | 5c | The two fleet pages and the tab badges | R12, R13, R23 |
 | 5d | The Configuration page: the eight behaviours and the windows catalog | R15, R16 |
 | 5e | Cross-cutting checks (themes, narrow width, keyboard, console), screenshots, documentation, verification run | R17 to R21, all |
-| 5f-1 | **Calm**: stable tab order, held row order with Re-sort, Live / Paused, the calm simulator preset | R26 to R28, R34 |
+| 5f-1 | **Calm**: stable tab order, a Runs list instead of a tab per run, held row order with Re-sort, Live / Paused, the calm simulator preset | R26 to R28, R34, R35 |
 | 5f-2 | **Time**: the kept history, the timeline and `?at=` routes, the time bar and the snapshot view | R29 to R33 |
 
 ## 9. Decisions
@@ -210,6 +211,7 @@ The price table is unchanged.
 | 9 | Fleet security rows: all agents or only the notable? | Only `exercised`, `accepted` and `armed` (and open incidents), so a fleet of quiet agents does not drown the page; the counts still include everyone |
 | 10 | What does the page do about a hostile run? | Shows text as text and never executes or fetches anything named in run data; a link is made only to a run page on the same server |
 | 11 | Why was the page hard to follow? (found by use, after 5e) | Tabs were sorted by last event, so they reordered on every poll; every poll redrew whole panels and re-sorted rows by live numbers; and the default simulator runs three processes forever, adding runs and incidents. Fix the page first (stable order, a Pause), then add time; do not lean on a quieter simulator alone |
+| 15 | A tab per run? | No (seen with the simulator: fifty identical tabs). Tabs are for the few runs that need eyes; everything else is a searchable Runs list. The same list is the way back to a finished run |
 | 12 | How does a person go back? | A time bar on the run page over the run's own history (decision 13); the fleet pages get Pause only |
 | 13 | How is a past view made? | The run keeps the records it was built from (bounded) and a past view is a scratch run fed the same records up to the point. Not stored snapshots (large, and they could differ from what live shows) and not a second view builder |
 | 14 | Pause automatically on interaction? | No. A page that sometimes stops by itself is its own surprise. The order of rows is held (R27) and Pause is explicit and visible |

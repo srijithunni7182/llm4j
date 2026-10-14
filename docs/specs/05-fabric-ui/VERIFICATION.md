@@ -55,6 +55,7 @@ Status: **built; manual and live checks owed (§4)**. Run top to bottom at the e
 | R31 | `ReplayEqualsLiveTest` | ⬜ |
 | R32 | `time.page.test.js` | ⬜ |
 | R33 | `RunHistoryTest` (bound, soak, restore) | ⬜ |
+| R35 | `calm.page.test.js` (tab cap, Runs list, filter, start times, a finished run leaves the row) | ⬜ |
 | R34 | `ScenarioTest` (the calm preset), `fabric-sim` README | ⬜ |
 
 ## 3. Quality gates
@@ -79,7 +80,7 @@ Stack-level pages are owed once at the end of the whole work.
 
 - [x] Decisions in DESIGN.md §9 recorded
 - [x] Acceptance criteria A1–A10 have evidence
-- [x] Every requirement R1–R34 has a passing test
+- [x] Every requirement R1–R35 has a passing test
 - [x] Quality gates in §3 pass
 - [x] Manual checks listed as owed with the reason: browsers other than Chromium, a screen reader, a real Fabric with real processes, a real provider run with a flaky tool and a small window, a real planted-page run (none of these can be done in this environment)
 - [x] Docs complete; §7 has a row for every sub-phase
