@@ -64,6 +64,7 @@ Maven: `io.github.srijithunni7182:ai-agent4j:5.0`. This file covers the core lib
 - [Creating Custom Tools](wiki/Creating-Custom-Tools.md)
 - [Budgets and Rate Limits](wiki/Budgets-and-Rate-Limits.md)
 - [Context and Compaction](wiki/Context-and-Compaction.md)
+- [Telemetry and Statistics](wiki/Telemetry-and-Statistics.md)
 - [MCP Integration](wiki/MCP-Integration.md)
 - [OpenAPI Tool](wiki/OpenAPI-Tool.md)
 - [Memory and Persistence](wiki/Memory-and-Persistence.md)

@@ -162,6 +162,17 @@
                                         <limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.80</minimum></limit>
                                     </limits>
                                 </rule>
+                                <!-- Call-level telemetry (docs/specs/02-call-telemetry) -->
+                                <rule>
+                                    <element>PACKAGE</element>
+                                    <includes>
+                                        <include>io.github.llm4j.telemetry</include>
+                                    </includes>
+                                    <limits>
+                                        <limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit>
+                                        <limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.80</minimum></limit>
+                                    </limits>
+                                </rule>
                                 <rule>
                                     <element>BUNDLE</element>
                                     <limits>

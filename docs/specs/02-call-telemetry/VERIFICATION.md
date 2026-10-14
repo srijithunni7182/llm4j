@@ -30,21 +30,21 @@ Filled in as tests are written; a row without a test blocks the exit.
 | R5 | `ModelCallEventsTest#truncated` | ☐ |
 | R6 | `ToolCallEventsTest` (all outcomes, both loops) | ☐ |
 | R7 | `ToolCallEventsTest` | ☐ |
-| R8 | `ErrorCategoryTest`, `TelemetryFaultTest` | ☐ |
-| R9 | `ToolResultsTest`, `ToolCallEventsTest#softFailure`, `#isFailureOverride` | ☐ |
-| R10 | `ErrorCategoryTest` | ☐ |
+| R8 | `ErrorCategoryTest`, `ToolExceptionTest`, `TelemetryFaultTest` | ◐ 2a: the type part (classification, explicit category, cause chain); the loop part in 2b |
+| R9 | `ToolResultsTest`, `ToolCallEventsTest#softFailure`, `#isFailureOverride` | ◐ 2a: the rule and the override point; the events in 2b |
+| R10 | `ErrorCategoryTest` (every row of design §4.1, direct, wrapped and in an `ExecutionException`) | ✅ 2a |
 | R11 | `HttpCallTraceTest` | ☐ |
 | R12 | `RoutingCallTraceTest` | ☐ |
 | R13 | `HttpCallTraceTest#noTraceNoEffect`, `CallTraceTest` | ☐ |
 | R14 | `CallTraceTest` | ☐ |
-| R15 | `RunStatsTest`, `RunStatsIntegrationTest` | ☐ |
-| R16 | `LatencyStatsTest`, `StatsSoakTest` | ☐ |
-| R17 | `StatsCollectorTest`, `StatsConcurrencyTest` | ☐ |
+| R15 | `StatsAccumulatorTest`, `StatsCollectorTest`, `RunStatsIntegrationTest` | ◐ 2a: the adding up; the agent's own run in 2b/2c |
+| R16 | `LatencyStatsTest`, `StatsSoakTest` | ◐ 2a: exact to the capacity, bounded beyond it; the soak in 2e |
+| R17 | `StatsCollectorTest#manyThreadsGiveTheSumAndASnapshotIsAlwaysConsistent` (16 threads, snapshots taken while writing), `StatsConcurrencyTest` | ◐ 2a: collector under threads; agents sharing one in 2e |
 | R18 | `RunStatsIntegrationTest#everyResultHasStats` | ☐ |
 | R19 | `RequestStabilityTest`, `TelemetryCompatibilityTest` | ☐ |
 | R20 | `TelemetryCompatibilityTest#oldListener` | ☐ |
 | R21 | `TelemetryFaultTest#aListenerThatThrows` | ☐ |
-| R22 | Build dependency check (§3) | ☐ |
+| R22 | Build dependency check (§3) | ◐ none added through 2a |
 | R23 | `ModelCallEventsTest#summariserCallsAreNotModelCalls` | ☐ |
 
 ## 3. Quality gates
@@ -89,13 +89,13 @@ the Advanced Configuration error table.
 
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
-| | | | |
+| 2026-10-14 | 2a | Pass | Tests first for the classifier, the soft-failure rule (14 positives, 14 negatives), percentiles, the events, the adder and the collector. 83 new tests; whole module 2,582 tests green; new package line 99.1 % / branch 90.8 % (gate now enforced). Two findings by the tests: `JsonProcessingException` is an `IOException` (checked first), and `Failure analysis:` must not read as a failure |
 
 ### Documentation record (per sub-phase)
 
 | Sub-phase | Wiki page | Samples tested | Javadoc | Module README / Home / llms.txt | Stack-level pages | Specs |
 |---|---|---|---|---|---|---|
-| 2a | | | | | | |
+| 2a | ✅ `Telemetry-and-Statistics.md` created (marked in progress): failure vocabulary, writing a tool, the events, statistics | ✅ 4 samples in `TelemetryDocsExamplesTest`, page checked against them | ✅ all public types | ✅ README line, wiki Home, both `llms.txt` | deferred to the end by decision | ✅ DESIGN section 10, traceability, results |
 | 2b | | | | | | |
 | 2c | | | | | | |
 | 2d | | | | | | |
@@ -103,4 +103,4 @@ the Advanced Configuration error table.
 
 ### Owed to the stack-level pages (updated once, at the end of the whole work)
 
-- (collected as the work goes on)
+- 2a: telemetry and statistics in ai-agent4j (failure categories, tool soft failures, per-tool and per-model statistics); more as the events land.

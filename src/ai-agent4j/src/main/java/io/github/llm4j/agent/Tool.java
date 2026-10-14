@@ -54,4 +54,16 @@ public interface Tool {
     default java.util.Map<String, Object> getParametersSchema() {
         return io.github.llm4j.model.ToolSchema.permissive();
     }
+
+    /**
+     * Whether a result this tool returned is really a failure. Many tools return their errors as text instead of throwing; the agent counts such a
+     * call as failed in its events and statistics. The default recognises the common wording ({@code "Error: …"}, {@code "Failed to …"}, an HTTP
+     * error status); override it when this tool's results have a shape of their own.
+     *
+     * @param result what {@link #execute} returned
+     * @return true if the result describes a failure
+     */
+    default boolean isFailure(String result) {
+        return ToolResults.looksLikeFailure(result);
+    }
 }

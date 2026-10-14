@@ -1,6 +1,6 @@
 # Phase 2 design: call-level telemetry (ai-agent4j)
 
-Status: **draft for review**. Layer: ai-agent4j (the core). Nothing in this phase knows about Loom, Fabric or OpenTelemetry.
+Status: **approved; decisions in §9**. Layer: ai-agent4j (the core). Nothing in this phase knows about Loom, Fabric or OpenTelemetry.
 Companion documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md), [roadmap](../README.md). Builds on
 [Phase 1](../01-context-management/DESIGN.md) (it reuses the listener, the usage types and the error classification).
 
@@ -251,13 +251,24 @@ is a separate commit.
 | Event volume or cost | Events are small records; statistics are a few counters; delivery is skipped when no listener is attached (the result's statistics are still kept) |
 | Layers above treating categories as stable API | The enum is documented as extensible: consumers must tolerate unknown values |
 
-## 9. Proposed decisions (to confirm at review)
+## 9. Decisions (settled at review)
 
-| # | Question | Proposal |
+| # | Question | Decision |
 |---|---|---|
-| 1 | Detect a tool's soft failure by a heuristic by default? | Yes, in `Tool.isFailure`'s default, overridable per tool (§4.3). The alternative is to trust only exceptions, which would leave every "Error:"-returning built-in tool looking healthy |
-| 2 | Carry retries and fail-overs by a thread-local `CallTrace` or by changing `LLMClient`? | The thread-local (§4.4): no signature changes, nothing for existing clients to implement, no cost when unused |
+| 1 | Detect a tool's soft failure by a heuristic by default? | Yes, in `Tool.isFailure`'s default, overridable per tool (§4.3) |
+| 2 | Carry retries and fail-overs by a thread-local `CallTrace` or by changing `LLMClient`? | The thread-local (§4.4): no signature changes, no cost when unused |
 | 3 | Does `StepOutcome` change for a soft failure? | No (§7); the event and statistics carry it |
-| 4 | Where do the types live? | `io.github.llm4j.telemetry` for events, statistics, categories and `CallTrace`; `ToolException` and `Tool.isFailure` stay with `Tool` in `io.github.llm4j.agent` |
+| 4 | Where do the types live? | `io.github.llm4j.telemetry` for events, statistics, categories and `CallTrace`; `ToolException`, `ToolResults` and `Tool.isFailure` with `Tool` in `io.github.llm4j.agent`. **As built:** `ToolCallEvent` uses its own `ToolOutcome` enum (the same constants as `StepOutcome`, converted by the agent) and `StatsCollector` sits beside `AgentEventListener` in the agent package, so that `telemetry` does not depend on the agent and the two packages do not depend on each other |
 | 5 | Latency percentile method | Nearest-rank, exact to 10,000 samples, then a deterministic reservoir |
 | 6 | Event content | Numbers and names only; never prompt, answer, argument or result text |
+
+## 10. As built: notes by sub-phase
+
+- **2a.** The soft-failure rule is stricter than the first sketch because the negative cases demanded it: a leading `error`, `failed`, `failure`, `exception` or `tool error`
+  counts only when followed by the end, a colon or dash, or a verb that introduces a failure (`to`, `in`, `while`, `executing`, `with`, `status`, …), so `Failure analysis: …`
+  and `Errors: 0` are not failures; a bare 4xx/5xx status counts unless it is followed by a noun that makes it a count (`500 requests`, `404 results`). Categories read from the
+  text map 401/403 and "unauthorized" to `PERMISSION_DENIED` (the tool-side name), while `ErrorCategory.ofStatus(401)` is `AUTHENTICATION` (the model-side name). A Jackson
+  `JsonProcessingException` is `INVALID_ARGUMENTS` although it is an `IOException`. The cause chain is searched to depth 5 with a cycle guard; the outermost exception that says
+  something wins. `LatencyRecorder` keeps a deterministic reservoir (Algorithm R) past 10,000 samples and exposes `retained()` for the bound. Per-tool latency counts only calls
+  that reached the tool's code (`ToolOutcome.ran()`), per-model latency counts every call, failed ones included. `StatsAccumulator` is the shared, thread-safe adder behind both
+  `StatsCollector` and (from 2b) `AgentResult.getStats()`.

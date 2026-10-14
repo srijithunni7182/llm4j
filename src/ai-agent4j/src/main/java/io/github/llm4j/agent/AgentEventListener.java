@@ -70,4 +70,24 @@ public interface AgentEventListener {
     default void onCompaction(io.github.llm4j.context.CompactionEvent event) {
         // no-op by default; implementors opt in
     }
+
+    /**
+     * Called after each call to a model, whether it produced an answer or failed: how long it took, how many attempts it needed, the tokens, the
+     * finish reason, and why it failed. The event holds numbers and names only, never the prompt or the answer.
+     *
+     * @param event what the call was and how it went
+     */
+    default void onModelCall(io.github.llm4j.telemetry.ModelCallEvent event) {
+        // no-op by default; implementors opt in
+    }
+
+    /**
+     * Called after each tool call, whatever happened to it: it ran, it threw, it returned an error as text, it was blocked, unknown or rejected. The
+     * event holds numbers and names only, never the arguments or the result (see {@link #onAction} and {@link #onObservation} for those).
+     *
+     * @param event what the call was and how it went
+     */
+    default void onToolCall(io.github.llm4j.telemetry.ToolCallEvent event) {
+        // no-op by default; implementors opt in
+    }
 }
