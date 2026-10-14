@@ -10,6 +10,13 @@ Try out Fabric (and the console) with **no model, no network and no API key**. A
 | ~3:00 | thumbnails and captions for three shots in parallel; the first audit fails and the run **rewinds** once |
 | ~4:00 | the Publisher saves the report; the run finishes |
 
+## Start calm
+
+`./run.sh calm` starts one process that makes one run (the studio workflow, about four minutes) and then stops: a page that holds still while you
+look around. The default (`./run.sh`, three processes, runs one after another until Ctrl-C) is a **busy fleet**: it keeps adding runs and incidents,
+which is what it is for (try it for load and for the Runs list), not for learning the pages. To see one situation and nothing else, use a scenario:
+`SCENARIO=task-broken ./run.sh calm`. The page has a **Live / Paused** control for reading a page in peace while runs keep arriving.
+
 ## Run it
 
 From the repository root, once (builds the jars):

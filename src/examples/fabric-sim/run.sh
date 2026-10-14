@@ -2,7 +2,8 @@
 # Starts a Fabric server and N simulated Loom processes that report to it, so you can exercise Fabric
 # (the Processes page, one tab per process and workflow, incidents, pause/suspend/stop) with no model and no key.
 #
-#   ./run.sh                 # 3 processes, runs of about 4 minutes, until Ctrl-C
+#   ./run.sh calm            # the quiet one to start with: 1 process, 1 run, then it stops reporting (the page stays as it was)
+#   ./run.sh                 # 3 processes, runs of about 4 minutes, until Ctrl-C (a busy fleet: many runs and incidents)
 #   PROCESSES=5 SPEED=0.5 ./run.sh
 #   BUILD=1 ./run.sh         # build the jars first
 #
@@ -13,6 +14,7 @@
 #              SCENARIO=flaky-tool,task-broken,trifecta,injected-page ./run.sh)
 set -euo pipefail
 cd "$(dirname "$0")"
+if [ "${1:-}" = "calm" ]; then PROCESSES=1; RUNS=1; shift; fi
 ROOT=../../..
 : "${PROCESSES:=3}" "${SPEED:=1.0}" "${PORT:=9090}" "${DATA:=$PWD/fabric-sim-data}" "${DETAIL:=truncated}" "${RUNS:=0}"
 : "${ADMIN_PASSWORD:=simulate-admin-1}"

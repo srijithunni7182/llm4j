@@ -82,7 +82,12 @@ async function openRun(browser, base, scenario, opts) {
   await page.goto(base);
   await page.waitForSelector('#wtabs button');
   if (scenario) {
-    await page.locator('#wtabs button', { hasText: scenario + ' / ' }).first().click();
+    const tab = page.locator('#wtabs button.run').filter({ hasText: new RegExp('^\\s*' + scenario + ' / ') }).first();
+    if (await tab.count()) { await tab.click(); }
+    else {   // finished runs are not in the tab row: choose it from the Runs list
+      await page.locator('#wtabs button.proc', { hasText: 'Runs' }).click();
+      await page.locator('#rlrows tr.rl').filter({ has: page.locator('td:first-child', { hasText: new RegExp('^' + scenario + '$') }) }).first().click();
+    }
     await page.waitForSelector('#main:not([hidden])');
     await page.waitForFunction((name) => document.getElementById('wfname') && document.getElementById('client').textContent.indexOf(name) >= 0, scenario);
   }

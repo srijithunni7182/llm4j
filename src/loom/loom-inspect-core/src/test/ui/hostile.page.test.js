@@ -37,9 +37,8 @@ async function nothingBecameMarkup(page) {
 }
 
 test('R20: every run view shows hostile names and messages as text', { skip: skip || false }, async () => {
-  const { page, context } = await openRun(browser, fixtures.base);
+  const { page, context } = await openRun(browser, fixtures.base, 'task-broken');
   await withHostileApi(page);
-  await page.locator('#wtabs button', { hasText: 'task-broken / ' }).click();
   await page.waitForSelector('#main:not([hidden])');
   for (const t of ['Overview', 'Context', 'Tools', 'Security']) { await openTab(page, t); await page.waitForTimeout(1200); await nothingBecameMarkup(page); }
   await openTab(page, 'Tools');

@@ -173,6 +173,12 @@ Two read-only routes (behind the same sign-in as the rest of the API) give the f
 
 `GET /api/runs` carries `security`, the number of open security incidents, on each run, for a tab badge. An agent's `context` in a run's view also carries `points` (the last 120 model calls) and `events` (the last 60 compactions) for a timeline.
 
+### Holding still, and finding a run
+
+The page does not rearrange itself under your pointer. Run tabs keep the order they first appeared in; the tab row holds only the run you are looking at, the runs that are live and those that just finished (at most eight). Every run, finished or not, is in the **Runs** list: search it, filter by live, finished or failed, and open one. Rows of the tools and tasks tables keep their place; when the live order has changed a chip says "order changed" and **Re-sort** applies it. **Live / Paused** (top right) stops every redraw so you can read; while paused the page counts what changed ("Paused at 14:32:05 · 3 changes since") and **Live** brings it up to date.
+
+For a first look use the calm simulator: `./run.sh calm` in [fabric-sim](../src/examples/fabric-sim/README.md) makes one process and one run. The default is a busy fleet, which keeps adding runs and incidents.
+
 ### What the pages show
 
 A run that broke says why, in words, and where:

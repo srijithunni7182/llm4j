@@ -327,3 +327,16 @@ body { overflow-wrap: anywhere; }
 .builder input[type=text], .builder input[type=number] { max-width: 100%; }
 .nm { display: inline-block; max-width: 36ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .bad .faint, .now .faint, tr.failing .faint, .incident .faint { color: var(--ink-muted); }
+/* calm: the Live / Paused control, the Runs list, the order chip */
+#live { display: inline-flex; align-items: center; gap: 6px; }
+#live .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--rung-suggest); }
+#live.held .dot { background: var(--live); }
+#live.held { border-color: var(--live); color: var(--live); }
+#livechip { margin-right: var(--space-3); }
+.wt .cnt { margin-left: 6px; padding: 0 6px; border-radius: 9px; background: var(--surface-raised); color: var(--ink-muted); font: 500 11px/16px var(--font-mono); }
+tr.group td { background: var(--surface-raised); color: var(--ink-muted); font-weight: 600; }
+tr.rl { cursor: pointer; } tr.rl:hover td { background: var(--surface-raised); }
+tr.rl .st { white-space: nowrap; }
+tr.rl.sel td { background: var(--live-soft); }
+#rl-search { height: 30px; min-width: 260px; padding: 0 10px; border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: transparent; color: var(--ink); font: inherit; }
+

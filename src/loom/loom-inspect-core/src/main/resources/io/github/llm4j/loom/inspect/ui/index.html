@@ -25,6 +25,7 @@
     </div>
     <div class="spacer"></div>
     <div id="controls" class="controls" hidden></div>
+    <button id="live" class="btn live" type="button" aria-pressed="false" title="Live: the page follows the runs. Paused: nothing moves until you resume."><span class="dot"></span><span id="livelbl">Live</span></button><span id="livechip" class="faint mono small" role="status" hidden></span>
     <button id="theme" class="btn" type="button" aria-label="Switch theme"><span id="themelbl">Light</span></button>
   </header>
 
@@ -194,8 +195,24 @@
 
   <div id="banner" class="banner" hidden></div>
 
+  <section id="runslist" class="panel" hidden aria-labelledby="h-rl">
+    <div class="ph"><h2 id="h-rl">Runs</h2><span class="sub mono" id="rlsub"></span></div>
+    <div class="filters">
+      <label class="sr" for="rl-search">Search runs</label>
+      <input id="rl-search" type="search" placeholder="Search by process, workflow or status" spellcheck="false" autocomplete="off">
+      <span class="eyebrow">Show</span><span id="rl-status" class="chips" role="group" aria-label="Show by status"></span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Process</th><th>Workflow</th><th>Status</th><th>Started</th><th>Incidents</th><th class="r">Cost</th></tr></thead>
+        <tbody id="rlrows"></tbody>
+      </table>
+    </div>
+    <p id="norl" class="muted pad" hidden>No run has reported yet.</p>
+  </section>
+
   <section id="fleettools" class="panel" hidden aria-labelledby="h-ft">
-    <div class="ph"><h2 id="h-ft">Tools and tasks</h2><span class="sub mono" id="ftsub"></span></div>
+    <div class="ph"><h2 id="h-ft">Tools and tasks</h2><span class="sub mono" id="ftsub"></span><span id="ftsortwrap" class="chip" hidden>order changed <button id="ftsort" class="runlink" type="button">Re-sort</button></span></div>
     <div class="kpis ftkpis">
       <div class="tile fc failing" id="ft-failing"><div class="eyebrow">Failing</div><div class="val" data-v>0</div></div>
       <div class="tile fc degraded" id="ft-degraded"><div class="eyebrow">Degraded</div><div class="val" data-v>0</div></div>
@@ -321,7 +338,7 @@
     </section>
 
     <section class="panel" id="toolspanel" data-tab="tools" aria-labelledby="h-tt" hidden>
-      <div class="ph"><h2 id="h-tt">Tools and tasks</h2><span class="sub mono" id="ttsub"></span><span class="spacer"></span><span id="ttfilter" class="chips" role="group" aria-label="Show"></span></div>
+      <div class="ph"><h2 id="h-tt">Tools and tasks</h2><span class="sub mono" id="ttsub"></span><span id="ttsortwrap" class="chip" hidden>order changed <button id="ttsort" class="runlink" type="button">Re-sort</button></span><span class="spacer"></span><span id="ttfilter" class="chips" role="group" aria-label="Show"></span></div>
       <div class="tbl-wrap">
         <table class="tt-table">
           <thead><tr><th>Name</th><th>Kind</th><th class="r">Calls</th><th>Success</th><th class="r">p50 / p95</th><th>Health</th><th>Last failure</th></tr></thead>

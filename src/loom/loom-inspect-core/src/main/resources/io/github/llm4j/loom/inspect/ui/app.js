@@ -3,7 +3,7 @@
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var selected = null, agentFilter = null, view = null, viewAt = 0;
-  var fabric = false, procs = [], showProcs = false, showSecrets = false, showConfig = false, showFleet = '', fleetFailing = 0, fleetSecOpen = 0, clientNames = [], sess = {};
+  var fabric = false, procs = [], showProcs = false, showSecrets = false, showConfig = false, showFleet = '', paused = false, pausedAt = 0, pausedList = null, lastRuns = [], runSeen = {}, nextRunIdx = 0, fleetFailing = 0, fleetSecOpen = 0, clientNames = [], sess = {};
 
   function store(k, v) { try { if (v === undefined) { return localStorage.getItem(k); } localStorage.setItem(k, v); } catch (e) { return null; } return null; }
 
@@ -45,6 +45,33 @@
   function cell(row, text, cls) { var td = el('td', cls || '', text); row.appendChild(td); return td; }
   function tabState(s) { return s === 'finished' ? 'done' : s; }
 
+  var LIVE = { running: 1, paused: 1, sleeping: 1, waiting: 1 };
+  var TAB_MAX = 8, TAB_LINGER = 60000;
+
+  /** The runs that get a tab: the selected one, the live ones, and those that finished a moment ago, in the order they were first seen, at most eight. */
+  function tabRuns(runs) {
+    var fresh = runs.filter(function (r) { return !runSeen[r.traceId]; }).sort(function (x, y) { return String(x.startedAt || '').localeCompare(String(y.startedAt || '')); });
+    fresh.forEach(function (r) { runSeen[r.traceId] = { idx: nextRunIdx++, liveSeen: false, endedAt: null }; });
+    var now = Date.now();
+    runs.forEach(function (r) {
+      var seen = runSeen[r.traceId];
+      if (LIVE[r.status]) { seen.liveSeen = true; seen.endedAt = null; }
+      else if (seen.endedAt == null) { seen.endedAt = seen.liveSeen ? now : 0; }   // finished before we ever saw it live: not news
+    });
+    var ordered = runs.slice().sort(function (x, y) { return runSeen[x.traceId].idx - runSeen[y.traceId].idx; });
+    var shown = ordered.filter(function (r) {
+      var seen = runSeen[r.traceId];
+      return r.traceId === selected || LIVE[r.status] || (seen.endedAt > 0 && now - seen.endedAt < TAB_LINGER);
+    });
+    while (shown.length > TAB_MAX) {
+      var drop = -1;
+      for (var i = shown.length - 1; i >= 0; i--) { if (shown[i].traceId !== selected) { drop = i; break; } }
+      if (drop < 0) { break; }
+      shown.splice(drop, 1);
+    }
+    return shown;
+  }
+
   function renderTabs(runs) {
     var nav = $('wtabs');
     nav.textContent = '';
@@ -59,37 +86,76 @@
         var fb = el('button', 'wt proc' + (showFleet === f[0] ? ' on' : ''), f[1]);
         fb.type = 'button';
         if (f[2] > 0) { fb.appendChild(el('span', 'sev ' + f[3] + ' inc', String(f[2]))); }
-        fb.addEventListener('click', function () { showFleet = f[0]; showProcs = false; showSecrets = false; showConfig = false; $('controls').hidden = true; tick(); });
+        fb.addEventListener('click', function () { showFleet = f[0]; showProcs = false; showSecrets = false; showConfig = false; $('controls').hidden = true; tick(true); });
         nav.appendChild(fb);
       });
     }
     if (sess.secretsEnabled && !fabric) {
       var sb = el('button', 'wt proc' + (showSecrets ? ' on' : ''), 'Secrets');
       sb.type = 'button';
-      sb.addEventListener('click', function () { showSecrets = true; showProcs = false; showConfig = false; showFleet = ''; tick(); });
+      sb.addEventListener('click', function () { showSecrets = true; showProcs = false; showConfig = false; showFleet = ''; tick(true); });
       nav.appendChild(sb);
     }
     if (sess.configEnabled && fabric) {
       var cb = el('button', 'wt proc' + (showConfig ? ' on' : ''), 'Configuration');
       cb.type = 'button';
-      cb.addEventListener('click', function () { showConfig = true; showProcs = false; showSecrets = false; showFleet = ''; tick(); });
+      cb.addEventListener('click', function () { showConfig = true; showProcs = false; showSecrets = false; showFleet = ''; tick(true); });
       nav.appendChild(cb);
     }
     var clients = {};
     runs.forEach(function (r) { clients[r.client] = true; });
     var grouped = fabric || Object.keys(clients).length > 1;   // one tab per process and workflow, never merged
-    runs.forEach(function (r) {
-      var b = el('button', 'wt' + (!showProcs && !showSecrets && !showConfig && !showFleet && r.traceId === selected ? ' on' : ''));
+    if (fabric || runs.length > 1) {
+      var rb = el('button', 'wt proc' + (showFleet === 'runs' ? ' on' : ''), 'Runs');
+      rb.type = 'button';
+      rb.appendChild(el('span', 'cnt', String(runs.length)));
+      rb.addEventListener('click', function () { showFleet = 'runs'; showProcs = false; showSecrets = false; showConfig = false; $('controls').hidden = true; tick(true); });
+      nav.appendChild(rb);
+    }
+    var label = {};
+    runs.forEach(function (r) { var k = (r.client || '') + '/' + (r.workflow || 'run'); label[k] = (label[k] || 0) + 1; });
+    tabRuns(runs).forEach(function (r) {
+      var b = el('button', 'wt run' + (!showProcs && !showSecrets && !showConfig && !showFleet && r.traceId === selected ? ' on' : ''));
       b.type = 'button';
       b.appendChild(el('span', 'dot ' + tabState(r.status)));
-      b.appendChild(el('span', '', (grouped && r.client ? r.client + ' / ' : '') + (r.workflow || 'run')));
+      var twin = label[(r.client || '') + '/' + (r.workflow || 'run')] > 1;
+      b.appendChild(el('span', '', (grouped && r.client ? r.client + ' / ' : '') + (r.workflow || 'run') + (twin && r.startedAt ? ' · ' + hms(r.startedAt) : '')));
       if (r.incidents > 0) { b.appendChild(el('span', 'sev ' + (r.worstIncident || 'warn') + ' inc', String(r.incidents))); }
       b.title = r.status + ' · ' + shortId(r.runId || r.traceId);
-      b.addEventListener('click', function () { selected = r.traceId; agentFilter = null; showProcs = false; showSecrets = false; showConfig = false; showFleet = ''; tick(); });
+      b.addEventListener('click', function () { selected = r.traceId; agentFilter = null; showProcs = false; showSecrets = false; showConfig = false; showFleet = ''; tick(true); });
       nav.appendChild(b);
     });
     nav.hidden = !fabric && runs.length < 2 && !(sess.secretsEnabled && !fabric);
   }
+
+  function countChanges(runs) {
+    var was = pausedList || {}, n = 0;
+    runs.forEach(function (r) {
+      var o = was[r.traceId];
+      if (!o) { n++; return; }
+      if (o.status !== r.status) { n++; }
+      if ((r.incidents || 0) > o.incidents) { n += r.incidents - o.incidents; }
+    });
+    $('livechip').textContent = 'Paused at ' + hms(new Date(pausedAt).toISOString()) + ' · ' + (n ? plural(n, 'change') + ' since' : 'nothing new');
+    $('livechip').hidden = false;
+  }
+
+  function setPaused(on) {
+    paused = on;
+    $('live').setAttribute('aria-pressed', String(on));
+    $('livelbl').textContent = on ? 'Paused' : 'Live';
+    $('live').classList.toggle('held', on);
+    if (on) {
+      pausedAt = Date.now();
+      pausedList = {};
+      lastRuns.forEach(function (r) { pausedList[r.traceId] = { status: r.status, incidents: r.incidents || 0 }; });
+      countChanges(lastRuns);
+    } else {
+      $('livechip').hidden = true;
+      tick(true);
+    }
+  }
+  $('live').addEventListener('click', function () { setPaused(!paused); });
 
   function renderRuns(runs) {
     var ids = runs.map(function (r) { return r.traceId; });
@@ -100,6 +166,7 @@
     $('processes').hidden = !showProcs;
     $('fleettools').hidden = showFleet !== 'tools';
     $('fleetsec').hidden = showFleet !== 'security';
+    $('runslist').hidden = showFleet !== 'runs';
     if (!runs.length) { ['status', 'meta'].forEach(function (i) { $(i).hidden = true; }); $('wfname').textContent = ''; $('banner').hidden = true; }
   }
 
@@ -567,6 +634,9 @@
 
   function renderToolsTasks(v) {
     var all = ttRows(v);
+    var held = heldOrder(ttHold[v.traceId] = ttHold[v.traceId] || {}, all);
+    all = held.rows;
+    $('ttsortwrap').hidden = !held.changed;
     var shown = all.filter(function (r) { return ttFilter === 'all' || r.kind === (ttFilter === 'tools' ? 'tool' : 'task'); });
     var f = $('ttfilter');
     f.textContent = '';
@@ -748,13 +818,25 @@
 
 
   // ---- fleet pages: Tools & tasks and Security across every run (5c)
+  /** Rows keep the place they had; the live order is only applied when the person asks. Returns the rows to draw and whether the live order differs. */
+  function heldOrder(hold, rows) {
+    var live = rows.map(function (r) { return r.key; });
+    if (!hold.keys) { hold.keys = live.slice(); }
+    var kept = hold.keys.filter(function (k) { return live.indexOf(k) >= 0; });
+    live.forEach(function (k) { if (kept.indexOf(k) < 0) { kept.push(k); } });
+    hold.keys = kept;
+    var byKey = {};
+    rows.forEach(function (r) { byKey[r.key] = r; });
+    return { rows: kept.map(function (k) { return byKey[k]; }), changed: kept.join('|') !== live.join('|') };
+  }
+  var ftHold = {}, ttHold = {};
   var FLEET_ROWS = 200;   // the most rows a fleet table draws; the page says so when it holds back
-  var ftHealth = 'all', ftKind = 'all', ftProc = '', ftOpen = {}, ftOrder = [];
+  var ftHealth = 'all', ftKind = 'all', ftProc = '', ftOpen = {};
 
   function openRunTab(trace, tab) {
     selected = trace; agentFilter = null; runTab = tab;
     showProcs = false; showSecrets = false; showConfig = false; showFleet = '';
-    tick();
+    tick(true);
   }
 
   function runLink(label, trace, tab) {
@@ -777,6 +859,7 @@
   }
 
   function renderFleet() {
+    if (showFleet === 'runs') { withFocus(function () { renderRunsList(lastRuns); }); return null; }
     if (showFleet === 'tools') {
       return fetchJson('/api/tools' + (ftProc ? '?client=' + encodeURIComponent(ftProc) : '')).then(function (a) { withFocus(function () { renderFleetTools(a); }); });
     }
@@ -789,17 +872,10 @@
     var again = function () { renderFleetTools(a); };
     chipRow($('ftf-health'), 'fth', [['all', 'all'], ['failing', 'failing'], ['degraded', 'degraded'], ['healthy', 'healthy']], ftHealth, function (v) { ftHealth = v; again(); });
     chipRow($('ftf-kind'), 'ftk', [['all', 'tools and tasks'], ['tool', 'tools'], ['task', 'tasks']], ftKind, function (v) { ftKind = v; again(); });
-    chipRow($('ftf-proc'), 'ftp', [['', 'all']].concat(clientNames.map(function (n) { return [n, n]; })), ftProc, function (v) { ftProc = v; tick(); });
-    var any = false;
-    Object.keys(ftOpen).forEach(function (k) { if (ftOpen[k]) { any = true; } });
-    if (any) {   // an open row keeps the order it was opened in, so nothing moves under the pointer
-      rows.sort(function (x, y) {
-        var i = ftOrder.indexOf(x.key), j = ftOrder.indexOf(y.key);
-        return (i < 0 ? 1e9 : i) - (j < 0 ? 1e9 : j);
-      });
-    } else {
-      ftOrder = rows.map(function (r) { return r.key; });
-    }
+    chipRow($('ftf-proc'), 'ftp', [['', 'all']].concat(clientNames.map(function (n) { return [n, n]; })), ftProc, function (v) { ftProc = v; ftHold = {}; tick(true); });
+    var held = heldOrder(ftHold, rows);
+    rows = held.rows;
+    $('ftsortwrap').hidden = !held.changed;
     var shown = rows.filter(function (r) { return (ftHealth === 'all' || r.state === ftHealth) && (ftKind === 'all' || r.kind === ftKind); });
     $('ftsub').textContent = 'every run this server knows · ' + plural(rows.filter(function (r) { return r.kind === 'tool'; }).length, 'tool') + ' · ' + plural(rows.filter(function (r) { return r.kind === 'task'; }).length, 'task') + (ftProc ? ' · ' + ftProc : '');
     var body = $('ftrows');
@@ -846,6 +922,65 @@
       }
     });
   }
+
+  var rlFilter = 'all', rlHold = {};
+  var RL_STATUS = [['all', 'all'], ['live', 'live'], ['finished', 'finished'], ['failed', 'failed']];
+  function renderRunsList(runs) {
+    var q = $('rl-search').value.trim().toLowerCase();
+    chipRow($('rl-status'), 'rls', RL_STATUS, rlFilter, function (v) { rlFilter = v; renderRunsList(runs); });
+    var shown = runs.filter(function (r) {
+      if (rlFilter === 'live' && !LIVE[r.status]) { return false; }
+      if (rlFilter === 'finished' && r.status !== 'finished') { return false; }
+      if (rlFilter === 'failed' && r.status !== 'failed' && r.status !== 'stopped') { return false; }
+      return !q || ((r.client || '') + ' ' + (r.workflow || '') + ' ' + r.status + ' ' + (r.runId || '')).toLowerCase().indexOf(q) >= 0;
+    });
+    shown.sort(function (x, y) {
+      var a = (x.client || '') + '/' + (x.workflow || ''), b = (y.client || '') + '/' + (y.workflow || '');
+      return a < b ? -1 : a > b ? 1 : String(y.startedAt || '').localeCompare(String(x.startedAt || ''));
+    });
+    $('rlsub').textContent = plural(runs.length, 'run') + ' this server knows' + (shown.length !== runs.length ? ' · ' + shown.length + ' shown' : '');
+    var body = $('rlrows');
+    body.textContent = '';
+    $('norl').hidden = runs.length > 0;
+    var group = null, perGroup = {};
+    shown.forEach(function (r) { var k = (r.client || '') + ' / ' + (r.workflow || 'run'); perGroup[k] = (perGroup[k] || 0) + 1; });
+    shown.forEach(function (r) {
+      var g = (r.client || '') + ' / ' + (r.workflow || 'run');
+      if (g !== group && perGroup[g] > 1) {   // a heading only where a workflow has several runs to tell apart
+        group = g;
+        var gr = el('tr', 'group'), gt = el('td', 'mono', g + ' · ' + perGroup[g] + ' runs');
+        gt.colSpan = 6;
+        gr.appendChild(gt);
+        body.appendChild(gr);
+      } else if (g !== group) {
+        group = g;
+        var gr = el('tr', 'group'), gt = el('td', 'mono', g);
+        gt.colSpan = 6;
+        gr.appendChild(gt);
+        body.appendChild(gr);
+      }
+      var tr = el('tr', 'rl' + (r.traceId === selected ? ' sel' : ''));
+      tr.tabIndex = 0;
+      tr.setAttribute('data-fk', 'rl:' + r.traceId);
+      cell(tr, r.client || '', 'mono');
+      cell(tr, r.workflow || 'run', 'mono');
+      var st = cell(tr, '', 'st');
+      st.appendChild(el('span', 'dot ' + tabState(r.status)));
+      st.appendChild(document.createTextNode(' ' + r.status));
+      cell(tr, r.startedAt ? new Date(r.startedAt).toLocaleString() : '–', 'mono');
+      var inc = cell(tr, '');
+      if (r.incidents > 0) { inc.appendChild(el('span', 'sev ' + (r.worstIncident || 'warn') + ' inc', String(r.incidents))); } else { inc.textContent = '–'; }
+      cell(tr, '$' + Number((r.totals && r.totals.cost) || 0).toFixed(3), 'r mono');
+      function open() { openRunTab(r.traceId, runTab); }
+      tr.addEventListener('click', open);
+      tr.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
+      body.appendChild(tr);
+    });
+  }
+  $('rl-search').addEventListener('input', function () { renderRunsList(lastRuns); });
+
+  $('ftsort').addEventListener('click', function () { ftHold = {}; tick(true); });
+  $('ttsort').addEventListener('click', function () { ttHold = {}; render(); });
 
   function renderFleetSecurity(a) {
     var c = a.counts || {}, agents = a.agents || [];
@@ -945,7 +1080,7 @@
     dlg.onclose = function () {
       if (dlg.returnValue === 'ok') {
         var box = el('span');
-        act(trace, action, box, function () { tick(); }).then(function () { if (box.textContent) { $('updated').textContent = box.textContent; } });
+        act(trace, action, box, function () { tick(true); }).then(function () { if (box.textContent) { $('updated').textContent = box.textContent; } });
       }
     };
     dlg.returnValue = 'cancel';
@@ -1497,7 +1632,7 @@
 
   // Elapsed ticks once a second on the client between polls; a finished run holds still.
   function tickElapsed() {
-    if (!view) { return; }
+    if (!view || paused) { return; }
     var live = view.status === 'running' || view.status === 'waiting';
     $('elapsed').textContent = clock(view.elapsedMillis + (live ? Date.now() - viewAt : 0));
   }
@@ -1569,10 +1704,12 @@
       .catch(function () { showLogin(true, 'Cannot reach the server.'); });
   });
 
-  function tick() {
+  function tick(force) {
     fetchJson('/api/session').then(function (s) { sess = s; }, function () { });
     fetchJson('/api/runs').then(function (list) {
       showLogin(false);
+      lastRuns = list.runs;
+      if (paused) { countChanges(list.runs); if (!force) { return null; } }
       fleetFailing = (list.fleet && list.fleet.toolsFailing) || 0;
       fleetSecOpen = list.runs.reduce(function (n, r) { return n + (r.security || 0); }, 0);
       clientNames = Object.keys(list.runs.reduce(function (m, r) { if (r.client) { m[r.client] = true; } return m; }, {})).sort();
@@ -1583,7 +1720,7 @@
           renderProcesses();
           $('mode').textContent = fabric ? 'Fabric' : 'embedded mode';
           brand();
-          if (!showFleet) { $('fleettools').hidden = true; $('fleetsec').hidden = true; }
+          if (!showFleet) { $('fleettools').hidden = true; $('fleetsec').hidden = true; $('runslist').hidden = true; }
           if (showProcs || showFleet) { ['status', 'meta', 'conn', 'controls'].forEach(function (i) { $(i).hidden = true; }); $('wfname').textContent = ''; $('client').textContent = ''; $('banner').hidden = true; }
           if (showFleet) { $('secrets').hidden = true; $('config').hidden = true; return renderFleet(); }
           if (showConfig) { $('secrets').hidden = true; renderConfig(); return null; }

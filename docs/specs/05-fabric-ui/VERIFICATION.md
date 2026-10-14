@@ -48,16 +48,16 @@ Status: **built; manual and live checks owed (§4)**. Run top to bottom at the e
 | R23 | `scale.page.test.js` (500 tools, 200 agents) | ✅ 5e |
 | R24 | `ToolsRouteTest` (405, gate), no dependency added (5a part); the static-files part by `PageFilesTest` (four files, two marks, fonts; no outside address), no pom changed since the phase began | ✅ 5e |
 | R25 | `run.page.test.js` (Fabric name, title, mark and favicon; embedded unchanged), `InspectServerTest` (the mark is served) | ✅ 5c |
-| R26 | `calm.page.test.js` (tab order, selection) | ⬜ |
-| R27 | `calm.page.test.js` (held order, Re-sort) | ⬜ |
-| R28 | `calm.page.test.js` (Live / Paused) | ⬜ |
+| R26 | `calm.page.test.js` (tab order, selection) | ✅ 5f-1 |
+| R27 | `calm.page.test.js` (held order, Re-sort) | ✅ 5f-1 |
+| R28 | `calm.page.test.js` (Live / Paused) | ✅ 5f-1 |
 | R29 | `TimelineRouteTest` | ⬜ |
 | R30 | `TimelineRouteTest`, `RunHistoryTest` | ⬜ |
 | R31 | `ReplayEqualsLiveTest` | ⬜ |
 | R32 | `time.page.test.js` | ⬜ |
 | R33 | `RunHistoryTest` (bound, soak, restore) | ⬜ |
-| R35 | `calm.page.test.js` (tab cap, Runs list, filter, start times, a finished run leaves the row) | ⬜ |
-| R34 | `ScenarioTest` (the calm preset), `fabric-sim` README | ⬜ |
+| R35 | `calm.page.test.js` (tab cap, Runs list, filter, start times, a finished run leaves the row) | ✅ 5f-1 |
+| R34 | `FabricSimScriptTest` (the preset, the README), `fabric-sim` README | ✅ 5f-1 |
 | R36 | `GuideChapter14Test` | ⬜ |
 | R37 | `GuideChapter14Test`, `GuideDeployTest`, `JavaQuickReferenceTest` | ⬜ |
 | R38 | `SkillDriftTest`, `SkillKitTest` | ⬜ |
@@ -108,6 +108,7 @@ Stack-level pages are owed once at the end of the whole work.
 | 2026-10-14 | 5c | Pass | The fleet pages: Tools & tasks (counts by health, three filters, table over every run with a last-ten strip, expansion with a link to the run it last failed in, order held while a row is open) and Security (counts, agents that matter with reasons, open findings with links, the fixed statement), with tab badges. 7 new browser tests (`fleet.page.test.js`) and 2 route tests; all 21 browser tests and the inspect-core, inspect and fabric suites pass. Findings: fleet rows had no last-ten outcomes (a merged summary has none; the registry now joins each run's last ten, oldest run first) and the page computed runs-that-ran from a field fleet rows lack (now uses `ran`); `/api/runs` gained `fleet.toolsFailing` for the badge so a fleet page costs one extra poll. One end-to-end OTLP test (`FabricEndToEndTest`) failed once under full-suite load and passes alone and on re-run: a timing-sensitive wait, not touched by this phase. Also R25: Fabric is branded Fabric with its own mark |
 | 2026-10-14 | 5d | Pass | The Configuration page: the rule editor now offers fourteen behaviours (the eight new ones with their own inputs, defaults beside each, an accepted trifecta needing a reason, the server's refusals and the `*` warning shown as written) and a context-windows card (table by model, set / edit / remove, save, discard, text form) saved through the same route and audit as prices. 6 browser tests (`config.page.test.js`) run against a real Fabric started from its CLI (new `startFabric` helper); all 27 browser tests and the inspect-core and fabric Java tests pass. Findings: the Configuration tab sits behind Fabric's sign-in, so the test signs in through the page; the editor reads the options after the configuration loads |
 | 2026-10-14 | 5e | Pass | The cross-cutting checks, all as tests: contrast of every token pair in both themes and of every visible text as drawn on every page; a keyboard-only walk, visible focus, roles and names, a word beside every colour; 360, 768 and 1360 px; hostile text (markup, 400-character names, right-to-left, emoji, control characters) through every run and fleet view; no console or page error and no failed request over all eleven scenarios; request rate on a fleet page; 500 tools and 200 agents. Findings fixed: two token pairs fell short (dark `line-strong` on raised surfaces 2.99:1, light `rung-suggest` 4.28:1 and `rung-watch` 3.82:1), faint timestamps on tinted rows (3.85:1), a hostile or long name widened the page by thousands of pixels (text now wraps; a name is cut in its cell with the whole in its title), the Configuration page overflowed at 360 px, and the fleet table drew all 500 rows (it now draws the first 200 and says so). Screenshots for the wiki were taken from the scenarios. The page is still four static files, two marks and the fonts, and no pom changed in the phase |
+| 2026-10-14 | 5f-1 | Pass | Calm: tabs keep the order they first appeared in, a new run is appended and never takes the selection, at most eight tabs (selected, live, just finished), a **Runs** list (filter, status chips, grouping, start times) holds the rest, held row order with an "order changed / Re-sort" chip on the run's and the fleet's tools tables, a **Live / Paused** control that freezes every redraw and counts what changed from the cheap run list, and `fabric-sim.sh calm`. 8 browser tests (`calm.page.test.js`), 2 script tests; all 55 browser tests pass. Findings: the existing tests assumed a tab per run (the helper now picks a finished run from the Runs list); a selected run stays in the tab row while another page is open; a finished run is shown for a minute only if it was seen live; the old `.run` row style clashed with the list's rows (renamed) |
 
 ### Documentation record (per sub-phase)
 
@@ -118,6 +119,7 @@ Stack-level pages are owed once at the end of the whole work.
 | 5c | ✅ loom-inspect DESIGN §11o, specs | ✅ browser tests run the scenarios | ✅ | n/a | deferred to the end | ✅ traceability, results |
 | 5d | ✅ loom-inspect DESIGN §11o, wiki Fabric-Server | ✅ browser tests against a real Fabric | ✅ | n/a | deferred to the end | ✅ traceability, results |
 | 5e | ✅ wiki Fabric-Server (screenshots, what the pages show), specs | ✅ browser tests over the scenarios | ✅ | n/a | deferred to the end | ✅ traceability, results |
+| 5f-1 | ✅ loom-inspect DESIGN §11o, wiki Fabric-Server, fabric-sim README | ✅ browser tests | ✅ | n/a | deferred to the end | ✅ traceability, results |
 
 ### Owed to the stack-level pages (updated once, at the end of the whole work)
 
