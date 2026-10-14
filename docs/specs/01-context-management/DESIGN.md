@@ -259,7 +259,7 @@ unchanged. Stored messages are not rewritten on disk by a compaction unless the 
 
 ## 6. Sub-phases (how Phase 1 is delivered)
 
-Each ends with its tests passing and is a separate commit, so review stays small.
+Each ends with its tests passing **and its documents updated** (see [the rule](../README.md#documents-to-update-at-the-end-of-every-sub-phase)), and is a separate commit, so review stays small.
 
 | Step | Delivers | Requirements |
 |---|---|---|

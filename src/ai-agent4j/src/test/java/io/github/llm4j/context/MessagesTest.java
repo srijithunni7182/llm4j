@@ -33,4 +33,11 @@ class MessagesTest {
         assertThat(Messages.compactionOf(Message.user("x"))).isEmpty();
         assertThat(Messages.dropped(Message.user("x"))).isZero();
     }
+
+    @Test
+    void aStrategyMarksWhatItChanges() {
+        Message m = Messages.marked(Message.assistant("short"), "my_strategy");
+        assertThat(Messages.compactionOf(m)).contains("my_strategy");
+        assertThat(m.getContent()).isEqualTo("short");
+    }
 }

@@ -36,6 +36,11 @@ public final class Messages {
         return message.getProviderData().get(DROPPED) instanceof Number n ? n.intValue() : 0;
     }
 
+    /** The same message, marked as created or changed by this compaction strategy (rule 8 of {@link ContextCompactor}). */
+    public static Message marked(Message message, String strategy) {
+        return with(message, COMPACTION, strategy);
+    }
+
     static Message with(Message message, String key, Object value) {
         Map<String, Object> data = new HashMap<>(message.getProviderData());
         data.put(key, value);

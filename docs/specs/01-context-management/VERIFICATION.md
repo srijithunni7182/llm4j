@@ -76,6 +76,9 @@ These cannot run in CI. Each is done once per release candidate and recorded.
 
 ## 5. Documentation checks
 
+**At the end of every sub-phase (1a–1g)**, before it is committed as done, go through the table in [../README.md](../README.md#documents-to-update-at-the-end-of-every-sub-phase). The record is §7.
+
+
 - Javadoc on every public type and method, with the contract (C1–C8) on `ContextCompactor`.
 - A guide page in the wiki ("Context and compaction"): the problem, choosing a strategy, writing one, the events, the guards, what is not guaranteed.
 - A runnable example under `src/examples/` that prints the events.
@@ -89,7 +92,7 @@ These cannot run in CI. Each is done once per release candidate and recorded.
 - [ ] Every requirement R1–R23 has at least one passing test (§2 has no empty rows)
 - [ ] All quality gates in §3 pass
 - [ ] Manual checks in §4 done and recorded
-- [ ] Docs in §5 complete
+- [ ] Docs in §5 complete, and the per-sub-phase documentation record in §7 has a row for every sub-phase
 - [ ] DESIGN.md reflects what was built (differences explained, not hidden)
 - [ ] Status table in `docs/specs/README.md` updated
 - [ ] Pull request opened with this checklist in its description
@@ -101,3 +104,15 @@ Filled in when the phase is verified.
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
 | 2026-10-14 | 1a | Pass | 564 new tests in `io.github.llm4j.context`; whole module 1,102 tests green; new package line 97.6 % / branch 89.4 %; contract run with 3 seeds and keepRecent 0/4/12. Seed list of `ContextWindows` deferred to 1g as decided |
+
+### Documentation record (per sub-phase)
+
+| Sub-phase | Wiki page | Samples tested | Javadoc | Module README / Home / llms.txt | Stack-level pages | Specs |
+|---|---|---|---|---|---|---|
+| 1a | `Context-and-Compaction.md` created, marked in progress | ✅ `ContextDocsExamplesTest` (8 samples, page checked against them) | ✅ all public types | ✅ README hub + feature line, wiki Home, both `llms.txt` | n/a: not yet usable through an agent | ✅ |
+| 1b | | | | | | |
+| 1c | | | | | | |
+| 1d | | | | | | |
+| 1e | | | | | | |
+| 1f | | | | | | |
+| 1g | | | | | | |

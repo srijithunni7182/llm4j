@@ -24,7 +24,24 @@ Requirements in `DESIGN.md` carry stable ids (`R1`, `R2`, …) so a test and an 
 3. **Implement** in small, decoupled pieces until the tests pass. Each piece is usable and testable on its own.
 4. **Iterate on quality**: review the code against the invariants, add the fault-injection and soak tests, fix what they find.
 5. **Verify**: run `VERIFICATION.md` top to bottom and tick it off. Record the result at the end of that file.
-6. **Document and ship**: user docs, then a pull request. Specs stay in the repository; when the design changes, the spec changes in the same pull request.
+6. **Document**: update every relevant document **at the end of every sub-phase**, not just at the end of the phase (see below). A sub-phase is not done while a document still describes the old behaviour, or describes the new one as if it were finished.
+7. **Ship**: a pull request. Specs stay in the repository; when the design changes, the spec changes in the same pull request.
+
+### Documents to update at the end of every sub-phase
+
+| Document | Update when |
+|---|---|
+| The feature's **wiki page** (for ai-agent4j: `src/ai-agent4j/wiki/`) | Always. Say what works now and what does not, with a status box while a feature is in progress |
+| **Code samples** in that page | Always. Samples are written in a test and the page is checked against the test (see `ContextDocsExamplesTest`), so they cannot drift |
+| **Javadoc** of every new public type and method | Always |
+| The module's **README** and **wiki Home** (hub links and feature list) | When a new page or a user-visible capability appears |
+| **`llms.txt`** (root and module) | When a new page or public API appears |
+| **Stack-level pages** (root `README.md`, `wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`) | When the capability is usable end to end by a user of the layer above (for example once an agent really uses it), not for building blocks that are not yet connected |
+| **Dependent layers' docs** (Loom guide, observability pages, Fabric) | In the phase that connects them |
+| **This directory**: `DESIGN.md` if the design changed, the traceability table and results in `VERIFICATION.md`, the status table below | Always |
+
+An in-progress feature is documented as in progress, in the same words everywhere (the wiki page's status box is the source), and the
+words are removed in the sub-phase that finishes it.
 
 ### Principles
 
