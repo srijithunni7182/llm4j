@@ -97,6 +97,24 @@ public final class RunRegistry {
         return out;
     }
 
+    /** What each agent of a run can reach (from the static audit of its script), so the security view can show it next to what was done. */
+    public void setSecurityProfile(String client, String traceId, java.util.function.Supplier<List<Map<String, Object>>> profile) {
+        state(client, traceId).setSecurityProfile(profile);
+    }
+
+    /**
+     * The security counts of every run, added up (or of one client's): agents that used all three legs of the lethal trifecta (and those accepted),
+     * suspect results, refused access, unknown tools, refused approvals, and what the guards did.
+     */
+    public Map<String, Long> securityRollup(String client) {
+        Map<String, Long> total = new java.util.LinkedHashMap<>();
+        for (RunState r : runs.values()) {
+            if (client != null && !client.equals(r.client())) continue;
+            r.securityCounts().forEach((k, v) -> total.merge(k, v, Long::sum));
+        }
+        return total;
+    }
+
     /** Gives a run the way to read its decision ladders. */
     public void setLadders(String client, String traceId, java.util.function.Supplier<List<Map<String, Object>>> ladders) {
         state(client, traceId).setLadders(ladders);

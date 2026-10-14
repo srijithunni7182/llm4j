@@ -44,7 +44,7 @@ public final class TraceMapper {
     private static final int SHORT = 80;
 
     private final Detail detail;
-    private boolean injectionScan = true;
+    private java.util.function.Predicate<String> injectionScan = agent -> true;
     private final String fallbackRunId;
     private String runId;
     private String traceId;
@@ -80,7 +80,12 @@ public final class TraceMapper {
 
     /** Whether results of untrusted tools are scanned for injected instructions (on unless the rules say {@code injection_scan: off}). */
     public void injectionScan(boolean on) {
-        this.injectionScan = on;
+        this.injectionScan = agent -> on;
+    }
+
+    /** As {@link #injectionScan(boolean)}, decided per agent (a rule may turn it off for one agent only); the argument is the agent's name, null when the event names none. */
+    public void injectionScan(java.util.function.Predicate<String> forAgent) {
+        this.injectionScan = forAgent == null ? agent -> true : forAgent;
     }
 
     public String traceId() {
@@ -391,7 +396,7 @@ public final class TraceMapper {
         if (data.get("result_chars") != null) extra.put(Semconv.LOOM_TOOL_RESULT_CHARS, number(data.get("result_chars")));
         if (data.get("approval_ms") != null) extra.put(Semconv.LOOM_TOOL_APPROVAL_MS, number(data.get("approval_ms")));
         if (data.get("duration_ms") != null) extra.put(Semconv.LOOM_TOOL_DURATION_MS, number(data.get("duration_ms")));
-        if (data.get("reach") != null && injectionScan && observed != null && String.valueOf(data.get("reach")).contains("untrusted")) {
+        if (data.get("reach") != null && injectionScan.test(e.agent()) && observed != null && String.valueOf(data.get("reach")).contains("untrusted")) {
             InjectionScan.Result found = InjectionScan.scan(observed); // in this process, so the text never leaves it: only group names and a count do
             if (found.suspect()) {
                 extra.put(Semconv.LOOM_INJECTION_PATTERNS, String.join(",", found.groups()));

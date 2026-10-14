@@ -142,6 +142,8 @@ public final class InspectSession implements ObserveProvider.Session {
             }
         };
         java.util.Map<String, InspectRules> rules = rulesFor(run, scriptFile);
+        mapper.injectionScan(agent -> scanOn(rules, agent));
+        java.util.List<java.util.Map<String, Object>> reach = securityProfile(run);
         io.github.llm4j.loom.inspect.map.ProgressSampler sampler = new io.github.llm4j.loom.inspect.map.ProgressSampler(rules, run::variables);
         EventSink[] self = new EventSink[1];
         EventSink sink = new EventSink(options.name() + "-" + attached.get(), QUEUE, event -> {
@@ -159,6 +161,7 @@ public final class InspectSession implements ObserveProvider.Session {
                     }
                     registry.setGraph(options.name(), trace, graph.get());
                     registry.setRules(options.name(), trace, rules);
+                    registry.setSecurityProfile(options.name(), trace, () -> reach);
                 }
                 java.util.function.Supplier<List<java.util.Map<String, Object>>> ladders = null;
                 if (run.script() != null && !run.script().getDecisions().isEmpty()) {
@@ -166,7 +169,7 @@ public final class InspectSession implements ObserveProvider.Session {
                     if (server != null) registry.setLadders(options.name(), trace, ladders);
                 }
                 if (link != null) {
-                    link.snapshot(new Snapshot(options.name(), resource.instanceId(), trace, run.runId(), firstWorkflow(run), graph.get(), List.of(), rules, modelsOf(run)), ladders);
+                    link.snapshot(new Snapshot(options.name(), resource.instanceId(), trace, run.runId(), firstWorkflow(run), graph.get(), List.of(), rules, modelsOf(run), reach), ladders);
                 }
             }
             if (link != null) link.offer(out, resource); // to disk first; sending is another thread's business
@@ -189,6 +192,33 @@ public final class InspectSession implements ObserveProvider.Session {
             for (TraceEvent s : sampler.samples(event)) sink.onEvent(s);
             sink.onEvent(event);
         });
+    }
+
+    /** Whether results of untrusted tools are scanned for an agent: on unless its block, or the {@code *} block, says {@code injection_scan: off}. */
+    static boolean scanOn(java.util.Map<String, InspectRules> rules, String agent) {
+        InspectRules own = agent == null ? null : rules.get(agent);
+        if (own != null && own.security() != null && own.security().injectionScan() != null) return own.security().injectionScan();
+        InspectRules all = rules.get("*");
+        return all == null || all.security() == null || all.security().injectionScan() == null || all.security().injectionScan();
+    }
+
+    /** What each agent can reach, from the static audit of the script ({@code weave audit}): the tools of each leg of the lethal trifecta. Empty without a script. */
+    static java.util.List<java.util.Map<String, Object>> securityProfile(ObservableRun run) {
+        if (run.script() == null) return java.util.List.of();
+        try {
+            java.util.List<java.util.Map<String, Object>> out = new java.util.ArrayList<>();
+            for (io.github.llm4j.loom.security.SecurityAudit.AgentProfile p : io.github.llm4j.loom.security.SecurityAudit.audit(run.script(), "run").agents()) {
+                java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+                m.put("agent", p.agent());
+                m.put("untrusted", p.untrusted());
+                m.put("private", p.privateData());
+                m.put("outward", p.outward());
+                out.add(m);
+            }
+            return out;
+        } catch (RuntimeException e) {
+            return java.util.List.of(); // a script the audit cannot read changes nothing about the run, or about what is shown
+        }
     }
 
     /** The model each agent of the script uses, so a server can cost its steps from its own price table. */

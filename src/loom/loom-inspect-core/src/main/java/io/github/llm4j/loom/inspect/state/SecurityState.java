@@ -101,7 +101,7 @@ final class SecurityState {
         }
         if (a.legs() == LEGS.size()) trifecta(a, agent, where, now, t);
 
-        if (patterns != null && !patterns.isBlank()) {
+        if (patterns != null && !patterns.isBlank() && t.injectionScan()) { // a rule that turns the scan off (here, or centrally at a server) silences what a process still sent
             suspect++;
             for (String g : patterns.split(",")) groups.merge(g, 1L, Long::sum);
             sources.merge(tool, 1L, Long::sum);

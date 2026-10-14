@@ -94,4 +94,14 @@ class InjectionIncidentTest {
         assertThat((java.util.Map<String, Object>) inj.get("byGroup")).containsEntry("override", 2L).containsEntry("exfil", 1L);
         assertThat((java.util.Map<String, Object>) inj.get("bySource")).containsEntry("Fetch", 2L);
     }
+
+    @Test
+    void aRuleThatTurnsTheScanOffSilencesWhatAProcessStillSent() {
+        f.rules("A", new InspectRules.Security(null, null, false, null));
+        f.suspect(1, "A", "Fetch", "untrusted", "override", 1);
+        assertThat(f.incidents("INJECTION")).isEmpty();
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> inj = (java.util.Map<String, Object>) f.security().get("injection");
+        assertThat(inj).containsEntry("suspect", 0L);
+    }
 }
