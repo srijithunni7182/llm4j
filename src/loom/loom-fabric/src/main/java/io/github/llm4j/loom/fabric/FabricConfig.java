@@ -4,6 +4,7 @@ import io.github.llm4j.loom.inspect.control.ServerConfig;
 import io.github.llm4j.loom.inspect.rules.RulesFile;
 import io.github.llm4j.loom.inspect.state.InspectRules;
 import io.github.llm4j.loom.inspect.state.PriceBook;
+import io.github.llm4j.loom.inspect.state.WindowBook;
 import io.github.llm4j.loom.inspect.state.RunRegistry;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,6 +31,7 @@ final class FabricConfig implements ServerConfig {
 
     static final String RULES = "rules";
     static final String PRICES = "prices";
+    static final String WINDOWS = "windows";
     private static final int MAX_CHARS = 200_000;
 
     private final Path dir;
@@ -40,6 +42,8 @@ final class FabricConfig implements ServerConfig {
     private String pricesText = "";
     private RulesFile.Parsed rules = RulesFile.parse("");
     private PriceBook.Parsed prices = PriceBook.parse("");
+    private String windowsText = "";
+    private WindowBook.Parsed windows = WindowBook.parse("");
 
     FabricConfig(Path data, RunRegistry registry, PrintStream out) {
         this.dir = data.resolve("config");
@@ -64,6 +68,15 @@ final class FabricConfig implements ServerConfig {
             registry.setPrices(p.book());
         } else {
             out.println("fabric: config/prices.properties has errors and is not used: " + p.problems().get(0));
+        }
+        windowsText = read("windows.properties");
+        WindowBook.Parsed w = WindowBook.parse(windowsText);
+        if (w.ok()) {
+            windows = w;
+            registry.setWindows(w.book());
+        } else {
+            out.println("fabric: config/windows.properties has errors and is not used: " + w.problems().get(0));
+            windowsText = "";
         }
     }
 
@@ -94,6 +107,14 @@ final class FabricConfig implements ServerConfig {
         for (PriceBook.Entry e : prices.book().entries()) entries.add(Map.of("model", e.model(), "input", e.input().stripTrailingZeros().toPlainString(), "output", e.output().stripTrailingZeros().toPlainString()));
         p.put("structured", entries);
         out.put(PRICES, p);
+        Map<String, Object> w = new LinkedHashMap<>();
+        w.put("text", windowsText);
+        w.put("summary", windows.book().isEmpty() ? "no windows: an agent shows its context fill only when its process was told the model's window" : windows.book().size() + " model(s) with a window");
+        w.put("warnings", List.of());
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (WindowBook.Entry e : windows.book().entries()) rows.add(Map.of("model", e.model(), "window", e.usable()));
+        w.put("structured", rows);
+        out.put(WINDOWS, w);
         return out;
     }
 
@@ -167,6 +188,7 @@ final class FabricConfig implements ServerConfig {
             return switch (section) {
                 case RULES -> save(RULES, RulesFile.write(rulesOf(n)), who);
                 case PRICES -> save(PRICES, PriceBook.write(pricesOf(n)), who);
+                case WINDOWS -> save(WINDOWS, WindowBook.write(windowsOf(n)), who);
                 default -> Result.refused(404, "no such section", List.of());
             };
         } catch (IOException | IllegalArgumentException e) {
@@ -207,6 +229,19 @@ final class FabricConfig implements ServerConfig {
         return n.hasNonNull(key) ? n.get(key).asInt() : null;
     }
 
+    private static List<WindowBook.Entry> windowsOf(JsonNode n) {
+        if (!n.isArray()) throw new IllegalArgumentException("windows are a list of models");
+        List<WindowBook.Entry> out = new ArrayList<>();
+        for (JsonNode e : n) {
+            String model = e.path("model").asText("").strip();
+            if (model.isEmpty()) throw new IllegalArgumentException("a window needs a model");
+            JsonNode w = e.path("window");
+            if (!w.canConvertToLong() || w.isFloatingPointNumber()) throw new IllegalArgumentException("the window of " + model + " must be a whole number of tokens");
+            out.add(new WindowBook.Entry(model, w.asLong()));
+        }
+        return out;
+    }
+
     private static List<PriceBook.Entry> pricesOf(JsonNode n) {
         if (!n.isArray()) throw new IllegalArgumentException("prices are a list of models");
         List<PriceBook.Entry> out = new ArrayList<>();
@@ -245,6 +280,15 @@ final class FabricConfig implements ServerConfig {
                 prices = parsed;
                 registry.setPrices(parsed.book());
                 return Result.saved("saved: " + parsed.book().size() + " model(s) priced. Steps costed from now on use it; costs already counted do not change", List.of());
+            }
+            case WINDOWS -> {
+                WindowBook.Parsed parsed = WindowBook.parse(normalized);
+                if (!parsed.ok()) return Result.refused(422, "not saved: the windows have errors", parsed.problems().stream().map(Object::toString).toList());
+                if (!write("windows.properties", normalized)) return Result.refused(500, "could not write the file", List.of());
+                windowsText = normalized;
+                windows = parsed;
+                registry.setWindows(parsed.book());
+                return Result.saved("saved: " + parsed.book().size() + " model(s) with a window. Runs show it from now on", List.of());
             }
             default -> {
                 return Result.refused(404, "no such section", List.of());
