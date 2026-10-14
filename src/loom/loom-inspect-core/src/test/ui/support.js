@@ -29,11 +29,12 @@ function classpath() {
 }
 
 /** Starts the fixture server over these scenarios; resolves {base, stop}. */
-function startFixtures(scenarios, windows) {
+function startFixtures(scenarios, windows, fabric) {
   const cp = classpath();
   if (!cp) return Promise.reject(new Error('the jars are not built'));
   const args = ['-Dorg.slf4j.simpleLogger.defaultLogLevel=error', '-cp', cp, 'io.github.llm4j.loom.inspect.sim.Fixtures', '--scenario', scenarios.join(',')];
   if (windows) args.push('--windows', windows);
+  if (fabric) args.push('--fabric');
   const child = spawn('java', args, { stdio: ['ignore', 'pipe', 'pipe'] });
   return new Promise((resolve, reject) => {
     let out = '';

@@ -41,6 +41,7 @@ h3 { margin: 0; font: 600 15px/20px var(--font-sans); }
 .brand { display: flex; align-items: center; gap: var(--space-2); font: 600 15px/20px var(--font-sans); letter-spacing: -.01em; }
 .brand b { font-weight: 600; color: var(--live); }
 .logo { width: 32px; height: 32px; border-radius: var(--radius-md); flex: none; border: 1px solid var(--line-strong); background: #0e0d12 url(/logo.png) no-repeat; background-size: 53px 53px; background-position: -10px -7px; }
+.logo.fabric { background: #14110d url(/fabric-logo.svg) center / cover no-repeat; }
 .crumbs { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
 .wf { font: 600 22px/28px var(--font-sans); letter-spacing: -.01em; }
 .picker { position: relative; display: inline-flex; align-items: center; height: 26px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface-raised); }

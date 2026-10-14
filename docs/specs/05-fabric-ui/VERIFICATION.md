@@ -45,6 +45,7 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 5e; the 
 | R22 | `ScenarioTest` (13 scenarios, names, help), `ScenarioLiveTest` (through a real Fabric), `SimulateTest` unchanged | ✅ 5a |
 | R23 | `scale.page.test.js` | ⬜ |
 | R24 | `ToolsRouteTest` (405, gate), no dependency added (5a part); the static-files part is checked at 5e | ◐ 5a |
+| R25 | `run.page.test.js` (Fabric name, title, mark and favicon; embedded unchanged), `InspectServerTest` (the mark is served) | ✅ 5c |
 
 ## 3. Quality gates
 
@@ -68,7 +69,7 @@ Stack-level pages are owed once at the end of the whole work.
 
 - [ ] Decisions in DESIGN.md §9 recorded
 - [ ] Acceptance criteria A1–A10 have evidence
-- [ ] Every requirement R1–R24 has a passing test
+- [ ] Every requirement R1–R25 has a passing test
 - [ ] Quality gates in §3 pass
 - [ ] Manual checks done or listed as owed with the reason
 - [ ] Docs complete; §7 has a row for every sub-phase

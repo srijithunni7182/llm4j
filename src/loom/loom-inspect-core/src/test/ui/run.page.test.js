@@ -236,3 +236,20 @@ test('no console error, no failed request, in any scenario', { skip: skip || fal
     await context.close();
   }
 });
+
+test('R25: against a Fabric server the page is branded Fabric, with its own mark and title; embedded keeps loom-inspect', { skip: skip || false }, async () => {
+  const embedded = await openRun(browser, fixtures.base, 'task-broken');
+  assert.equal(await text(embedded.page, '#brandname'), 'loom·inspect');
+  assert.equal(await embedded.page.title(), 'loom-inspect');
+  await embedded.context.close();
+  const fab = await startFixtures(['task-broken'], null, true);
+  const { page, context, problems } = await openRun(browser, fab.base, 'task-broken');
+  try {
+  assert.equal(await text(page, '#brandname'), 'Fabric');
+  assert.equal(await page.title(), 'Fabric');
+  assert.equal(await page.locator('#logo').getAttribute('aria-label'), 'Fabric');
+  assert.match(await page.locator('#logo').evaluate((e) => getComputedStyle(e).backgroundImage), /fabric-logo\.svg/);
+  assert.equal(await page.locator('#favicon').getAttribute('href'), '/fabric-logo.svg');
+  assert.deepEqual(problems, []);
+  } finally { await context.close(); fab.stop(); }
+});

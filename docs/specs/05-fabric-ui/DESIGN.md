@@ -151,7 +151,8 @@ The price table is unchanged.
 | R21 | No console error or failed request in any scenario of §7; one extra poll at most while a fleet page is open |
 | R22 | Each scenario of §7 (thirteen) runs without a provider and produces the view its table row says; the scenarios are selectable by name from `fabric-sim.sh` and the existing Studio scenario is unchanged |
 | R23 | With 500 tools and 200 agent rows the fleet pages render within a fixed budget and stay responsive (virtualised or paged beyond a bound; the bound is stated in the page) |
-| R24 | No new dependency; the page remains four static files plus fonts; the server answers the new routes read-only (405 for other methods) |
+| R24 | No new dependency; the page remains four static files plus fonts and the two marks; the server answers the new routes read-only (405 for other methods) |
+| R25 | Against a Fabric server the page is branded Fabric: the name in the header, the page title, the favicon and a mark of its own (`/fabric-logo.svg`, a woven grid); an embedded page keeps loom·inspect and the Loom mark. The brand is decided by the same probe that turns on the Processes view |
 
 ## 7. Simulator scenarios (5a, used as page fixtures)
 

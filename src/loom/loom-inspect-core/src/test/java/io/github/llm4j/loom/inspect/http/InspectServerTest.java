@@ -93,6 +93,10 @@ class InspectServerTest {
         assertThat(get("/app.css").body()).contains("--live");
         HttpResponse<byte[]> logo = http.send(HttpRequest.newBuilder(URI.create(base + "/logo.png")).GET().build(), HttpResponse.BodyHandlers.ofByteArray());
         assertThat(logo.body()[1]).isEqualTo((byte) 'P'); // a PNG
+        HttpResponse<String> fabricLogo = get("/fabric-logo.svg"); // R25: Fabric's own mark
+        assertThat(fabricLogo.statusCode()).isEqualTo(200);
+        assertThat(fabricLogo.headers().firstValue("Content-Type")).hasValue("image/svg+xml");
+        assertThat(fabricLogo.body()).contains("<svg").contains("Fabric");
         assertThat(page.body()).contains("id=\"spend\"").contains("id=\"controls\"").contains("id=\"confirm\"").contains("id=\"secrets\"");
         assertThat(page.body()).contains("data-theme=\"dark\"");
         assertThat(get("/app.css").body()).contains("[data-theme=\"light\"]").contains("/fonts/HankenGrotesk.woff2");

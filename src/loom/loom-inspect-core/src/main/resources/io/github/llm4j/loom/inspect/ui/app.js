@@ -878,6 +878,20 @@
   });
 
   // ---- configuration (Fabric): inspect rules and the price table, chosen from what the runs show, kept on the server
+  // Fabric carries its own name and mark; the embedded page keeps loom-inspect and the Loom mark
+  var branded = null;
+  function brand() {
+    if (branded === fabric) { return; }
+    branded = fabric;
+    var name = $('brandname'), logo = $('logo');
+    name.textContent = '';
+    if (fabric) { name.textContent = 'Fabric'; } else { name.appendChild(document.createTextNode('loom')); var b = document.createElement('b'); b.textContent = '\u00b7'; name.appendChild(b); name.appendChild(document.createTextNode('inspect')); }
+    logo.classList.toggle('fabric', fabric);
+    logo.setAttribute('aria-label', fabric ? 'Fabric' : 'Loom');
+    $('favicon').setAttribute('href', fabric ? '/fabric-logo.svg' : '/logo.png');
+    $('favicon').setAttribute('type', fabric ? 'image/svg+xml' : 'image/png');
+    document.title = fabric ? 'Fabric' : 'loom-inspect';
+  }
   var cfg = { catalog: { agents: [], models: [] }, defaults: {}, rules: {}, prices: [], loaded: false, rulesDirty: false, pricesDirty: false, picked: null };
   var BEHAVIOURS = [
     { key: 'same_action', label: 'Same tool call repeated', hint: 'the same tool called with the same input this many times in one step' },
@@ -1289,6 +1303,7 @@
           renderRuns(list.runs);
           renderProcesses();
           $('mode').textContent = fabric ? 'Fabric' : 'embedded mode';
+          brand();
           if (showProcs) { ['status', 'meta', 'conn', 'controls'].forEach(function (i) { $(i).hidden = true; }); $('wfname').textContent = ''; $('client').textContent = ''; $('banner').hidden = true; }
           if (showConfig) { $('secrets').hidden = true; renderConfig(); return null; }
           $('config').hidden = true;

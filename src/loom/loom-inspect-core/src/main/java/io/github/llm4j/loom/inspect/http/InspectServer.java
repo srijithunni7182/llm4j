@@ -38,6 +38,7 @@ public final class InspectServer {
             "/", new String[] {"index.html", "text/html; charset=utf-8"},
             "/app.css", new String[] {"app.css", "text/css; charset=utf-8"},
             "/app.js", new String[] {"app.js", "text/javascript; charset=utf-8"},
+            "/fabric-logo.svg", new String[] {"fabric-logo.svg", "image/svg+xml"},
             "/logo.png", new String[] {"loom-logo.png", "image/png"},
             "/favicon.ico", new String[] {"loom-logo.png", "image/png"},
             "/fonts/HankenGrotesk.woff2", new String[] {"fonts/HankenGrotesk.woff2", "font/woff2"},

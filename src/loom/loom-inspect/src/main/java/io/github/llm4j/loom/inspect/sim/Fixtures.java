@@ -25,13 +25,15 @@ public final class Fixtures {
         String scenarios = null;
         String windows = null;
         int port = 0;
+        boolean fabric = false;
         for (int i = 0; i < argv.length; i++) {
             switch (argv[i]) {
                 case "--scenario" -> scenarios = argv[++i];
                 case "--windows" -> windows = argv[++i];
+                case "--fabric" -> fabric = true;
                 case "--port" -> port = Integer.parseInt(argv[++i]);
                 default -> {
-                    System.err.println("usage: Fixtures --scenario a,b [--windows \"model = tokens\"] [--port N]");
+                    System.err.println("usage: Fixtures --scenario a,b [--windows \"model = tokens\"] [--fabric] [--port N]");
                     System.exit(2);
                 }
             }
@@ -51,7 +53,10 @@ public final class Fixtures {
             Scenarios.Outcome o = Scenarios.runInto(registry, s.name(), s, "run-" + s.name(), dir);
             System.err.println("fixture " + s.name() + ": " + o.message());
         }
-        InspectServer server = new InspectServer(registry, "127.0.0.1", port);
+        // --fabric answers /api/processes the way a Fabric server does, so the page shows its Fabric face
+        InspectServer server = fabric
+                ? new InspectServer(registry, InspectServer.config().bind("127.0.0.1", port).api("processes", () -> java.util.Map.of("processes", java.util.List.of())))
+                : new InspectServer(registry, "127.0.0.1", port);
         server.start();
         System.out.println("READY " + server.port());
         System.out.flush();
