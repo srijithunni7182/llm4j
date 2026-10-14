@@ -63,6 +63,9 @@ Status: **verified offline; awaiting review** (live checks owed). Run top to bot
 | R38 | `SecurityRulesFileTest`, `FabricConfigSecurityRulesTest` | ⬜ 4g |
 | R39 | `SecurityReplayTest`, `SecurityRollupTest` | ⬜ 4g |
 | R40 | `SecurityRedactionTest` (every sink), the 7b redaction audit | ⬜ 4g |
+| R41 | `SecurityRulesFileTest` (reason required, round trip), `FabricConfigSecurityRulesTest` | ⬜ 4g |
+| R42 | `TrifectaIncidentTest` (accepted, not accepted, `*`) | ⬜ 4g |
+| R43 | `InjectionIncidentTest` (accepted agent) | ⬜ 4g |
 
 ## 3. Quality gates
 

@@ -108,8 +108,8 @@ Per agent and per run: which legs it has **used** (from the tool spans' reach), 
 
 | Incident | Severity | Fires when | Stays |
 |---|---|---|---|
-| `TRIFECTA` | high | one agent has, in one run, called a tool of each leg (untrusted, private, outward); the evidence names the tool of each leg and the step where the third leg was reached | open after the run ends |
-| `INJECTION` | warn; high when the agent's next tool call after a suspect result is an `outward` one or a tool that agent has not called earlier in the run | a result from an `untrusted` tool matched at least one pattern; evidence: pattern groups, the source tool, the next call | open after the run ends |
+| `TRIFECTA` | high; **info when the agent is accepted** (§4c.4) | one agent has, in one run, called a tool of each leg (untrusted, private, outward); the evidence names the tool of each leg and the step where the third leg was reached, and the reason when accepted | open after the run ends |
+| `INJECTION` | warn; high when the agent's next tool call after a suspect result is an `outward` one or a tool that agent has not called earlier in the run, **and high whenever the agent has an accepted trifecta** (an accepted trifecta is only safe while nothing untrusted steers it) | a result from an `untrusted` tool matched at least one pattern; evidence: pattern groups, the source tool, the next call | open after the run ends |
 | `ACCESS` | warn; info for an unknown tool | a tool answers `permission_denied` or `authentication` 3 times within 60 s (rule `access_denied: 3 in 60s`); any call to a tool the agent does not have (`unknown_tool`) | closes when the tool answers again; unknown tool: open until the run ends |
 
 A refused approval is people deciding, not an incident (as with a pause an operator asked for); it is counted in the view.
@@ -118,7 +118,20 @@ A refused approval is people deciding, not an incident (as with a pause an opera
 
 ### 4c.4 Rules
 
-The `.inspect` grammar gains `access_denied: 3 in 60s` and `injection_scan: on|off` (per agent or `*`, and centrally in Fabric), nullable and optional on the wire exactly as the five rules of 4c were; a file without them reads as before.
+The `.inspect` grammar gains `access_denied: 3 in 60s`, `injection_scan: on|off` and `trifecta: accepted "reason"` (per agent or `*`, and centrally in Fabric), nullable and optional on the wire exactly as the five rules of 4c were; a file without them reads as before.
+
+**Accepting a trifecta.** Many legitimate agents use all three legs by design (a support agent reads a ticket, looks up the customer and replies). A high alert on every run of such an agent would teach people to ignore the one signal that matters most. So the author of the rules can accept it for a named agent, **with a reason that is required** (a rule without one is a check error, so an acceptance is never silent):
+
+```text
+Support { trifecta: accepted "customer support: reads tickets, looks up the account, replies by mail" }
+```
+
+- An accepted trifecta raises `TRIFECTA` as **info**, shown as "exercised, accepted" with the reason; it is still listed, counted and exported, never hidden.
+- An agent not named stays high. `*` accepts for every agent that does not say otherwise (allowed, but the check warns that it hides the signal).
+- Acceptance does not make the agent safe: an `INJECTION` finding for an accepted agent is always **high**, because the combination is only safe while nothing untrusted steers it.
+- The verdict in the view gains `accepted` (exercised and accepted), next to `exercised` (not accepted).
+- Acceptance can also come from the Fabric Configuration page, where it is recorded with who set it and when (the existing audit of central config).
+- A script whose `weave audit` already reported the trifecta is the usual place to start: the audit says it can happen, the acceptance says someone looked.
 
 ### 4c.5 Not in this step
 
@@ -199,6 +212,9 @@ Researcher {
 | R38 | `access_denied` and `injection_scan` parse, check, round-trip through the `.inspect` file and the central form in Fabric, and are optional on the wire both ways |
 | R39 | The same records give the same security view and incidents when replayed; `RunRegistry.securityRollup` equals the merge of every run's counts and can be limited to one client |
 | R40 | The redaction audit of 7b is extended: no tool result text, matched text or secret appears in the security view, incident evidence, the console, audit lines or the OTLP export |
+| R41 | `trifecta: accepted "reason"` is part of the rules grammar: the reason is required (an empty or missing reason is a check error with a line number), it round-trips through the file and Fabric's central form, and is optional on the wire both ways |
+| R42 | An agent with an accepted trifecta raises `TRIFECTA` as info (evidence includes the reason), is `accepted` in the view, and is still counted and exported; an agent without acceptance stays high; `*` accepts for all but warns in `weave inspect check` |
+| R43 | For an agent with an accepted trifecta, any `INJECTION` finding is high; the same finding for an agent without one follows R34 |
 
 ## 8. Sub-phases
 
@@ -211,7 +227,7 @@ Researcher {
 | 4f | Task and delegate failures: `failure` event, enriched `task_end`, `run_end` attribution, task health, `BROKEN` and `DIVERTED` incidents | R22 to R27 |
 | 4g.1 | One public tool-reach API shared by the audit and the trace; `reach` on `tool_call` and the tool span | R28, R29 |
 | 4g.2 | The injection scan in the mapper (patterns, bounds, redaction) | R30, R31, R40 |
-| 4g.3 | `RunState` security view, the three incidents, the two rules, the rollup, the guard counts | R32 to R39 |
+| 4g.3 | `RunState` security view, the three incidents, the three rules (including the accepted trifecta), the rollup, the guard counts | R32 to R39, R41 to R43 |
 | 4g.4 | Documentation (security page, observability pages, guide, `llms.txt`), a runnable example with an injected page, verification | all |
 | 4e | Documentation (observability pages, loom-inspect design, guide), example, verification run | all |
 
@@ -228,6 +244,7 @@ Researcher {
 | 8 | Custom injection patterns in the rules file? | No, not in 4g: a fixed built-in list behaves the same everywhere and cannot be used to hide a finding; revisit with real data. `injection_scan: off` exists |
 | 9 | May any of this block a run? | No. Observe only; blocking is a policy for the script (a guard or an approval), decided by the author, not by an observer |
 | 10 | Tools of unknown reach | All three legs, marked assumed (as `weave audit`); shown apart in the view so the cautious count is not mistaken for a known one |
+| 12 | Is a trifecta always high? | No. It is high unless the rules author accepted it for that agent with a written reason; accepted is info, never hidden, and raises the severity of any injection finding for that agent. An alert raised by every run of a legitimate design would be ignored |
 | 11 | Where the injection scan runs | In the process (the mapper), so tool-result text never leaves it, as with the grounding signals |
 
 ## 10. As built: notes by sub-phase
