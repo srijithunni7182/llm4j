@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.Random;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 /**
  * The proof that a trust block can be written as a ladder: the same cases, in the same order, in two ledgers; the original engine moves a scope by
@@ -81,6 +82,7 @@ class TrustAsLadderEquivalenceTest {
     }
 
     @Test
+    @Timeout(300)   // about 50 s on a quiet machine, so the default 60 s is too close
     void theLadderMovesWhereTheTrustBlockMovesOverRandomHistories() {
         int steps = 0;
         for (int t = 0; t < TRUSTS.size(); t++) {

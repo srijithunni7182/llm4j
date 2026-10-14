@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 /** Thousands of replays cost small overlays and the candidate's calls, not copies of the journals (spec loom-earned-autonomy R7.8). */
@@ -15,6 +16,7 @@ class ReplayScaleTest {
 
     @Test
     @Tag("EA-V7.14")
+    @Timeout(300)   // the 5000 live decisions that set it up are quadratic in the ledger (about 60 s); only the replay is timed, below
     void fiveThousandReplaysOfCasesFromFiftyRunsFinishQuicklyWithBoundedMemory() throws Exception {
         String script = Scripts2.refund("").replace("workflow Triage(ticket, tier, amount, reason, customer_since) {\n    decide Refund -> verdict",
                 "workflow Triage(ticket, tier, amount, reason, customer_since) {\n    loop until (verdict == \"never\") max 100 {\n    decide Refund -> verdict\n    }");

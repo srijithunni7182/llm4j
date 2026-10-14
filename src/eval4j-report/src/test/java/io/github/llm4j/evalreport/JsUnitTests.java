@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Runs the plain-JavaScript tests of the report's graph card with {@code node --test}, and checks that the report's
- * copy of the shared graph renderer is the canonical file. The JavaScript tests are skipped when node is not installed.
+ * copy of the shared graph renderer is the canonical file. The JavaScript tests are skipped when node is not installed or is older than 18.
  */
 class JsUnitTests {
 
@@ -22,7 +22,9 @@ class JsUnitTests {
 
     @Test
     void theGraphCardTestsPassUnderNode() throws Exception {
-        assumeTrue(nodeVersion() != null, "node is not installed");
+        String node = nodeVersion();
+        assumeTrue(node != null, "node is not installed");
+        assumeTrue(major(node) >= 18, "node " + node + " has no --test runner (needs 18 or later)");
         List<String> files;
         try (var s = Files.list(Path.of("src/test/js"))) {
             files = s.map(Path::toString).filter(p -> p.endsWith(".test.js")).sorted().toList();
@@ -46,6 +48,14 @@ class JsUnitTests {
 
     private static String sha(Path file) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)));
+    }
+
+    private static int major(String version) {
+        try {
+            return Integer.parseInt(version.replaceFirst("^v", "").split("\\.")[0]);
+        } catch (RuntimeException e) {
+            return 0;
+        }
     }
 
     private static String nodeVersion() {
