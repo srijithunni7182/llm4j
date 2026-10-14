@@ -60,7 +60,7 @@ Order matters: each phase builds on the one below and is shippable on its own.
 | # | Phase | Layer | What it delivers | Depends on |
 |---|---|---|---|---|
 | **1** | [Context management and compaction](01-context-management/DESIGN.md) | ai-agent4j | Know how full the context is; a `ContextCompactor` extension point with built-in strategies; compaction in both agent loops; overflow handling; token-aware conversation history; a model-window catalog | none |
-| 2 | Call-level telemetry | ai-agent4j | One event per model call (tokens, latency, finish reason, retries, fallback model); a real tool outcome and error category instead of text guessing; per-tool and per-agent statistics | 1 |
+| 2 | [Call-level telemetry](02-call-telemetry/DESIGN.md) | ai-agent4j | One event per model call (tokens, latency, finish reason, retries, fallback model); a real tool outcome and error category instead of text guessing; per-tool and per-agent statistics | 1 |
 | 3 | Loom integration | Loom | Per-agent `context` settings (kept in the sidecar, not in the script); `MemoryEngine` compaction for Loom's transcript; new `TraceEvent`s for context use and compaction; budgets that know about context | 1, 2 |
 | 4 | Inspect and incidents | loom-inspect | Mapping to OpenTelemetry records; run state for context fill, compaction and tool statistics; incidents (context nearly full, truncated answer, compaction thrash, tool success rate, latency spike) | 3 |
 | 5 | Fabric | loom-fabric | Context gauge and compaction timeline; tools table with success rate and latency percentiles; thresholds on the Configuration page; model-window catalog beside the price table; simulator scenarios | 4 |
@@ -74,4 +74,5 @@ done, so that what we learn building a lower layer shapes the spec above it.
 | # | Spec | Tests | Code | Verified |
 |---|---|---|---|---|
 | 1 | approved (decisions recorded) | all written | all done | verified (live and manual checks owed, see VERIFICATION §4); **awaiting review** |
-| 2–6 | not started | | | |
+| 2 | drafted, awaiting review | – | – | – |
+| 3–6 | not started | | | |
