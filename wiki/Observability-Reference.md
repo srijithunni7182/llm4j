@@ -145,3 +145,14 @@ Log events (`event.name`): `loom.run.start`, `loom.run.end`, `loom.run.suspended
 | `loom.run.end` log and the workflow span | a run broken by a task or delegate | `loom.run.failed_kind`, `.failed_name`, `.failed_step`, `.failed_category` |
 
 The run view has `tasks` (like `tools`: calls, errors, success rate, p50/p95, failures, health); the incident kinds `DIVERTED` and `BROKEN` are new.
+
+## Security records (4g)
+
+| Record | Where | Attributes |
+|---|---|---|
+| tool span | every tool call | `loom.tool.reach` (a sorted list of `outward`, `private`, `untrusted`; empty for none) and `loom.tool.reach_known` (`false` when assumed) |
+| tool span | a result of an untrusted tool that matched the scan | `loom.injection.patterns` (group names: `exfil`, `hidden`, `override`, `reveal`, `role`) and `loom.injection.count` (at most 50). Never text |
+| `loom.guard` (log, warn) | a guard acted | `loom.data.event` is `pii_masked`, `pii_blocked`, `pii_detected`, `bias_detected` or `bias_blocked` |
+
+The run view has `security`: `agents` (each with `used` tools per leg, `can` when the script's audit is known, `assumed`, `verdict`, and `acceptedReason`), `injection` (`suspect`, `byGroup`, `bySource`), `access` (`refused`, `byCategory`, `unknownTools`, `approvalsRefused`) and `guards`. The incident kinds `TRIFECTA`, `INJECTION` and `ACCESS` are new. `RunRegistry.securityRollup(client)` adds the counts across runs. The rules `access_denied`, `injection_scan` and `trifecta` are in the central form as `access_denied: {count, seconds}`, `injection_scan` (boolean) and `trifecta_accepted` (the reason). How these are read: [Security signals](Observability-Security-Signals.md).
+

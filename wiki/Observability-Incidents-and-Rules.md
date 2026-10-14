@@ -24,6 +24,9 @@ watched differently in test and in production.
 | **Latency spike** | info, warn on a second in a row | a model or tool call lasts more than **5×** the running median of its kind (and over 2 s, after 10 samples) | a provider or dependency is slow right now |
 | **Workflow diverted** | warn | a task (`run`) or delegate failed and its `on_failure` block took over | the workflow went on by another road; the evidence names the step, the failure category and the attempts. Closes when the run ends |
 | **Workflow broken** | high | the run ended failed because a task or delegate failed with no `on_failure` | the run stopped here; the incident names the step, the task or delegate and the category, and stays open after the run ends so the page still says why |
+| **Lethal trifecta** | high; info when accepted; warning when assumed | one agent used a tool of each leg (untrusted content, private data, a way out) in one run | the combination that lets text it reads tell it to send your data out; stays after the run ends. See [Security signals](Observability-Security-Signals.md) |
+| **Suspected injection** | warn; high after an unusual next call, or for an agent with an accepted trifecta | a result from an untrusted tool read like instructions (a heuristic: only pattern group names are kept) | look at what the agent did next |
+| **Refused access** | warn; info for an unknown tool | a tool refuses access **3** times in **60 s**; a call to a tool the agent does not have | a wrong role or credential, or something steering the agent |
 | **Budget** | warn when nearly spent, high when it ran out | a budget reaches its `warn_at`, then its limit | the budget is nearly or fully used |
 
 An incident opens when its rule fires and closes when its condition clears or the step ends. Suspect-output incidents carry
@@ -74,6 +77,11 @@ Researcher {
     compaction_thrash: 4 in 10 calls                # compactions within this many model calls
     tool_success_rate: below 70% over 10 calls      # a tool's recent success rate (at least 5 calls)
     latency_spike: 5x p50                           # a call this many times slower than the usual (median)
+}
+Support {
+    access_denied: 3 in 60s                         # a tool refusing access this many times within this span
+    injection_scan: on                              # or off: whether results of untrusted tools are scanned for injected instructions
+    trifecta: accepted "customer support: reads tickets, looks up the account, replies"   # a written reason is required
 }
 *            { paused_longer_than: 90s }    # for every agent that does not say otherwise
 ```

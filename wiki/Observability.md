@@ -47,5 +47,6 @@ weave daemon triggers/ --secrets keys.store \
 | [**Deployment guide**](../docs/OBSERVABILITY_DEPLOYMENT.md) | Setting it up for production, step by step, with a checklist |
 | [Fabric server](Fabric-Server.md) | Install, clients and keys, TLS, retention, the Processes page, packaging, troubleshooting |
 | [Incidents and rules](Observability-Incidents-and-Rules.md) | Every incident, defaults, the `flow.inspect` file, `weave observe rules` |
+| [Security signals](Observability-Security-Signals.md) | The lethal trifecta (declared against exercised), suspected injections, refused access, personal data; accepting a trifecta in writing |
 | [Controls, secrets and security](Observability-Controls-and-Security.md) | Admin password, sign-in protection, controls, secrets rotation, audit, threat notes |
 | [Reference](Observability-Reference.md) | Every option, command, route, wire message and record attribute |

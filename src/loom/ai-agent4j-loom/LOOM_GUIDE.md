@@ -1519,6 +1519,7 @@ With `weave run --trace` (or any trace listener) the run shows, for every agent,
 | `context` | after each model call | `used` tokens and `source` (`REPORTED`: the provider's own count; `ESTIMATED`); with a known window also `window`, `usable`, `fraction` |
 | `compaction` | a compaction was tried | `strategy`, `outcome` (`COMPACTED`, `NO_GAIN`, `SKIPPED`, `FAILED`), `reason`, `before` and `after` in tokens, `messages_before` and `messages_after`, and the tokens and cost of a model-written summary |
 | `model_call` | each model call | `model`, `duration_ms`, `waited_ms`, `attempts`, `failovers`, token counts, `finish_reason`, `truncated`, `outcome`, and for a failure the `category` (`RATE_LIMITED`, `TIMEOUT`, `CONTEXT_OVERFLOW`, ...) |
+| `guard` | a guard acted | `event` (`pii_masked`, `pii_blocked`, `pii_detected`, `bias_detected`, `bias_blocked`), `agent`, `step`, and for personal data the `where` and the types found, never the values |
 | `tool_call` | each tool call | `tool`, `outcome`, `duration_ms`, `approval_ms`, `result_chars`, `soft_failure` (the tool returned its error as text), `reach` (which legs of the lethal trifecta the tool touches: `outward`, `private`, `untrusted`; empty for none), `reach_known` (`false` when the reach is assumed because nothing says what the tool does) and for a failure the `category` |
 | `failure` | a task or delegate failed | `kind` (`task` or `delegate`), `name`, `step`, `category`, `error_type`, `attempts`, `handled` (`true` when its `on_failure` took over, `false` when the run fails) and `error`. It is told on every path: retries used up, bad arguments, no approval, a refused effect, a replayed failure. A failed `task_end` carries the same `category`, `error_type` and `attempts` |
 
@@ -2177,10 +2178,11 @@ weave daemon triggers/ --secrets keys.store \
   }
   Scriptwriter { ungrounded_figures: warn at 2, high at 4 }
   Researcher   { context_nearly_full: warn at 85%, high at 95%;  tool_success_rate: below 70% over 10 calls;  latency_spike: 5x p50 }
+  Support      { trifecta: accepted "customer support: reads tickets, looks up the account, replies";  access_denied: 3 in 60s;  injection_scan: on }
   *            { paused_longer_than: 90s }    # for every agent that does not say otherwise
   ```
 
-  Beside the loops and the figures, the page also flags an agent's context nearly full, a truncated answer, compaction that thrashes, a tool whose success rate collapsed and a latency spike, and shows each tool's health and failures by category (see [Observing a workflow](../../../docs/OBSERVABILITY.md)).
+  Beside the loops and the figures, the page also flags an agent's context nearly full, a truncated answer, compaction that thrashes, a tool whose success rate collapsed and a latency spike, and shows each tool's health and failures by category (see [Observing a workflow](../../../docs/OBSERVABILITY.md)). It also watches for security: an agent that has read untrusted content, reached private data and sent something out in one run (the lethal trifecta; `trifecta: accepted "reason"` accepts it in writing), a tool result that reads like injected instructions, and refused access (see [Security signals](../../../wiki/Observability-Security-Signals.md)). `weave audit` is the static review of the same trifecta; list what your own tools reach with `Name.reach` in the `.loot` file so the audit and the trace agree.
 
   `weave observe rules flow.loom` checks the file against the script without running anything: it refuses an agent the script does not have and a variable nothing sets (and suggests the nearest name). A file with errors is reported once when a run starts and not used.
 - The admin password may be stored as a hash: `weave observe hash-password` prints one to store as `LOOM_INSPECT_ADMIN_PASSWORD` in place of the password (Fabric stores a hash itself). Wrong guesses are slowed per address and across all addresses.

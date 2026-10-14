@@ -35,6 +35,7 @@ Both show the same page. Neither changes how a workflow behaves, and a missing o
 | **Secrets** | List the app's secrets (hosts, last update, fingerprint, used-by) and replace a value. Embedded only; values are never shown |
 | **Fault tolerance** | Events go to a local on-disk outbox first. A server that is down, slow or restarted loses nothing; the page shows *catching up*, then no gaps |
 | **OpenTelemetry** | Traces and logs in OTLP/JSON, to Fabric and optionally to any OTLP endpoint (Collector, Tempo, Honeycomb, Datadog) |
+| **Security** | Per agent, what its script lets it reach next to what it actually did: the lethal trifecta (untrusted content, private data, a way out) exercised, tool results that read like injected instructions, refused access, personal data masked. A trifecta can be accepted in writing; observe only, nothing is blocked ([details](../wiki/Observability-Security-Signals.md)) |
 | **Privacy levels** | `--observe-detail full`, `truncated` (default) or `metadata`: how much of what agents say leaves the process |
 | **Central configuration** | In Fabric, an admin edits the **inspect rules** (pick an agent, a behaviour, a threshold) and the **price table** (pick a model, set its input and output price) on a Configuration page: checked on save, in force at once, kept across restarts ([details](../wiki/Fabric-Server.md#configuration-page)) |
 | **Cost** | From a price file at the process, or from the price table kept on Fabric ([cost](#cost)) |
