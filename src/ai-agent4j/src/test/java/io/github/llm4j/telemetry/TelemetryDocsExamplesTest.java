@@ -146,6 +146,48 @@ class TelemetryDocsExamplesTest {
     }
 
     @Test
+    void listenToModelCalls() {
+        // --- sample: modelListener
+        AgentEventListener listener = new AgentEventListener() {
+            @Override public void onThought(String thought) {}
+            @Override public void onAction(String tool, String input) {}
+            @Override public void onObservation(String observation) {}
+
+            @Override
+            public void onModelCall(ModelCallEvent e) {
+                System.out.printf("call %d to %s: %d ms, %d + %d tokens, finished %s%n",
+                        e.iteration(), e.model(), e.durationMillis(), e.promptTokens(), e.completionTokens(), e.finishReason());
+                if (e.truncated()) System.out.println("  the answer was cut off by the token limit");
+                if (e.failed()) System.out.println("  failed: " + e.category() + " (" + e.errorType() + ")");
+            }
+        };
+        // --- end sample
+        TelemetryListener seen = new TelemetryListener();
+        ReActAgent.builder().llmClient(Scripts.oneToolStep(true, "search", "x")).addTool(TestTool.returning("search", "ok")).addListener(listener).addListener(seen)
+                .build().run("Go.");
+        assertThat(seen.models).hasSize(2);
+    }
+
+    @Test
+    void readTheModelStatisticsOfARun() {
+        ReActAgent agent = ReActAgent.builder().llmClient(Scripts.toolSteps(true, "search", 3)).addTool(TestTool.returning("search", "ok")).maxIterations(20).build();
+        AgentResult result = agent.run("Find the plans.");
+        // --- sample: modelResult
+        ModelStats model = result.getStats().model("m");        // keyed by the model that answered
+        long calls = model.calls();                             // failed calls included
+        long tokensIn = model.promptTokens();
+        long p50 = model.latency().p50();                       // milliseconds
+        Map<ErrorCategory, Long> failures = model.failures();   // empty here
+        long retries = result.getStats().totalRetries();        // attempts beyond the first, over all models
+        // --- end sample
+        assertThat(calls).isEqualTo(4);
+        assertThat(tokensIn).isEqualTo(40);
+        assertThat(p50).isGreaterThanOrEqualTo(0);
+        assertThat(failures).isEmpty();
+        assertThat(retries).isZero();
+    }
+
+    @Test
     void thePageShowsExactlyTheSamplesThatAreTested() throws Exception {
         String source = Files.readString(Path.of("src/test/java/io/github/llm4j/telemetry/TelemetryDocsExamplesTest.java"));
         String page = Files.readString(Path.of("wiki/Telemetry-and-Statistics.md"));
@@ -155,6 +197,6 @@ class TelemetryDocsExamplesTest {
             found++;
             assertThat(page).as("the page shows the '" + m.group(1) + "' sample").contains(m.group(2).stripIndent().strip());
         }
-        assertThat(found).isGreaterThanOrEqualTo(7);
+        assertThat(found).isGreaterThanOrEqualTo(9);
     }
 }

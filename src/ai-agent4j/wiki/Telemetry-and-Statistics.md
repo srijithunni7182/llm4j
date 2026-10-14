@@ -5,10 +5,9 @@ When an agent runs, you want to know more than what it answered: **how long** ea
 tool so that it is observed well.
 
 > **Status: in progress.** The failure vocabulary, `ToolException`, the way a tool's text result is read, the event types, latency percentiles and
-> `StatsCollector` work on their own (sections 1 to 4), and the agent now produces a **tool-call event** for every tool call, in both of its loops,
-> and puts the statistics of the run on its result (section 5). Still to come: model-call events (duration, usage, finish reason, failures) and the
-> retries and fail-overs inside the HTTP and routing layers (section 8). The design is in
-> [`docs/specs/02-call-telemetry`](../../../docs/specs/02-call-telemetry/DESIGN.md).
+> `StatsCollector` work on their own (sections 1 to 4), and the agent produces a **tool-call event** and a **model-call event** for every call, in both
+> of its loops, and puts the statistics of the run on its result (section 5). Still to come: the retries, rate-limit waits and fail-overs inside the HTTP
+> and routing layers (section 8). The design is in [`docs/specs/02-call-telemetry`](../../../docs/specs/02-call-telemetry/DESIGN.md).
 
 Everything here is opt-in and changes nothing for code that does not use it. Events and statistics hold **numbers and names only**: never a prompt, an
 answer, a tool's arguments or its result.
@@ -174,6 +173,44 @@ Map<ErrorCategory, Long> why = search.failures();   // {TIMEOUT=1}
 - **A deliberate interrupt** (a tool that pauses the run to wait for a person) is not a failure and produces no tool event.
 - To watch **many runs**, add one `StatsCollector` to the agent (section 4); the result's own statistics and the collector's agree.
 
+### Model calls
+
+Every call to the model produces one `ModelCallEvent`, whether it gave an answer or failed:
+
+```java
+AgentEventListener listener = new AgentEventListener() {
+    @Override public void onThought(String thought) {}
+    @Override public void onAction(String tool, String input) {}
+    @Override public void onObservation(String observation) {}
+
+    @Override
+    public void onModelCall(ModelCallEvent e) {
+        System.out.printf("call %d to %s: %d ms, %d + %d tokens, finished %s%n",
+                e.iteration(), e.model(), e.durationMillis(), e.promptTokens(), e.completionTokens(), e.finishReason());
+        if (e.truncated()) System.out.println("  the answer was cut off by the token limit");
+        if (e.failed()) System.out.println("  failed: " + e.category() + " (" + e.errorType() + ")");
+    }
+};
+```
+
+- A call that fails is reported with its category and the exception's class, and **the exception still propagates exactly as before**. The Phase 1
+  recovery from a "prompt too long" error is two calls and so two events: the first `FAILED` with `CONTEXT_OVERFLOW`, the second the retry, in the same iteration.
+- The tokens, the finish reason, the cost (where the client reports one) and whether usage was estimated come from the response. `truncated()` is true exactly when
+  the model stopped because it hit the token limit.
+- `durationMillis` is the wall time of the call as the agent sees it, whatever happened inside. A failed call has no answering model, so the statistics file
+  failures under `unknown` (the model is not known).
+- **A summary written by a compaction strategy is not a call of the run.** The summariser has its own client; its tokens and cost stay in the compaction event and in
+  `AgentResult.getUsage()`, as before.
+
+```java
+ModelStats model = result.getStats().model("m");        // keyed by the model that answered
+long calls = model.calls();                             // failed calls included
+long tokensIn = model.promptTokens();
+long p50 = model.latency().p50();                       // milliseconds
+Map<ErrorCategory, Long> failures = model.failures();   // empty here
+long retries = result.getStats().totalRetries();        // attempts beyond the first, over all models
+```
+
 ## 6. Timing in tests
 
 Durations come from a `java.time.Clock` that defaults to the system clock. A test gives the agent one it controls, so a duration is exact and no test
@@ -193,14 +230,13 @@ ReActAgent agent = ReActAgent.builder()
 - Events and statistics hold **numbers and names only**: not the arguments, not the result, not the prompt or the answer. (`onAction` and `onObservation`
   still carry text, as they always did.)
 - A tool that fans work out to **other threads** is measured as one call; what happens on those threads is not attributed to it.
-- **Model calls** are not measured yet (section 8).
+- `attempts`, `waitedMillis` and `failovers` of a model call are the figures the HTTP and routing layers will fill in (section 8); until then they read 1, 0 and empty.
 
 ## 8. What is coming
 
 In this order, each with its own tests and documentation:
 
-1. The agent produces `onModelCall` events: duration, usage, finish reason, failures; the model statistics fill in.
-2. Retries, rate-limit waits and fail-overs inside the HTTP and routing layers show up in the model-call event.
+1. Retries, rate-limit waits and fail-overs inside the HTTP and routing layers show up in the model-call event (`attempts`, `waitedMillis`, `failovers`).
 
 See also: [Context and Compaction](Context-and-Compaction.md) · [Budgets and Rate Limits](Budgets-and-Rate-Limits.md) ·
 [ReAct Agent Guide](ReAct-Agent-Guide.md)

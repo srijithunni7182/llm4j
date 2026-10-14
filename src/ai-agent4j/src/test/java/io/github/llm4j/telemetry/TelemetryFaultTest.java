@@ -25,6 +25,8 @@ class TelemetryFaultTest {
         AgentResult r = ReActAgent.builder().llmClient(Scripts.oneToolStep(nativeLoop, "t", "x")).addTool(TestTool.returning("t", "ok")).addListener(bad).addListener(good).build().run("Go.");
         assertThat(r.getFinalAnswer()).isEqualTo("done");
         assertThat(good.tools).hasSize(1); // the listener after the broken one still heard it
+        assertThat(good.models).hasSize(2);
+        assertThat(r.getStats().totalModelCalls()).isEqualTo(2);
         assertThat(r.getStats().tool("t").calls()).isEqualTo(1); // and the statistics did not depend on the listeners
     }
 }

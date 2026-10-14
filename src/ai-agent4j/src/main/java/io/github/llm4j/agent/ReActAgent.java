@@ -394,7 +394,7 @@ public class ReActAgent {
             LLMResponse response;
             try {
                 try {
-                    response = llmClient.chat(request);
+                    response = chatObserved(request, i, telemetry);
                 } catch (io.github.llm4j.exception.ContextOverflowException overflow) {
                     // the provider says the prompt is too long: compact harder, once, and try again once
                     TokenEstimator estimator = tokenEstimator != null ? tokenEstimator : io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE;
@@ -413,7 +413,7 @@ public class ReActAgent {
                     }
                     sent = scratchpad.size();
                     request = LLMRequest.builder().addSystemMessage(systemPrompt).addUserMessage(context + scratchpad.render()).temperature(temperature).build();
-                    response = llmClient.chat(request);
+                    response = chatObserved(request, i, telemetry);
                 }
             } catch (io.github.llm4j.exception.RateLimitException limited) {
                 // Too long to wait inline (the HTTP layer already waited out short limits): hand the
@@ -656,7 +656,7 @@ public class ReActAgent {
             LLMResponse response;
             try {
                 try {
-                    response = llmClient.chat(request);
+                    response = chatObserved(request, i, telemetry);
                 } catch (io.github.llm4j.exception.ContextOverflowException overflow) {
                     // the provider says the prompt is too long: compact harder, once, and try again once
                     ContextManager.Prepared again = contextManager == null ? null : contextManager.recoverFromOverflow(conversation, i, 0);
@@ -665,7 +665,7 @@ public class ReActAgent {
                     conversation = new ArrayList<>(again.messages());
                     sent = conversation.size();
                     request = LLMRequest.builder().messages(conversation).tools(specs).temperature(temperature).build();
-                    response = llmClient.chat(request);
+                    response = chatObserved(request, i, telemetry);
                 }
             } catch (io.github.llm4j.exception.RateLimitException limited) {
                 throw new io.github.llm4j.ratelimit.RateLimited(
@@ -797,6 +797,36 @@ public class ReActAgent {
         ActionExecution(String observation, AgentResult.StepOutcome outcome) {
             this(observation, outcome, 0, 0, false, null, null);
         }
+    }
+
+    /**
+     * One model call, timed and reported: an event for an answer and for a failure alike, and a failure still propagates exactly as it would have. The
+     * summariser of a compaction strategy has its own client and is not a call of the run (its usage is reported with the compaction).
+     */
+    private LLMResponse chatObserved(LLMRequest request, int iteration, RunTelemetry telemetry) {
+        java.time.Instant startedAt = clock.instant();
+        long started = clock.millis();
+        ModelCallEvent.Builder event = ModelCallEvent.builder().iteration(iteration).requestedModel(request.getModel()).startedAt(startedAt);
+        LLMResponse response;
+        try {
+            response = llmClient.chat(request);
+        } catch (RuntimeException e) {
+            telemetry.model(event.durationMillis(Math.max(0, clock.millis() - started)).failed(ErrorCategory.of(e), e.getClass().getSimpleName()).build());
+            throw e;
+        }
+        event.durationMillis(Math.max(0, clock.millis() - started));
+        if (response != null) {
+            event.model(response.getModel()).finishReason(response.getFinishReason()).toolCallsRequested(response.getToolCalls().size());
+            LLMResponse.TokenUsage usage = response.getTokenUsage();
+            if (usage != null) event.promptTokens(usage.getPromptTokens()).completionTokens(usage.getCompletionTokens()).totalTokens(usage.getTotalTokens());
+            Map<String, Object> meta = response.getMetadata();
+            if (meta != null) {
+                event.usageEstimated(Boolean.TRUE.equals(meta.get(BudgetedLLMClient.ESTIMATED)));
+                if (meta.get(BudgetedLLMClient.COST) instanceof java.math.BigDecimal cost) event.cost(cost);
+            }
+        }
+        telemetry.model(event.build());
+        return response;
     }
 
     /** Runs one action and reports it: one {@link ToolCallEvent} for whatever happened, a deliberate interrupt excepted. */

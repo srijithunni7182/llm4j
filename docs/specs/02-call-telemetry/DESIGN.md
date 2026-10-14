@@ -278,3 +278,8 @@ is a separate commit.
   `ToolCallEvent`. A deliberate `AgentInterrupt` is rethrown before any event. `StepOutcome` is mapped to `ToolOutcome` by an exhaustive `switch` with no default, so adding an outcome to one
   enum cannot compile without deciding the other. A tool's `isFailure` that throws is logged and treated as "not a failure". The text a tool or the agent returns to the model is untouched, which the
   golden requests of Phase 1 and two new equality tests confirm. The `Clock` is a builder option (`ReActAgent.Builder.clock`), carried through `toBuilder()`.
+- **2c.** `ReActAgent.chatObserved` wraps all four `llmClient.chat` call sites (native and text loops, and the retry after a context overflow, which is a second call and so a second event in the
+  same iteration). It times the call with the agent's `Clock`, reads model, finish reason, tool-call count, tokens, the estimated-usage flag and cost from the response, and on a `RuntimeException`
+  records a failed event (category from `ErrorCategory.of`, the exception's simple class name) and rethrows it unchanged. A failed call has no answering model, so the statistics file it under
+  `unknown`; `requestedModel` is null for requests the agent builds itself. The summariser has its own client: its tokens stay in `CompactionUsage` and `AgentResult.Usage`, not in `RunStats`.
+  `attempts`, `waitedMillis` and `failovers` read 1, 0 and empty until 2d.

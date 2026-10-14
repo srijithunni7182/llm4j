@@ -23,11 +23,11 @@ Filled in as tests are written; a row without a test blocks the exit.
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 | `ModelCallEventsTest` (both loops, overflow retry) | ☐ |
-| R2 | `ModelCallEventsTest` | ☐ |
-| R3 | `ModelCallEventsTest#durationFromTheClock` | ☐ |
-| R4 | `ModelCallEventsTest#aFailingCall`, `TelemetryFaultTest` | ☐ |
-| R5 | `ModelCallEventsTest#truncated` | ☐ |
+| R1 | `ModelCallEventsTest` (both loops, overflow retry) | ✅ 2c |
+| R2 | `ModelCallEventsTest` | ✅ 2c |
+| R3 | `ModelCallEventsTest#durationFromTheClock` | ✅ 2c |
+| R4 | `ModelCallEventsTest#aFailingCall`, `TelemetryFaultTest` | ✅ 2c |
+| R5 | `ModelCallEventsTest#truncated` | ✅ 2c |
 | R6 | `ToolCallEventsTest` (every outcome, both loops) | ✅ 2b |
 | R7 | `ToolCallEventsTest#aToolThatSucceeds`, `#theEventHoldsNoResultOrArgumentText`, `#aPersonApprovesAndTheWaitIsNotCountedAsTheToolsTime` | ✅ 2b |
 | R8 | `ErrorCategoryTest`, `ToolExceptionTest`, `ToolCallEventsTest#aToolThatThrowsIsClassifiedByItsType` | ✅ 2a, 2b |
@@ -37,15 +37,15 @@ Filled in as tests are written; a row without a test blocks the exit.
 | R12 | `RoutingCallTraceTest` | ☐ |
 | R13 | `HttpCallTraceTest#noTraceNoEffect`, `CallTraceTest` | ☐ |
 | R14 | `CallTraceTest` | ☐ |
-| R15 | `StatsAccumulatorTest`, `StatsCollectorTest`, `RunStatsIntegrationTest#theStatisticsAreExactlyTheEventsAddedUp` | ✅ 2a, 2b (tools); models in 2c |
+| R15 | `StatsAccumulatorTest`, `StatsCollectorTest`, `RunStatsIntegrationTest#theStatisticsAreExactlyTheEventsAddedUp` | ✅ 2a, 2b, 2c |
 | R16 | `LatencyStatsTest`, `StatsSoakTest` | ◐ 2a: exact to the capacity, bounded beyond it; the soak in 2e |
 | R17 | `StatsCollectorTest#manyThreadsGiveTheSumAndASnapshotIsAlwaysConsistent` (16 threads, snapshots taken while writing), `StatsConcurrencyTest` | ◐ 2a: collector under threads; agents sharing one in 2e |
 | R18 | `RunStatsIntegrationTest#everyKindOfResultHasStats`, `#aRunThatNeverCalledATool`, `#aCopyOfAResultKeepsItsStats` | ✅ 2b |
 | R19 | `RequestStabilityTest` (Phase 1 golden requests, unchanged), `TelemetryCompatibilityTest` | ✅ 2b |
 | R20 | `TelemetryCompatibilityTest#anOldStyleListenerWithOnlyTheOriginalMethodsStillWorks` | ✅ 2b |
-| R21 | `TelemetryFaultTest#aListenerThatThrowsFromTheToolCallbackDoesNotFailTheRun` | ✅ 2b (tool callback; model callback in 2c) |
-| R22 | Build dependency check (§3) | ◐ none added through 2b |
-| R23 | `ModelCallEventsTest#summariserCallsAreNotModelCalls` | ☐ |
+| R21 | `TelemetryFaultTest#aListenerThatThrowsFromTheToolCallbackDoesNotFailTheRun` | ✅ 2b, 2c |
+| R22 | Build dependency check (§3) | ◐ none added through 2c |
+| R23 | `ModelCallEventsTest#summariserCallsAreNotModelCalls` | ✅ 2c |
 
 ## 3. Quality gates
 
@@ -91,6 +91,7 @@ the Advanced Configuration error table.
 |---|---|---|---|
 | 2026-10-14 | 2a | Pass | Tests first for the classifier, the soft-failure rule (14 positives, 14 negatives), percentiles, the events, the adder and the collector. 83 new tests; whole module 2,582 tests green; new package line 99.1 % / branch 90.8 % (gate now enforced). Two findings by the tests: `JsonProcessingException` is an `IOException` (checked first), and `Failure analysis:` must not read as a failure |
 | 2026-10-14 | 2b | Pass | Tests first for tool-call events (every outcome in both loops, timing from a fake clock, approvals), statistics on the result, faults and compatibility. 95 telemetry tests in all; whole module 2,633 tests green including the Phase 1 golden requests. A latent fragility removed during review: the outcome mapping is an exhaustive switch |
+| 2026-10-14 | 2c | Pass | Tests first for model-call events in both loops (success, truncated, cost and estimated usage, failures propagate unchanged, rate limit, budget, overflow retry as two events, stats equal events added up, summariser not counted). Whole module 2,658 tests green, coverage gates met |
 
 ### Documentation record (per sub-phase)
 
@@ -98,7 +99,7 @@ the Advanced Configuration error table.
 |---|---|---|---|---|---|---|
 | 2a | ✅ `Telemetry-and-Statistics.md` created (marked in progress): failure vocabulary, writing a tool, the events, statistics | ✅ 4 samples in `TelemetryDocsExamplesTest`, page checked against them | ✅ all public types | ✅ README line, wiki Home, both `llms.txt` | deferred to the end by decision | ✅ DESIGN section 10, traceability, results |
 | 2b | ✅ status box, sections 5 to 7 (in an agent, timing in tests, what is measured), what is coming | ✅ 3 new samples (7 checked against the page) | ✅ `ReActAgent.Builder.clock`, `AgentResult.getStats`, the listener methods | ✅ README line, wiki Home, `llms.txt` | deferred to the end by decision | ✅ DESIGN section 10, traceability, results |
-| 2c | | | | | | |
+| 2c | ✅ status box, model-call section (listener, failures, overflow retry as two events, summariser not counted), model statistics | ✅ 2 new samples (9 checked against the page) | ✅ listener methods, event builders | ✅ README line, wiki Home, both `llms.txt` | deferred to the end by decision | ✅ DESIGN section 10, traceability, results |
 | 2d | | | | | | |
 | 2e | | | | | | |
 
@@ -106,3 +107,4 @@ the Advanced Configuration error table.
 
 - 2a: telemetry and statistics in ai-agent4j (failure categories, tool soft failures, per-tool and per-model statistics); more as the events land.
 - 2b: every tool call of an agent is reported and each result carries statistics (a tool that returns an error as text counts as failed there, though its step outcome stays EXECUTED).
+- 2c: every model call of an agent is reported, failures included, and the result's statistics carry per-model calls, tokens and latency percentiles.

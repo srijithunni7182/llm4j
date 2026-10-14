@@ -30,7 +30,7 @@ calls tools, and the building blocks around them: memory, RAG, knowledge graphs,
 | **[🌐 OpenAPI Tool](OpenAPI-Tool.md)** | Turn any REST API's spec into a tool. |
 | **[🔗 MCP Integration](MCP-Integration.md)** | Use tools from any Model Context Protocol server. |
 | **[💰 Budgets and Rate Limits](Budgets-and-Rate-Limits.md)** | Cap tokens and money before each call; pause on provider limits. |
-| **[📈 Telemetry and Statistics](Telemetry-and-Statistics.md)** | What each model call and tool call did: durations, failures by one shared category, success rates, latency percentiles. *In progress: tool calls are reported; model calls follow.* |
+| **[📈 Telemetry and Statistics](Telemetry-and-Statistics.md)** | What each model call and tool call did: durations, failures by one shared category, success rates, latency percentiles. *In progress: tool and model calls are reported; retries, waits and fail-overs follow.* |
 | **[🗜️ Context and Compaction](Context-and-Compaction.md)** | Keep a growing prompt inside the model's context window with built-in or your own strategies. Works in both agent loops and for conversation history; a runnable example is in `src/examples/context-compaction`. |
 
 ### Memory and knowledge
