@@ -36,9 +36,9 @@ Status: **draft**. Run top to bottom at the end of sub-phase 4e; relevant rows a
 | R11 | `TelemetryIncidentsTest#replayingTheSameRecordsGivesTheSameIncidents` | ✅ 4c |
 | R12 | `NewRulesFileTest` | ✅ 4c |
 | R13 | `NewRulesFileTest#rulesLeftOutStayNull…`, `TelemetryRulesWireTest`, the unchanged `RulesFileTest` | ✅ 4c |
-| R14 | `OtlpNewRecordsTest` | ☐ |
+| R14 | `OtlpNewRecordsTest` | ✅ 4d |
 | R15 | `RunStateStatsTest#statisticsAreBoundedAndTotalsStayExactThroughASoak` (20,000 model and 20,000 tool calls), `PercentilesTest#beyondTheCapacity…` | ✅ 4b |
-| R16 | `InspectContextEndToEndTest`, `FabricContextEndToEndTest` | ☐ |
+| R16 | `InspectContextEndToEndTest`, `FabricContextEndToEndTest` | ✅ 4d |
 | R17 | pom diff | ☐ |
 | R18 | `ToolHealthTest` | ✅ 4c |
 | R19 | `ToolRollupTest#eachRowOfARunsViewCarriesItsHealth`, `ToolHealthTest` | ✅ 4c |
@@ -81,6 +81,7 @@ inspect section, `llms.txt`, a runnable example under `src/examples/`. Stack-lev
 
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
+| 2026-10-14 | 4d | Pass | OTLP round trips for the chat span, tool outcome attributes, context and compaction logs and run totals (4 tests); a real Loom run with a context block, a window and a failing tool through the real add-on to the real Fabric server (the view shows context, compactions, models, tool health `failing`, a `TOOL_RATE` incident, and the registry rollup). 5 new tests |
 | 2026-10-14 | 4c | Pass | Tests first for the five incidents (below, at and above each threshold; escalation; closing; per-agent and central layering; replay), the tool health heuristics (every boundary), summary merging, the cross-run rollup, the new rules grammar and its write/read round trip, the central form in Fabric's config, and the wire compatibility. 70 new tests; one existing test adjusted (`IncidentTest`: four failures in five calls is now also, rightly, a `TOOL_RATE` incident, so it asks about `FAILED` ones). Loom 1,837, inspect-core 182, inspect 137, fabric 39 tests green |
 | 2026-10-14 | 4b | Pass | Tests first for percentiles (exact, bounded, deterministic) and `RunState` statistics (models, tools, context, compactions, the series, the summary field, the feed not flooded, old view fields intact, a 20,000-call soak). 23 new tests |
 | 2026-10-14 | 4a | Pass | Tests first for the mapping (19 tests: real outcome, soft failure, never-run calls, old traces, held span and every flush, two agents, chat span, failed call, context, compaction, totals, no text at any detail level). Found by the simulator test: more records alternate in a batch, and the link sent a request per change of kind, tripping the server's rate limit; the link now sends one request per kind (with a regression test). Loom 1,837, inspect-core 108, inspect 128, fabric 34 tests green |
@@ -92,7 +93,7 @@ inspect section, `llms.txt`, a runnable example under `src/examples/`. Stack-lev
 | 4a | ✅ loom-inspect DESIGN §11n | ✅ n/a (no samples yet) | ✅ `Semconv` | n/a | deferred to the end | ✅ traceability, results |
 | 4b | ✅ loom-inspect DESIGN §11n | n/a | ✅ | n/a | deferred to the end | ✅ traceability, results |
 | 4c | ✅ loom-inspect DESIGN §11n, spec §4b | n/a | ✅ | n/a | deferred to the end | ✅ traceability, results |
-| 4d | | | | | | |
+| 4d | ✅ loom-inspect DESIGN §11n | n/a | ✅ | n/a | deferred to the end | ✅ traceability, results |
 | 4e | | | | | | |
 
 ### Owed to the stack-level pages (updated once, at the end of the whole work)
