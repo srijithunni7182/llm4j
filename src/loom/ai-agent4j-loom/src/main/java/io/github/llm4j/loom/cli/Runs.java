@@ -98,6 +98,7 @@ final class Runs {
             return new Result(2, null, null, "bad options");
         }
         File scriptFile = new File(spec.script());
+        io.github.llm4j.loom.context.ContextFiles.beside(scriptFile.toPath());
         env.out().println("🧵 Weaving workflow: " + scriptFile.getName());
         HarnessExecutor executor;
         try {

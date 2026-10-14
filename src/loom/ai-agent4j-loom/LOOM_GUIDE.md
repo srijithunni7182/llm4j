@@ -1424,8 +1424,8 @@ Because a task is plain Java you also unit-test it directly, with no model and n
 
 ### Context and Compaction
 
-> **Status: in progress.** The `context` block is read and checked by `weave check` (this section). Running with it, the windows files, `.loct` strategies, trace events and
-> transcript memory follow. Design: [`docs/specs/03-loom-integration`](../../../docs/specs/03-loom-integration/DESIGN.md).
+> **Status: in progress.** An agent with a `context` block is compacted while it runs, using the window configured for its model, and your own strategies plug in with a `.loct`
+> file (this section). Trace events, run statistics and the transcript memory follow. Design: [`docs/specs/03-loom-integration`](../../../docs/specs/03-loom-integration/DESIGN.md).
 
 A long tool loop makes the prompt grow until the model's context window is full. An agent's `context` block says **how it keeps the prompt inside the window**. The strategies are
 those of ai-agent4j ([Context and Compaction](../../ai-agent4j/wiki/Context-and-Compaction.md)):
@@ -1449,8 +1449,48 @@ agent Researcher {
 - **The size of the window is not written in the script.** It belongs to the model and is configured once, outside, in a windows file.
 - `trigger` and `target` are percentages written with a sign (`80%`); `target` must be below `trigger`. `keep_recent` is a number of messages.
 - Options of a strategy are further keys of the block: `max_summary_tokens` for `summarize`, `max_chars` for `trim_tool_results`.
+- Defaults when a key is left out: `trigger: 80%`, `target: 50%`, `keep_recent: 4`, `max_compactions: 8`. A run that adds a lot between model calls can need a higher
+  `max_compactions`; once it is reached the agent stops compacting (and a provider's "prompt too long" error then fails the step as it always did).
 - `weave check` rejects an unknown strategy (with the nearest guess and the known names), a bad number, `target` at or above `trigger`, a window written in the script,
-  and a `summarizer` that is not a usable model. It warns when `summarize` has no `summarizer` (it falls back to `drop_oldest`). It calls no model.
+  and a `summarizer` that is not a usable model. It warns when `summarize` has no `summarizer` (it falls back to `drop_oldest`) and when no window is known for the agent's
+  model. It calls no model and runs none of your code.
+
+#### Where a model's window is configured
+
+The window belongs to the model, so it is written once, outside any script, in a **windows file**: one model per line, `model = window / reserve for the answer`.
+
+```text
+claude-sonnet-5-5 = 1000000 / 128000      # tokens
+my-finetune       = 32768 / 4096
+```
+
+Files are layered, highest priority first: those given with `--context-windows <file>` (repeatable; the last wins), `<script>.windows` beside the script, `~/.llm4j/context-windows`,
+then the catalogue that ships with ai-agent4j (the current Claude models). A host sets them in code with `executor.setContextWindows(...)`.
+
+- A routing agent is governed by the **smallest** window among its models, because whichever answers must fit.
+- A model that is in none of the files has no known window: the agent cannot compact by fill, but still recovers from the provider's "prompt too long" error, and `weave check`
+  warns once.
+
+#### Your own strategy: the `.loct` file
+
+A strategy of your own is mapped to a name in a **`.loct`** file, the way a tool is mapped in a `.loot` file, and then used by that name:
+
+```text
+# name = class
+keep_decisions = com.acme.KeepDecisionsCompactor
+```
+```loom
+agent Researcher { model: "claude-sonnet-5-5"  context { compact: chain(trim_tool_results, keep_decisions, drop_oldest) } }
+```
+
+- The class implements `ContextCompactor` (a public constructor without arguments), or `ContextCompactorProvider` when it wants the block's other keys as options (they are
+  handed to it as text) or a model client.
+- Give the file with `--loct strategies.loct` (repeatable), or name it `<script>.loct` and it is found beside the script. A host registers one in code with
+  `executor.registerCompactor("name", compactor)`.
+- A name may not be the same as a built-in strategy, and must be lower case with underscores. `weave check` reports a mapping that is wrong with its file and line, and warns
+  about a class that is not on the class path yet (build your project, or use `--classes`).
+- Your strategy is held to the same rules as the built-ins (it must not change its input, must keep a tool call with its results, and must not return more than it was
+  given). The agent discards a result that breaks them, and carries on with the conversation as it was.
 
 ### Agent Guards
 

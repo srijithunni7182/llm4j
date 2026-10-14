@@ -59,6 +59,8 @@ public class HarnessExecutor implements LoomEngine {
     private io.github.llm4j.loom.prompt.PromptCatalog promptCatalog;
     private final String sessionId = UUID.randomUUID().toString();
     private MemoryEngine memoryEngine = new TranscriptAccumulationEngine();
+    private io.github.llm4j.loom.context.WindowLayers contextWindows;
+    private io.github.llm4j.loom.context.CompactorRegistry compactors;
 
     // ── Durable runs ─────────────────────────────────────────────────────
     private RunJournal journal = RunJournal.inMemory();
@@ -701,6 +703,7 @@ public class HarnessExecutor implements LoomEngine {
                 .baseDir(baseDir)
                 .prompts(promptCatalog)
                 .check(this::checkAgentSettings)
+                .check(this::checkCompactors)
                 .check(this::checkToolsAndApprovals)
                 .check(this::checkKnowledge)
                 .check(this::checkProviders);
@@ -930,10 +933,80 @@ public class HarnessExecutor implements LoomEngine {
         }
     }
 
-    /** The names a {@code .loct} file maps to strategies (none until one is loaded). */
-    java.util.Set<String> customCompactorNames() {
-        return java.util.Set.of();
+    /**
+     * Where each model's context window comes from. The default is what the command line named (see {@link io.github.llm4j.loom.context.ContextFiles}),
+     * else the catalogue shipped with ai-agent4j.
+     */
+    public void setContextWindows(io.github.llm4j.loom.context.WindowLayers layers) {
+        this.contextWindows = layers;
     }
+
+    io.github.llm4j.loom.context.WindowLayers contextWindows() {
+        if (contextWindows == null) contextWindows = io.github.llm4j.loom.context.ContextFiles.current().windowLayers();
+        return contextWindows;
+    }
+
+    /** Your own compaction strategies by name (a {@code .loct} file, or code). Starts with the files the command line named. */
+    public io.github.llm4j.loom.context.CompactorRegistry compactors() {
+        if (compactors == null) {
+            compactors = new io.github.llm4j.loom.context.CompactorRegistry();
+            for (Path f : io.github.llm4j.loom.context.ContextFiles.current().loctFiles()) compactors.load(f);
+        }
+        return compactors;
+    }
+
+    /** Reads a {@code .loct} file into {@link #compactors()}; returns what is wrong with it. */
+    public java.util.List<io.github.llm4j.loom.context.CompactorRegistry.Problem> loadCompactors(Path file) {
+        return compactors().load(file);
+    }
+
+    /** Makes a strategy of yours available to scripts by this name. */
+    public void registerCompactor(String name, io.github.llm4j.context.ContextCompactor compactor) {
+        compactors().register(name, compactor);
+    }
+
+    /** The names a {@code .loct} file (or code) maps to strategies. */
+    java.util.Set<String> customCompactorNames() {
+        return compactors().names();
+    }
+
+    /** The problems of the mapped strategies, as check messages. */
+    private void checkCompactors(ScriptValidator.Checker c) {
+        java.util.List<io.github.llm4j.loom.context.CompactorRegistry.Problem> all = new java.util.ArrayList<>(compactors().loadProblems());
+        all.addAll(compactors().verify());
+        for (var p : all) {
+            if (p.error()) c.error(p.line(), "context strategy", p.toString());
+            else c.warn(p.line(), "context strategy", p.toString());
+        }
+        boolean used = script.getAgents().stream().anyMatch(a -> a.getContext() != null);
+        if (!used) return;
+        for (AgentDef a : script.getAgents()) {
+            AgentDef.ContextConfig cfg = a.getContext();
+            if (cfg == null || cfg.compactNames().equals(java.util.List.of("none"))) continue;
+            java.util.List<String> models = modelsOf(a);
+            if (ContextWiring.governing(contextWindows(), models).isEmpty()) {
+                c.warn(cfg.getLine(), "agent " + a.getName(), "no context window is known for " + String.join(", ", models)
+                        + ": compaction can only react to a provider's \"prompt too long\" error; add the model to a windows file (--context-windows, or a .windows file beside the script)");
+            }
+        }
+    }
+
+    /** Gives an agent with a {@code context} block its policy, its model's window and its compaction strategy. Agents without one are left as they were. */
+    private void applyContext(AgentDef agentDef, ReActAgent.Builder builder) {
+        AgentDef.ContextConfig cfg = agentDef.getContext();
+        if (cfg == null) return;
+        java.util.Optional<io.github.llm4j.loom.context.WindowLayers.Found> found = ContextWiring.governing(contextWindows(), modelsOf(agentDef));
+        builder.contextPolicy(ContextWiring.policy(cfg, found.map(io.github.llm4j.loom.context.WindowLayers.Found::window).orElse(null)));
+        io.github.llm4j.LLMClient summarizer = cfg.getSummarizer() == null ? null
+                : metered(clientFor(cfg.getSummarizer()), agentDef, cfg.getSummarizer());
+        try {
+            io.github.llm4j.context.ContextCompactor compactor = ContextWiring.compactor(cfg, compactors(), summarizer);
+            if (compactor != null) builder.compaction(compactor);
+        } catch (IllegalArgumentException e) {
+            throw new LoomLoadException(List.of(new ScriptValidator.Problem(cfg.getLine(), "agent " + agentDef.getName(), "context: " + e.getMessage(), ScriptValidator.Severity.ERROR)));
+        }
+    }
+
 
     private void checkGuard(ScriptValidator.Checker c, String who, AgentDef.GuardConfig g) {
         checkKeys(c, who, "guard", g, GUARD_KEYS);
@@ -1394,6 +1467,7 @@ public class HarnessExecutor implements LoomEngine {
                 agentBuilder.addTool(agentMemory.factTool(() -> sessions.getOrDefault(step.get(), agentName)));
             }
             agentBuilder.auditLogger(auditLogger).sessionId(sessionId);
+            applyContext(agentDef, agentBuilder);
             if (tracing()) agentBuilder.addListener(traceAdapter(agentDef.getName()));
 
             // MCP-sourced tools
