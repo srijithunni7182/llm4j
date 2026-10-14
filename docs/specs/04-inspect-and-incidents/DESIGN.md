@@ -26,6 +26,7 @@ loom-inspect turns Loom's trace into OpenTelemetry-shaped records, keeps a live 
   to the same incidents, shows its evidence, and is configurable per agent in the `.inspect` file and centrally.
 - G6. Old consumers and old traces keep working: unknown attributes are ignored, a trace without the new events behaves exactly as before.
 - G7. Nothing in the new records carries prompt, answer, argument or result text, at any detail level.
+- G8. **Everything phase 5's tools-centric view needs is computed here**, so the page only draws it: per tool a health state with its reason (`healthy`, `degraded`, `failing`, `unused`), recent and overall success rates, consecutive failures, last failure (category, time), last success, the failures by category, a per-agent breakdown, and a latency histogram. The same summaries are mergeable, so a server can roll them up **across runs and processes** and show tools that are failing everywhere.
 
 **Non-goals**
 
@@ -65,6 +66,22 @@ Per agent: `context` = `{used, window, usable, fraction, source, compactions, la
 New top-level `models`: `[{name, calls, failures{category:n}, promptTokens, completionTokens, retries, failovers, truncated, p50Ms, p95Ms, waitedMs}]`.
 Tools gain `{successes, successRate, softFailures, failures{category:n}, p50Ms, p95Ms}` beside the existing `calls`, `errors`, `inFlight`, `avgMillis` (kept). Percentiles are nearest-rank over a bounded
 deterministic reservoir (10,000), implemented in the core module (it must not depend on ai-agent4j or Loom). `summary()` gains `contextFraction` (the highest of any agent) and `incidents` count by severity (already there).
+
+## 4b. Tool health (for the tools-centric view of phase 5)
+
+`ToolSummary` (public, in the core module) is one tool's account in one run, and can be merged with another's. `RunState.toolSummaries()` returns them, `RunRegistry.toolRollup()` merges them across every run it knows
+(optionally one client's), and each row of `view().tools` carries a `health` map with the same fields. The **heuristics**, all deterministic and documented in one class (`ToolHealth`):
+
+| State | When |
+|---|---|
+| `unused` | no call of it has run yet |
+| `failing` | it has run at least 3 times and **never succeeded**; or its last `toolFailures` calls (default 3) in a row failed; or its success rate over the last 10 calls (at least 5) is below 40 % |
+| `degraded` | its success rate over the last 10 calls (at least 5) is below `tool_success_rate` (default 70 %); or it has run fewer than 5 times and its last call failed |
+| `healthy` | otherwise |
+
+Each state carries a one-line `reason` ("never succeeded in 6 calls", "last 4 calls failed: timeout", "3 of 10 recent calls succeeded"). Latencies are kept as a fixed-bucket histogram (bounds 10, 25, 50, 100, 250, 500, 1,000, 2,500, 5,000, 10,000, 30,000 ms and above) so that
+percentiles can be merged across runs; a merged percentile is the upper bound of the bucket it falls in. A merged summary's state is the worse of its parts, and is `failing` when the merged counts say it never succeeded, or `degraded` when the merged overall rate over at least 5 calls is below the threshold.
+The per-agent breakdown (calls, successes, failures per agent) shows whether one agent misuses a tool or the tool itself is broken.
 
 ## 5. Incidents
 
@@ -118,6 +135,10 @@ Researcher {
 | R15 | A soak of 5,000 model calls and 5,000 tool calls through one `RunState` stays within a fixed memory bound and keeps totals exact |
 | R16 | Incidents for the new kinds appear in Fabric's received runs without server changes (the server applies the same `RunState`) |
 | R17 | No new runtime dependency |
+| R18 | `ToolHealth` classifies per the table in §4b, with a reason, deterministically, at every boundary (2, 3, 4, 5 calls; 39 %, 40 %, 69 %, 70 %) |
+| R19 | Each row of `view().tools` has `health` with state, reason, recent and overall rates, consecutive failures, last failure and last success, failures by category and the per-agent breakdown; the old fields are unchanged |
+| R20 | `ToolSummary.merge` is associative and commutative on counts, categories, per-agent tallies and histograms; the merged state is the worst of the parts, and `failing` when the merged counts say it never succeeded |
+| R21 | `RunRegistry.toolRollup()` equals the merge of every run's summaries, can be limited to one client, and lists failing tools first, then degraded, then by calls |
 
 ## 8. Sub-phases
 
@@ -144,3 +165,4 @@ Researcher {
 
 - **4a.** As §3, with these refinements. The `chat` span is parented to the workflow root like the tool spans (not the agent span), so every kind of step shares one parent. The held tool span is only used once the trace has shown a `model_call` or `context` event, so a trace from an older runtime maps exactly as before and tool spans are not delayed. A tool call that did not run (blocked repeat, unknown tool, rejected, approval unavailable, budget) closes with status unset and `loom.tool.no_result`, not as a failure. `ServerLink` now sends one request per kind of record in a batch (see the loom-inspect design §11n).
 - **4b.** `RunState` keeps a `ModelStat` per answering model (a failed call without a model name is filed under `unknown`), extends the tool statistics (`successes`, `successRate`, `softFailures`, `failures`, `p50Ms`, `p95Ms`; the success rate counts only calls the runtime actually ran), and a `ContextStat` per agent (latest use, 60-sample series, compaction counts and the last compaction). A model span adds to the statistics only: it does not touch the steps table, the recent feed or the agents' token totals (those still come from the agent span), and `context` logs are not put in the recent feed (one per model call would drown it). An agent that has only reported context still appears in the agents list. Percentiles are a small package-private class (`Percentiles`). `RunState.finished` (the set of span ids already counted) still grows with every span, as before; the statistics structures are what is bounded.
+- **4c.** `Thresholds` and `InspectRules` grew the telemetry rules without breaking the old constructors; `InspectRules.Telemetry` is a nested nullable record so an old value reads as before. `Detectors` keeps per-agent and per-tool state (truncations per step, compactions per model-call index, a window of tool outcomes, spike streaks) and is fed by `RunState` from the records. The duration of a call is judged against the median of the **earlier** calls, before it is added. A new `ToolTally` (mutable, per tool, per run) feeds `ToolSummary` and `ToolHealth` (spec §4b), exposed as `RunState.toolSummaries()`, `view().tools[].health` and `RunRegistry.toolRollup(client)`. Fabric's central rules form (`FabricConfig`) reads and writes the new rules (`context_nearly_full {warn, high}` in percent, `truncated_answers`, `compaction_thrash {count, of_calls}`, `tool_success_rate {below, over_calls}`, `latency_spike`) and shows their defaults, so the page of phase 5 only has to draw them. The incident store keeps its rule that a severity only goes up while an incident is open.

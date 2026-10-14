@@ -152,7 +152,8 @@ class IncidentTest {
         toolEnd(4, "Competitor", "Example", "W/s0", false);
         assertThat(incidents().get(0)).containsEntry("state", "closed");
         toolEnd(5, "Competitor", "Example", "W/s0", true); // the streak starts again from one
-        assertThat(incidents().stream().filter(i -> "open".equals(i.get("state")))).isEmpty();
+        // (four failures in five calls is also, rightly, a collapsing success rate: that is another incident kind)
+        assertThat(incidents().stream().filter(i -> "open".equals(i.get("state")) && "FAILED".equals(i.get("kind")))).isEmpty();
     }
 
     @Test

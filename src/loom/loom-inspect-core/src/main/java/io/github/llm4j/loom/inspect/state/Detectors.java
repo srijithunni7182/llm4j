@@ -28,6 +28,12 @@ final class Detectors {
     private final Map<String, Integer> actions = new HashMap<>();
     private final Map<String, ArrayDeque<String>> outputs = new HashMap<>();
     private final Map<String, Integer> failStreak = new HashMap<>();
+    private final Map<String, Integer> truncations = new HashMap<>();
+    private final Map<String, Long> modelCalls = new HashMap<>();
+    private final Map<String, ArrayDeque<Long>> compactionAt = new HashMap<>();
+    private final Map<String, Integer> lowGain = new HashMap<>();
+    private final Map<String, ArrayDeque<String>> toolWindow = new HashMap<>();
+    private final Map<String, Integer> spikeStreak = new HashMap<>();
     private long pausedAt;
     private String pausedReason;
     private String pausedResumeAt;
@@ -52,6 +58,11 @@ final class Detectors {
         Thresholds base = all == null ? t : all.over(t);
         InspectRules r = agent == null ? null : rules.get(agent);
         return r == null ? base : r.over(base);
+    }
+
+    /** The thresholds in force for an agent (or, for null, for every agent): the defaults, the `*` block, then the agent's own block. */
+    Thresholds thresholdsFor(String agent) {
+        return of(agent);
     }
 
     /** A pause belongs to the run, not to an agent: the shortest limit any agent set decides when it becomes a warning. */
@@ -80,6 +91,8 @@ final class Detectors {
         if (agent == null) return;
         String where = StepPaths.normalize(step);
         Thresholds t = of(agent);
+        truncations.remove(agent + "|" + where);
+        incidents.close("truncated:" + agent + "|" + where, now, "the step ended");
         if (outputHash != null) {
             ArrayDeque<String> last = outputs.computeIfAbsent(agent + "|" + where, k -> new ArrayDeque<>());
             if (!last.isEmpty() && !last.peekLast().equals(outputHash)) last.clear(); // a different answer: the streak is over
@@ -140,6 +153,128 @@ final class Detectors {
             incidents.raise("failed:" + tool, Incidents.Kind.FAILED, n >= 2 * t.toolFailures() ? "high" : "warn", agent, StepPaths.normalize(step), now,
                     "The tool " + tool + " keeps failing",
                     List.of(Incidents.evidence("tool_failures", n, t.toolFailures(), tool + " failed " + n + " times in a row")));
+        }
+    }
+
+
+    // ------------------------------------------------------------------------------ context, truncation, compaction
+
+    /** An agent's context use after a model call. Only judged when the model's window is known (the fraction is given). */
+    void onContext(String agent, Double fraction, long used, Long usable, long compactions, long now) {
+        if (agent == null || fraction == null) return;
+        Thresholds t = of(agent);
+        String key = "context:" + agent;
+        long pct = Math.round(fraction * 100);
+        String detail = used + " of " + (usable == null ? "?" : usable) + " tokens (" + pct + "%) after " + compactions + " compaction" + (compactions == 1 ? "" : "s") + " so far";
+        if (fraction >= t.contextHigh()) {
+            incidents.raise(key, Incidents.Kind.CONTEXT, "high", agent, null, now, agent + "'s context is almost full",
+                    List.of(Incidents.evidence("context_nearly_full", fraction, t.contextHigh(), detail)));
+        } else if (fraction >= t.contextWarn()) {
+            incidents.raise(key, Incidents.Kind.CONTEXT, "warn", agent, null, now, agent + "'s context is nearly full",
+                    List.of(Incidents.evidence("context_nearly_full", fraction, t.contextWarn(), detail)));
+        } else {
+            incidents.close(key, now, "the context is below " + Math.round(t.contextWarn() * 100) + "% again");
+        }
+    }
+
+    /** A model call finished: counts it for the thrash window, and notes an answer cut off by the token limit. */
+    void onModelCall(String agent, String step, boolean truncated, long completionTokens, String finishReason, long now) {
+        if (agent == null) return;
+        modelCalls.merge(agent, 1L, Long::sum);
+        evaluateThrash(agent, now);
+        if (!truncated) return;
+        Thresholds t = of(agent);
+        String where = StepPaths.normalize(step);
+        String key = agent + "|" + where;
+        int n = truncations.merge(key, 1, Integer::sum);
+        if (n >= t.truncatedAnswers()) {
+            incidents.raise("truncated:" + key, Incidents.Kind.TRUNCATED, n >= 3 ? "high" : "warn", agent, where, now,
+                    agent + "'s answer was cut off by the token limit",
+                    List.of(Incidents.evidence("truncated_answers", (long) n, t.truncatedAnswers(),
+                            n + " model call" + (n == 1 ? "" : "s") + " in " + where + " ended at the token limit (" + completionTokens + " tokens"
+                                    + (finishReason == null ? "" : ", finish reason " + finishReason) + ")")));
+        }
+    }
+
+    /** A compaction was tried. */
+    void onCompaction(String agent, String outcome, long before, long after, long now) {
+        if (agent == null) return;
+        long calls = modelCalls.getOrDefault(agent, 0L);
+        if ("COMPACTED".equals(outcome)) compactionAt.computeIfAbsent(agent, k -> new ArrayDeque<>()).addLast(calls);
+        boolean little = "NO_GAIN".equals(outcome) || "COMPACTED".equals(outcome) && before > 0 && (before - after) < before * 0.10;
+        if ("COMPACTED".equals(outcome) || "NO_GAIN".equals(outcome)) {
+            if (little) lowGain.merge(agent, 1, Integer::sum);
+            else lowGain.remove(agent);
+        }
+        evaluateThrash(agent, now);
+    }
+
+    private static final int LOW_GAIN_RUN = 3;
+
+    private void evaluateThrash(String agent, long now) {
+        Thresholds t = of(agent);
+        long calls = modelCalls.getOrDefault(agent, 0L);
+        ArrayDeque<Long> at = compactionAt.get(agent);
+        long within = 0;
+        if (at != null) {
+            while (!at.isEmpty() && at.peekFirst() <= calls - Math.max(t.thrashOfCalls(), 1) - 50) at.removeFirst(); // keep it bounded
+            for (long idx : at) if (idx > calls - t.thrashOfCalls()) within++;
+        }
+        int streak = lowGain.getOrDefault(agent, 0);
+        String key = "thrash:" + agent;
+        if (within >= t.thrashCompactions()) {
+            incidents.raise(key, Incidents.Kind.THRASH, "warn", agent, null, now, agent + " keeps compacting its context",
+                    List.of(Incidents.evidence("compaction_thrash", within, t.thrashCompactions(), within + " compactions in the last " + t.thrashOfCalls() + " model calls")));
+        } else if (streak >= LOW_GAIN_RUN) {
+            incidents.raise(key, Incidents.Kind.THRASH, "warn", agent, null, now, agent + " compacts its context but gains little",
+                    List.of(Incidents.evidence("compaction_thrash", (long) streak, LOW_GAIN_RUN, streak + " compactions in a row freed little or nothing")));
+        } else {
+            incidents.close(key, now, "compaction settled down");
+        }
+    }
+
+    // ------------------------------------------------------------------------------ tool success rate and latency spikes
+
+    /** A tool call that ran: its outcome, for the success rate, and its duration against what that tool usually takes. */
+    void onToolCall(String agent, String tool, boolean ok, String category, long millis, long priorP50, long priorCount, long now) {
+        if (tool == null) return;
+        Thresholds t = of(agent);
+        ArrayDeque<String> w = toolWindow.computeIfAbsent(tool, k -> new ArrayDeque<>());
+        w.addLast(ok ? "" : category == null ? "other" : category);
+        while (w.size() > Math.max(t.toolRateWindow(), Thresholds.MIN_RATE_CALLS)) w.removeFirst();
+        String key = "toolrate:" + tool;
+        if (w.size() >= Thresholds.MIN_RATE_CALLS) {
+            long good = w.stream().filter(String::isEmpty).count();
+            double rate = good / (double) w.size();
+            if (rate < t.toolRate()) {
+                Map<String, Integer> byCategory = new java.util.TreeMap<>();
+                for (String c : w) if (!c.isEmpty()) byCategory.merge(c, 1, Integer::sum);
+                String top = byCategory.entrySet().stream().max(Map.Entry.comparingByValue()).map(e -> e.getKey() + " (" + e.getValue() + ")").orElse("none");
+                incidents.raise(key, Incidents.Kind.TOOL_RATE, rate < 0.4 ? "high" : "warn", agent, null, now, "The tool " + tool + " is failing often",
+                        List.of(Incidents.evidence("tool_success_rate", rate, t.toolRate(), good + " of " + w.size() + " recent calls to " + tool + " succeeded; most common failure: " + top)));
+            } else {
+                incidents.close(key, now, tool + " is succeeding again");
+            }
+        }
+        onDuration("tool", tool, agent, millis, priorP50, priorCount, now);
+    }
+
+    /** A model call's duration against what that model usually takes. */
+    void onModelDuration(String model, String agent, long millis, long priorP50, long priorCount, long now) {
+        onDuration("model", model, agent, millis, priorP50, priorCount, now);
+    }
+
+    private void onDuration(String kind, String name, String agent, long millis, long priorP50, long priorCount, long now) {
+        Thresholds t = of(agent);
+        String key = "spike:" + kind + ":" + name;
+        boolean spike = priorCount >= Thresholds.MIN_SPIKE_SAMPLES && millis > Thresholds.SPIKE_FLOOR_MILLIS && millis > t.spikeFactor() * priorP50;
+        if (spike) {
+            int streak = spikeStreak.merge(key, 1, Integer::sum);
+            incidents.raise(key, Incidents.Kind.SPIKE, streak >= 2 ? "warn" : "info", agent, null, now, "A " + kind + " call to " + name + " was unusually slow",
+                    List.of(Incidents.evidence("latency_spike", millis, Math.round(t.spikeFactor() * priorP50), "took " + millis + " ms; the usual (median) is " + priorP50 + " ms over " + priorCount + " calls")));
+        } else {
+            spikeStreak.remove(key);
+            incidents.close(key, now, "back to the usual speed");
         }
     }
 

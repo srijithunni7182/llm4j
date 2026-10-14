@@ -75,6 +75,28 @@ public final class RunRegistry {
         return Map.of("agents", List.copyOf(agents), "models", modelRows);
     }
 
+    /**
+     * Every tool of every run (or of one client's runs), merged into one account per tool and listed with the failing ones first, then the degraded, then
+     * by the number of calls: the data of a tools-centric view. The thresholds are the defaults with the central {@code *} block laid over them.
+     */
+    public List<ToolSummary> toolRollup(String client) {
+        InspectRules all = central.get("*");
+        Thresholds t = all == null ? Thresholds.defaults() : all.over(Thresholds.defaults());
+        Map<String, ToolSummary> merged = new java.util.TreeMap<>();
+        for (RunState r : runs.values()) {
+            if (client != null && !client.equals(r.client())) continue;
+            for (ToolSummary s : r.toolSummaries()) merged.merge(s.name(), s, (a, b) -> a.merge(b, t));
+        }
+        List<ToolSummary> out = new ArrayList<>(merged.values());
+        out.sort((a, b) -> {
+            int c = Integer.compare(ToolHealth.rank(b.state()), ToolHealth.rank(a.state()));
+            if (c != 0) return c;
+            c = Long.compare(b.calls(), a.calls());
+            return c != 0 ? c : a.name().compareTo(b.name());
+        });
+        return out;
+    }
+
     /** Gives a run the way to read its decision ladders. */
     public void setLadders(String client, String traceId, java.util.function.Supplier<List<Map<String, Object>>> ladders) {
         state(client, traceId).setLadders(ladders);

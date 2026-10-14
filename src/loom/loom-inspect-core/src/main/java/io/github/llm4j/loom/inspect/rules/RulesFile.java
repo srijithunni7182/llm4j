@@ -1,6 +1,7 @@
 package io.github.llm4j.loom.inspect.rules;
 
 import io.github.llm4j.loom.inspect.state.InspectRules;
+import io.github.llm4j.loom.inspect.state.Thresholds;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -36,7 +37,8 @@ public final class RulesFile {
     /** The name a block uses for "every agent". */
     public static final String ALL = "*";
 
-    public static final List<String> RULES = List.of("same_action", "same_output", "tool_failures", "no_progress", "ungrounded_figures", "paused_longer_than");
+    public static final List<String> RULES = List.of("same_action", "same_output", "tool_failures", "no_progress", "ungrounded_figures", "paused_longer_than",
+            "context_nearly_full", "truncated_answers", "compaction_thrash", "tool_success_rate", "latency_spike");
 
     /** Something wrong with the file or with how it meets the script. */
     public record Problem(int line, boolean error, String message) {
@@ -57,6 +59,11 @@ public final class RulesFile {
     private static final Pattern PROGRESS = Pattern.compile("no_progress\\s*:\\s*(\\d+)\\s+rounds\\s+on\\s+([A-Za-z_][A-Za-z0-9_.]*)");
     private static final Pattern UNGROUNDED = Pattern.compile("ungrounded_figures\\s*:\\s*(warn|high)\\s+at\\s+(\\d+)(?:\\s*,\\s*(warn|high)\\s+at\\s+(\\d+))?");
     private static final Pattern PAUSED = Pattern.compile("paused_longer_than\\s*:\\s*(\\d+)\\s*([smhd])");
+    private static final Pattern CONTEXT = Pattern.compile("context_nearly_full\\s*:\\s*(warn|high)\\s+at\\s+(\\d+)\\s*%(?:\\s*,\\s*(warn|high)\\s+at\\s+(\\d+)\\s*%)?");
+    private static final Pattern TRUNCATED = Pattern.compile("truncated_answers\\s*:\\s*(\\d+)\\s+times");
+    private static final Pattern THRASH = Pattern.compile("compaction_thrash\\s*:\\s*(\\d+)\\s+in\\s+(\\d+)\\s+calls");
+    private static final Pattern TOOL_RATE = Pattern.compile("tool_success_rate\\s*:\\s*below\\s+(\\d+)\\s*%\\s+over\\s+(\\d+)\\s+calls");
+    private static final Pattern SPIKE = Pattern.compile("latency_spike\\s*:\\s*(\\d+(?:\\.\\d+)?)\\s*x\\s+p50");
     private static final Pattern OPEN = Pattern.compile("^(\\*|[A-Za-z_][A-Za-z0-9_]*)\\s*\\{(.*)$");
 
     private RulesFile() { }
@@ -120,6 +127,9 @@ public final class RulesFile {
             if (v.warn != null && v.high != null && v.warn >= v.high) {
                 problems.add(new Problem(lines.get(b.getKey()), true, b.getKey() + ": ungrounded_figures warn at " + v.warn + " must be lower than high at " + v.high));
             }
+            if (v.ctxWarn != null && v.ctxHigh != null && v.ctxWarn >= v.ctxHigh) {
+                problems.add(new Problem(lines.get(b.getKey()), true, b.getKey() + ": context_nearly_full warn at " + Math.round(v.ctxWarn * 100) + "% must be lower than high at " + Math.round(v.ctxHigh * 100) + "%"));
+            }
             if (ALL.equals(b.getKey()) && v.progressVar != null) {
                 problems.add(new Problem(lines.get(b.getKey()), true, "no_progress names a variable that belongs to one agent's loop: put it in that agent's block, not in *"));
             }
@@ -150,12 +160,28 @@ public final class RulesFile {
             }
             if (r.pausedLongerThanSeconds() != null) lines.add("paused_longer_than: " + span(r.pausedLongerThanSeconds()));
             if (r.noProgressRounds() != null && r.noProgressVariable() != null) lines.add("no_progress: " + r.noProgressRounds() + " rounds on " + r.noProgressVariable());
+            InspectRules.Telemetry t = r.telemetry();
+            if (t != null) {
+                if (t.contextWarn() != null || t.contextHigh() != null) {
+                    String w = t.contextWarn() == null ? null : "warn at " + pct(t.contextWarn());
+                    String h = t.contextHigh() == null ? null : "high at " + pct(t.contextHigh());
+                    lines.add("context_nearly_full: " + (w == null ? h : h == null ? w : w + ", " + h));
+                }
+                if (t.truncatedAnswers() != null) lines.add("truncated_answers: " + t.truncatedAnswers() + " times");
+                if (t.thrashCompactions() != null && t.thrashOfCalls() != null) lines.add("compaction_thrash: " + t.thrashCompactions() + " in " + t.thrashOfCalls() + " calls");
+                if (t.toolRate() != null && t.toolRateWindow() != null) lines.add("tool_success_rate: below " + pct(t.toolRate()) + " over " + t.toolRateWindow() + " calls");
+                if (t.spikeFactor() != null) lines.add("latency_spike: " + (t.spikeFactor() == Math.rint(t.spikeFactor()) ? String.valueOf(t.spikeFactor().longValue()) : String.valueOf(t.spikeFactor())) + "x p50");
+            }
             if (lines.isEmpty()) continue;
             out.append('\n').append(name).append(" {\n");
             for (String l : lines) out.append("    ").append(l).append('\n');
             out.append("}\n");
         }
         return out.toString();
+    }
+
+    private static String pct(double fraction) {
+        return Math.round(fraction * 100) + "%";
     }
 
     /** Seconds as the largest whole unit: {@code 90s}, {@code 5m}, {@code 2h}, {@code 1d}. */
@@ -175,13 +201,27 @@ public final class RulesFile {
         Long paused;
         Integer rounds;
         String progressVar;
+        Double ctxWarn;
+        Double ctxHigh;
+        Integer truncated;
+        Integer thrashN;
+        Integer thrashOf;
+        Double toolRate;
+        Integer toolWindow;
+        Double spike;
 
         boolean empty() {
-            return sameAction == null && sameOutput == null && toolFailures == null && warn == null && high == null && paused == null && rounds == null;
+            return sameAction == null && sameOutput == null && toolFailures == null && warn == null && high == null && paused == null && rounds == null
+                    && telemetry().isEmpty();
+        }
+
+        InspectRules.Telemetry telemetry() {
+            return new InspectRules.Telemetry(ctxWarn, ctxHigh, truncated, thrashN, thrashOf, toolRate, toolWindow, spike);
         }
 
         InspectRules build() {
-            return new InspectRules(sameAction, sameOutput, toolFailures, warn, high, paused, rounds, progressVar);
+            InspectRules.Telemetry t = telemetry();
+            return new InspectRules(sameAction, sameOutput, toolFailures, warn, high, paused, rounds, progressVar, t.isEmpty() ? null : t);
         }
     }
 
@@ -215,6 +255,43 @@ public final class RulesFile {
                 case "h" -> 3600L;
                 default -> 86400L;
             };
+        } else if ((m = CONTEXT.matcher(rule)).matches()) {
+            percent(b, m.group(1), m.group(2), rule, line, problems, 1, 100);
+            if (m.group(3) != null) percent(b, m.group(3), m.group(4), rule, line, problems, 1, 100);
+        } else if ((m = TRUNCATED.matcher(rule)).matches()) {
+            Integer n = whole(m.group(1), rule, line, problems);
+            if (n != null) b.truncated = n;
+        } else if ((m = THRASH.matcher(rule)).matches()) {
+            Integer n = whole(m.group(1), rule, line, problems);
+            Integer of = whole(m.group(2), rule, line, problems);
+            if (n == null || of == null) return;
+            if (n > of) {
+                problems.add(new Problem(line, true, "'" + rule + "': there cannot be more compactions than calls. Write it as compaction_thrash: 4 in 10 calls"));
+                return;
+            }
+            b.thrashN = n;
+            b.thrashOf = of;
+        } else if ((m = TOOL_RATE.matcher(rule)).matches()) {
+            long pct = Long.parseLong(m.group(1));
+            Integer window = whole(m.group(2), rule, line, problems);
+            if (pct < 1 || pct > 99) {
+                problems.add(new Problem(line, true, "'" + rule + "': the success rate must be between 1% and 99%"));
+                return;
+            }
+            if (window == null) return;
+            if (window < Thresholds.MIN_RATE_CALLS) {
+                problems.add(new Problem(line, true, "'" + rule + "': a rate needs at least " + Thresholds.MIN_RATE_CALLS + " calls to mean anything"));
+                return;
+            }
+            b.toolRate = pct / 100.0;
+            b.toolWindow = window;
+        } else if ((m = SPIKE.matcher(rule)).matches()) {
+            double factor = Double.parseDouble(m.group(1));
+            if (factor <= 1.0 || factor > 1000) {
+                problems.add(new Problem(line, true, "'" + rule + "': a spike is a call slower than more than 1 times the usual (and at most 1000)"));
+                return;
+            }
+            b.spike = factor;
         } else {
             String word = rule.contains(":") ? rule.substring(0, rule.indexOf(':')).strip() : rule;
             if (RULES.contains(word)) {
@@ -223,6 +300,16 @@ public final class RulesFile {
                 problems.add(new Problem(line, true, "unknown rule '" + word + "'" + Nearest.hint(word, RULES) + ". The rules are: " + String.join(", ", RULES) + "."));
             }
         }
+    }
+
+    private static void percent(Builder b, String level, String digits, String rule, int line, List<Problem> problems, int min, int max) {
+        long n = Long.parseLong(digits);
+        if (n < min || n > max) {
+            problems.add(new Problem(line, true, "'" + rule + "': a percentage of the window must be between " + min + "% and " + max + "%"));
+            return;
+        }
+        if (level.equals("warn")) b.ctxWarn = n / 100.0;
+        else b.ctxHigh = n / 100.0;
     }
 
     private static void setLevel(Builder b, String level, Integer n, int line, List<Problem> problems) {
@@ -245,6 +332,11 @@ public final class RulesFile {
             case "no_progress" -> "Write it as no_progress: 3 rounds on review.score";
             case "ungrounded_figures" -> "Write it as ungrounded_figures: warn at 2, high at 4";
             case "paused_longer_than" -> "Write it as paused_longer_than: 90s (s, m, h or d)";
+            case "context_nearly_full" -> "Write it as context_nearly_full: warn at 85%, high at 95%";
+            case "truncated_answers" -> "Write it as truncated_answers: 1 times";
+            case "compaction_thrash" -> "Write it as compaction_thrash: 4 in 10 calls";
+            case "tool_success_rate" -> "Write it as tool_success_rate: below 70% over 10 calls";
+            case "latency_spike" -> "Write it as latency_spike: 5x p50";
             default -> "Write it as " + rule + ": 4 times";
         };
     }

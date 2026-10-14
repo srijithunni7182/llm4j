@@ -49,6 +49,7 @@ public final class RunState {
         long softFailures;
         final Map<String, Long> failures = new java.util.TreeMap<>();
         final Percentiles latency = new Percentiles();
+        ToolTally tally;
     }
 
     /** One model's calls, as the chat spans report them. */
@@ -174,7 +175,8 @@ public final class RunState {
                 top.ungroundedHigh() != null ? top.ungroundedHigh() : base.ungroundedHigh(),
                 top.pausedLongerThanSeconds() != null ? top.pausedLongerThanSeconds() : base.pausedLongerThanSeconds(),
                 top.noProgressRounds() != null ? top.noProgressRounds() : base.noProgressRounds(),
-                top.noProgressVariable() != null ? top.noProgressVariable() : base.noProgressVariable());
+                top.noProgressVariable() != null ? top.noProgressVariable() : base.noProgressVariable(),
+                top.telemetry() == null ? base.telemetry() : top.telemetry().over(base.telemetry()));
     }
 
     /** The agents this run has shown or declared, and the model each declared agent uses. */
@@ -408,6 +410,7 @@ public final class RunState {
         String name = s.text(Semconv.GEN_AI_TOOL_NAME);
         if (name == null) return;
         Tool t = tools.computeIfAbsent(name, k -> new Tool());
+        if (t.tally == null) t.tally = new ToolTally(name);
         t.calls++;
         long nanos = Math.max(0, s.endNanos() - s.startNanos());
         t.totalNanos += nanos;
@@ -420,7 +423,16 @@ public final class RunState {
         } else if (!noResult) {
             t.successes++;
         }
-        if (!noResult) t.latency.add(s.attr(Semconv.LOOM_TOOL_DURATION_MS) != null ? number(s.attr(Semconv.LOOM_TOOL_DURATION_MS)) : nanos / 1_000_000L);
+        if (!noResult) {
+            long millis = s.attr(Semconv.LOOM_TOOL_DURATION_MS) != null ? number(s.attr(Semconv.LOOM_TOOL_DURATION_MS)) : nanos / 1_000_000L;
+            boolean failed = s.statusCode() == SpanRec.STATUS_ERROR;
+            detectors.onToolCall(s.text(Semconv.GEN_AI_AGENT_NAME), name, !failed, s.text(Semconv.ERROR_TYPE), millis, t.latency.p50(), t.latency.count(), s.endNanos());
+            t.latency.add(millis);
+            t.tally.record(s.text(Semconv.GEN_AI_AGENT_NAME), !failed, s.text(Semconv.ERROR_TYPE), OtlpJson.instant(s.endNanos()).toString(), millis,
+                    Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_SOFT_FAILURE)));
+        } else {
+            t.tally.skipped();
+        }
     }
 
     private void modelEnded(SpanRec s) {
@@ -440,7 +452,12 @@ public final class RunState {
             String category = s.text(Semconv.ERROR_TYPE);
             m.failures.merge(category == null ? "other" : category, 1L, Long::sum);
         }
-        m.latency.add(s.attr(Semconv.LOOM_MODEL_DURATION_MS) != null ? number(s.attr(Semconv.LOOM_MODEL_DURATION_MS)) : Math.max(0, s.endNanos() - s.startNanos()) / 1_000_000L);
+        long millis = s.attr(Semconv.LOOM_MODEL_DURATION_MS) != null ? number(s.attr(Semconv.LOOM_MODEL_DURATION_MS)) : Math.max(0, s.endNanos() - s.startNanos()) / 1_000_000L;
+        String agent = s.text(Semconv.GEN_AI_AGENT_NAME);
+        detectors.onModelCall(agent, s.text(Semconv.LOOM_STEP), Boolean.TRUE.equals(s.attr(Semconv.LOOM_MODEL_TRUNCATED)), number(s.attr(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS)),
+                s.text(Semconv.GEN_AI_RESPONSE_FINISH_REASONS), s.endNanos());
+        if (s.statusCode() != SpanRec.STATUS_ERROR) detectors.onModelDuration(model == null ? "unknown" : model, agent, millis, m.latency.p50(), m.latency.count(), s.endNanos());
+        m.latency.add(millis);
     }
 
     private void contextSample(LogRec r) {
@@ -456,6 +473,7 @@ public final class RunState {
             c.series.addLast(c.fraction);
             while (c.series.size() > SERIES) c.series.removeFirst();
         }
+        detectors.onContext(agent, c.fraction, c.used, c.usable, c.compactions, r.timeNanos());
     }
 
     private void compactionSeen(LogRec r) {
@@ -472,6 +490,7 @@ public final class RunState {
         last.put("after", number(r.attr(Semconv.LOOM_COMPACTION_AFTER)));
         last.put("at", OtlpJson.instant(r.timeNanos()).toString());
         c.last = last;
+        detectors.onCompaction(agent, outcome, number(r.attr(Semconv.LOOM_COMPACTION_BEFORE)), number(r.attr(Semconv.LOOM_COMPACTION_AFTER)), r.timeNanos());
     }
 
     /** A tool call shares its step id with the agent that made it, so only agent, task and sleep spans speak for a step. */
@@ -618,6 +637,7 @@ public final class RunState {
             m.put("failures", new LinkedHashMap<>(t.failures));
             m.put("p50Ms", t.latency.p50());
             m.put("p95Ms", t.latency.p95());
+            if (t.tally != null) m.put("health", t.tally.snapshot(detectors.thresholdsFor(null)).toHealthMap());
             toolList.add(m);
         }
         v.put("tools", toolList);
@@ -677,6 +697,14 @@ public final class RunState {
         v.put("duplicates", duplicates);
         v.put("recent", new ArrayList<>(recent));
         return v;
+    }
+
+    /** Every tool this run has seen, with its health (see {@link ToolSummary}); for a server to merge across runs. */
+    public synchronized List<ToolSummary> toolSummaries() {
+        List<ToolSummary> out = new ArrayList<>();
+        Thresholds t = detectors.thresholdsFor(null);
+        for (Tool tool : tools.values()) if (tool.tally != null) out.add(tool.tally.snapshot(t));
+        return out;
     }
 
     private static Map<String, Object> contextView(ContextStat c) {

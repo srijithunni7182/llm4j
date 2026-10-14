@@ -24,6 +24,7 @@ Status: **draft for review**. Requirements `R1`…`R17` are in [DESIGN.md](DESIG
 | **Export** | `OtlpJson` output of the new records validated for shape and ordering | `OtlpNewRecordsTest` | R14 |
 | **End to end** | A scripted Loom run (Phase 3's `TestLoom` pattern) observed by loom-inspect embedded; then the same through Fabric's receiver; the view shows the new fields and incidents | `InspectContextEndToEndTest`, `FabricContextEndToEndTest` | R16 |
 | **Soak** | 5,000 model + 5,000 tool calls, memory bounded, totals exact | `RunStateSoakTest` | R15 |
+| **Tool health** | A table of tool histories → state and reason at every boundary; merging summaries (associative, commutative, histograms); a rollup across several runs and clients, ordering worst first | `ToolHealthTest`, `ToolSummaryMergeTest`, `ToolRollupTest` | R18–R21 |
 | **Build checks** | pom diff (no dependency), public API additions only | build | R17 |
 
 ## 3. Points to cover

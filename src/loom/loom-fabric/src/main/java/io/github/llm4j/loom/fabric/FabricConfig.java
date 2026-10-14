@@ -110,6 +110,11 @@ final class FabricConfig implements ServerConfig {
         d.put("tool_failures", t.toolFailures());
         d.put("ungrounded_figures", Map.of("warn", t.ungroundedWarn(), "high", t.ungroundedHigh()));
         d.put("paused_longer_than", t.pausedLongerThanSeconds());
+        d.put("context_nearly_full", Map.of("warn", (int) Math.round(t.contextWarn() * 100), "high", (int) Math.round(t.contextHigh() * 100)));
+        d.put("truncated_answers", t.truncatedAnswers());
+        d.put("compaction_thrash", Map.of("count", t.thrashCompactions(), "of_calls", t.thrashOfCalls()));
+        d.put("tool_success_rate", Map.of("below", (int) Math.round(t.toolRate() * 100), "over_calls", t.toolRateWindow()));
+        d.put("latency_spike", t.spikeFactor());
         return d;
     }
 
@@ -128,6 +133,19 @@ final class FabricConfig implements ServerConfig {
             }
             if (r.pausedLongerThanSeconds() != null) m.put("paused_longer_than", r.pausedLongerThanSeconds());
             if (r.noProgressRounds() != null) m.put("no_progress", Map.of("rounds", r.noProgressRounds(), "variable", String.valueOf(r.noProgressVariable())));
+            InspectRules.Telemetry t = r.telemetry();
+            if (t != null) {
+                if (t.contextWarn() != null || t.contextHigh() != null) {
+                    Map<String, Object> c = new LinkedHashMap<>();
+                    if (t.contextWarn() != null) c.put("warn", (int) Math.round(t.contextWarn() * 100));
+                    if (t.contextHigh() != null) c.put("high", (int) Math.round(t.contextHigh() * 100));
+                    m.put("context_nearly_full", c);
+                }
+                if (t.truncatedAnswers() != null) m.put("truncated_answers", t.truncatedAnswers());
+                if (t.thrashCompactions() != null && t.thrashOfCalls() != null) m.put("compaction_thrash", Map.of("count", t.thrashCompactions(), "of_calls", t.thrashOfCalls()));
+                if (t.toolRate() != null && t.toolRateWindow() != null) m.put("tool_success_rate", Map.of("below", (int) Math.round(t.toolRate() * 100), "over_calls", t.toolRateWindow()));
+                if (t.spikeFactor() != null) m.put("latency_spike", t.spikeFactor());
+            }
             out.put(agent, m);
         });
         return out;
@@ -155,11 +173,21 @@ final class FabricConfig implements ServerConfig {
             JsonNode r = e.getValue();
             JsonNode u = r.path("ungrounded_figures");
             JsonNode np = r.path("no_progress");
+            JsonNode cx = r.path("context_nearly_full");
+            JsonNode th = r.path("compaction_thrash");
+            JsonNode tr = r.path("tool_success_rate");
+            InspectRules.Telemetry telemetry = new InspectRules.Telemetry(percent(cx, "warn"), percent(cx, "high"), whole(r, "truncated_answers"), whole(th, "count"),
+                    whole(th, "of_calls"), percent(tr, "below"), whole(tr, "over_calls"), r.hasNonNull("latency_spike") ? r.get("latency_spike").asDouble() : null);
             out.put(e.getKey(), new InspectRules(whole(r, "same_action"), whole(r, "same_output"), whole(r, "tool_failures"), whole(u, "warn"), whole(u, "high"),
                     r.hasNonNull("paused_longer_than") ? r.get("paused_longer_than").asLong() : null, whole(np, "rounds"),
-                    np.hasNonNull("variable") && !np.get("variable").asText().isBlank() ? np.get("variable").asText().strip() : null));
+                    np.hasNonNull("variable") && !np.get("variable").asText().isBlank() ? np.get("variable").asText().strip() : null,
+                    telemetry.isEmpty() ? null : telemetry));
         });
         return out;
+    }
+
+    private static Double percent(JsonNode n, String key) {
+        return n.hasNonNull(key) ? n.get(key).asDouble() / 100.0 : null;
     }
 
     private static Integer whole(JsonNode n, String key) {
