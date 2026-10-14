@@ -318,3 +318,14 @@ Strategy names used for discovery are lower snake case: `none`, `drop_oldest`, `
   The model's use is a `CompactionUsage` on the result; a `chain` adds up its stages' usage (a bug found by the documentation sample: it had been
   dropped); `ContextManager.Prepared.summarizerUsage()` carries it to the agent, which adds it to its `Usage` in both loops. A summary's spend is
   reported even when the manager then discards the result.
+- **1e.** `ContextOverflowClassifier` reads the error text (status 400, 413, 422, or none for an error found inside a stream) against a list of phrases plus
+  Google's two-part wording, in one place, and is called at the four places the provider layer builds an `InvalidRequestException` from provider text
+  (`HttpClientWrapper.failure`, Google's body and stream errors, Anthropic's stream error). The list was written from the providers' documented
+  wording and is checked against bodies that must match and bodies that must not (an output limit, a bad parameter, a quota, a rate limit); confirming
+  it against live responses is a manual check owed (VERIFICATION §4.1). `ContextManager.recoverFromOverflow` aims at **half of the smaller of the usual
+  target and the current size** (the first draft used only the window's target, which does nothing when the window is large), is subject to the same
+  guards, and reports reason `OVERFLOW`. **R16 as built:** the pre-call refusal fires only when the prompt is **more than 25 % over the usable window** after
+  any compaction, because the sizes are estimates and a wrongly refused run is worse than a rejected call the recovery can handle; a window the developer
+  supplies is believed. The manager is now also created when only a window is set, so that refusal works without a strategy or a listener (a deliberate
+  consequence of decision 1: an agent with a window and nothing else fails early instead of sending a doomed call). Existing tests that let a prompt grow
+  far past its window were shortened accordingly.

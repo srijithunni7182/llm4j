@@ -22,6 +22,10 @@ import java.util.Objects;
 public final class ContextManager {
 
     private static final int MAX_FUTILE_IN_A_ROW = 2;
+    /** Estimates are rough, so a prompt is refused before the provider is asked only when it is this much over the window. */
+    private static final double REFUSE_ABOVE = 1.25;
+    /** After an overflow, aim for this share of the usual target. */
+    private static final double OVERFLOW_TARGET_SHARE = 0.5;
 
     private final ContextPolicy policy;
     private final ContextCompactor compactor;
@@ -76,10 +80,43 @@ public final class ContextManager {
         long callOverhead = Math.max(0, overheadTokens);
         ContextUsage usage = measure(messages, callOverhead);
         events.onUsage(usage);
-        if (compactor == null || policy.window() == null) return new Prepared(messages, usage, false);
-        long trigger = policy.triggerTokens().orElseThrow();
-        if (usage.used() <= trigger) return new Prepared(messages, usage, false);
-        return attempt(messages, iteration, usage, callOverhead);
+        Prepared prepared;
+        if (compactor == null || policy.window() == null || usage.used() <= policy.triggerTokens().orElseThrow()) {
+            prepared = new Prepared(messages, usage, false);
+        } else {
+            long target = Math.max(1, policy.targetTokens().orElseThrow() - callOverhead);
+            prepared = attempt(messages, iteration, usage, callOverhead, target, CompactionRequest.Reason.THRESHOLD);
+        }
+        refuseIfHopeless(prepared, callOverhead);
+        return prepared;
+    }
+
+    /**
+     * A provider has rejected the prompt as too long: compact harder than the threshold would (half the usual target, or half the current
+     * size when that is smaller or the window is not known) so that the call can be tried again. Subject to the same guards as any compaction. Returns the
+     * conversation unchanged when there is no strategy, the policy says to fail, or nothing could be removed; the caller then lets the
+     * provider's error stand.
+     */
+    public Prepared recoverFromOverflow(List<Message> messages, int iteration, long overheadTokens) {
+        long callOverhead = Math.max(0, overheadTokens);
+        ContextUsage usage = measure(messages, callOverhead);
+        if (compactor == null || policy.onOverflow() == ContextPolicy.OnOverflow.FAIL) return new Prepared(messages, usage, false);
+        // half of the usual target, but never more than half of what was just rejected: the provider has said our size is too big
+        long base = policy.window() != null ? Math.min(policy.targetTokens().orElseThrow(), usage.used()) : usage.used();
+        long target = Math.max(1, (long) (base * OVERFLOW_TARGET_SHARE) - callOverhead);
+        return attempt(messages, iteration, usage, callOverhead, target, CompactionRequest.Reason.OVERFLOW);
+    }
+
+    /** Fails before the provider is asked when even the conversation we would send is well over the window. */
+    private void refuseIfHopeless(Prepared prepared, long callOverhead) {
+        ContextWindow window = policy.window();
+        if (window == null) return;
+        long used = prepared.changed() ? callOverhead + sizer.sizeOf(prepared.messages()) : prepared.usage().used();
+        if (used <= window.usableInput() * REFUSE_ABOVE) return;
+        throw new io.github.llm4j.exception.ContextOverflowException("the prompt (about " + used + " tokens) cannot fit the model's context window ("
+                + window.tokens() + " tokens, " + window.usableInput() + " usable for the prompt)"
+                + (compactor == null ? " and no compaction strategy is set" : " even after compaction")
+                + "; shorten the task, the history or the tool results, or use a model with a larger window");
     }
 
     private ContextUsage measure(List<Message> messages, long overhead) {
@@ -90,10 +127,9 @@ public final class ContextManager {
         return new ContextUsage(overhead + sizer.sizeOf(messages), policy.window(), ContextUsage.Source.ESTIMATED);
     }
 
-    private Prepared attempt(List<Message> messages, int iteration, ContextUsage before, long overhead) {
-        long target = Math.max(1, policy.targetTokens().orElseThrow() - overhead);
+    private Prepared attempt(List<Message> messages, int iteration, ContextUsage before, long overhead, long target, CompactionRequest.Reason reason) {
         CompactionRequest request = CompactionRequest.builder(target).window(policy.window()).keepRecent(policy.keepRecent()).pinned(policy.pinned())
-                .estimator(sizer.estimator()).reason(CompactionRequest.Reason.THRESHOLD).build();
+                .estimator(sizer.estimator()).reason(reason).build();
 
         if (compactions >= policy.maxCompactions()) return stop(messages, iteration, before, request, "the limit of " + policy.maxCompactions() + " compactions was reached");
         if (futile >= MAX_FUTILE_IN_A_ROW) return stop(messages, iteration, before, request, "no gain " + MAX_FUTILE_IN_A_ROW + " times in a row");

@@ -42,7 +42,7 @@ conformance suite runs against each provider.
 | Situation | Exception (all are `LLMException`s) |
 |---|---|
 | Bad or missing key | `AuthenticationException` (Gemini's 400 "API key not valid" included) |
-| Bad request (400, 404, 413, 422) | `InvalidRequestException`, with the provider's own message |
+| Bad request (400, 404, 413, 422) | `InvalidRequestException`, with the provider's own message. When the error says the prompt is longer than the model's context window it is a `ContextOverflowException` (a subtype), see [Context and Compaction](Context-and-Compaction.md#12-when-the-prompt-is-too-long) |
 | Rate limited, beyond the inline wait | `RateLimitException`, with `RateLimitInfo` (when it resets) |
 | Temporarily unavailable (500, 502, 503, 504, Anthropic's 529), after retries | `ServiceUnavailableException` |
 | Refused for safety | `ContentBlockedException`, naming the provider's category when it gives one |

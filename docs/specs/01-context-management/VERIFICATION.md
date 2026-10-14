@@ -39,9 +39,9 @@ Filled in as tests are written; a row without a test blocks the exit. (Class nam
 | R11 | `ContextManagerTest#aCompactorThatThrowsDoesNotFailTheRun`, `#aCompactorThatKeepsFailingIsGivenUpOn`; `ReActAgentCompactionNativeTest#aCompactorThatThrowsDoesNotFailTheRun` | ✅ 1b |
 | R12 | `SummarizeFallbackTest` (failing call, other failure, empty, no content, too long, budget refusal, rate limit), `SummarizeTest#doesNotAskForASummaryLongerThanWhatItReplaces` | ✅ 1d |
 | R13 | `SummarizeTest#theModelsOwnCostIsReported`, `SummarizeAgentTest` (native and text), `ChainTest#whatTheStagesSpentOnModelCallsIsAddedUp` | ✅ 1d |
-| R14 | `ContextOverflowClassifierTest`, per-provider tests | ☐ |
-| R15 | `ReActAgentCompactionNativeTest#reactiveRetry` and `#secondOverflowFails` | ☐ |
-| R16 | `ContextManagerTest#neverAboveWindow`, `…NativeTest#preCallCheck` | ☐ |
+| R14 | `ContextOverflowClassifierTest` (9 matching bodies, 13 that must not match, statuses), `ContextOverflowExceptionTest`, `ProviderContract#c15_*` for Anthropic, Google, Ollama and Sarvam | ✅ 1e (bodies are the providers' documented wording; live confirmation owed, §4.1) |
+| R15 | `ContextOverflowRecoveryTest` (native, text, second overflow, no strategy, `FAIL`, nothing to shrink, summary usage), `ContextManagerTest#afterAnOverflow*` and the recovery guards | ✅ 1e |
+| R16 | `ContextManagerTest#aPromptFarOverTheWindow*`, `#aPromptThatEvenCompactionCannot*`, `#anEstimateALittleOverTheWindowIsNotTreatedAsCertain`; `ContextOverflowRecoveryTest#aPromptFarOverTheWindowIsRefused*` (both loops, zero provider calls) | ✅ 1e (margin of 25 %, see DESIGN §10) |
 | R17 | `ScratchpadTest#rendersByteForByteWhatTheStringBuilderDid` (and 300 random sequences against a copy of the old code), `RequestStabilityTest#text*` | ✅ 1c |
 | R18 | `ReActAgentCompactionTextTest#theRunReachesTheSameAnswerWithAndWithoutCompaction` and the rest of that class | ✅ 1c |
 | R19 | `ContextWindowsTest` | ✅ 1a |
@@ -68,7 +68,7 @@ Filled in as tests are written; a row without a test blocks the exit. (Class nam
 
 These cannot run in CI. Each is done once per release candidate and recorded.
 
-1. **Live overflow.** With a real provider key, send a prompt larger than the model's window and capture the error body; add it to the classifier fixtures if it is new. Repeat for each provider the repo supports.
+1. **Live overflow (§4.1).** The bodies in `ContextOverflowClassifierTest` and the `overflowMessage()` of each provider contract test are the providers' documented wording, **not yet recorded from live responses** (no keys in the build environment). With a real key per provider, send a prompt larger than the model's window, capture the error body, and add it to the fixtures if the wording differs. Repeat for each provider the repo supports.
 2. **Live compaction.** Run the example agent against a real model with a small `contextWindow` so compaction triggers; confirm the run finishes, the events look right, and read the summary for sense.
 3. **Summary review.** Read three real summaries; confirm identifiers, numbers and open questions survived. Record any prompt change this causes.
 4. **Estimator sanity.** Compare estimated against reported prompt tokens over a real run; record the error. If it is consistently off by more than 25 %, note it in the docs.
@@ -107,6 +107,7 @@ Filled in when the phase is verified.
 | 2026-10-14 | 1b | Pass | Golden requests recorded from the unmodified agent first (4 scenarios), unchanged since. 17 `ContextManager` tests, 16 native-loop tests, soak (300 steps, window never exceeded), concurrency (48 agents). Whole module 1,586 tests green; new package line 98.7 % / branch 89.6 %. One fix found by review: the gain check now uses the manager's own measurement. Dependent modules (Loom, loom-inspect-core, loom-inspect, loom-fabric) compile with their tests against the change; `eval4j-report` could not be built offline here (unrelated missing local dependencies), so that module is still to be checked in CI |
 | 2026-10-14 | 1c | Pass | Text-protocol `Scratchpad` replaces the string; byte-identical to the old code on 300 random sequences and on every golden request. 13 text-loop tests, 12 scratchpad tests, a 300-step text soak. Whole module 1,616 tests green; new package line 98.7 % / branch 89.6 %. Found while writing tests: the agent treats a reply with no protocol at all as the final answer, so a "no valid action" turn needs a fenced JSON block with only a thought |
 | 2026-10-14 | 1d | Pass | Summariser prompt and every fallback tested first. 12 strategy tests, 7 fallback tests, 5 agent tests (usage added to `AgentResult.Usage` in both loops). Whole module 1,746 tests green; new package line 98.9 % / branch 89.6 %. Bug found by the documentation sample and fixed: a `chain` lost its stages' model usage |
+| 2026-10-14 | 1e | Pass | Classifier, exception and the four providers' contract checks written first. 18 classifier/exception tests, 12 manager tests for recovery and refusal, 10 agent recovery tests (both loops), 8 provider contract checks. Whole module 1,783 tests green; new package line 98.9 % / branch 89.1 %. Two design corrections found by the tests: the recovery target must be relative to what was rejected, and refusing a prompt needs a margin because sizes are estimates |
 
 ### Documentation record (per sub-phase)
 
@@ -116,7 +117,7 @@ Filled in when the phase is verified.
 | 1b | ✅ status box rewritten; sections 9 to 11 added (use in an agent, events, guards) | ✅ 2 new samples (`agent`, `listener`), 10 checked against the page | ✅ builder methods, `AgentEventListener`, `ContextManager`, events | ✅ README line, wiki Home, `llms.txt` | deferred to the end of the whole work by decision | ✅ DESIGN notes, traceability, results |
 | 1c | ✅ status box (both loops), a text-protocol subsection of section 9 with a real prompt after compaction, "what is coming" updated | ✅ the prompt shown on the page is generated by a real run and checked against the page (`thePageShowsWhatTheTextProtocolModelReads`) | ✅ builder note, `Scratchpad` | ✅ README line, wiki Home, `llms.txt` | deferred to the end by decision | ✅ DESIGN "as built" note, traceability, results |
 | 1d | ✅ `summarize` in the built-ins table, a Summarising subsection (what it asks, framing, fallback, cost, no-call case), options table, guards row, "what is coming" | ✅ new `summarize` sample (11 checked against the page) | ✅ `summarize` factories, `CompactionUsage.sum` | ✅ README line, `llms.txt` | deferred to the end by decision | ✅ DESIGN section 10, traceability, results |
-| 1e | | | | | | |
+| 1e | ✅ section 12 (provider rejections, recovery, early refusal, the 25 % margin, a sample), status box, guards row, "what is coming"; the providers page and the exceptions table in Advanced Configuration | ✅ new `overflow` sample (12 checked against the page) | ✅ `ContextOverflowException`, classifier, builder note on the window | ✅ README line, `llms.txt` | deferred to the end by decision | ✅ DESIGN section 10, traceability, results |
 | 1f | | | | | | |
 | 1g | | | | | | |
 
@@ -125,4 +126,4 @@ Filled in when the phase is verified.
 Root `README.md`, `wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`: mention context management and compaction in ai-agent4j; once phases 3 to 5 land, the
 observability pages gain context gauges and compaction events. Collect here as the work goes on:
 
-- 1a to 1c: a context and compaction capability in ai-agent4j (strategies including model-written summaries, policy, window catalogue, automatic compaction in both agent loops).
+- 1a to 1e: a context and compaction capability in ai-agent4j (strategies including model-written summaries, policy, window catalogue, automatic compaction in both agent loops).

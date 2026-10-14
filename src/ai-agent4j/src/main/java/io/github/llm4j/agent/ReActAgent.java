@@ -262,7 +262,7 @@ public class ReActAgent {
 
     /** A manager for one run, or null when nothing about context was asked for (then the loop behaves exactly as it always has). */
     private ContextManager newContextManager(List<ToolSpec> specs) {
-        if (compactor == null && listeners.isEmpty()) return null;
+        if (compactor == null && listeners.isEmpty() && contextPolicy.window() == null) return null;
         TokenEstimator estimator = tokenEstimator != null ? tokenEstimator : io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE;
         long overhead = specs.isEmpty() ? 0 : estimator.prompt(LLMRequest.builder().messages(List.of(Message.user(""))).tools(specs).build());
         return new ContextManager(contextPolicy, compactor, estimator, overhead, new ContextEvents() {
@@ -361,7 +361,28 @@ public class ReActAgent {
                             .build();
             LLMResponse response;
             try {
-                response = llmClient.chat(request);
+                try {
+                    response = llmClient.chat(request);
+                } catch (io.github.llm4j.exception.ContextOverflowException overflow) {
+                    // the provider says the prompt is too long: compact harder, once, and try again once
+                    TokenEstimator estimator = tokenEstimator != null ? tokenEstimator : io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE;
+                    long overhead = contextManager == null ? 0
+                            : estimator.prompt(LLMRequest.builder().addSystemMessage(systemPrompt).addUserMessage(context).build());
+                    ContextManager.Prepared again = contextManager == null ? null : contextManager.recoverFromOverflow(scratchpad.messages(), i, overhead);
+                    if (again == null || !again.changed()) throw overflow;
+                    scratchpad.replace(again.messages());
+                    io.github.llm4j.context.CompactionUsage spent = again.summarizerUsage();
+                    if (spent != null) {
+                        llmCallCount += spent.calls();
+                        totalPromptTokens += (int) spent.promptTokens();
+                        totalCompletionTokens += (int) spent.completionTokens();
+                        totalTokens += (int) (spent.promptTokens() + spent.completionTokens());
+                        if (spent.cost() != null) totalCost = totalCost == null ? spent.cost() : totalCost.add(spent.cost());
+                    }
+                    sent = scratchpad.size();
+                    request = LLMRequest.builder().addSystemMessage(systemPrompt).addUserMessage(context + scratchpad.render()).temperature(temperature).build();
+                    response = llmClient.chat(request);
+                }
             } catch (io.github.llm4j.exception.RateLimitException limited) {
                 // Too long to wait inline (the HTTP layer already waited out short limits): hand the
                 // reset time to the caller instead of retrying or answering half-way.
@@ -602,7 +623,18 @@ public class ReActAgent {
             LLMRequest request = LLMRequest.builder().messages(conversation).tools(specs).temperature(temperature).build();
             LLMResponse response;
             try {
-                response = llmClient.chat(request);
+                try {
+                    response = llmClient.chat(request);
+                } catch (io.github.llm4j.exception.ContextOverflowException overflow) {
+                    // the provider says the prompt is too long: compact harder, once, and try again once
+                    ContextManager.Prepared again = contextManager == null ? null : contextManager.recoverFromOverflow(conversation, i, 0);
+                    if (again == null || !again.changed()) throw overflow;
+                    tally.add(again.summarizerUsage());
+                    conversation = new ArrayList<>(again.messages());
+                    sent = conversation.size();
+                    request = LLMRequest.builder().messages(conversation).tools(specs).temperature(temperature).build();
+                    response = llmClient.chat(request);
+                }
             } catch (io.github.llm4j.exception.RateLimitException limited) {
                 throw new io.github.llm4j.ratelimit.RateLimited(
                         limited.infoOrEstimate(java.time.Instant.now(), java.time.Duration.ofSeconds(60)),
@@ -1248,7 +1280,11 @@ public class ReActAgent {
             return this;
         }
 
-        /** The model's context window in tokens; shorthand for a policy with this window. A window in the policy wins over this. */
+        /**
+         * The model's context window in tokens; shorthand for a policy with this window. A window in the policy wins over this. With a window the
+         * agent refuses, with a {@link io.github.llm4j.exception.ContextOverflowException} and without calling the model, a prompt that is still
+         * more than 25 % over it after any compaction.
+         */
         public Builder contextWindow(int tokens) {
             this.contextWindow = tokens;
             return this;

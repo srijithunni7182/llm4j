@@ -7,8 +7,8 @@ the parts you choose: **how much room is left**, **what to do about it**, and **
 > **Status: in progress.** The strategies, the window catalogue and the policy work on their own (sections 2 to 8), and an agent now
 > measures its context before every model call, reports it to its listeners, and compacts automatically before the limit, **with native
 > tool calling and with the text protocol** (sections 9 to 11), and a `summarize` strategy can have a model write notes on the oldest steps
-> (section 3). Still to come, in this order: recovery from a provider's "prompt too long" error and a token window for
-> `ConversationHistory` (section 13). The design is in
+> (section 3). When a provider rejects a prompt as too long, the agent compacts harder and tries once more (section 12). Still to come, in
+> this order: a token window for `ConversationHistory` and models seeded in the window catalogue (section 14). The design is in
 > [`docs/specs/01-context-management`](../../../docs/specs/01-context-management/DESIGN.md).
 
 Everything here is opt-in and changes nothing for code that does not use it.
@@ -28,8 +28,9 @@ Everything here is opt-in and changes nothing for code that does not use it.
 9. [Use it in an agent](#9-use-it-in-an-agent)
 10. [Watch what it does](#10-watch-what-it-does)
 11. [The guards](#11-the-guards)
-12. [Guarantees](#12-guarantees)
-13. [What is coming](#13-what-is-coming)
+12. [When the prompt is too long](#12-when-the-prompt-is-too-long)
+13. [Guarantees](#13-guarantees)
+14. [What is coming](#14-what-is-coming)
 
 ---
 
@@ -332,11 +333,45 @@ Compaction must never make a run worse. The agent enforces, whatever strategy yo
 | Gain check | A result that is not at least `minGain` (10 %) smaller, **measured by the agent, not taken from the strategy's own numbers**, is discarded and the conversation is used as it was |
 | Repeat limit | After `maxCompactions` (8) in one run, or two attempts in a row that gained nothing or failed, compaction stops for the rest of the run, with one `onCompaction` notice saying why. Usage keeps being reported |
 | Fail open | A strategy that throws never fails the run: the failure is reported and the conversation is used as it was |
+| Overflow | A prompt a provider rejects as too long is compacted harder and retried once; one that cannot fit is refused early (section 12) |
 | Summaries | A summary that fails, is refused or is no smaller falls back to dropping the oldest part (section 3); the model's own spend is counted |
 
 One manager serves one run and holds nothing shared, so many agents can use the same strategy instance at once.
 
-## 12. Guarantees
+## 12. When the prompt is too long
+
+Two things can go wrong however good the strategy is, and both end in a `ContextOverflowException` (a subtype of `InvalidRequestException`, so
+existing handlers for bad requests still catch it).
+
+**A provider rejects the prompt as too long.** The provider layer reads the error text, recognises the wording of Anthropic, Google, OpenAI-style
+servers (Sarvam and compatible) and Ollama and llama.cpp servers, and raises `ContextOverflowException` with the status and body kept. Any other
+bad request stays a plain `InvalidRequestException`, so a bad parameter or an output limit is never mistaken for it. A provider whose
+wording is not known is not recognised and keeps today's behaviour; a provider you write yourself can throw the exception when it sees the
+signal.
+
+If the agent has a compaction strategy and the policy says `RETRY_ONCE` (the default), it then compacts **harder than usual** (to half of the
+usual target, or half of what was just rejected if that is smaller), reports an `onCompaction` event with reason `OVERFLOW`, and sends the
+call **once more**. A second rejection, a strategy that cannot make the conversation smaller, `OnOverflow.FAIL`, or no strategy at all: the
+provider's exception reaches you unchanged.
+
+**The prompt is hopeless before the provider is asked.** When the window is known and the prompt, after any compaction, is still more than **25 % over**
+it, the agent raises `ContextOverflowException` itself without making the call (the message says how big and what to do). The margin is
+there because the sizes are estimates: a prompt a little over the window is sent, and the provider has the last word (and the recovery above
+applies). A window you supply is believed, so keep your catalogue file right: one that says 8,000 for a model that really takes 200,000 would stop
+runs early.
+
+```java
+try {
+    outcome = agent.run(question).getFinalAnswer();
+} catch (io.github.llm4j.exception.ContextOverflowException e) {
+    // the prompt could not be made to fit the model's window, even after compaction and one retry
+    outcome = "too long: " + e.getMessage();
+}
+```
+
+The shorthand `contextWindow(...)` without a strategy gives exactly this: no compaction, but a clear, early failure instead of a doomed call.
+
+## 13. Guarantees
 
 - The conversation you pass in is never modified.
 - Protected content and tool-call pairs are never broken; the result is never larger than the input.
@@ -346,13 +381,12 @@ One manager serves one run and holds nothing shared, so many agents can use the 
 - Every built-in is checked by the same contract test (a few thousand generated conversations, with several recent-window sizes),
   and so is the class in section 5.
 
-## 13. What is coming
+## 14. What is coming
 
 In this order, each with its own tests and documentation:
 
-1. Recovery from a provider's **"prompt too long"** error: compact harder once and retry once, and refuse a call that cannot fit.
-2. A token-based window for `ConversationHistory`.
-3. Models seeded in the window catalogue, verified against provider documentation.
+1. A token-based window for `ConversationHistory`.
+2. Models seeded in the window catalogue, verified against provider documentation.
 
 See also: [ReAct Agent Guide](ReAct-Agent-Guide.md) · [Budgets and Rate Limits](Budgets-and-Rate-Limits.md) ·
 [Memory and Persistence](Memory-and-Persistence.md)

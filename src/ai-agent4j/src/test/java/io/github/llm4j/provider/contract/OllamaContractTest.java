@@ -69,6 +69,11 @@ class OllamaContractTest extends ProviderContract {
     }
 
     @Override
+    protected String overflowMessage() {
+        return "prompt too long; exceeded max context length by 5000 tokens";
+    }
+
+    @Override
     protected String error(int status, String message) {
         return "{\"error\":" + AnthropicContractTest.quote(message) + "}";
     }

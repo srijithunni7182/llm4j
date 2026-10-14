@@ -241,6 +241,24 @@ class ContextDocsExamplesTest {
     }
 
     @Test
+    void handleAPromptThatCannotFit() {
+        io.github.llm4j.LLMClient client = ReActAgentCompactionNativeTest.looping(5);
+        io.github.llm4j.agent.Tool search = ReActAgentCompactionNativeTest.search(400);
+        ReActAgent agent = ReActAgent.builder().llmClient(client).addTool(search).contextWindow(40).build();
+        String question = "Find everything.";
+        String outcome;
+        // --- sample: overflow
+        try {
+            outcome = agent.run(question).getFinalAnswer();
+        } catch (io.github.llm4j.exception.ContextOverflowException e) {
+            // the prompt could not be made to fit the model's window, even after compaction and one retry
+            outcome = "too long: " + e.getMessage();
+        }
+        // --- end sample
+        assertThat(outcome).startsWith("too long: the prompt").contains("cannot fit");
+    }
+
+    @Test
     void thePageShowsExactlyTheSamplesThatAreTested() throws Exception {
         String source = Files.readString(Path.of("src/test/java/io/github/llm4j/context/ContextDocsExamplesTest.java"));
         String page = Files.readString(Path.of("wiki/Context-and-Compaction.md"));
@@ -251,6 +269,6 @@ class ContextDocsExamplesTest {
             String sample = m.group(2).stripIndent().strip();
             assertThat(page).as("the page shows the '" + m.group(1) + "' sample").contains(sample);
         }
-        assertThat(found).isGreaterThanOrEqualTo(11);
+        assertThat(found).isGreaterThanOrEqualTo(12);
     }
 }

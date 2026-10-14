@@ -66,10 +66,11 @@ class ContextManagerTest {
     @Test
     void withoutACompactorItOnlyReportsUsage() {
         Recorder r = new Recorder();
-        ContextManager mgr = manager(policy(1_000, 0.8, 0.5), null, r);
-        ContextManager.Prepared p = mgr.prepare(convo(20, 2_000), 0);
+        List<Message> in = convo(8, 400);
+        ContextManager mgr = manager(policy((int) (size(in) * 1.1), 0.8, 0.5), null, r);
+        ContextManager.Prepared p = mgr.prepare(in, 0);
         assertThat(p.changed()).isFalse();
-        assertThat(r.usages.get(0).fraction().getAsDouble()).isGreaterThan(1.0);
+        assertThat(r.usages.get(0).fraction().getAsDouble()).isGreaterThan(0.9);
         assertThat(r.compactions).isEmpty();
     }
 
@@ -217,7 +218,7 @@ class ContextManagerTest {
     @Test
     void afterTheMaximumNumberOfCompactionsItStops() {
         Recorder r = new Recorder();
-        ContextPolicy p = ContextPolicy.builder().window(ContextWindow.of(2_000)).triggerAt(0.8).targetAt(0.5).keepRecent(2).maxCompactions(2).build();
+        ContextPolicy p = ContextPolicy.builder().window(ContextWindow.of(4_000)).triggerAt(0.8).targetAt(0.5).keepRecent(2).maxCompactions(2).build();
         ContextManager mgr = manager(p, ContextCompactors.dropOldest(), r);
         List<Message> grown = convo(40, 400);
         for (int i = 0; i < 4; i++) mgr.prepare(grown, i);
@@ -323,5 +324,103 @@ class ContextManagerTest {
         ContextManager mgr = manager(p, ContextCompactors.dropOldest(), r);
         ContextManager.Prepared prepared = mgr.prepare(in, 0, 1_500);
         assertThat(size(prepared.messages()) + 1_500).isLessThanOrEqualTo(p.targetTokens().orElseThrow());
+    }
+
+    // ── a prompt that cannot fit (R16) ─────────────────────────────────────────────
+
+    @Test
+    void aPromptFarOverTheWindowFailsBeforeAnyCallEvenWithNoCompactor() {
+        Recorder r = new Recorder();
+        List<Message> in = convo(30, 2_000);
+        ContextManager mgr = manager(policy(1_000, 0.8, 0.5), null, r);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> mgr.prepare(in, 0))
+                .isInstanceOf(io.github.llm4j.exception.ContextOverflowException.class)
+                .hasMessageContaining("1000").hasMessageContaining("cannot fit");
+        assertThat(r.usages).hasSize(1); // the usage was still reported
+    }
+
+    @Test
+    void aPromptThatCompactionBringsUnderTheWindowIsFine() {
+        Recorder r = new Recorder();
+        List<Message> in = convo(30, 400);
+        ContextManager mgr = manager(policy((int) (size(in) * 0.6), 0.8, 0.5), ContextCompactors.dropOldest(), r);
+        assertThat(mgr.prepare(in, 0).changed()).isTrue();
+    }
+
+    @Test
+    void aPromptThatEvenCompactionCannotBringUnderTheWindowFails() {
+        Recorder r = new Recorder();
+        // the protected content alone is bigger than the window
+        List<Message> in = new Convo().system("s").task("t".repeat(40_000)).step("a", 300).step("b", 300).step("c", 300).build();
+        ContextManager mgr = manager(policy(2_000, 0.8, 0.5), ContextCompactors.dropOldest(), r);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> mgr.prepare(in, 0)).isInstanceOf(io.github.llm4j.exception.ContextOverflowException.class);
+        assertThat(r.compactions).isNotEmpty(); // it tried first
+    }
+
+    @Test
+    void anEstimateALittleOverTheWindowIsNotTreatedAsCertain() {
+        // estimates are rough, so only a prompt well over the window (25 %) is refused before the provider is asked
+        Recorder r = new Recorder();
+        List<Message> in = convo(10, 400);
+        ContextManager mgr = manager(policy((int) (size(in) / 1.2), 0.8, 0.5), null, r);
+        assertThat(mgr.prepare(in, 0).changed()).isFalse(); // 20 % over: sent, and the provider decides
+    }
+
+    // ── a provider rejected the prompt (R15) ───────────────────────────────────────
+
+    @Test
+    void afterAnOverflowItCompactsHarderThanTheThresholdWould() {
+        Recorder r = new Recorder();
+        List<Message> in = convo(30, 400);
+        ContextPolicy p = policy((int) (size(in) * 1.1), 0.8, 0.5);
+        ContextManager mgr = manager(p, ContextCompactors.dropOldest(), r);
+        ContextManager.Prepared prepared = mgr.recoverFromOverflow(in, 4, 0);
+        assertThat(prepared.changed()).isTrue();
+        assertThat(size(prepared.messages())).isLessThanOrEqualTo(p.targetTokens().orElseThrow() / 2);
+        assertThat(r.compactions).hasSize(1);
+        assertThat(r.compactions.get(0).reason()).isEqualTo(CompactionRequest.Reason.OVERFLOW);
+        assertThat(r.compactions.get(0).iteration()).isEqualTo(4);
+        assertThat(r.usages).isEmpty(); // not a new measurement of a prompt about to be sent
+    }
+
+    @Test
+    void anOverflowCanBeRecoveredFromEvenWhenTheWindowIsNotKnown() {
+        Recorder r = new Recorder();
+        List<Message> in = convo(30, 400);
+        ContextManager mgr = manager(ContextPolicy.builder().keepRecent(2).build(), ContextCompactors.dropOldest(), r);
+        ContextManager.Prepared prepared = mgr.recoverFromOverflow(in, 0, 0);
+        assertThat(prepared.changed()).isTrue();
+        assertThat(size(prepared.messages())).isLessThanOrEqualTo(size(in) / 2);
+    }
+
+    @Test
+    void withoutACompactorOrWhenToldToFailNothingIsDone() {
+        List<Message> in = convo(30, 400);
+        assertThat(manager(ContextPolicy.builder().build(), null, new Recorder()).recoverFromOverflow(in, 0, 0).changed()).isFalse();
+        ContextPolicy fail = ContextPolicy.builder().onOverflow(ContextPolicy.OnOverflow.FAIL).keepRecent(2).build();
+        Recorder r = new Recorder();
+        assertThat(manager(fail, ContextCompactors.dropOldest(), r).recoverFromOverflow(in, 0, 0).changed()).isFalse();
+        assertThat(r.compactions).isEmpty();
+    }
+
+    @Test
+    void whenItCannotShrinkTheConversationItSaysSo() {
+        Recorder r = new Recorder();
+        List<Message> in = new Convo().system("s").task("task").build();
+        ContextManager.Prepared p = manager(ContextPolicy.builder().build(), ContextCompactors.dropOldest(), r).recoverFromOverflow(in, 0, 0);
+        assertThat(p.changed()).isFalse();
+    }
+
+    @Test
+    void theSameGuardsApplyToRecovery() {
+        Recorder r = new Recorder();
+        List<Message> in = convo(30, 400);
+        ContextCompactor nothing = (m, q) -> CompactionResult.of("nothing", m, m, q);
+        ContextManager mgr = manager(ContextPolicy.builder().keepRecent(2).build(), nothing, r);
+        assertThat(mgr.recoverFromOverflow(in, 0, 0).changed()).isFalse();
+        assertThat(mgr.recoverFromOverflow(in, 1, 0).changed()).isFalse();
+        assertThat(mgr.recoverFromOverflow(in, 2, 0).changed()).isFalse();
+        assertThat(r.compactions).hasSize(3);
+        assertThat(r.compactions.get(2).result().note()).contains("stopped");
     }
 }

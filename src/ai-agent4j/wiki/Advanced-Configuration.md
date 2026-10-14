@@ -72,6 +72,7 @@ Use specific exception types to handle different failure modes gracefully.
 | `AuthenticationException` | Invalid API key. | Check your environment variables. |
 | `RateLimitException` | Quota exceeded (429). | Implement backoff or check billing. |
 | `InvalidRequestException` | Bad parameters (400). | Verify input JSON or model name. |
+| `ContextOverflowException` | The prompt is longer than the model's context window (a subtype of `InvalidRequestException`). | Shorten the prompt, or give the agent a compaction strategy: [Context and Compaction](Context-and-Compaction.md). |
 | `ProviderException` | LLM Provider side error (500). | Retry or switch providers. |
 | `LLMException` | Generic framework error. | Check logs for stack trace. |
 

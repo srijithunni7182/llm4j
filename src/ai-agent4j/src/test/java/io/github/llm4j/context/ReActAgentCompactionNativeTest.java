@@ -121,24 +121,24 @@ class ReActAgentCompactionNativeTest {
 
     @Test
     void aCompactorThatDoesNothingIsStoppedAndTheRunStillFinishes() {
-        ScriptedModel model = looping(30);
+        ScriptedModel model = looping(12);
         ContextListener listener = new ContextListener();
         ContextCompactor nothing = (m, q) -> CompactionResult.of("nothing", m, m, q);
         AgentResult r = agent(model, search(1_200)).contextPolicy(policy()).compaction(nothing).addListener(listener).build().run("Q?");
-        assertThat(r.getFinalAnswer()).isEqualTo("done after 30");
+        assertThat(r.getFinalAnswer()).isEqualTo("done after 12");
         assertThat(listener.compactions).hasSize(3);
         assertThat(listener.compactions.get(2).result().outcome()).isEqualTo(CompactionResult.Outcome.SKIPPED);
     }
 
     @Test
     void aCompactorThatThrowsDoesNotFailTheRun() {
-        ScriptedModel model = looping(20);
+        ScriptedModel model = looping(12);
         ContextListener listener = new ContextListener();
         ContextCompactor boom = (m, q) -> {
             throw new IllegalStateException("bang");
         };
         AgentResult r = agent(model, search(1_200)).contextPolicy(policy()).compaction(boom).addListener(listener).build().run("Q?");
-        assertThat(r.getFinalAnswer()).isEqualTo("done after 20");
+        assertThat(r.getFinalAnswer()).isEqualTo("done after 12");
         assertThat(listener.compactions).isNotEmpty();
         assertThat(listener.compactions.get(0).failure()).contains("bang");
     }
