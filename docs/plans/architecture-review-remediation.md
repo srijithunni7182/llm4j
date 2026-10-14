@@ -32,7 +32,7 @@ orders the work, sets the definition of done for each item, and says what is del
 ```
 Phase 1  (exposure)      A  Redaction            B  Journal race
 Phase 2  (hygiene)       C  Dependency versions  D  Policy docs + outbound-tool defaults
-Phase 3  (structure)     F  HarnessExecutor extractions, one PR each (F1..F4+)
+Phase 3  (structure)     F  HarnessExecutor decomposition, F0..F8, one PR each
 Phase 4  (optional)      E  Audit fail-closed flag   (independent of F; implemented in ReActAgent as it stands)
 ```
 
@@ -119,29 +119,71 @@ Definition of done: docs state the exact budget scope; outbound tools fail close
 Risk: medium for step 2 (it breaks scripts that rely on the old default), so ship it behind a clear migration
 message. Estimate: 2 days.
 
-## Workstream F: `HarnessExecutor` refactor (P2, the long-term adaptability work)
+## Workstream F: decompose `HarnessExecutor` (P2, structure only)
 
-Scope: `HarnessExecutor` only. `ReActAgent` stays as it is (decision: about 1,000 lines is acceptable).
+Goal: split `HarnessExecutor` (2,884 lines, about 145 methods) so each responsibility has one home, collaborators
+depend on narrow interfaces instead of the whole executor, and a future change to one concern (execution scope,
+agent construction, limits, statements) touches one class and not a spread of others. **No behaviour change and no
+public API change in this workstream.** New features are not planned here; the seams are chosen from the code.
+`ReActAgent` is out of scope (kept as is).
 
-Ground rules: each step is its own PR; it begins with characterization tests that fail if behaviour moves, and
-ends with the same tests green. `HarnessExecutor`'s public signatures stay put until the hook step.
+### What the code shows
 
-**Design input still needed.** The maintainer has planned enhancements to `HarnessExecutor`. The seams below are
-chosen from the code as it stands; they should be checked against those plans before F1 starts, so the extractions
-land where the new work will go (see "Decisions needed").
+- **The executor is both the engine and everyone's back-reference.** `TaskRunner`, `ApprovalGate`, `RunEffectContext`,
+  `AgentGuard`, `Rewinder`, `Decider` and `RecordingTool` are each constructed with the executor and call back
+  into its package-private members. Measured, those calls are a small set: `trace`, `audit`, `journal`/`getJournal`,
+  `currentStep`, `identityStep`, `clock`, `sleeper`, `maskPii`, `simulating`, `humanInterface`, `approvals`. A narrow
+  interface covers them.
+- **`initialize()` (about 210 lines) is a resource-setup responsibility.** It configures audit, validates the script,
+  boots MCP servers, builds budgets and knowledge bases, builds every agent (guards, memory, voice, retrievers,
+  tools) and starts schedules. It owns eight registries (`activeAgents`, `mcpClients`, `ragAgents`,
+  `memoryServices`, `schedulers`, `guards`, `voices`, `retrievers`...).
+- **Per-run execution state is scattered.** Step id, block frames, block-local names, budget scopes and invoker
+  live in `ThreadScope` or in separate `ThreadLocal`s (`frames`, `rootNext`, `attempt`); the variable context is a
+  plain field that `executeCall` replaces by reflection (`setInternalContext`, on a `final` field).
+- **About 30 public setters** make the executor a mutable bag of collaborators, and they are public API used by
+  the CLI, tests and example apps, so they stay.
 
-| Step | Extraction | From | Seam / notes | Done when |
-|---|---|---|---|---|
-| F1 | `RunLimits` (budgets, metering, spend restore, rate-limit waits, ask-for-more) | ~2277-2600 | Already has its own state (`restoreSpend`, `journalUsage`). Existing budget and resume tests are the safety net; add one on `restoreSpend` after resume. | `HarnessExecutor` shrinks by about 350 lines; spend and resume tests unchanged |
-| F2 | Script validation into `ScriptValidator` collaborators (`ProviderChecks`, `AgentChecks`, `KnowledgeChecks`) | ~690-1040 | `ScriptValidator.Checker` already exists. Snapshot-test `weave check` output over the sample scripts before moving. | `weave check` output byte-identical on all samples |
-| F3 | `PromptResolver` (system prompt, persona, skills) | ~1805-1890 | Pure functions of config; easy to test in isolation. | Prompt output identical on sample scripts |
-| F4 | Statement interpretation split by kind: `executeStatement` (about 230 lines) dispatches to per-statement executors; `executeDelegate` (about 250) and `executeForEach` move out | ~1577-2220 | The largest and most entangled piece (journal, replay, approvals, budgets). Do it after F1-F3 so it is working against a smaller class. Heavy characterization needed: `DurableRunTest`, `ForEachAndResilienceTest`, `ConcurrentTopLevelRunsTest`, `RunControlTest`. | Dispatch table in place; each executor testable alone |
-| F5 | Replace the `protected` hooks (`customizeAgent`, `agentForDelegate`, `beforeDelegateExecution`, `onDelegateReplayed`) with an interceptor interface | hooks at the bottom | **Public API change.** Keep the old hooks `@Deprecated`, delegating to the new interface, for one release. Needs an entry in `API_COMPATIBILITY.md`. Shape this one after the maintainer's enhancement plans. | Subclassing is no longer the only extension path; deprecation documented |
+### Target shape
 
-After the steps, re-measure: `HarnessExecutor` should be roughly a coordinator (run lifecycle, wiring, configuration)
-of well under 1,500 lines.
+`HarnessExecutor` stays as the public façade and coordinator (same constructor, setters and `LoomEngine` methods)
+but delegates:
 
-Estimate: F1 1.5 days, F2 1 day, F3 1 day, F4 2.5 days, F5 1.5 days.
+| New unit | Owns | Moves out of |
+|---|---|---|
+| `RunServices` (interface; the executor implements it) | The narrow read-mostly surface collaborators need: journal, trace, audit, clock, sleeper, step ids, PII masking, simulate flag | The back-references in `TaskRunner`, `ApprovalGate`, `RunEffectContext`, `AgentGuard`, `RecordingTool`, `Rewinder`, `Decider` |
+| `ScriptChecks` (extends the existing `ScriptValidator`) | Provider, model, agent-setting, memory, voice, guard, knowledge and tool/approval checks | `check*` methods, `validationContext` |
+| `PromptResolver` | System prompt, persona, skills, fallback prompt | `resolveSystemPrompt`, `basePrompt`, `persona`, `resolveSkills`, `fallbackSystemPrompt` |
+| `RunLimits` | Budgets, metering, spend restore and report, rate-limit waits, ask-for-more, budget scopes | `setUpBudgets`, `metered`, `journalUsage`, `restoreSpend`, `newBudget`, `onLimit`, `runUnderLimits`, `askForMore`, `refills`, budget fields |
+| `RunResources` | MCP clients, knowledge indexes, agents and their guards, memory, voice and retrievers, schedulers: build in `initialize()`, release in `shutdown()` | `initialize`, `shutdown`, the registries |
+| `ExecutionScope` (extends `ThreadScope`) | Everything that is "where this thread is in the run": step, block frames, block-local names, variable context, budget scopes, invoker, attempt | `frames`, `rootNext`, `attempt`, the `context` field and the reflection in `setInternalContext` |
+| `StatementExecutor` per kind, behind a dispatcher | `executeStatement` becomes a lookup; `executeDelegate`, `executeForEach`, `executeCall`, parallel, broadcast, human, sleep move to their own classes working on `ExecutionScope` and `RunServices` | `executeStatement` and the `execute*` methods |
+| `RunConfig` (package-private holder) | The values the setters set; the public setters become one-line pass-throughs | The setter fields |
+
+Dependency direction: statement executors depend on `RunServices`, `ExecutionScope`, `RunLimits` and
+`RunResources`; none of those depend on the executor or on each other except through `RunServices`.
+
+### Steps (each its own PR; each starts with characterization tests, each is a pure move)
+
+| Step | Work | Risk | Done when |
+|---|---|---|---|
+| F0 | Baseline: record the current test results for `ai-agent4j-loom` (and the modules that use the executor), plus golden outputs: `weave check` over the sample scripts, journal key shapes for a representative resumed run, spend report for a budgeted run | none | Baseline recorded in the PR; golden tests committed and green |
+| F1 | **`RunServices`**: add the interface, implement it on the executor, switch the seven collaborators to depend on it | low (mechanical) | No collaborator imports `HarnessExecutor`; tests unchanged |
+| F2 | **`ScriptChecks`**: move the `check*` methods behind the existing validator | low | `weave check` output byte-identical on all samples |
+| F3 | **`PromptResolver`** | low | Prompt output identical on samples |
+| F4 | **`RunLimits`** | medium (spend and resume) | Budget, rate-limit and resume tests unchanged; new test for `restoreSpend` after resume |
+| F5 | **`RunResources`**: move `initialize`/`shutdown` and the registries | medium | Lifecycle tests unchanged; `shutdown` releases everything it built (new test) |
+| F6 | **`ExecutionScope`**: fold the per-thread state and the variable context into one object carried by `ThreadScope`; remove the reflection | medium-high (concurrency) | New tests: `call` inside `parallel` and `for_each`; scope never leaks across pooled threads |
+| F7 | **Statement executors** behind a dispatcher; start with `call` and `for_each`, then `delegate` last | high (largest, most entangled) | `DurableRunTest`, `ForEachAndResilienceTest`, `ConcurrentTopLevelRunsTest`, `RunControlTest` unchanged |
+| F8 | **`RunConfig`**: setters delegate to a holder | low | Public API unchanged (API-compat check) |
+
+Order is by risk and by dependency: F1 first because every later extraction would otherwise inherit the
+back-reference. F6 and F7 last because they need the smaller class around them. Stop after any step; each leaves the
+code better than before.
+
+After F8: `HarnessExecutor` should be a coordinator of well under 1,000 lines (lifecycle, wiring, public API).
+
+Estimate: F0 0.5 day, F1 1 day, F2 0.5, F3 0.5, F4 1.5, F5 1.5, F6 2, F7 3, F8 0.5; about 11 days.
 
 ## Workstream E: audit failure policy (P2)
 
@@ -165,10 +207,10 @@ Estimate: 1 day.
 | 2 | B | 1 to 1.5 days | none (parallel with 1) |
 | 3 | C | 0.5 day | none |
 | 4 | D | 2 days | none |
-| 5 to 9 | F1 to F5 | about 7.5 days | none; F5 depends on the enhancement design |
+| 5 to 13 | F0 to F8 | about 11 days | none; F1 first |
 | 10 | E | 1 day | none |
 
-Roughly 13 to 14 working days in sequence (F is now `HarnessExecutor`-only). Phases 1 and 2 (PRs 1 to 4) are about 5 days and remove every
+Roughly 17 working days in sequence (F is now the full `HarnessExecutor` decomposition). Phases 1 and 2 (PRs 1 to 4) are about 5 days and remove every
 finding the review rated P1.
 
 ## Out of scope (deliberately)
@@ -184,7 +226,7 @@ finding the review rated P1.
 | Risk | Mitigation |
 |---|---|
 | Refactor changes journal or resume behaviour | Characterization tests first; pure moves; `DurableRunTest` and `ConcurrentTopLevelRunsTest` run on every F PR |
-| Extractions land in the wrong place for the planned enhancements | Review F seams against the maintainer's plans before F1; F5 is shaped by them |
+| An extraction changes behaviour unnoticed | Golden outputs in F0 (`weave check`, journal key shapes, spend report); pure moves only; stop on any diff |
 | INFO to DEBUG surprises users who read logs | Release note; raw-debug opt-in flag |
 | Outbound-tool approval default breaks scripts | `weave check` migration diagnostic; migration-guide entry |
 | Jackson bump breaks a consumer or the shaded report jar | `make test-extended` once; keep a documented `ctk` exception if needed |
@@ -194,6 +236,4 @@ finding the review rated P1.
 
 1. Is making outbound tools require approval by default acceptable as a breaking change (D2), or should it be
    opt-in until the next major version?
-2. What enhancements are planned for `HarnessExecutor`? The F seams, especially F4 and F5, should be confirmed against them before work starts.
-2b. Should F5 (replacing the protected hooks) ship in the next minor version with deprecations, or wait for a major?
-3. Is `ctk` pinned to Jackson 2.18 for a reason I should preserve?
+2. Is `loom/ctk` pinned to Jackson 2.18 for a reason I should preserve?
