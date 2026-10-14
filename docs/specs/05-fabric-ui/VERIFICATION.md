@@ -16,6 +16,7 @@ Status: **built; manual and live checks owed (§4)**. Run top to bottom at the e
 | A8 | The page is readable in both themes, works at phone width and by keyboard, and never builds HTML from run text | the accessibility, responsive and safety tests |
 | A9 | The existing pages, routes and simulator scenario behave as before | the existing tests, unmodified |
 | A10 | Documented, with screenshots | docs review (§5) |
+| A12 | A coding agent with only the skills and the jars can take a finished workflow to a running, observed one (Fabric up, the workflow reporting to it) and can explain the pages to the developer | `DeployerScriptsTest`, `verify-skill-package.sh`, `DeployerSkillTest` |
 | A11 | I can read a page without it moving, and go back to see how a run looked at an earlier point | `calm.page.test.js`, `time.page.test.js`, `ReplayEqualsLiveTest` |
 
 ## 2. Traceability: requirement → tests
@@ -57,6 +58,17 @@ Status: **built; manual and live checks owed (§4)**. Run top to bottom at the e
 | R33 | `RunHistoryTest` (bound, soak, restore) | ⬜ |
 | R35 | `calm.page.test.js` (tab cap, Runs list, filter, start times, a finished run leaves the row) | ⬜ |
 | R34 | `ScenarioTest` (the calm preset), `fabric-sim` README | ⬜ |
+| R36 | `GuideChapter14Test` | ⬜ |
+| R37 | `GuideChapter14Test`, `GuideDeployTest`, `JavaQuickReferenceTest` | ⬜ |
+| R38 | `SkillDriftTest`, `SkillKitTest` | ⬜ |
+| R39 | `GuideChapter14Test` (snippets), `SkillDriftTest` | ⬜ |
+| R40 | `SkillDriftTest`, `DeployerSkillTest` | ⬜ |
+| R41 | `DeployerScriptsTest` | ⬜ |
+| R42 | `SkillDriftTest` (page elements named exist), `DeployerSkillTest` | ⬜ |
+| R43 | `DeployerScriptsTest`, `DeployerSkillTest` (safety rules) | ⬜ |
+| R44 | `GuideCommandTest`, `verify-skill-package.sh` | ⬜ |
+| R45 | `SkillDriftTest` | ⬜ |
+| R46 | docs review | ⬜ |
 
 ## 3. Quality gates
 
@@ -80,7 +92,7 @@ Stack-level pages are owed once at the end of the whole work.
 
 - [x] Decisions in DESIGN.md §9 recorded
 - [x] Acceptance criteria A1–A10 have evidence
-- [x] Every requirement R1–R35 has a passing test
+- [x] Every requirement R1–R46 has a passing test
 - [x] Quality gates in §3 pass
 - [x] Manual checks listed as owed with the reason: browsers other than Chromium, a screen reader, a real Fabric with real processes, a real provider run with a flaky tool and a small window, a real planted-page run (none of these can be done in this environment)
 - [x] Docs complete; §7 has a row for every sub-phase

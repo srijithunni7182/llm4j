@@ -163,6 +163,17 @@ The price table is unchanged.
 | R32 | The run page has a time bar: a slider over the marks, incident, failure and compaction markers (keyboard reachable, with their facts), previous and next incident buttons. Moving it shows the whole run page as of then under a banner "As of HH:MM:SS (N min ago): a snapshot, not live" with **Back to live**; run controls are hidden in a snapshot; nothing in a snapshot changes until the person moves it |
 | R33 | The kept history is bounded (50,000 records a run; the oldest drop and the page says where the history now starts); a 20,000-call soak stays within the bound; a run restored by Fabric from its stored messages has its history again |
 | R34 | The simulator has a calm preset (one process, one run, then stop) that the docs recommend first; `fabric-sim.sh calm` |
+| R36 | The guide has a new chapter, **14. Context and compaction**: when a run needs it, the Loom `context` block (strategies, trigger, target, keep-recent, limits), the window sources (`.windows`, the provider, the Fabric catalog), the Java API (`ContextManager`, the strategies, `ContextWindows`, the events), reading it on the page (gauge, timeline, the rules); it ships in the jar and is listed by `weave guide` |
+| R37 | The existing chapters say what changed: 6 (the `context` block, `run` tasks with `retry` and `on_failure`, what `weave check` now verifies), 7 (the lethal trifecta and tool reach, how `weave audit` and the inspect rules relate, accepting a trifecta in writing), 9 (a go-live stage for observability that hands over to the deployer skill), 10 (readiness checklist: windows, rules, trifecta decisions, observability on), 12 (the Java reference: context management, call telemetry, observe options, each compile-checked) and `LOOM_GUIDE.md` and `llms.txt` agree |
+| R38 | `SKILL.md` of the workflow skill lists chapter 14, the new gates (context for long runs; trifecta decided; observability handed over), the words people use to ask for these (compaction, window, context full, observe, incident, trifecta) in its description, and the honest edges; its stage table matches the chapters in the jar |
+| R39 | Every Loom snippet in the new and changed chapters passes `weave check`; every Java snippet is in the compile-checked class of chapter 12 (or compiled by a test); no chapter mentions a repository path; no command or flag in them is absent from `--help` |
+| R40 | A new skill, **`llm4j-loom-deployer`** (source `.claude/skills/llm4j-loom-deployer/`), guides a coding agent from a finished workflow to a running observed one: choose the shape (embedded page or Fabric), prerequisites, secrets, security decisions (audit gate, tool reach, the trifecta, accepting it in writing, hosts patterns), the `.inspect` rules file, windows and prices, TLS and controls, retention and backup, then launching the application and the server and checking both |
+| R41 | The deployer skill's scripts (`fabric-up`, `run-observed`, `fabric-down`, `fabric-status`, in the skill's `scripts/`, for macOS, Linux and Windows) do the launch: a data directory and admin password (from the environment, never the command line), the server in the background with a health wait, a client key into the process's secret store (never printed to the log), the workflow started with `--observe-fabric`; each is idempotent, says what it did, and refuses an unsafe choice (a non-loopback address without TLS or `--trust-proxy`) |
+| R42 | The skill teaches the developer to use both: a short tour of the embedded page and of Fabric (Processes, Runs, Tools & tasks, Security, Configuration; Live and Paused, the time bar), what to look at first when a run is slow, expensive, stuck or unsafe, and what each incident means and what to do; every claim names the page element it is about |
+| R43 | The skill's safety rules are tested: no secret on a command line or in a printed line, no listening beyond loopback without TLS or a proxy, no sign-in password in the skill or its scripts, the agent asks before opening a port, accepting a trifecta or changing the admin password |
+| R44 | `weave guide --install-skill` installs both skills (each in its own folder under `.claude/skills/`), with their references, and `--install-skill deployer` or `workflow` installs one; the package (`make skill-package`) holds both; `verify-skill-package` unpacks away from the repository and runs the deployer's launch scripts against a mock workflow and a real Fabric |
+| R45 | A drift test reads both skills and every chapter they ship: each `weave`, `fabric` and `fabric clients ...` command and each flag named must be in that command's `--help`; each page element or tab named must exist in the page's script; each file named must exist in the skill |
+| R46 | The docs say where the skills are and when to use which (`docs/PUBLISHING_SKILL.md`, the wiki, `docs/README.md` at the end with the other stack-level pages) |
 
 ## 7. Simulator scenarios (5a, used as page fixtures)
 
@@ -195,6 +206,9 @@ The price table is unchanged.
 | 5e | Cross-cutting checks (themes, narrow width, keyboard, console), screenshots, documentation, verification run | R17 to R21, all |
 | 5f-1 | **Calm**: stable tab order, a Runs list instead of a tab per run, held row order with Re-sort, Live / Paused, the calm simulator preset | R26 to R28, R34, R35 |
 | 5f-2 | **Time**: the kept history, the timeline and `?at=` routes, the time bar and the snapshot view | R29 to R33 |
+| 5f-3a | **The workflow skill and guide, brought up to date**: chapter 14, the changed chapters, the Java reference, `SKILL.md` | R36 to R39 |
+| 5f-3b | **The deployer skill**: its chapters, its launch scripts, the tour of both pages | R40 to R43 |
+| 5f-3c | **Packaging and drift tests**: install both, the package, the drift test, the docs | R44 to R46 |
 
 ## 9. Decisions
 
@@ -215,6 +229,10 @@ The price table is unchanged.
 | 12 | How does a person go back? | A time bar on the run page over the run's own history (decision 13); the fleet pages get Pause only |
 | 13 | How is a past view made? | The run keeps the records it was built from (bounded) and a past view is a scratch run fed the same records up to the point. Not stored snapshots (large, and they could differ from what live shows) and not a second view builder |
 | 14 | Pause automatically on interaction? | No. A page that sometimes stops by itself is its own surprise. The order of rows is held (R27) and Pause is explicit and visible |
+| 16 | Order of 5f | 5f-1 and 5f-2 first, then 5f-3, so the deployer skill describes the pages as they will be (Runs list, Live and Paused, the time bar) and not as they were. 5f-3 is the more important and is not cut if time is short |
+| 17 | One skill or two? | Two. The workflow skill is about building (and ends at go-live); the deployer skill is about running: different moments, different triggers, and a team may install only the second on a server. They hand over to each other by name |
+| 18 | Where do the deployer's chapters live? | `docs/deploy/` in the repository, shipped in the jar beside the guide (so `weave guide deploy N` works with no repository) and into the skill's `references/` |
+| 19 | Does the skill run commands? | Yes, through its scripts, and only those; the agent is told to read the script's output and to ask before anything that opens a port beyond loopback, accepts a trifecta or changes the admin password |
 
 ## 10. Not built
 
