@@ -16,6 +16,7 @@ Status: **built; manual and live checks owed (§4)**. Run top to bottom at the e
 | A8 | The page is readable in both themes, works at phone width and by keyboard, and never builds HTML from run text | the accessibility, responsive and safety tests |
 | A9 | The existing pages, routes and simulator scenario behave as before | the existing tests, unmodified |
 | A10 | Documented, with screenshots | docs review (§5) |
+| A11 | I can read a page without it moving, and go back to see how a run looked at an earlier point | `calm.page.test.js`, `time.page.test.js`, `ReplayEqualsLiveTest` |
 
 ## 2. Traceability: requirement → tests
 
@@ -46,6 +47,15 @@ Status: **built; manual and live checks owed (§4)**. Run top to bottom at the e
 | R23 | `scale.page.test.js` (500 tools, 200 agents) | ✅ 5e |
 | R24 | `ToolsRouteTest` (405, gate), no dependency added (5a part); the static-files part by `PageFilesTest` (four files, two marks, fonts; no outside address), no pom changed since the phase began | ✅ 5e |
 | R25 | `run.page.test.js` (Fabric name, title, mark and favicon; embedded unchanged), `InspectServerTest` (the mark is served) | ✅ 5c |
+| R26 | `calm.page.test.js` (tab order, selection) | ⬜ |
+| R27 | `calm.page.test.js` (held order, Re-sort) | ⬜ |
+| R28 | `calm.page.test.js` (Live / Paused) | ⬜ |
+| R29 | `TimelineRouteTest` | ⬜ |
+| R30 | `TimelineRouteTest`, `RunHistoryTest` | ⬜ |
+| R31 | `ReplayEqualsLiveTest` | ⬜ |
+| R32 | `time.page.test.js` | ⬜ |
+| R33 | `RunHistoryTest` (bound, soak, restore) | ⬜ |
+| R34 | `ScenarioTest` (the calm preset), `fabric-sim` README | ⬜ |
 
 ## 3. Quality gates
 
@@ -69,7 +79,7 @@ Stack-level pages are owed once at the end of the whole work.
 
 - [x] Decisions in DESIGN.md §9 recorded
 - [x] Acceptance criteria A1–A10 have evidence
-- [x] Every requirement R1–R25 has a passing test
+- [x] Every requirement R1–R34 has a passing test
 - [x] Quality gates in §3 pass
 - [x] Manual checks listed as owed with the reason: browsers other than Chromium, a screen reader, a real Fabric with real processes, a real provider run with a flaky tool and a small window, a real planted-page run (none of these can be done in this environment)
 - [x] Docs complete; §7 has a row for every sub-phase

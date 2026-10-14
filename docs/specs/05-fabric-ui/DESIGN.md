@@ -153,6 +153,15 @@ The price table is unchanged.
 | R23 | With 500 tools and 200 agent rows the fleet pages render within a fixed budget and stay responsive (virtualised or paged beyond a bound; the bound is stated in the page) |
 | R24 | No new dependency; the page remains four static files plus fonts and the two marks; the server answers the new routes read-only (405 for other methods) |
 | R25 | Against a Fabric server the page is branded Fabric: the name in the header, the page title, the favicon and a mark of its own (`/fabric-logo.svg`, a woven grid); an embedded page keeps loom·inspect and the Loom mark. The brand is decided by the same probe that turns on the Processes view |
+| R26 | Run and workflow tabs keep the order in which they first appeared and never reorder between polls; a new run is added at the end and never takes the selection; the selected run and view never change unless the person changes them |
+| R27 | Tables whose rows are ordered by live numbers (tools and tasks, on a run and across runs) keep each row where it is while the page is open; when the live order differs a chip says "order changed" and **Re-sort** applies it |
+| R28 | A **Live / Paused** control: Paused stops every redraw; the header says "Paused at HH:MM:SS" and counts what changed since (new runs, new incidents, state changes) from the cheap run list alone; Live redraws at once |
+| R29 | `GET /api/runs/{trace}/timeline` returns the run's marks (start, each incident opened or closed, each failure, each compaction, each state change, end), bounded to 300, oldest first, each with a sequence number and a time |
+| R30 | `GET /api/runs/{trace}?at=SEQ` returns the run's view as it was at that point, in the same shape, with `live: false` and `asOf`; a point older than the kept history answers 404 with the time the history starts |
+| R31 | The view at a point is made by the same code that makes the live view (the kept records are replayed into a scratch run), so the two cannot drift: the view at the last point equals the live view of a finished run, and the view at an earlier point equals the live view captured then |
+| R32 | The run page has a time bar: a slider over the marks, incident, failure and compaction markers (keyboard reachable, with their facts), previous and next incident buttons. Moving it shows the whole run page as of then under a banner "As of HH:MM:SS (N min ago): a snapshot, not live" with **Back to live**; run controls are hidden in a snapshot; nothing in a snapshot changes until the person moves it |
+| R33 | The kept history is bounded (50,000 records a run; the oldest drop and the page says where the history now starts); a 20,000-call soak stays within the bound; a run restored by Fabric from its stored messages has its history again |
+| R34 | The simulator has a calm preset (one process, one run, then stop) that the docs recommend first; `fabric-sim.sh calm` |
 
 ## 7. Simulator scenarios (5a, used as page fixtures)
 
@@ -183,6 +192,8 @@ The price table is unchanged.
 | 5c | The two fleet pages and the tab badges | R12, R13, R23 |
 | 5d | The Configuration page: the eight behaviours and the windows catalog | R15, R16 |
 | 5e | Cross-cutting checks (themes, narrow width, keyboard, console), screenshots, documentation, verification run | R17 to R21, all |
+| 5f-1 | **Calm**: stable tab order, held row order with Re-sort, Live / Paused, the calm simulator preset | R26 to R28, R34 |
+| 5f-2 | **Time**: the kept history, the timeline and `?at=` routes, the time bar and the snapshot view | R29 to R33 |
 
 ## 9. Decisions
 
@@ -198,6 +209,10 @@ The price table is unchanged.
 | 8 | Where do the security "cannot tell you" words come from? | One constant in the page's script, the same text as the wiki page, with a test that the wiki still says it |
 | 9 | Fleet security rows: all agents or only the notable? | Only `exercised`, `accepted` and `armed` (and open incidents), so a fleet of quiet agents does not drown the page; the counts still include everyone |
 | 10 | What does the page do about a hostile run? | Shows text as text and never executes or fetches anything named in run data; a link is made only to a run page on the same server |
+| 11 | Why was the page hard to follow? (found by use, after 5e) | Tabs were sorted by last event, so they reordered on every poll; every poll redrew whole panels and re-sorted rows by live numbers; and the default simulator runs three processes forever, adding runs and incidents. Fix the page first (stable order, a Pause), then add time; do not lean on a quieter simulator alone |
+| 12 | How does a person go back? | A time bar on the run page over the run's own history (decision 13); the fleet pages get Pause only |
+| 13 | How is a past view made? | The run keeps the records it was built from (bounded) and a past view is a scratch run fed the same records up to the point. Not stored snapshots (large, and they could differ from what live shows) and not a second view builder |
+| 14 | Pause automatically on interaction? | No. A page that sometimes stops by itself is its own surprise. The order of rows is held (R27) and Pause is explicit and visible |
 
 ## 10. Not built
 
@@ -205,3 +220,4 @@ The price table is unchanged.
 - Charts beyond the gauge, the compaction timeline and the latency histogram; no per-minute fleet history (the server keeps run state, not a time series).
 - Acting on a finding from the page (pause or stop already exist and are unchanged; blocking is a script policy).
 - Per-user views, saved filters and alert routing.
+- The fleet pages as of a past time (it needs every run replayed; Pause covers the need to read a page in peace). The compaction timeline already shows a run's own past.
