@@ -48,6 +48,11 @@ public record ContextPolicy(
         return new Builder();
     }
 
+    /** The same policy with this window. */
+    public ContextPolicy withWindow(ContextWindow newWindow) {
+        return new ContextPolicy(newWindow, triggerAt, targetAt, keepRecent, maxCompactions, minGain, pinned, onOverflow);
+    }
+
     /** The prompt size that triggers compaction, in tokens; empty without a window. */
     public Optional<Long> triggerTokens() {
         return tokens(triggerAt);

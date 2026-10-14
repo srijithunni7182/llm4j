@@ -36,7 +36,7 @@ Requirements in `DESIGN.md` carry stable ids (`R1`, `R2`, …) so a test and an 
 | **Javadoc** of every new public type and method | Always |
 | The module's **README** and **wiki Home** (hub links and feature list) | When a new page or a user-visible capability appears |
 | **`llms.txt`** (root and module) | When a new page or public API appears |
-| **Stack-level pages** (root `README.md`, `wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`) | When the capability is usable end to end by a user of the layer above (for example once an agent really uses it), not for building blocks that are not yet connected |
+| **Stack-level pages** (root `README.md`, `wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`) | **Once, at the end of the whole work** (decision of 2026-10-14), not per sub-phase. Each phase's `VERIFICATION.md` lists what is owed there |
 | **Dependent layers' docs** (Loom guide, observability pages, Fabric) | In the phase that connects them |
 | **This directory**: `DESIGN.md` if the design changed, the traceability table and results in `VERIFICATION.md`, the status table below | Always |
 
@@ -73,5 +73,5 @@ done, so that what we learn building a lower layer shapes the spec above it.
 
 | # | Spec | Tests | Code | Verified |
 |---|---|---|---|---|
-| 1 | approved (decisions recorded) | 1a written | 1a done; 1b next | 1a verified |
+| 1 | approved (decisions recorded) | 1a, 1b written | 1a, 1b done; 1c next | 1a, 1b verified |
 | 2–6 | not started | | | |

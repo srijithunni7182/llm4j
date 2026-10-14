@@ -132,7 +132,8 @@ compactor can still be run by hand; see 4.9).
 | `ContextPolicy` | `window`, `triggerAt` (default 0.80), `targetAt` (default 0.50), `keepRecent` (default 4 messages), `maxCompactions` (default 8), `minGain` (default 0.10), `pinned` (a `Predicate<Message>`, default none), `onOverflow` (default `RETRY_ONCE`) |
 | `CompactionRequest` | `targetTokens`, `window`, `estimator`, `keepRecent`, `pinned`, `reason` (`THRESHOLD`, `OVERFLOW`, `MANUAL`) |
 | `CompactionResult` | `messages`, `strategy`, `outcome` (`COMPACTED`, `NO_GAIN`, `SKIPPED`), message and token counts before and after, `droppedMessages`, `summarizerUsage` (nullable `CompactionUsage`: calls, prompt and completion tokens, cost; a small record in this package so it does not depend on the agent package) |
-| `CompactionEvent` | a `CompactionResult` plus `reason`, the iteration, and the `ContextUsage` before and after |
+| `CompactionEvent` | `result` (a `CompactionResult`), `reason`, `iteration`, `ContextUsage` `before` and `after`, and `failure` (the strategy's exception as text, or null). A skip, a result not used, a failure and the one "stopped" notice are all events |
+| `ContextEvents` | what a `ContextManager` reports: `onUsage`, `onCompaction` (the agent adapts it to `AgentEventListener`) |
 
 Validation is in the constructors (`triggerAt` in (0,1], `targetAt` < `triggerAt`, positive sizes). Builders have defaults;
 every field has a getter-style accessor through the record.
@@ -174,7 +175,7 @@ introduced by a fixed sentence; text from tool results inside the summary is not
 
 ### 4.4 When compaction runs
 
-Before each model call the agent asks a `ContextManager` (an internal, separately tested class) to prepare the messages:
+Before each model call the agent asks a `ContextManager` to prepare the messages. The manager is a separately tested class, **public** so that other layers (Loom's memory engine in phase 3) can reuse it; one instance serves one run and it is not thread-safe:
 
 1. Estimate the next prompt size: the last **reported** prompt tokens plus an estimate of the messages added since, or an estimate of the whole prompt on the first call or when the provider reports no usage.
 2. Report `ContextUsage` to the listeners.
@@ -183,9 +184,9 @@ Before each model call the agent asks a `ContextManager` (an internal, separatel
 
 **Guards against doing harm** (these are `ContextManager`'s job, not each strategy's):
 
-- *Gain check.* A result that is not at least `minGain` smaller is treated as `NO_GAIN` and discarded; the original messages are used.
+- *Gain check.* A result that is not at least `minGain` smaller is treated as `NO_GAIN` and discarded; the original messages are used. The size is **measured by the manager**, never taken from the strategy's own numbers.
 - *Thrash guard.* After `maxCompactions` in one run, or two `NO_GAIN` results in a row, the manager stops compacting for the rest of the run and reports one `CompactionEvent` with outcome `SKIPPED` and a reason. The run continues (and may later hit the limit and fail clearly).
-- *Fail open.* If a compactor throws, the manager reports the failure, uses the uncompacted messages, and does not retry in the same iteration. A compactor bug never fails a run that would otherwise have continued.
+- *Fail open.* If a compactor throws, the manager reports the failure, uses the uncompacted messages, and does not retry in the same iteration. A compactor bug never fails a run that would otherwise have continued. A failure counts as a futile attempt for the repeat limit, so a compactor that always fails is called twice, not on every iteration.
 - *Never above the window.* If even after compaction the prompt exceeds the usable window, the agent fails with a clear `ContextOverflowException` (4.6) before calling the provider, rather than sending a call that is certain to be rejected. (Only when a window is known.)
 
 ### 4.5 The two loops

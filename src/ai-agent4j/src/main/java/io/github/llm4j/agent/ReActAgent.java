@@ -21,6 +21,14 @@ import io.github.llm4j.budget.BudgetPolicy;
 import io.github.llm4j.budget.BudgetedLLMClient;
 import io.github.llm4j.budget.PriceTable;
 import io.github.llm4j.budget.TokenEstimator;
+import io.github.llm4j.context.CompactionEvent;
+import io.github.llm4j.context.ContextCompactor;
+import io.github.llm4j.context.ContextEvents;
+import io.github.llm4j.context.ContextManager;
+import io.github.llm4j.context.ContextPolicy;
+import io.github.llm4j.context.ContextUsage;
+import io.github.llm4j.context.ContextWindow;
+import io.github.llm4j.context.ContextWindows;
 import io.github.llm4j.fairness.BiasContext;
 import io.github.llm4j.fairness.BiasEvent;
 import io.github.llm4j.fairness.BiasMonitor;
@@ -123,6 +131,12 @@ public class ReActAgent {
     private final PriceTable priceTable;
     private final String budgetModel;
     private final TokenEstimator tokenEstimator;
+    private final ContextPolicy contextPolicy;
+    private final ContextCompactor compactor;
+    // as given to the builder, so toBuilder() can resolve the window again
+    private final ContextPolicy givenContextPolicy;
+    private final Integer givenContextWindow;
+    private final ContextWindows givenContextWindows;
     private final Map<String, Tool> tools;
     private final String systemPrompt;
     private final int maxIterations;
@@ -157,6 +171,11 @@ public class ReActAgent {
         this.priceTable = builder.priceTable;
         this.budgetModel = builder.budgetModel;
         this.tokenEstimator = builder.tokenEstimator;
+        this.givenContextPolicy = builder.contextPolicy;
+        this.givenContextWindow = builder.contextWindow;
+        this.givenContextWindows = builder.contextWindows;
+        this.compactor = builder.compactor;
+        this.contextPolicy = resolveContextPolicy(builder);
         this.llmClient = budgeted(baseClient);
         this.tools = new HashMap<>(builder.tools);
         this.persona = builder.persona;
@@ -228,6 +247,35 @@ public class ReActAgent {
         if (supported && hasTools && legal && !customPrompt) return true;
         if (supported && hasTools && !legal) logger.info("Using the text protocol: some tool names are not legal function names");
         return false;
+    }
+
+    /** The policy with its window settled: the policy's own, else the shorthand, else the catalogue entry for the model name. */
+    private static ContextPolicy resolveContextPolicy(Builder b) {
+        ContextPolicy policy = b.contextPolicy != null ? b.contextPolicy : ContextPolicy.builder().build();
+        if (policy.window() != null) return policy;
+        if (b.contextWindow != null) return policy.withWindow(ContextWindow.of(b.contextWindow));
+        if (b.contextWindows != null && b.budgetModel != null) {
+            return b.contextWindows.window(b.budgetModel).map(policy::withWindow).orElse(policy);
+        }
+        return policy;
+    }
+
+    /** A manager for one run, or null when nothing about context was asked for (then the loop behaves exactly as it always has). */
+    private ContextManager newContextManager(List<ToolSpec> specs) {
+        if (compactor == null && listeners.isEmpty()) return null;
+        TokenEstimator estimator = tokenEstimator != null ? tokenEstimator : io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE;
+        long overhead = specs.isEmpty() ? 0 : estimator.prompt(LLMRequest.builder().messages(List.of(Message.user(""))).tools(specs).build());
+        return new ContextManager(contextPolicy, compactor, estimator, overhead, new ContextEvents() {
+            @Override
+            public void onUsage(ContextUsage usage) {
+                notifyContextUsage(usage);
+            }
+
+            @Override
+            public void onCompaction(CompactionEvent event) {
+                notifyCompaction(event);
+            }
+        });
     }
 
     /** Wraps the client in a {@link BudgetedLLMClient} when this agent has a budget or a per-call cap. */
@@ -524,9 +572,15 @@ public class ReActAgent {
         conversation.add(Message.system(nativePrompt));
         conversation.add(Message.user(context + question));
         List<ToolSpec> specs = toolSpecs();
+        ContextManager contextManager = newContextManager(specs);
 
         for (int i = 0; i < maxIterations; i++) {
             logger.debug("Agent iteration {}/{} (native tool calling)", i + 1, maxIterations);
+            if (contextManager != null) {
+                ContextManager.Prepared prepared = contextManager.prepare(conversation, i);
+                if (prepared.changed()) conversation = new ArrayList<>(prepared.messages());
+            }
+            int sent = conversation.size();
             LLMRequest request = LLMRequest.builder().messages(conversation).tools(specs).temperature(temperature).build();
             LLMResponse response;
             try {
@@ -546,6 +600,9 @@ public class ReActAgent {
                         steps, i, tally.usage(), redundantActionCount.get(), true);
             }
             tally.add(response);
+            if (contextManager != null && response.getTokenUsage() != null) {
+                contextManager.reported(response.getTokenUsage().getPromptTokens(), sent);
+            }
             String text = response.getContent() == null ? "" : response.getContent();
             logger.info("=== LLM Response (Iteration {}) ===\n{}{}", i + 1, text, response.hasToolCalls() ? "\n[tool calls: " + response.getToolCalls().size() + "]" : "");
 
@@ -994,6 +1051,26 @@ public class ReActAgent {
         }
     }
 
+    private void notifyContextUsage(ContextUsage usage) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onContextUsage(usage);
+            } catch (Exception e) {
+                logger.error("Error in listener onContextUsage", e);
+            }
+        }
+    }
+
+    private void notifyCompaction(CompactionEvent event) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onCompaction(event);
+            } catch (Exception e) {
+                logger.error("Error in listener onCompaction", e);
+            }
+        }
+    }
+
     private void notifyObservation(String observation) {
         for (AgentEventListener listener : listeners) {
             try {
@@ -1087,6 +1164,10 @@ public class ReActAgent {
         private PriceTable priceTable;
         private String budgetModel;
         private TokenEstimator tokenEstimator;
+        private ContextPolicy contextPolicy;
+        private Integer contextWindow;
+        private ContextWindows contextWindows;
+        private ContextCompactor compactor;
         private ToolCalling toolCalling = ToolCalling.AUTO;
         private boolean inheritedPrompt;
         private String inheritedNativePrompt;
@@ -1101,6 +1182,10 @@ public class ReActAgent {
             this.priceTable = agent.priceTable;
             this.budgetModel = agent.budgetModel;
             this.tokenEstimator = agent.tokenEstimator;
+            this.contextPolicy = agent.givenContextPolicy;
+            this.contextWindow = agent.givenContextWindow;
+            this.contextWindows = agent.givenContextWindows;
+            this.compactor = agent.compactor;
             this.tools = new HashMap<>(agent.tools);
             this.systemPrompt = agent.systemPrompt;
             this.maxIterations = agent.maxIterations;
@@ -1133,6 +1218,41 @@ public class ReActAgent {
         /** How the agent asks the model to use tools; {@link ToolCalling#AUTO} by default. */
         public Builder toolCalling(ToolCalling mode) {
             this.toolCalling = mode == null ? ToolCalling.AUTO : mode;
+            return this;
+        }
+
+        /**
+         * When to compact the conversation and how far, and what must never be touched. Without a compactor ({@link #compaction}) the
+         * agent only reports its context use to listeners.
+         */
+        public Builder contextPolicy(ContextPolicy policy) {
+            this.contextPolicy = policy;
+            return this;
+        }
+
+        /** The model's context window in tokens; shorthand for a policy with this window. A window in the policy wins over this. */
+        public Builder contextWindow(int tokens) {
+            this.contextWindow = tokens;
+            return this;
+        }
+
+        /**
+         * Where to look up the window by the model name set with {@link #budgetModel}, when neither the policy nor
+         * {@link #contextWindow} gives one.
+         */
+        public Builder contextWindows(ContextWindows windows) {
+            this.contextWindows = windows;
+            return this;
+        }
+
+        /**
+         * How to make the conversation smaller when it nears the window; see {@code ContextCompactors} for the built-in strategies. Needs a
+         * window to act (from the policy, {@link #contextWindow} or {@link #contextWindows}); without one it is never called.
+         *
+         * <p>For now this applies to the native tool-calling loop; the text protocol follows.
+         */
+        public Builder compaction(ContextCompactor compactor) {
+            this.compactor = compactor;
             return this;
         }
 

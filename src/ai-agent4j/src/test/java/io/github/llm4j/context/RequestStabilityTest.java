@@ -93,4 +93,17 @@ class RequestStabilityTest {
         agent(model, new ScriptedModel.FixedTool("search", "r")).addListener(old).build().run("Q?");
         assertThat(seen).contains("action", "observation");
     }
+
+    /** R4: listeners, a window and a catalogue without a compactor change nothing about what is sent. */
+    @Test
+    void aListenerAndAWindowWithoutACompactorSendTheSameRequests() throws Exception {
+        ScriptedModel model = ScriptedModel.of(true, false,
+                ScriptedModel.calls("looking", ScriptedModel.call("c1", "search", Map.of("q", "plans"))),
+                ScriptedModel.calls("and again", ScriptedModel.call("c2", "search", Map.of("q", "prices")),
+                        ScriptedModel.call("c3", "lookup", Map.of("id", 7))),
+                ScriptedModel.answer("The plans differ in price."));
+        agent(model, new ScriptedModel.FixedTool("search", "result text for search"), new ScriptedModel.FixedTool("lookup", "record 7"))
+                .temperature(0.2).contextWindow(500).addListener(new ContextListener()).build().run("Compare the plans.");
+        matches("native-two-steps", model.requests);
+    }
 }

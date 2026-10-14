@@ -4,11 +4,11 @@ An agent's prompt grows with every step: each thought, tool call and result is a
 later it no longer fits the model's **context window**. This page is about keeping it small enough, on purpose, with
 the parts you choose: **how much room is left**, **what to do about it**, and **what must never be touched**.
 
-> **Status: in progress.** The building blocks on this page are available now and work on their own: the
-> strategies, the window catalogue, the policy and the extension point. They are **not yet connected to
-> `ReActAgent`**: an agent still sends everything it has. Connecting them (so an agent measures its context, compacts
-> before the limit and recovers from a "prompt too long" error) is the next step of the work and will be documented
-> here as it lands. The design is in [`docs/specs/01-context-management`](../../../docs/specs/01-context-management/DESIGN.md).
+> **Status: in progress.** The strategies, the window catalogue and the policy work on their own (sections 2 to 8), and an agent that uses
+> **native tool calling** now measures its context before every model call, reports it to its listeners, and compacts automatically
+> before the limit (sections 9 to 11). Still to come, in this order: the text-protocol loop, a `summarize` strategy, recovery from a
+> provider's "prompt too long" error, and a token window for `ConversationHistory` (section 13). The design is in
+> [`docs/specs/01-context-management`](../../../docs/specs/01-context-management/DESIGN.md).
 
 Everything here is opt-in and changes nothing for code that does not use it.
 
@@ -24,8 +24,11 @@ Everything here is opt-in and changes nothing for code that does not use it.
 6. [Find a strategy by name](#6-find-a-strategy-by-name)
 7. [Know the window](#7-know-the-window)
 8. [The policy](#8-the-policy)
-9. [Guarantees](#9-guarantees)
-10. [What is coming](#10-what-is-coming)
+9. [Use it in an agent](#9-use-it-in-an-agent)
+10. [Watch what it does](#10-watch-what-it-does)
+11. [The guards](#11-the-guards)
+12. [Guarantees](#12-guarantees)
+13. [What is coming](#13-what-is-coming)
 
 ---
 
@@ -70,7 +73,7 @@ estimates made with the same `TokenEstimator` budgets use (about four characters
 | `ContextCompactors.trimToolResults(maxChars)` | `trim_tool_results` | Shortens tool results longer than `maxChars` (at least 40), oldest first, keeping the start and the end of each with a note of how much was omitted, and stops as soon as the target is reached. A result already shortened is not shortened again | no |
 | `ContextCompactors.chain(a, b, …)` | `chain` | Applies strategies in order and stops as soon as the target is reached | as its parts |
 
-A strategy that asks a model to **summarise** the oldest part is planned (see [What is coming](#10-what-is-coming)).
+A strategy that asks a model to **summarise** the oldest part is planned (see [What is coming](#13-what-is-coming)).
 
 ## 4. What is always protected
 
@@ -213,26 +216,98 @@ ContextPolicy policy = ContextPolicy.builder()
 `usableInput()` is the window less the tokens reserved for the reply. Invalid combinations are rejected when the policy is built,
 with a message naming the setting.
 
-## 9. Guarantees
+## 9. Use it in an agent
+
+Give the agent a window and a strategy:
+
+```java
+ReActAgent agent = ReActAgent.builder()
+        .llmClient(client)
+        .addTool(search)
+        .contextWindow(4_000)          // or: .budgetModel("acme/big-model").contextWindows(windows)
+        .compaction(ContextCompactors.chain(
+                ContextCompactors.trimToolResults(2_000),
+                ContextCompactors.dropOldest()))
+        .build();
+```
+
+`client` is your `LLMClient` and `search` one of your tools. The window can come from three places, in this order: the `window` of a
+`ContextPolicy` you pass with `.contextPolicy(policy)`, the `.contextWindow(tokens)` shorthand, or a catalogue (section 7) looked up by
+the model name you set with `.budgetModel(...)`, the name budgets already use for prices. **Without a window nothing is compacted
+automatically**, because the agent cannot know where the limit is; it still reports its context use.
+
+Before every model call the agent works out how big the next prompt will be: the provider's own prompt count from the previous call plus
+an estimate of what was added since, or, on the first call (and right after a compaction), an estimate of the whole prompt including the
+tool definitions. If that is **above `triggerAt` of the usable window**, it asks the strategy to bring the conversation down to
+`targetAt`, and sends the compacted conversation. The saving lasts: later calls build on the compacted conversation, not the original.
+
+For now this applies to agents that use **native tool calling** (the default for models that support it). An agent on the text protocol
+reports and compacts nothing yet. An agent with no compaction strategy, no window and no listener sends exactly what it always has; tests
+pin this request by request.
+
+## 10. Watch what it does
+
+Two new methods on `AgentEventListener`, both optional (existing listeners keep working unchanged):
+
+```java
+AgentEventListener listener = new AgentEventListener() {
+    @Override public void onThought(String thought) {}
+    @Override public void onAction(String tool, String input) {}
+    @Override public void onObservation(String observation) {}
+
+    @Override
+    public void onContextUsage(ContextUsage usage) {
+        usage.fraction().ifPresent(f -> lines.add(String.format("context %.0f%% full (%s)", f * 100, usage.source())));
+    }
+
+    @Override
+    public void onCompaction(CompactionEvent e) {
+        lines.add(e.result().strategy() + " " + e.result().outcome() + ": " + e.result().tokensBefore()
+                + " -> " + e.result().tokensAfter() + " tokens" + (e.failure() != null ? " (" + e.failure() + ")" : ""));
+    }
+};
+```
+
+- **`onContextUsage`** fires before every model call: the prompt size in tokens, whether it is `REPORTED` (the provider's count plus an
+  estimate of what was added since) or `ESTIMATED`, the window, and `fraction()` of the usable window, which is empty when the window is not
+  known and can be above 1.0.
+- **`onCompaction`** fires after every attempt: the `CompactionResult` (strategy, outcome, sizes before and after, messages removed), the
+  reason (`THRESHOLD`), the iteration, the usage before and after, and `failure` when the strategy threw. A result that was not used, a
+  failure and the notice that compaction has stopped are all reported, so nothing happens silently.
+
+A listener that throws is logged and ignored; it cannot fail a run.
+
+## 11. The guards
+
+Compaction must never make a run worse. The agent enforces, whatever strategy you give it:
+
+| Guard | What it does |
+|---|---|
+| Gain check | A result that is not at least `minGain` (10 %) smaller, **measured by the agent, not taken from the strategy's own numbers**, is discarded and the conversation is used as it was |
+| Repeat limit | After `maxCompactions` (8) in one run, or two attempts in a row that gained nothing or failed, compaction stops for the rest of the run, with one `onCompaction` notice saying why. Usage keeps being reported |
+| Fail open | A strategy that throws never fails the run: the failure is reported and the conversation is used as it was |
+
+One manager serves one run and holds nothing shared, so many agents can use the same strategy instance at once.
+
+## 12. Guarantees
 
 - The conversation you pass in is never modified.
 - Protected content and tool-call pairs are never broken; the result is never larger than the input.
 - No shared mutable state: strategies and the catalogue can be shared between threads and agents.
 - No new dependency.
+- An agent that is not given a strategy, a window or a listener sends exactly the requests it sent before this feature existed.
 - Every built-in is checked by the same contract test (a few thousand generated conversations, with several recent-window sizes),
   and so is the class in section 5.
 
-## 10. What is coming
+## 13. What is coming
 
 In this order, each with its own tests and documentation:
 
-1. An agent that **measures its context** before each model call and reports it to its listeners.
-2. A manager that **compacts automatically** before the limit, in both the tool-calling and the text-protocol loops, with guards
-   (a gain check, a limit on repeats, and a compactor that fails never fails the run).
-3. A `summarize(client)` strategy, with a fallback to `dropOldest` and its cost counted.
-4. Recovery from a provider's **"prompt too long"** error: compact harder once and retry once.
-5. A token-based window for `ConversationHistory`.
-6. Models seeded in the window catalogue, verified against provider documentation.
+1. The same measuring and compacting in the **text-protocol** loop.
+2. A `summarize(client)` strategy, with a fallback to `dropOldest` and its cost counted.
+3. Recovery from a provider's **"prompt too long"** error: compact harder once and retry once, and refuse a call that cannot fit.
+4. A token-based window for `ConversationHistory`.
+5. Models seeded in the window catalogue, verified against provider documentation.
 
 See also: [ReAct Agent Guide](ReAct-Agent-Guide.md) · [Budgets and Rate Limits](Budgets-and-Rate-Limits.md) ·
 [Memory and Persistence](Memory-and-Persistence.md)

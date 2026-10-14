@@ -2,6 +2,8 @@ package io.github.llm4j.context;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.llm4j.agent.AgentEventListener;
+import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.model.Message;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -148,6 +150,51 @@ class ContextDocsExamplesTest {
     }
 
     @Test
+    void useItInAnAgent() {
+        io.github.llm4j.LLMClient client = ReActAgentCompactionNativeTest.looping(9);
+        io.github.llm4j.agent.Tool search = ReActAgentCompactionNativeTest.search(1_600);
+        // --- sample: agent
+        ReActAgent agent = ReActAgent.builder()
+                .llmClient(client)
+                .addTool(search)
+                .contextWindow(4_000)          // or: .budgetModel("acme/big-model").contextWindows(windows)
+                .compaction(ContextCompactors.chain(
+                        ContextCompactors.trimToolResults(2_000),
+                        ContextCompactors.dropOldest()))
+                .build();
+        // --- end sample
+        assertThat(agent.run("Find everything.").getFinalAnswer()).isEqualTo("done after 9");
+    }
+
+    @Test
+    void watchWhatItDoes() {
+        io.github.llm4j.LLMClient client = ReActAgentCompactionNativeTest.looping(9);
+        io.github.llm4j.agent.Tool search = ReActAgentCompactionNativeTest.search(1_600);
+        java.util.List<String> lines = new ArrayList<>();
+        // --- sample: listener
+        AgentEventListener listener = new AgentEventListener() {
+            @Override public void onThought(String thought) {}
+            @Override public void onAction(String tool, String input) {}
+            @Override public void onObservation(String observation) {}
+
+            @Override
+            public void onContextUsage(ContextUsage usage) {
+                usage.fraction().ifPresent(f -> lines.add(String.format("context %.0f%% full (%s)", f * 100, usage.source())));
+            }
+
+            @Override
+            public void onCompaction(CompactionEvent e) {
+                lines.add(e.result().strategy() + " " + e.result().outcome() + ": " + e.result().tokensBefore()
+                        + " -> " + e.result().tokensAfter() + " tokens" + (e.failure() != null ? " (" + e.failure() + ")" : ""));
+            }
+        };
+        // --- end sample
+        ReActAgent.builder().llmClient(client).addTool(search).contextWindow(4_000).compaction(ContextCompactors.dropOldest())
+                .addListener(listener).build().run("Find everything.");
+        assertThat(lines).anyMatch(l -> l.startsWith("context")).anyMatch(l -> l.startsWith("drop_oldest COMPACTED"));
+    }
+
+    @Test
     void thePageShowsExactlyTheSamplesThatAreTested() throws Exception {
         String source = Files.readString(Path.of("src/test/java/io/github/llm4j/context/ContextDocsExamplesTest.java"));
         String page = Files.readString(Path.of("wiki/Context-and-Compaction.md"));
@@ -158,6 +205,6 @@ class ContextDocsExamplesTest {
             String sample = m.group(2).stripIndent().strip();
             assertThat(page).as("the page shows the '" + m.group(1) + "' sample").contains(sample);
         }
-        assertThat(found).isGreaterThanOrEqualTo(8);
+        assertThat(found).isGreaterThanOrEqualTo(10);
     }
 }

@@ -30,7 +30,7 @@ calls tools, and the building blocks around them: memory, RAG, knowledge graphs,
 | **[🌐 OpenAPI Tool](OpenAPI-Tool.md)** | Turn any REST API's spec into a tool. |
 | **[🔗 MCP Integration](MCP-Integration.md)** | Use tools from any Model Context Protocol server. |
 | **[💰 Budgets and Rate Limits](Budgets-and-Rate-Limits.md)** | Cap tokens and money before each call; pause on provider limits. |
-| **[🗜️ Context and Compaction](Context-and-Compaction.md)** | Keep a growing prompt inside the model's context window with built-in or your own strategies. *In progress.* |
+| **[🗜️ Context and Compaction](Context-and-Compaction.md)** | Keep a growing prompt inside the model's context window with built-in or your own strategies. *In progress: works for native tool calling.* |
 
 ### Memory and knowledge
 

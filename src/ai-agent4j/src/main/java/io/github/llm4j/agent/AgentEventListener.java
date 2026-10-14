@@ -50,4 +50,24 @@ public interface AgentEventListener {
     default void onBudget(io.github.llm4j.budget.BudgetEvent event) {
         // no-op by default; implementors opt in
     }
+
+    /**
+     * Called before each model call with how full the context is. {@link io.github.llm4j.context.ContextUsage#fraction()} is empty
+     * when the model's window is not known.
+     *
+     * @param usage the prompt size, where it came from (the provider's count or an estimate) and the window
+     */
+    default void onContextUsage(io.github.llm4j.context.ContextUsage usage) {
+        // no-op by default; implementors opt in
+    }
+
+    /**
+     * Called after each attempt to compact the conversation: a compaction, a result that was not used, a strategy that failed, and the one
+     * notice that compaction has stopped for the run.
+     *
+     * @param event what was tried and what came of it
+     */
+    default void onCompaction(io.github.llm4j.context.CompactionEvent event) {
+        // no-op by default; implementors opt in
+    }
 }
