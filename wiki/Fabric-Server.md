@@ -171,6 +171,8 @@ Two read-only routes (behind the same sign-in as the rest of the API) give the f
 - `GET /api/tools` is the roll-up of every tool and task of every run: one row each (`kind` is `tool` or `task`; a tool and a task with one name are two rows), failing first, with calls, success rate, latency percentiles and histogram, health with its reason, failures by category, the agents that use it and, when it has failed, the run it last failed in. `counts` is the number of rows in each health state.
 - `GET /api/security` is the security picture: the added-up counts, the agents whose verdict is `exercised`, `accepted` or `armed` (each with its run and, when accepted, the reason), and the open trifecta, injection and access incidents with their runs. At most 200 agents and 100 incidents, newest run first.
 
+`GET /api/runs/{trace}/timeline` returns a run's marks and the range of its kept history; `GET /api/runs/{trace}?at=N` returns the view as it was after record `N` (`live: false`, `asOf`), 404 with `historyStartsAt` when `N` is not kept.
+
 `GET /api/runs` carries `security`, the number of open security incidents, on each run, for a tab badge. An agent's `context` in a run's view also carries `points` (the last 120 model calls) and `events` (the last 60 compactions) for a timeline.
 
 ### Holding still, and finding a run
@@ -178,6 +180,12 @@ Two read-only routes (behind the same sign-in as the rest of the API) give the f
 The page does not rearrange itself under your pointer. Run tabs keep the order they first appeared in; the tab row holds only the run you are looking at, the runs that are live and those that just finished (at most eight). Every run, finished or not, is in the **Runs** list: search it, filter by live, finished or failed, and open one. Rows of the tools and tasks tables keep their place; when the live order has changed a chip says "order changed" and **Re-sort** applies it. **Live / Paused** (top right) stops every redraw so you can read; while paused the page counts what changed ("Paused at 14:32:05 · 3 changes since") and **Live** brings it up to date.
 
 For a first look use the calm simulator: `./run.sh calm` in [fabric-sim](../src/examples/fabric-sim/README.md) makes one process and one run. The default is a busy fleet, which keeps adding runs and incidents.
+
+### Going back in time
+
+On a run's page the **time bar** under the view tabs spans everything the run has kept. Each marker is something that happened: the start, an incident opening or closing, a failure, a compaction, a change of state (hover or focus a marker for what it was). Click one, drag the slider, or use **‹ incident** and **incident ›**, and the whole page shows the run **as it was** at that point, under a banner: *As of 14:31:02 (3 min ago): a snapshot, not live*. Nothing in a snapshot changes while the run goes on; **Back to live** (or the end of the slider) returns. Run controls are hidden in a snapshot.
+
+A run keeps the records it was built from, up to 50,000; past that the oldest drop and a view says its totals are partial. A past view is made by the same code as the live one, using the rules, prices and windows the server holds now. The fleet pages are not replayed: use **Pause**.
 
 ### What the pages show
 

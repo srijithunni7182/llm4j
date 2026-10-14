@@ -339,4 +339,22 @@ tr.rl { cursor: pointer; } tr.rl:hover td { background: var(--surface-raised); }
 tr.rl .st { white-space: nowrap; }
 tr.rl.sel td { background: var(--live-soft); }
 #rl-search { height: 30px; min-width: 260px; padding: 0 10px; border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: transparent; color: var(--ink); font: inherit; }
+/* time: the bar over the run's marks, and the banner of a snapshot */
+.timebar { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+.timebar .btn[aria-pressed="true"] { border-color: var(--rung-suggest); color: var(--rung-suggest); }
+.timebar .btn[aria-pressed="false"] { border-color: var(--live); color: var(--live); }
+.timebar .btn:disabled { opacity: .5; cursor: default; }
+.tbtrack { position: relative; flex: 1 1 280px; min-width: 200px; height: 34px; }
+.tbtrack input[type=range] { position: absolute; left: 0; right: 0; top: 14px; width: 100%; margin: 0; accent-color: var(--live); }
+.tbtrack input[type=range]:focus-visible { outline: 2px solid var(--live); outline-offset: 3px; }
+.tbmarks { position: absolute; left: 8px; right: 8px; top: 0; height: 14px; }
+.tbmark { position: absolute; top: 0; width: 10px; height: 14px; margin-left: -5px; padding: 0; border: 0; border-radius: 2px; background: var(--ink-muted); cursor: pointer; }
+.tbmark.compaction { background: var(--rung-suggest); height: 8px; top: 3px; }
+.tbmark.failure { background: var(--danger); }
+.tbmark.incident-open { background: var(--live); }
+.tbmark.incident-open.high { background: var(--danger); }
+.tbmark.incident-close { background: var(--wait); height: 8px; top: 3px; }
+.tbmark.start, .tbmark.end { background: var(--ink); width: 4px; margin-left: -2px; }
+.tbmark:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; }
+.banner.snap { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border: 1px solid var(--live); background: var(--live-soft); color: var(--ink); }
 

@@ -20,7 +20,7 @@
 
   function fetchJson(url) {
     return fetch(url, { cache: 'no-store' }).then(function (r) {
-      if (!r.ok) { var err = new Error(r.status); err.status = r.status; throw err; }
+      if (!r.ok) { return r.json().catch(function () { return {}; }).then(function (b) { var err = new Error(r.status); err.status = r.status; err.body = b; throw err; }); }
       return r.json();
     });
   }
@@ -404,8 +404,11 @@
   var SECURITY_KINDS = { TRIFECTA: true, INJECTION: true, ACCESS: true };
   var SEV = { high: 'High', warn: 'Warning', info: 'Info' };
 
+  /** The moment "ago" counts from: now, or, looking at a snapshot, the moment of the snapshot. */
+  function refNow() { return view && view.live === false && view.asOf ? Date.parse(view.asOf) : Date.now(); }
+
   function ago(iso) {
-    var s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+    var s = Math.max(0, Math.floor((refNow() - new Date(iso).getTime()) / 1000));
     return s < 60 ? s + 's ago' : s < 3600 ? Math.floor(s / 60) + 'm ago' : Math.floor(s / 3600) + 'h ago';
   }
 
@@ -1050,6 +1053,107 @@
     });
   }
 
+
+  // ---- time: the run page as it was. A snapshot is the run's kept records replayed up to a point (the server's viewAt); nothing in it changes until the person moves.
+  var at = null, atTrace = null, snap = null, tl = { marks: [], history: null }, tbNote = '';
+
+  function loadRun() {
+    if (atTrace !== selected) { at = null; snap = null; }
+    if (at != null) {
+      if (snap && snap.traceId === selected && snap.seq === at) { return refreshTimeline(); }   // a snapshot does not change; only the range and marks may grow
+      return fetchJson('/api/runs/' + selected + '?at=' + at).then(function (v) {
+        snap = v; view = v; viewAt = Date.now(); render(); renderConnection(); return refreshTimeline();
+      }, function (e) {
+        if (e.status !== 404) { throw e; }
+        var from = e.body && e.body.historyStartsAt;
+        tbNote = 'That point is no longer kept; the history starts at ' + (from ? hms(from) : 'a later point') + '.';
+        at = null; snap = null;
+        return loadRun();
+      });
+    }
+    return fetchJson('/api/runs/' + selected).then(function (v) {
+      view = v; viewAt = Date.now();
+      if (v.history && (!tl.history || tl.traceId !== selected || tl.history.lastSeq !== v.history.lastSeq)) {
+        tl.history = v.history; tl.traceId = selected;
+        render(); renderConnection();
+        return fetchJson('/api/runs/' + selected + '/timeline').then(function (t) { tl.marks = t.marks || []; tl.history = t.history; renderTimebar(view); }, function () { });
+      }
+      render(); renderConnection();
+      return null;
+    });
+  }
+
+  function refreshTimeline() {
+    return fetchJson('/api/runs/' + selected + '/timeline').then(function (t) { tl.marks = t.marks || []; tl.history = t.history; tl.traceId = selected; renderTimebar(view); }, function () { });
+  }
+
+  function goTo(seq) { at = seq; atTrace = selected; snap = null; tbNote = ''; tick(true); }
+  function goLive() { at = null; snap = null; tbNote = ''; tick(true); }
+
+  function ageWords(iso) {
+    var m = Math.floor(Math.max(0, Date.now() - Date.parse(iso)) / 60000);
+    return m < 1 ? 'under a minute ago' : m === 1 ? '1 min ago' : m < 60 ? m + ' min ago' : Math.floor(m / 60) + ' h ago';
+  }
+
+  function renderSnapText() {
+    var b = $('snapbanner');
+    if (!view || view.live !== false) { b.hidden = true; return; }
+    var t = 'As of ' + hms(view.asOf) + ' (' + ageWords(view.asOf) + '): a snapshot, not live.';
+    if (view.partial) { t += ' The run\'s earliest records are no longer kept, so totals here miss them (the history starts at ' + hms((view.history || tl.history || {}).from || view.asOf) + ').'; }
+    $('snaptext').textContent = t;
+    b.hidden = false;
+  }
+
+  function renderTimebar(v) {
+    var h = tl.history || (v && v.history), tb = $('timebar');
+    tb.hidden = !h;
+    if (!h) { return; }
+    var slider = $('tb-slider');
+    slider.min = String(h.firstSeq); slider.max = String(h.lastSeq);
+    slider.value = String(at != null ? at : h.lastSeq);
+    $('tb-live').setAttribute('aria-pressed', String(at == null));
+    $('tb-at').textContent = at == null ? 'now' : (v && v.asOf ? hms(v.asOf) : '');
+    $('tb-note').textContent = tbNote;
+    var opens = tl.marks.filter(function (m) { return m.kind === 'incident-open'; });
+    var cur = at != null ? at : h.lastSeq;
+    $('tb-prev').disabled = !opens.some(function (m) { return at != null ? m.seq < cur : m.seq <= cur; });
+    $('tb-next').disabled = at == null;
+    var box = $('tb-marks'), span = Math.max(1, h.lastSeq - h.firstSeq);
+    box.textContent = '';
+    tl.marks.forEach(function (m) {
+      var b = el('button', 'tbmark ' + m.kind + (m.severity ? ' ' + m.severity : ''));
+      b.type = 'button';
+      b.setAttribute('data-kind', m.kind);
+      b.setAttribute('data-seq', String(m.seq));
+      b.style.left = (Math.min(1, Math.max(0, (m.seq - h.firstSeq) / span)) * 100) + '%';
+      var words = (MARK_WORDS[m.kind] || m.kind) + (m.label ? ': ' + m.label : '') + ' at ' + hms(m.at);
+      b.setAttribute('aria-label', words);
+      b.title = words;
+      b.addEventListener('click', function () { goTo(m.seq); });
+      box.appendChild(b);
+    });
+    renderSnapText();
+  }
+  var MARK_WORDS = { start: 'Run started', end: 'Run ended', 'incident-open': 'Incident opened', 'incident-close': 'Incident closed', failure: 'Failure', compaction: 'Compaction', state: 'Change of state' };
+  var tbTimer = null;
+  $('tb-slider').addEventListener('input', function () {
+    var v = Number($('tb-slider').value), h = tl.history;
+    clearTimeout(tbTimer);
+    tbTimer = setTimeout(function () { if (h && v >= h.lastSeq) { goLive(); } else { goTo(v); } }, 120);
+  });
+  $('tb-live').addEventListener('click', goLive);
+  $('snapback').addEventListener('click', goLive);
+  $('tb-prev').addEventListener('click', function () {
+    var h = tl.history, cur = at != null ? at : h.lastSeq, best = null;
+    tl.marks.forEach(function (m) { if (m.kind === 'incident-open' && (at != null ? m.seq < cur : m.seq <= cur) && (best == null || m.seq > best)) { best = m.seq; } });
+    if (best != null) { goTo(best); }
+  });
+  $('tb-next').addEventListener('click', function () {
+    var best = null;
+    tl.marks.forEach(function (m) { if (m.kind === 'incident-open' && m.seq > at && (best == null || m.seq < best)) { best = m.seq; } });
+    if (best != null) { goTo(best); } else { goLive(); }
+  });
+
   var csrf = null;
   var ASKS = {
     pause: ['Pause this run?', 'The run holds before its next step and keeps its thread. Resume continues exactly where it stopped.', 'Pause'],
@@ -1573,6 +1677,7 @@
     pill.className = 'pill ' + v.status + (v.status === 'running' ? ' pulse' : '');
     pill.textContent = v.status;
     renderControls(v);
+    renderTimebar(v);
     $('meta').hidden = false;
     $('started').textContent = v.startedAt ? hms(v.startedAt) : '–';
     tickElapsed();
@@ -1633,6 +1738,7 @@
   // Elapsed ticks once a second on the client between polls; a finished run holds still.
   function tickElapsed() {
     if (!view || paused) { return; }
+    if (view.live === false) { renderSnapText(); return; }
     var live = view.status === 'running' || view.status === 'waiting';
     $('elapsed').textContent = clock(view.elapsedMillis + (live ? Date.now() - viewAt : 0));
   }
@@ -1727,7 +1833,7 @@
           $('config').hidden = true;
           if (showSecrets) { renderSecrets(); return null; }
           $('secrets').hidden = true;
-          return selected && !showProcs ? fetchJson('/api/runs/' + selected).then(function (v) { view = v; viewAt = Date.now(); render(); renderConnection(); }) : null;
+          return selected && !showProcs ? loadRun() : null;
         });
     }).catch(function (e) {
       if (e && e.status === 401) { showLogin(true); return; }

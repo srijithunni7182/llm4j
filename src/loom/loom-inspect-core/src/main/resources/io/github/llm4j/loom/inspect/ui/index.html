@@ -266,6 +266,18 @@
 
   <main id="main" hidden>
     <nav id="runtabs" class="runtabs" role="tablist" aria-label="Views of this run"></nav>
+    <div id="timebar" class="timebar" role="group" aria-label="Time: go back to see how this run looked" hidden>
+      <button id="tb-live" class="btn" type="button" aria-pressed="true" title="Follow the run as it happens">Live</button>
+      <button id="tb-prev" class="btn" type="button" aria-label="Previous incident" title="Go to the previous incident">&lsaquo; incident</button>
+      <div class="tbtrack">
+        <input id="tb-slider" type="range" min="0" max="0" step="1" value="0" aria-label="Point in the run">
+        <div id="tb-marks" class="tbmarks"></div>
+      </div>
+      <button id="tb-next" class="btn" type="button" aria-label="Next incident" title="Go to the next incident" disabled>incident &rsaquo;</button>
+      <span id="tb-at" class="mono small" aria-live="off">now</span>
+      <span id="tb-note" class="muted small" role="status"></span>
+    </div>
+    <div id="snapbanner" class="banner snap" role="status" hidden><span id="snaptext"></span><button id="snapback" class="btn" type="button">Back to live</button></div>
     <section class="kpis" data-tab="overview" aria-label="Run totals">
       <div class="tile"><div class="eyebrow">Tokens used</div><div class="val" id="tokens">0</div><div class="foot mono" id="tokensfoot"></div></div>
       <div class="tile"><div class="eyebrow">Cost so far</div><div class="val" id="cost">$0</div><div class="foot mono" id="costfoot"></div></div>

@@ -253,10 +253,34 @@ public final class InspectServer {
             } else if (path.startsWith("/api/runs/")) {
                 String trace = path.substring("/api/runs/".length());
                 boolean wantsGraph = trace.endsWith("/graph");
+                boolean wantsTimeline = trace.endsWith("/timeline");
                 if (wantsGraph) trace = trace.substring(0, trace.length() - "/graph".length());
+                if (wantsTimeline) trace = trace.substring(0, trace.length() - "/timeline".length());
                 Optional<RunState> run = trace.matches("[0-9a-f]{32}") ? registry.findByTrace(trace) : Optional.empty();
+                String at = queryParam(x, "at");
                 if (run.isPresent() && wantsGraph) send(x, 200, "application/json", json(run.get().graph() == null ? Map.of() : run.get().graph()));
-                else if (run.isPresent()) send(x, 200, "application/json", json(withControls(run.get().view(), run.get().traceId(), x)));
+                else if (run.isPresent() && wantsTimeline) {
+                    Map<String, Object> t = new java.util.LinkedHashMap<>();
+                    t.put("marks", run.get().timeline());
+                    t.put("history", Map.of("firstSeq", run.get().firstSeq(), "lastSeq", run.get().lastSeq()));
+                    send(x, 200, "application/json", json(t));
+                } else if (run.isPresent() && at != null) {
+                    long seq;
+                    try {
+                        seq = Long.parseLong(at);
+                    } catch (NumberFormatException e) {
+                        send(x, 400, "application/json", json(Map.of("error", "at is the number of a record")));
+                        return;
+                    }
+                    Optional<Map<String, Object>> past = run.get().viewAt(seq);
+                    if (past.isPresent()) send(x, 200, "application/json", json(past.get()));
+                    else {
+                        Map<String, Object> gone = new java.util.LinkedHashMap<>();
+                        gone.put("error", "no such point in this run's history");
+                        if (run.get().historyStartsAt() != null) gone.put("historyStartsAt", run.get().historyStartsAt().toString());
+                        send(x, 404, "application/json", json(gone));
+                    }
+                } else if (run.isPresent()) send(x, 200, "application/json", json(withControls(run.get().view(), run.get().traceId(), x)));
                 else send(x, 404, "application/json", json(Map.of("error", "no such run")));
             } else {
                 send(x, 404, "application/json", json(Map.of("error", "not found")));
@@ -273,11 +297,16 @@ public final class InspectServer {
     /** The run's view, with what the page may do to it now: nothing at all unless controls are on here. */
     /** The {@code client} query parameter of a fleet route, or null for every client. */
     private static String clientParam(HttpExchange x) {
+        return queryParam(x, "client");
+    }
+
+    /** One query parameter, decoded; null when absent or empty. */
+    private static String queryParam(HttpExchange x, String name) {
         String query = x.getRequestURI().getRawQuery();
         if (query == null) return null;
         for (String pair : query.split("&")) {
-            if (pair.startsWith("client=")) {
-                String v = java.net.URLDecoder.decode(pair.substring("client=".length()), java.nio.charset.StandardCharsets.UTF_8);
+            if (pair.startsWith(name + "=")) {
+                String v = java.net.URLDecoder.decode(pair.substring(name.length() + 1), java.nio.charset.StandardCharsets.UTF_8);
                 return v.isEmpty() ? null : v;
             }
         }

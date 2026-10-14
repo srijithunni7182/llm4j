@@ -141,9 +141,26 @@ public final class RunState {
     private final Map<String, Long> lastSeq = new HashMap<>();
     private final ArrayDeque<Map<String, Object>> recent = new ArrayDeque<>();
 
+    /** The most records a run keeps of what it was built from: enough to show how the run looked at any point of it. */
+    public static final int HISTORY_MAX = 50_000;
+
+    /** One record as it arrived, kept so the run can be shown as it was. */
+    private record Fed(long nanos, String instance, LogRec log, SpanRec span) { }
+
+    private final int historyMax;
+    private final ArrayDeque<Fed> fed = new ArrayDeque<>();
+    private long fedTotal;
+    private Thresholds baseThresholds;
+
     public RunState(String client, String traceId) {
+        this(client, traceId, HISTORY_MAX);
+    }
+
+    /** A run that keeps at most {@code historyMax} records of its history (0: none, as a scratch run for a past view does). */
+    public RunState(String client, String traceId, int historyMax) {
         this.client = client;
         this.traceId = traceId;
+        this.historyMax = historyMax;
     }
 
     public String client() {
@@ -174,6 +191,7 @@ public final class RunState {
 
     /** The thresholds the incident rules use (the defaults until a script's {@code inspect} blocks say otherwise). */
     public synchronized void setThresholds(Thresholds thresholds) {
+        baseThresholds = thresholds;
         detectors.thresholds(thresholds);
     }
 
@@ -268,6 +286,7 @@ public final class RunState {
 
     /** Applies a log record from the process instance {@code instance}. */
     public synchronized void apply(String instance, LogRec r) {
+        keep(new Fed(r.timeNanos(), instance, r, null));
         long seq = r.seq();
         if (seq >= 0 && instance != null) {
             Long last = lastSeq.get(instance);
@@ -300,6 +319,7 @@ public final class RunState {
 
     /** Applies a finished span. */
     public synchronized void apply(SpanRec s) {
+        keep(new Fed(s.endNanos(), null, null, s));
         if (!finished.add(s.spanId())) return; // already counted
         touch(s.endNanos());
         Open was = open.remove(s.spanId());
@@ -650,6 +670,148 @@ public final class RunState {
         while (recent.size() > RECENT) recent.removeFirst();
     }
 
+    // ------------------------------------------------------------------------------ history
+
+    private void keep(Fed f) {
+        if (historyMax <= 0) return;
+        fed.addLast(f);
+        fedTotal++;
+        while (fed.size() > historyMax) fed.removeFirst();
+    }
+
+    /** How many records are kept. */
+    public synchronized int historySize() {
+        return fed.size();
+    }
+
+    /** The number of the oldest kept record (the first record of a run is 0). */
+    public synchronized long firstSeq() {
+        return fedTotal - fed.size();
+    }
+
+    /** The number of the newest record, or -1 before any. */
+    public synchronized long lastSeq() {
+        return fedTotal - 1;
+    }
+
+    /** When the oldest kept record happened, or null before any. */
+    public synchronized Instant historyStartsAt() {
+        return fed.isEmpty() ? null : OtlpJson.instant(fed.peekFirst().nanos());
+    }
+
+    private Map<String, Object> historyInfo() {
+        Map<String, Object> h = new LinkedHashMap<>();
+        h.put("firstSeq", firstSeq());
+        h.put("lastSeq", lastSeq());
+        h.put("from", historyStartsAt().toString());
+        return h;
+    }
+
+    private void configureLike(RunState o) {
+        if (baseThresholds != null) o.setThresholds(baseThresholds);
+        o.setRules(processRules);
+        o.setCentralRules(centralRules);
+        o.setModels(models);
+        o.setPrices(prices);
+        o.setWindows(windows);
+        o.setGraph(graph);
+        o.setSecurityProfile(securityProfile);
+        o.setLadders(ladders);
+    }
+
+    /**
+     * The view as it was after record number {@code seq}: the kept records up to it are fed to a scratch run set up like this one, by the very code that
+     * builds the live view, so the two cannot differ. Empty before the kept history or after its end. What the server knows now (rules, prices, windows) is
+     * applied to the past as well; a run whose earliest records were dropped is marked {@code partial}, its totals missing what was dropped.
+     */
+    public synchronized java.util.Optional<Map<String, Object>> viewAt(long seq) {
+        if (fed.isEmpty() || seq < firstSeq() || seq > lastSeq()) return java.util.Optional.empty();
+        RunState scratch = new RunState(client, traceId, 0);
+        configureLike(scratch);
+        long at = firstSeq();
+        long nanos = 0;
+        for (Fed f : fed) {
+            if (at++ > seq) break;
+            if (f.log() != null) scratch.apply(f.instance(), f.log());
+            else scratch.apply(f.span());
+            nanos = f.nanos();
+        }
+        Instant asOf = OtlpJson.instant(nanos);
+        Map<String, Object> v = scratch.view(asOf);
+        v.put("live", false);
+        v.put("asOf", asOf.toString());
+        v.put("seq", seq);
+        v.put("history", historyInfo());
+        if (firstSeq() > 0) v.put("partial", true);
+        return java.util.Optional.of(v);
+    }
+
+    /** The first record at or after {@code nanos}: the point at which something that happened then is already in the view. */
+    private long seqAtOrAfter(long nanos) {
+        long at = firstSeq();
+        for (Fed f : fed) {
+            if (f.nanos() >= nanos) return at;
+            at++;
+        }
+        return lastSeq();
+    }
+
+    /** The run's marks, oldest first and at most 300: its start and end, each incident opened and closed, failures, compactions and changes of state. */
+    public synchronized List<Map<String, Object>> timeline() {
+        List<Map<String, Object>> marks = new ArrayList<>();
+        long at = firstSeq();
+        for (Fed f : fed) {
+            long seq = at++;
+            LogRec r = f.log();
+            if (r == null) continue;
+            String kind = switch (r.eventName() == null ? "" : r.eventName()) {
+                case Semconv.EV_RUN_START -> "start";
+                case Semconv.EV_RUN_END -> "end";
+                case Semconv.EV_FAILURE -> "failure";
+                case Semconv.EV_COMPACTION -> "compaction";
+                case Semconv.EV_RUN_SUSPENDED, Semconv.EV_CONTROL -> "state";
+                default -> null;
+            };
+            if (kind != null) marks.add(mark(seq, f.nanos(), kind, r.body(), null));
+        }
+        for (Map<String, Object> i : incidents.view()) {
+            String title = String.valueOf(i.get("title"));
+            marks.add(mark(seqAtOrAfter(OtlpJson.nanos(Instant.parse(String.valueOf(i.get("since"))))), OtlpJson.nanos(Instant.parse(String.valueOf(i.get("since")))), "incident-open", title, String.valueOf(i.get("severity"))));
+            if (i.get("closedAt") != null) {
+                long closed = OtlpJson.nanos(Instant.parse(String.valueOf(i.get("closedAt"))));
+                marks.add(mark(seqAtOrAfter(closed), closed, "incident-close", title, String.valueOf(i.get("severity"))));
+            }
+        }
+        marks.sort((a, b) -> Long.compare((Long) a.get("seq"), (Long) b.get("seq")));
+        if (marks.size() > TIMELINE_MAX) {
+            List<Map<String, Object>> keepFirst = new ArrayList<>();
+            List<Map<String, Object>> rest = new ArrayList<>();
+            for (Map<String, Object> m : marks) {
+                String k = String.valueOf(m.get("kind"));
+                if (k.equals("start") || k.equals("end") || k.startsWith("incident")) keepFirst.add(m);
+                else rest.add(m);
+            }
+            int room = Math.max(0, TIMELINE_MAX - keepFirst.size());
+            if (rest.size() > room) rest = new ArrayList<>(rest.subList(rest.size() - room, rest.size())); // the newest ones
+            keepFirst.addAll(rest);
+            keepFirst.sort((a, b) -> Long.compare((Long) a.get("seq"), (Long) b.get("seq")));
+            marks = keepFirst.size() > TIMELINE_MAX ? new ArrayList<>(keepFirst.subList(0, TIMELINE_MAX)) : keepFirst;
+        }
+        return marks;
+    }
+
+    static final int TIMELINE_MAX = 300;
+
+    private static Map<String, Object> mark(long seq, long nanos, String kind, String label, String severity) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("seq", seq);
+        m.put("at", OtlpJson.instant(nanos).toString());
+        m.put("kind", kind);
+        m.put("label", label == null ? "" : label);
+        if (severity != null) m.put("severity", severity);
+        return m;
+    }
+
     // ------------------------------------------------------------------------------ reading
 
     /** A copy of everything the console shows for this run, as plain maps and lists (ready for JSON). */
@@ -666,6 +828,8 @@ public final class RunState {
         v.put("runId", runId);
         v.put("workflow", workflow);
         v.put("status", status.name().toLowerCase(java.util.Locale.ROOT));
+        v.put("live", true);
+        if (!fed.isEmpty()) v.put("history", historyInfo());
         if (startedNanos > 0) v.put("startedAt", OtlpJson.instant(startedNanos).toString());
         if (endedNanos > 0) v.put("endedAt", OtlpJson.instant(endedNanos).toString());
         if (lastEventNanos > 0) v.put("lastEventAt", OtlpJson.instant(lastEventNanos).toString());
