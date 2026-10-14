@@ -1,0 +1,11 @@
+// An agent that uses three tools: one always fails, one always works, one is flaky. Its context is kept inside a small window.
+agent Researcher {
+    model: "demo-model"
+    tools: [Search, Calc, Lookup]
+    max_iterations: 40
+    context { compact: drop_oldest  keep_recent: 2  max_compactions: 50 }
+}
+
+workflow Main() {
+    delegate "research the topic" to Researcher -> findings
+}

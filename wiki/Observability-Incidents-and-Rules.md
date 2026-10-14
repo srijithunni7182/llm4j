@@ -17,6 +17,11 @@ watched differently in test and in production.
 | **Failing tool** | warn, high at twice the threshold (**6**) | a tool fails **3** times in a row | a dependency is down or the agent is calling it wrongly |
 | **Suspect output** | warn at **2**, high at **4** | figures in an answer appear in nothing the step was given or fetched | *no source was found*. It does not mean the figures are false |
 | **Paused** | info, warn after **60 s** | a pause by a rate limit or budget window | information, not an error; raised to a warning when long |
+| **Context nearly full** | warn at **85 %**, high at **95 %** | an agent's prompt fills that share of its model's usable window (only when the window is known) | the agent is about to run out of room; see the compactions in the evidence. Closes when the context falls below the warn level |
+| **Truncated answer** | warn, high at **3** | a model call ended at the token limit (**1** time to raise) | the answer was cut off: raise the limit, shorten the task, or expect a half answer |
+| **Compaction thrash** | warn | **4** compactions of one agent within **10** model calls, or **3** in a row that freed little | compaction is not keeping up: the window is too small, the tool results too big, or the strategy too gentle |
+| **Tool success rate** | warn below **70 %**, high below **40 %** | a tool's success rate over its last **10** calls (at least 5) | the tool is failing often; the evidence names the most common failure category |
+| **Latency spike** | info, warn on a second in a row | a model or tool call lasts more than **5×** the running median of its kind (and over 2 s, after 10 samples) | a provider or dependency is slow right now |
 | **Budget** | warn when nearly spent, high when it ran out | a budget reaches its `warn_at`, then its limit | the budget is nearly or fully used |
 
 An incident opens when its rule fires and closes when its condition clears or the step ends. Suspect-output incidents carry
@@ -30,6 +35,20 @@ The checks use **hashes and counts computed in the process** (a hash of each too
 figures in an answer that match nothing the step saw), not the text itself. So they work with `--observe-detail metadata`,
 when no text leaves the process. `no_progress` reads a workflow variable on the run's own thread at the start of each
 loop round and records only a **hash** of it.
+
+## Tools: which ones are failing
+
+Every tool a run uses has a **health**, worked out by one set of rules so that a page can show it and a server can add it up across runs:
+
+| State | When |
+|---|---|
+| `unused` | no call of it has run yet |
+| `failing` | it has run at least 3 times and **never worked**; or its last 3 calls in a row failed; or fewer than 40 % of its last 10 calls succeeded |
+| `degraded` | fewer than 70 % of its last 10 calls (at least 5) succeeded; or it has run fewer than 5 times and its last call failed |
+| `healthy` | otherwise |
+
+Each state has a one-line reason ("never succeeded in 7 calls", "4 of 6 recent calls succeeded"). A row also carries the recent and overall success rate, the failures by category (`timeout`, `not_found`, `rate_limited`, ...), the last failure and last success, a per-agent breakdown (is one agent misusing the tool, or is the tool broken?) and a latency histogram. A call the runtime never ran (a blocked repeat, an unknown tool, a rejection) is not a failure of the tool. A tool that returns an error as text (`Error: 404 ...`) is counted as failed, with a category read from the text.
+A server adds the accounts of every run it knows, with the failing tools first, in `RunRegistry.toolRollup()`. A runnable example is in [`src/examples/inspect-tools`](../src/examples/inspect-tools/README.md).
 
 ## The rules file
 
@@ -45,6 +64,13 @@ Editor {
     no_progress: 3 rounds on review.score   # this workflow variable unchanged at the end of 3 loop rounds in a row
 }
 Scriptwriter { ungrounded_figures: warn at 2, high at 4 }
+Researcher {
+    context_nearly_full: warn at 85%, high at 95%   # share of the model's usable window
+    truncated_answers: 1 times                      # model calls cut off by the token limit
+    compaction_thrash: 4 in 10 calls                # compactions within this many model calls
+    tool_success_rate: below 70% over 10 calls      # a tool's recent success rate (at least 5 calls)
+    latency_spike: 5x p50                           # a call this many times slower than the usual (median)
+}
 *            { paused_longer_than: 90s }    # for every agent that does not say otherwise
 ```
 

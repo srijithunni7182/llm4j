@@ -2175,8 +2175,11 @@ weave daemon triggers/ --secrets keys.store \
       no_progress: 3 rounds on review.score   # this workflow variable unchanged at the end of 3 loop rounds in a row
   }
   Scriptwriter { ungrounded_figures: warn at 2, high at 4 }
+  Researcher   { context_nearly_full: warn at 85%, high at 95%;  tool_success_rate: below 70% over 10 calls;  latency_spike: 5x p50 }
   *            { paused_longer_than: 90s }    # for every agent that does not say otherwise
   ```
+
+  Beside the loops and the figures, the page also flags an agent's context nearly full, a truncated answer, compaction that thrashes, a tool whose success rate collapsed and a latency spike, and shows each tool's health and failures by category (see [Observing a workflow](../../../docs/OBSERVABILITY.md)).
 
   `weave observe rules flow.loom` checks the file against the script without running anything: it refuses an agent the script does not have and a variable nothing sets (and suggests the nearest name). A file with errors is reported once when a run starts and not used.
 - The admin password may be stored as a hash: `weave observe hash-password` prints one to store as `LOOM_INSPECT_ADMIN_PASSWORD` in place of the password (Fabric stores a hash itself). Wrong guesses are slowed per address and across all addresses.

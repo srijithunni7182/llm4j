@@ -233,4 +233,18 @@ class ServerLinkTest {
         assertThat(dataCalls).as("200 records, alternating, in one batch").isEqualTo(2);
         assertThat(seqs).as("the logs keep their order").isSorted();
     }
+
+    @Test
+    void theRunEndRecordIsSentAfterTheSpansOfItsBatch() throws Exception {
+        Outbox ob = newOutbox(dir.resolve("o"));
+        LogRec end = new LogRec(5_000_000_000L, LogRec.INFO, "end", Map.of(Semconv.EVENT_NAME, Semconv.EV_RUN_END, Semconv.LOOM_SEQ, 3L), "0".repeat(32), null);
+        ob.append(("L" + OtlpJson.encodeLogs(RES, "0.1", List.of(end))).getBytes(StandardCharsets.UTF_8));
+        ob.append(span(1));
+        ob.append(log(4));
+        open(ob, List.of());
+        link.start();
+        until(() -> cursor.get() == 3);
+        List<String> data = calls.stream().filter(c -> c.equals("/v1/logs") || c.equals("/v1/traces")).toList();
+        assertThat(data).containsExactly("/v1/logs", "/v1/traces", "/v1/logs");
+    }
 }

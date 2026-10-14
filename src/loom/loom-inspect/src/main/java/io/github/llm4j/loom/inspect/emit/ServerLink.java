@@ -221,11 +221,18 @@ public final class ServerLink implements AutoCloseable {
             // logs and spans, and sending every change of kind as its own request would cost hundreds of requests for a few hundred records. The
             // server tolerates the order (a span that ends before its start log is seen is counted once), and the cursor moves only when the whole
             // batch has been acknowledged, so a failure part-way resends it and the server drops the repeats.
-            for (char type : new char[] {'L', 'S'}) {
-                List<Outbox.Entry> same = new ArrayList<>();
-                for (Outbox.Entry e : batch) if ((char) e.payload()[0] == type) same.add(e);
-                if (!same.isEmpty()) send(type, same);
+            // The record that says the run has ended goes last of all, so a page never shows "finished" while the last spans are still on their way.
+            List<Outbox.Entry> logs = new ArrayList<>();
+            List<Outbox.Entry> spans = new ArrayList<>();
+            List<Outbox.Entry> endings = new ArrayList<>();
+            for (Outbox.Entry e : batch) {
+                char type = (char) e.payload()[0];
+                if (type == 'S') spans.add(e);
+                else if (type == 'L') (text(e).contains("\"loom.run.end\"") ? endings : logs).add(e);
             }
+            if (!logs.isEmpty()) send('L', logs);
+            if (!spans.isEmpty()) send('S', spans);
+            if (!endings.isEmpty()) send('L', endings);
             List<Outbox.Entry> unknown = new ArrayList<>();
             for (Outbox.Entry e : batch) if ((char) e.payload()[0] != 'L' && (char) e.payload()[0] != 'S') unknown.add(e);
             if (!unknown.isEmpty()) send('?', unknown);
