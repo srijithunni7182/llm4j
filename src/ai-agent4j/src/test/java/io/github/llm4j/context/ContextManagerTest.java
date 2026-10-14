@@ -303,4 +303,25 @@ class ContextManagerTest {
         assertThat(mgr.prepare(in, 0).changed()).isFalse();
         assertThat(r.compactions.get(0).result().outcome()).isEqualTo(CompactionResult.Outcome.NO_GAIN);
     }
+
+    @Test
+    void theOverheadCanBeGivenForEachCall() {
+        Recorder r = new Recorder();
+        List<Message> in = convo(3, 400);
+        ContextManager mgr = new ContextManager(policy(1_000_000, 0.8, 0.5), null, CharsPerTokenEstimator.INSTANCE, 100, r);
+        mgr.prepare(in, 0, 700); // this call carries 700 tokens besides its messages, not the 100 the manager was built with
+        mgr.prepare(in, 1);      // the next one falls back to the built-in 100
+        assertThat(r.usages.get(0).used()).isEqualTo(700 + size(in));
+        assertThat(r.usages.get(1).used()).isEqualTo(100 + size(in));
+    }
+
+    @Test
+    void aGivenOverheadComesOffTheTargetToo() {
+        Recorder r = new Recorder();
+        List<Message> in = convo(30, 400);
+        ContextPolicy p = policy((int) (size(in) * 1.1), 0.8, 0.5);
+        ContextManager mgr = manager(p, ContextCompactors.dropOldest(), r);
+        ContextManager.Prepared prepared = mgr.prepare(in, 0, 1_500);
+        assertThat(size(prepared.messages()) + 1_500).isLessThanOrEqualTo(p.targetTokens().orElseThrow());
+    }
 }

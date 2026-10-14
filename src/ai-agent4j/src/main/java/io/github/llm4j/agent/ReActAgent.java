@@ -299,8 +299,8 @@ public class ReActAgent {
         // But better to have explicit methods.
 
         List<AgentResult.AgentStep> steps = new ArrayList<>();
-        StringBuilder scratchpad = new StringBuilder();
-        scratchpad.append("Question: ").append(question).append("\n");
+        Scratchpad scratchpad = new Scratchpad(question);
+        ContextManager contextManager = newContextManager(List.of());
 
         Set<String> actionHistory = new HashSet<>();
         AtomicInteger redundantActionCount = new AtomicInteger(0);
@@ -337,10 +337,18 @@ public class ReActAgent {
                     context += "\n";
                 }
             }
+            if (contextManager != null) {
+                // the system prompt (which lists the tools) and the history are part of the prompt too
+                TokenEstimator estimator = tokenEstimator != null ? tokenEstimator : io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE;
+                long overhead = estimator.prompt(LLMRequest.builder().addSystemMessage(systemPrompt).addUserMessage(context).build());
+                ContextManager.Prepared prepared = contextManager.prepare(scratchpad.messages(), i, overhead);
+                if (prepared.changed()) scratchpad.replace(prepared.messages());
+            }
+            int sent = scratchpad.size();
             LLMRequest request =
                     LLMRequest.builder()
                             .addSystemMessage(systemPrompt)
-                            .addUserMessage(context + scratchpad.toString())
+                            .addUserMessage(context + scratchpad.render())
                             .temperature(temperature)
                             .build();
             LLMResponse response;
@@ -372,6 +380,7 @@ public class ReActAgent {
 
             llmCallCount++;
             LLMResponse.TokenUsage tokenUsage = response.getTokenUsage();
+            if (contextManager != null && tokenUsage != null) contextManager.reported(tokenUsage.getPromptTokens(), sent);
             if (tokenUsage != null) {
                 totalPromptTokens += tokenUsage.getPromptTokens();
                 totalCompletionTokens += tokenUsage.getCompletionTokens();
@@ -447,7 +456,7 @@ public class ReActAgent {
                 if (action != null) notifyAction(action, actionInput);
 
                 if (action == null || action.isEmpty()) {
-                    scratchpad.append(llmOutput).append("\nObservation: No valid action found.\n");
+                    scratchpad.noAction(llmOutput);
                     continue;
                 }
 
@@ -461,23 +470,13 @@ public class ReActAgent {
                                 thought, action, actionInput, observation, execution.outcome());
                 steps.add(step);
 
-                scratchpad.append("Plan: ").append(thought != null ? thought : "").append("\n");
-                scratchpad.append("Action: ").append(action).append("\n");
-                scratchpad
-                        .append("Action Input: ")
-                        .append(actionInput != null ? actionInput : "")
-                        .append("\n");
-                scratchpad.append("Observation: ").append(observation).append("\n");
+                scratchpad.step(thought, action, actionInput, observation);
 
             } catch (AgentInterrupt interrupt) {
                 throw interrupt;
             } catch (Exception e) {
                 logger.error("Critical error in agent loop: {}", e.getMessage(), e);
-                scratchpad
-                        .append(llmOutput)
-                        .append("\nObservation: System Error: ")
-                        .append(e.getMessage())
-                        .append("\n");
+                scratchpad.error(llmOutput, e.getMessage());
             }
         }
         return buildFailureResult(
@@ -1249,7 +1248,7 @@ public class ReActAgent {
          * How to make the conversation smaller when it nears the window; see {@code ContextCompactors} for the built-in strategies. Needs a
          * window to act (from the policy, {@link #contextWindow} or {@link #contextWindows}); without one it is never called.
          *
-         * <p>For now this applies to the native tool-calling loop; the text protocol follows.
+         * <p>It applies to both loops: native tool calling and the text protocol.
          */
         public Builder compaction(ContextCompactor compactor) {
             this.compactor = compactor;

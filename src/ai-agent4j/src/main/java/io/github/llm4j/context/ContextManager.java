@@ -65,15 +65,24 @@ public final class ContextManager {
 
     /** The conversation to send, and the usage that was measured; compacts first when the policy calls for it. */
     public Prepared prepare(List<Message> messages, int iteration) {
-        ContextUsage usage = measure(messages);
+        return prepare(messages, iteration, overhead);
+    }
+
+    /**
+     * Like {@link #prepare(List, int)}, for a prompt whose fixed part changes from call to call (a system prompt and history that are sent
+     * along with the messages): {@code overheadTokens} replaces the manager's own overhead for this call.
+     */
+    public Prepared prepare(List<Message> messages, int iteration, long overheadTokens) {
+        long callOverhead = Math.max(0, overheadTokens);
+        ContextUsage usage = measure(messages, callOverhead);
         events.onUsage(usage);
         if (compactor == null || policy.window() == null) return new Prepared(messages, usage, false);
         long trigger = policy.triggerTokens().orElseThrow();
         if (usage.used() <= trigger) return new Prepared(messages, usage, false);
-        return attempt(messages, iteration, usage);
+        return attempt(messages, iteration, usage, callOverhead);
     }
 
-    private ContextUsage measure(List<Message> messages) {
+    private ContextUsage measure(List<Message> messages, long overhead) {
         if (reportedMessages >= 0 && reportedMessages <= messages.size()) {
             long added = sizer.sizeOf(messages.subList(reportedMessages, messages.size()));
             return new ContextUsage(reportedPrompt + added, policy.window(), ContextUsage.Source.REPORTED);
@@ -81,7 +90,7 @@ public final class ContextManager {
         return new ContextUsage(overhead + sizer.sizeOf(messages), policy.window(), ContextUsage.Source.ESTIMATED);
     }
 
-    private Prepared attempt(List<Message> messages, int iteration, ContextUsage before) {
+    private Prepared attempt(List<Message> messages, int iteration, ContextUsage before, long overhead) {
         long target = Math.max(1, policy.targetTokens().orElseThrow() - overhead);
         CompactionRequest request = CompactionRequest.builder(target).window(policy.window()).keepRecent(policy.keepRecent()).pinned(policy.pinned())
                 .estimator(sizer.estimator()).reason(CompactionRequest.Reason.THRESHOLD).build();

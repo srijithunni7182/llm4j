@@ -106,4 +106,27 @@ class RequestStabilityTest {
                 .temperature(0.2).contextWindow(500).addListener(new ContextListener()).build().run("Compare the plans.");
         matches("native-two-steps", model.requests);
     }
+
+    /** R4 for the text loop: a listener and a window without a compactor change nothing about what is sent. */
+    @Test
+    void aListenerAndAWindowWithoutACompactorSendTheSameTextRequests() throws Exception {
+        ScriptedModel model = ScriptedModel.of(false, false,
+                ScriptedModel.textStep("I should search.", "search", "{\"q\":\"plans\"}"),
+                ScriptedModel.textStep("Now prices.", "search", "{\"q\":\"prices\"}"),
+                ScriptedModel.textAnswer("The plans differ in price."));
+        agent(model, new ScriptedModel.FixedTool("search", "result text for search")).contextWindow(500).addListener(new ContextListener())
+                .build().run("Compare the plans.");
+        matches("text-two-steps", model.requests);
+    }
+
+    /** R17: a text-loop run that mixes steps, an unknown tool and a reply with no action, with a manager attached but nothing to compact. */
+    @Test
+    void theUnknownToolScenarioIsIdenticalWithAManagerAttached() throws Exception {
+        ScriptedModel model = ScriptedModel.of(false, false,
+                ScriptedModel.textStep("Try a tool that is not there.", "nope", "{}"),
+                ScriptedModel.answer("Thought: nothing to do\n"),
+                ScriptedModel.textAnswer("done"));
+        agent(model, new ScriptedModel.FixedTool("search", "x")).contextWindow(1_000_000).addListener(new ContextListener()).build().run("Q?");
+        matches("text-unknown-tool", model.requests);
+    }
 }

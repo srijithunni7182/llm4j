@@ -194,11 +194,18 @@ Before each model call the agent asks a `ContextManager` to prepare the messages
 **Native tool calling.** The loop already holds `List<Message> conversation`. The manager receives it before each call; if it
 returns a compacted list, the loop replaces its `conversation` with it, so the saving lasts for the rest of the run.
 
-**Text protocol.** The loop holds the scratchpad as one string. To compact it, the scratchpad becomes an internal
+**Text protocol.** The loop held the scratchpad as one string. To compact it, the scratchpad becomes an internal
 `Scratchpad` of turns that **renders to exactly the same text as today** when nothing is compacted (a test pins this,
 byte for byte). For compaction it is projected to messages (the question, then each turn as an assistant message and a tool
 message), passed through the same manager, and re-rendered, with a summary or marker shown as a short "Earlier steps" block.
 Both loops therefore share one manager and one set of strategies; only the projection differs.
+
+*As built (1c).* `Scratchpad` (package-private, in the agent package) keeps the turns as messages from the start: the question as the first user
+message (so it is the protected task), a step as an assistant message holding the plan and one call (name = the action, argument `input` = the
+action input) plus a tool message holding the observation, and a reply with no usable action or one that could not be handled as a single
+assistant message with its note. `render()` writes them back; a user message after the question is written as an `Earlier steps:` line. The system
+prompt and the conversation history are not turns; their size is passed to the manager as a **per-call overhead** (`ContextManager.prepare(messages,
+iteration, overheadTokens)`), because the history and the long-term-memory recall can differ between calls.
 
 ### 4.6 Reactive: provider says the prompt is too long
 

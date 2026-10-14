@@ -4,9 +4,9 @@ An agent's prompt grows with every step: each thought, tool call and result is a
 later it no longer fits the model's **context window**. This page is about keeping it small enough, on purpose, with
 the parts you choose: **how much room is left**, **what to do about it**, and **what must never be touched**.
 
-> **Status: in progress.** The strategies, the window catalogue and the policy work on their own (sections 2 to 8), and an agent that uses
-> **native tool calling** now measures its context before every model call, reports it to its listeners, and compacts automatically
-> before the limit (sections 9 to 11). Still to come, in this order: the text-protocol loop, a `summarize` strategy, recovery from a
+> **Status: in progress.** The strategies, the window catalogue and the policy work on their own (sections 2 to 8), and an agent now
+> measures its context before every model call, reports it to its listeners, and compacts automatically before the limit, **with native
+> tool calling and with the text protocol** (sections 9 to 11). Still to come, in this order: a `summarize` strategy, recovery from a
 > provider's "prompt too long" error, and a token window for `ConversationHistory` (section 13). The design is in
 > [`docs/specs/01-context-management`](../../../docs/specs/01-context-management/DESIGN.md).
 
@@ -241,9 +241,30 @@ an estimate of what was added since, or, on the first call (and right after a co
 tool definitions. If that is **above `triggerAt` of the usable window**, it asks the strategy to bring the conversation down to
 `targetAt`, and sends the compacted conversation. The saving lasts: later calls build on the compacted conversation, not the original.
 
-For now this applies to agents that use **native tool calling** (the default for models that support it). An agent on the text protocol
-reports and compacts nothing yet. An agent with no compaction strategy, no window and no listener sends exactly what it always has; tests
-pin this request by request.
+This works in both of the agent's loops: **native tool calling** (the default for models that support it) and the **text protocol** (for
+models that do not, or when you ask for it with `toolCalling(ToolCalling.TEXT)`). An agent with no compaction strategy, no window and no
+listener sends exactly what it always has; tests pin this request by request, in both loops.
+
+### In the text protocol
+
+The text protocol sends the model one growing block of text each iteration: the question, then a *Plan / Action / Action Input / Observation*
+block per step. The agent keeps those steps as messages (a step is a call and its result, the same shape as in native tool calling), so
+every strategy in this page works on them unchanged. In particular `trimToolResults` shortens the *Observation* of old steps in place, and
+`dropOldest` removes whole steps. When nothing has been compacted the text is exactly what it always was. After a compaction the model
+reads, for example:
+
+```text
+Question: Summarise the pages.
+Earlier steps: [8 earlier messages were removed to save space.]
+Plan: Look at page 4.
+Action: fetch
+Action Input: {"page": 4}
+Observation: page 5 says blah blah blah blah blah blah blah blah blah blah blah blah
+```
+
+The question is always first; removed steps are replaced by one *Earlier steps* line; the latest steps are intact. A reply that named no
+usable action and a reply that could not be handled are turns too, and can be removed like any other. The system prompt (which lists the
+tools) and any conversation history count against the window along with the scratchpad.
 
 ## 10. Watch what it does
 
@@ -303,11 +324,10 @@ One manager serves one run and holds nothing shared, so many agents can use the 
 
 In this order, each with its own tests and documentation:
 
-1. The same measuring and compacting in the **text-protocol** loop.
-2. A `summarize(client)` strategy, with a fallback to `dropOldest` and its cost counted.
-3. Recovery from a provider's **"prompt too long"** error: compact harder once and retry once, and refuse a call that cannot fit.
-4. A token-based window for `ConversationHistory`.
-5. Models seeded in the window catalogue, verified against provider documentation.
+1. A `summarize(client)` strategy, with a fallback to `dropOldest` and its cost counted.
+2. Recovery from a provider's **"prompt too long"** error: compact harder once and retry once, and refuse a call that cannot fit.
+3. A token-based window for `ConversationHistory`.
+4. Models seeded in the window catalogue, verified against provider documentation.
 
 See also: [ReAct Agent Guide](ReAct-Agent-Guide.md) · [Budgets and Rate Limits](Budgets-and-Rate-Limits.md) ·
 [Memory and Persistence](Memory-and-Persistence.md)

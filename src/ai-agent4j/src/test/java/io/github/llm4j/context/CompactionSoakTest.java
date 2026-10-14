@@ -32,4 +32,19 @@ class CompactionSoakTest {
         assertThat((System.nanoTime() - started) / 1_000_000_000L).isLessThan(60);
         model.requests.forEach(ReActAgentCompactionNativeTest::assertPairsWhole);
     }
+
+    @Test
+    void threeHundredTextProtocolStepsStayWithinTheWindow() {
+        int window = 8_000;
+        ScriptedModel model = ReActAgentCompactionTextTest.looping(300);
+        ContextListener listener = new ContextListener();
+        ContextPolicy policy = ContextPolicy.builder().window(ContextWindow.of(window)).keepRecent(4).maxCompactions(10_000).build();
+        AgentResult r = ReActAgentCompactionTextTest.agent(model, 3_000).contextPolicy(policy)
+                .compaction(ContextCompactors.chain(ContextCompactors.trimToolResults(500), ContextCompactors.dropOldest()))
+                .addListener(listener).build().run("Go on.");
+        assertThat(r.getFinalAnswer()).isEqualTo("done after 300");
+        assertThat(model.requests).hasSize(301);
+        assertThat(model.requests.stream().mapToLong(ReActAgentCompactionNativeTest::size).max().orElseThrow()).isLessThanOrEqualTo(window);
+        assertThat(listener.compacted()).isGreaterThan(20);
+    }
 }

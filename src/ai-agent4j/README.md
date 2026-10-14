@@ -37,7 +37,7 @@ Explore the full capabilities of the framework through our detailed guides:
 - [**Providers and the Uniform Contract**](wiki/Providers-and-the-Uniform-Contract.md) — Switch between Gemini, Claude, Sarvam and Ollama by changing a name; streaming, finish reasons and exceptions that mean the same everywhere.
 - [**Advanced Configuration**](wiki/Advanced-Configuration.md) — Retry policies, custom tools, and error handling.
 - [**Budgets and Rate Limits**](wiki/Budgets-and-Rate-Limits.md) — Cap tokens, calls or money; budgets that refill; reading 429s and pausing until the limit lifts.
-- [**Context and Compaction**](wiki/Context-and-Compaction.md) — Keep a growing prompt inside the model's window: built-in and pluggable compaction strategies, protected messages, a window catalogue. *In progress: strategies, policy and window catalogue are in, and an agent on native tool calling measures its context, reports it and compacts automatically; the text-protocol loop, summarising and overflow recovery follow.*
+- [**Context and Compaction**](wiki/Context-and-Compaction.md) — Keep a growing prompt inside the model's window: built-in and pluggable compaction strategies, protected messages, a window catalogue. *In progress: strategies, policy and window catalogue are in, and an agent (native tool calling or text protocol) measures its context, reports it and compacts automatically; summarising and overflow recovery follow.*
 
 ### Advanced Features
 

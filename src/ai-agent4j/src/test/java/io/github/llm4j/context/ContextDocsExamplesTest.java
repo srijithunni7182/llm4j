@@ -194,6 +194,35 @@ class ContextDocsExamplesTest {
         assertThat(lines).anyMatch(l -> l.startsWith("context")).anyMatch(l -> l.startsWith("drop_oldest COMPACTED"));
     }
 
+    /** The scratchpad the text-protocol model reads after a compaction, from a real run; the page shows it verbatim. */
+    static String textProtocolExample() {
+        ScriptedModel model = ScriptedModel.by(false, true, n -> n < 6
+                ? ScriptedModel.textStep("Look at page " + n + ".", "fetch", "{\"page\": " + n + "}")
+                : ScriptedModel.textAnswer("done"));
+        io.github.llm4j.agent.Tool fetch = new ScriptedModel.FixedTool("fetch", n -> "page " + n + " says " + "blah ".repeat(12).strip());
+        ContextPolicy policy = ContextPolicy.builder().window(ContextWindow.of(520)).triggerAt(0.8).targetAt(0.6).keepRecent(2).build();
+        ReActAgent.builder().llmClient(model).addTool(fetch).contextPolicy(policy).compaction(ContextCompactors.dropOldest()).build().run("Summarise the pages.");
+        for (io.github.llm4j.model.LLMRequest r : model.requests) {
+            String prompt = r.getMessages().get(r.getMessages().size() - 1).getContent();
+            if (prompt.contains("Earlier steps")) {
+                try {
+                    Files.writeString(Path.of("target/text-protocol-example.txt"), prompt.strip());
+                } catch (java.io.IOException ignored) {
+                    // only a convenience for whoever updates the page
+                }
+                return prompt.strip();
+            }
+        }
+        throw new AssertionError("the example run never compacted; first request was " + ReActAgentCompactionNativeTest.size(model.requests.get(0)) + " tokens, last " + ReActAgentCompactionNativeTest.size(model.requests.get(model.requests.size() - 1)));
+    }
+
+    @Test
+    void thePageShowsWhatTheTextProtocolModelReads() throws Exception {
+        String example = textProtocolExample();
+        String page = Files.readString(Path.of("wiki/Context-and-Compaction.md"));
+        assertThat(page).as("the page shows this text-protocol prompt:\n" + example).contains(example);
+    }
+
     @Test
     void thePageShowsExactlyTheSamplesThatAreTested() throws Exception {
         String source = Files.readString(Path.of("src/test/java/io/github/llm4j/context/ContextDocsExamplesTest.java"));
