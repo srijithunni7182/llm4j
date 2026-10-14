@@ -24,7 +24,7 @@ orders the work, sets the definition of done for each item, and says what is del
 | 3 | Approval / tenant isolation | Already a documented gap (LLM06, LLM08). | D |
 | 4 | Budget coverage | Already a documented gap (LLM10). `BudgetedLLMClient` itself is sound. | D |
 | 5 | Jackson drift | **Yes.** Root declares 2.22.3; modules use 2.21.7, 2.21.3 and 2.18.11 (`ctk`). | C |
-| 6 | God classes | **Yes.** `HarnessExecutor` is 2,884 lines and about 145 methods in 8 jobs; `ReActAgent` has two duplicated loops plus voice and prompt assembly. | F |
+| 6 | God classes | **`HarnessExecutor`: yes** (2,884 lines, about 145 methods, 8 jobs). **`ReActAgent`: accepted as is** (about 1,000 lines of logic; maintainer decision). | F |
 | 7 | Audit failure policy | **Partly.** `ReActAgent` fails open with a warning; there is no way to mark a sink mandatory. | E |
 
 ## Phasing
@@ -32,11 +32,11 @@ orders the work, sets the definition of done for each item, and says what is del
 ```
 Phase 1  (exposure)      A  Redaction            B  Journal race
 Phase 2  (hygiene)       C  Dependency versions  D  Policy docs + outbound-tool defaults
-Phase 3  (structure)     F  Extractions, one PR each (F1..F5)
-Phase 4  (optional)      E  Audit fail-closed flag   (pulled forward if F3 lands first)
+Phase 3  (structure)     F  HarnessExecutor extractions, one PR each (F1..F4+)
+Phase 4  (optional)      E  Audit fail-closed flag   (independent of F; implemented in ReActAgent as it stands)
 ```
 
-A and B are independent and can run in parallel. F3 makes E cheaper, which is why E sits after it.
+A and B are independent and can run in parallel. `ReActAgent` is not being restructured, so A and E change it in place.
 
 ---
 
@@ -119,30 +119,36 @@ Definition of done: docs state the exact budget scope; outbound tools fail close
 Risk: medium for step 2 (it breaks scripts that rely on the old default), so ship it behind a clear migration
 message. Estimate: 2 days.
 
-## Workstream F: structural refactor (P2, the long-term adaptability work)
+## Workstream F: `HarnessExecutor` refactor (P2, the long-term adaptability work)
+
+Scope: `HarnessExecutor` only. `ReActAgent` stays as it is (decision: about 1,000 lines is acceptable).
 
 Ground rules: each step is its own PR; it begins with characterization tests that fail if behaviour moves, and
-ends with the same tests green. `HarnessExecutor` and `ReActAgent` public signatures stay put until F5.
+ends with the same tests green. `HarnessExecutor`'s public signatures stay put until the hook step.
+
+**Design input still needed.** The maintainer has planned enhancements to `HarnessExecutor`. The seams below are
+chosen from the code as it stands; they should be checked against those plans before F1 starts, so the extractions
+land where the new work will go (see "Decisions needed").
 
 | Step | Extraction | From | Seam / notes | Done when |
 |---|---|---|---|---|
-| F1 | `RunLimits` (budgets, metering, spend restore, rate-limit waits, ask-for-more) | `HarnessExecutor` ~2277–2600 | Already has its own state (`restoreSpend`, `journalUsage`). Existing budget and resume tests are the safety net; add one on `restoreSpend` after resume. | `HarnessExecutor` shrinks by about 350 lines; spend and resume tests unchanged |
-| F2 | Script validation into `ScriptValidator` collaborators (`ProviderChecks`, `AgentChecks`, `KnowledgeChecks`) | `HarnessExecutor` ~690–1040 | `ScriptValidator.Checker` already exists. Snapshot-test `weave check` output over the sample scripts before moving. | `weave check` output byte-identical on all samples |
-| F3 | Shared tool-dispatch step so `run()` and `runNative()` differ only in output parsing; voice into a `VoiceAgent` decorator | `ReActAgent` | Characterize both protocols with the existing `ToolAgentProtocolTest`, plus loop-detection and approval cases. Audit and redaction (A) then live in one path. | One dispatch path; both loops under ~100 lines; A's test still green |
-| F4 | `PromptResolver` (system prompt, persona, skills) | `HarnessExecutor` ~1805–1890 and `ReActAgent` ~910–965 | Pure functions of config; easy to test in isolation. | Prompt output identical on sample scripts |
-| F5 | Replace the `protected` hooks (`customizeAgent`, `agentForDelegate`, `beforeDelegateExecution`, `onDelegateReplayed`) with an interceptor interface | `HarnessExecutor` | **Public API change.** Keep the old hooks `@Deprecated`, delegating to the new interface, for one release. Needs an entry in `API_COMPATIBILITY.md`. | Subclassing is no longer the only extension path; deprecation documented |
+| F1 | `RunLimits` (budgets, metering, spend restore, rate-limit waits, ask-for-more) | ~2277-2600 | Already has its own state (`restoreSpend`, `journalUsage`). Existing budget and resume tests are the safety net; add one on `restoreSpend` after resume. | `HarnessExecutor` shrinks by about 350 lines; spend and resume tests unchanged |
+| F2 | Script validation into `ScriptValidator` collaborators (`ProviderChecks`, `AgentChecks`, `KnowledgeChecks`) | ~690-1040 | `ScriptValidator.Checker` already exists. Snapshot-test `weave check` output over the sample scripts before moving. | `weave check` output byte-identical on all samples |
+| F3 | `PromptResolver` (system prompt, persona, skills) | ~1805-1890 | Pure functions of config; easy to test in isolation. | Prompt output identical on sample scripts |
+| F4 | Statement interpretation split by kind: `executeStatement` (about 230 lines) dispatches to per-statement executors; `executeDelegate` (about 250) and `executeForEach` move out | ~1577-2220 | The largest and most entangled piece (journal, replay, approvals, budgets). Do it after F1-F3 so it is working against a smaller class. Heavy characterization needed: `DurableRunTest`, `ForEachAndResilienceTest`, `ConcurrentTopLevelRunsTest`, `RunControlTest`. | Dispatch table in place; each executor testable alone |
+| F5 | Replace the `protected` hooks (`customizeAgent`, `agentForDelegate`, `beforeDelegateExecution`, `onDelegateReplayed`) with an interceptor interface | hooks at the bottom | **Public API change.** Keep the old hooks `@Deprecated`, delegating to the new interface, for one release. Needs an entry in `API_COMPATIBILITY.md`. Shape this one after the maintainer's enhancement plans. | Subclassing is no longer the only extension path; deprecation documented |
 
-After F1 to F5, re-measure: `HarnessExecutor` should be under about 1,500 lines, with `executeStatement` and
-`executeDelegate` as the remaining large methods, to be split by statement kind in a later pass if it still hurts.
+After the steps, re-measure: `HarnessExecutor` should be roughly a coordinator (run lifecycle, wiring, configuration)
+of well under 1,500 lines.
 
-Estimate: F1 1.5 days, F2 1 day, F3 2 days, F4 1 day, F5 1.5 days.
+Estimate: F1 1.5 days, F2 1 day, F3 1 day, F4 2.5 days, F5 1.5 days.
 
-## Workstream E: audit failure policy (P2, after F3)
+## Workstream E: audit failure policy (P2)
 
 Steps
 1. Add `AuditPolicy { BEST_EFFORT, MANDATORY }` on the audit logger (default `BEST_EFFORT`, which preserves
    today's behaviour).
-2. In the single dispatch path from F3: `BEST_EFFORT` logs a warning and increments a failure counter exposed for
+2. In `ReActAgent`'s tool-execution path (a small change in the existing code): `BEST_EFFORT` logs a warning and increments a failure counter exposed for
    health checks; `MANDATORY` aborts the step with a distinct status (not the same as a tool or model failure).
 3. Tests for both modes, including an audit sink that throws.
 
@@ -159,10 +165,10 @@ Estimate: 1 day.
 | 2 | B | 1 to 1.5 days | none (parallel with 1) |
 | 3 | C | 0.5 day | none |
 | 4 | D | 2 days | none |
-| 5 to 9 | F1 to F5 | about 7 days | F3 should follow A |
-| 10 | E | 1 day | F3 |
+| 5 to 9 | F1 to F5 | about 7.5 days | none; F5 depends on the enhancement design |
+| 10 | E | 1 day | none |
 
-Roughly 13 to 14 working days in sequence. Phases 1 and 2 (PRs 1 to 4) are about 5 days and remove every
+Roughly 13 to 14 working days in sequence (F is now `HarnessExecutor`-only). Phases 1 and 2 (PRs 1 to 4) are about 5 days and remove every
 finding the review rated P1.
 
 ## Out of scope (deliberately)
@@ -170,7 +176,7 @@ finding the review rated P1.
 - Embedding-cost metering and tool-call budgets: document the gap first, build only if users hit it.
 - Per-tenant retrieval access control: a design task of its own.
 - Encryption at rest for file-based indexes and ledgers: documented, not built.
-- Splitting `executeStatement` / `executeDelegate` by statement kind: revisit after F1 to F5.
+- Restructuring `ReActAgent` (kept as is; only the logging and audit changes in A and E touch it).
 - A formal penetration test or concurrency harness beyond the targeted tests above.
 
 ## Risks
@@ -178,6 +184,7 @@ finding the review rated P1.
 | Risk | Mitigation |
 |---|---|
 | Refactor changes journal or resume behaviour | Characterization tests first; pure moves; `DurableRunTest` and `ConcurrentTopLevelRunsTest` run on every F PR |
+| Extractions land in the wrong place for the planned enhancements | Review F seams against the maintainer's plans before F1; F5 is shaped by them |
 | INFO to DEBUG surprises users who read logs | Release note; raw-debug opt-in flag |
 | Outbound-tool approval default breaks scripts | `weave check` migration diagnostic; migration-guide entry |
 | Jackson bump breaks a consumer or the shaded report jar | `make test-extended` once; keep a documented `ctk` exception if needed |
@@ -187,5 +194,6 @@ finding the review rated P1.
 
 1. Is making outbound tools require approval by default acceptable as a breaking change (D2), or should it be
    opt-in until the next major version?
-2. Should F5 (replacing the protected hooks) ship in the next minor version with deprecations, or wait for a major?
+2. What enhancements are planned for `HarnessExecutor`? The F seams, especially F4 and F5, should be confirmed against them before work starts.
+2b. Should F5 (replacing the protected hooks) ship in the next minor version with deprecations, or wait for a major?
 3. Is `ctk` pinned to Jackson 2.18 for a reason I should preserve?
