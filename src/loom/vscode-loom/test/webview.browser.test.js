@@ -109,13 +109,13 @@ test('a graph replaces the loading state, fills the selector, opens the Outline 
   await p.close();
 });
 
-test('clicking a step selects it, asks the editor for its line beside the panel, and the inspector and breadcrumb follow', async (t) => {
+test('clicking a step only selects it (the editor stays where it is), and the inspector and breadcrumb follow', async (t) => {
   if (skipIfNoBrowser(t)) { return; }
   const p = await open();
   await p.send(laptop());
   await p.clearPosted();
   await p.page.locator('.tree .row[data-id="n11"]').click();
-  assert.deepEqual(await p.posted(), [{ type: 'openSource', file: '/work/laptop-doctor/main.loom', line: 40, beside: true }]);
+  assert.deepEqual(await p.posted(), [], 'a click never moves the editor');
   assert.equal(await selectedId(p), 'n11');
   const inspector = await p.page.locator('.inspector').innerText();
   assert.match(inspector, /SELECTED · SAFETY OUTCOME/i);
@@ -583,7 +583,7 @@ test('V6.4: card text stays readable on its tone in light, dark and high-contras
         const px = (css) => { const c = document.createElement('canvas'); c.width = c.height = 1; const g = c.getContext('2d', { willReadFrequently: true }); g.fillStyle = '#000'; g.fillStyle = css; g.fillRect(0, 0, 1, 1); return [...g.getImageData(0, 0, 1, 1).data].slice(0, 3); };
         const bg = px(getComputedStyle(document.body).backgroundColor);
         return [...document.querySelectorAll('.card:not(.term), .bigcard')].map((c) => {
-          const t = c.querySelector('.t, h2'), sub = c.querySelector('.sub, .ln, .kname');
+          const t = c.querySelector('.t, h2'), sub = c.querySelector('.sub, .kname, .secline');
           const fill = getComputedStyle(c).backgroundColor;
           return { fill: px(fill), text: px(getComputedStyle(t).color), sub: sub ? px(getComputedStyle(sub).color) : null, bg };
         });
@@ -706,5 +706,88 @@ test('an always-running workflow (no end) shows its loop with a sleep as a shut 
   await view(p, 'focus');
   assert.deepEqual(await p.page.locator('.fside.to .edgechip').allTextContents(), ['loops back']);
   assert.deepEqual(p.errors, []);
+  await p.close();
+});
+
+test('right-clicking a step opens a menu with Go to file; only choosing it moves the editor', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open();
+  await p.send(laptop());
+  await p.clearPosted();
+  await p.page.locator('.tree .row[data-id="n1"]').click({ button: 'right' });
+  assert.ok(await p.page.locator('#ctxmenu').isVisible());
+  assert.equal(await selectedId(p), 'n1', 'the step under the pointer is selected');
+  assert.deepEqual(await p.posted(), []);
+  const items = await p.page.locator('#ctxmenu button').allTextContents();
+  assert.deepEqual(items, ['Go to main.loom:20', 'Open prompt diagnostician', 'Focus on this step', 'Copy step text']);
+  await p.page.locator('#ctxmenu button', { hasText: 'Go to main.loom:20' }).click();
+  assert.deepEqual(await p.posted(), [{ type: 'openSource', file: '/work/laptop-doctor/main.loom', line: 20, beside: true }]);
+  assert.ok(await p.page.locator('#ctxmenu').isHidden());
+  await p.close();
+});
+
+test('the menu works from the cards of every view, closes on Escape and on a click elsewhere, and is reachable by keyboard', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open();
+  await p.send(laptop());
+  await p.page.locator('.stack .card[data-id="n1"]').click({ button: 'right' });
+  assert.ok(await p.page.locator('#ctxmenu').isVisible());
+  await p.page.keyboard.press('Escape');
+  assert.ok(await p.page.locator('#ctxmenu').isHidden());
+  for (const name of ['flow', 'focus']) {
+    await view(p, name);
+    await p.page.locator('.card[data-id]').first().click({ button: 'right' });
+    assert.ok(await p.page.locator('#ctxmenu').isVisible(), name);
+    await p.page.mouse.click(5, 300);
+    assert.ok(await p.page.locator('#ctxmenu').isHidden(), name + ' closes on a click elsewhere');
+  }
+  await view(p, 'outline');
+  await p.page.locator('.tree .row[data-id="n3"]').focus();
+  await p.page.keyboard.press('Shift+F10');
+  assert.ok(await p.page.locator('#ctxmenu').isVisible());
+  await p.page.keyboard.press('ArrowDown');
+  await p.page.keyboard.press('Escape');
+  assert.ok(await p.page.locator('#ctxmenu').isHidden());
+  await p.close();
+});
+
+test('a call\'s menu offers to open the called workflow and to go to its source', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open();
+  await p.send(graph('imports_parent'));
+  await p.page.locator('.tree .row[data-id="n1"]').click({ button: 'right' });
+  const items = await p.page.locator('#ctxmenu button').allTextContents();
+  assert.ok(items.includes('Open workflow ChildWorkflow'), items.join('|'));
+  assert.ok(items.some((i) => /^Go to ChildWorkflow in child\.loom/.test(i)), items.join('|'));
+  await p.page.locator('#ctxmenu button', { hasText: 'Open workflow ChildWorkflow' }).click();
+  assert.equal(await p.page.locator('#workflow').inputValue(), 'ChildWorkflow');
+  await p.close();
+});
+
+test('the graph shows no line numbers, and long section titles and parameter lists are cut rather than overlapping', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open('light', { viewport: { width: 900, height: 700 } });
+  const message = laptop();
+  const long = 'The orchestrator casts the team: it writes every specialist a prompt for this brief and then keeps going for a long while';
+  message.sections['Main@' + FIX.result.workflows[0].file][2].title = long;
+  message.result.workflows[0].params = ['creatorHandle', 'creatorNiche', 'creatorTone', 'creatorRegion', 'pastCastings', 'lensOptions', 'styleOptions', 'pastYouTube'];
+  await p.send(message);
+  await p.page.locator('.tree .row[data-id="n11"]').click();
+  assert.equal(await p.page.locator('.ln').count(), 0, 'no line numbers in the outline');
+  for (const name of ['outline', 'focus', 'flow']) {
+    await view(p, name);
+    assert.equal(await p.page.locator('.ln').count(), 0, name + ': no line numbers');
+    assert.doesNotMatch(await p.page.evaluate(() => [...document.querySelectorAll('.card, .row, .bigcard')].map((e) => e.innerText).join('\n')).then((t) => t.replace(/Go to\s+\S+:\d+/g, '')), /:\d{2}\b/, name + ': nothing like :40 on a step');
+  }
+  await view(p, 'focus');
+  const clash = await p.page.evaluate(() => {
+    const a = document.querySelector('.bhead .kicker').getBoundingClientRect(), b = document.querySelector('.bhead .secline').getBoundingClientRect(), box = document.querySelector('.bigcard').getBoundingClientRect();
+    return { overlap: !(a.bottom <= b.top + 1 || b.bottom <= a.top + 1) && !(a.right <= b.left || b.right <= a.left), insideCard: b.right <= box.right + 1 && a.right <= box.right + 1 };
+  });
+  assert.equal(clash.overlap, false);
+  assert.equal(clash.insideCard, true);
+  const wide = await p.page.evaluate(() => ({ select: document.getElementById('workflow').getBoundingClientRect().width, doc: document.documentElement.scrollWidth - document.documentElement.clientWidth, crumbs: document.getElementById('crumbs').scrollWidth - document.getElementById('crumbs').clientWidth }));
+  assert.ok(wide.select <= 900 * 0.46 + 2, 'the workflow selector is capped: ' + wide.select);
+  assert.ok(wide.doc <= 0 && wide.crumbs <= 0, JSON.stringify(wide));
   await p.close();
 });

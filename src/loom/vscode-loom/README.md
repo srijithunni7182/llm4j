@@ -60,13 +60,14 @@ A workflow with a start, a loop and a `sleep` in it, and no `end`, is drawn as i
 
 | You do | What happens |
 |---|---|
-| Click a step (or press Enter on it) | The editor shows its line, beside the panel |
+| Click a step (or press Enter on it) | The step is selected. The editor stays where it is |
+| Right-click a step (or Shift+F10) | A menu: **Go to main.loom:40** shows the line beside the panel, **Open prompt**, **Open workflow** and **Go to workflow** for a `call`, **Focus on this step**, **Copy step text** |
 | ↑ / ↓ | Move through the steps (in Focus, ← and → go to what it comes from and goes to) |
 | Double-click a `call` (or Shift+Enter) | The panel shows the called workflow; **Back** or the breadcrumb returns |
 | Ctrl/Cmd-click a `call` | The editor opens the called workflow's source |
 | Move the cursor in the editor | The step on that line is selected and brought into view |
 | Save the script or a file it imports | The graph refreshes (after 300 ms); your view, selection and folded blocks stay |
-| **Go to main.loom:40** | Shows that line in the editor |
+| **Go to main.loom:40** (in the inspector or Focus card) | Shows that line in the editor |
 | **Open prompt** | Opens the prompt file of the selected agent step |
 | **Export PNG** | Saves the current view as a picture beside the script (`<script>-<workflow>-<view>.png`, at twice the size). Flow saves the whole main path, not only what is on screen |
 | **Copy Mermaid** | Puts the workflow's Mermaid diagram on the clipboard (plain boxes: Mermaid has no step pictures) |

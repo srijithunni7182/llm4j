@@ -295,3 +295,21 @@ body.vscode-dark .toast, body.vscode-high-contrast .toast { background: #dfe8f2;
 .agents { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 4px 14px; align-items: baseline; padding-bottom: 8px; }
 .agents .an { background: none; border: 0; padding: 0; cursor: pointer; color: var(--vscode-textLink-foreground); font-weight: 600; text-align: left; }
 .agents .chips { margin: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* ---- text that is too long is cut with an ellipsis, never over its neighbour ---- */
+.bhead .bk { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bhead .kicker { overflow: hidden; text-overflow: ellipsis; }
+.secline { font-size: 12px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumb { max-width: min(100%, 48ch); }
+select#workflow { max-width: min(46vw, 60ch); text-overflow: ellipsis; }
+.card .t { max-width: 100%; }
+.band .bt { overflow: hidden; text-overflow: ellipsis; }
+.sechd .tt, .sect { overflow: hidden; text-overflow: ellipsis; }
+.sechd { min-width: 0; }
+.sechead .sect { min-width: 0; white-space: nowrap; }
+
+/* ---- the context menu ---- */
+.ctxmenu { position: fixed; z-index: 30; min-width: 220px; max-width: min(360px, calc(100vw - 16px)); padding: 4px 0; background: var(--vscode-menu-background, var(--vscode-editorWidget-background, var(--vscode-editor-background))); color: var(--vscode-menu-foreground, var(--vscode-foreground)); border: 1px solid var(--vscode-menu-border, var(--lg-line)); box-shadow: 0 6px 24px rgba(0, 0, 0, .3); }
+.ctxmenu button { display: block; width: 100%; padding: 5px 14px; border: 0; background: transparent; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctxmenu button:hover, .ctxmenu button:focus-visible { background: var(--vscode-menu-selectionBackground, var(--lg-chip-bg)); color: var(--vscode-menu-selectionForeground, inherit); outline: none; }
+.ctxmenu hr { border: 0; border-top: 1px solid var(--lg-line); margin: 4px 0; }

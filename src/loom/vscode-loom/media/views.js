@@ -87,7 +87,6 @@
     return n.agent ? name + ' ' + n.agent : name;
   }
 
-  function lineText(n, withFile) { return n.line == null ? '' : (withFile && n.file ? baseName(n.file) + ':' : ':') + n.line; }
   function chipsOf(ctx, n, max) { return (ctx.chips ? ctx.chips(n.raw) : []).slice(0, max == null ? 3 : max); }
   function chipRow(ctx, n, max) {
     var chips = chipsOf(ctx, n, max);
@@ -116,17 +115,16 @@
       node.appendChild(el('span', { class: 't', text: n.kind === 'start' ? 'Start' : 'End' }));
       return node;
     }
-    var line = el('span', { class: 'ln', text: lineText(n) });
     if (variant === 'flow') {
-      node.appendChild(el('div', { class: 'kick' }, badge(n.vk, size), el('span', { class: 'kname', text: (VK[n.vk] || VK.unknown).name.toUpperCase() }), line));
+      node.appendChild(el('div', { class: 'kick' }, badge(n.vk, size), el('span', { class: 'kname', text: (VK[n.vk] || VK.unknown).name.toUpperCase() })));
       node.appendChild(el('div', { class: 't', text: n.label }));
       add(node, chipRow(ctx, n, 1)); add(node, toolChips(ctx, n, 'count'));
       return node;
     }
     node.appendChild(badge(n.vk, size));
     node.appendChild(el('div', { class: 'body' },
-      el('div', { class: 'r1' }, el('span', { class: 't', text: n.label }), variant === 'drop' && n.exit ? el('span', { class: 'ends', text: 'ENDS' }) : null, line),
-      el('div', { class: 'sub', text: variant === 'compact' ? kindLine(n) + (n.line ? ' · ' + lineText(n) : '') : kindLine(n) }),
+      el('div', { class: 'r1' }, el('span', { class: 't', text: n.label }), variant === 'drop' && n.exit ? el('span', { class: 'ends', text: 'ENDS' }) : null),
+      el('div', { class: 'sub', text: kindLine(n) }),
       variant === 'stack' ? chipRow(ctx, n, 3) : null,
       variant === 'stack' ? toolChips(ctx, n, 'names') : null,
       variant === 'compact' ? toolChips(ctx, n, 'count') : null));
@@ -209,7 +207,6 @@
           if (folded) { row.appendChild(el('span', { class: 'hid', text: '+' + count })); }
           row.appendChild(el('button', { class: 'tog', type: 'button', text: folded ? '+' : '−', 'aria-label': (folded ? 'Expand ' : 'Collapse ') + n.label, 'data-toggle': n.id, onclick: function (e) { e.stopPropagation(); ctx.on.toggle(n.id); } }));
         }
-        row.appendChild(el('span', { class: 'ln', text: n.line == null ? '' : String(n.line) }));
         rows.push(row);
       });
     });
@@ -276,8 +273,7 @@
     var centre = el('div', { class: 'bigcard k-' + n.vk + (n.main ? ' main' : ' off') + (n.exit ? ' exit' : ''), 'data-id': n.id },
       corners(),
       el('div', { class: 'bhead' }, badge(n.vk, 46),
-        el('div', { class: 'bk' }, el('span', { class: 'kicker ink', text: k.name + (m.hasSections ? ' · ' + section.title : '') })),
-        el('span', { class: 'ln mono', text: n.line == null ? '' : baseName(n.file) + ':' + n.line })),
+        el('div', { class: 'bk' }, el('span', { class: 'kicker ink', text: k.name }), m.hasSections ? el('span', { class: 'secline', text: section.n + ' · ' + section.title, title: section.title }) : null)),
       el('h2', { text: n.label }),
       chipRow(ctx, n, 6),
       toolChips(ctx, n, 'names'),

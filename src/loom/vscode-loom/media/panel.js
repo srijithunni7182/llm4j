@@ -136,7 +136,7 @@
     list.forEach(function (a) {
       var tools = a.tools || [], asks = a.approveAll ? tools : (a.approve || []);
       var uses = state.model ? state.model.nodes.filter(function (n) { return n.agent === a.name; })[0] : null;
-      box.appendChild(uses ? el('button', { class: 'an', type: 'button', text: a.name, onclick: function () { select(uses.id, { source: true, reveal: true }); } }) : el('span', { text: a.name }));
+      box.appendChild(uses ? el('button', { class: 'an', type: 'button', text: a.name, onclick: function () { select(uses.id, { reveal: true }); } }) : el('span', { text: a.name }));
       box.appendChild(el('span', { class: 'muted', text: a.model || '' }));
       box.appendChild(el('span', { class: 'chips' }, tools.length ? tools.map(function (t) { return el('span', { class: 'chip tool' + (asks.indexOf(t) >= 0 ? ' asks' : ''), text: t }); }) : el('span', { class: 'chip tool none', text: 'no tools' })));
     });
@@ -182,8 +182,8 @@
   function crumbAction(act, wf) {
     if (act.file) { send({ type: 'openSource', file: wf.file, line: wf.line || 1, beside: true }); }
     else if (act.pop != null) { var target = state.stack[act.pop]; state.stack = state.stack.slice(0, act.pop); state.selected = null; showWorkflow(target, false); }
-    else if (act.workflow) { select(defaultSelection(), { source: false, reveal: true }); }
-    else if (act.select) { select(act.select, { source: false, reveal: true }); }
+    else if (act.workflow) { select(defaultSelection(), { reveal: true }); }
+    else if (act.select) { select(act.select, { reveal: true }); }
   }
 
   function goBack() {
@@ -200,7 +200,7 @@
 
   /* ----------------------------------------------------------- selection */
 
-  /** Selects a step. `source`: also show its line beside the panel. `reveal`: scroll to it. */
+  /** Selects a step. `reveal`: scroll to it. Selecting never moves the editor: going to the file is the context menu's (or the inspector's) job. */
   function select(id, how) {
     how = how || {};
     var node = id && state.model && state.model.by[id];
@@ -208,7 +208,6 @@
     var before = state.selected;
     state.selected = id; state.fromCursor = !!how.fromCursor;
     renderAll(how.reveal !== false || before !== id);
-    if (how.source && node.file && node.line != null) { send({ type: 'openSource', file: node.file, line: node.line, beside: true }); }
   }
 
   function activate(node, how) {
@@ -237,7 +236,7 @@
       view: state.view, model: state.model, selected: state.selected, collapsed: state.collapsed, agents: agentMap(),
       chips: function (raw) { return G.chips(raw); }, budgetLine: budgetLine,
       on: {
-        select: function (id, reveal) { select(id, { source: true, reveal: reveal !== false }); },
+        select: function (id, reveal) { select(id, { reveal: reveal !== false }); },
         source: function (n) { if (n.file) { send({ type: 'openSource', file: n.file, line: n.line || 1, beside: true }); } },
         prompt: function (agent) { if (agent.prompt && agent.prompt.file) { send({ type: 'openSource', file: agent.prompt.file, line: 1, beside: true }); } },
         drill: function (n) { activate(n, {}); },
@@ -302,7 +301,7 @@
     var n = nodeOfEvent(e);
     if (!n) { return; }
     if ((e.ctrlKey || e.metaKey) && n.kind === 'call') { activate(n, { ctrl: true }); return; }
-    select(n.id, { source: true, reveal: false });
+    select(n.id, { reveal: false });
     // a double-click is the second click (detail 2): the first one redrew the view, so the browser's own dblclick would miss
     if (e.detail === 2) { activate(n, {}); }
   });
@@ -312,12 +311,12 @@
     var n = state.model.by[item.getAttribute('data-id')];
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      if (e.shiftKey && e.key === 'Enter') { activate(n, {}); } else { select(n.id, { source: true, reveal: false }); }
+      if (e.shiftKey && e.key === 'Enter') { activate(n, {}); } else { select(n.id, { reveal: false }); }
     }
   });
 
   document.addEventListener('keydown', function (e) {
-    if (!state.model || e.ctrlKey || e.metaKey || e.altKey) { return; }
+    if (!state.model || e.ctrlKey || e.metaKey || e.altKey || !$('ctxmenu').hidden) { return; }
     var tag = e.target && e.target.tagName;
     if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') { return; }
     if (e.key === '1' || e.key === '2' || e.key === '3') { setView(VIEWS[Number(e.key) - 1]); return; }
@@ -328,7 +327,7 @@
       var next = order[from + step] || (from < 0 ? order[0] : null);
       if (!next) { return; }
       e.preventDefault();
-      if (state.view === 'focus' || !onItem) { select(next.id, { source: false, reveal: true }); return; }
+      if (state.view === 'focus' || !onItem) { select(next.id, { reveal: true }); return; }
       var target = $('viewHost').querySelector((state.view === 'outline' ? '.row' : '.stage .card') + '[data-id="' + next.id + '"]');
       if (target) { target.focus(); }
       return;
@@ -336,7 +335,65 @@
     if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && state.view === 'focus') {
       var edges = e.key === 'ArrowLeft' ? m.inn[state.selected] : m.out[state.selected];
       var other = edges && edges[0] && (e.key === 'ArrowLeft' ? edges[0].from : edges[0].to);
-      if (other) { e.preventDefault(); select(other, { source: false, reveal: true }); }
+      if (other) { e.preventDefault(); select(other, { reveal: true }); }
+    }
+  });
+
+
+  /* --------------------------------------------------------- context menu */
+
+  function closeMenu() { var box = $('ctxmenu'); if (!box.hidden) { box.hidden = true; clear(box); } }
+
+  /** The actions of a step, as a menu at (x, y). Items go to the file, the prompt or the called workflow; the editor moves only when one is chosen. */
+  function openMenu(n, x, y) {
+    var box = clear($('ctxmenu')), wf = currentWorkflow(), agent = n.agent && agentMap()[n.agent], items = [];
+    if (n.file && n.line != null) { items.push(['Go to ' + baseName(n.file) + ':' + n.line, function () { send({ type: 'openSource', file: n.file, line: n.line, beside: true }); }]); }
+    if (agent && agent.prompt && agent.prompt.file) { items.push(['Open prompt ' + agent.prompt.ref, function () { send({ type: 'openSource', file: agent.prompt.file, line: 1, beside: true }); }]); }
+    if (n.kind === 'call' && n.raw.call && !n.raw.unresolved) {
+      var callee = workflowNamed(n.raw.call.workflow, n.raw.call.file);
+      items.push(['Open workflow ' + n.raw.call.workflow, function () { activate(n, {}); }]);
+      if (callee) { items.push(['Go to ' + n.raw.call.workflow + ' in ' + baseName(callee.file), function () { send({ type: 'openSource', file: callee.file, line: callee.line || 1, beside: true }); }]); }
+    }
+    items.push(null, ['Focus on this step', function () { select(n.id, { reveal: true }); setView('focus'); }]);
+    items.push(['Copy step text', function () { if (navigator.clipboard) { navigator.clipboard.writeText(n.label).catch(function () {}); } }]);
+    void wf;
+    items.forEach(function (it) {
+      if (!it) { box.appendChild(el('hr')); return; }
+      box.appendChild(el('button', { type: 'button', role: 'menuitem', text: it[0], onclick: function () { closeMenu(); it[1](); } }));
+    });
+    box.hidden = false;
+    var w = box.offsetWidth, h = box.offsetHeight;
+    box.style.left = Math.max(4, Math.min(x, window.innerWidth - w - 4)) + 'px';
+    box.style.top = Math.max(4, Math.min(y, window.innerHeight - h - 4)) + 'px';
+    var first = box.querySelector('button'); if (first) { first.focus(); }
+  }
+
+  $('viewHost').addEventListener('contextmenu', function (e) {
+    var n = nodeOfEvent(e);
+    if (!n) { return; }
+    e.preventDefault();
+    if (state.selected !== n.id) { select(n.id, { reveal: false }); }
+    openMenu(n, e.clientX, e.clientY);
+  });
+  document.addEventListener('click', function (e) { if (!e.target.closest || !e.target.closest('#ctxmenu')) { closeMenu(); } });
+  window.addEventListener('blur', closeMenu);
+  window.addEventListener('resize', closeMenu);
+  document.addEventListener('scroll', closeMenu, true);
+  document.addEventListener('keydown', function (e) {
+    var box = $('ctxmenu');
+    if (!box.hidden) {
+      var buttons = Array.prototype.slice.call(box.querySelectorAll('button')), at = buttons.indexOf(document.activeElement);
+      if (e.key === 'Escape') { e.preventDefault(); closeMenu(); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); buttons[(at + 1) % buttons.length].focus(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); buttons[(at - 1 + buttons.length) % buttons.length].focus(); }
+      return;
+    }
+    // the keyboard's way to the menu: the Menu key, or Shift+F10, on a focused step
+    var item = e.target.closest && e.target.closest('.card[data-id], .row[data-id]');
+    if (item && (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey))) {
+      e.preventDefault();
+      var r = item.getBoundingClientRect();
+      openMenu(state.model.by[item.getAttribute('data-id')], r.left + 24, r.bottom - 4);
     }
   });
 
