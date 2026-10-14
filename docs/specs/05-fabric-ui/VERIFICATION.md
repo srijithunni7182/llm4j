@@ -1,6 +1,6 @@
 # Phase 5 verification plan: the Fabric page
 
-Status: **draft for review**. Run top to bottom at the end of sub-phase 5e; the relevant rows after each sub-phase. Results in §7.
+Status: **built; manual and live checks owed (§4)**. Run top to bottom at the end of sub-phase 5e; the relevant rows after each sub-phase. Results in §7.
 
 ## 1. Acceptance criteria
 
@@ -37,14 +37,14 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 5e; the 
 | R14 | `run.page.test.js` (incidents) | ✅ 5b |
 | R15 | `config.page.test.js`, `FabricConfigPhase5Test` | ✅ 5d |
 | R16 | `config.page.test.js` (windows), `WindowsConfigTest` | ✅ 5d |
-| R17 | `ContrastTest`, `a11y.page.test.js` | ⬜ |
-| R18 | `responsive.page.test.js` | ⬜ |
-| R19 | `a11y.page.test.js` | ⬜ |
-| R20 | `hostile.page.test.js`, `InspectServerTest` | ⬜ |
-| R21 | `health.page.test.js` | ⬜ |
+| R17 | `contrast.test.js` (token pairs, both themes), `a11y.page.test.js` (as drawn, every page, both themes) | ✅ 5e |
+| R18 | `responsive.page.test.js` (360, 768, 1360 px; tables scroll in their box; Configuration at 360) | ✅ 5e |
+| R19 | `a11y.page.test.js` (keyboard walk, focus visible, meter, markers, headers, a word beside every colour) | ✅ 5e |
+| R20 | `hostile.page.test.js` (markup, long names, bidi, emoji, control characters in every run and fleet view), `InspectServerTest` (static check) | ✅ 5e |
+| R21 | `health.page.test.js` (all scenarios, all views, no error; request counts) | ✅ 5e |
 | R22 | `ScenarioTest` (13 scenarios, names, help), `ScenarioLiveTest` (through a real Fabric), `SimulateTest` unchanged | ✅ 5a |
-| R23 | `scale.page.test.js` | ⬜ |
-| R24 | `ToolsRouteTest` (405, gate), no dependency added (5a part); the static-files part is checked at 5e | ◐ 5a |
+| R23 | `scale.page.test.js` (500 tools, 200 agents) | ✅ 5e |
+| R24 | `ToolsRouteTest` (405, gate), no dependency added (5a part); the static-files part by `PageFilesTest` (four files, two marks, fonts; no outside address), no pom changed since the phase began | ✅ 5e |
 | R25 | `run.page.test.js` (Fabric name, title, mark and favicon; embedded unchanged), `InspectServerTest` (the mark is served) | ✅ 5c |
 
 ## 3. Quality gates
@@ -67,14 +67,14 @@ Stack-level pages are owed once at the end of the whole work.
 
 ## 6. Exit checklist
 
-- [ ] Decisions in DESIGN.md §9 recorded
-- [ ] Acceptance criteria A1–A10 have evidence
-- [ ] Every requirement R1–R25 has a passing test
-- [ ] Quality gates in §3 pass
-- [ ] Manual checks done or listed as owed with the reason
-- [ ] Docs complete; §7 has a row for every sub-phase
-- [ ] DESIGN.md reflects what was built
-- [ ] Status table in `docs/specs/README.md` updated
+- [x] Decisions in DESIGN.md §9 recorded
+- [x] Acceptance criteria A1–A10 have evidence
+- [x] Every requirement R1–R25 has a passing test
+- [x] Quality gates in §3 pass
+- [x] Manual checks listed as owed with the reason: browsers other than Chromium, a screen reader, a real Fabric with real processes, a real provider run with a flaky tool and a small window, a real planted-page run (none of these can be done in this environment)
+- [x] Docs complete; §7 has a row for every sub-phase
+- [x] DESIGN.md reflects what was built
+- [x] Status table in `docs/specs/README.md` updated
 
 ## 7. Results
 
@@ -84,6 +84,7 @@ Stack-level pages are owed once at the end of the whole work.
 | 2026-10-14 | 5b | Pass | The run page: `RunViewForPageTest` (view shape the page reads), the fixture server (`sim/Fixtures`) and 13 browser tests (Playwright, Chromium) over eleven scenarios: banner and diverted line, Context and Tasks cards, hatched bar without a window, timeline with markers and table equivalent, tools and tasks table with expansion, Security panel (trifecta, accepted, injected page, refused access) and the new incident kinds. Full inspect-core and inspect suites pass (199 Java tests in the two modules). Findings from screenshots: the timeline was drawn in a small viewBox and sat narrow in a wide panel (now 960 wide); security card values inherited upper-casing |
 | 2026-10-14 | 5c | Pass | The fleet pages: Tools & tasks (counts by health, three filters, table over every run with a last-ten strip, expansion with a link to the run it last failed in, order held while a row is open) and Security (counts, agents that matter with reasons, open findings with links, the fixed statement), with tab badges. 7 new browser tests (`fleet.page.test.js`) and 2 route tests; all 21 browser tests and the inspect-core, inspect and fabric suites pass. Findings: fleet rows had no last-ten outcomes (a merged summary has none; the registry now joins each run's last ten, oldest run first) and the page computed runs-that-ran from a field fleet rows lack (now uses `ran`); `/api/runs` gained `fleet.toolsFailing` for the badge so a fleet page costs one extra poll. One end-to-end OTLP test (`FabricEndToEndTest`) failed once under full-suite load and passes alone and on re-run: a timing-sensitive wait, not touched by this phase. Also R25: Fabric is branded Fabric with its own mark |
 | 2026-10-14 | 5d | Pass | The Configuration page: the rule editor now offers fourteen behaviours (the eight new ones with their own inputs, defaults beside each, an accepted trifecta needing a reason, the server's refusals and the `*` warning shown as written) and a context-windows card (table by model, set / edit / remove, save, discard, text form) saved through the same route and audit as prices. 6 browser tests (`config.page.test.js`) run against a real Fabric started from its CLI (new `startFabric` helper); all 27 browser tests and the inspect-core and fabric Java tests pass. Findings: the Configuration tab sits behind Fabric's sign-in, so the test signs in through the page; the editor reads the options after the configuration loads |
+| 2026-10-14 | 5e | Pass | The cross-cutting checks, all as tests: contrast of every token pair in both themes and of every visible text as drawn on every page; a keyboard-only walk, visible focus, roles and names, a word beside every colour; 360, 768 and 1360 px; hostile text (markup, 400-character names, right-to-left, emoji, control characters) through every run and fleet view; no console or page error and no failed request over all eleven scenarios; request rate on a fleet page; 500 tools and 200 agents. Findings fixed: two token pairs fell short (dark `line-strong` on raised surfaces 2.99:1, light `rung-suggest` 4.28:1 and `rung-watch` 3.82:1), faint timestamps on tinted rows (3.85:1), a hostile or long name widened the page by thousands of pixels (text now wraps; a name is cut in its cell with the whole in its title), the Configuration page overflowed at 360 px, and the fleet table drew all 500 rows (it now draws the first 200 and says so). Screenshots for the wiki were taken from the scenarios. The page is still four static files, two marks and the fonts, and no pom changed in the phase |
 
 ### Documentation record (per sub-phase)
 
@@ -93,6 +94,7 @@ Stack-level pages are owed once at the end of the whole work.
 | 5b | ✅ loom-inspect DESIGN §11o, specs | ✅ browser tests run the scenarios | ✅ | n/a | deferred to the end | ✅ traceability, results |
 | 5c | ✅ loom-inspect DESIGN §11o, specs | ✅ browser tests run the scenarios | ✅ | n/a | deferred to the end | ✅ traceability, results |
 | 5d | ✅ loom-inspect DESIGN §11o, wiki Fabric-Server | ✅ browser tests against a real Fabric | ✅ | n/a | deferred to the end | ✅ traceability, results |
+| 5e | ✅ wiki Fabric-Server (screenshots, what the pages show), specs | ✅ browser tests over the scenarios | ✅ | n/a | deferred to the end | ✅ traceability, results |
 
 ### Owed to the stack-level pages (updated once, at the end of the whole work)
 

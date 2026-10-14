@@ -1,6 +1,6 @@
 # Phase 5 design: the Fabric page (context, tools and tasks, security, thresholds)
 
-Status: **draft for review (decisions in §9 taken as recommended, per the standing instruction)**. Layer: the page shared by the embedded add-on and the Fabric server
+Status: **approved, built (5a–5e); manual and live checks owed**. Layer: the page shared by the embedded add-on and the Fabric server
 (`loom-inspect-core/.../ui`), the server routes (`loom-inspect-core` and `loom-fabric`), and the simulator (`loom-inspect/.../sim`).
 Companion documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md), [roadmap](../README.md). Builds on [Phase 4](../04-inspect-and-incidents/DESIGN.md)
 (run state, incidents, rules, tool health, task health, security) which already computes everything this phase draws.

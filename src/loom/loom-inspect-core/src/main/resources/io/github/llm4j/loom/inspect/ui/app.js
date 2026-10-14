@@ -589,7 +589,7 @@
       tr.tabIndex = 0;
       tr.setAttribute('aria-expanded', String(open));
       var first = cell(tr, '', 'mono');
-      first.appendChild(el('span', 'nm', r.name));
+      var nm = el('span', 'nm', r.name); nm.title = r.name; first.appendChild(nm);
       if (r.inFlight > 0) { first.appendChild(el('span', 'chip on', r.inFlight + ' in flight')); }
       cell(tr, '').appendChild(el('span', 'chip', r.kind));
       cell(tr, num(r.calls), 'r mono');
@@ -748,6 +748,7 @@
 
 
   // ---- fleet pages: Tools & tasks and Security across every run (5c)
+  var FLEET_ROWS = 200;   // the most rows a fleet table draws; the page says so when it holds back
   var ftHealth = 'all', ftKind = 'all', ftProc = '', ftOpen = {}, ftOrder = [];
 
   function openRunTab(trace, tab) {
@@ -804,13 +805,16 @@
     var body = $('ftrows');
     body.textContent = '';
     $('noft').hidden = rows.length > 0;
-    shown.forEach(function (r) {
+    var more = $('ftmore');
+    more.hidden = shown.length <= FLEET_ROWS;
+    more.textContent = 'Showing the first ' + FLEET_ROWS + ' of ' + shown.length + ' rows, worst first. Narrow them with the filters above.';
+    shown.slice(0, FLEET_ROWS).forEach(function (r) {
       var open = !!ftOpen[r.key];
       var tr = el('tr', 'tt ' + r.state);
       tr.tabIndex = 0;
       tr.setAttribute('aria-expanded', String(open));
       var first = cell(tr, '', 'mono nm-cell');
-      first.appendChild(el('span', 'nm', r.name));
+      var nm = el('span', 'nm', r.name); nm.title = r.name; first.appendChild(nm);
       if (r.inFlight > 0) { first.appendChild(el('span', 'chip on', r.inFlight + ' in flight')); }
       cell(tr, r.kind, 'mono');
       cell(tr, num(r.calls), 'r mono');

@@ -95,7 +95,7 @@ Support {
 
 ### Rules kept on the Fabric server
 
-An admin can also keep rules **centrally**, on Fabric's Configuration page, in this same format. They are laid over each run's
+An admin can also keep rules **centrally**, on Fabric's Configuration page, in this same format (every behaviour above has its own inputs there, with its default beside it; an accepted trifecta needs a reason). They are laid over each run's
 own rules **rule by rule**, so one setting changed centrally does not discard the rest of a process's file, and they apply
 at once to every run, running ones included. Use them to tune thresholds for a whole fleet without touching any machine.
 The one thing a server cannot do is read a workflow variable: for `no_progress`, the process's own rules must name the

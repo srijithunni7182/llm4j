@@ -27,7 +27,8 @@ weave daemon triggers/ --secrets keys.store \
 - **Controls**: pause, resume, suspend, stop; admin only, confirm dialog, CSRF, audited, delivered to remote processes as
   signed commands. → [Controls, secrets and security](Observability-Controls-and-Security.md)
 - **Secrets** (embedded): list with fingerprints and used-by; replace a value with the password re-entered.
-- **Central configuration**: an admin sets the inspect rules and the price table from Fabric's Configuration page.
+- **Central configuration**: an admin sets the inspect rules, the context windows and the price table from Fabric's Configuration page.
+- **Context, tools and security views**: a run's context gauge and compaction timeline, a tools-and-tasks table with health, and a security view; across runs on Fabric ([what the pages show](Fabric-Server.md#what-the-pages-show)).
   → [Fabric server](Fabric-Server.md#configuration-page)
 - **Never loses events**: a local on-disk outbox; a Fabric that is down or restarted affects nothing and catches up.
 - **OpenTelemetry**: OTLP/JSON to Fabric and, optionally, any OTLP endpoint.

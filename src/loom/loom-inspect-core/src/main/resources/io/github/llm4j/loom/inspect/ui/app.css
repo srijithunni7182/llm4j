@@ -3,7 +3,7 @@
 @font-face { font-family: "JetBrains Mono"; src: url(/fonts/JetBrainsMono.woff2) format("woff2"); font-weight: 400 500; font-display: swap; }
 
 :root, [data-theme="dark"] {
-  --ground: #0e0d0b; --surface: #161411; --surface-raised: #1e1b17; --line: #2b2721; --line-strong: #6e6556;
+  --ground: #0e0d0b; --surface: #161411; --surface-raised: #1e1b17; --line: #2b2721; --line-strong: #766c5c;
   --ink: #f2ece1; --ink-muted: #b0a794; --ink-faint: #8f8676;
   --live: #f2a93b; --on-live: #1a1204; --live-soft: #3a2a0f;
   --rung-watch: #6f958d; --rung-suggest: #3fbf9f; --rung-act: #86efc9; --wait: #6bb4e8; --danger: #f2705e; --danger-soft: #3b1914;
@@ -13,7 +13,7 @@
   --ground: #f4efe5; --surface: #fffcf6; --surface-raised: #f0eadd; --line: #e0d8c7; --line-strong: #8a806c;
   --ink: #1c1913; --ink-muted: #574f41; --ink-faint: #6b6254;
   --live: #8f5400; --on-live: #fffcf6; --live-soft: #fdf0d6;
-  --rung-watch: #5f7f78; --rung-suggest: #1b7f68; --rung-act: #0f6a4f; --wait: #1d5f9a; --danger: #b3321e; --danger-soft: #fbe3dd;
+  --rung-watch: #4d6c65; --rung-suggest: #166b57; --rung-act: #0f6a4f; --wait: #1d5f9a; --danger: #b3321e; --danger-soft: #fbe3dd;
   color-scheme: light;
 }
 :root {
@@ -228,7 +228,7 @@ tr.flag.high td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
 .dlg input { width: 100%; box-sizing: border-box; height: 34px; margin: 8px 0; padding: 0 10px; border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: transparent; color: var(--ink); font: inherit; }
 .dlg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
 
-.cfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; padding: 12px 16px 16px; }
+.cfg { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); gap: 16px; padding: 12px 16px 16px; }
 .cfgcard { border: 1px solid var(--line); border-radius: var(--radius-md); padding: 14px 16px; background: var(--surface); }
 .cfgcard h3 { margin: 0 0 4px; font-size: 14px; }
 .cfgcard textarea { width: 100%; box-sizing: border-box; margin: 6px 0; padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--line-strong); background: transparent; color: var(--ink); font-size: 12.5px; line-height: 1.5; resize: vertical; }
@@ -322,4 +322,8 @@ td.why { color: var(--ink-muted); }
 button.runlink { background: none; border: 0; padding: 0; color: var(--live); font: inherit; text-decoration: underline; cursor: pointer; }
 button.runlink:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; }
 .incident .runlinkrow { margin-top: var(--space-2); }
-
+/* hostile or very long text: it wraps where it is and never widens the page; a name that is too long for its cell is cut, with the whole text in its title */
+body { overflow-wrap: anywhere; }
+.builder input[type=text], .builder input[type=number] { max-width: 100%; }
+.nm { display: inline-block; max-width: 36ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.bad .faint, .now .faint, tr.failing .faint, .incident .faint { color: var(--ink-muted); }

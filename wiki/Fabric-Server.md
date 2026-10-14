@@ -173,3 +173,20 @@ Two read-only routes (behind the same sign-in as the rest of the API) give the f
 
 `GET /api/runs` carries `security`, the number of open security incidents, on each run, for a tab badge. An agent's `context` in a run's view also carries `points` (the last 120 model calls) and `events` (the last 60 compactions) for a timeline.
 
+### What the pages show
+
+A run that broke says why, in words, and where:
+
+![A failed run: the banner names the task that broke it, the category, the attempts and the step](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/observability/fabric-run-broken.png)
+
+Each agent's context window, and what compaction cut to make room, with the thresholds the rules set drawn on it:
+
+![The Context view: a gauge per agent and a timeline with a marker for each compaction](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/observability/fabric-run-context.png)
+
+Across every run, the tools and tasks by health, and the agents that read untrusted content, reach private data and can send something out:
+
+![Tools and tasks across all runs, worst first, one row open](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/observability/fabric-fleet-tools.png)
+
+![The Security page: posture counts, the agents that exercised or were accepted for the lethal trifecta, and the open findings](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/observability/fabric-fleet-security.png)
+
+The pages work from a 360 px phone to a wide screen, in a light and a dark theme, from the keyboard alone, and treat every name and message from a run as text. The fleet tables draw at most 200 rows and say when they hold some back.
