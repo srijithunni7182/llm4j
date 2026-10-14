@@ -22,10 +22,10 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 3e, and 
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 | `ContextBlockParserTest` | ☐ |
-| R2 | `LoomBackwardCompatTest`, `ContextBlockParserTest#theWordContextElsewhere` | ☐ |
-| R3 | `ContextBlockCheckTest` | ☐ |
-| R4 | `ContextBlockCheckTest` | ☐ |
+| R1 | `ContextBlockParserTest` | ✅ 3a |
+| R2 | `LoomBackwardCompatTest`, `ContextBlockParserTest#theWordContextElsewhere` | ◐ 3a: parser pins; full golden in 3c |
+| R3 | `ContextBlockCheckTest` | ✅ 3a (names; `.loct` names in 3b) |
+| R4 | `ContextBlockCheckTest` | ✅ 3a |
 | R5 | `ContextWindowsLayeringTest` | ☐ |
 | R6 | `ContextAgentBuildTest` | ☐ |
 | R7 | `ContextAgentBuildTest#routingAgentUsesTheSmallestWindow` | ☐ |
@@ -86,12 +86,13 @@ Stack-level pages are owed once at the end of the whole work.
 
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
+| 2026-10-14 | 3a | Pass | Tests first for the parser (every key, `chain()`, `[a, b]`, percent forms, the word `context` elsewhere) and the check (unknown strategy with a guess, `target` vs `trigger`, a window written in the script, summarizer, references). 24 new tests; Loom suite 1,759 tests green |
 
 ### Documentation record (per sub-phase)
 
 | Sub-phase | Guide / reference | Samples tested | Javadoc | VS Code / llms.txt | Stack-level pages | Specs |
 |---|---|---|---|---|---|---|
-| 3a | | | | | | |
+| 3a | ✅ guide section "Context and Compaction" (marked in progress) | ✅ checked by `ContextBlock*Test` | ✅ `AgentDef.ContextConfig` | ✅ VS Code grammar and hover | deferred to the end | ✅ traceability, results |
 | 3b | | | | | | |
 | 3c | | | | | | |
 | 3d | | | | | | |

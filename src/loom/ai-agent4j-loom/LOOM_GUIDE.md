@@ -1422,6 +1422,36 @@ Because a task is plain Java you also unit-test it directly, with no model and n
 
 ## 🛡️ 4. Enterprise Safety & Lifecycle
 
+### Context and Compaction
+
+> **Status: in progress.** The `context` block is read and checked by `weave check` (this section). Running with it, the windows files, `.loct` strategies, trace events and
+> transcript memory follow. Design: [`docs/specs/03-loom-integration`](../../../docs/specs/03-loom-integration/DESIGN.md).
+
+A long tool loop makes the prompt grow until the model's context window is full. An agent's `context` block says **how it keeps the prompt inside the window**. The strategies are
+those of ai-agent4j ([Context and Compaction](../../ai-agent4j/wiki/Context-and-Compaction.md)):
+
+```loom
+agent Researcher {
+    model: "claude-sonnet-5-5"
+    tools: [search, fetch]
+    context {
+        compact: chain(trim_tool_results, summarize, drop_oldest)   // one strategy, or chain(a, b, c) tried in order
+        summarizer: "claude-haiku-5-5"                              // a cheaper model that writes the notes (for summarize)
+        trigger: 80%                                                // start compacting above this share of the usable window
+        target: 55%                                                 // compact down to this share
+        keep_recent: 6                                              // the latest messages are never touched
+        max_compactions: 20                                         // a safety stop per run
+    }
+}
+```
+
+- Every key is optional except `compact`. `context { compact: drop_oldest }` is a complete, useful declaration; `compact: none` switches compaction off.
+- **The size of the window is not written in the script.** It belongs to the model and is configured once, outside, in a windows file.
+- `trigger` and `target` are percentages written with a sign (`80%`); `target` must be below `trigger`. `keep_recent` is a number of messages.
+- Options of a strategy are further keys of the block: `max_summary_tokens` for `summarize`, `max_chars` for `trim_tool_results`.
+- `weave check` rejects an unknown strategy (with the nearest guess and the known names), a bad number, `target` at or above `trigger`, a window written in the script,
+  and a `summarizer` that is not a usable model. It warns when `summarize` has no `summarizer` (it falls back to `drop_oldest`). It calls no model.
+
 ### Agent Guards
 
 An agent's `guard` protects everything it does:

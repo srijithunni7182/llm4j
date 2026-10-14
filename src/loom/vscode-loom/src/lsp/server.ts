@@ -179,6 +179,10 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**memory** `{ conversation: "chats"  session: "{user}"  facts: "facts.json"  embedding: "…" }`\n\nOn an agent: its conversation per session and long-term facts, kept across runs.',
     voice:
         '**voice** `{ listen: "sarvam/…"  speak: "sarvam/…"  language: "hi-IN" }`\n\nOn an agent: audio-file tasks are transcribed; answers are spoken to `{result_audio}`.',
+    context:
+        '**context** `{ compact: chain(trim_tool_results, summarize, drop_oldest)  summarizer: "…"  trigger: 80%  target: 55%  keep_recent: 6 }`\n\nOn an agent: how it keeps a growing prompt inside the model\'s context window. The size of the window is configured per model outside the script.',
+    compact:
+        '**compact** `: drop_oldest`  |  `: chain(a, b)`\n\nIn `context`: the compaction strategy, or several tried in order (built-in: none, drop_oldest, trim_tool_results, summarize; your own through a `.loct` file).',
     guard:
         '**guard** `{ pii: mask | block | warn  bias: warn | block  bias_model: "…" }`\n\nOn an agent: keeps personal data from the model and out of results; checks answers for bias.',
     session:

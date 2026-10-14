@@ -845,6 +845,7 @@ public class HarnessExecutor implements LoomEngine {
             if (a.getMemory() != null) checkMemory(c, who, a.getMemory());
             if (a.getVoice() != null) checkVoice(c, who, a.getVoice());
             if (a.getGuard() != null) checkGuard(c, who, a.getGuard());
+            if (a.getContext() != null) ContextSettings.check(c, who, a.getContext(), customCompactorNames(), (line, model) -> checkModel(c, line, who, model));
         }
     }
 
@@ -927,6 +928,11 @@ public class HarnessExecutor implements LoomEngine {
         } catch (IllegalArgumentException e) {
             c.error(v.lineOf("out"), who, "voice out: " + e.getMessage());
         }
+    }
+
+    /** The names a {@code .loct} file maps to strategies (none until one is loaded). */
+    java.util.Set<String> customCompactorNames() {
+        return java.util.Set.of();
     }
 
     private void checkGuard(ScriptValidator.Checker c, String who, AgentDef.GuardConfig g) {

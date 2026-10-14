@@ -155,11 +155,52 @@ public class AgentDef implements Node {
         public String getBiasModel() { return get("bias_model"); }
     }
 
+    /**
+     * {@code context { compact: chain(trim_tool_results, summarize, drop_oldest)  summarizer: "…"  trigger: 80%  target: 55%  keep_recent: 6  max_compactions: 20 }}.
+     * How this agent keeps its prompt inside the model's window; the size of the window itself is never written here (it is configured per model, outside the script).
+     * Keys other than these are options of the strategies named in {@code compact}.
+     */
+    public static class ContextConfig extends Settings {
+        /** The keys that belong to the block itself. */
+        public static final java.util.Set<String> OWN_KEYS = java.util.Set.of("compact", "summarizer", "trigger", "target", "keep_recent", "max_compactions");
+
+        private final java.util.List<String> compact = new java.util.ArrayList<>();
+
+        /** The strategies named by {@code compact:}, in order ({@code chain(a, b)} and {@code [a, b]} give several). */
+        public java.util.List<String> compactNames() { return compact; }
+        public String getSummarizer() { return get("summarizer"); }
+        /** The trigger as a fraction (0.8 for 80%), or null when absent or not written as a percentage. */
+        public Double getTrigger() { return fraction("trigger"); }
+        public Double getTarget() { return fraction("target"); }
+
+        private Double fraction(String key) {
+            String v = get(key);
+            if (v == null || !v.endsWith("%")) return null;
+            try {
+                return Double.parseDouble(v.substring(0, v.length() - 1).trim()) / 100.0;
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+
+        /** Keys that are not the block's own: options for the strategies. */
+        public java.util.Map<String, String> extraOptions() {
+            java.util.Map<String, String> out = new java.util.LinkedHashMap<>();
+            for (var e : getValues().entrySet()) {
+                if (!OWN_KEYS.contains(e.getKey()) && !e.getValue().isReference()) out.put(e.getKey(), e.getValue().value());
+            }
+            return out;
+        }
+    }
+
     private VoiceConfig voice;
     private GuardConfig guard;
+    private ContextConfig context;
 
     public VoiceConfig getVoice() { return voice; }
     public void setVoice(VoiceConfig voice) { this.voice = voice; }
+    public ContextConfig getContext() { return context; }
+    public void setContext(ContextConfig context) { this.context = context; }
     public GuardConfig getGuard() { return guard; }
     public void setGuard(GuardConfig guard) { this.guard = guard; }
 }

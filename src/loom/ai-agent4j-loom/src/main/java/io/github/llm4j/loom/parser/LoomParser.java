@@ -89,7 +89,7 @@ public class LoomParser {
     }
 
     private static final java.util.List<String> AGENT_SETTINGS = java.util.List.of("model", "system", "system_template", "prompt", "persona", "tools",
-            "mcp_servers", "skills", "memory", "voice", "guard", "routing", "knowledge", "output_schema", "approve", "max_iterations", "temperature", "budget", "ladder", "ceiling");
+            "mcp_servers", "skills", "memory", "voice", "guard", "routing", "knowledge", "output_schema", "approve", "max_iterations", "temperature", "budget", "ladder", "ceiling", "context");
 
     /** What to say when something that is not a setting turns up inside an agent: the word itself, what an agent can have, and the nearest guess. */
     private static String unknownAgentSetting(Token t) {
@@ -176,6 +176,10 @@ public class LoomParser {
                 int line = advance().getLine();
                 match(TokenType.COLON);
                 agent.setVoice(parseSettings(new AgentDef.VoiceConfig(), "voice", line));
+            } else if (isSettingsBlock("context")) {
+                int line = advance().getLine();
+                match(TokenType.COLON);
+                agent.setContext(parseContextBlock(line));
             } else if (isSettingsBlock("guard")) {
                 int line = advance().getLine();
                 match(TokenType.COLON);
@@ -1424,6 +1428,48 @@ public class LoomParser {
         }
         consume(TokenType.RBRACE, "Expect '}' after " + what + " settings.");
         return settings;
+    }
+
+    /** {@code context { compact: chain(a, b)  trigger: 80% … }}: like other settings blocks, but {@code compact} takes names and percentages are written with a sign. */
+    private AgentDef.ContextConfig parseContextBlock(int line) {
+        AgentDef.ContextConfig cfg = new AgentDef.ContextConfig();
+        cfg.setLine(line);
+        consume(TokenType.LBRACE, "Expect '{' after context.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token key = word("Expect a context setting, e.g. compact: drop_oldest");
+            consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ".");
+            if (cfg.has(key.getValue())) throw error(key, key.getValue() + " is given twice in context");
+            if (key.getValue().equals("compact")) {
+                java.util.List<String> names = cfg.compactNames();
+                if (check(TokenType.LBRACKET)) {
+                    advance();
+                    do { names.add(word("Expect a strategy name.").getValue()); } while (match(TokenType.COMMA));
+                    consume(TokenType.RBRACKET, "Expect ']' after the strategies.");
+                } else {
+                    Token first = word("Expect a strategy name, e.g. compact: drop_oldest");
+                    if (first.getValue().equals("chain") && check(TokenType.LPAREN)) {
+                        advance();
+                        if (check(TokenType.RPAREN)) throw error(peek(), "chain() needs at least one strategy name");
+                        do { names.add(word("Expect a strategy name.").getValue()); } while (match(TokenType.COMMA));
+                        consume(TokenType.RPAREN, "Expect ')' after the strategies.");
+                    } else {
+                        names.add(first.getValue());
+                    }
+                }
+                cfg.put(key.getValue(), io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(String.join(",", names)), key.getLine());
+            } else if (check(TokenType.NUMBER_LITERAL) && tokens.size() > current + 1 && tokens.get(current + 1).getType() == TokenType.PERCENT) {
+                String number = advance().getValue();
+                advance();
+                cfg.put(key.getValue(), io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(number + "%"), key.getLine());
+            } else if (check(TokenType.NUMBER_LITERAL)) {
+                cfg.put(key.getValue(), io.github.llm4j.loom.ast.ToolDef.OptionValue.literal(advance().getValue()), key.getLine());
+            } else {
+                cfg.put(key.getValue(), optionValue(), key.getLine());
+            }
+            match(TokenType.COMMA);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after context settings.");
+        return cfg;
     }
 
     /** {@code voice {} / guard {}}: a contextual keyword followed by a block (with an optional colon). */
