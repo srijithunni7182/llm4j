@@ -55,7 +55,7 @@ npx --yes ovsx@latest publish src/loom/vscode-loom/vscode-loom-<version>.vsix -p
 
 The listing is built from files in `src/loom/vscode-loom`: `README.md` (the page body; relative image links need `repository` in `package.json`, which is set),
 `CHANGELOG.md` (the Changelog tab), `LICENSE`, the icon `media/loom-mark-128.png`, and the categories, keywords and banner in `package.json`.
-Add screenshots of the workflow graph to the README (use `https://` or repository-relative paths) before the first publish; the graph is the best advertisement.
+The README already carries screenshots of the workflow graph (`docs/images/vscode-loom/`, linked by `https://raw.githubusercontent.com/...` so they show on the Marketplace). Retake them when the panel changes; the generator is described in `docs/images/vscode-loom/README.md`.
 
 ## Troubleshooting
 

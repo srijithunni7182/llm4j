@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseWebviewMessage } from '../src/graph/protocol';
+import { MAX_PNG_CHARS, parseWebviewMessage } from '../src/graph/protocol';
 
 test('each message the panel sends is accepted with exactly its fields', () => {
     assert.deepEqual(parseWebviewMessage({ type: 'ready' }), { type: 'ready' });
@@ -37,4 +37,13 @@ test('workflow messages need a name', () => {
         assert.equal(parseWebviewMessage({ type, name: '' }), undefined);
         assert.equal(parseWebviewMessage({ type, name: 5 }), undefined);
     }
+});
+
+test('exportPng takes a PNG data URL of base64 text with a name, and nothing else', () => {
+    const dataUrl = 'data:image/png;base64,iVBORw0KGgo=';
+    assert.deepEqual(parseWebviewMessage({ type: 'exportPng', name: 'a-Main-flow.png', dataUrl, extra: 1 }), { type: 'exportPng', name: 'a-Main-flow.png', dataUrl });
+    for (const bad of ['data:image/svg+xml;base64,AAAA', 'data:text/html;base64,AAAA', 'http://x/a.png', 'data:image/png;base64,<script>', 'data:image/png;base64,' + 'A'.repeat(MAX_PNG_CHARS), 5, null]) {
+        assert.equal(parseWebviewMessage({ type: 'exportPng', name: 'a.png', dataUrl: bad }), undefined, String(bad).slice(0, 40));
+    }
+    assert.equal(parseWebviewMessage({ type: 'exportPng', dataUrl }), undefined);
 });

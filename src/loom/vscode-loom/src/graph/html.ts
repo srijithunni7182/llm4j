@@ -12,7 +12,7 @@ export interface PanelAssets {
 export function contentSecurityPolicy(cspSource: string, nonce: string): string {
     return [
         "default-src 'none'",
-        `img-src ${cspSource}`,
+        `img-src ${cspSource} data: blob:`,
         `style-src ${cspSource}`,
         `script-src 'nonce-${nonce}'`,
     ].join('; ');
@@ -28,7 +28,6 @@ export function renderPanelHtml(assets: PanelAssets): string {
 <meta http-equiv="Content-Security-Policy" content="${contentSecurityPolicy(cspSource, nonce)}">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Loom Graph</title>
-<link rel="stylesheet" href="${uri('graph-render.css')}">
 <link rel="stylesheet" href="${uri('panel.css')}">
 </head>
 <body>
@@ -38,22 +37,24 @@ export function renderPanelHtml(assets: PanelAssets): string {
   <select id="workflow" aria-label="Workflow"></select>
   <span class="chip budget" id="runbudget" hidden></span>
   <span class="spacer"></span>
-  <span class="zoomgroup">
-    <button class="btn" id="zoomOut" type="button" aria-label="Zoom out">−</button>
-    <span class="zoomlabel" id="zoomLabel" aria-live="polite">100%</span>
-    <button class="btn" id="zoomIn" type="button" aria-label="Zoom in">+</button>
-    <button class="btn" id="fit" type="button" aria-label="Fit to view">Fit</button>
-  </span>
-  <button class="btn" id="legendButton" type="button" aria-expanded="false" aria-controls="legend">Legend</button>
+  <div class="viewsw" id="viewSwitch" role="group" aria-label="View">
+    <button class="vbtn" id="viewOutline" type="button" data-view="outline" aria-pressed="true" title="Outline (1)">Outline</button>
+    <button class="vbtn" id="viewFocus" type="button" data-view="focus" aria-pressed="false" title="Focus (2)">Focus</button>
+    <button class="vbtn" id="viewFlow" type="button" data-view="flow" aria-pressed="false" title="Flow (3)">Flow</button>
+  </div>
   <button class="btn" id="mermaid" type="button">Copy Mermaid</button>
+  <button class="btn" id="exportPng" type="button"><span id="exportIcon" aria-hidden="true"></span>Export PNG</button>
 </header>
-<nav class="crumbs" id="crumbs" aria-label="Workflow path" hidden></nav>
+<nav class="crumbs" id="crumbs" aria-label="Where you are" hidden></nav>
+<details class="filesbox" id="filesBox"><summary>Files</summary><div class="files" id="files"></div></details>
+<details class="agentsbox" id="agentsBox"><summary>Agents and their tools</summary><div class="agents" id="agents"></div></details>
 <div class="banner stale" id="stale" role="status" hidden>
   <span id="staleText"></span>
   <button class="link" id="staleOpen" type="button">Open file</button>
 </div>
 <section class="diag" id="diagnostics" hidden></section>
 <main class="canvas" id="canvas" aria-label="Workflow graph">
+  <div class="viewhost" id="viewHost"></div>
   <div class="loading" id="loading">
     <span class="tile big pulse"><img src="${uri('loom-logo-320.png')}" alt="Loom"></span>
     <p class="muted" id="loadingText">Reading the script…</p>
@@ -63,14 +64,16 @@ export function renderPanelHtml(assets: PanelAssets): string {
     <p id="emptyText"></p>
     <button class="btn" id="emptyOpen" type="button">Go to line 1</button>
   </div>
-  <div class="legend" id="legend" hidden></div>
-  <div class="card" id="card" role="tooltip" hidden></div>
 </main>
-<footer class="footer">
-  <section aria-label="Files"><h2>Files</h2><div class="files" id="files"></div></section>
-  <section aria-label="Selected step"><h2>Selected</h2><div class="selected" id="selected"></div></section>
+<footer class="footer" id="footer" aria-label="Main path">
+  <div class="railtop"><span class="kicker">Main path</span><span class="note" id="railNote"></span><div class="legend" id="legend" aria-label="Kinds of step"></div></div>
+  <div class="rail" id="rail" role="group" aria-label="Steps on the main path"></div>
+  <div class="railsecs" id="railSecs"></div>
 </footer>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <script nonce="${nonce}" src="${uri('graph-render.js')}"></script>
+<script nonce="${nonce}" src="${uri('graph-model.js')}"></script>
+<script nonce="${nonce}" src="${uri('views.js')}"></script>
 <script nonce="${nonce}" src="${uri('panel.js')}"></script>
 </body>
 </html>

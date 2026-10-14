@@ -18,6 +18,16 @@ export function readGraphSettings(): { javaPath: string; timeoutMs: number; auto
     };
 }
 
+/** The text of a script, from the open editor when it has unsaved changes there, otherwise from disk. */
+async function readSource(file: string): Promise<string | undefined> {
+    const uri = vscode.Uri.file(file);
+    const open = vscode.workspace.textDocuments.find((d) => d.uri.fsPath === uri.fsPath);
+    if (open) {
+        return open.getText();
+    }
+    return Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8');
+}
+
 export class TimeoutScheduler implements Scheduler {
     after(ms: number, run: () => void): TimerHandle {
         const handle = setTimeout(run, ms);
@@ -27,7 +37,7 @@ export class TimeoutScheduler implements Scheduler {
 
 /** The editor side of a panel: what the controller asks for, done with the VS Code API. */
 class VsCodeHost implements PanelHost {
-    constructor(private readonly panel: vscode.WebviewPanel, private readonly sourceColumn: vscode.ViewColumn) {}
+    constructor(private readonly panel: vscode.WebviewPanel, private readonly sourceColumn: vscode.ViewColumn, private readonly entry: string) {}
 
     post(message: HostMessage): void {
         void this.panel.webview.postMessage(message);
@@ -49,6 +59,19 @@ class VsCodeHost implements PanelHost {
 
     copy(text: string): Promise<void> {
         return Promise.resolve(vscode.env.clipboard.writeText(text));
+    }
+
+    async savePng(name: string, bytes: Uint8Array): Promise<string | undefined> {
+        const target = await vscode.window.showSaveDialog({
+            defaultUri: vscode.Uri.file(path.join(path.dirname(this.entry), name)),
+            filters: { 'PNG image': ['png'] },
+            saveLabel: 'Save picture',
+        });
+        if (!target) {
+            return undefined;
+        }
+        await vscode.workspace.fs.writeFile(target, bytes);
+        return path.basename(target.fsPath);
     }
 }
 
@@ -98,7 +121,8 @@ export class GraphPanel {
             entry,
             cursor,
             runner,
-            host: new VsCodeHost(panel, sourceColumn),
+            host: new VsCodeHost(panel, sourceColumn, entry),
+            readText: readSource,
             scheduler: new TimeoutScheduler(),
         });
         const graphPanel = new GraphPanel(panel, controller, entry);

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Workflow graph, redesigned: three views of the same graph (**Outline**, **Focus**, **Flow**; keys 1, 2, 3) over a main-path rail with the numbered `// 1. Title` comments of the script as sections, a breadcrumb that follows the selection, an inspector, and illustrated step kinds (agent, task, verdict, safety outcome, approval, branch, loop, person, note, exit, sleep as a shut eye, and more). Each agent's tools show on its steps, in the inspector and in an "Agents and their tools" list. A workflow with no `end` (a loop with a sleep) is shown and labelled "runs until stopped". **Export PNG** saves the current view as a picture beside the script. Copy Mermaid is unchanged.
 - Ladders: `ladder`, `rung`, `measure`, `climb`, `slip`, `sample`, `escalate`, `climbing`, `ceiling` and `proposes` are highlighted; durations (`30d`), percentages (`90%`) and decimals are numbers; the mode after `mode:` is told apart.
 - Completion inside a ladder: the ladders of the file after `ladder:`, the rungs after `ceiling:` and `slip to`, the three modes after `mode:`, the measures (yours, `dangerous`, and the standard ones when `loom/autonomy` is imported) and the fields of a case inside the brackets of a collection method, the methods and fields of a collection after a dot, the parts of a ratio after `rate(...).`, and the words of a rung at the start of a line.
 - A ladder's mistakes are underlined on the line `weave check` reports, with its guess.
