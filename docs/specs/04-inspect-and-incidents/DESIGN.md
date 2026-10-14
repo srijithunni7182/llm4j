@@ -83,6 +83,47 @@ Each state carries a one-line `reason` ("never succeeded in 6 calls", "last 4 ca
 percentiles can be merged across runs; a merged percentile is the upper bound of the bucket it falls in. A merged summary's state is the worse of its parts, and is `failing` when the merged counts say it never succeeded, or `degraded` when the merged overall rate over at least 5 calls is below the threshold.
 The per-agent breakdown (calls, successes, failures per agent) shows whether one agent misuses a tool or the tool itself is broken.
 
+## 4c. Security signals (4g)
+
+Added after the task-failure work, at the request of the person watching runs: *were there prompt injections, unauthorised access, lethal-trifecta violations?* Today `weave audit` reviews a script **statically** (per agent: untrusted content, private data, a way out; mapped to the OWASP LLM risks) and the guards trace `pii_*` and `bias_*`. Nothing at run time says whether a trifecta **happened**, whether a tool result **looked like an injection**, or whether access was **refused**. This part adds exactly that, and stays strictly an observer.
+
+**What is exact and what is a heuristic.** The trifecta ("can" from the declarations, "used" from the calls made) and access refusals (the failure category and the call itself) are exact. Injection detection reads patterns in tool results, so a careful attack can pass it and a harmless page can trip it. The view says so, in the same spirit as the suspect-output incident ("no source was found" is not "false").
+
+### 4c.1 Tool reach, one source of truth
+
+Each tool has a *reach*: any of `untrusted` (reads content the operator does not control), `private` (reaches the operator's data), `outward` (sends or changes something beyond the run). Today this lives in `io.github.llm4j.loom.security.Capabilities` and only the audit uses it. It becomes a public, documented API used by both the audit and the trace, so the two can never disagree. A tool whose reach the audit cannot see (a Java class, an MCP server, one registered by the host) counts as **all three, marked assumed**, as the audit does today; the view shows it apart ("assumed") so the cautious count can be told from a known one.
+
+- `tool_call` gains `reach` (a sorted comma list of the legs, empty for none) and `reach_known` (false when assumed).
+- The mapper puts `loom.tool.reach` and `loom.tool.reach_known` on the tool span.
+
+### 4c.2 The injection scan
+
+Run **in the process** by the mapper, like the grounding signals, so text never leaves it. It reads only the results of tools whose reach includes `untrusted`, the first 20,000 characters, against a **built-in list** of patterns in named groups: `override` ("ignore/disregard previous instructions"), `role` (a line that opens as `system:`, `assistant:` or a chat-template marker), `exfil` (an instruction to send, post or email what was seen to an address or URL), `reveal` (asks for the system prompt or secrets), `hidden` (zero-width or bidi control characters, instructions in comments or hidden markup). A tool span records only `loom.injection.patterns` (the group names, sorted) and `loom.injection.count`, never the matched text, at any detail level. Matching is linear in the text, with no backtracking pattern.
+
+Custom patterns in the `.inspect` file are **not** in this step (decision 8): the list is fixed in code so the behaviour is the same everywhere; the rule `injection_scan: off` turns the scan off.
+
+### 4c.3 What `RunState` keeps and the incidents
+
+Per agent and per run: which legs it has **used** (from the tool spans' reach), which tools served each leg, and the tools it has called (for "a tool it has not used before"). From the declarations, the audit's profile of each agent says what it **can** reach; it reaches the run state by the same route as the decision ladders and, for Fabric, in the process snapshot.
+
+| Incident | Severity | Fires when | Stays |
+|---|---|---|---|
+| `TRIFECTA` | high | one agent has, in one run, called a tool of each leg (untrusted, private, outward); the evidence names the tool of each leg and the step where the third leg was reached | open after the run ends |
+| `INJECTION` | warn; high when the agent's next tool call after a suspect result is an `outward` one or a tool that agent has not called earlier in the run | a result from an `untrusted` tool matched at least one pattern; evidence: pattern groups, the source tool, the next call | open after the run ends |
+| `ACCESS` | warn; info for an unknown tool | a tool answers `permission_denied` or `authentication` 3 times within 60 s (rule `access_denied: 3 in 60s`); any call to a tool the agent does not have (`unknown_tool`) | closes when the tool answers again; unknown tool: open until the run ends |
+
+A refused approval is people deciding, not an incident (as with a pause an operator asked for); it is counted in the view.
+
+`view()` gains `security`: per agent `{can, used, assumed, verdict}` (verdict: `none`, `one`, `two`, `armed` (can all three, not used), `exercised`), the injection findings (counts by group and source tool), the access counts by category, and the guard counts (`pii_masked`, `pii_blocked`, `pii_detected`, bias events). `RunRegistry.securityRollup(client)` adds the counts across runs.
+
+### 4c.4 Rules
+
+The `.inspect` grammar gains `access_denied: 3 in 60s` and `injection_scan: on|off` (per agent or `*`, and centrally in Fabric), nullable and optional on the wire exactly as the five rules of 4c were; a file without them reads as before.
+
+### 4c.5 Not in this step
+
+No blocking: nothing here changes what an agent can see, call or send, so it cannot affect an agent's earned autonomy. Blocking a trifecta in progress is a policy that belongs in the script (decision 9). No claim that a run was *attacked*: the evidence is a pattern and a sequence, for a person to judge.
+
 ## 5. Incidents
 
 | Kind | Fires when | Severity | Closes when | Evidence |
@@ -145,6 +186,19 @@ Researcher {
 | R25 | `RunState` keeps a health account per task (calls, successes, failure categories, latency, health verdict) in the same shape as a tool's, shown in the view as `tasks` and in `toolSummaries()` / the rollup with `kind` = `task` (a tool and a task with one name stay apart) |
 | R26 | Two incidents: `BROKEN` (high; the run ended failed because of a named task or delegate; it stays open after the run ends) and `DIVERTED` (warn; a step failed and its `on_failure` took over; closes when the run ends). Both are replay-stable and carry the step, kind, name, category |
 | R27 | The failure text follows the detail level (no raw error text at `none`), and a `failure` event adds no secrets |
+| R28 | The tool reach (`untrusted`, `private`, `outward`) of every tool kind comes from one public API used by both `SecurityAudit` and the trace; a test asserts that, for every tool kind the audit knows, the audit's verdict and the trace's `reach` are the same. A tool of unknown reach is all three with `reach_known` false |
+| R29 | `tool_call` carries `reach` and `reach_known`; the mapper puts them on the tool span; a trace without them maps as before |
+| R30 | The injection scan reads only results of `untrusted` tools, the first 20,000 characters, against the built-in groups; a span records group names and a count only; no matched or surrounding text appears in any record, view, incident, log line or export at `full`, `truncated` or `metadata` detail |
+| R31 | The scan is linear in the text (no catastrophic backtracking: a 1 MB hostile input finishes within a fixed budget), deterministic, and off with `injection_scan: off` |
+| R32 | `RunState` keeps, per agent, the legs used and the tools that served each, and `view().security` has per agent `can`, `used`, `assumed` and a verdict; "can" comes from the audit profile when one is supplied and is absent (not guessed) when not |
+| R33 | `TRIFECTA` is raised once per agent when its used legs cover all three; high; names the tools and step; stays open after the run ends; an agent with two legs never raises it |
+| R34 | `INJECTION` is raised on a suspect result, warn; high when the same agent's next tool call is `outward` or a tool it had not called earlier in the run; evidence has groups, source tool and next call, never text |
+| R35 | `ACCESS` is raised as in §4c.3 (3 `permission_denied` or `authentication` in 60 s per tool, default and rule; `unknown_tool` as info); a refused approval is counted and raises nothing |
+| R36 | The guard events (`pii_masked`, `pii_blocked`, `pii_detected`, bias) are counted in `view().security` |
+| R37 | Observe only: with the scan on or off, with every incident raised, an agent's prompts, tools and answers are byte-identical; the added work is bounded (a soak of 20,000 tool results stays within a fixed time and memory budget) |
+| R38 | `access_denied` and `injection_scan` parse, check, round-trip through the `.inspect` file and the central form in Fabric, and are optional on the wire both ways |
+| R39 | The same records give the same security view and incidents when replayed; `RunRegistry.securityRollup` equals the merge of every run's counts and can be limited to one client |
+| R40 | The redaction audit of 7b is extended: no tool result text, matched text or secret appears in the security view, incident evidence, the console, audit lines or the OTLP export |
 
 ## 8. Sub-phases
 
@@ -155,6 +209,10 @@ Researcher {
 | 4c | Detectors, incidents, thresholds, `.inspect` grammar and checks | R10 to R13 |
 | 4d | OTLP export of the new records, Fabric end-to-end (a recorded run through the server), compatibility fixtures | R14, R16 |
 | 4f | Task and delegate failures: `failure` event, enriched `task_end`, `run_end` attribution, task health, `BROKEN` and `DIVERTED` incidents | R22 to R27 |
+| 4g.1 | One public tool-reach API shared by the audit and the trace; `reach` on `tool_call` and the tool span | R28, R29 |
+| 4g.2 | The injection scan in the mapper (patterns, bounds, redaction) | R30, R31, R40 |
+| 4g.3 | `RunState` security view, the three incidents, the two rules, the rollup, the guard counts | R32 to R39 |
+| 4g.4 | Documentation (security page, observability pages, guide, `llms.txt`), a runnable example with an injected page, verification | all |
 | 4e | Documentation (observability pages, loom-inspect design, guide), example, verification run | all |
 
 ## 9. Decisions
@@ -167,6 +225,10 @@ Researcher {
 | 4 | Wire compatibility for the extended `InspectRules` | New fields are nullable and optional in JSON; an older server ignores them; a newer server accepts older rules |
 | 5 | Percentiles in the core module | A small own implementation (nearest-rank, bounded reservoir) because core depends on neither ai-agent4j nor Loom |
 | 6 | Defaults of the five rules | As in §5; all overridable per agent and centrally; none changes a run's behaviour |
+| 8 | Custom injection patterns in the rules file? | No, not in 4g: a fixed built-in list behaves the same everywhere and cannot be used to hide a finding; revisit with real data. `injection_scan: off` exists |
+| 9 | May any of this block a run? | No. Observe only; blocking is a policy for the script (a guard or an approval), decided by the author, not by an observer |
+| 10 | Tools of unknown reach | All three legs, marked assumed (as `weave audit`); shown apart in the view so the cautious count is not mistaken for a known one |
+| 11 | Where the injection scan runs | In the process (the mapper), so tool-result text never leaves it, as with the grounding signals |
 
 ## 10. As built: notes by sub-phase
 

@@ -37,6 +37,18 @@ Status: **draft for review**. Requirements `R1`…`R17` are in [DESIGN.md](DESIG
 - Incident ids are stable per (kind, agent, scope) so a re-raise updates rather than duplicates; closed ones are kept (20) as today.
 - Thresholds: `warn` equal to `high` rejected; 100 % allowed for `high`; `over 10 calls` minimum of 5 calls enforced.
 
+### Security signals (4g)
+
+- Reach: every tool kind the audit knows (table-driven, one row per kind) gives the same legs from the audit and from the trace; a Java, MCP or host-registered tool is all three with `reach_known` false; an old trace without `reach` maps as before.
+- Scan: one test per pattern group (positive and a near-miss that must not match); text only from `untrusted` tools; the 20,000-character bound (a pattern after the bound is not seen); a 1 MB hostile input (long repeats, nested markers) finishes within a fixed budget; zero-width and bidi characters; deterministic output; `injection_scan: off`.
+- Redaction (property-style): for random tool results containing a marker string, the marker appears in no span attribute, log, view, incident evidence, console line, audit line or OTLP body at any detail level.
+- Trifecta: one leg, two legs, three legs across calls and across steps; two agents sharing a tool (each judged alone); a restart with the run resumed (the legs seen before are not lost when the records replay); "assumed" tools; the incident stays after the run ends.
+- Injection: suspect then an outward call (high), suspect then a known harmless call (warn), suspect then a tool never called before (high), no suspect (nothing); the same text from a trusted tool is ignored.
+- Access: 2, 3 and 4 denials inside and outside 60 s; mixed categories; recovery closes it; `unknown_tool`; a refused approval counted and silent; the rule's per-agent and central layering.
+- Observe only: a run with scan and incidents on and the same run with both off give identical prompts, tool inputs and answers (golden); a soak of 20,000 tool results.
+- Rules: grammar, errors with line numbers, round trip, wire compatibility both ways.
+- Replay: the same records twice give the same view and incidents; the rollup equals the merge.
+
 ## 4. Not tested here
 
 - How it looks (phase 5). Live collectors (manual check: send the new spans to a real OpenTelemetry collector).
