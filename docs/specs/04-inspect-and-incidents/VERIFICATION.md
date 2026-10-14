@@ -52,8 +52,8 @@ Status: **verified offline; awaiting review** (live checks owed). Run top to bot
 | R27 | `TaskFailureMappingTest` | ✅ 4f |
 | R28 | `ToolReachSharedTest` (every kind, loot, built-in, assumed), `SecurityAuditTest` and `ToolReachTest` unchanged | ✅ 4g.1 |
 | R29 | `ToolCallReachTest`, `ToolReachMappingTest`, `NewEventsMappingTest` unchanged | ✅ 4g.1 |
-| R30 | `InjectionScanTest`, `SecurityRedactionTest` | ⬜ 4g |
-| R31 | `InjectionScanTest` (bounds, hostile input, off) | ⬜ 4g |
+| R30 | `InjectionScanTest`, `InjectionMappingTest` (the injection fields at every detail level; no result text at `metadata`); the all-sinks `SecurityRedactionTest` is 4g.3 | ✅ 4g.2 (mapper) |
+| R31 | `InjectionScanTest` (bound, hostile inputs under 1 s, deterministic), `InjectionMappingTest` (off) | ✅ 4g.2 |
 | R32 | `SecurityViewTest` | ⬜ 4g |
 | R33 | `TrifectaIncidentTest` | ⬜ 4g |
 | R34 | `InjectionIncidentTest` | ⬜ 4g |
