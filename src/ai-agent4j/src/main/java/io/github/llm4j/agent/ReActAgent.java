@@ -22,6 +22,12 @@ import io.github.llm4j.budget.BudgetedLLMClient;
 import io.github.llm4j.budget.PriceTable;
 import io.github.llm4j.budget.TokenEstimator;
 import io.github.llm4j.context.CompactionEvent;
+import io.github.llm4j.telemetry.ErrorCategory;
+import io.github.llm4j.telemetry.ModelCallEvent;
+import io.github.llm4j.telemetry.RunStats;
+import io.github.llm4j.telemetry.StatsAccumulator;
+import io.github.llm4j.telemetry.ToolCallEvent;
+import io.github.llm4j.telemetry.ToolOutcome;
 import io.github.llm4j.context.ContextCompactor;
 import io.github.llm4j.context.ContextEvents;
 import io.github.llm4j.context.ContextManager;
@@ -131,6 +137,7 @@ public class ReActAgent {
     private final PriceTable priceTable;
     private final String budgetModel;
     private final TokenEstimator tokenEstimator;
+    private final java.time.Clock clock;
     private final ContextPolicy contextPolicy;
     private final ContextCompactor compactor;
     // as given to the builder, so toBuilder() can resolve the window again
@@ -171,6 +178,7 @@ public class ReActAgent {
         this.priceTable = builder.priceTable;
         this.budgetModel = builder.budgetModel;
         this.tokenEstimator = builder.tokenEstimator;
+        this.clock = builder.clock != null ? builder.clock : java.time.Clock.systemUTC();
         this.givenContextPolicy = builder.contextPolicy;
         this.givenContextWindow = builder.contextWindow;
         this.givenContextWindows = builder.contextWindows;
@@ -291,9 +299,33 @@ public class ReActAgent {
     }
 
     public AgentResult run(String question) {
-        // ... (run method setup is the same)
         Objects.requireNonNull(question, "question cannot be null");
-        if (nativeCalling) return runNative(question);
+        RunTelemetry telemetry = new RunTelemetry();
+        AgentResult result = nativeCalling ? runNative(question, telemetry) : runText(question, telemetry);
+        return result.toBuilder().stats(telemetry.snapshot()).build();
+    }
+
+    /** What one run measures about its calls: the statistics that go on its result, and the events its listeners hear. */
+    private final class RunTelemetry {
+        private final StatsAccumulator stats = new StatsAccumulator();
+
+        void tool(ToolCallEvent event) {
+            stats.onToolCall(event);
+            notifyToolCall(event);
+        }
+
+        void model(ModelCallEvent event) {
+            stats.onModelCall(event);
+            notifyModelCall(event);
+        }
+
+        RunStats snapshot() {
+            return stats.snapshot();
+        }
+    }
+
+    /** The loop on the text protocol: the model writes a JSON block that the agent parses. */
+    private AgentResult runText(String question, RunTelemetry telemetry) {
 
         // If question starts with "VOICE:" (or similar marker), we could infer?
         // But better to have explicit methods.
@@ -490,7 +522,7 @@ public class ReActAgent {
                 }
 
                 ActionExecution execution =
-                        executeAction(action, actionInput, actionHistory, thought, redundantActionCount);
+                        executeAction(action, actionInput, actionHistory, thought, redundantActionCount, telemetry, i);
                 String observation = execution.observation();
                 lastObservation = observation;
 
@@ -584,7 +616,7 @@ public class ReActAgent {
      * message, and a reply with no tool calls is the final answer. Approvals, budgets, rate limits, duplicate blocking, listeners, audit and the
      * result are the same as on the text protocol.
      */
-    private AgentResult runNative(String question) {
+    private AgentResult runNative(String question, RunTelemetry telemetry) {
         List<AgentResult.AgentStep> steps = new ArrayList<>();
         Set<String> actionHistory = new HashSet<>();
         AtomicInteger redundantActionCount = new AtomicInteger(0);
@@ -684,7 +716,7 @@ public class ReActAgent {
                     actionInput = String.valueOf(args);
                 }
                 notifyAction(call.name(), actionInput);
-                ActionExecution execution = executeAction(call.name(), actionInput, actionHistory, thought, redundantActionCount);
+                ActionExecution execution = executeAction(call.name(), actionInput, actionHistory, thought, redundantActionCount, telemetry, i);
                 lastObservation = execution.observation();
                 steps.add(new AgentResult.AgentStep(thought, call.name(), actionInput, execution.observation(), execution.outcome()));
                 conversation.add(Message.toolResult(call.id(), call.name(), execution.observation()));
@@ -752,10 +784,51 @@ public class ReActAgent {
         throw new Exception("No valid JSON block or legacy format found in LLM output.");
     }
 
-    /** Pairs a step's observation text with what actually happened, for {@link AgentResult.AgentStep}. */
-    private record ActionExecution(String observation, AgentResult.StepOutcome outcome) {}
+    /** Pairs a step's observation text with what actually happened, and with what was measured about the call. */
+    private record ActionExecution(
+            String observation,
+            AgentResult.StepOutcome outcome,
+            long durationMillis,
+            long approvalMillis,
+            boolean softFailure,
+            ErrorCategory category,
+            String errorType) {
 
+        ActionExecution(String observation, AgentResult.StepOutcome outcome) {
+            this(observation, outcome, 0, 0, false, null, null);
+        }
+    }
+
+    /** Runs one action and reports it: one {@link ToolCallEvent} for whatever happened, a deliberate interrupt excepted. */
     private ActionExecution executeAction(
+            String action,
+            String actionInput,
+            Set<String> actionHistory,
+            String thought,
+            AtomicInteger redundantActionCount,
+            RunTelemetry telemetry,
+            int iteration) {
+        java.time.Instant startedAt = clock.instant();
+        ActionExecution x = performAction(action, actionInput, actionHistory, thought, redundantActionCount);
+        ToolOutcome outcome = toolOutcome(x.outcome());
+        ToolCallEvent.Builder event = ToolCallEvent.builder()
+                .iteration(iteration)
+                .tool(action)
+                .startedAt(startedAt)
+                .durationMillis(x.durationMillis())
+                .approvalMillis(x.approvalMillis())
+                .argumentChars(actionInput == null ? 0 : actionInput.length())
+                .resultChars(x.observation() == null ? 0 : x.observation().length());
+        if (outcome == ToolOutcome.EXECUTED) {
+            if (x.softFailure()) event.softFailure(x.category());
+        } else {
+            event.outcome(outcome, x.category() != null ? x.category() : outcome.defaultCategory(), x.errorType());
+        }
+        telemetry.tool(event.build());
+        return x;
+    }
+
+    private ActionExecution performAction(
             String action,
             String actionInput,
             Set<String> actionHistory,
@@ -782,6 +855,8 @@ public class ReActAgent {
                     AgentResult.StepOutcome.UNKNOWN_TOOL);
         }
 
+        long approvalMillis = 0;
+        long executeStarted = -1;
         try {
             logger.debug("Executing tool '{}' with input: {}", action, actionInput);
             Map<String, Object> args;
@@ -806,19 +881,24 @@ public class ReActAgent {
                                     + " Add one via ReActAgent.Builder#approvalCallback().",
                             AgentResult.StepOutcome.APPROVAL_UNAVAILABLE);
                 }
+                long asked = clock.millis();
                 boolean approved = approvalCallback.approve(action, args, thought != null ? thought : "");
+                approvalMillis = Math.max(0, clock.millis() - asked);
                 if (!approved) {
                     logger.info("Human rejected action '{}'. Feeding back to agent.", action);
                     return new ActionExecution(
                             "Observation: A human supervisor rejected this action. "
                                     + "Do not attempt it again. Choose a different approach to accomplish the goal.",
-                            AgentResult.StepOutcome.REJECTED_BY_HUMAN);
+                            AgentResult.StepOutcome.REJECTED_BY_HUMAN,
+                            0, approvalMillis, false, null, null);
                 }
                 logger.info("Human approved action '{}'.", action);
             }
             // ─────────────────────────────────────────────────────────────────
 
+            executeStarted = clock.millis();
             String observation = tool.execute(args);
+            long durationMillis = Math.max(0, clock.millis() - executeStarted);
             logger.info("Tool '{}' returned observation: {}", action, observation);
             try {
                 auditLogger.logToolExecution(sessionId, action, String.valueOf(args), observation, java.time.Instant.now());
@@ -826,13 +906,40 @@ public class ReActAgent {
                 logger.warn("Audit logging of tool '{}' failed: {}", action, auditFailure.getMessage());
             }
             notifyObservation(observation);
-            return new ActionExecution(observation, AgentResult.StepOutcome.EXECUTED);
+            boolean soft = readsAsFailure(tool, observation);
+            return new ActionExecution(observation, AgentResult.StepOutcome.EXECUTED, durationMillis, approvalMillis, soft,
+                    soft ? ToolResults.categoryOf(observation) : null, null);
         } catch (AgentInterrupt interrupt) {
             throw interrupt; // a deliberate stop (e.g. waiting for a human) is never a tool error
         } catch (Exception e) {
             logger.error("Error executing tool {}: {}", action, e.getMessage(), e);
+            long durationMillis = executeStarted < 0 ? 0 : Math.max(0, clock.millis() - executeStarted);
             return new ActionExecution(
-                    "Error executing tool: " + e.getMessage(), AgentResult.StepOutcome.EXECUTION_ERROR);
+                    "Error executing tool: " + e.getMessage(), AgentResult.StepOutcome.EXECUTION_ERROR,
+                    durationMillis, approvalMillis, false, ErrorCategory.of(e), e.getClass().getSimpleName());
+        }
+    }
+
+    /** The telemetry name for a step outcome; a switch with no default, so a new outcome cannot be added without deciding what it is called here. */
+    private static ToolOutcome toolOutcome(AgentResult.StepOutcome outcome) {
+        return switch (outcome) {
+            case EXECUTED -> ToolOutcome.EXECUTED;
+            case UNKNOWN_TOOL -> ToolOutcome.UNKNOWN_TOOL;
+            case DUPLICATE_BLOCKED -> ToolOutcome.DUPLICATE_BLOCKED;
+            case APPROVAL_UNAVAILABLE -> ToolOutcome.APPROVAL_UNAVAILABLE;
+            case REJECTED_BY_HUMAN -> ToolOutcome.REJECTED_BY_HUMAN;
+            case EXECUTION_ERROR -> ToolOutcome.EXECUTION_ERROR;
+            case BUDGET_EXHAUSTED -> ToolOutcome.BUDGET_EXHAUSTED;
+        };
+    }
+
+    /** Whether the tool says its own result is a failure; a tool whose check itself breaks is taken to have succeeded. */
+    private static boolean readsAsFailure(Tool tool, String observation) {
+        try {
+            return observation != null && tool.isFailure(observation);
+        } catch (RuntimeException e) {
+            logger.warn("Tool '{}' could not tell whether its result is a failure: {}", tool.getName(), e.toString());
+            return false;
         }
     }
 
@@ -1121,6 +1228,26 @@ public class ReActAgent {
         }
     }
 
+    private void notifyToolCall(ToolCallEvent event) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onToolCall(event);
+            } catch (Exception e) {
+                logger.error("Error in listener onToolCall", e);
+            }
+        }
+    }
+
+    private void notifyModelCall(ModelCallEvent event) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onModelCall(event);
+            } catch (Exception e) {
+                logger.error("Error in listener onModelCall", e);
+            }
+        }
+    }
+
     private void notifyObservation(String observation) {
         for (AgentEventListener listener : listeners) {
             try {
@@ -1214,6 +1341,7 @@ public class ReActAgent {
         private PriceTable priceTable;
         private String budgetModel;
         private TokenEstimator tokenEstimator;
+        private java.time.Clock clock;
         private ContextPolicy contextPolicy;
         private Integer contextWindow;
         private ContextWindows contextWindows;
@@ -1232,6 +1360,7 @@ public class ReActAgent {
             this.priceTable = agent.priceTable;
             this.budgetModel = agent.budgetModel;
             this.tokenEstimator = agent.tokenEstimator;
+            this.clock = agent.clock;
             this.contextPolicy = agent.givenContextPolicy;
             this.contextWindow = agent.givenContextWindow;
             this.contextWindows = agent.givenContextWindows;
@@ -1268,6 +1397,14 @@ public class ReActAgent {
         /** How the agent asks the model to use tools; {@link ToolCalling#AUTO} by default. */
         public Builder toolCalling(ToolCalling mode) {
             this.toolCalling = mode == null ? ToolCalling.AUTO : mode;
+            return this;
+        }
+
+        /**
+         * The clock that times model and tool calls in events and statistics: the system clock by default; a test passes one it controls.
+         */
+        public Builder clock(java.time.Clock clock) {
+            this.clock = clock;
             return this;
         }
 

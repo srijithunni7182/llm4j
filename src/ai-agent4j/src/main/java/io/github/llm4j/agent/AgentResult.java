@@ -22,6 +22,7 @@ public final class AgentResult {
     private final boolean protocolFollowed;
     private final boolean budgetExhausted;
     private final io.github.llm4j.budget.BudgetExceeded budgetExceeded;
+    private final io.github.llm4j.telemetry.RunStats stats;
 
     private AgentResult(Builder builder) {
         this.finalAnswer = builder.finalAnswer;
@@ -36,6 +37,7 @@ public final class AgentResult {
         this.protocolFollowed = builder.protocolFollowed;
         this.budgetExceeded = builder.budgetExceeded;
         this.budgetExhausted = builder.budgetExhausted || builder.budgetExceeded != null;
+        this.stats = builder.stats != null ? builder.stats : io.github.llm4j.telemetry.RunStats.EMPTY;
     }
 
     public String getFinalAnswer() {
@@ -107,6 +109,14 @@ public final class AgentResult {
         return budgetExceeded;
     }
 
+    /**
+     * What this run's tool calls and model calls added up to: per tool and per model, calls, failures by category and latency percentiles. Always
+     * present; empty when nothing was called.
+     */
+    public io.github.llm4j.telemetry.RunStats getStats() {
+        return stats;
+    }
+
     public boolean isHighConfidence() {
         return confidence != null && confidence.isHigh();
     }
@@ -134,6 +144,7 @@ public final class AgentResult {
         b.protocolFollowed = protocolFollowed;
         b.budgetExhausted = budgetExhausted;
         b.budgetExceeded = budgetExceeded;
+        b.stats = stats;
         return b;
     }
 
@@ -383,10 +394,16 @@ public final class AgentResult {
         private boolean protocolFollowed = true;
         private boolean budgetExhausted;
         private io.github.llm4j.budget.BudgetExceeded budgetExceeded;
+        private io.github.llm4j.telemetry.RunStats stats;
 
         private Builder() {}
 
         /** The refusal that stopped the run (also marks it budget-exhausted). */
+        public Builder stats(io.github.llm4j.telemetry.RunStats stats) {
+            this.stats = stats;
+            return this;
+        }
+
         public Builder budgetExceeded(io.github.llm4j.budget.BudgetExceeded budgetExceeded) {
             this.budgetExceeded = budgetExceeded;
             return this;

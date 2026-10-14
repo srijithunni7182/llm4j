@@ -4,9 +4,10 @@ When an agent runs, you want to know more than what it answered: **how long** ea
 **why** a call failed, how often, and how the numbers add up. This page is about the events and statistics ai-agent4j keeps for that, and about writing a
 tool so that it is observed well.
 
-> **Status: in progress.** The building blocks on this page work on their own: the failure vocabulary (`ErrorCategory`), `ToolException`, how a tool's
-> text result is read as a failure, the event types, latency percentiles and `StatsCollector`. The agent does **not** produce `onModelCall` and
-> `onToolCall` events yet; that is the next steps of the work and will be documented here as it lands. The design is in
+> **Status: in progress.** The failure vocabulary, `ToolException`, the way a tool's text result is read, the event types, latency percentiles and
+> `StatsCollector` work on their own (sections 1 to 4), and the agent now produces a **tool-call event** for every tool call, in both of its loops,
+> and puts the statistics of the run on its result (section 5). Still to come: model-call events (duration, usage, finish reason, failures) and the
+> retries and fail-overs inside the HTTP and routing layers (section 8). The design is in
 > [`docs/specs/02-call-telemetry`](../../../docs/specs/02-call-telemetry/DESIGN.md).
 
 Everything here is opt-in and changes nothing for code that does not use it. Events and statistics hold **numbers and names only**: never a prompt, an
@@ -20,7 +21,10 @@ answer, a tool's arguments or its result.
 2. [Writing a tool that is observed well](#2-writing-a-tool-that-is-observed-well)
 3. [The events](#3-the-events)
 4. [Statistics](#4-statistics)
-5. [What is coming](#5-what-is-coming)
+5. [In an agent](#5-in-an-agent)
+6. [Timing in tests](#6-timing-in-tests)
+7. [What is measured, and what is not](#7-what-is-measured-and-what-is-not)
+8. [What is coming](#8-what-is-coming)
 
 ---
 
@@ -83,7 +87,7 @@ The wording rule is conservative on purpose: `No errors found`, `The error rate 
 
 ## 3. The events
 
-Two immutable records, each built with a builder, hold what is known about a call. They are the types the listener methods will receive.
+Two immutable records, each built with a builder, hold what is known about a call. They are what `AgentEventListener.onModelCall` and `onToolCall` receive.
 
 | `ModelCallEvent` | |
 |---|---|
@@ -128,13 +132,75 @@ Map<ErrorCategory, Long> why = now.tool("search").failures();                 //
   bounded while the count, minimum, maximum and mean stay exact.
 - `snapshot()` is a consistent copy and `reset()` starts again.
 
-## 5. What is coming
+## 5. In an agent
+
+Every tool call an agent makes, in either of its loops, produces one `ToolCallEvent`, delivered to its listeners as the call finishes:
+
+```java
+AgentEventListener listener = new AgentEventListener() {
+    @Override public void onThought(String thought) {}
+    @Override public void onAction(String tool, String input) {}
+    @Override public void onObservation(String observation) {}
+
+    @Override
+    public void onToolCall(ToolCallEvent e) {
+        if (e.failed()) {
+            System.out.printf("%s failed (%s) after %d ms%n", e.tool(), e.category(), e.durationMillis());
+        }
+    }
+};
+```
+
+Calls that never reached the tool get an event too, because they matter to the health of the loop: a tool the model invented (`UNKNOWN_TOOL`), an exact
+repeat that was blocked (`DUPLICATE_BLOCKED`), an action that needs approval when nobody was set up to give it (`APPROVAL_UNAVAILABLE`), and one a person rejected
+(`REJECTED_BY_HUMAN`, with how long the person took in `approvalMillis`). A person's thinking time is never counted as the tool's time.
+
+The result carries the statistics of its own run, always (empty when nothing was called):
+
+```java
+AgentResult result = agent.run("Find the plans.");
+ToolStats search = result.getStats().tool("search");
+double rate = search.successRate().orElse(0);       // 0.75: three of four calls did what was asked
+long p95 = search.latency().p95();                  // milliseconds, from the calls that reached the tool
+Map<ErrorCategory, Long> why = search.failures();   // {TIMEOUT=1}
+```
+
+- **A tool that returned an error as text is counted as failed** in the events and statistics (a *soft* failure, with a category read from the wording), but
+  the step's `StepOutcome` stays `EXECUTED`: changing it would alter confidence scoring and existing callers. Read `ToolCallEvent.failed()`, not the step
+  outcome, to know whether a tool worked.
+- **What the model is told does not change.** The same observation text goes back to the model, the same arguments go to the tool, and the same requests
+  are sent; adding a listener or reading statistics changes nothing about the run.
+- **A listener that throws** is logged and ignored; it can neither fail the run nor stop the listeners after it.
+- **A deliberate interrupt** (a tool that pauses the run to wait for a person) is not a failure and produces no tool event.
+- To watch **many runs**, add one `StatsCollector` to the agent (section 4); the result's own statistics and the collector's agree.
+
+## 6. Timing in tests
+
+Durations come from a `java.time.Clock` that defaults to the system clock. A test gives the agent one it controls, so a duration is exact and no test
+depends on how fast a machine is:
+
+```java
+ReActAgent agent = ReActAgent.builder()
+        .llmClient(Scripts.oneToolStep(true, "slow", "x"))
+        .addTool(new TestTool("slow", (a, n) -> { testClock.advance(250); return "ok"; }))
+        .clock(testClock)                                   // durations come from this clock, so a test can say exactly how long a tool took
+        .build();
+```
+
+## 7. What is measured, and what is not
+
+- A tool's **duration** is the time of its own `execute` call. The agent's decision to call it, the approval wait and the bookkeeping are not included.
+- Events and statistics hold **numbers and names only**: not the arguments, not the result, not the prompt or the answer. (`onAction` and `onObservation`
+  still carry text, as they always did.)
+- A tool that fans work out to **other threads** is measured as one call; what happens on those threads is not attributed to it.
+- **Model calls** are not measured yet (section 8).
+
+## 8. What is coming
 
 In this order, each with its own tests and documentation:
 
-1. The agent produces `onToolCall` events and keeps the statistics, in both loops, and `AgentResult.getStats()`.
-2. The agent produces `onModelCall` events: duration, usage, finish reason, failures.
-3. Retries, rate-limit waits and fail-overs inside the HTTP and routing layers show up in the model-call event.
+1. The agent produces `onModelCall` events: duration, usage, finish reason, failures; the model statistics fill in.
+2. Retries, rate-limit waits and fail-overs inside the HTTP and routing layers show up in the model-call event.
 
 See also: [Context and Compaction](Context-and-Compaction.md) · [Budgets and Rate Limits](Budgets-and-Rate-Limits.md) ·
 [ReAct Agent Guide](ReAct-Agent-Guide.md)

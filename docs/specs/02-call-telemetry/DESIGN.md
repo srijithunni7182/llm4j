@@ -272,3 +272,9 @@ is a separate commit.
   something wins. `LatencyRecorder` keeps a deterministic reservoir (Algorithm R) past 10,000 samples and exposes `retained()` for the bound. Per-tool latency counts only calls
   that reached the tool's code (`ToolOutcome.ran()`), per-model latency counts every call, failed ones included. `StatsAccumulator` is the shared, thread-safe adder behind both
   `StatsCollector` and (from 2b) `AgentResult.getStats()`.
+- **2b.** `ReActAgent.run` keeps one `RunTelemetry` (a `StatsAccumulator` plus the notifiers) for the run, passes it to both loops, and puts its snapshot on the result with
+  `toBuilder().stats(...)`, so every result carries statistics, including a failed or budget-exhausted one (an exception that propagates produces no result and so none). `executeAction`
+  became a thin wrapper: it records the start, calls `performAction` (the old body, now also timing the approval wait and the `execute` call with the agent's `Clock`), and builds one
+  `ToolCallEvent`. A deliberate `AgentInterrupt` is rethrown before any event. `StepOutcome` is mapped to `ToolOutcome` by an exhaustive `switch` with no default, so adding an outcome to one
+  enum cannot compile without deciding the other. A tool's `isFailure` that throws is logged and treated as "not a failure". The text a tool or the agent returns to the model is untouched, which the
+  golden requests of Phase 1 and two new equality tests confirm. The `Clock` is a builder option (`ReActAgent.Builder.clock`), carried through `toBuilder()`.
