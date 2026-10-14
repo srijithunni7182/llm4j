@@ -10,7 +10,8 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Context windows per model. No windows ship with the library because they change; load your own:
+ * Context windows per model. The catalogue starts <b>empty</b>: nothing is assumed about a model. {@link #defaults()} is a short list of
+ * models checked against their provider's documentation (each entry says when), and you load your own for the rest:
  *
  * <pre>
  * # windows.properties — model = window [/ tokens kept for the reply]
@@ -35,11 +36,29 @@ public final class ContextWindows {
         return EMPTY;
     }
 
+    /**
+     * The short list that ships with the library: only models whose window was checked against the provider's own documentation, with the date
+     * in {@code windows.properties}. It is never applied by itself; pass it to the agent. Extend or override it with {@link #with}, or load your own
+     * file for the models it does not cover.
+     */
+    public static ContextWindows defaults() {
+        try (java.io.InputStream in = ContextWindows.class.getResourceAsStream("windows.properties")) {
+            if (in == null) return EMPTY;
+            return parse(new String(in.readAllBytes(), StandardCharsets.UTF_8).lines().toList(), "the seeded windows");
+        } catch (IOException e) {
+            throw new java.io.UncheckedIOException("could not read the seeded context windows", e);
+        }
+    }
+
     /** Reads {@code model = window [/ reserve]} lines; {@code #} starts a comment. */
     public static ContextWindows load(Path file) throws IOException {
+        return parse(Files.readAllLines(file, StandardCharsets.UTF_8), file.toString());
+    }
+
+    private static ContextWindows parse(java.util.List<String> lines, Object file) {
         Map<String, ContextWindow> windows = new LinkedHashMap<>();
         int n = 0;
-        for (String raw : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+        for (String raw : lines) {
             n++;
             String line = raw.replaceFirst("#.*$", "").strip();
             if (line.isEmpty()) continue;

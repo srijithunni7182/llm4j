@@ -14,11 +14,7 @@ import java.util.Set;
 final class Exchanges {
 
     /** Messages {@code [start, end)}. */
-    record Unit(int start, int end) {
-        int size() {
-            return end - start;
-        }
-    }
+    record Unit(int start, int end) {}
 
     /** The protected prefix {@code [0, prefixEnd)}, the protected tail {@code [tailStart, n)} and the units between them. */
     record Region(int prefixEnd, int tailStart, List<Unit> middle) {}

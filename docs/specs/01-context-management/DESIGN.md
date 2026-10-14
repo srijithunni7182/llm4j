@@ -337,3 +337,9 @@ Strategy names used for discovery are lower snake case: `none`, `drop_oldest`, `
   runs every strategy both ways. **A decision 4 correction:** a message marked with `Messages.pinned` is now honoured **by default** in `ContextPolicy`,
   `CompactionRequest` and `ConversationHistory`; a predicate of the developer's own adds to the mark and never replaces it (the first draft required passing
   `Messages::isPinned`, which contradicted "pin where it is created").
+- **1g.** `ContextWindows.defaults()` ships four entries (the current Claude models, 1,000,000 tokens with their 128,000 maximum output kept free for the reply),
+  each checked against the provider's model overview on 2026-10-14 and dated in `windows.properties`; **Gemini and Sarvam are not seeded** (the Google
+  documentation host could not be reached from the build environment, and entries are added only once checked); the seed is never applied unless the developer
+  passes it to the agent. The generated contract cases, run over many seeds, found one more flaw: a `summarize` fallback (or a second pass with an unreachable
+  target) could drop an earlier summary to save a few tokens. A fallback now treats the notes of an earlier summary as pinned. A mutation run (PIT, profile
+  `mutation-context`) raised the tests from 87 % to 95 % of mutants killed; what remains is listed in VERIFICATION §3.

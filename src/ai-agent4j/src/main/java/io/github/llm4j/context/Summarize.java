@@ -96,7 +96,10 @@ final class Summarize implements ContextCompactor {
     }
 
     private CompactionResult fallback(List<Message> messages, CompactionRequest request, String why, CompactionUsage usage) {
-        CompactionResult d = new DropOldest().compact(messages, request);
+        // the notes written by an earlier summary are not thrown away to make room: they are the one thing in the conversation that cannot be rebuilt
+        CompactionRequest keepNotes = new CompactionRequest(request.targetTokens(), request.window(), request.estimator(), request.keepRecent(),
+                m -> request.pinned().test(m) || Messages.compactionOf(m).filter(NAME::equals).isPresent(), request.protectTask(), request.reason());
+        CompactionResult d = new DropOldest().compact(messages, keepNotes);
         return new CompactionResult(d.messages(), NAME, d.outcome(), d.messagesBefore(), d.messagesAfter(), d.tokensBefore(), d.tokensAfter(),
                 d.droppedMessages(), usage, "fell back to drop_oldest: " + why);
     }

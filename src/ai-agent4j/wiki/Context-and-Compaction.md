@@ -4,11 +4,11 @@ An agent's prompt grows with every step: each thought, tool call and result is a
 later it no longer fits the model's **context window**. This page is about keeping it small enough, on purpose, with
 the parts you choose: **how much room is left**, **what to do about it**, and **what must never be touched**.
 
-> **Status: in progress, nearly complete.** The strategies, the window catalogue and the policy (sections 2 to 8); an agent that measures its
+> **Status: complete for ai-agent4j; the layers above (Loom, the observability pages) are the next phases.** The strategies, the window catalogue and the policy (sections 2 to 8); an agent that measures its
 > context before every model call, reports it, and compacts automatically, in both loops (sections 9 to 11); a `summarize` strategy
 > (section 3); recovery from a provider's "prompt too long" error and early refusal of a prompt that cannot fit (section 12); and a
-> conversation history with a window in tokens (section 13) all work. Still to come: a short list of models seeded in the window
-> catalogue (section 15). The design is in [`docs/specs/01-context-management`](../../../docs/specs/01-context-management/DESIGN.md).
+> conversation history with a window in tokens (section 13) all work, and a short list of models ships in the window catalogue (section 7).
+> The design is in [`docs/specs/01-context-management`](../../../docs/specs/01-context-management/DESIGN.md).
 
 Everything here is opt-in and changes nothing for code that does not use it.
 
@@ -94,6 +94,7 @@ the protected content (section 4), and order the chain so the cheap, lossless st
 - **A summary is a nicety, never a reason to fail.** If the call throws, is refused by a budget, hits a rate limit, returns nothing, or
   returns something that is not smaller than what it replaces, the conversation is still made smaller by dropping the oldest part. The
   result's `note` says `fell back to drop_oldest: <why>`. A rate limit or an empty budget never pauses or stops a run because of a summary.
+  **Notes written by an earlier summary are never thrown away by that fallback**: they are the one thing in the conversation that cannot be rebuilt.
 - **It has a cost, and you can see it.** The summary is a model call. Its tokens and cost are in `CompactionResult.summarizerUsage()`, in the
   `onCompaction` event, **and added to the agent's own `AgentResult.getUsage()`** (calls, tokens, cost). If the client you pass is a
   `BudgetedLLMClient` the spend is also metered against its budget. A cheaper model than the agent's is a good choice.
@@ -213,6 +214,23 @@ ContextWindow window = windows.window("acme/big-model").orElseThrow();   // usab
 
 A model is looked up by its id, then by the id without its provider prefix, ignoring case. An unknown model has **no window**;
 nothing is guessed. A malformed line is rejected with its line number.
+
+**A short list ships**, and is never applied by itself:
+
+```java
+ReActAgent agent = ReActAgent.builder()
+        .llmClient(client)
+        .budgetModel("claude-opus-5-5")                   // the model name your prices already use
+        .contextWindows(ContextWindows.defaults())        // the short list that ships, checked against the provider's documentation
+        .compaction(ContextCompactors.dropOldest())
+        .build();
+```
+
+`ContextWindows.defaults()` holds the four current Claude models (`claude-fable-5-1`, `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-haiku-5-5`), each
+with a 1,000,000-token window and the model's maximum output (128,000) kept free for the reply, so 872,000 tokens usable for the prompt.
+`windows.properties` in the library says what each entry was checked against and when (the provider's model overview, 2026-10-14). Entries are added
+only after they are checked against the provider's own documentation, so Gemini, Sarvam and Ollama models are **not** listed yet: Ollama windows depend on
+the model and on the `num_ctx` you run it with, so list your own. Extend or override the list with `with(...)` or a file of your own.
 
 ## 8. The policy
 
@@ -408,7 +426,14 @@ ReActAgent agent = ReActAgent.builder().llmClient(client).conversationHistory(hi
 
 ## 15. What is coming
 
-1. Models seeded in the window catalogue, each checked against the provider's documentation, so that `contextWindows(...)` works without a file of your own.
+Nothing is left to do in ai-agent4j. The next work is in the layers above: Loom (settings per agent, compaction for its transcript memory, trace events),
+the observability add-on and Fabric (a context gauge, compaction events, tool statistics and incidents), as laid out in the
+[roadmap](../../../docs/specs/README.md). Seeded windows for further providers follow as their documentation can be checked.
+
+## Try it
+
+[`src/examples/context-compaction`](../../examples/context-compaction/README.md) runs an agent that would outgrow its window, with no model and no key, and
+prints the context use and every compaction as they happen.
 
 See also: [ReAct Agent Guide](ReAct-Agent-Guide.md) · [Budgets and Rate Limits](Budgets-and-Rate-Limits.md) ·
 [Memory and Persistence](Memory-and-Persistence.md)

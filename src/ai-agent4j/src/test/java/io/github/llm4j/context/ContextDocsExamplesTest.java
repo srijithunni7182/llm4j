@@ -281,6 +281,21 @@ class ContextDocsExamplesTest {
     }
 
     @Test
+    void theSeededWindows() {
+        io.github.llm4j.LLMClient client = ReActAgentCompactionNativeTest.looping(3);
+        // --- sample: defaults
+        ReActAgent agent = ReActAgent.builder()
+                .llmClient(client)
+                .budgetModel("claude-opus-5-5")                   // the model name your prices already use
+                .contextWindows(ContextWindows.defaults())        // the short list that ships, checked against the provider's documentation
+                .compaction(ContextCompactors.dropOldest())
+                .build();
+        // --- end sample
+        assertThat(ContextWindows.defaults().window("claude-opus-5-5").orElseThrow().usableInput()).isEqualTo(872_000);
+        assertThat(agent).isNotNull();
+    }
+
+    @Test
     void thePageShowsExactlyTheSamplesThatAreTested() throws Exception {
         String source = Files.readString(Path.of("src/test/java/io/github/llm4j/context/ContextDocsExamplesTest.java"));
         String page = Files.readString(Path.of("wiki/Context-and-Compaction.md"));
@@ -291,6 +306,6 @@ class ContextDocsExamplesTest {
             String sample = m.group(2).stripIndent().strip();
             assertThat(page).as("the page shows the '" + m.group(1) + "' sample").contains(sample);
         }
-        assertThat(found).isGreaterThanOrEqualTo(13);
+        assertThat(found).isGreaterThanOrEqualTo(14);
     }
 }

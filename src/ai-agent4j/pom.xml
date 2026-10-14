@@ -151,6 +151,17 @@
                                         <limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit>
                                     </limits>
                                 </rule>
+                                <!-- Context management and compaction (docs/specs/01-context-management): 98.9 % of lines and 89.4 % of branches when this was set -->
+                                <rule>
+                                    <element>PACKAGE</element>
+                                    <includes>
+                                        <include>io.github.llm4j.context</include>
+                                    </includes>
+                                    <limits>
+                                        <limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit>
+                                        <limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.80</minimum></limit>
+                                    </limits>
+                                </rule>
                                 <rule>
                                     <element>BUNDLE</element>
                                     <limits>
@@ -212,6 +223,51 @@
                             <threads>4</threads>
                             <timeoutFactor>3</timeoutFactor>
                             <mutationThreshold>85</mutationThreshold>
+                            <outputFormats><param>XML</param><param>HTML</param></outputFormats>
+                            <timestampedReports>false</timestampedReports>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- Mutation testing of context management: mvn -Pmutation-context org.pitest:pitest-maven:mutationCoverage (see docs/specs/01-context-management/VERIFICATION.md) -->
+        <profile>
+            <id>mutation-context</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-maven</artifactId>
+                        <version>1.17.4</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.pitest</groupId>
+                                <artifactId>pitest-junit5-plugin</artifactId>
+                                <version>1.2.1</version>
+                            </dependency>
+                            <!-- the plugin was built for JUnit 5; this module runs JUnit 6, so give PIT the same platform -->
+                            <dependency>
+                                <groupId>org.junit.platform</groupId>
+                                <artifactId>junit-platform-launcher</artifactId>
+                                <version>${junit.version}</version>
+                            </dependency>
+                            <dependency>
+                                <groupId>org.junit.platform</groupId>
+                                <artifactId>junit-platform-commons</artifactId>
+                                <version>${junit.version}</version>
+                            </dependency>
+                        </dependencies>
+                        <configuration>
+                            <targetClasses>
+                                <param>io.github.llm4j.context.*</param>
+                            </targetClasses>
+                            <targetTests>
+                                <param>io.github.llm4j.context.*Test</param>
+                            </targetTests>
+                            <threads>4</threads>
+                            <timeoutFactor>4</timeoutFactor>
+                            <mutationThreshold>80</mutationThreshold>
                             <outputFormats><param>XML</param><param>HTML</param></outputFormats>
                             <timestampedReports>false</timestampedReports>
                         </configuration>

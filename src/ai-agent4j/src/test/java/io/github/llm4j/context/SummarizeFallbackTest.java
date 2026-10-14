@@ -91,4 +91,48 @@ class SummarizeFallbackTest {
         assertThat(r.outcome()).isEqualTo(CompactionResult.Outcome.COMPACTED);
         assertThat(r.note()).contains("fell back");
     }
+
+    // ── a fallback never throws away an earlier summary (found by the generated contract cases) ──
+
+    private static List<Message> withAnEarlierSummary() {
+        List<Message> first = new Convo().system("sys").task("task").step("a", 800).step("b", 800).step("c", 800).step("d", 800).step("e", 800).build();
+        CompactionResult one = ContextCompactors.summarize(SummariserModel.saying("Plan A costs 500.")).compact(first, req(req(1).sizeOf(first) / 2));
+        List<Message> grown = new java.util.ArrayList<>(one.messages());
+        for (int i = 0; i < 6; i++) grown.addAll(new Convo().step("search", 800).build());
+        return grown;
+    }
+
+    private static boolean hasSummary(List<Message> messages) {
+        return messages.stream().anyMatch(m -> Messages.compactionOf(m).filter("summarize"::equals).isPresent() && m.getContent().contains("Plan A costs 500."));
+    }
+
+    @Test
+    void whenTheCallFailsTheEarlierNotesAreKept() {
+        List<Message> in = withAnEarlierSummary();
+        CompactionResult r = ContextCompactors.summarize(SummariserModel.failing(new IllegalStateException("down"))).compact(in, req(req(1).sizeOf(in) / 2));
+        assertThat(r.outcome()).isEqualTo(CompactionResult.Outcome.COMPACTED);
+        assertThat(r.note()).contains("fell back");
+        assertThat(hasSummary(r.messages())).as("the notes written earlier survive the failed attempt").isTrue();
+        assertThat(req(1).sizeOf(r.messages())).isLessThan(req(1).sizeOf(in));
+    }
+
+    @Test
+    void whenThereIsNothingNewToSummariseTheEarlierNotesAreLeftAlone() {
+        List<Message> first = new Convo().system("sys").task("task").step("a", 800).step("b", 800).step("c", 800).build();
+        SummariserModel model = SummariserModel.saying("Plan A costs 500.");
+        CompactionRequest unreachable = CompactionRequest.builder(10).keepRecent(0).build();
+        CompactionResult one = ContextCompactors.summarize(model).compact(first, unreachable);
+        CompactionResult two = ContextCompactors.summarize(model).compact(one.messages(), unreachable);
+        assertThat(two.outcome()).isIn(CompactionResult.Outcome.NO_GAIN, CompactionResult.Outcome.SKIPPED);
+        assertThat(hasSummary(two.messages())).isTrue();
+    }
+
+    @Test
+    void aLaterSuccessfulSummaryStillMergesTheEarlierOne() {
+        List<Message> in = withAnEarlierSummary();
+        SummariserModel model = SummariserModel.saying("Plan A costs 500; plan B costs 900.");
+        CompactionResult r = ContextCompactors.summarize(model).compact(in, req(req(1).sizeOf(in) / 3));
+        assertThat(model.transcript()).contains("Plan A costs 500.");
+        assertThat(r.messages().stream().filter(m -> Messages.compactionOf(m).filter("summarize"::equals).isPresent())).hasSize(1);
+    }
 }
