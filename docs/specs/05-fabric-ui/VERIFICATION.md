@@ -62,13 +62,13 @@ Status: **built; manual and live checks owed (§4)**. Run top to bottom at the e
 | R37 | `GuideChapter14Test`, `GuideDeployTest`, `JavaQuickReferenceTest` | ✅ 5f-3a |
 | R38 | `SkillDriftTest`, `SkillKitTest` | ✅ 5f-3a |
 | R39 | `GuideChapter14Test` (snippets), `SkillDriftTest` | ✅ 5f-3a |
-| R40 | `SkillDriftTest`, `DeployerSkillTest` | ⬜ |
-| R41 | `DeployerScriptsTest` | ⬜ |
-| R42 | `SkillDriftTest` (page elements named exist), `DeployerSkillTest` | ⬜ |
-| R43 | `DeployerScriptsTest`, `DeployerSkillTest` (safety rules) | ⬜ |
-| R44 | `GuideCommandTest`, `verify-skill-package.sh` | ⬜ |
-| R45 | `SkillDriftTest` | ⬜ |
-| R46 | docs review | ⬜ |
+| R40 | `DeployerSkillTest` | ✅ 5f-3 |
+| R41 | `DeployerScriptsTest` (six: a real Fabric, idempotent start, health wait, the key stored and never printed, an unsafe bind refused, stop twice) | ✅ 5f-3 |
+| R42 | `SkillDriftTest` (page elements named exist), `DeployerSkillTest` | ✅ 5f-3 |
+| R43 | `DeployerScriptsTest`, `DeployerSkillTest` (safety rules) | ✅ 5f-3 |
+| R44 | `GuideCommandTest`, `verify-skill-package.sh` | ✅ 5f-3 |
+| R45 | `DeployerSkillTest` (weave commands, options and guide pages), `DeployerFabricDriftTest` (Fabric commands and options), `SkillKitTest` (the workflow skill) | ✅ 5f-3 |
+| R46 | docs review | ✅ 5f-3 |
 
 ## 3. Quality gates
 
@@ -76,6 +76,7 @@ As [TEST_STRATEGY.md §5](TEST_STRATEGY.md#5-quality-gates). Results in §7.
 
 ## 4. Manual and live checks
 
+0. Give the deployer skill to a coding agent with a real finished workflow and watch it: does it ask before the things it must ask about, does it stop at a refusal, does the developer end up able to find one thing on each page? Run the `.ps1` scripts on Windows.
 1. Open the page in Chrome, Firefox and Safari, in both themes, at phone width, and walk each page with the keyboard only.
 2. A screen reader pass (VoiceOver or NVDA) over the run page, the Tools & tasks page and the Security page.
 3. A real Fabric with real processes (not the simulator) running the `examples`: look at each page.
@@ -111,6 +112,7 @@ Stack-level pages are owed once at the end of the whole work.
 | 2026-10-14 | 5f-1 | Pass | Calm: tabs keep the order they first appeared in, a new run is appended and never takes the selection, at most eight tabs (selected, live, just finished), a **Runs** list (filter, status chips, grouping, start times) holds the rest, held row order with an "order changed / Re-sort" chip on the run's and the fleet's tools tables, a **Live / Paused** control that freezes every redraw and counts what changed from the cheap run list, and `fabric-sim.sh calm`. 8 browser tests (`calm.page.test.js`), 2 script tests; all 55 browser tests pass. Findings: the existing tests assumed a tab per run (the helper now picks a finished run from the Runs list); a selected run stays in the tab row while another page is open; a finished run is shown for a minute only if it was seen live; the old `.run` row style clashed with the list's rows (renamed) |
 | 2026-10-14 | 5f-2 | Pass | Time: each run keeps the records it was built from (at most 50,000; the oldest drop and a view then says `partial`), `GET /api/runs/{trace}/timeline` (at most 300 marks: start, end, incidents opened and closed, failures, compactions, changes of state) and `GET /api/runs/{trace}?at=SEQ` (the view rebuilt by the same code as the live view, `live: false`, `asOf`, no controls; 404 with where the history starts), and a time bar on the run page (slider, a marker for each mark, previous and next incident, a banner that says it is a snapshot with Back to live). 7 + 4 + 2 + 1 Java tests, 9 browser tests (`time.page.test.js`); all 64 browser tests and the Java suites pass. Findings: a past view uses today's rules, prices and windows (the records are the past, the settings are now) and says so in the docs; the soak test takes about 8 s so it is the slow one; no junit-params in the build, so the scenario checks loop |
 | 2026-10-14 | 5f-3a | Pass | The workflow skill and the guide, brought up to date: a new chapter 14 (context and compaction: when, how, the windows, your own strategy, the page and its three signals), chapters 6 (failing steps: `retry`, `on_failure`, what a failed run names; the context block), 7 (the trifecta live, `reach`, accepting it in writing, injection and refused access), 9 (watching a run, the hand-over to the deployer skill), 10 (do, don't, checklist), 12 (Java: windows and your own strategy, an agent in Java, statistics, watching from a host), the guide's map, `SKILL.md` (description, stage 14, three things a real workflow needs, when to hand over, honest edges) and `llms.txt`. `GuideChapter14Test` (4 tests: listing and the jar, the chapter's content, what the others say, three Loom blocks pass `weave check`), the existing guide, skill and link tests updated and passing. The Java reference block was compiled with `javac` against the built jars here (the module's `GuideCompilesTest` needs the network for its test dependencies and runs in CI). Found: the page list held chapter 6 twice (fixed); `note` is a reserved word for a result name |
+| 2026-10-14 | 5f-3b, 5f-3c | Pass | The deployer skill `llm4j-loom-deployer`: `SKILL.md`, eight chapters (`weave guide deploy`, `d1` to `d8`: shape, security, rules and windows and prices, its own page, Fabric, reporting to Fabric, reading the pages, operating), launch scripts for macOS and Linux and for Windows (`fabric-up`, `fabric-status`, `fabric-down`, `run-observed`), `weave guide --install-skill` installing both skills (`--skill` for one), the package (`dist/llm4j-loom-deployer.zip` with the jars in `bin/`) and its check from an empty folder. Tests: `DeployerSkillTest` (12), `DeployerFabricDriftTest` (2), `DeployerScriptsTest` (6, real Fabric and a real workflow), the guide and skill tests updated; `verify-skill-package.sh` brings up a Fabric from the package, reports a workflow to it and stops both. Full suites pass (Loom 1,872, inspect-core 333, fabric 56, inspect 209). Findings while building the scripts: `java -version` prints the `JAVA_TOOL_OPTIONS` line first (version parsing), a `tr | head` pipe under `pipefail` killed the script silently, an empty argument array expanded to an empty argument, and the package check's `grep -q` under `pipefail` failed on a SIGPIPE. **Owed:** the `.ps1` scripts have not been run (no Windows host here); a coding agent driving the skill against a live developer has not been tried |
 
 ### Documentation record (per sub-phase)
 
@@ -124,6 +126,7 @@ Stack-level pages are owed once at the end of the whole work.
 | 5f-1 | ✅ loom-inspect DESIGN §11o, wiki Fabric-Server, fabric-sim README | ✅ browser tests | ✅ | n/a | deferred to the end | ✅ traceability, results |
 | 5f-2 | ✅ loom-inspect DESIGN §11o, wiki Fabric-Server | ✅ browser tests | ✅ | n/a | deferred to the end | ✅ traceability, results |
 | 5f-3a | ✅ guide chapters, SKILL.md, llms.txt | ✅ Loom blocks pass `weave check`; Java compiles | ✅ | ✅ | deferred to the end | ✅ traceability, results |
+| 5f-3b/c | ✅ docs/deploy, SKILL.md, PUBLISHING_SKILL.md, wiki Deployer-Skill, OBSERVABILITY_DEPLOYMENT | ✅ scripts run against a real Fabric | ✅ | ✅ | deferred to the end | ✅ traceability, results |
 
 ### Owed to the stack-level pages (updated once, at the end of the whole work)
 
