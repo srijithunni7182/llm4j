@@ -177,15 +177,18 @@
   </section>
 
   <main id="main" hidden>
-    <section class="kpis" aria-label="Run totals">
+    <nav id="runtabs" class="runtabs" role="tablist" aria-label="Views of this run"></nav>
+    <section class="kpis" data-tab="overview" aria-label="Run totals">
       <div class="tile"><div class="eyebrow">Tokens used</div><div class="val" id="tokens">0</div><div class="foot mono" id="tokensfoot"></div></div>
       <div class="tile"><div class="eyebrow">Cost so far</div><div class="val" id="cost">$0</div><div class="foot mono" id="costfoot"></div></div>
       <div class="tile"><div class="eyebrow">Running now</div><div class="val"><span id="running" class="live-t">0</span> <small id="runningof"></small></div><div class="foot mono" id="runningfoot"></div></div>
+      <div class="tile" id="tile-context"><div class="eyebrow">Context</div><div class="val" id="ctxval">–</div><div class="foot mono" id="ctxfoot"></div></div>
       <div class="tile"><div class="eyebrow">Tool calls</div><div class="val" id="toolcalls">0</div><div class="foot mono" id="toolfoot"></div></div>
+      <div class="tile" id="tile-tasks"><div class="eyebrow">Tasks</div><div class="val" id="taskval">0</div><div class="foot mono" id="taskfoot"></div></div>
       <div class="tile"><div class="eyebrow">Run</div><div class="val sm" id="state">–</div><div class="foot mono" id="statefoot"></div></div>
     </section>
 
-    <div class="grid">
+    <div class="grid" data-tab="overview">
       <section class="panel c8" aria-labelledby="h-graph">
         <div class="ph"><h2 id="h-graph">Workflow</h2><span class="sub mono" id="graphsub"></span></div>
         <div class="graph-wrap" id="graphwrap"><svg id="graph" class="graph" role="img" aria-label="Workflow graph"></svg></div>
@@ -230,13 +233,56 @@
         <svg id="spend" class="spend" viewBox="0 0 600 140" preserveAspectRatio="none" role="img" aria-label="Cumulative tokens over time"></svg>
         <p id="nospend" class="muted pad" hidden>No model call has finished yet.</p>
       </section>
-
-      <section class="panel c8" aria-labelledby="h-tools">
-        <div class="ph"><h2 id="h-tools">Tool activity</h2><span class="sub mono" id="toolsub"></span></div>
-        <div class="tools" id="tools"></div>
-        <p id="notools" class="muted pad" hidden>No tool has been called yet.</p>
-      </section>
     </div>
+
+    <section class="panel" id="contextpanel" data-tab="context" aria-labelledby="h-ctx" hidden>
+      <div class="ph"><h2 id="h-ctx">Context and compaction</h2><span class="sub mono" id="ctxsub">how full each agent's window is, and what was cut to make room</span></div>
+      <div id="ctxrows" class="ctxrows"></div>
+      <p id="noctx" class="muted pad" hidden>No model call has reported its context yet.</p>
+      <div id="ctxtimeline" class="ctxtimeline" hidden>
+        <div class="ctxpick"><span class="eyebrow">Timeline</span><span id="ctxpick" class="chips" role="group" aria-label="Agent shown in the timeline"></span></div>
+        <svg id="ctxline" class="ctxline" viewBox="0 0 560 190" role="img" aria-labelledby="ctxline-title"><title id="ctxline-title">Context used over model calls, with a marker for each compaction</title></svg>
+        <p class="faint mono small" id="ctxlegend"></p>
+        <details id="ctxtable-details" class="adv"><summary>Compactions as a table</summary>
+          <div class="tbl-wrap"><table id="ctxtable"><thead><tr><th>After call</th><th>Strategy</th><th>Outcome</th><th class="r">Before</th><th class="r">After</th></tr></thead><tbody></tbody></table></div>
+        </details>
+      </div>
+    </section>
+
+    <section class="panel" id="toolspanel" data-tab="tools" aria-labelledby="h-tt" hidden>
+      <div class="ph"><h2 id="h-tt">Tools and tasks</h2><span class="sub mono" id="ttsub"></span><span class="spacer"></span><span id="ttfilter" class="chips" role="group" aria-label="Show"></span></div>
+      <div class="tbl-wrap">
+        <table class="tt-table">
+          <thead><tr><th>Name</th><th>Kind</th><th class="r">Calls</th><th>Success</th><th class="r">p50 / p95</th><th>Health</th><th>Last failure</th></tr></thead>
+          <tbody id="ttrows"></tbody>
+        </table>
+      </div>
+      <p id="nott" class="muted pad" hidden>No tool or task has run yet.</p>
+      <p class="faint mono small pad">Open a row for its failures by category, who calls it, its last ten outcomes and its latency.</p>
+    </section>
+
+    <section class="panel" id="securitypanel" data-tab="security" aria-labelledby="h-sec2" hidden>
+      <div class="ph"><h2 id="h-sec2">Security</h2><span class="sub mono" id="secsub2">what each agent could reach, and what it did</span></div>
+      <div class="kpis seckpis">
+        <div class="tile" id="sec-trifecta"><div class="eyebrow">Lethal trifecta</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+        <div class="tile" id="sec-injection"><div class="eyebrow">Prompt injection</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+        <div class="tile" id="sec-access"><div class="eyebrow">Access</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+        <div class="tile" id="sec-data"><div class="eyebrow">Personal data</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+      </div>
+      <h3 class="sub3">The lethal trifecta, per agent</h3>
+      <p class="muted small">Three things that must not meet in one agent: reads content you do not control, reaches your private data, can send something out. <b>Can</b> comes from the script; <b>used</b> from what the run called.</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Agent</th><th>Reads untrusted content</th><th>Reaches private data</th><th>Sends or changes things outside</th><th>Verdict</th></tr></thead>
+        <tbody id="secagents"></tbody>
+      </table></div>
+      <p id="nosecagents" class="muted pad" hidden>No agent has called a tool yet.</p>
+      <h3 class="sub3">Findings</h3>
+      <div id="secfindings"></div>
+      <p id="nosecfind" class="muted pad" hidden>No security finding in this run.</p>
+      <h3 class="sub3">Guards</h3>
+      <ul id="secguards" class="plain"></ul>
+      <p id="secstatement" class="statement"></p>
+    </section>
   </main>
 
   <footer class="foot2 faint mono"><span id="mode">embedded mode</span><span id="updated"></span></footer>

@@ -98,6 +98,23 @@
     banner.className = 'banner';
     banner.textContent = '';
     var lead = null, rest = '';
+    var broken = (v.incidents || []).filter(function (i) { return i.kind === 'BROKEN'; })[0];
+    var diverted = (v.incidents || []).filter(function (i) { return i.kind === 'DIVERTED'; });
+    if (v.status === 'failed' && broken) {
+      banner.className = 'banner broken';
+      var why = el('div', 'why');
+      why.appendChild(el('b', '', 'The run stopped'));
+      why.appendChild(document.createTextNode(': ' + String(broken.title).replace(/^The run stopped:\s*/, '')));
+      var ev = (broken.evidence || [])[0];
+      why.appendChild(el('span', 'sub', (ev && ev.detail ? ev.detail : '') + (broken.step ? ' · step ' + broken.step : '')));
+      banner.appendChild(why);
+      var show = el('button', 'btn', 'Show in workflow');
+      show.type = 'button';
+      show.addEventListener('click', function () { runTab = 'overview'; render(); $('graphwrap').scrollIntoView({ block: 'center' }); });
+      banner.appendChild(show);
+      banner.hidden = false;
+      return;
+    }
     if (v.status === 'sleeping') {
       var wake = (v.sleeping && v.sleeping.wakeAt) || (v.suspended && v.suspended.resumeAt);
       lead = 'Sleeping'; rest = (wake ? ' until ' + new Date(wake).toLocaleTimeString() : '') + '. Nothing is running; the run holds no thread.';
@@ -109,6 +126,10 @@
       lead = 'Waiting'; rest = ' for a person to answer.';
     } else if (v.gaps > 0) {
       lead = 'Incomplete'; rest = ': ' + v.gaps + ' event(s) are missing from this view.';
+    }
+    if (!lead && diverted.length) {
+      banner.className = 'banner diverted';
+      lead = plural(diverted.length, 'step') + ' went through on_failure'; rest = ': a task or delegate failed and its on_failure block took over, so the workflow went on.';
     }
     if (lead) { banner.appendChild(el('b', '', lead)); banner.appendChild(document.createTextNode(rest)); banner.hidden = false; }
   }
@@ -300,7 +321,9 @@
   }
   var lastScroll = null;
 
-  var KINDS = { PAUSED: 'Paused', LOOPING: 'Looping', SUSPECT_OUTPUT: 'Suspect output', FAILED: 'Failing', BUDGET: 'Budget' };
+  var KINDS = { PAUSED: 'Paused', LOOPING: 'Looping', SUSPECT_OUTPUT: 'Suspect output', FAILED: 'Failing', BUDGET: 'Budget', CONTEXT: 'Context', TRUNCATED: 'Truncated answer',
+    THRASH: 'Compaction thrash', TOOL_RATE: 'Tool success rate', SPIKE: 'Latency spike', BROKEN: 'Broken', DIVERTED: 'Diverted', TRIFECTA: 'Lethal trifecta', INJECTION: 'Injection', ACCESS: 'Access' };
+  var SECURITY_KINDS = { TRIFECTA: true, INJECTION: true, ACCESS: true };
   var SEV = { high: 'High', warn: 'Warning', info: 'Info' };
 
   function ago(iso) {
@@ -329,25 +352,370 @@
     $('incsub').textContent = open.length + ' open' + (list.length > open.length ? ' · ' + (list.length - open.length) + ' closed' : '');
     var box = $('inclist');
     box.textContent = '';
-    list.forEach(function (i) {
-      var row = el('div', 'incident' + (i.state === 'closed' ? ' closed' : ''));
-      var top = el('div', 'top');
-      top.appendChild(el('span', 'sev ' + i.severity, SEV[i.severity] || i.severity));
-      top.appendChild(el('span', 'chip', (KINDS[i.kind] || i.kind) + (i.kind === 'SUSPECT_OUTPUT' ? ' · suspect' : '')));
-      top.appendChild(el('span', 'ttl', i.title));
-      top.appendChild(el('span', 'when mono', (i.state === 'closed' ? 'closed ' + ago(i.closedAt) + ' · ' + i.closeReason : 'since ' + ago(i.since))));
-      row.appendChild(top);
-      var ev = el('div', 'evid mono');
-      (i.evidence || []).forEach(function (e) {
-        var line = el('div');
-        line.appendChild(el('span', 'rule', e.rule + ': '));
-        line.appendChild(el('b', '', String(e.measured) + (e.threshold != null ? ' (threshold ' + e.threshold + ')' : '')));
-        if (e.detail) { line.appendChild(document.createTextNode(' — ' + e.detail)); }
-        ev.appendChild(line);
+    // a run that broke says so first, then the rest as the server ordered them
+    var ordered = list.filter(function (i) { return i.kind === 'BROKEN'; }).concat(list.filter(function (i) { return i.kind !== 'BROKEN'; }));
+    ordered.forEach(function (i) { box.appendChild(incidentRow(i)); });
+  }
+
+  function incidentRow(i) {
+    var row = el('div', 'incident' + (i.state === 'closed' ? ' closed' : ''));
+    var top = el('div', 'top');
+    top.appendChild(el('span', 'sev ' + i.severity, SEV[i.severity] || i.severity));
+    top.appendChild(el('span', 'chip', (KINDS[i.kind] || i.kind) + (i.kind === 'SUSPECT_OUTPUT' ? ' · suspect' : '')));
+    top.appendChild(el('span', 'ttl', i.title));
+    top.appendChild(el('span', 'when mono', (i.state === 'closed' ? 'closed ' + ago(i.closedAt) + ' · ' + i.closeReason : 'since ' + ago(i.since))));
+    row.appendChild(top);
+    var ev = el('div', 'evid mono');
+    (i.evidence || []).forEach(function (e) {
+      var line = el('div');
+      line.appendChild(el('span', 'rule', e.rule + ': '));
+      line.appendChild(el('b', '', String(e.measured) + (e.threshold != null ? ' (threshold ' + e.threshold + ')' : '')));
+      if (e.detail) { line.appendChild(document.createTextNode(' — ' + e.detail)); }
+      ev.appendChild(line);
+    });
+    row.appendChild(ev);
+    if (i.kind === 'SUSPECT_OUTPUT') { row.appendChild(el('p', 'note', 'This means no source was found for these figures in what the step was given or fetched. It does not mean they are false.')); }
+    if (i.kind === 'INJECTION') { row.appendChild(el('p', 'note', 'A heuristic: the result read like instructions. Only the pattern groups are kept, never the text. Look at what the agent did next.')); }
+    return row;
+  }
+
+
+  // ---- run views: context, tools and tasks, security (each a function from the run's view to the page; text only, never HTML)
+  var runTab = 'overview', ttFilter = 'all', ttOpen = {}, ctxAgent = null;
+  var TABS = [['overview', 'Overview'], ['context', 'Context'], ['tools', 'Tools & tasks'], ['security', 'Security']];
+  var HEALTH_RANK = { failing: 0, degraded: 1, healthy: 2, unused: 3 };
+  var STATEMENT = 'What this view cannot tell you: that a run was attacked. A suspected injection is a pattern in a tool result, a lead to follow and not a verdict: a careful attack can pass it, and a harmless page can trip it. '
+    + 'The trifecta and access signals are exact about what was declared and what was called, but they say a risky combination was used, not that anyone abused it. Neither replaces a review (weave audit).';
+  var NO_WINDOW = 'no window known: set one on the Configuration page or in a .windows file';
+
+  function pct(f) { return Math.round(f * 100); }
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many || one + 's'); }
+  function openSecurity(v) { return (v.incidents || []).filter(function (i) { return i.state === 'open' && SECURITY_KINDS[i.kind]; }).length; }
+
+  function renderRunTabs(v) {
+    var nav = $('runtabs');
+    nav.textContent = '';
+    TABS.forEach(function (t) {
+      var b = el('button', 'rt', t[1]);
+      b.type = 'button';
+      b.setAttribute('role', 'tab');
+      b.setAttribute('aria-selected', String(runTab === t[0]));
+      if (t[0] === 'security' && openSecurity(v) > 0) { b.appendChild(el('span', 'sev warn inc', String(openSecurity(v)))); }
+      b.setAttribute('data-fk', 'rt:' + t[0]);
+      b.addEventListener('click', function () { runTab = t[0]; render(); });
+      nav.appendChild(b);
+    });
+    var panels = document.querySelectorAll('#main [data-tab]');
+    for (var i = 0; i < panels.length; i++) { panels[i].hidden = panels[i].getAttribute('data-tab') !== runTab; }
+  }
+
+  function contextOf(v) {
+    return (v.agents || []).filter(function (a) { return a.context; }).map(function (a) { return { name: a.name, c: a.context }; });
+  }
+
+  function renderContextTile(v) {
+    var list = contextOf(v), best = null;
+    list.forEach(function (x) { if (x.c.fraction != null && (!best || x.c.fraction > best.c.fraction)) { best = x; } });
+    var val = $('ctxval'), foot = $('ctxfoot');
+    val.className = 'val';
+    if (best) {
+      val.textContent = pct(best.c.fraction) + '%';
+      val.className = 'val' + (best.c.fraction >= (best.c.highAt || 0.95) ? ' high' : best.c.fraction >= (best.c.warnAt || 0.85) ? ' warn' : '');
+      foot.textContent = best.name + ' · ' + plural(best.c.compactions || 0, 'compaction');
+    } else if (list.length) {
+      val.textContent = '–';
+      foot.textContent = 'no window known';
+    } else {
+      val.textContent = '–';
+      foot.textContent = 'no model call yet';
+    }
+    $('tile-context').onclick = function () { runTab = 'context'; render(); };
+  }
+
+  function renderTaskTile(v) {
+    var calls = 0, failed = 0;
+    (v.tasks || []).forEach(function (t) { calls += t.calls; failed += t.errors; });
+    var diverted = (v.incidents || []).filter(function (i) { return i.kind === 'DIVERTED'; }).length;
+    $('taskval').textContent = num(calls);
+    $('taskfoot').textContent = failed + ' failed · ' + diverted + ' diverted';
+  }
+
+  function renderContext(v) {
+    var list = contextOf(v), rows = $('ctxrows');
+    rows.textContent = '';
+    $('noctx').hidden = list.length > 0;
+    $('ctxtimeline').hidden = list.length === 0;
+    list.forEach(function (x) {
+      var c = x.c, known = c.fraction != null, row = el('div', 'ctxrow' + (known ? '' : ' nowindow'));
+      var head = el('div', 'head');
+      head.appendChild(el('span', 'nm', x.name));
+      var nums = known
+        ? num(c.used) + ' of ' + num(c.usable) + ' tokens (' + pct(c.fraction) + '%)' + (c.windowSource === 'catalog' ? ' · window from this server' : '')
+        : num(c.used) + ' tokens';
+      head.appendChild(el('span', 'mono', nums));
+      row.appendChild(head);
+      if (known) {
+        var m = el('div', 'meter');
+        m.setAttribute('role', 'meter');
+        m.setAttribute('aria-valuemin', '0');
+        m.setAttribute('aria-valuemax', '100');
+        m.setAttribute('aria-valuenow', String(Math.max(0, Math.min(100, pct(c.fraction)))));
+        m.setAttribute('aria-label', x.name + ' context fill: ' + pct(c.fraction) + ' percent of the usable window');
+        var warn = c.warnAt != null ? c.warnAt : 0.85, high = c.highAt != null ? c.highAt : 0.95;
+        var fill = el('div', 'fill' + (c.fraction >= high ? ' high' : c.fraction >= warn ? ' warn' : ''));
+        fill.style.width = Math.max(0, Math.min(100, c.fraction * 100)) + '%';
+        m.appendChild(fill);
+        var mw = el('div', 'mark warn'); mw.style.left = pct(warn) + '%'; mw.title = 'warns at ' + pct(warn) + '%'; m.appendChild(mw);
+        var mh = el('div', 'mark high'); mh.style.left = pct(high) + '%'; mh.title = 'high at ' + pct(high) + '%'; m.appendChild(mh);
+        row.appendChild(m);
+      } else {
+        row.appendChild(el('div', 'hatch'));
+        row.appendChild(el('div', 'note mono', NO_WINDOW));
+      }
+      var last = c.lastCompaction;
+      row.appendChild(el('div', 'note mono', plural(c.compactions || 0, 'compaction') + (last ? ' · last: ' + last.strategy + ' ' + String(last.outcome).toLowerCase() + (last.before > last.after ? ', freed ' + num(last.before - last.after) + ' tokens' : '') : '')));
+      rows.appendChild(row);
+    });
+    if (!list.length) { return; }
+    var names = list.map(function (x) { return x.name; });
+    if (!ctxAgent || names.indexOf(ctxAgent) < 0) {
+      var top = list.slice().sort(function (a, b) { return (b.c.fraction || 0) - (a.c.fraction || 0) || b.c.used - a.c.used; })[0];
+      ctxAgent = top.name;
+    }
+    var pick = $('ctxpick');
+    pick.textContent = '';
+    names.forEach(function (n) {
+      var b = el('button', '', n);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(n === ctxAgent));
+      b.setAttribute('data-fk', 'ctxp:' + n);
+      b.addEventListener('click', function () { withFocus(function () { ctxAgent = n; renderContext(v); }); });
+      pick.appendChild(b);
+    });
+    renderTimeline(list.filter(function (x) { return x.name === ctxAgent; })[0]);
+  }
+
+  function renderTimeline(x) {
+    var c = x.c, pts = c.points || [], evs = c.events || [], svgEl = $('ctxline');
+    var title = svgEl.querySelector('title');
+    svgEl.textContent = '';
+    svgEl.appendChild(title);
+    var L = 34, R = 548, T = 14, B = 168;
+    var fracs = pts.some(function (p) { return p.fraction != null; });
+    var maxUsed = Math.max.apply(null, pts.map(function (p) { return p.used; }).concat([1]));
+    var top = fracs ? Math.max(1.05, Math.max.apply(null, pts.map(function (p) { return p.fraction || 0; }))) : maxUsed;
+    var n0 = pts.length ? pts[0].n : 0, n1 = pts.length ? pts[pts.length - 1].n : 1;
+    function X(n) { return L + (n1 === n0 ? 0.5 : (Math.max(n0, Math.min(n1, n)) - n0) / (n1 - n0)) * (R - L); }
+    function Y(p) { return B - ((fracs ? (p.fraction || 0) : p.used) / top) * (B - T); }
+    svgEl.appendChild(svg('line', { x1: L, x2: R, y1: B, y2: B, 'class': 'axis' }));
+    if (fracs) {
+      [['warn', c.warnAt != null ? c.warnAt : 0.85], ['high', c.highAt != null ? c.highAt : 0.95]].forEach(function (t) {
+        var y = B - (t[1] / top) * (B - T);
+        svgEl.appendChild(svg('line', { x1: L, x2: R, y1: y, y2: y, 'class': 'threshold ' + t[0] }));
+        var lbl = svg('text', { x: L + 4, y: y - 3 }); lbl.textContent = pct(t[1]) + '%'; svgEl.appendChild(lbl);
       });
-      row.appendChild(ev);
-      if (i.kind === 'SUSPECT_OUTPUT') { row.appendChild(el('p', 'note', 'This means no source was found for these figures in what the step was given or fetched. It does not mean they are false.')); }
-      box.appendChild(row);
+    }
+    if (pts.length) {
+      svgEl.appendChild(svg('polyline', { points: pts.map(function (p) { return X(p.n).toFixed(1) + ',' + Y(p).toFixed(1); }).join(' ') }));
+      if (!fracs || pts.length < 3) { pts.forEach(function (p) { svgEl.appendChild(svg('circle', { cx: X(p.n), cy: Y(p), r: 2.5, 'class': 'point' })); }); }
+    }
+    evs.forEach(function (e) {
+      var after = pts.filter(function (p) { return p.n === e.n + 1; })[0] || pts.filter(function (p) { return p.n === e.n; })[0] || pts[pts.length - 1];
+      if (!after) { return; }
+      var label = 'Compaction after call ' + e.n + ': ' + e.strategy + ' ' + String(e.outcome).toLowerCase() + ', ' + num(e.before) + ' to ' + num(e.after) + ' tokens';
+      var m = svg('circle', { cx: X(e.n + 0.5), cy: Y(after), r: 5, 'class': 'event', tabindex: 0, role: 'img', 'aria-label': label, 'data-fk': 'ev:' + e.n });
+      var t = svg('title', {}); t.textContent = label; m.appendChild(t);
+      svgEl.appendChild(m);
+    });
+    var l0 = svg('text', { x: L, y: 184 }); l0.textContent = 'call ' + n0; svgEl.appendChild(l0);
+    var l1 = svg('text', { x: R - 40, y: 184 }); l1.textContent = 'call ' + n1; svgEl.appendChild(l1);
+    $('ctxlegend').textContent = fracs ? 'Share of the usable window after each model call. Dashed lines: where this agent warns and where it becomes high. Dots: compactions.' : 'Tokens in the prompt after each model call. No window is known, so no fraction and no thresholds. Dots: compactions.';
+    var body = $('ctxtable').querySelector('tbody');
+    body.textContent = '';
+    evs.forEach(function (e) {
+      var tr = el('tr');
+      cell(tr, e.n, 'mono'); cell(tr, e.strategy, 'mono'); cell(tr, String(e.outcome).toLowerCase(), 'mono'); cell(tr, num(e.before), 'r'); cell(tr, num(e.after), 'r');
+      body.appendChild(tr);
+    });
+  }
+
+  function ttRows(v) {
+    var rows = [];
+    (v.tools || []).forEach(function (t) { rows.push(ttRow('tool', t)); });
+    (v.tasks || []).forEach(function (t) { rows.push(ttRow('task', t)); });
+    rows.sort(function (a, b) { return (HEALTH_RANK[a.state] - HEALTH_RANK[b.state]) || (b.calls - a.calls) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0); });
+    return rows;
+  }
+
+  function ttRow(kind, t) {
+    var h = t.health || {}, ran = (t.successes || 0) + (t.errors || 0);
+    return { kind: kind, key: kind + ':' + t.name, name: t.name, calls: t.calls, ran: ran, successes: t.successes || 0, errors: t.errors || 0, state: h.state || 'unused', reason: h.reason || '',
+      p50: t.p50Ms || 0, p95: t.p95Ms || 0, inFlight: t.inFlight || 0, failures: h.failures || t.failures || {}, byAgent: h.byAgent || {}, recent: t.recent || [], histogram: t.histogram || [],
+      bounds: t.histogramBounds || [], last: h.lastFailure };
+  }
+
+  function renderToolsTasks(v) {
+    var all = ttRows(v);
+    var shown = all.filter(function (r) { return ttFilter === 'all' || r.kind === (ttFilter === 'tools' ? 'tool' : 'task'); });
+    var f = $('ttfilter');
+    f.textContent = '';
+    ['all', 'tools', 'tasks'].forEach(function (n) {
+      var b = el('button', '', n);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(ttFilter === n));
+      b.setAttribute('data-fk', 'ttf:' + n);
+      b.addEventListener('click', function () { withFocus(function () { ttFilter = n; renderToolsTasks(v); }); });
+      f.appendChild(b);
+    });
+    var failing = all.filter(function (r) { return r.state === 'failing'; }).length;
+    $('ttsub').textContent = plural(all.filter(function (r) { return r.kind === 'tool'; }).length, 'tool') + ' · ' + plural(all.filter(function (r) { return r.kind === 'task'; }).length, 'task') + (failing ? ' · ' + failing + ' failing' : '');
+    var body = $('ttrows');
+    body.textContent = '';
+    $('nott').hidden = all.length > 0;
+    shown.forEach(function (r) {
+      var open = !!ttOpen[r.key];
+      var tr = el('tr', 'tt ' + r.state);
+      tr.tabIndex = 0;
+      tr.setAttribute('aria-expanded', String(open));
+      var first = cell(tr, '', 'mono');
+      first.appendChild(el('span', 'nm', r.name));
+      if (r.inFlight > 0) { first.appendChild(el('span', 'chip on', r.inFlight + ' in flight')); }
+      cell(tr, '').appendChild(el('span', 'chip', r.kind));
+      cell(tr, num(r.calls), 'r mono');
+      var rate = cell(tr, '');
+      var wrap = el('span', 'rate');
+      var bar = el('span', 'bar'), fill = el('i', r.ran && r.successes / r.ran < 0.4 ? 'bad' : r.ran && r.successes / r.ran < 0.7 ? 'warn' : '');
+      fill.style.width = (r.ran ? r.successes / r.ran * 100 : 0) + '%';
+      bar.appendChild(fill);
+      wrap.appendChild(bar);
+      wrap.appendChild(el('span', 'mono', r.ran ? r.successes + ' of ' + r.ran : 'no call ran'));
+      rate.appendChild(wrap);
+      cell(tr, r.ran ? num(r.p50) + ' / ' + num(r.p95) + ' ms' : '–', 'r mono');
+      var hc = cell(tr, '');
+      var hw = el('span', 'hw ' + r.state, r.state);
+      hw.title = r.reason;
+      hc.appendChild(hw);
+      cell(tr, r.last ? r.last.category + ' · ' + ago(r.last.at) : 'none', 'mono');
+      function toggle() { withFocus(function () { ttOpen[r.key] = !ttOpen[r.key]; renderToolsTasks(v); }); }
+      tr.setAttribute('data-fk', 'tt:' + r.key);
+      tr.addEventListener('click', toggle);
+      tr.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+      body.appendChild(tr);
+      if (open) { body.appendChild(ttDetail(r, v)); }
+    });
+  }
+
+  function ttDetail(r, v) {
+    var tr = el('tr', 'ttdetail'), td = el('td');
+    td.colSpan = 7;
+    var d = el('div', 'ttd');
+    var a = el('div'); a.appendChild(el('h4', '', 'Failures by category'));
+    var cats = Object.keys(r.failures), total = 0;
+    cats.forEach(function (k) { total += r.failures[k]; });
+    var bars = el('div', 'bars mono');
+    cats.forEach(function (k) {
+      var line = el('div'), b = el('span', 'b'), i = el('i');
+      i.style.width = (total ? r.failures[k] / total * 100 : 0) + '%';
+      b.appendChild(i);
+      line.appendChild(el('span', '', k)); line.appendChild(b); line.appendChild(el('span', '', String(r.failures[k])));
+      bars.appendChild(line);
+    });
+    a.appendChild(cats.length ? bars : el('p', 'muted mono small', 'no failure'));
+    d.appendChild(a);
+    var b2 = el('div'); b2.appendChild(el('h4', '', 'Who calls it'));
+    var agents = Object.keys(r.byAgent);
+    var ul = el('ul', 'plain mono');
+    agents.forEach(function (n) { var t = r.byAgent[n]; ul.appendChild(el('li', '', n + ' · ' + plural(t.calls, 'call') + ' · ' + t.successes + ' ok' + (t.failures ? ' · ' + t.failures + ' failed' : ''))); });
+    b2.appendChild(agents.length ? ul : el('p', 'muted mono small', 'no agent'));
+    d.appendChild(b2);
+    var c = el('div'); c.appendChild(el('h4', '', 'Last ten outcomes'));
+    var strip = el('span', 'recent'), recent = r.recent.slice(-10);
+    strip.setAttribute('role', 'img');
+    strip.setAttribute('aria-label', 'Last ' + recent.length + ' outcomes, oldest first: ' + (recent.map(function (o) { return o === '' ? 'ok' : o; }).join(', ') || 'none'));
+    for (var k = 0; k < 10 - recent.length; k++) { var e0 = el('i', 'o'); e0.setAttribute('aria-hidden', 'true'); strip.appendChild(e0); }
+    recent.forEach(function (o) { var e1 = el('i', o === '' ? '' : 'x'); e1.setAttribute('aria-hidden', 'true'); e1.title = o === '' ? 'ok' : o; strip.appendChild(e1); });
+    c.appendChild(strip);
+    c.appendChild(el('h4', '', 'Latency'));
+    var hist = svg('svg', { 'class': 'hist', viewBox: '0 0 240 60', role: 'img', 'aria-label': 'Latency histogram: ' + (r.histogram.join(', ') || 'no calls') });
+    var maxc = Math.max.apply(null, r.histogram.concat([1]));
+    r.histogram.forEach(function (n, i) {
+      var w = 240 / Math.max(1, r.histogram.length), hgt = n / maxc * 56;
+      hist.appendChild(svg('rect', { x: i * w + 1, y: 58 - hgt, width: Math.max(1, w - 2), height: Math.max(n ? 1 : 0, hgt) }));
+    });
+    c.appendChild(hist);
+    c.appendChild(el('p', 'faint mono small', r.bounds.length ? 'buckets up to ' + r.bounds.map(function (b2) { return b2 >= 1000 ? (b2 / 1000) + 's' : b2 + 'ms'; }).join(' · ') + ' and slower' : ''));
+    d.appendChild(c);
+    var mine = (v.incidents || []).filter(function (i) { return String(i.title).indexOf(r.name) >= 0; });
+    if (mine.length) {
+      var e2 = el('div'); e2.appendChild(el('h4', '', 'Incidents it raised'));
+      var l2 = el('ul', 'plain mono');
+      mine.forEach(function (i) { l2.appendChild(el('li', '', (KINDS[i.kind] || i.kind) + ' · ' + i.title)); });
+      e2.appendChild(l2);
+      d.appendChild(e2);
+    }
+    td.appendChild(d);
+    tr.appendChild(td);
+    return tr;
+  }
+
+  function secCard(id, value, foot, cls) {
+    var card = $(id), val = card.querySelector('[data-v]');
+    val.textContent = value;
+    val.className = 'val sm' + (cls ? ' ' + cls : '');
+    card.querySelector('[data-f]').textContent = foot;
+  }
+
+  function legCell(tr, leg, a) {
+    var td = el('td', 'legs'), used = (a.used && a.used[leg]) || [], can = (a.can && a.can[leg]) || [];
+    if (used.length) { td.appendChild(el('span', 'leg used', 'used: ' + used.join(', '))); }
+    else if (can.length) { td.appendChild(el('span', 'leg can', 'can: ' + can.join(', '))); }
+    else { td.appendChild(el('span', 'leg', 'none')); }
+    tr.appendChild(td);
+  }
+
+  function renderSecurity(v) {
+    var sec = v.security;
+    $('secstatement').textContent = STATEMENT;
+    var agents = (sec && sec.agents) || [];
+    if (!sec) {
+      ['sec-trifecta', 'sec-injection', 'sec-access', 'sec-data'].forEach(function (id) { secCard(id, '–', 'this server does not report it', ''); });
+    } else {
+      var ex = agents.filter(function (a) { return a.verdict === 'exercised'; }).length, ac = agents.filter(function (a) { return a.verdict === 'accepted'; }).length, ar = agents.filter(function (a) { return a.verdict === 'armed'; }).length;
+      if (ex) { secCard('sec-trifecta', plural(ex, 'agent') + ' exercised it', 'used untrusted content, private data and a way out in one run', 'high'); }
+      else if (ac) { secCard('sec-trifecta', plural(ac, 'agent') + ' accepted', 'used all three; accepted in writing', 'warn'); }
+      else if (ar) { secCard('sec-trifecta', 'none used', plural(ar, 'agent') + ' could (armed)', ''); }
+      else { secCard('sec-trifecta', 'none', 'no agent used all three', ''); }
+      var inj = sec.injection || {};
+      secCard('sec-injection', inj.suspect ? plural(inj.suspect, 'suspect result') : 'none suspected', inj.suspect ? 'from ' + Object.keys(inj.bySource || {}).join(', ') : 'a heuristic, not a verdict', inj.suspect ? 'warn' : '');
+      var acc = sec.access || {};
+      secCard('sec-access', (acc.refused || 0) + ' refused', plural(acc.unknownTools || 0, 'unknown tool') + ' · ' + plural(acc.approvalsRefused || 0, 'approval') + ' refused', acc.refused ? 'warn' : '');
+      var g = sec.guards || {};
+      secCard('sec-data', (g.pii_masked || 0) + ' masked', (g.pii_blocked || 0) + ' blocked · ' + (g.pii_detected || 0) + ' detected', '');
+    }
+    var body = $('secagents');
+    body.textContent = '';
+    $('nosecagents').hidden = agents.length > 0;
+    agents.forEach(function (a) {
+      var tr = el('tr');
+      cell(tr, a.agent, 'mono');
+      ['untrusted', 'private', 'outward'].forEach(function (leg) { legCell(tr, leg, a); });
+      var vc = cell(tr, '');
+      vc.appendChild(el('span', 'verdict ' + a.verdict, a.verdict));
+      if (a.assumed) { vc.appendChild(el('span', 'chip', 'assumed')); }
+      if (!a.can) { vc.appendChild(el('div', 'faint mono small', 'what the script allows is not known')); }
+      if (a.acceptedReason) { vc.appendChild(el('div', 'mono small', 'accepted: ' + a.acceptedReason)); }
+      body.appendChild(tr);
+    });
+    var box = $('secfindings');
+    box.textContent = '';
+    var finds = (v.incidents || []).filter(function (i) { return SECURITY_KINDS[i.kind]; });
+    $('nosecfind').hidden = finds.length > 0;
+    finds.forEach(function (i) { box.appendChild(incidentRow(i)); });
+    var guards = $('secguards');
+    guards.textContent = '';
+    var gd = (sec && sec.guards) || {};
+    [['Personal data', 'masked ' + (gd.pii_masked || 0) + ' · blocked ' + (gd.pii_blocked || 0) + ' · detected ' + (gd.pii_detected || 0)], ['Bias checks', plural(gd.bias || 0, 'event')]].forEach(function (x) {
+      var li = el('li'); li.appendChild(el('b', '', x[0] + ': ')); li.appendChild(document.createTextNode(x[1])); guards.appendChild(li);
     });
   }
 
@@ -757,7 +1125,20 @@
       });
   });
 
-  function render() {
+  /** Runs a redraw and puts the keyboard focus back on the element that had it (the page redraws every second, and a redraw must not take the focus away). */
+  function withFocus(draw) {
+    var a = document.activeElement, key = a && a.getAttribute ? a.getAttribute('data-fk') : null;
+    draw();
+    if (!key) { return; }
+    var all = document.querySelectorAll('[data-fk]');
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].getAttribute('data-fk') === key) { if (all[i] !== document.activeElement) { all[i].focus(); } return; }
+    }
+  }
+
+  function render() { withFocus(renderNow); }
+
+  function renderNow() {
     var v = view;
     if (!v) { return; }
     $('client').textContent = v.client ? v.client + ' /' : '';
@@ -786,6 +1167,9 @@
     $('state').textContent = v.status;
     $('statefoot').textContent = shortId(v.runId || v.traceId).slice(-32);
     renderBanner(v);
+    renderRunTabs(v);
+    renderContextTile(v);
+    renderTaskTile(v);
 
     $('agentsub').textContent = v.agents.length + ' agents';
     var agents = $('agents');
@@ -809,25 +1193,15 @@
     });
     $('noagents').hidden = v.agents.length > 0;
 
-    $('toolsub').textContent = v.tools.length + ' tools';
-    var tools = $('tools');
-    tools.textContent = '';
-    v.tools.forEach(function (t) {
-      var row = el('div', 'tool-row');
-      row.appendChild(el('span', 'nm', t.name));
-      row.appendChild(el('span', 'chip' + (t.inFlight > 0 ? ' on' : ''), t.inFlight + ' in flight'));
-      row.appendChild(el('span', 'chip' + (t.errors > 0 ? ' err' : ''), t.calls + ' calls · ' + t.errors + ' failed'));
-      row.appendChild(el('span', 'mono faint', t.avgMillis + ' ms avg'));
-      tools.appendChild(row);
-    });
-    $('notools').hidden = v.tools.length > 0;
-
     ensureGraph(selected);
     renderGraph(v);
     renderIncidents(v.incidents || []);
     renderLadders(v.ladders || []);
     renderSpend(v.spend || []);
     renderFollow(v);
+    renderContext(v);
+    renderToolsTasks(v);
+    renderSecurity(v);
     $('updated').textContent = 'updated ' + hms(new Date().toISOString());
   }
 

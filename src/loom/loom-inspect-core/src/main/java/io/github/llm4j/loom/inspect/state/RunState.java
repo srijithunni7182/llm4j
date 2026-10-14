@@ -739,7 +739,11 @@ public final class RunState {
             m.put("failures", new LinkedHashMap<>(t.failures));
             m.put("p50Ms", t.latency.p50());
             m.put("p95Ms", t.latency.p95());
-            if (t.tally != null) m.put("health", t.tally.snapshot(detectors.thresholdsFor(null)).toHealthMap());
+            if (t.tally != null) {
+                ToolSummary sum = t.tally.snapshot(detectors.thresholdsFor(null));
+                m.put("health", sum.toHealthMap());
+                recentAndHistogram(m, sum);
+            }
             toolList.add(m);
         }
         v.put("tools", toolList);
@@ -756,7 +760,9 @@ public final class RunState {
             m.put("failures", new LinkedHashMap<>(t.failures));
             m.put("p50Ms", t.latency.p50());
             m.put("p95Ms", t.latency.p95());
-            m.put("health", t.tally.snapshot(detectors.thresholdsFor(null)).toHealthMap());
+            ToolSummary sum = t.tally.snapshot(detectors.thresholdsFor(null));
+            m.put("health", sum.toHealthMap());
+            recentAndHistogram(m, sum);
             taskList.add(m);
         });
         v.put("tasks", taskList);
@@ -882,6 +888,15 @@ public final class RunState {
         return out;
     }
 
+    /** The last ten outcomes of a tool or task (an empty string is a success, anything else the failure's category) and its latency histogram with the bounds of its buckets. */
+    private static void recentAndHistogram(Map<String, Object> row, ToolSummary sum) {
+        row.put("recent", new ArrayList<>(sum.recent()));
+        row.put("histogram", new ArrayList<>(sum.histogram()));
+        List<Long> bounds = new ArrayList<>();
+        for (long b : ToolSummary.BOUNDS) bounds.add(b);
+        row.put("histogramBounds", bounds);
+    }
+
     private Map<String, Object> contextView(String agent, ContextStat c) {
         Window w = windowOf(agent, c);
         Map<String, Object> m = new LinkedHashMap<>();
@@ -890,6 +905,9 @@ public final class RunState {
         if (w.usable() != null) m.put("usable", w.usable());
         if (w.fraction() != null) m.put("fraction", w.fraction());
         if (w.source() != null) m.put("windowSource", w.source());
+        Thresholds in = detectors.thresholdsFor(agent);
+        m.put("warnAt", in.contextWarn()); // where this agent's "nearly full" incident starts, and where it becomes high
+        m.put("highAt", in.contextHigh());
         if (c.source != null) m.put("source", c.source);
         m.put("compactions", c.compactions);
         m.put("attempts", c.compactionAttempts);
