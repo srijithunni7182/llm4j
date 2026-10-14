@@ -44,6 +44,7 @@ public final class TraceMapper {
     private static final int SHORT = 80;
 
     private final Detail detail;
+    private boolean injectionScan = true;
     private final String fallbackRunId;
     private String runId;
     private String traceId;
@@ -75,6 +76,11 @@ public final class TraceMapper {
     /** The run id in use, once known. */
     public String runId() {
         return runId;
+    }
+
+    /** Whether results of untrusted tools are scanned for injected instructions (on unless the rules say {@code injection_scan: off}). */
+    public void injectionScan(boolean on) {
+        this.injectionScan = on;
     }
 
     public String traceId() {
@@ -385,6 +391,13 @@ public final class TraceMapper {
         if (data.get("result_chars") != null) extra.put(Semconv.LOOM_TOOL_RESULT_CHARS, number(data.get("result_chars")));
         if (data.get("approval_ms") != null) extra.put(Semconv.LOOM_TOOL_APPROVAL_MS, number(data.get("approval_ms")));
         if (data.get("duration_ms") != null) extra.put(Semconv.LOOM_TOOL_DURATION_MS, number(data.get("duration_ms")));
+        if (data.get("reach") != null && injectionScan && observed != null && String.valueOf(data.get("reach")).contains("untrusted")) {
+            InjectionScan.Result found = InjectionScan.scan(observed); // in this process, so the text never leaves it: only group names and a count do
+            if (found.suspect()) {
+                extra.put(Semconv.LOOM_INJECTION_PATTERNS, String.join(",", found.groups()));
+                extra.put(Semconv.LOOM_INJECTION_COUNT, (long) found.count());
+            }
+        }
         if (data.get("reach") != null) { // what the tool can reach, from the same code the static audit uses: names only, safe at every detail level
             extra.put(Semconv.LOOM_TOOL_REACH, String.valueOf(data.get("reach")));
             extra.put(Semconv.LOOM_TOOL_REACH_KNOWN, !"false".equals(String.valueOf(data.get("reach_known"))));

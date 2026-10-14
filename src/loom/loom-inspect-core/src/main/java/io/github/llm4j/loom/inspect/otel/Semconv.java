@@ -83,6 +83,9 @@ public final class Semconv {
     public static final String LOOM_MODEL_DURATION_MS = "loom.model.duration_ms";
     public static final String LOOM_TOOL_OUTCOME = "loom.tool.outcome";
     /** The legs of the lethal trifecta a tool touches (a sorted list of outward, private, untrusted; empty for none) and whether that is known or assumed. */
+    /** What the injection scan found in an untrusted tool's result: the sorted group names (override, role, exfil, reveal, hidden) and how many matches; never the text. */
+    public static final String LOOM_INJECTION_PATTERNS = "loom.injection.patterns";
+    public static final String LOOM_INJECTION_COUNT = "loom.injection.count";
     public static final String LOOM_TOOL_REACH = "loom.tool.reach";
     public static final String LOOM_TOOL_REACH_KNOWN = "loom.tool.reach_known";
     public static final String LOOM_TOOL_SOFT_FAILURE = "loom.tool.soft_failure";
