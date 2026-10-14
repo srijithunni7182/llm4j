@@ -70,6 +70,7 @@ export function renderPanelHtml(assets: PanelAssets): string {
   <div class="rail" id="rail" role="group" aria-label="Steps on the main path"></div>
   <div class="railsecs" id="railSecs"></div>
 </footer>
+<div class="ctxmenu" id="ctxmenu" role="menu" aria-label="Step actions" hidden></div>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <script nonce="${nonce}" src="${uri('graph-render.js')}"></script>
 <script nonce="${nonce}" src="${uri('graph-model.js')}"></script>
