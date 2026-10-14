@@ -135,7 +135,7 @@ Filled in when the phase is verified.
 | Thread safety | ✅ no mutable static state in the package; `CompactionConcurrencyTest` (48 agents, 16 threads, shared strategy and catalogue) |
 | Style | ✅ compiles and builds with the module's configuration |
 | Mutation check | ✅ **95 %** of 453 mutants killed (431), line coverage of mutated classes 99 %. 22 remain, all reviewed: the *initial guess* of how many units to remove or shorten (`DropOldest`, `Summarize`, `TrimToolResults`: the guess is checked against the real size afterwards, so a different guess changes the number of loop turns, not the result); equal-length edges where both outcomes are the same (`TrimToolResults` lines 65, 68, 70); tie-breaking and distance internals of the name suggestion (`ContextCompactors` lines 90, 102); defaulting that is done twice (`ContextManager` line 52); `Exchanges` capacity and a boundary that cannot differ (lines 59, 63, 96); the exact 10 % edge of `minGain` (`ContextManager` line 152); one defensive loop that no realistic estimate reaches (`TrimToolResults` line 52, not covered). Dead code found by the run (`Exchanges.Unit.size`) was removed |
-| Other modules | ✅ Loom, loom-inspect-core, loom-inspect, loom-fabric compile with their tests; Loom's own test suite: see the note below. `eval4j-report` cannot be built offline here, to be confirmed in CI |
+| Other modules | ✅ Loom, loom-inspect-core, loom-inspect, loom-fabric compile with their tests; **Loom's own suite passes against the change (1,735 tests, 0 failures, 1 skipped)**. `eval4j-report` cannot be built offline here, to be confirmed in CI |
 
 ### Acceptance criteria evidence (§1)
 
