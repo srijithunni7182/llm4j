@@ -72,4 +72,33 @@ final class Exchanges {
         for (Unit u : units) if (u.start() >= prefixEnd && u.end() <= tailStart) middle.add(u);
         return new Region(prefixEnd, tailStart, middle);
     }
+
+    /** How many messages the first {@code k} units stand for: one each, or, for a marker or summary from an earlier pass, what it stood for. */
+    static int standingFor(List<Message> messages, List<Unit> removable, int k) {
+        int total = 0;
+        for (int i = 0; i < k; i++) {
+            Unit u = removable.get(i);
+            for (int j = u.start(); j < u.end(); j++) {
+                int already = Messages.dropped(messages.get(j));
+                total += already > 0 ? already : 1;
+            }
+        }
+        return total;
+    }
+
+    /** The conversation without the first {@code k} removable units, with {@code replacement} where the first of them was. */
+    static List<Message> replacing(List<Message> messages, List<Unit> removable, int k, Message replacement) {
+        boolean[] gone = new boolean[messages.size()];
+        for (int i = 0; i < k; i++) {
+            Unit u = removable.get(i);
+            for (int j = u.start(); j < u.end(); j++) gone[j] = true;
+        }
+        int at = removable.get(0).start();
+        List<Message> out = new ArrayList<>(messages.size() + 1);
+        for (int j = 0; j < messages.size(); j++) {
+            if (j == at) out.add(replacement);
+            if (!gone[j]) out.add(messages.get(j));
+        }
+        return out;
+    }
 }

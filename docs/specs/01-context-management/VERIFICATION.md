@@ -27,7 +27,7 @@ Filled in as tests are written; a row without a test blocks the exit. (Class nam
 | Req | Tests | Status |
 |---|---|---|
 | R1 | `LambdaCompactorContractTest`, `ContextCompactorsTest` | ✅ 1a |
-| R2 | `{None,DropOldest,TrimToolResults,Chain,Summarize}ContractTest` | ◐ 1a: all but `summarize` (1d) |
+| R2 | `{None,DropOldest,TrimToolResults,Chain,Summarize}ContractTest` (and `ShortenThoughtsContractTest`, `LambdaCompactorContractTest`) | ✅ 1a, 1d |
 | R3 | `ContextCompactorsByNameTest` (ServiceLoader, unknown name suggestion) | ✅ 1a |
 | R4 | `RequestStabilityTest` (native + text) | ✅ 1b, 1c: 4 golden scenarios in both loops, plus each with a listener and a window but no compactor (the unknown-tool text scenario with a manager attached) |
 | R5 | `ReActAgentCompactionNativeTest#usageIsReportedBeforeEveryModelCall`, `ReActAgentCompactionTextTest#usageIsReportedBeforeEveryModelCall` and related, `ContextManagerTest` | ✅ 1b, 1c |
@@ -37,8 +37,8 @@ Filled in as tests are written; a row without a test blocks the exit. (Class nam
 | R9 | `ContextManagerTest#aResultThatGainsTooLittleIsDiscarded`, `#aStrategyThatOverstatesItsSavingIsNotBelieved`, `#aBiggerResultFromARawCompactorIsNotUsed` | ✅ 1b |
 | R10 | `ContextManagerTest#afterTwoNoGainsInARowItStopsAndSaysSoOnce`, `#afterTheMaximumNumberOfCompactionsItStops`; `ReActAgentCompactionNativeTest#aCompactorThatDoesNothingIsStoppedAndTheRunStillFinishes` | ✅ 1b |
 | R11 | `ContextManagerTest#aCompactorThatThrowsDoesNotFailTheRun`, `#aCompactorThatKeepsFailingIsGivenUpOn`; `ReActAgentCompactionNativeTest#aCompactorThatThrowsDoesNotFailTheRun` | ✅ 1b |
-| R12 | `SummarizeFallbackTest` (exception, empty, longer, budget) | ☐ |
-| R13 | `SummarizeFallbackTest#usageCounted`, `ReActAgentContextEventsTest` | ☐ |
+| R12 | `SummarizeFallbackTest` (failing call, other failure, empty, no content, too long, budget refusal, rate limit), `SummarizeTest#doesNotAskForASummaryLongerThanWhatItReplaces` | ✅ 1d |
+| R13 | `SummarizeTest#theModelsOwnCostIsReported`, `SummarizeAgentTest` (native and text), `ChainTest#whatTheStagesSpentOnModelCallsIsAddedUp` | ✅ 1d |
 | R14 | `ContextOverflowClassifierTest`, per-provider tests | ☐ |
 | R15 | `ReActAgentCompactionNativeTest#reactiveRetry` and `#secondOverflowFails` | ☐ |
 | R16 | `ContextManagerTest#neverAboveWindow`, `…NativeTest#preCallCheck` | ☐ |
@@ -106,6 +106,7 @@ Filled in when the phase is verified.
 | 2026-10-14 | 1a | Pass | 564 new tests in `io.github.llm4j.context`; whole module 1,102 tests green; new package line 97.6 % / branch 89.4 %; contract run with 3 seeds and keepRecent 0/4/12. Seed list of `ContextWindows` deferred to 1g as decided |
 | 2026-10-14 | 1b | Pass | Golden requests recorded from the unmodified agent first (4 scenarios), unchanged since. 17 `ContextManager` tests, 16 native-loop tests, soak (300 steps, window never exceeded), concurrency (48 agents). Whole module 1,586 tests green; new package line 98.7 % / branch 89.6 %. One fix found by review: the gain check now uses the manager's own measurement. Dependent modules (Loom, loom-inspect-core, loom-inspect, loom-fabric) compile with their tests against the change; `eval4j-report` could not be built offline here (unrelated missing local dependencies), so that module is still to be checked in CI |
 | 2026-10-14 | 1c | Pass | Text-protocol `Scratchpad` replaces the string; byte-identical to the old code on 300 random sequences and on every golden request. 13 text-loop tests, 12 scratchpad tests, a 300-step text soak. Whole module 1,616 tests green; new package line 98.7 % / branch 89.6 %. Found while writing tests: the agent treats a reply with no protocol at all as the final answer, so a "no valid action" turn needs a fenced JSON block with only a thought |
+| 2026-10-14 | 1d | Pass | Summariser prompt and every fallback tested first. 12 strategy tests, 7 fallback tests, 5 agent tests (usage added to `AgentResult.Usage` in both loops). Whole module 1,746 tests green; new package line 98.9 % / branch 89.6 %. Bug found by the documentation sample and fixed: a `chain` lost its stages' model usage |
 
 ### Documentation record (per sub-phase)
 
@@ -114,7 +115,7 @@ Filled in when the phase is verified.
 | 1a | `Context-and-Compaction.md` created, marked in progress | ✅ `ContextDocsExamplesTest` (8 samples, page checked against them) | ✅ all public types | ✅ README hub + feature line, wiki Home, both `llms.txt` | n/a: not yet usable through an agent | ✅ |
 | 1b | ✅ status box rewritten; sections 9 to 11 added (use in an agent, events, guards) | ✅ 2 new samples (`agent`, `listener`), 10 checked against the page | ✅ builder methods, `AgentEventListener`, `ContextManager`, events | ✅ README line, wiki Home, `llms.txt` | deferred to the end of the whole work by decision | ✅ DESIGN notes, traceability, results |
 | 1c | ✅ status box (both loops), a text-protocol subsection of section 9 with a real prompt after compaction, "what is coming" updated | ✅ the prompt shown on the page is generated by a real run and checked against the page (`thePageShowsWhatTheTextProtocolModelReads`) | ✅ builder note, `Scratchpad` | ✅ README line, wiki Home, `llms.txt` | deferred to the end by decision | ✅ DESIGN "as built" note, traceability, results |
-| 1d | | | | | | |
+| 1d | ✅ `summarize` in the built-ins table, a Summarising subsection (what it asks, framing, fallback, cost, no-call case), options table, guards row, "what is coming" | ✅ new `summarize` sample (11 checked against the page) | ✅ `summarize` factories, `CompactionUsage.sum` | ✅ README line, `llms.txt` | deferred to the end by decision | ✅ DESIGN section 10, traceability, results |
 | 1e | | | | | | |
 | 1f | | | | | | |
 | 1g | | | | | | |
@@ -124,4 +125,4 @@ Filled in when the phase is verified.
 Root `README.md`, `wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`: mention context management and compaction in ai-agent4j; once phases 3 to 5 land, the
 observability pages gain context gauges and compaction events. Collect here as the work goes on:
 
-- 1a to 1c: a context and compaction capability in ai-agent4j (strategies, policy, window catalogue, automatic compaction in both agent loops).
+- 1a to 1c: a context and compaction capability in ai-agent4j (strategies including model-written summaries, policy, window catalogue, automatic compaction in both agent loops).

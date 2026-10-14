@@ -120,7 +120,7 @@ public final class ContextManager {
             reportedMessages = -1; // the provider's count describes a prompt that no longer exists
             ContextUsage after = new ContextUsage(overhead + sizer.sizeOf(result.messages()), policy.window(), ContextUsage.Source.ESTIMATED);
             events.onCompaction(new CompactionEvent(result, request.reason(), iteration, before, after, null));
-            return new Prepared(result.messages(), before, true);
+            return new Prepared(result.messages(), before, true, result.summarizerUsage());
         }
 
         futile++;
@@ -129,7 +129,7 @@ public final class ContextManager {
                         "the result was not at least " + Math.round(policy.minGain() * 100) + " % smaller (minGain), so it was not used")
                 : result;
         events.onCompaction(new CompactionEvent(reported, request.reason(), iteration, before, before, null));
-        return new Prepared(messages, before, false);
+        return new Prepared(messages, before, false, result.summarizerUsage());
     }
 
     private Prepared stop(List<Message> messages, int iteration, ContextUsage before, CompactionRequest request, String why) {
@@ -146,6 +146,11 @@ public final class ContextManager {
      * @param messages the conversation to send (the compacted one when {@code changed})
      * @param usage the context use measured before any compaction
      * @param changed whether {@code messages} is a compaction of what was passed in
+     * @param summarizerUsage what the strategy spent on model calls of its own during this call (even if its result was not used), or null
      */
-    public record Prepared(List<Message> messages, ContextUsage usage, boolean changed) {}
+    public record Prepared(List<Message> messages, ContextUsage usage, boolean changed, CompactionUsage summarizerUsage) {
+        public Prepared(List<Message> messages, ContextUsage usage, boolean changed) {
+            this(messages, usage, changed, null);
+        }
+    }
 }

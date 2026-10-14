@@ -29,10 +29,14 @@ final class Chain implements ContextCompactor {
             return CompactionResult.unchanged(name, messages, request, CompactionResult.Outcome.SKIPPED, "already within the target");
         }
         List<Message> current = messages;
+        CompactionUsage spent = null;
         for (ContextCompactor stage : stages) {
             if (request.sizeOf(current) <= request.targetTokens()) break;
-            current = stage.compact(current, request).messages();
+            CompactionResult step = stage.compact(current, request);
+            current = step.messages();
+            spent = CompactionUsage.sum(spent, step.summarizerUsage());
         }
-        return CompactionResult.of(name, messages, current, request);
+        CompactionResult result = CompactionResult.of(name, messages, current, request);
+        return spent == null ? result : result.withUsage(spent);
     }
 }

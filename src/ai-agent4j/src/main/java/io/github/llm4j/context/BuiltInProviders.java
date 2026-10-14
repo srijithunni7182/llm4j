@@ -69,6 +69,32 @@ public final class BuiltInProviders {
         }
     }
 
+    public static final class SummarizeProvider implements ContextCompactorProvider {
+        @Override
+        public String name() {
+            return Summarize.NAME;
+        }
+
+        @Override
+        public ContextCompactor create(Map<String, String> options, ProviderContext context) {
+            for (String key : options.keySet()) {
+                if (!key.equals("max_summary_tokens")) throw new IllegalArgumentException(name() + " has no option '" + key + "'; its option is max_summary_tokens");
+            }
+            io.github.llm4j.LLMClient client = context.llmClient().orElseThrow(() ->
+                    new IllegalArgumentException(name() + " needs a model client to write the summary: pass ProviderContext.of(client)"));
+            int max = Summarize.DEFAULT_MAX_SUMMARY_TOKENS;
+            String text = options.get("max_summary_tokens");
+            if (text != null) {
+                try {
+                    max = Integer.parseInt(text.strip());
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException(name() + " option max_summary_tokens: '" + text + "' is not a whole number");
+                }
+            }
+            return ContextCompactors.summarize(client, max);
+        }
+    }
+
     public static final class ChainProvider implements ContextCompactorProvider {
         @Override
         public String name() {

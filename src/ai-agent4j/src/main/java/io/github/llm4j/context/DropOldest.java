@@ -47,23 +47,7 @@ final class DropOldest implements ContextCompactor {
     }
 
     private static List<Message> without(List<Message> messages, List<Exchanges.Unit> removable, int k) {
-        boolean[] gone = new boolean[messages.size()];
-        int total = 0;
-        for (int i = 0; i < k; i++) {
-            Exchanges.Unit u = removable.get(i);
-            for (int j = u.start(); j < u.end(); j++) {
-                gone[j] = true;
-                int already = Messages.dropped(messages.get(j));
-                total += already > 0 ? already : 1;
-            }
-        }
-        int markerAt = removable.get(0).start();
-        List<Message> out = new ArrayList<>(messages.size() - k + 1);
-        for (int j = 0; j < messages.size(); j++) {
-            if (j == markerAt) out.add(marker(total));
-            if (!gone[j]) out.add(messages.get(j));
-        }
-        return out;
+        return Exchanges.replacing(messages, removable, k, marker(Exchanges.standingFor(messages, removable, k)));
     }
 
     private static Message marker(int dropped) {

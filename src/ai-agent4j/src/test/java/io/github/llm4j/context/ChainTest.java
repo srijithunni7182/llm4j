@@ -77,4 +77,31 @@ class ChainTest {
         };
         assertThatThrownBy(() -> ContextCompactors.chain(boom).compact(convo(), req(10))).hasMessage("boom");
     }
+
+    @Test
+    void whatTheStagesSpentOnModelCallsIsAddedUp() {
+        CompactionUsage one = new CompactionUsage(1, 700, 60, new java.math.BigDecimal("0.002"));
+        ContextCompactor spenderA = (m, r) -> ContextCompactors.dropOldest().compact(m, CompactionRequest.builder(r.targetTokens() * 2).keepRecent(2).build()).withUsage(one);
+        ContextCompactor spenderB = (m, r) -> ContextCompactors.dropOldest().compact(m, r).withUsage(new CompactionUsage(2, 100, 20, null));
+        List<Message> in = convo();
+        CompactionResult r = ContextCompactors.chain(spenderA, spenderB).compact(in, req(300));
+        assertThat(r.summarizerUsage().calls()).isEqualTo(3);
+        assertThat(r.summarizerUsage().promptTokens()).isEqualTo(800);
+        assertThat(r.summarizerUsage().completionTokens()).isEqualTo(80);
+        assertThat(r.summarizerUsage().cost()).isEqualByComparingTo("0.002");
+    }
+
+    @Test
+    void usageIsKeptEvenWhenTheChainGainsNothing() {
+        CompactionUsage one = new CompactionUsage(1, 10, 5, null);
+        ContextCompactor wasteful = (m, r) -> CompactionResult.of("w", m, m, r).withUsage(one);
+        CompactionResult r = ContextCompactors.chain(wasteful).compact(convo(), req(300));
+        assertThat(r.outcome()).isEqualTo(CompactionResult.Outcome.NO_GAIN);
+        assertThat(r.summarizerUsage()).isEqualTo(one);
+    }
+
+    @Test
+    void noModelCallsMeansNoUsage() {
+        assertThat(ContextCompactors.chain(ContextCompactors.dropOldest()).compact(convo(), req(300)).summarizerUsage()).isNull();
+    }
 }

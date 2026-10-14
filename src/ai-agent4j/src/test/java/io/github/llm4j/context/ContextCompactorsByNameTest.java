@@ -70,4 +70,26 @@ class ContextCompactorsByNameTest {
         io.github.llm4j.LLMClient client = org.mockito.Mockito.mock(io.github.llm4j.LLMClient.class);
         assertThat(ProviderContext.of(client).llmClient()).containsSame(client);
     }
+
+    @Test
+    void summarizeIsFoundByNameAndNeedsAClient() {
+        assertThat(ContextCompactors.names()).contains("summarize");
+        assertThatThrownBy(() -> ContextCompactors.byName("summarize", Map.of()))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("needs a model client");
+        ProviderContext with = ProviderContext.of(SummariserModel.saying("notes"));
+        assertThat(ContextCompactors.byName("summarize", Map.of(), with).name()).isEqualTo("summarize");
+        SummariserModel model = SummariserModel.saying("notes");
+        ContextCompactors.byName("summarize", Map.of("max_summary_tokens", "123"), ProviderContext.of(model))
+                .compact(new Convo().system("s").task("t").step("a", 4_000).step("b", 4_000).step("c", 4_000).build(), CompactionRequest.builder(300).keepRecent(2).build());
+        assertThat(model.requests.get(0).getMaxTokens()).isEqualTo(123);
+        assertThatThrownBy(() -> ContextCompactors.byName("summarize", Map.of("max_summary_tokens", "lots"), with)).hasMessageContaining("max_summary_tokens");
+        assertThatThrownBy(() -> ContextCompactors.byName("summarize", Map.of("colour", "red"), with)).hasMessageContaining("colour").hasMessageContaining("max_summary_tokens");
+    }
+
+    @Test
+    void aChainCanIncludeSummarizeWhenAClientIsGiven() {
+        ContextCompactor c = ContextCompactors.byName("chain", Map.of("strategies", "trim_tool_results, summarize, drop_oldest"),
+                ProviderContext.of(SummariserModel.saying("notes")));
+        assertThat(c.name()).isEqualTo("chain(trim_tool_results, summarize, drop_oldest)");
+    }
 }

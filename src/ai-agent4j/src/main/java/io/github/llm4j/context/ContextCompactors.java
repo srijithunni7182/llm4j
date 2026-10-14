@@ -32,6 +32,22 @@ public final class ContextCompactors {
         return new TrimToolResults(maxChars);
     }
 
+    /**
+     * Replaces the oldest part of the conversation with a summary written by a model (at most 600 tokens). If the call fails, is refused by a
+     * budget, or gives nothing useful, it falls back to {@link #dropOldest()} and the result says so. The model's own tokens and cost are
+     * reported in {@link CompactionResult#summarizerUsage()}.
+     *
+     * @param client the model that writes the summary; a cheaper one than the agent's is fine
+     */
+    public static ContextCompactor summarize(io.github.llm4j.LLMClient client) {
+        return new Summarize(client, Summarize.DEFAULT_MAX_SUMMARY_TOKENS);
+    }
+
+    /** Like {@link #summarize(io.github.llm4j.LLMClient)}, with a limit on how long the summary may be. */
+    public static ContextCompactor summarize(io.github.llm4j.LLMClient client, int maxSummaryTokens) {
+        return new Summarize(client, maxSummaryTokens);
+    }
+
     /** Applies the strategies in order, stopping once the target is reached. */
     public static ContextCompactor chain(ContextCompactor... strategies) {
         return new Chain(Arrays.asList(strategies));

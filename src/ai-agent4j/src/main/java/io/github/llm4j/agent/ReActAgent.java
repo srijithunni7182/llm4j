@@ -343,6 +343,14 @@ public class ReActAgent {
                 long overhead = estimator.prompt(LLMRequest.builder().addSystemMessage(systemPrompt).addUserMessage(context).build());
                 ContextManager.Prepared prepared = contextManager.prepare(scratchpad.messages(), i, overhead);
                 if (prepared.changed()) scratchpad.replace(prepared.messages());
+                io.github.llm4j.context.CompactionUsage spent = prepared.summarizerUsage();
+                if (spent != null) {
+                    llmCallCount += spent.calls();
+                    totalPromptTokens += (int) spent.promptTokens();
+                    totalCompletionTokens += (int) spent.completionTokens();
+                    totalTokens += (int) (spent.promptTokens() + spent.completionTokens());
+                    if (spent.cost() != null) totalCost = totalCost == null ? spent.cost() : totalCost.add(spent.cost());
+                }
             }
             int sent = scratchpad.size();
             LLMRequest request =
@@ -535,6 +543,16 @@ public class ReActAgent {
             }
         }
 
+        /** Model calls a compaction strategy made on the agent's behalf (a summary). */
+        void add(io.github.llm4j.context.CompactionUsage u) {
+            if (u == null) return;
+            calls += u.calls();
+            prompt += (int) u.promptTokens();
+            completion += (int) u.completionTokens();
+            total += (int) (u.promptTokens() + u.completionTokens());
+            if (u.cost() != null) cost = cost == null ? u.cost() : cost.add(u.cost());
+        }
+
         AgentResult.Usage usage() {
             return new AgentResult.Usage(calls, prompt, completion, total, estimated, cost);
         }
@@ -578,6 +596,7 @@ public class ReActAgent {
             if (contextManager != null) {
                 ContextManager.Prepared prepared = contextManager.prepare(conversation, i);
                 if (prepared.changed()) conversation = new ArrayList<>(prepared.messages());
+                tally.add(prepared.summarizerUsage());
             }
             int sent = conversation.size();
             LLMRequest request = LLMRequest.builder().messages(conversation).tools(specs).temperature(temperature).build();

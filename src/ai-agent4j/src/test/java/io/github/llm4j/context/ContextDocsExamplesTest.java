@@ -224,6 +224,23 @@ class ContextDocsExamplesTest {
     }
 
     @Test
+    void summarise() {
+        io.github.llm4j.LLMClient cheapClient = SummariserModel.saying("Notes: looked at 20 pages; the price is 500.");
+        io.github.llm4j.LLMClient client = ReActAgentCompactionNativeTest.looping(30);
+        io.github.llm4j.agent.Tool search = ReActAgentCompactionNativeTest.search(1_200);
+        // --- sample: summarize
+        ContextCompactor compactor = ContextCompactors.chain(
+                ContextCompactors.trimToolResults(2_000),   // shorten big results first: free
+                ContextCompactors.summarize(cheapClient),   // then have a (cheaper) model write notes on the oldest steps
+                ContextCompactors.dropOldest());            // and if that is not enough, drop the oldest
+        // --- end sample
+        ReActAgent agent = ReActAgent.builder().llmClient(client).addTool(search).contextWindow(4_000).compaction(compactor).maxIterations(100).build();
+        io.github.llm4j.agent.AgentResult r = agent.run("Find everything.");
+        assertThat(r.getFinalAnswer()).isEqualTo("done after 30");
+        assertThat(r.getUsage().getLlmCalls()).isGreaterThan(31); // the summaries are counted
+    }
+
+    @Test
     void thePageShowsExactlyTheSamplesThatAreTested() throws Exception {
         String source = Files.readString(Path.of("src/test/java/io/github/llm4j/context/ContextDocsExamplesTest.java"));
         String page = Files.readString(Path.of("wiki/Context-and-Compaction.md"));
@@ -234,6 +251,6 @@ class ContextDocsExamplesTest {
             String sample = m.group(2).stripIndent().strip();
             assertThat(page).as("the page shows the '" + m.group(1) + "' sample").contains(sample);
         }
-        assertThat(found).isGreaterThanOrEqualTo(10);
+        assertThat(found).isGreaterThanOrEqualTo(11);
     }
 }
