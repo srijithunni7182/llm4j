@@ -149,7 +149,7 @@ The price table is unchanged.
 | R19 | Keyboard: tabs, filter chips, row expansion, markers and the configuration controls are reachable and operable without a pointer; focus is visible; roles and labels as in §5.4 |
 | R20 | The page never builds HTML from run text (the existing static check, extended to the new code); a tool name, an error text or an agent name containing markup is shown as text |
 | R21 | No console error or failed request in any scenario of §7; one extra poll at most while a fleet page is open |
-| R22 | Each scenario of §7 runs without a provider and produces the view its table row says; the scenarios are selectable by name from `fabric-sim.sh` and the existing Studio scenario is unchanged |
+| R22 | Each scenario of §7 (thirteen) runs without a provider and produces the view its table row says; the scenarios are selectable by name from `fabric-sim.sh` and the existing Studio scenario is unchanged |
 | R23 | With 500 tools and 200 agent rows the fleet pages render within a fixed budget and stay responsive (virtualised or paged beyond a bound; the bound is stated in the page) |
 | R24 | No new dependency; the page remains four static files plus fonts; the server answers the new routes read-only (405 for other methods) |
 
@@ -168,7 +168,8 @@ The price table is unchanged.
 | `delegate-broken` | A delegate's model keeps failing | The same banner naming the delegate |
 | `latency-spike` | A tool becomes ten times slower | A `SPIKE` incident; the p95 column jumps |
 | `truncated-answers` | Replies stop at the token limit | A `TRUNCATED` incident |
-| `trifecta` | One agent reads a page, looks up a customer and sends mail; with and without an acceptance rule | `TRIFECTA` high; with acceptance, info with the reason, the verdict `accepted` |
+| `trifecta` | One agent reads a page, looks up a customer and sends mail | `TRIFECTA` high |
+| `trifecta-accepted` | The same, with the trifecta accepted in writing in the rules file | `TRIFECTA` as info with the reason, the verdict `accepted` |
 | `injected-page` | A page carries a planted instruction; the agent's next call is unusual | `INJECTION` high; the evidence has group names only; the planted text appears nowhere |
 | `access-refused` | A tool refuses a role three times; an agent calls a tool it does not have | An `ACCESS` warning and an info line; counts in the security panel |
 

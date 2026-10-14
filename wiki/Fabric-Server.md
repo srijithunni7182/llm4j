@@ -122,6 +122,7 @@ tokens, apart. **Another model** adds one that has not run yet. **Save prices** 
 |---|---|---|
 | **Inspect rules** (`<data>/config/rules.inspect`) | What counts as trouble, per agent (`Editor { same_action: 3 times }`, `* { paused_longer_than: 90s }`). Laid over each run's own rules, **rule by rule**, and in force at once for every run, running ones included | The format and the rules are those of [`flow.inspect`](Observability-Incidents-and-Rules.md). A variable for `no_progress` is read in the process, so it only takes effect where that process's own rules name it |
 | **Price table** (`<data>/config/prices.properties`) | `model = input / output`, dollars per million tokens. A step whose process reported tokens but no cost is costed from it | A process with its own price file keeps its own cost. Costs already counted do not change. A model with no price has no cost |
+| **Context windows** (`<data>/config/windows.properties`) | `model = tokens`, the usable context window of a model. An agent whose process was never told its model's window shows its context fill from here, by the agent's model (`provider/model` also matches `model`) | A window a process reports always wins, and the view says where each came from (`windowSource`). A model not listed changes nothing. Saved like the prices and recorded in the audit log |
 
 A save is **checked first**. Errors come back with line numbers (an unknown rule with the nearest name suggested, a price
 that is not a number) and **nothing is kept**. A valid save is written atomically, survives a restart, and is recorded in
@@ -159,3 +160,13 @@ and 2 GB by default (`--retention-days`, `--retention-size`), oldest day first; 
 
 [Observability](../docs/OBSERVABILITY.md) · [Incidents and rules](Observability-Incidents-and-Rules.md) ·
 [Controls, secrets and security](Observability-Controls-and-Security.md) · [Reference](Observability-Reference.md)
+
+## Reading across runs
+
+Two read-only routes (behind the same sign-in as the rest of the API) give the fleet views, each optionally limited with `?client=NAME`:
+
+- `GET /api/tools` is the roll-up of every tool and task of every run: one row each (`kind` is `tool` or `task`; a tool and a task with one name are two rows), failing first, with calls, success rate, latency percentiles and histogram, health with its reason, failures by category, the agents that use it and, when it has failed, the run it last failed in. `counts` is the number of rows in each health state.
+- `GET /api/security` is the security picture: the added-up counts, the agents whose verdict is `exercised`, `accepted` or `armed` (each with its run and, when accepted, the reason), and the open trifecta, injection and access incidents with their runs. At most 200 agents and 100 incidents, newest run first.
+
+`GET /api/runs` carries `security`, the number of open security incidents, on each run, for a tab badge. An agent's `context` in a run's view also carries `points` (the last 120 model calls) and `events` (the last 60 compactions) for a timeline.
+

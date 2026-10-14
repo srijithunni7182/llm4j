@@ -12,7 +12,7 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 5e; the 
 | A4 | I can see where the lethal trifecta was exercised or accepted, any suspected injection and any refused access, in a run and across runs, and what the view cannot tell me | `run.page.test.js` (security), `fleet.page.test.js` |
 | A5 | I can set every new threshold, accept a trifecta with a written reason, and set a model's context window, from the Configuration page | `config.page.test.js`, `FabricConfigPhase5Test` |
 | A6 | A fleet's gauges are not blank when a process was not given a window | `WindowCatalogTest`, `no-window` scenario |
-| A7 | Each situation can be produced without a provider | `ScenarioTest` (twelve scenarios) |
+| A7 | Each situation can be produced without a provider | `ScenarioTest` (thirteen scenarios) |
 | A8 | The page is readable in both themes, works at phone width and by keyboard, and never builds HTML from run text | the accessibility, responsive and safety tests |
 | A9 | The existing pages, routes and simulator scenario behave as before | the existing tests, unmodified |
 | A10 | Documented, with screenshots | docs review (§5) |
@@ -21,12 +21,12 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 5e; the 
 
 | Req | Tests | Status |
 |---|---|---|
-| R1 | `ContextHistoryTest` | ⬜ |
-| R2 | `ToolsRouteTest` | ⬜ |
-| R3 | `SecurityRouteTest` | ⬜ |
-| R4 | `WindowsConfigTest` | ⬜ |
-| R5 | `WindowCatalogTest` | ⬜ |
-| R6 | `RunSummariesTest` | ⬜ |
+| R1 | `ContextHistoryTest` (points, events, bounds, two agents, a 20,000-call soak) | ✅ 5a |
+| R2 | `ToolsRouteTest`, `FabricFleetRoutesTest` | ✅ 5a |
+| R3 | `SecurityRouteTest`, `FabricFleetRoutesTest` | ✅ 5a |
+| R4 | `WindowsConfigTest`, `WindowBookTest` | ✅ 5a |
+| R5 | `WindowCatalogTest` | ✅ 5a |
+| R6 | `RunSummariesTest`, `FabricFleetRoutesTest` | ✅ 5a |
 | R7 | `run.page.test.js` (banner and diverted line) | ⬜ |
 | R8 | `run.page.test.js` (cards, gauges, no-window) | ⬜ |
 | R9 | `run.page.test.js` (timeline, markers, table equivalent) | ⬜ |
@@ -42,9 +42,9 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 5e; the 
 | R19 | `a11y.page.test.js` | ⬜ |
 | R20 | `hostile.page.test.js`, `InspectServerTest` | ⬜ |
 | R21 | `health.page.test.js` | ⬜ |
-| R22 | `ScenarioTest`, `StudioUnchangedTest` | ⬜ |
+| R22 | `ScenarioTest` (13 scenarios, names, help), `ScenarioLiveTest` (through a real Fabric), `SimulateTest` unchanged | ✅ 5a |
 | R23 | `scale.page.test.js` | ⬜ |
-| R24 | build checks, `ToolsRouteTest` (405) | ⬜ |
+| R24 | `ToolsRouteTest` (405, gate), no dependency added (5a part); the static-files part is checked at 5e | ◐ 5a |
 
 ## 3. Quality gates
 
@@ -79,13 +79,13 @@ Stack-level pages are owed once at the end of the whole work.
 
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
-| | | | |
+| 2026-10-14 | 5a | Pass | Tests first for the view additions, the window catalog and its file, the `windows` configuration section, the two fleet routes (embedded and Fabric), the summaries and the thirteen scenarios (and a live one through a real Fabric): 77 new tests. Findings while building: `trifecta` and `trifecta-accepted` are two scenarios (the design said one with and without); an acceptance saved after an incident was raised does not lower it (rules are normally in place before the run), noted in the docs; a short run exited before its last events reached the server, so the simulator waits for delivery; the scenario path did not hand the executor the secret store that holds the server key. The scenarios are thirteen, not twelve |
 
 ### Documentation record (per sub-phase)
 
 | Sub-phase | Docs | Samples tested | Javadoc | llms.txt | Stack-level pages | Specs |
 |---|---|---|---|---|---|---|
-| | | | | | | |
+| 5a | ✅ wiki Fabric-Server (windows section, fleet routes), loom-inspect DESIGN §11o, fabric-sim README (scenarios) | ✅ scenarios run in tests | ✅ | n/a | deferred to the end | ✅ traceability, results |
 
 ### Owed to the stack-level pages (updated once, at the end of the whole work)
 

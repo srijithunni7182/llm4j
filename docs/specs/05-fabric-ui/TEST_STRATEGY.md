@@ -22,7 +22,7 @@ Status: **draft for review**. Requirements `R1`…`R24` are in [DESIGN.md](DESIG
 | **View** | Streams in, `view()` out: `points` and `events` bounded and ordered; `series` unchanged; the catalog fill and `windowSource` | `ContextHistoryTest`, `WindowCatalogTest` | R1, R5 |
 | **Routes** | `/api/tools`, `/api/security`, summaries' `security`: shape, ordering, bounds, one client's, the gate, 405 for other methods, embedded and Fabric give the same answer | `ToolsRouteTest`, `SecurityRouteTest`, `RunSummariesTest` | R2, R3, R6, R24 |
 | **Config** | The `windows` section: save, refuse, audit, persist, load an old store; the structured and text forms of the eight behaviours | `WindowsConfigTest`, `FabricConfigPhase5Test` | R4, R15, R16 |
-| **Simulator** | Each scenario run on a fake clock; the records it emits give the view its table row says; the names are selectable; Studio is unchanged | `ScenarioTest` (one case per scenario), `StudioUnchangedTest` | R22 |
+| **Simulator** | Each scenario run on a fake clock; the records it emits give the view its table row says; the names are selectable; Studio is unchanged | `ScenarioTest` (one case per scenario), `ScenarioLiveTest`, `SimulateTest` unchanged | R22 |
 | **Page: run** | Per scenario: the banner, cards, gauges, timeline, table, security panel and incidents, against the API answer | `run.page.test.js` | R7 to R11, R14 |
 | **Page: fleet** | Counts, filters, order stability while a row is open, links to runs, empty states | `fleet.page.test.js` | R12, R13 |
 | **Page: config** | Each behaviour's inputs and defaults, Save through the real route, the server's refusal shown, reason required, windows table | `config.page.test.js` | R15, R16 |
