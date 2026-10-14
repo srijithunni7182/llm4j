@@ -104,7 +104,7 @@ Filled in when the phase is verified.
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
 | 2026-10-14 | 1a | Pass | 564 new tests in `io.github.llm4j.context`; whole module 1,102 tests green; new package line 97.6 % / branch 89.4 %; contract run with 3 seeds and keepRecent 0/4/12. Seed list of `ContextWindows` deferred to 1g as decided |
-| 2026-10-14 | 1b | Pass | Golden requests recorded from the unmodified agent first (4 scenarios), unchanged since. 17 `ContextManager` tests, 16 native-loop tests, soak (300 steps, window never exceeded), concurrency (48 agents). Whole module 1,586 tests green; new package line 98.7 % / branch 89.6 %. One fix found by review: the gain check now uses the manager's own measurement |
+| 2026-10-14 | 1b | Pass | Golden requests recorded from the unmodified agent first (4 scenarios), unchanged since. 17 `ContextManager` tests, 16 native-loop tests, soak (300 steps, window never exceeded), concurrency (48 agents). Whole module 1,586 tests green; new package line 98.7 % / branch 89.6 %. One fix found by review: the gain check now uses the manager's own measurement. Dependent modules (Loom, loom-inspect-core, loom-inspect, loom-fabric) compile with their tests against the change; `eval4j-report` could not be built offline here (unrelated missing local dependencies), so that module is still to be checked in CI |
 
 ### Documentation record (per sub-phase)
 
