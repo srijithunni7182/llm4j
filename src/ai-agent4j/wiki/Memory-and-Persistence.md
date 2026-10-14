@@ -4,7 +4,7 @@ Managing the state of a conversation is critical for multi-turn interactions. `a
 
 ## In-Memory Conversation History
 
-The `ConversationHistory` class tracks recent messages in a list. You can limit the number of messages to prevent the context window from overflowing.
+The `ConversationHistory` class tracks recent messages in a list. You can limit the number of messages to prevent the context window from overflowing. It can also keep within a window in **tokens**, and summarise or trim the oldest part instead of cutting it off: see [Context and Compaction](Context-and-Compaction.md#13-a-conversation-history-with-a-window-in-tokens).
 
 ```java
 import io.github.llm4j.agent.memory.ConversationHistory;

@@ -143,4 +143,15 @@ class DropOldestTest {
         assertThat(r.tokensAfter()).isEqualTo(req.sizeOf(r.messages()));
         assertThat(r.summarizerUsage()).isNull();
     }
+
+    @Test
+    void theFirstUserMessageCanGoWhenItIsNotTheTask() {
+        List<Message> in = new Convo().task("hello").answer("hi " + "x".repeat(400)).task("and?").answer("more " + "y".repeat(400)).task("ok").answer("done").build();
+        CompactionRequest req = CompactionRequest.builder(30).keepRecent(2).protectTask(false).build();
+        CompactionResult r = drop.compact(in, req);
+        assertThat(r.messages()).doesNotContain(in.get(0));
+        assertThat(r.messages().subList(r.messages().size() - 2, r.messages().size())).containsExactlyElementsOf(in.subList(in.size() - 2, in.size()));
+        // and with the task protected (the default) the first message stays
+        assertThat(drop.compact(in, CompactionRequest.builder(30).keepRecent(2).build()).messages()).contains(in.get(0));
+    }
 }

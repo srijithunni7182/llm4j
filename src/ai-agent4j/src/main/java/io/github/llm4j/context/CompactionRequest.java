@@ -14,7 +14,9 @@ import java.util.function.Predicate;
  * @param window the model's window, or null
  * @param estimator how to count tokens; use {@link #sizeOf(List)} so every strategy counts the same way
  * @param keepRecent the last this-many messages must be returned unchanged
- * @param pinned messages that must be returned unchanged
+ * @param pinned messages that must be returned unchanged, besides those marked with {@link Messages#pinned}
+ * @param protectTask whether the first user message (the task of an agent run) must be returned unchanged; false for a chat history, where it is
+ *     only the oldest message
  * @param reason why compaction was asked for
  */
 public record CompactionRequest(
@@ -23,6 +25,7 @@ public record CompactionRequest(
         TokenEstimator estimator,
         int keepRecent,
         Predicate<Message> pinned,
+        boolean protectTask,
         Reason reason) {
 
     public enum Reason {
@@ -38,7 +41,7 @@ public record CompactionRequest(
         if (targetTokens <= 0) throw new IllegalArgumentException("targetTokens must be positive, got " + targetTokens);
         if (keepRecent < 0) throw new IllegalArgumentException("keepRecent must not be negative, got " + keepRecent);
         if (estimator == null) estimator = CharsPerTokenEstimator.INSTANCE;
-        if (pinned == null) pinned = m -> false;
+        pinned = Messages.orMarked(pinned);
         if (reason == null) reason = Reason.MANUAL;
     }
 
@@ -68,6 +71,7 @@ public record CompactionRequest(
         private TokenEstimator estimator;
         private int keepRecent = 4;
         private Predicate<Message> pinned;
+        private boolean protectTask = true;
         private Reason reason = Reason.MANUAL;
 
         private Builder(long targetTokens) {
@@ -94,13 +98,18 @@ public record CompactionRequest(
             return this;
         }
 
+        public Builder protectTask(boolean protectTask) {
+            this.protectTask = protectTask;
+            return this;
+        }
+
         public Builder reason(Reason reason) {
             this.reason = reason;
             return this;
         }
 
         public CompactionRequest build() {
-            return new CompactionRequest(targetTokens, window, estimator, keepRecent, pinned, reason);
+            return new CompactionRequest(targetTokens, window, estimator, keepRecent, pinned, protectTask, reason);
         }
     }
 }

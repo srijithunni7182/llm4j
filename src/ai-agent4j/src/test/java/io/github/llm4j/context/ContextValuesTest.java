@@ -90,6 +90,8 @@ class ContextValuesTest {
         assertThat(r.keepRecent()).isEqualTo(4);
         assertThat(r.estimator()).isNotNull();
         assertThat(r.pinned().test(io.github.llm4j.model.Message.user("x"))).isFalse();
+        assertThat(r.protectTask()).isTrue();
+        assertThat(CompactionRequest.builder(10).protectTask(false).build().protectTask()).isFalse();
         assertThat(r.sizeOf(java.util.List.of())).isZero();
         assertThat(r.sizeOf(java.util.List.of(io.github.llm4j.model.Message.user("x".repeat(400))))).isGreaterThan(90);
         assertThatThrownBy(() -> CompactionRequest.of(0)).hasMessageContaining("targetTokens");
@@ -105,5 +107,29 @@ class ContextValuesTest {
         assertThat(r.reason()).isEqualTo(CompactionRequest.Reason.THRESHOLD);
         assertThat(r.window()).isEqualTo(p.window());
         assertThat(r.pinned().test(Messages.pinned(io.github.llm4j.model.Message.user("x")))).isTrue();
+    }
+
+    @Test
+    void aMessageMarkedAsPinnedIsKeptWithoutAnyExtraConfiguration() {
+        io.github.llm4j.model.Message marked = Messages.pinned(io.github.llm4j.model.Message.user("keep me"));
+        io.github.llm4j.model.Message plain = io.github.llm4j.model.Message.user("DECISION: use plan A");
+        assertThat(ContextPolicy.builder().build().pinned().test(marked)).isTrue();
+        assertThat(CompactionRequest.of(10).pinned().test(marked)).isTrue();
+        assertThat(CompactionRequest.of(10).pinned().test(plain)).isFalse();
+    }
+
+    @Test
+    void aTestOfYourOwnAddsToTheMarkerNeverReplacesIt() {
+        io.github.llm4j.model.Message marked = Messages.pinned(io.github.llm4j.model.Message.user("keep me"));
+        io.github.llm4j.model.Message decision = io.github.llm4j.model.Message.user("DECISION: use plan A");
+        io.github.llm4j.model.Message other = io.github.llm4j.model.Message.user("chatter");
+        java.util.function.Predicate<io.github.llm4j.model.Message> own = m -> m.getContent().startsWith("DECISION:");
+        for (java.util.function.Predicate<io.github.llm4j.model.Message> p : java.util.List.<java.util.function.Predicate<io.github.llm4j.model.Message>>of(
+                ContextPolicy.builder().pinned(own).build().pinned(), CompactionRequest.builder(10).pinned(own).build().pinned())) {
+            assertThat(p.test(marked)).isTrue();
+            assertThat(p.test(decision)).isTrue();
+            assertThat(p.test(other)).isFalse();
+        }
+        assertThat(ContextPolicy.builder().pinned(own).build().withWindow(ContextWindow.of(1_000)).pinned().test(marked)).isTrue();
     }
 }

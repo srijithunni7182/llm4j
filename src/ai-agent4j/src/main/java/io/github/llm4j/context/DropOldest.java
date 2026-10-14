@@ -22,7 +22,7 @@ final class DropOldest implements ContextCompactor {
         if (size <= request.targetTokens()) {
             return CompactionResult.unchanged(NAME, messages, request, CompactionResult.Outcome.SKIPPED, "already within the target");
         }
-        Exchanges.Region region = Exchanges.region(messages, request.keepRecent());
+        Exchanges.Region region = Exchanges.region(messages, request.keepRecent(), request.protectTask());
         List<Exchanges.Unit> removable = new ArrayList<>();
         for (Exchanges.Unit u : region.middle()) if (!holdsPinned(messages, u, request)) removable.add(u);
         if (removable.isEmpty()) {

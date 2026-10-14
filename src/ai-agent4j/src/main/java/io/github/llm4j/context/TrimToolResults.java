@@ -30,7 +30,7 @@ final class TrimToolResults implements ContextCompactor {
         if (size <= request.targetTokens()) {
             return CompactionResult.unchanged(NAME, messages, request, CompactionResult.Outcome.SKIPPED, "already within the target");
         }
-        Exchanges.Region region = Exchanges.region(messages, request.keepRecent());
+        Exchanges.Region region = Exchanges.region(messages, request.keepRecent(), request.protectTask());
         List<Integer> at = new ArrayList<>();
         List<Message> shorter = new ArrayList<>();
         List<Long> saving = new ArrayList<>();

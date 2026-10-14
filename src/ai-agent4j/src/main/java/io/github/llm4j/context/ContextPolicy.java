@@ -13,7 +13,7 @@ import java.util.function.Predicate;
  * @param keepRecent the last this-many messages are never touched
  * @param maxCompactions per run; after that compaction stops
  * @param minGain a result must be at least this fraction smaller to be used
- * @param pinned messages that are never removed or changed
+ * @param pinned messages that are never removed or changed, besides those marked with {@link Messages#pinned}
  * @param onOverflow what to do when the provider rejects a prompt as too long
  */
 public record ContextPolicy(
@@ -40,7 +40,7 @@ public record ContextPolicy(
         if (keepRecent < 0) throw new IllegalArgumentException("keepRecent must not be negative, got " + keepRecent);
         if (maxCompactions < 0) throw new IllegalArgumentException("maxCompactions must not be negative, got " + maxCompactions);
         if (!(minGain >= 0 && minGain < 1)) throw new IllegalArgumentException("minGain must be in [0, 1), got " + minGain);
-        if (pinned == null) pinned = m -> false;
+        pinned = Messages.orMarked(pinned);
         if (onOverflow == null) onOverflow = OnOverflow.RETRY_ONCE;
     }
 

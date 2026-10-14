@@ -41,6 +41,11 @@ public final class Messages {
         return with(message, COMPACTION, strategy);
     }
 
+    /** A test that accepts what the developer's own test accepts and every message marked with {@link #pinned}. */
+    public static java.util.function.Predicate<Message> orMarked(java.util.function.Predicate<Message> own) {
+        return own == null ? Messages::isPinned : m -> isPinned(m) || own.test(m);
+    }
+
     static Message with(Message message, String key, Object value) {
         Map<String, Object> data = new HashMap<>(message.getProviderData());
         data.put(key, value);

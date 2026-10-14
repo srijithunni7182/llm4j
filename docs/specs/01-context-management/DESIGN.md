@@ -329,3 +329,11 @@ Strategy names used for discovery are lower snake case: `none`, `drop_oldest`, `
   supplies is believed. The manager is now also created when only a window is set, so that refusal works without a strategy or a listener (a deliberate
   consequence of decision 1: an agent with a window and nothing else fails early instead of sending a doomed call). Existing tests that let a prompt grow
   far past its window were shortened accordingly.
+- **1f.** `ConversationHistory.builder()` (the constructors that came first are unchanged, including accepting any size): `maxMessages` (default 100), `maxTokens`,
+  `compaction`, `keepRecent` (4), `pinned`, `compactTo` (0.6: compact to 60 % of the window so a summary is not paid for on every message), `persistCompacted`
+  (default false), `estimator`, `onCompaction`. When the window is exceeded the compactor runs once; if it throws, or the result is not smaller, the window slides,
+  and the latest message is always kept, so adding a message cannot fail. **A request flag was needed:** `CompactionRequest.protectTask` (default true). In an agent
+  run the first user message is the task; in a chat it is only the oldest message, so the history asks for it not to be protected, and the shared contract test now
+  runs every strategy both ways. **A decision 4 correction:** a message marked with `Messages.pinned` is now honoured **by default** in `ContextPolicy`,
+  `CompactionRequest` and `ConversationHistory`; a predicate of the developer's own adds to the mark and never replaces it (the first draft required passing
+  `Messages::isPinned`, which contradicted "pin where it is created").

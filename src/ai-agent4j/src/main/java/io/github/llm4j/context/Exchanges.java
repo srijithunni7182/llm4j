@@ -43,13 +43,16 @@ final class Exchanges {
         return units;
     }
 
-    /** The leading system messages and the first user message are the prefix; the last {@code keepRecent} messages, widened to whole units, the tail. */
-    static Region region(List<Message> messages, int keepRecent) {
+    /**
+     * The leading system messages and, when {@code protectTask}, the first user message are the prefix; the last {@code keepRecent} messages,
+     * widened to whole units, the tail.
+     */
+    static Region region(List<Message> messages, int keepRecent, boolean protectTask) {
         int n = messages.size();
         int i = 0;
         while (i < n && messages.get(i).getRole() == Message.Role.SYSTEM) i++;
         int prefixEnd = i;
-        for (int j = i; j < n; j++) {
+        for (int j = i; protectTask && j < n; j++) {
             if (messages.get(j).getRole() == Message.Role.USER) {
                 prefixEnd = j + 1;
                 break;

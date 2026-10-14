@@ -15,7 +15,8 @@ import java.util.List;
  * <ol>
  *   <li><b>Pure.</b> Do not modify {@code messages}; return a new list. Do nothing else with side effects, apart from a
  *       model call that is part of the strategy.
- *   <li><b>Protected content stays.</b> The leading system messages, the first user message (the task), the last
+ *   <li><b>Protected content stays.</b> The leading system messages, the first user message (the task, unless
+ *       {@link CompactionRequest#protectTask()} is false), the last
  *       {@link CompactionRequest#keepRecent()} messages and every message {@link CompactionRequest#pinned()} accepts come back
  *       unchanged.
  *   <li><b>Pairs stay whole.</b> An assistant message with tool calls and the tool messages that answer it are kept or removed

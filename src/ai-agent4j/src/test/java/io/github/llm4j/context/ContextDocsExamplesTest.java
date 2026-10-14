@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.llm4j.agent.AgentEventListener;
 import io.github.llm4j.agent.ReActAgent;
+import io.github.llm4j.agent.memory.ConversationHistory;
 import io.github.llm4j.model.Message;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,10 +55,10 @@ class ContextDocsExamplesTest {
     @Test
     void protectMessages() {
         // --- sample: protect
-        Message budget = Messages.pinned(Message.user("The budget is 500 and must not change."));
+        Message budget = Messages.pinned(Message.user("The budget is 500 and must not change."));   // kept by every strategy
         CompactionRequest request = CompactionRequest.builder(3_000)
-                .keepRecent(6)                           // the last 6 messages are never touched
-                .pinned(Messages::isPinned)              // nor is anything pinned
+                .keepRecent(6)                                           // the last 6 messages are never touched
+                .pinned(m -> m.getContent().startsWith("DECISION:"))     // nor is anything that matches a rule of your own
                 .build();
         // --- end sample
         List<Message> messages = new java.util.ArrayList<>(longConversation());
@@ -259,6 +260,27 @@ class ContextDocsExamplesTest {
     }
 
     @Test
+    void aHistoryWithAWindowInTokens() {
+        io.github.llm4j.LLMClient cheapClient = SummariserModel.saying("They compared plans A and B; the price is 500.");
+        io.github.llm4j.LLMClient client = ScriptedModel.of(true, false, ScriptedModel.answer("ok"));
+        // --- sample: history
+        ConversationHistory history = ConversationHistory.builder()
+                .maxTokens(8_000)                                       // how much of the past the agent is shown
+                .compaction(ContextCompactors.summarize(cheapClient))   // summarise the oldest part instead of just forgetting it
+                .keepRecent(4)                                          // the last 4 messages are never touched
+                .build();
+        ReActAgent agent = ReActAgent.builder().llmClient(client).conversationHistory(history).build();
+        // --- end sample
+        for (int i = 0; i < 60; i++) {
+            if (i % 2 == 0) history.addUserMessage("question " + i + " " + "x".repeat(900));
+            else history.addAssistantMessage("answer " + i + " " + "y".repeat(900));
+        }
+        assertThat(agent.run("And now?").getFinalAnswer()).isEqualTo("ok");
+        assertThat(history.getFormattedHistory()).contains("They compared plans A and B");
+        assertThat(CompactionRequest.of(1).sizeOf(history.getMessages())).isLessThanOrEqualTo(8_000);
+    }
+
+    @Test
     void thePageShowsExactlyTheSamplesThatAreTested() throws Exception {
         String source = Files.readString(Path.of("src/test/java/io/github/llm4j/context/ContextDocsExamplesTest.java"));
         String page = Files.readString(Path.of("wiki/Context-and-Compaction.md"));
@@ -269,6 +291,6 @@ class ContextDocsExamplesTest {
             String sample = m.group(2).stripIndent().strip();
             assertThat(page).as("the page shows the '" + m.group(1) + "' sample").contains(sample);
         }
-        assertThat(found).isGreaterThanOrEqualTo(12);
+        assertThat(found).isGreaterThanOrEqualTo(13);
     }
 }

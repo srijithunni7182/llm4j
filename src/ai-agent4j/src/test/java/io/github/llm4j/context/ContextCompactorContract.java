@@ -25,6 +25,7 @@ abstract class ContextCompactorContract {
     static final int GENERATED = Integer.getInteger("generated", 500);
     static final double[] TARGETS = {0.95, 0.50, 0.10};
     static final int[] KEEP_RECENT = {0, 4, 12};
+    static final boolean[] PROTECT_TASK = {true, false};
 
     protected abstract ContextCompactor subject();
 
@@ -37,10 +38,11 @@ abstract class ContextCompactorContract {
     Stream<DynamicTest> holdsOnTheFixedConversations() {
         return ConversationFixtures.fixed().entrySet().stream().flatMap(e -> {
             List<Message> input = e.getValue();
-            long size = request(1, 4).sizeOf(input);
-            return java.util.Arrays.stream(KEEP_RECENT).boxed().flatMap(keep -> java.util.Arrays.stream(TARGETS).mapToObj(fraction -> DynamicTest.dynamicTest(
-                    e.getKey() + " @ " + (int) (fraction * 100) + "%, keep " + keep,
-                    () -> check(e.getKey(), input, request(Math.max(1, (long) (size * fraction)), keep)))));
+            long size = request(1, 4, true).sizeOf(input);
+            return java.util.Arrays.stream(KEEP_RECENT).boxed().flatMap(keep -> java.util.Arrays.stream(TARGETS).boxed().flatMap(fraction ->
+                    java.util.stream.Stream.of(true, false).map(protect -> DynamicTest.dynamicTest(
+                            e.getKey() + " @ " + (int) (fraction * 100) + "%, keep " + keep + (protect ? "" : ", task not protected"),
+                            () -> check(e.getKey(), input, request(Math.max(1, (long) (size * fraction)), keep, protect))))));
         });
     }
 
@@ -48,11 +50,12 @@ abstract class ContextCompactorContract {
     void holdsOnGeneratedConversations() {
         for (int i = 0; i < GENERATED; i++) {
             List<Message> input = ConversationFixtures.generated(SEED, i);
-            long size = request(1, 4).sizeOf(input);
+            long size = request(1, 4, true).sizeOf(input);
             for (double fraction : TARGETS) {
                 int keep = KEEP_RECENT[i % KEEP_RECENT.length];
-                String label = "seed=" + SEED + " index=" + i + " target=" + fraction + " keep=" + keep;
-                check(label, input, request(Math.max(1, (long) (size * fraction)), keep));
+                boolean protect = PROTECT_TASK[(i / KEEP_RECENT.length) % PROTECT_TASK.length];
+                String label = "seed=" + SEED + " index=" + i + " target=" + fraction + " keep=" + keep + " protectTask=" + protect;
+                check(label, input, request(Math.max(1, (long) (size * fraction)), keep, protect));
             }
         }
     }
@@ -62,8 +65,8 @@ abstract class ContextCompactorContract {
         assertThat(subject().name()).isNotBlank();
     }
 
-    static CompactionRequest request(long target, int keepRecent) {
-        return CompactionRequest.builder(target).keepRecent(keepRecent).pinned(Messages::isPinned).build();
+    static CompactionRequest request(long target, int keepRecent, boolean protectTask) {
+        return CompactionRequest.builder(target).keepRecent(keepRecent).pinned(Messages::isPinned).protectTask(protectTask).build();
     }
 
     // ── the checks ─────────────────────────────────────────────────────────────────
@@ -131,7 +134,7 @@ abstract class ContextCompactorContract {
         List<Message> keep = new ArrayList<>();
         int i = 0;
         while (i < input.size() && input.get(i).getRole() == Message.Role.SYSTEM) keep.add(input.get(i++));
-        for (int j = i; j < input.size(); j++) {
+        for (int j = i; req.protectTask() && j < input.size(); j++) {
             if (input.get(j).getRole() == Message.Role.USER) {
                 keep.add(input.get(j));
                 break;

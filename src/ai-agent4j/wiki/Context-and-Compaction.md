@@ -4,12 +4,11 @@ An agent's prompt grows with every step: each thought, tool call and result is a
 later it no longer fits the model's **context window**. This page is about keeping it small enough, on purpose, with
 the parts you choose: **how much room is left**, **what to do about it**, and **what must never be touched**.
 
-> **Status: in progress.** The strategies, the window catalogue and the policy work on their own (sections 2 to 8), and an agent now
-> measures its context before every model call, reports it to its listeners, and compacts automatically before the limit, **with native
-> tool calling and with the text protocol** (sections 9 to 11), and a `summarize` strategy can have a model write notes on the oldest steps
-> (section 3). When a provider rejects a prompt as too long, the agent compacts harder and tries once more (section 12). Still to come, in
-> this order: a token window for `ConversationHistory` and models seeded in the window catalogue (section 14). The design is in
-> [`docs/specs/01-context-management`](../../../docs/specs/01-context-management/DESIGN.md).
+> **Status: in progress, nearly complete.** The strategies, the window catalogue and the policy (sections 2 to 8); an agent that measures its
+> context before every model call, reports it, and compacts automatically, in both loops (sections 9 to 11); a `summarize` strategy
+> (section 3); recovery from a provider's "prompt too long" error and early refusal of a prompt that cannot fit (section 12); and a
+> conversation history with a window in tokens (section 13) all work. Still to come: a short list of models seeded in the window
+> catalogue (section 15). The design is in [`docs/specs/01-context-management`](../../../docs/specs/01-context-management/DESIGN.md).
 
 Everything here is opt-in and changes nothing for code that does not use it.
 
@@ -29,8 +28,9 @@ Everything here is opt-in and changes nothing for code that does not use it.
 10. [Watch what it does](#10-watch-what-it-does)
 11. [The guards](#11-the-guards)
 12. [When the prompt is too long](#12-when-the-prompt-is-too-long)
-13. [Guarantees](#13-guarantees)
-14. [What is coming](#14-what-is-coming)
+13. [A conversation history with a window in tokens](#13-a-conversation-history-with-a-window-in-tokens)
+14. [Guarantees](#14-guarantees)
+15. [What is coming](#15-what-is-coming)
 
 ---
 
@@ -108,13 +108,13 @@ Every strategy, yours included, must leave these as they are:
 - the **last N messages** (`keepRecent`, default 4), widened so that an exchange is never cut in half;
 - any message the request's `pinned` test accepts.
 
-Mark a message as pinned where you create it, or give the request a test of your own:
+Mark a message as pinned where you create it (every strategy honours the mark), and/or give the request a test of your own (it adds to the mark, it never replaces it):
 
 ```java
-Message budget = Messages.pinned(Message.user("The budget is 500 and must not change."));
+Message budget = Messages.pinned(Message.user("The budget is 500 and must not change."));   // kept by every strategy
 CompactionRequest request = CompactionRequest.builder(3_000)
-        .keepRecent(6)                           // the last 6 messages are never touched
-        .pinned(Messages::isPinned)              // nor is anything pinned
+        .keepRecent(6)                                           // the last 6 messages are never touched
+        .pinned(m -> m.getContent().startsWith("DECISION:"))     // nor is anything that matches a rule of your own
         .build();
 ```
 
@@ -371,7 +371,32 @@ try {
 
 The shorthand `contextWindow(...)` without a strategy gives exactly this: no compaction, but a clear, early failure instead of a doomed call.
 
-## 13. Guarantees
+## 13. A conversation history with a window in tokens
+
+`ConversationHistory` is what an agent is shown of earlier conversations. It always had a window in **messages**; it can now also have one in
+**tokens**, and a strategy to use when that is exceeded, so that a long chat is summarised or trimmed instead of being cut off at a message count:
+
+```java
+ConversationHistory history = ConversationHistory.builder()
+        .maxTokens(8_000)                                       // how much of the past the agent is shown
+        .compaction(ContextCompactors.summarize(cheapClient))   // summarise the oldest part instead of just forgetting it
+        .keepRecent(4)                                          // the last 4 messages are never touched
+        .build();
+ReActAgent agent = ReActAgent.builder().llmClient(client).conversationHistory(history).build();
+```
+
+- **No strategy:** when the window is exceeded the oldest messages simply go. The latest message is always kept, even if it alone is larger than the window.
+- **With a strategy:** it is asked to bring the history down to **60 %** of the window (`compactTo(0.6)`), not just under it, so that it does not have to
+  run again on the next message. A summary is one model call per compaction, not one per message. The first message has no special standing here (in
+  a chat it is only the oldest); `keepRecent` and pinned messages (`Messages.pinned`, or `pinned(...)`) are kept.
+- **It never makes adding a message fail.** If the strategy throws, or gains nothing, the window slides as if there were none. `onCompaction(listener)`
+  is told of every attempt, including a summary's model usage.
+- **The store keeps everything by default.** The window applies to the view the agent is shown; a `ConversationStore` still holds every message, and the
+  window is applied again when the history is loaded. `persistCompacted(true)` rewrites the store with the compacted history instead (it needs a store,
+  and the full record is then gone).
+- The constructors that came first (`new ConversationHistory(10)`, with a session and a store) work exactly as before; the builder adds the rest.
+
+## 14. Guarantees
 
 - The conversation you pass in is never modified.
 - Protected content and tool-call pairs are never broken; the result is never larger than the input.
@@ -381,12 +406,9 @@ The shorthand `contextWindow(...)` without a strategy gives exactly this: no com
 - Every built-in is checked by the same contract test (a few thousand generated conversations, with several recent-window sizes),
   and so is the class in section 5.
 
-## 14. What is coming
+## 15. What is coming
 
-In this order, each with its own tests and documentation:
-
-1. A token-based window for `ConversationHistory`.
-2. Models seeded in the window catalogue, verified against provider documentation.
+1. Models seeded in the window catalogue, each checked against the provider's documentation, so that `contextWindows(...)` works without a file of your own.
 
 See also: [ReAct Agent Guide](ReAct-Agent-Guide.md) · [Budgets and Rate Limits](Budgets-and-Rate-Limits.md) ·
 [Memory and Persistence](Memory-and-Persistence.md)
