@@ -385,6 +385,10 @@ public final class TraceMapper {
         if (data.get("result_chars") != null) extra.put(Semconv.LOOM_TOOL_RESULT_CHARS, number(data.get("result_chars")));
         if (data.get("approval_ms") != null) extra.put(Semconv.LOOM_TOOL_APPROVAL_MS, number(data.get("approval_ms")));
         if (data.get("duration_ms") != null) extra.put(Semconv.LOOM_TOOL_DURATION_MS, number(data.get("duration_ms")));
+        if (data.get("reach") != null) { // what the tool can reach, from the same code the static audit uses: names only, safe at every detail level
+            extra.put(Semconv.LOOM_TOOL_REACH, String.valueOf(data.get("reach")));
+            extra.put(Semconv.LOOM_TOOL_REACH_KNOWN, !"false".equals(String.valueOf(data.get("reach_known"))));
+        }
         if (observed != null) {
             String t = detail.apply(observed);
             if (t != null) extra.put(Semconv.LOOM_TEXT, t);

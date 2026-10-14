@@ -172,6 +172,28 @@ public class HarnessExecutor implements LoomEngine {
      */
     public void setTaskRegistry(io.github.llm4j.agent.task.TaskRegistry registry) { this.taskRegistry = registry; }
 
+    private java.util.Map<String, String> toolReach = java.util.Map.of();
+    private final java.util.Map<String, io.github.llm4j.loom.security.ToolReach> reachCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** What the {@code .loot} file declares your own tools reach ({@code Name.reach = reads}); without it a tool the script does not define is assumed to reach everything. */
+    public void setToolReach(java.util.Map<String, String> declared) {
+        this.toolReach = declared == null ? java.util.Map.of() : java.util.Map.copyOf(declared);
+        reachCache.clear();
+    }
+
+    /** What the tool reaches, as the static audit would say: the same code answers both. */
+    io.github.llm4j.loom.security.ToolReach reachOf(String tool) {
+        return reachCache.computeIfAbsent(tool, name -> {
+            // tools Loom itself adds to an agent reach only the agent's own data: the audit counts them as private data, and so does the trace
+            boolean ownData = "save_memory_fact".equals(name) || script.getKnowledgeBases().stream()
+                    .anyMatch(kb -> name.equals("search_" + kb.getName().toLowerCase(java.util.Locale.ROOT)));
+            if (ownData) return new io.github.llm4j.loom.security.ToolReach(false, true, false, true);
+            java.util.Map<String, io.github.llm4j.loom.ast.ToolDef> declared = new java.util.HashMap<>();
+            for (io.github.llm4j.loom.ast.ToolDef t : script.getTools()) declared.put(t.getName(), t);
+            return io.github.llm4j.loom.security.ToolReach.resolve(name, declared, toolReach);
+        });
+    }
+
     public synchronized io.github.llm4j.agent.task.TaskRegistry getTaskRegistry() {
         if (taskRegistry == null) taskRegistry = io.github.llm4j.agent.task.TaskRegistry.discovered();
         return taskRegistry;
@@ -634,6 +656,9 @@ public class HarnessExecutor implements LoomEngine {
                 d.put("approval_ms", e.approvalMillis());
                 d.put("result_chars", e.resultChars());
                 d.put("soft_failure", e.softFailure());
+                io.github.llm4j.loom.security.ToolReach reach = reachOf(e.tool());
+                d.put("reach", reach.legs());
+                d.put("reach_known", reach.known());
                 if (e.failed()) d.put("category", e.category().name());
                 trace(TraceEvent.TOOL_CALL, agentName, e.tool() + " " + (e.failed() ? "failed: " + e.category() : "ok") + " in " + e.durationMillis() + " ms", d);
             }

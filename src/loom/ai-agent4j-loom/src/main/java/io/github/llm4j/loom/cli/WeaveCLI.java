@@ -366,6 +366,7 @@ public class WeaveCLI implements Callable<Integer> {
             }
         });
         executor.setLenient(settings.lenient());
+        if (lootFile != null && lootFile.exists()) executor.setToolReach(LootLoader.reaches(lootFile.toPath()));
         executor.setBaseDir(scriptFile.getAbsoluteFile().getParentFile().toPath());
         java.util.function.Function<String, String> lookup = env.env();
         executor.setEnvLookup(settings.noEnv() ? name -> {

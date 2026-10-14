@@ -47,7 +47,7 @@ public record TraceEvent(String type, String agent, String step, String text, Ma
     public static final String COMPACTION = "compaction";
     /** One model call: {@code model}, {@code duration_ms}, {@code waited_ms}, {@code attempts}, {@code failovers}, token counts, {@code finish_reason}, {@code truncated}, {@code outcome} and, for a failure, {@code category} and {@code error_type}. */
     public static final String MODEL_CALL = "model_call";
-    /** One tool call: {@code tool}, {@code outcome}, {@code duration_ms}, {@code approval_ms}, {@code result_chars}, {@code soft_failure} and, for a failure, {@code category}. */
+    /** One tool call: {@code tool}, {@code outcome}, {@code duration_ms}, {@code approval_ms}, {@code result_chars}, {@code soft_failure}, {@code reach} (the legs of the lethal trifecta the tool touches: a sorted list of {@code outward}, {@code private}, {@code untrusted}; empty for none), {@code reach_known} (false when the reach is assumed) and, for a failure, {@code category}. */
     public static final String TOOL_CALL = "tool_call";
     /** A task or delegate failed: {@code kind} (task or delegate), {@code name}, {@code step}, {@code category}, {@code error_type}, {@code attempts}, {@code handled} (true when its {@code on_failure} took over; false when the run fails) and {@code error}. */
     public static final String FAILURE = "failure";

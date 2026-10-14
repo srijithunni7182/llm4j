@@ -28,6 +28,17 @@ public record Capabilities(boolean untrusted, boolean privateData, boolean outwa
         return new Capabilities(true, true, true, true, false, note);
     }
 
+    /**
+     * What a tool the run or the audit meets by name reaches: the script's own declaration, else what the {@code .loot} file declares, else a built-in
+     * by name, else the worst. The one place both the static audit and the trace ask, so they cannot disagree.
+     */
+    static Capabilities resolve(String toolName, java.util.Map<String, ToolDef> scriptTools, java.util.Map<String, String> lootReach) {
+        ToolDef def = scriptTools.get(toolName);
+        if (def != null) return of(def);
+        if (lootReach.containsKey(toolName)) return fromReach(lootReach.get(toolName), "Tool " + toolName + " from the .loot file");
+        return ofName(toolName);
+    }
+
     /** A built-in tool used by name, or one the host registered (null declaration). */
     static Capabilities ofName(String name) {
         if (SEARCH.contains(name)) return new Capabilities(true, false, false, false, true, "web search results");

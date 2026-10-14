@@ -50,8 +50,8 @@ Status: **verified offline; awaiting review** (live checks owed). Run top to bot
 | R25 | `TaskHealthTest` | ✅ 4f |
 | R26 | `TaskIncidentsTest` | ✅ 4f |
 | R27 | `TaskFailureMappingTest` | ✅ 4f |
-| R28 | `ToolReachTest` (every kind), `SecurityAuditTest` unchanged | ⬜ 4g |
-| R29 | `ToolCallReachTest`, `NewEventsMappingTest` unchanged | ⬜ 4g |
+| R28 | `ToolReachSharedTest` (every kind, loot, built-in, assumed), `SecurityAuditTest` and `ToolReachTest` unchanged | ✅ 4g.1 |
+| R29 | `ToolCallReachTest`, `ToolReachMappingTest`, `NewEventsMappingTest` unchanged | ✅ 4g.1 |
 | R30 | `InjectionScanTest`, `SecurityRedactionTest` | ⬜ 4g |
 | R31 | `InjectionScanTest` (bounds, hostile input, off) | ⬜ 4g |
 | R32 | `SecurityViewTest` | ⬜ 4g |

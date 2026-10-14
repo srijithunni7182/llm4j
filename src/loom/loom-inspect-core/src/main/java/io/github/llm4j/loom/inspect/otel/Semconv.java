@@ -82,6 +82,9 @@ public final class Semconv {
     public static final String LOOM_MODEL_TRUNCATED = "loom.model.truncated";
     public static final String LOOM_MODEL_DURATION_MS = "loom.model.duration_ms";
     public static final String LOOM_TOOL_OUTCOME = "loom.tool.outcome";
+    /** The legs of the lethal trifecta a tool touches (a sorted list of outward, private, untrusted; empty for none) and whether that is known or assumed. */
+    public static final String LOOM_TOOL_REACH = "loom.tool.reach";
+    public static final String LOOM_TOOL_REACH_KNOWN = "loom.tool.reach_known";
     public static final String LOOM_TOOL_SOFT_FAILURE = "loom.tool.soft_failure";
     public static final String LOOM_TOOL_RESULT_CHARS = "loom.tool.result_chars";
     public static final String LOOM_TOOL_APPROVAL_MS = "loom.tool.approval_ms";
