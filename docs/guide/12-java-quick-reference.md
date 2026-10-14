@@ -13,12 +13,20 @@ Each method is one thing you may want to do. Copy the one you need.
 package app;
 
 import io.github.llm4j.LLMClient;
+import io.github.llm4j.agent.AgentEventListener;
+import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.agent.task.Task;
 import io.github.llm4j.agent.task.TaskContext;
 import io.github.llm4j.agent.task.TaskEffect;
 import io.github.llm4j.agent.task.TaskResult;
 import io.github.llm4j.budget.PriceTable;
+import io.github.llm4j.context.CompactionEvent;
+import io.github.llm4j.context.ContextCompactor;
+import io.github.llm4j.context.ContextCompactors;
+import io.github.llm4j.context.ContextPolicy;
+import io.github.llm4j.context.ContextUsage;
+import io.github.llm4j.context.ContextWindow;
 import io.github.llm4j.eval.dataset.EvalDataset;
 import io.github.llm4j.eval.dataset.EvalScenario;
 import io.github.llm4j.eval.testing.ScriptedClient;
@@ -29,7 +37,11 @@ import io.github.llm4j.loom.execution.HarnessExecutor;
 import io.github.llm4j.loom.execution.LLMClientFactory;
 import io.github.llm4j.loom.execution.LoomLoader;
 import io.github.llm4j.loom.execution.ToolRegistry;
+import io.github.llm4j.loom.context.WindowLayers;
 import io.github.llm4j.loom.execution.TraceEvent;
+import io.github.llm4j.loom.observe.Observe;
+import io.github.llm4j.loom.observe.ObserveOptions;
+import io.github.llm4j.loom.observe.ObserveProvider;
 import io.github.llm4j.loom.prompt.PromptSettings;
 import io.github.llm4j.loom.prompt.PromptSupport;
 import io.github.llm4j.loom.runtime.FileRunJournal;
@@ -95,6 +107,51 @@ public final class QuickReference {
         return total.calls() + " calls, " + total.tokens() + " tokens, cost " + total.cost();
     }
 
+    /** Context windows and your own compaction strategy, for a host (`weave` does this from the `.windows` and `.loct` files). Call both BEFORE initialize(). */
+    static void context(HarnessExecutor executor, Path scriptFile, ContextCompactor mine) {
+        Path beside = Path.of(scriptFile.toAbsolutePath() + ".windows");                                      // model = window / reserve for the answer
+        Path user = Path.of(System.getProperty("user.home"), ".llm4j", "context-windows");
+        executor.setContextWindows(WindowLayers.load(List.of(), beside, user));                              // files, then the catalogue that ships with the jar
+        executor.registerCompactor("keep_decisions", mine);                                                   // then in the script: compact: chain(trim_tool_results, keep_decisions, drop_oldest)
+    }
+
+    /** An agent written in Java instead of Loom: the same context management, with the same strategies and the same events. */
+    static ReActAgent javaAgent(LLMClient model, Tool search, int windowTokens) {
+        AgentEventListener watch = new AgentEventListener() {
+            @Override public void onThought(String thought) { }
+            @Override public void onAction(String tool, String input) { }
+            @Override public void onObservation(String observation) { }
+            @Override public void onContextUsage(ContextUsage usage) { usage.fraction().ifPresent(f -> System.out.printf("context %.0f%% full%n", f * 100)); }
+            @Override public void onCompaction(CompactionEvent event) { System.out.println(event.result().strategy() + ": " + event.result().tokensBefore() + " -> " + event.result().tokensAfter()); }
+        };
+        return ReActAgent.builder()
+                .llmClient(model)
+                .addTool(search)
+                .contextPolicy(ContextPolicy.builder().window(ContextWindow.of(windowTokens)).keepRecent(4).build())
+                .compaction(ContextCompactors.chain(ContextCompactors.trimToolResults(2_000), ContextCompactors.dropOldest()))
+                .addListener(watch)
+                .build();
+    }
+
+    /** What happened in a run, in numbers: the statistics are kept whether or not anyone traces. */
+    static String statistics(HarnessExecutor executor) {
+        var stats = executor.stats();
+        return stats.totalModelCalls() + " model calls, " + stats.totalToolCalls() + " tool calls, " + stats.totalToolFailures() + " failed, " + stats.truncatedAnswers() + " truncated";
+    }
+
+    /** Watch a run from a host, with the same add-on as `weave run --observe` (the loom-inspect jar must be on the class path). Attach BEFORE initialize(). */
+    static void watch(HarnessExecutor executor, Path scriptFile) throws Exception {
+        ObserveOptions options = ObserveOptions.parse("8787", null, null, "checkout", null);                  // port, bind, detail, process name, linger: null takes the default
+        try (ObserveProvider.Session page = Observe.open(options, System.out)) {
+            page.attach(executor.observable(), scriptFile);                                                    // a <script>.inspect file beside the script is found
+            System.out.println(page.summary());
+            executor.initialize();
+            executor.executeWorkflow("Main", Map.of("topic", "composting"));
+        } finally {
+            executor.shutdown();
+        }
+    }
+
     /** A step that must be exact code. Register it in META-INF/services/io.github.llm4j.agent.task.Task, one class name per line. */
     public static final class Slugify implements Task {
         @Override public String getName() { return "Slugify"; }
@@ -133,6 +190,9 @@ public final class QuickReference {
 | Test a task with no model | `TaskContext.of(args, variables, stepId, key)` | [chapter 6](06-build-the-workflow.md) |
 | Record results in the eval4j dashboard | `EvalRun`, `EvalChecks`, `MetricRef` (`io.github.llm4j.eval.export`) | the starter's `ScriptWiringTest` shows the pattern |
 | A host with a screen | the complete class in [chapter 9](09-go-live.md) | blocking `HumanInterface`, spend, secret store |
+| Keep a long run inside the model's window; your own strategy | `HarnessExecutor.setContextWindows`, `registerCompactor`; `ContextCompactors`, `ContextPolicy` (`io.github.llm4j.context`) | [chapter 14](14-context-and-compaction.md); the methods `context` and `javaAgent` above |
+| What a run did, in numbers (calls, failures, retries, truncated answers) | `executor.stats()` (`RunStats`, `io.github.llm4j.telemetry`) | the method `statistics` above; kept whether or not anyone traces |
+| Watch a run on a page, or report to a Fabric server | `Observe.open`, `ObserveOptions` (`io.github.llm4j.loom.observe`); needs the loom-inspect jar | the method `watch` above; the `llm4j-loom-deployer` skill sets up the server |
 | Describe, do not run, tasks that change things | `executor.setSimulateTasks(true)` | `weave eval --mock` does this |
 
 ## Rules that are easy to get wrong

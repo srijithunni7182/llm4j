@@ -76,6 +76,29 @@ workflow Refund(msg) {
 - A task spends no tokens and does not count against the run budget; a task that changes things is **never repeated by a crash or a `retry`** unless it is idempotent.
 - Reference: `weave guide loom`, the section "Tasks".
 
+## Two things that will happen to a real run: a step fails, and a prompt grows
+
+**A step can fail, and the script should say what then.** A `run` task or a `delegate` can end in an error (a provider times out, a refund is refused, a model keeps failing). Say what the workflow does about it, on the step:
+
+<!-- weave check -->
+```loom
+agent Writer {
+    model: "claude-sonnet-5-5"
+    context { compact: chain(trim_tool_results, drop_oldest) }
+}
+
+workflow Main(topic) {
+    delegate "Write a short piece about {topic}" to Writer -> draft retry 2 on_failure { note "The writer could not finish: {_error}" }
+    note "{draft}"
+}
+```
+
+- `retry N` tries the step again (a task that changes things is retried only if it is idempotent; `weave check` refuses otherwise).
+- `on_failure { ... }` takes over when the retries are used up, and the workflow goes on: a person is asked, a note is made, another path is taken. A step that has **no** `on_failure` ends the run as failed, and the run says which step did it: `failed_kind` (`task` or `delegate`), `failed_name`, `failed_step` and `failed_category` in the trace. A watched run shows this as a banner naming the step, and a step that went through its `on_failure` is shown as a quieter *diverted* line.
+- Decide for each task and delegate: is a failure here worth stopping the run, worth a retry, or worth a person? Do not leave it to chance.
+
+**A prompt can outgrow the window.** An agent that loops over tools adds to its prompt on every step. The `context { ... }` block in the agent (above) says how it keeps the prompt inside the model's window, and the windows live outside the script. Whether an agent needs it, which strategies to chain, and how to watch it is [chapter 14](14-context-and-compaction.md): read it before you finish a script whose agents loop on tools.
+
 ## When something is missing: write it, do not leave a gap
 
 If the workflow needs a capability no built-in tool has, or a step that must always happen, **the agent building it writes that code** (you review it); it never leaves a
@@ -322,5 +345,7 @@ What to know before you cut (each of these has caught people out):
 > **Words are compared exactly.** A branch like `alt (decision == "yes")` is true only for the text `yes`: not `Yes`, not `yes `. Whatever sends the answer (a button, a person typing) must send exactly the words the script compares, and the script's comment should say which.
 
 ## Gate
+
+If an agent loops on tools: it has a `context` block, or you decided with the user that it does not need one ([chapter 14](14-context-and-compaction.md)). Every `run` and `delegate` whose failure matters has a `retry`, an `on_failure`, or a written decision to let the run fail.
 
 `weave check your.loom` passes (next chapter), and the script uses the prompts and temperatures you tested, unchanged.

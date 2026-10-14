@@ -26,6 +26,8 @@ Lessons from building and evaluating Hexamind, in the order they would have save
 - Don't give an agent a tool that moves money and hope its prompt keeps it safe; and don't `retry` a task that changes things unless it is idempotent (`weave check` refuses).
 - Don't optimize prompts before they have tests, or apply a patch that did not `generalize()`.
 - Don't put keys in files, scripts or chat. If you do, rotate them.
+- Don't let an agent that loops on tools run with no plan for its context window: a long tool loop fills it ([chapter 14](14-context-and-compaction.md)).
+- Don't accept the lethal trifecta for an agent on your own: the user decides, in writing, with a reason.
 - Don't let one stage's tight ceiling cancel the rest: order stages so cheap, informative ones run first, and make a tripped ceiling an explicit stop, not a silent cascade of errors.
 
 ## Readiness checklist
@@ -39,6 +41,10 @@ Lessons from building and evaluating Hexamind, in the order they would have save
 - [ ] Trajectory tests (path, branches, rounds, call count, budget stop) pass for free in CI
 - [ ] Provider limits set; caps below them; stage ceilings from measured costs
 - [ ] Keys in the environment only; `audit` logging on; journal on for real runs
+- [ ] Agents that loop on tools have a `context` block, and each model's context window is known ([chapter 14](14-context-and-compaction.md))
+- [ ] Every agent holding the lethal trifecta is split or accepted in writing; tools declare their `reach`
+- [ ] Every `run` and `delegate` that can fail says what happens (`retry`, `on_failure`, or a decision to stop)
+- [ ] A run someone else will watch reports with `--observe` or `--observe-fabric`, set up with the `llm4j-loom-deployer` skill
 - [ ] Smoke run done; first real run within twice the model; report reviewed
 
 Start again at [the map](README.md) whenever a stage fails its gate: the order is the point.

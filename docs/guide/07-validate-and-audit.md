@@ -59,6 +59,25 @@ BannedPhraseChecker.reach = reads
 so none has the trifecta; the moderator, coordinator and debunker have no tools at all; there is a run budget; secrets come from the environment.
 The report also states what it cannot see: what Java or MCP tools do, OS and database permissions, and what agents produce.
 
+## The same question, asked of a real run: the trifecta, live
+
+`weave audit` is the **static** review: what each agent *could* do, from the script. A watched run answers the other half: what it *did*. The page (and the trace) tell, for each agent in a run, which tools it actually called on each leg of the trifecta, and raise a **lethal trifecta** incident when one agent used all three in one run. For both to agree, the tools declare what they reach:
+
+- a tool declared in the script (`tool X { use: class  class: "..."  reach: reads }`) or in a `.loot` file (`X.reach = reads`) says it once, and the audit and the trace use the same word;
+- a tool that says nothing is assumed to touch all three (marked *assumed* on the page, and an assumed-only trifecta closes with the run instead of staying).
+
+Some agents legitimately use all three (a support agent reads a ticket, looks up the customer, replies). Decide each one **with the user**, then either split the agent (see below) or **accept it in writing**, in the rules file beside the script, `<script>.inspect`:
+
+```text
+Support {
+    trifecta: accepted "customer support: reads the page, looks up the account, replies by mail; reviewed 2026-10-14"
+}
+```
+
+The reason is required (a rule without one is an error), the incident drops from high to information with the reason shown, and from then on any suspected injection on that agent is high. Accepting for `*` is allowed and is warned about: it hides the signal where it matters most. Check the file without running anything: `weave observe rules <script>`. The agent must never accept on the user's behalf: the user decides, and the reason names who looked and when.
+
+Two more security signals only a run can give: a tool result that reads like injected instructions (a heuristic: the page keeps the pattern group names, never the text), and refused access (a tool answering 403, an unknown tool, a refused approval). They are leads, not verdicts; the page says what it cannot tell you.
+
 ## Fix what it finds, with these building blocks
 
 ```loom
@@ -98,6 +117,8 @@ eval4j has no ready-made PII-leak or red-team assertions yet; a hostile case, a 
 and a judged rubric is the supported way today.
 
 ## Gate
+
+For each agent the audit marks as holding the trifecta, the user has decided: split it, or accept it in writing with a reason. Tools declare their `reach` so the audit and a watched run agree.
 
 `weave check` exits 0, `weave audit --fail-on medium` exits 0 (or every finding is understood and written down), and the injection cases pass. Run both
 commands in CI so a later edit cannot reintroduce a finding. Add `audit { logger: "file" ... }` so runs leave an audit trail.

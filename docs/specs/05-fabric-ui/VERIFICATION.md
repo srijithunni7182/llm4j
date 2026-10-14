@@ -58,10 +58,10 @@ Status: **built; manual and live checks owed (§4)**. Run top to bottom at the e
 | R33 | `RunHistoryTest` (bound, 60,000-record soak), `FabricServerTest` (restored run has history) | ✅ 5f-2 |
 | R35 | `calm.page.test.js` (tab cap, Runs list, filter, start times, a finished run leaves the row) | ✅ 5f-1 |
 | R34 | `FabricSimScriptTest` (the preset, the README), `fabric-sim` README | ✅ 5f-1 |
-| R36 | `GuideChapter14Test` | ⬜ |
-| R37 | `GuideChapter14Test`, `GuideDeployTest`, `JavaQuickReferenceTest` | ⬜ |
-| R38 | `SkillDriftTest`, `SkillKitTest` | ⬜ |
-| R39 | `GuideChapter14Test` (snippets), `SkillDriftTest` | ⬜ |
+| R36 | `GuideChapter14Test` | ✅ 5f-3a |
+| R37 | `GuideChapter14Test`, `GuideDeployTest`, `JavaQuickReferenceTest` | ✅ 5f-3a |
+| R38 | `SkillDriftTest`, `SkillKitTest` | ✅ 5f-3a |
+| R39 | `GuideChapter14Test` (snippets), `SkillDriftTest` | ✅ 5f-3a |
 | R40 | `SkillDriftTest`, `DeployerSkillTest` | ⬜ |
 | R41 | `DeployerScriptsTest` | ⬜ |
 | R42 | `SkillDriftTest` (page elements named exist), `DeployerSkillTest` | ⬜ |
@@ -110,6 +110,7 @@ Stack-level pages are owed once at the end of the whole work.
 | 2026-10-14 | 5e | Pass | The cross-cutting checks, all as tests: contrast of every token pair in both themes and of every visible text as drawn on every page; a keyboard-only walk, visible focus, roles and names, a word beside every colour; 360, 768 and 1360 px; hostile text (markup, 400-character names, right-to-left, emoji, control characters) through every run and fleet view; no console or page error and no failed request over all eleven scenarios; request rate on a fleet page; 500 tools and 200 agents. Findings fixed: two token pairs fell short (dark `line-strong` on raised surfaces 2.99:1, light `rung-suggest` 4.28:1 and `rung-watch` 3.82:1), faint timestamps on tinted rows (3.85:1), a hostile or long name widened the page by thousands of pixels (text now wraps; a name is cut in its cell with the whole in its title), the Configuration page overflowed at 360 px, and the fleet table drew all 500 rows (it now draws the first 200 and says so). Screenshots for the wiki were taken from the scenarios. The page is still four static files, two marks and the fonts, and no pom changed in the phase |
 | 2026-10-14 | 5f-1 | Pass | Calm: tabs keep the order they first appeared in, a new run is appended and never takes the selection, at most eight tabs (selected, live, just finished), a **Runs** list (filter, status chips, grouping, start times) holds the rest, held row order with an "order changed / Re-sort" chip on the run's and the fleet's tools tables, a **Live / Paused** control that freezes every redraw and counts what changed from the cheap run list, and `fabric-sim.sh calm`. 8 browser tests (`calm.page.test.js`), 2 script tests; all 55 browser tests pass. Findings: the existing tests assumed a tab per run (the helper now picks a finished run from the Runs list); a selected run stays in the tab row while another page is open; a finished run is shown for a minute only if it was seen live; the old `.run` row style clashed with the list's rows (renamed) |
 | 2026-10-14 | 5f-2 | Pass | Time: each run keeps the records it was built from (at most 50,000; the oldest drop and a view then says `partial`), `GET /api/runs/{trace}/timeline` (at most 300 marks: start, end, incidents opened and closed, failures, compactions, changes of state) and `GET /api/runs/{trace}?at=SEQ` (the view rebuilt by the same code as the live view, `live: false`, `asOf`, no controls; 404 with where the history starts), and a time bar on the run page (slider, a marker for each mark, previous and next incident, a banner that says it is a snapshot with Back to live). 7 + 4 + 2 + 1 Java tests, 9 browser tests (`time.page.test.js`); all 64 browser tests and the Java suites pass. Findings: a past view uses today's rules, prices and windows (the records are the past, the settings are now) and says so in the docs; the soak test takes about 8 s so it is the slow one; no junit-params in the build, so the scenario checks loop |
+| 2026-10-14 | 5f-3a | Pass | The workflow skill and the guide, brought up to date: a new chapter 14 (context and compaction: when, how, the windows, your own strategy, the page and its three signals), chapters 6 (failing steps: `retry`, `on_failure`, what a failed run names; the context block), 7 (the trifecta live, `reach`, accepting it in writing, injection and refused access), 9 (watching a run, the hand-over to the deployer skill), 10 (do, don't, checklist), 12 (Java: windows and your own strategy, an agent in Java, statistics, watching from a host), the guide's map, `SKILL.md` (description, stage 14, three things a real workflow needs, when to hand over, honest edges) and `llms.txt`. `GuideChapter14Test` (4 tests: listing and the jar, the chapter's content, what the others say, three Loom blocks pass `weave check`), the existing guide, skill and link tests updated and passing. The Java reference block was compiled with `javac` against the built jars here (the module's `GuideCompilesTest` needs the network for its test dependencies and runs in CI). Found: the page list held chapter 6 twice (fixed); `note` is a reserved word for a result name |
 
 ### Documentation record (per sub-phase)
 
@@ -122,6 +123,7 @@ Stack-level pages are owed once at the end of the whole work.
 | 5e | ✅ wiki Fabric-Server (screenshots, what the pages show), specs | ✅ browser tests over the scenarios | ✅ | n/a | deferred to the end | ✅ traceability, results |
 | 5f-1 | ✅ loom-inspect DESIGN §11o, wiki Fabric-Server, fabric-sim README | ✅ browser tests | ✅ | n/a | deferred to the end | ✅ traceability, results |
 | 5f-2 | ✅ loom-inspect DESIGN §11o, wiki Fabric-Server | ✅ browser tests | ✅ | n/a | deferred to the end | ✅ traceability, results |
+| 5f-3a | ✅ guide chapters, SKILL.md, llms.txt | ✅ Loom blocks pass `weave check`; Java compiles | ✅ | ✅ | deferred to the end | ✅ traceability, results |
 
 ### Owed to the stack-level pages (updated once, at the end of the whole work)
 

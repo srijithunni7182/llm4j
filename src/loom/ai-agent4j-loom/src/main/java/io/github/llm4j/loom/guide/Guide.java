@@ -12,7 +12,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * The written guide, from inside the jar: the ten chapters, the Loom reference and a short index for tools, and the skill that teaches an agent
+ * The written guide, from inside the jar: the chapters, the Loom reference and a short index for tools, and the skill that teaches an agent
  * to use them. They are copied in when the jar is built, so they are there for someone who has the jar and nothing else.
  */
 public final class Guide {
@@ -35,6 +35,7 @@ public final class Guide {
             new Page("11", "Build the test examples together with the user", "guide/11-build-the-dataset-with-the-user.md"),
             new Page("12", "Java quick reference: the imports and calls you need", "guide/12-java-quick-reference.md"),
             new Page("13", "Earned autonomy: let an agent earn the right to decide (optional)", "guide/13-earned-autonomy.md"),
+            new Page("14", "Context and compaction: keep a long run inside the model's window", "guide/14-context-and-compaction.md"),
             new Page("recipes", "Recipes: change the starter to do what you want", "guide/RECIPES.md"),
             new Page("loom", "The Loom reference: every statement, option and command", "guide/LOOM_GUIDE.md"),
             new Page("llms", "A one-page index of the framework, for tools and agents", "guide/llms.txt"));
