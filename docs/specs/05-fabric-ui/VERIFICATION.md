@@ -35,8 +35,8 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 5e; the 
 | R12 | `fleet.page.test.js` (Tools & tasks) | ✅ 5c |
 | R13 | `fleet.page.test.js` (Security) | ✅ 5c |
 | R14 | `run.page.test.js` (incidents) | ✅ 5b |
-| R15 | `config.page.test.js`, `FabricConfigPhase5Test` | ⬜ |
-| R16 | `config.page.test.js` (windows), `WindowsConfigTest` | ⬜ |
+| R15 | `config.page.test.js`, `FabricConfigPhase5Test` | ✅ 5d |
+| R16 | `config.page.test.js` (windows), `WindowsConfigTest` | ✅ 5d |
 | R17 | `ContrastTest`, `a11y.page.test.js` | ⬜ |
 | R18 | `responsive.page.test.js` | ⬜ |
 | R19 | `a11y.page.test.js` | ⬜ |
@@ -83,6 +83,7 @@ Stack-level pages are owed once at the end of the whole work.
 | 2026-10-14 | 5a | Pass | Tests first for the view additions, the window catalog and its file, the `windows` configuration section, the two fleet routes (embedded and Fabric), the summaries and the thirteen scenarios (and a live one through a real Fabric): 77 new tests. Findings while building: `trifecta` and `trifecta-accepted` are two scenarios (the design said one with and without); an acceptance saved after an incident was raised does not lower it (rules are normally in place before the run), noted in the docs; a short run exited before its last events reached the server, so the simulator waits for delivery; the scenario path did not hand the executor the secret store that holds the server key. The scenarios are thirteen, not twelve |
 | 2026-10-14 | 5b | Pass | The run page: `RunViewForPageTest` (view shape the page reads), the fixture server (`sim/Fixtures`) and 13 browser tests (Playwright, Chromium) over eleven scenarios: banner and diverted line, Context and Tasks cards, hatched bar without a window, timeline with markers and table equivalent, tools and tasks table with expansion, Security panel (trifecta, accepted, injected page, refused access) and the new incident kinds. Full inspect-core and inspect suites pass (199 Java tests in the two modules). Findings from screenshots: the timeline was drawn in a small viewBox and sat narrow in a wide panel (now 960 wide); security card values inherited upper-casing |
 | 2026-10-14 | 5c | Pass | The fleet pages: Tools & tasks (counts by health, three filters, table over every run with a last-ten strip, expansion with a link to the run it last failed in, order held while a row is open) and Security (counts, agents that matter with reasons, open findings with links, the fixed statement), with tab badges. 7 new browser tests (`fleet.page.test.js`) and 2 route tests; all 21 browser tests and the inspect-core, inspect and fabric suites pass. Findings: fleet rows had no last-ten outcomes (a merged summary has none; the registry now joins each run's last ten, oldest run first) and the page computed runs-that-ran from a field fleet rows lack (now uses `ran`); `/api/runs` gained `fleet.toolsFailing` for the badge so a fleet page costs one extra poll. One end-to-end OTLP test (`FabricEndToEndTest`) failed once under full-suite load and passes alone and on re-run: a timing-sensitive wait, not touched by this phase. Also R25: Fabric is branded Fabric with its own mark |
+| 2026-10-14 | 5d | Pass | The Configuration page: the rule editor now offers fourteen behaviours (the eight new ones with their own inputs, defaults beside each, an accepted trifecta needing a reason, the server's refusals and the `*` warning shown as written) and a context-windows card (table by model, set / edit / remove, save, discard, text form) saved through the same route and audit as prices. 6 browser tests (`config.page.test.js`) run against a real Fabric started from its CLI (new `startFabric` helper); all 27 browser tests and the inspect-core and fabric Java tests pass. Findings: the Configuration tab sits behind Fabric's sign-in, so the test signs in through the page; the editor reads the options after the configuration loads |
 
 ### Documentation record (per sub-phase)
 
@@ -91,6 +92,7 @@ Stack-level pages are owed once at the end of the whole work.
 | 5a | ✅ wiki Fabric-Server (windows section, fleet routes), loom-inspect DESIGN §11o, fabric-sim README (scenarios) | ✅ scenarios run in tests | ✅ | n/a | deferred to the end | ✅ traceability, results |
 | 5b | ✅ loom-inspect DESIGN §11o, specs | ✅ browser tests run the scenarios | ✅ | n/a | deferred to the end | ✅ traceability, results |
 | 5c | ✅ loom-inspect DESIGN §11o, specs | ✅ browser tests run the scenarios | ✅ | n/a | deferred to the end | ✅ traceability, results |
+| 5d | ✅ loom-inspect DESIGN §11o, wiki Fabric-Server | ✅ browser tests against a real Fabric | ✅ | n/a | deferred to the end | ✅ traceability, results |
 
 ### Owed to the stack-level pages (updated once, at the end of the whole work)
 

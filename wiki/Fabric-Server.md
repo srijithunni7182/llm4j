@@ -106,13 +106,16 @@ script. You edit them with pickers, not by typing syntax; each has its own **Sav
 **Inspect rules: pick an agent, a behaviour, then a threshold.**
 
 1. **Agent**: *All agents*, or one of the agents your runs have shown (read from the runs and their snapshots), or *Another agent…* to type a name.
-2. **Behaviour**: *Same tool call repeated*, *Same answer repeated*, *Tool keeps failing*, *Figures with no source*, *Paused for too long* or
-   *No progress across loop rounds*. A line under the picker says what it flags and the default.
+2. **Behaviour**: *Same tool call repeated*, *Same answer repeated*, *Tool keeps failing*, *Figures with no source*, *Paused for too long*,
+   *No progress across loop rounds*, *Context nearly full*, *Truncated answers*, *Compaction thrash*, *Tool success rate*, *Latency spike*,
+   *Access refused*, *Injection scan* or *Accepted trifecta*. A line under the picker says what it flags and the default.
 3. **Threshold**: the fields change with the behaviour: a count of times; *warn at* and *high at* for figures; a number with a unit (seconds
-   to days) for a pause; rounds and the workflow variable for no progress.
+   to days) for a pause; rounds and the workflow variable for no progress; warn and high percent for context; a count and a span for compaction thrash and refused access; a percent and a number of calls for tool success; a factor for a latency spike; on or off for the injection scan; and, for an accepted trifecta, a **reason** (required: the page will not add one without it, and accepting for *All agents* brings the check's warning that it hides the signal). The page does not check the grammar itself: what the server refuses comes back as it wrote it, and your edits stay on the page.
 
 **Add rule** puts it in the table (agent, behaviour, threshold, and the default it replaces); **Remove** takes one out. Nothing is kept until
 **Save rules**. The table is built from the saved rules, so a file written by hand shows up in it too.
+
+**Context windows: pick a model, then set its usable window in tokens.** The same table shape as the prices (set, edit, remove, save, discard), kept in `windows.properties`.
 
 **Price table: pick a model, then set its input and output price.** The table lists the models your runs use, with the agents that use each
 and its prices, or *not priced*. **Set price** (or **Edit**) on a row opens its two fields, **Input** and **Output**, in dollars per million

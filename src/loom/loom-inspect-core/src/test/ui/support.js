@@ -93,4 +93,34 @@ async function openTab(page, name) {
   await page.locator('#runtabs button', { hasText: name }).first().click();
 }
 
-module.exports = { missing, launch, startFixtures, openRun, openTab };
+const PASSWORD = 'correct horse battery staple';
+
+/** A real Fabric server (its own CLI, an empty data directory, an admin password); the core jar goes first so the page under test is the one served. Resolves {base, stop, password}. */
+function startFabric() {
+  const core = jar('src/loom/loom-inspect-core', /^loom-inspect-core-\d.*\.jar$/);
+  const fab = jar('src/loom/loom-fabric', /^loom-fabric-\d.*-all\.jar$/) || jar('src/loom/loom-fabric', /^loom-fabric-\d.*\.jar$/);
+  if (!core || !fab) return Promise.reject(new Error('the fabric jar is not built'));
+  const cp = [core, fab].join(path.delimiter);
+  const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'fabric-ui-'));
+  const env = Object.assign({}, process.env, { LOOM_FABRIC_ADMIN_PASSWORD: PASSWORD });
+  const main = 'io.github.llm4j.loom.fabric.FabricCLI';
+  execSync(['java', '-cp', cp, main, 'init', '--data', dir].join(' '), { env, stdio: 'ignore' });
+  return new Promise((resolve, reject) => {
+    const net = require('net');
+    const probe = net.createServer().listen(0, '127.0.0.1', () => {
+      const port = probe.address().port;
+      probe.close(() => {
+        const child = spawn('java', ['-cp', cp, main, 'serve', '--data', dir, '--port', String(port)], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+        const timer = setTimeout(() => { child.kill(); reject(new Error('fabric did not start in 60 s')); }, 60000);
+        const tryUp = () => {
+          require('http').get({ host: '127.0.0.1', port, path: '/api/session' }, (r) => { r.resume(); clearTimeout(timer); resolve({ base: 'http://127.0.0.1:' + port, password: PASSWORD, dir, stop: () => child.kill() }); })
+            .on('error', () => setTimeout(tryUp, 300));
+        };
+        child.stdout.on('data', () => { /* log */ }); child.stderr.on('data', () => { /* log */ });
+        tryUp();
+      });
+    });
+  });
+}
+
+module.exports = { missing, launch, startFixtures, startFabric, openRun, openTab };

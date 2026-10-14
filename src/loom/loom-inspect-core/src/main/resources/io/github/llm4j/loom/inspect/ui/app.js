@@ -1055,13 +1055,21 @@
     $('favicon').setAttribute('type', fabric ? 'image/svg+xml' : 'image/png');
     document.title = fabric ? 'Fabric' : 'loom-inspect';
   }
-  var cfg = { catalog: { agents: [], models: [] }, defaults: {}, rules: {}, prices: [], loaded: false, rulesDirty: false, pricesDirty: false, picked: null };
+  var cfg = { catalog: { agents: [], models: [] }, defaults: {}, rules: {}, prices: [], loaded: false, rulesDirty: false, pricesDirty: false, picked: null, windows: [], windowsDirty: false, wpicked: null };
   var BEHAVIOURS = [
     { key: 'same_action', label: 'Same tool call repeated', hint: 'the same tool called with the same input this many times in one step' },
     { key: 'same_output', label: 'Same answer repeated', hint: 'the same answer from the same step this many times in a row' },
     { key: 'tool_failures', label: 'Tool keeps failing', hint: 'a tool failing this many times in a row' },
     { key: 'ungrounded_figures', label: 'Figures with no source', hint: 'figures in an answer found in nothing the step saw: warn at one count, high at a larger one' },
     { key: 'paused_longer_than', label: 'Paused for too long', hint: 'a pause (rate limit, budget window) longer than this becomes a warning' },
+    { key: 'context_nearly_full', label: 'Context nearly full', full: true, hint: 'An agent whose prompt fills this share of its usable window: a warning at the first, high at the second.' },
+    { key: 'truncated_answers', label: 'Truncated answers', full: true, hint: 'Replies cut off at the token limit: a warning after this many.' },
+    { key: 'compaction_thrash', label: 'Compaction thrash', full: true, hint: 'Compaction that runs this often yet frees little, within a window of model calls.' },
+    { key: 'tool_success_rate', label: 'Tool success rate', full: true, hint: 'A tool or task whose recent success rate drops below this share: a warning, high at 40% of it. Needs at least 5 calls.' },
+    { key: 'latency_spike', label: 'Latency spike', full: true, hint: 'A call that takes this many times the tool\'s usual (median) time.' },
+    { key: 'access_denied', label: 'Access refused', full: true, hint: 'A tool refusing an agent this many times within the span.' },
+    { key: 'injection_scan', label: 'Injection scan', full: true, hint: 'Whether results from tools that read content you do not control are scanned for text that reads like instructions.' },
+    { key: 'trifecta_accepted', label: 'Accepted trifecta', full: true, hint: 'Accept, in writing, that this agent uses all three legs of the lethal trifecta. The reason is required; the alert drops from high to info for this agent.' },
     { key: 'no_progress', label: 'No progress across loop rounds', hint: 'a workflow variable unchanged at the end of this many loop rounds in a row. One agent only. It applies to runs whose process already watches this variable in its own rules; the rounds set here replace that count' }
   ];
   function behaviour(key) { return BEHAVIOURS.filter(function (b) { return b.key === key; })[0]; }
@@ -1076,13 +1084,22 @@
     if (key === 'ungrounded_figures') { return [v.warn != null ? 'warn at ' + v.warn : null, v.high != null ? 'high at ' + v.high : null].filter(Boolean).join(', '); }
     if (key === 'paused_longer_than') { return span(v); }
     if (key === 'no_progress') { return v.rounds + ' rounds on ' + v.variable; }
+    if (key === 'context_nearly_full') { return [v.warn != null ? 'warn ' + v.warn + '%' : null, v.high != null ? 'high ' + v.high + '%' : null].filter(Boolean).join(', '); }
+    if (key === 'truncated_answers') { return plural(v, 'time'); }
+    if (key === 'compaction_thrash') { return v.count + ' in ' + plural(v.of_calls, 'call'); }
+    if (key === 'tool_success_rate') { return 'below ' + v.below + '% over ' + plural(v.over_calls, 'call'); }
+    if (key === 'latency_spike') { return v + '\u00d7 the median'; }
+    if (key === 'access_denied') { return v.count + ' in ' + v.seconds + ' s'; }
+    if (key === 'injection_scan') { return v ? 'on' : 'off'; }
+    if (key === 'trifecta_accepted') { return 'accepted: ' + v; }
     return v + ' times';
   }
   function span(s) { return s % 86400 === 0 ? s / 86400 + 'd' : s % 3600 === 0 ? s / 3600 + 'h' : s % 60 === 0 ? s / 60 + 'm' : s + 's'; }
   function defaultOf(key) {
     var d = cfg.defaults[key];
+    if (key === 'trifecta_accepted') { return 'not accepted'; }
     if (d == null) { return '–'; }
-    return key === 'ungrounded_figures' ? describe(key, d) : key === 'paused_longer_than' ? span(d) : d + ' times';
+    return describe(key, d);
   }
 
   // ---- rules: agent, behaviour, threshold
@@ -1103,6 +1120,21 @@
       num('rf-n', 'Flag after', 3); box.appendChild(el('span', 'muted', 'rounds on'));
       var v = el('input'); v.type = 'text'; v.id = 'rf-var'; v.placeholder = 'review.score'; v.spellcheck = false; box.appendChild(v);
     }
+    var dd = d[key] || {};
+    function fld(id, label, value, unit) { num(id, label, value); if (unit) { box.appendChild(el('span', 'muted', unit)); } }
+    if (key === 'context_nearly_full') { fld('rf-warn', 'Warn at', dd.warn, '%'); fld('rf-high', 'High at', dd.high, '%'); }
+    if (key === 'truncated_answers') { fld('rf-n', 'Warn after', d[key], 'times'); }
+    if (key === 'compaction_thrash') { fld('rf-count', 'Compactions', dd.count, 'in'); fld('rf-of', 'Within', dd.of_calls, 'model calls'); }
+    if (key === 'tool_success_rate') { fld('rf-below', 'Below', dd.below, '% over the last'); fld('rf-over', '', dd.over_calls, 'calls'); }
+    if (key === 'latency_spike') { fld('rf-factor', 'Flag at', d[key], '\u00d7 the median'); }
+    if (key === 'access_denied') { fld('rf-count', 'Refusals', dd.count, 'within'); fld('rf-seconds', '', dd.seconds, 'seconds'); }
+    if (key === 'injection_scan') {
+      var sw = el('label', '', 'Scan results '), on = el('select'); on.id = 'rf-onoff'; opt(on, 'on', 'on'); opt(on, 'off', 'off'); on.value = d[key] === false ? 'off' : 'on'; sw.appendChild(on); box.appendChild(sw);
+    }
+    if (key === 'trifecta_accepted') {
+      var rl = el('label', '', 'Reason '), ri = el('input'); ri.type = 'text'; ri.id = 'rf-reason'; ri.size = 48; ri.placeholder = 'who reviewed it, and why it is safe'; ri.spellcheck = false; rl.appendChild(ri); box.appendChild(rl);
+    }
+    if ((behaviour(key) || {}).full) { $('rb-hint').textContent = behaviour(key).hint + ' Default: ' + defaultOf(key) + '.'; return; }
     $('rb-hint').textContent = (behaviour(key) || {}).hint ? 'Flags ' + behaviour(key).hint + '. Default: ' + defaultOf(key) + '.' : '';
   }
   function agentChosen() { return $('rb-agent').value === '__other' ? $('rb-other').value.trim() : $('rb-agent').value; }
@@ -1136,6 +1168,27 @@
         else if (r == null) { problem = 'Give a whole number of rounds.'; }
         else if (!/^[A-Za-z_][A-Za-z0-9_.]*$/.test(name)) { problem = 'Name the workflow variable, like review.score.'; }
         else { value = { rounds: r, variable: name }; }
+      } else if (key === 'context_nearly_full') {
+        var cw = whole('rf-warn'), ch = whole('rf-high');   // the server checks warn below high and the range; its words are shown as they come
+        if (cw == null && ch == null) { problem = 'Give a whole number of percent for warn, for high, or both.'; }
+        else { value = {}; if (cw != null) { value.warn = cw; } if (ch != null) { value.high = ch; } }
+      } else if (key === 'compaction_thrash') {
+        var tc = whole('rf-count'), to = whole('rf-of');
+        if (tc == null || to == null) { problem = 'Give whole numbers for the compactions and the calls.'; } else { value = { count: tc, of_calls: to }; }
+      } else if (key === 'tool_success_rate') {
+        var tb = whole('rf-below'), tv = whole('rf-over');
+        if (tb == null || tv == null) { problem = 'Give whole numbers for the percent and the calls.'; } else { value = { below: tb, over_calls: tv }; }
+      } else if (key === 'access_denied') {
+        var ac = whole('rf-count'), as = whole('rf-seconds');
+        if (ac == null || as == null) { problem = 'Give whole numbers for the refusals and the seconds.'; } else { value = { count: ac, seconds: as }; }
+      } else if (key === 'latency_spike') {
+        var lf = Number($('rf-factor').value);
+        if (!isFinite(lf) || lf <= 0) { problem = 'Give a number above zero.'; } else { value = lf; }
+      } else if (key === 'injection_scan') {
+        value = $('rf-onoff').value === 'on';
+      } else if (key === 'trifecta_accepted') {
+        var why = $('rf-reason').value.trim();
+        if (!why) { problem = 'An accepted trifecta needs a reason: who reviewed it and why it is safe. It is never accepted silently.'; } else { value = why; }
       } else {
         var c = whole('rf-n'); if (c == null) { problem = 'Give a whole number.'; } else { value = c; }
       }
@@ -1220,13 +1273,58 @@
     cfg.picked = null; renderPrices();
   }
 
+  // ---- context windows: the usable window of a model, for agents whose process did not report one
+  function windowIndex(model) { for (var i = 0; i < cfg.windows.length; i++) { if (cfg.windows[i].model === model) { return i; } } return -1; }
+  function renderWindows() {
+    var body = $('windows-table'), models = {}, order = [];
+    body.textContent = '';
+    cfg.catalog.models.forEach(function (m) { models[m.model] = m.agents; order.push(m.model); });
+    cfg.windows.forEach(function (w) { if (!(w.model in models)) { models[w.model] = []; order.push(w.model); } });
+    if (cfg.wpicked && !(cfg.wpicked in models)) { models[cfg.wpicked] = []; order.push(cfg.wpicked); }
+    order.sort();
+    order.forEach(function (model) {
+      var i = windowIndex(model), w = i >= 0 ? cfg.windows[i] : null, tr = el('tr', cfg.wpicked === model ? 'sel' : '');
+      cell(tr, model, 'mono');
+      cell(tr, models[model].join(', ') || '–', 'mono faint');
+      cell(tr, w ? num(w.window) : 'no window', 'r mono' + (w ? '' : ' unpriced'));
+      var td = el('td'), b = el('button', 'btn', w ? 'Edit' : 'Set window');
+      b.type = 'button';
+      b.addEventListener('click', function () { pickWindow(model); });
+      td.appendChild(b); tr.appendChild(td); body.appendChild(tr);
+    });
+    $('windows-none').hidden = order.length > 0;
+    $('wb').hidden = !cfg.wpicked;
+  }
+  function pickWindow(model) {
+    cfg.wpicked = model;
+    var i = windowIndex(model);
+    $('wb-model').textContent = model;
+    $('wb-window').value = i >= 0 ? cfg.windows[i].window : '';
+    renderWindows();
+    $('wb-window').focus();
+  }
+  function setWindow() {
+    var u = sectionUi('windows'), n = $('wb-window').value.trim();
+    if (!/^\d+$/.test(n)) { showProblems(u, ['Give the usable window as a whole number of tokens.']); return; }
+    showProblems(u, []);
+    var i = windowIndex(cfg.wpicked), entry = { model: cfg.wpicked, window: Number(n) };
+    if (i >= 0) { cfg.windows[i] = entry; } else { cfg.windows.push(entry); }
+    cfg.windowsDirty = true; cfg.wpicked = null; u.msg.textContent = 'unsaved changes'; renderWindows();
+  }
+  function removeWindow() {
+    var i = windowIndex(cfg.wpicked);
+    if (i >= 0) { cfg.windows.splice(i, 1); cfg.windowsDirty = true; sectionUi('windows').msg.textContent = 'unsaved changes'; }
+    cfg.wpicked = null; renderWindows();
+  }
+
   // ---- load and save
   function loadConfig(force) {
     return fetchJson('/api/config').then(function (d) {
       cfg.catalog = d.catalog && d.catalog.agents ? d.catalog : { agents: [], models: [] };
-      var r = d.sections.rules, p = d.sections.prices;
+      var r = d.sections.rules, p = d.sections.prices, wn = d.sections.windows || { text: '', summary: '', warnings: [], structured: [] };
+      d.sections.windows = wn;
       cfg.defaults = r.defaults || {};
-      ['rules', 'prices'].forEach(function (name) {
+      ['rules', 'windows', 'prices'].forEach(function (name) {
         var u = sectionUi(name), s = d.sections[name];
         u.summary.textContent = s.summary;
         if (force || !cfg.loaded) { u.text.value = s.text; }
@@ -1234,8 +1332,10 @@
       });
       if (force || !cfg.loaded || !cfg.rulesDirty) { cfg.rules = JSON.parse(JSON.stringify(r.structured || {})); cfg.rulesDirty = false; }
       if (force || !cfg.loaded || !cfg.pricesDirty) { cfg.prices = JSON.parse(JSON.stringify(p.structured || [])); cfg.pricesDirty = false; }
+      if (force || !cfg.loaded || !cfg.windowsDirty) { cfg.windows = JSON.parse(JSON.stringify(wn.structured || [])); cfg.windowsDirty = false; }
       cfg.loaded = true;
       renderRules();
+      renderWindows();
       renderPrices();
     });
   }
@@ -1271,14 +1371,23 @@
       });
     }).catch(function (err) { u.msg.textContent = err.message; });
   }
-  ['rules', 'prices'].forEach(function (name) {
-    $(name + '-save').addEventListener('click', function () { put(name, { structured: name === 'rules' ? cfg.rules : cfg.prices }); });
+  ['rules', 'windows', 'prices'].forEach(function (name) {
+    $(name + '-save').addEventListener('click', function () { put(name, { structured: name === 'rules' ? cfg.rules : name === 'windows' ? cfg.windows : cfg.prices }); });
     $(name + '-savetext').addEventListener('click', function () { put(name, { text: sectionUi(name).text.value }); });
-    $(name + '-reset').addEventListener('click', function () { var u = sectionUi(name); delete u.problems.dataset.err; u.msg.textContent = ''; cfg.picked = null; loadConfig(true); });
+    $(name + '-reset').addEventListener('click', function () { var u = sectionUi(name); delete u.problems.dataset.err; u.msg.textContent = ''; cfg.picked = null; cfg.wpicked = null; loadConfig(true); });
   });
   $('rb-agent').addEventListener('change', function () { $('rb-other-wrap').hidden = $('rb-agent').value !== '__other'; });
   $('rb-rule').addEventListener('change', buildFields);
   $('rb-add').addEventListener('click', addRule);
+  $('wb-set').addEventListener('click', setWindow);
+  $('wb-remove').addEventListener('click', removeWindow);
+  $('wb-cancel').addEventListener('click', function () { cfg.wpicked = null; renderWindows(); });
+  $('wb-add').addEventListener('click', function () {
+    var m = $('wb-new').value.trim();
+    if (!m) { return; }
+    $('wb-new').value = '';
+    pickWindow(m);
+  });
   $('pb-set').addEventListener('click', setPrice);
   $('pb-remove').addEventListener('click', removePrice);
   $('pb-cancel').addEventListener('click', function () { cfg.picked = null; renderPrices(); });

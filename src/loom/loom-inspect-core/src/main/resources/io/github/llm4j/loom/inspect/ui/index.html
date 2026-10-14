@@ -120,6 +120,32 @@
           <div class="cfgactions"><button class="btn" id="rules-savetext" type="button">Save text</button></div>
         </details>
       </section>
+      <section class="cfgcard" aria-labelledby="h-windows">
+        <h3 id="h-windows">Context windows</h3>
+        <p class="muted" id="windows-summary"></p>
+        <p class="muted small">The usable window of each model, in tokens. An agent whose process was not told its window gets it from here, by its model, so its context gauge and the context-nearly-full rule work. A window a process reports itself wins.</p>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Model</th><th>Used by</th><th class="r">Window (tokens)</th><th></th></tr></thead>
+          <tbody id="windows-table"></tbody>
+        </table></div>
+        <p class="muted pad small" id="windows-none" hidden>No model has been seen yet. Add one below, or start a run.</p>
+        <div class="builder" id="wb" hidden>
+          <strong id="wb-model" class="mono"></strong>
+          <label>Window <input id="wb-window" type="number" min="1" step="1" inputmode="numeric"> <span class="muted">tokens</span></label>
+          <button class="btn" id="wb-set" type="button">Set window</button>
+          <button class="btn" id="wb-remove" type="button">Remove window</button>
+          <button class="btn" id="wb-cancel" type="button">Cancel</button>
+        </div>
+        <div class="builder"><label>Another model <input id="wb-new" type="text" placeholder="model name" spellcheck="false"></label><button class="btn" id="wb-add" type="button">Add</button></div>
+        <ul id="windows-problems" class="problems" role="alert" hidden></ul>
+        <div class="cfgactions"><button class="btn primary" id="windows-save" type="button">Save windows</button><button class="btn" id="windows-reset" type="button">Discard changes</button><span class="mono small" id="windows-msg" role="status"></span></div>
+        <details class="adv"><summary>Edit as text</summary>
+          <p class="muted small">The same table as a file: <code>model = tokens</code>.</p>
+          <label class="sr" for="windows-text">Context windows as text</label>
+          <textarea id="windows-text" class="mono" rows="6" spellcheck="false" placeholder="gemini-2.5-flash = 1048576"></textarea>
+          <div class="cfgactions"><button class="btn" id="windows-savetext" type="button">Save text</button></div>
+        </details>
+      </section>
       <section class="cfgcard" aria-labelledby="h-prices">
         <h3 id="h-prices">Price table</h3>
         <p class="muted" id="prices-summary"></p>
