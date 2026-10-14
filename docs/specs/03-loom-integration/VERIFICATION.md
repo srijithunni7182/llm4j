@@ -15,6 +15,7 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 3e, and 
 | A7 | Loom's own transcript memory stays bounded and `rewind` still works | `TranscriptCompactionTest`, `RewindWithCompactionTest` |
 | A8 | A script that does not use any of this behaves and traces exactly as before | `LoomBackwardCompatTest` |
 | A9 | `weave audit` shows each agent's strategy and window source | audit test |
+| A10a | Plug in my own strategy with a `.loct` file and use its name in the script | `LoctLoaderTest`, `ContextAgentBuildTest` |
 | A10 | Find all of it documented, with a runnable example | docs review (§5) |
 
 ## 2. Traceability: requirement → tests
@@ -39,6 +40,11 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 3e, and 
 | R16 | `ReplayNoDuplicateEventsTest` | ☐ |
 | R17 | extended redaction audit | ☐ |
 | R18 | dependency diff | ☐ |
+| R19 | `LoctLoaderTest` | ☐ |
+| R20 | `LoctLoaderTest`, `LoctCheckTest` | ☐ |
+| R21 | `LoctProviderOptionsTest` | ☐ |
+| R22 | `LoctFaultTest` | ☐ |
+| R23 | `LoctCheckTest#auditDoesNotLoad` | ☐ |
 
 ## 3. Quality gates
 
@@ -56,11 +62,12 @@ Status: **draft for review**. Run top to bottom at the end of sub-phase 3e, and 
 1. **A real long run** against a real provider with a small window set in the windows file: confirm compaction triggers at the configured fill and the answer is sound.
 2. **Summariser choice**: run once with `summarize` and a cheaper model; compare cost and result with `drop_oldest`.
 3. **Windows file in the field**: a deployer edits the file for a new model; no script change.
-4. **VS Code**: the `context` block highlights and hovers.
+4. **A real custom strategy**: write a `ContextCompactor`, map it in a `.loct`, run a long agent with it.
+5. **VS Code**: the `context` block highlights and hovers.
 
 ## 5. Documentation checks
 
-Per the [rule](../README.md#documents-to-update-at-the-end-of-every-sub-phase): the Loom guide and language reference (the `context` block, the windows file),
+Per the [rule](../README.md#documents-to-update-at-the-end-of-every-sub-phase): the Loom guide and language reference (the `context` block, the windows file, the `.loct` file beside the `.loot` documentation),
 the observability pages' event table, VS Code grammar and hover, `llms.txt`, a tested sample page, and a runnable example under `src/examples/`.
 Stack-level pages are owed once at the end of the whole work.
 
@@ -68,7 +75,7 @@ Stack-level pages are owed once at the end of the whole work.
 
 - [ ] Decisions in DESIGN.md §9 confirmed and recorded
 - [ ] Acceptance criteria A1–A10 have evidence
-- [ ] Every requirement R1–R18 has a passing test
+- [ ] Every requirement R1–R23 has a passing test
 - [ ] Quality gates in §3 pass
 - [ ] Manual checks done or listed as owed with the reason
 - [ ] Docs complete; §7 has a row for every sub-phase

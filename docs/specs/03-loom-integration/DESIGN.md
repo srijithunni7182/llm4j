@@ -24,7 +24,8 @@ ai-agent4j agents can now keep their prompt inside the model's window and report
 - G4. The trace carries new events for what the core now reports: context use, compaction, model calls, and tool calls with their real outcome and category.
 - G5. Loom's transcript memory stops growing without limit when a policy is configured: it is compacted by the same strategies.
 - G6. Everything is opt-in: a script with no `context` block and a deployment with no windows file behave exactly as before (golden traces unchanged).
-- G7. `weave check` and `weave audit` understand the new block (unknown strategy, bad numbers, a model with no known window when compaction is on).
+- G7. A **custom strategy** is plugged in with a `.loct` file that maps a name to a class, and used by that name in the script, as `.loot` does for tools.
+- G8. `weave check` and `weave audit` understand the new block (unknown strategy, bad numbers, a model with no known window when compaction is on).
 
 **Non-goals**
 
@@ -59,6 +60,32 @@ A bare `context { compact: drop_oldest }` is a complete, useful declaration.
 
 A strategy name is resolved with `ContextCompactors.byName` (so a host can add its own through `ServiceLoader`). A chain is written `chain(a, b, c)`.
 Strategy options that have a key (`summarize` takes `max_summary_tokens`) are written as further keys of the block, not inside the chain.
+
+### 3.1b Your own strategy: the `.loct` file
+
+Custom tools reach a script through a `.loot` file (`Name = com.acme.Class`). A custom compaction strategy does the same through a **`.loct`** file
+(*loom context tool*), so a script can name it like a built-in:
+
+```
+# strategies.loct
+keep_decisions = com.acme.KeepDecisionsCompactor
+redact_then_drop = com.acme.RedactThenDrop
+```
+```
+agent Researcher {
+    context { compact: chain(trim_tool_results, keep_decisions, drop_oldest) }
+}
+```
+
+- The class implements `ContextCompactor` (a public no-argument constructor), **or** `ContextCompactorProvider` (so it can read the block's extra keys as
+  `options` and use the `ProviderContext`, for example to call a model). Either is found by reflection exactly as `.loot` classes are, from the project classpath.
+- Given with `--loct <file>` (repeatable, like `--loot`), to a host with `HarnessExecutor.loadCompactors(path)` / `registerCompactor(name, compactor)`, or found
+  beside the script as `<script>.loct`. Names in a `.loct` may not shadow a built-in (a clash is an error) and must be lower case with underscores.
+- Resolution of a name in `compact:`: built-ins, then the `.loct` names, then `ServiceLoader` providers; the check says which source resolved each name.
+- `weave audit` never loads the class (as with `.loot`); it lists the name and class as written. `weave check` loads nothing either: it checks that the
+  name is mapped and, when the class is on the classpath, that it has the required constructor (a warning, not an error, if it is not found).
+- A custom strategy is held to the same contract as the built-ins (pure, keeps pairs, protected messages): the manager's guards (gain check, repeat limit,
+  fail-open) apply to it, and ai-agent4j's `ContextCompactorContract` test base is documented for authors to extend.
 
 ### 3.2 Outside the script: the windows file
 
@@ -137,6 +164,11 @@ declared provider model, `compact: summarize` without a summariser (warning: fal
 | R16 | A resumed run (journal replay) does not re-emit events for replayed delegates and does not double-count statistics |
 | R17 | Secrets never appear in the new events (the redaction audit of loom-inspect passes with the new types included) |
 | R18 | No new runtime dependency in `ai-agent4j-loom` |
+| R19 | A `.loct` file maps names to classes (`ContextCompactor` with a no-arg constructor, or `ContextCompactorProvider`); `--loct`, the host API and `<script>.loct` all work; later files win |
+| R20 | A name from a `.loct` resolves in `compact:` and inside `chain(...)`; a name that shadows a built-in, a class that is missing or of the wrong type, or a duplicate is an error naming the file and line |
+| R21 | A provider-style class receives the block's extra keys as options and a `ProviderContext` with the agent's model client; an unknown option it rejects is reported as a check error with the line |
+| R22 | A custom strategy that throws, returns more than it was given, or splits a tool pair is contained by the manager's guards (fail-open, discarded) and reported in the `compaction` event |
+| R23 | `weave audit` lists `.loct` names and classes without loading them |
 
 ## 6. Sub-phases
 
@@ -145,10 +177,10 @@ Each ends with its tests passing and its documents updated (see [the rule](../RE
 | Step | Delivers | Requirements |
 |---|---|---|
 | 3a | Parser and AST for `context`; `ScriptValidator` checks; `weave check` output | R1, R2, R3, R4, R15 (check part) |
-| 3b | Windows files and their layering; CLI option; building the agent with policy and window; summariser client | R5, R6, R7, R8, R9, R12 |
+| 3b | Windows files and their layering; the `.loct` loader and `--loct`; CLI options; building the agent with policy, window, summariser client and custom strategies | R5, R6, R7, R8, R9, R12, R19 to R22 |
 | 3c | Trace events, the listener adapter, run statistics on `ObservableRun`, `run_end` totals | R10, R11, R14, R16, R17 |
 | 3d | Transcript memory compaction and `rewind` | R13 |
-| 3e | `weave audit`, Loom guide and reference pages, VS Code grammar and hover for `context`, a runnable example, the verification run | R15, R18, all |
+| 3e | `weave audit` (including `.loct`), Loom guide and reference pages, VS Code grammar and hover for `context`, a runnable example, the verification run | R15, R18, all |
 
 ## 7. Compatibility
 
@@ -178,3 +210,4 @@ Each ends with its tests passing and its documents updated (see [the rule](../RE
 | 4 | Syntax | A `context { … }` settings block in the agent, matching `guard`/`memory`/`voice`; `chain(a, b)` for several strategies |
 | 5 | Does the transcript memory share the agent's strategy? | Yes by default; a `memory { max_tokens, compact }` can override |
 | 6 | Statistics on `ObservableRun` now, interpretation later | Yes: this phase exposes `stats()` and the events; incidents and gauges are phases 4 and 5 |
+| 7 | Plugging in a custom strategy | **Decided by you:** a `.loct` file maps a name to a class, mirroring `.loot`; recommended additions: also accept a `ContextCompactorProvider` class for strategies that need options or a model, and refuse names that shadow built-ins |
