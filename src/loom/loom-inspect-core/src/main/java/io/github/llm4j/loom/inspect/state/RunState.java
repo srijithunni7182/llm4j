@@ -324,6 +324,7 @@ public final class RunState {
             controlPending = null; // nothing can be asked of a run that has ended
             heldByOperator = false;
             detectors.onRunEnd(r.timeNanos());
+            security.onRunEnd(r.timeNanos());
             if (status == Status.FAILED && r.text(Semconv.LOOM_RUN_FAILED_NAME) != null) {
                 detectors.onBroken(r.text(Semconv.LOOM_RUN_FAILED_KIND), r.text(Semconv.LOOM_RUN_FAILED_NAME), r.text(Semconv.LOOM_RUN_FAILED_STEP),
                         r.text(Semconv.LOOM_RUN_FAILED_CATEGORY), r.timeNanos());

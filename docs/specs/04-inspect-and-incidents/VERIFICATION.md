@@ -54,18 +54,18 @@ Status: **verified offline; awaiting review** (live checks owed). Run top to bot
 | R29 | `ToolCallReachTest`, `ToolReachMappingTest`, `NewEventsMappingTest` unchanged | ✅ 4g.1 |
 | R30 | `InjectionScanTest`, `InjectionMappingTest` (the injection fields at every detail level; no result text at `metadata`); the all-sinks `SecurityRedactionTest` is 4g.3 | ✅ 4g.2 (mapper) |
 | R31 | `InjectionScanTest` (bound, hostile inputs under 1 s, deterministic), `InjectionMappingTest` (off) | ✅ 4g.2 |
-| R32 | `SecurityViewTest` | ⬜ 4g |
-| R33 | `TrifectaIncidentTest` | ⬜ 4g |
-| R34 | `InjectionIncidentTest` | ⬜ 4g |
-| R35 | `AccessIncidentTest` | ⬜ 4g |
-| R36 | `SecurityViewTest` (guard counts) | ⬜ 4g |
-| R37 | `ObserveOnlyTest` (golden, soak) | ⬜ 4g |
-| R38 | `SecurityRulesFileTest`, `FabricConfigSecurityRulesTest` | ⬜ 4g |
-| R39 | `SecurityReplayTest`, `SecurityRollupTest` | ⬜ 4g |
-| R40 | `SecurityRedactionTest` (every sink), the 7b redaction audit | ⬜ 4g |
-| R41 | `SecurityRulesFileTest` (reason required, round trip), `FabricConfigSecurityRulesTest` | ⬜ 4g |
-| R42 | `TrifectaIncidentTest` (accepted, not accepted, `*`) | ⬜ 4g |
-| R43 | `InjectionIncidentTest` (accepted agent) | ⬜ 4g |
+| R32 | `SecurityViewTest`, `TrifectaIncidentTest` (can vs used), `SecurityProfileWireTest`, `InspectSessionSecurityTest` | ✅ 4g.3 |
+| R33 | `TrifectaIncidentTest` (16 cases), `SecurityRealRunTest` | ✅ 4g.3 |
+| R34 | `InjectionIncidentTest`, `SecurityRealRunTest` | ✅ 4g.3 |
+| R35 | `AccessIncidentTest` | ✅ 4g.3 |
+| R36 | `SecurityViewTest` (guard counts), `GuardEventNamesTest` (the event names in Loom) | ✅ 4g.3 |
+| R37 | `SecurityRealRunTest#watchingChangesNothingTheModelIsSent` (golden: scan on, off and unobserved send the model identical requests), `SecuritySoakTest` (20,000 results) | ✅ 4g.3 |
+| R38 | `SecurityRulesFileTest`, `SecurityRulesWireTest`, `FabricConfigSecurityRulesTest` | ✅ 4g.3 |
+| R39 | `SecurityReplayTest`, `SecurityRollupTest` | ✅ 4g.3 |
+| R40 | `SecurityRealRunTest` (OTLP bodies, the view, incidents and the roll-up at every detail level), `InjectionMappingTest`; the console and audit sinks are untouched by 4g (they never receive the scan result) | ✅ 4g.3 |
+| R41 | `SecurityRulesFileTest` (reason required, quotes, `#`/`;` inside a reason, round trip), `FabricConfigSecurityRulesTest` | ✅ 4g.3 |
+| R42 | `TrifectaIncidentTest` (accepted, not accepted, `*`), `SecurityRulesFileTest` (`*` warns), `SecurityRollupTest` | ✅ 4g.3 |
+| R43 | `InjectionIncidentTest` (accepted agent) | ✅ 4g.3 |
 
 ## 3. Quality gates
 
@@ -105,6 +105,7 @@ inspect section, `llms.txt`, a runnable example under `src/examples/`. Stack-lev
 
 | Date | Sub-phase | Result | Notes |
 |---|---|---|---|
+| 2026-10-14 | 4g.3 | Pass | Tests first, in three steps: the rules (grammar, wire, Fabric central form: 19 tests), the run state (view, three incidents, guard counts, profile: 42 tests), the rest (rollup, replay, soak, real-run, add-on wiring, guard event names). Decisions made while building: a trifecta that rests only on assumed tools is a warning that closes with the run (so a host-registered tool does not leave a high alert on every run); an `injection_scan: off` rule set centrally silences what a process still sent; guard trace events now carry an `event` name (a Loom change). One existing test (`RealRunTest#aRealRunThatMisbehavesRaisesTheIncidentsItShould`) caught the assumed-trifecta noise and was not changed. inspect-core 272, inspect 179, fabric green |
 | 2026-10-14 | 4f | Pass | Tests first for the gap found after 4e: a task (or delegate) that throws was not told apart in the trace, a failed run named no cause, and tasks had no health. Loom: `failure` event on every failure path, failed `task_end` with category/type/attempts, `run_end` `failed_*`. Inspect: mapping (with detail levels), per-task health and rollup `kind`, `DIVERTED` and `BROKEN` incidents. 27 new tests. Loom 1,844 (the guide-copy test failed once because the bundled guide was copied mid-edit; green on re-run), inspect-core 202, inspect 146, fabric 39 tests green |
 | 2026-10-14 | 4e | Pass | Runnable example `src/examples/inspect-tools` (run); JaCoCo gate on the new inspect-core classes (met; measured 93–100 % line, 81–94 % branch); docs. Found by the full run: with logs sent before spans, a page could show "finished" before the last spans arrived, so the run-end record now goes last in its batch (with a test). Whole set: Loom 1,837, inspect-core 189, inspect 139, fabric 39 tests green |
 | 2026-10-14 | 4d | Pass | OTLP round trips for the chat span, tool outcome attributes, context and compaction logs and run totals (4 tests); a real Loom run with a context block, a window and a failing tool through the real add-on to the real Fabric server (the view shows context, compactions, models, tool health `failing`, a `TOOL_RATE` incident, and the registry rollup). 5 new tests |

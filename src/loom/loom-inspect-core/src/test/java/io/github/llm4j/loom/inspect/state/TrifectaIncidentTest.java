@@ -97,6 +97,23 @@ class TrifectaIncidentTest {
     }
 
     @Test
+    void aTrifectaThatRestsOnAnAssumptionClosesWithTheRun() {
+        f.tool(1, "A", "Mine", "outward,private,untrusted", false);
+        f.runEnd(5, "completed");
+        assertThat(f.incidents("TRIFECTA")).singleElement().satisfies(i -> assertThat(i).containsEntry("state", "closed"));
+    }
+
+    @Test
+    void aTrifectaThatLaterRestsOnKnownToolsIsHighAndStaysAfterTheRun() {
+        f.tool(1, "A", "Mine", "outward,private,untrusted", false);
+        f.tool(2, "A", "Fetch", "untrusted");
+        f.tool(3, "A", "DB", "private");
+        f.tool(4, "A", "Send", "outward");
+        f.runEnd(5, "completed");
+        assertThat(f.incidents("TRIFECTA")).singleElement().satisfies(i -> assertThat(i).containsEntry("severity", "high").containsEntry("state", "open"));
+    }
+
+    @Test
     void anAcceptedAgentRaisesInfoWithTheReasonAndIsStillListed() {
         f.accept("Support", "customer support: reads tickets, looks up the account, replies");
         f.tool(1, "Support", "Fetch", "untrusted");

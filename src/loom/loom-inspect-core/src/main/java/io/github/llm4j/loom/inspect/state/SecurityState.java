@@ -29,6 +29,7 @@ final class SecurityState {
         final Map<String, Set<String>> knownBy = new TreeMap<>();
         final Set<String> called = new LinkedHashSet<>();
         boolean assumed;
+        boolean assumedTrifectaOpen;
         Pending suspect;
 
         AgentSec() {
@@ -136,6 +137,7 @@ final class SecurityState {
                 : agent + " read untrusted content, reached private data and sent something out" + (everyLegKnown ? "" : " (assumed)");
         incidents.raise("sec:trifecta:" + agent, Incidents.Kind.TRIFECTA, severity, agent, where, now, title,
                 List.of(Incidents.evidence("trifecta", 3L, 3L, detail.toString())));
+        a.assumedTrifectaOpen = "warn".equals(severity); // a guess about a tool nobody described: worth a look while it runs, not worth keeping after
     }
 
     private void access(AgentSec a, String agent, String tool, String category, boolean noResult, String where, long now, Thresholds t) {
@@ -164,6 +166,15 @@ final class SecurityState {
             }
             case "rejected_by_human", "approval_unavailable" -> approvalsRefused++; // people deciding: counted, never an incident
             default -> { }
+        }
+    }
+
+    /** The run ended: a trifecta that rested on an assumption is over with it; one that rested on declared tools stays for whoever reviews the run. */
+    void onRunEnd(long now) {
+        for (Map.Entry<String, AgentSec> e : agents.entrySet()) {
+            if (!e.getValue().assumedTrifectaOpen) continue;
+            incidents.close("sec:trifecta:" + e.getKey(), now, "the run ended");
+            e.getValue().assumedTrifectaOpen = false;
         }
     }
 
