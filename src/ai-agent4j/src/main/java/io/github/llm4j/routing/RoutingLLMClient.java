@@ -63,6 +63,7 @@ public class RoutingLLMClient implements LLMClient {
             } catch (Exception e) {
                 logger.warn("RoutingLLMClient: Client {} failed. Failing over. Error: {}", clientToTry.getClass().getSimpleName(), e.getMessage());
                 strategy.onFailure(clientToTry, request, e);
+                io.github.llm4j.telemetry.CallTrace.failover(clientToTry.getClass().getSimpleName());
                 suppressedExceptions.add(e);
                 removeClientFromAvailability(availableClients, clientToTry);
             }

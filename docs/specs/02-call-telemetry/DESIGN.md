@@ -283,3 +283,7 @@ is a separate commit.
   records a failed event (category from `ErrorCategory.of`, the exception's simple class name) and rethrows it unchanged. A failed call has no answering model, so the statistics file it under
   `unknown`; `requestedModel` is null for requests the agent builds itself. The summariser has its own client: its tokens stay in `CompactionUsage` and `AgentResult.Usage`, not in `RunStats`.
   `attempts`, `waitedMillis` and `failovers` read 1, 0 and empty until 2d.
+- **2d.** `CallTrace` is a public final class with a `ThreadLocal<Deque<Recorder>>`; `begin()`/`end()` return a `Totals` record (`attempts` at least 1, `waitedMillis`, `failovers`; `Totals.NOTHING` when
+  nothing was in force). `HttpClientWrapper.send` calls `attempt()` before each request and `waited(backoff)` after each sleep; `RoutingLLMClient.chat` calls `failover(simpleName)` when a client fails
+  (streaming is not traced: the agent does not stream). `chatObserved` opens a recorder around each model call, closes it on every path (an `Error` too), and clamps `waitedMillis` to the
+  measured duration so a frozen test clock cannot produce an invalid event. The thread-local is removed when the stack empties, so a pooled thread keeps nothing.

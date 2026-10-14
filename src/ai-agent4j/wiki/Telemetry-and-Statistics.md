@@ -4,10 +4,9 @@ When an agent runs, you want to know more than what it answered: **how long** ea
 **why** a call failed, how often, and how the numbers add up. This page is about the events and statistics ai-agent4j keeps for that, and about writing a
 tool so that it is observed well.
 
-> **Status: in progress.** The failure vocabulary, `ToolException`, the way a tool's text result is read, the event types, latency percentiles and
-> `StatsCollector` work on their own (sections 1 to 4), and the agent produces a **tool-call event** and a **model-call event** for every call, in both
-> of its loops, and puts the statistics of the run on its result (section 5). Still to come: the retries, rate-limit waits and fail-overs inside the HTTP
-> and routing layers (section 8). The design is in [`docs/specs/02-call-telemetry`](../../../docs/specs/02-call-telemetry/DESIGN.md).
+> **Status: in progress.** Everything in this page works: the failure vocabulary, `ToolException`, reading a tool's text result, the event types, latency percentiles, `StatsCollector`,
+> a tool-call event and a model-call event for every call in both loops (including the retries, waits and fail-overs beneath a model call), and the statistics of the run on its result.
+> What remains is the final verification of the phase. The design is in [`docs/specs/02-call-telemetry`](../../../docs/specs/02-call-telemetry/DESIGN.md).
 
 Everything here is opt-in and changes nothing for code that does not use it. Events and statistics hold **numbers and names only**: never a prompt, an
 answer, a tool's arguments or its result.
@@ -23,7 +22,7 @@ answer, a tool's arguments or its result.
 5. [In an agent](#5-in-an-agent)
 6. [Timing in tests](#6-timing-in-tests)
 7. [What is measured, and what is not](#7-what-is-measured-and-what-is-not)
-8. [What is coming](#8-what-is-coming)
+8. [Retries, rate-limit waits and fail-overs](#8-retries-rate-limit-waits-and-fail-overs)
 
 ---
 
@@ -230,13 +229,33 @@ ReActAgent agent = ReActAgent.builder()
 - Events and statistics hold **numbers and names only**: not the arguments, not the result, not the prompt or the answer. (`onAction` and `onObservation`
   still carry text, as they always did.)
 - A tool that fans work out to **other threads** is measured as one call; what happens on those threads is not attributed to it.
-- `attempts`, `waitedMillis` and `failovers` of a model call are the figures the HTTP and routing layers will fill in (section 8); until then they read 1, 0 and empty.
+- `attempts`, `waitedMillis` and `failovers` of a model call are filled in by the HTTP and routing layers (section 8). A client that does not report (a custom `LLMClient`) reads 1, 0 and empty.
 
-## 8. What is coming
+## 8. Retries, rate-limit waits and fail-overs
 
-In this order, each with its own tests and documentation:
+The HTTP layer retries and sleeps; the routing client fails over to another provider. Neither can tell the agent, and no method signature changes for it. Instead a small
+`CallTrace` keeps a **thread-local stack of recorders**: the agent opens one around each model call, the HTTP layer reports every request it sends and every sleep, and the
+routing client reports every client it gave up on. The figures land on the model-call event as `attempts`, `waitedMillis` and `failovers`, and in the model statistics as
+`retries`, `waitedMillis` and `failovers`.
 
-1. Retries, rate-limit waits and fail-overs inside the HTTP and routing layers show up in the model-call event (`attempts`, `waitedMillis`, `failovers`).
+You can use it yourself around any call:
+
+```java
+CallTrace.begin();
+try {
+    client.chat(request);
+} finally {
+    CallTrace.Totals t = CallTrace.end();
+    System.out.println(t.attempts() + " requests, waited " + t.waitedMillis() + " ms, failed over from " + t.failovers());
+}
+```
+
+- With no recorder open every hook does nothing, so code that never asks for it pays nothing, and `end()` is safe in a `finally` even when nothing is open.
+- A call that reported no request counts as one attempt.
+- Recorders nest: an agent run by a tool gets its own and cannot disturb the outer call's counts.
+- Work done on **other threads** (a tool that fans out) is not attributed; its figures are absent, never wrong.
+- `waitedMillis` never exceeds `durationMillis`; with a frozen test clock the wait is capped to the duration the agent saw.
+- `failovers` holds the simple class name of each client that failed, in order.
 
 See also: [Context and Compaction](Context-and-Compaction.md) · [Budgets and Rate Limits](Budgets-and-Rate-Limits.md) ·
 [ReAct Agent Guide](ReAct-Agent-Guide.md)

@@ -180,12 +180,14 @@ public class HttpClientWrapper {
                                 retryPolicy.getMaxRetries());
                     }
                     retryPolicy.getSleeper().sleep(backoff);
+                    io.github.llm4j.telemetry.CallTrace.waited(backoff);
                 }
 
                 if (enableLogging) {
                     logger.debug("Executing HTTP {} to {}", request.method(), request.url().redact());
                 }
 
+                io.github.llm4j.telemetry.CallTrace.attempt();
                 Response response = http.newCall(request).execute();
                 if (response.isSuccessful()) {
                     if (enableLogging) {

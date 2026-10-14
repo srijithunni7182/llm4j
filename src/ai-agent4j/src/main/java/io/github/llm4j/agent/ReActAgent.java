@@ -22,6 +22,7 @@ import io.github.llm4j.budget.BudgetedLLMClient;
 import io.github.llm4j.budget.PriceTable;
 import io.github.llm4j.budget.TokenEstimator;
 import io.github.llm4j.context.CompactionEvent;
+import io.github.llm4j.telemetry.CallTrace;
 import io.github.llm4j.telemetry.ErrorCategory;
 import io.github.llm4j.telemetry.ModelCallEvent;
 import io.github.llm4j.telemetry.RunStats;
@@ -808,13 +809,19 @@ public class ReActAgent {
         long started = clock.millis();
         ModelCallEvent.Builder event = ModelCallEvent.builder().iteration(iteration).requestedModel(request.getModel()).startedAt(startedAt);
         LLMResponse response;
+        CallTrace.begin();
         try {
             response = llmClient.chat(request);
         } catch (RuntimeException e) {
-            telemetry.model(event.durationMillis(Math.max(0, clock.millis() - started)).failed(ErrorCategory.of(e), e.getClass().getSimpleName()).build());
+            long duration = Math.max(0, clock.millis() - started);
+            telemetry.model(traced(event, duration, CallTrace.end()).failed(ErrorCategory.of(e), e.getClass().getSimpleName()).build());
+            throw e;
+        } catch (Error e) {
+            CallTrace.end();
             throw e;
         }
-        event.durationMillis(Math.max(0, clock.millis() - started));
+        long duration = Math.max(0, clock.millis() - started);
+        traced(event, duration, CallTrace.end());
         if (response != null) {
             event.model(response.getModel()).finishReason(response.getFinishReason()).toolCallsRequested(response.getToolCalls().size());
             LLMResponse.TokenUsage usage = response.getTokenUsage();
@@ -827,6 +834,11 @@ public class ReActAgent {
         }
         telemetry.model(event.build());
         return response;
+    }
+
+    /** Puts the duration and what the layers below reported on the event; the wait can never exceed the time the agent saw. */
+    private static ModelCallEvent.Builder traced(ModelCallEvent.Builder event, long duration, CallTrace.Totals t) {
+        return event.durationMillis(duration).attempts(t.attempts()).waitedMillis(Math.min(t.waitedMillis(), duration)).failovers(t.failovers());
     }
 
     /** Runs one action and reports it: one {@link ToolCallEvent} for whatever happened, a deliberate interrupt excepted. */

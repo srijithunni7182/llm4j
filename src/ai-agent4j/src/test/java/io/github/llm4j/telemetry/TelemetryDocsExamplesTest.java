@@ -2,6 +2,8 @@ package io.github.llm4j.telemetry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.llm4j.LLMClient;
+import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.agent.AgentEventListener;
 import io.github.llm4j.agent.AgentResult;
 import io.github.llm4j.agent.ReActAgent;
@@ -188,6 +190,22 @@ class TelemetryDocsExamplesTest {
     }
 
     @Test
+    void traceWhatHappenedUnderOneCall() {
+        LLMClient client = Scripts.by(true, n -> Scripts.done(true));
+        LLMRequest request = LLMRequest.builder().addUserMessage("Hi").build();
+        // --- sample: callTrace
+        CallTrace.begin();
+        try {
+            client.chat(request);
+        } finally {
+            CallTrace.Totals t = CallTrace.end();
+            System.out.println(t.attempts() + " requests, waited " + t.waitedMillis() + " ms, failed over from " + t.failovers());
+        }
+        // --- end sample
+        assertThat(CallTrace.active()).isFalse();
+    }
+
+    @Test
     void thePageShowsExactlyTheSamplesThatAreTested() throws Exception {
         String source = Files.readString(Path.of("src/test/java/io/github/llm4j/telemetry/TelemetryDocsExamplesTest.java"));
         String page = Files.readString(Path.of("wiki/Telemetry-and-Statistics.md"));
@@ -197,6 +215,6 @@ class TelemetryDocsExamplesTest {
             found++;
             assertThat(page).as("the page shows the '" + m.group(1) + "' sample").contains(m.group(2).stripIndent().strip());
         }
-        assertThat(found).isGreaterThanOrEqualTo(9);
+        assertThat(found).isGreaterThanOrEqualTo(10);
     }
 }
