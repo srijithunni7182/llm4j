@@ -21,6 +21,8 @@
 | [Sarvam](../src/ai-agent4j/docs/SARVAM.md) · [Ollama](../src/ai-agent4j/docs/OLLAMA.md) | | |
 
 > [!TIP]
+> **[About llm4j: mission, stats and history](ABOUT.md)**
+>
 > **[Why AI Agent4J? Our comparison against LangChain4j and Spring AI](../src/ai-agent4j/wiki/WHY_AI_AGENT4J.md)**
 >
 > **[Why Loom? Long-running, autonomous workflows, and how Loom goes further than LangGraph](../src/loom/ai-agent4j-loom/WHY_LOOM.md)**
