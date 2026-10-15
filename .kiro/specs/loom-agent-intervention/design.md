@@ -520,6 +520,32 @@ Steps 4 to 6 must be done before phase 3, because they are where the interventio
 - Track the line count of `HarnessExecutor` and of each new class in the PR description, so progress is visible. No new class over about 500 lines.
 - If a step cannot be made behaviour-preserving, stop and write down why before going on.
 
+### 15.5 Progress (phase 0)
+
+Method: before each extraction the whole loom suite was run for a baseline of per-class test counts (1,872 tests, 0 failures, 1 skipped); after each extraction the suite is run again and the per-class counts
+must be identical. `GetViralExecutor`, which extends the executor, is compiled against each result. A coverage run (JaCoCo) of the baseline showed 88.7% of `HarnessExecutor`'s lines covered and 96% of
+`executeDelegate`; the gaps (a handoff that runs its agent, a failure inside a timed step, a handled failed step replayed from the journal) were pinned with three characterization tests first
+(`ExecutorCharacterizationTest`).
+
+| Done | New class | Lines | Notes |
+|---|---|---|---|
+| yes | `ExecutorValidation` | 372 | The load-time checks; sees the executor through a `Host` interface |
+| yes | `RunTracing` | 193 | Trace delivery, agent event adapters, control events, run statistics |
+| yes | `BudgetCoordinator` (and `Vals`) | 354 | Run, agent and step budgets; metering; spend journal |
+| yes | `LimitPolicy` | 137 | Wait, pause or fail on a rate limit |
+| yes | `AgentPrompts` | 90 | System prompt, persona, skills |
+| yes | `PayloadText` | 100 | Placeholder filling, schema as words, JSON answers |
+| yes | `DelegateRunner` | 382 | The delegate step; the overridable hooks stay on the executor and are reached through its `Host` |
+| no | agent assembly (`initialize()`, tool and client resolution, context and knowledge wiring) | about 450 | |
+| no | statement interpreter (`executeStatement`, `runBlock`, `forkWith`, `executeForEach`, loop, broadcast, handoff) | about 450 | Best split one handler per statement kind |
+| no | run lifecycle (`runWorkflow`, `beginRun`, `recordSuspension`) | about 250 | |
+| no | executor configuration (the setters) | about 250 | |
+
+`HarnessExecutor` went from 3,171 lines to 2,046. The delegate step, where the intervention runtime lands, is now its own class, so phases 1 to 3 no longer have to add to the large class.
+
+Finding while doing this: the executor's own `callWithTimeout` has a comment explaining that it uses `submit()` and not a `CompletableFuture` because `cancel(true)` on a `CompletableFuture`
+does not interrupt the thread; `runWithTimeout`, which times out a delegate step, does use a `CompletableFuture`. That supports finding F4.
+
 ## 16. Decisions
 
 | # | Decision | Status |
