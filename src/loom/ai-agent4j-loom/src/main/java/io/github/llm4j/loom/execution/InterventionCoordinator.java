@@ -25,7 +25,7 @@ final class InterventionCoordinator {
     static final int MAX_STEER_CHARS = 2000;
 
     /** One running agent. */
-    record Active(String stepId, String agent, RunHandle handle) { }
+    record Active(String stepId, String agent, RunHandle handle, List<io.github.llm4j.loom.ast.RewindStmt> rewinds) { }
 
     /** What the coordinator needs from the run. */
     interface Host {
@@ -41,22 +41,27 @@ final class InterventionCoordinator {
         AgentGuard guard(String agent);
         /** Whether the script declares this agent {@code steerable: true}. */
         boolean steerable(String agent);
+        /** The checkpoints the script declares, and {@code start}. */
+        java.util.Set<String> declaredCheckpoints();
     }
 
     private final Host host;
     private final Map<String, Active> active = new ConcurrentHashMap<>();
     /** Why each cancelled step was cancelled, and the outcome whoever cancelled it named, if any; kept until the step reads them. */
     private final Map<String, StopOutcome> named = new ConcurrentHashMap<>();
+    /** The checkpoint a person sent a cancelled step back to. */
+    private final Map<String, String> backTo = new ConcurrentHashMap<>();
 
     InterventionCoordinator(Host host) {
         this.host = host;
     }
 
     /** Starts tracking the agent a step is about to run; returns the handle to run it with. */
-    RunHandle open(String stepId, String agent) {
+    RunHandle open(String stepId, String agent, List<io.github.llm4j.loom.ast.RewindStmt> rewinds) {
         RunHandle handle = new RunHandle();
-        active.put(stepId, new Active(stepId, agent, handle));
+        active.put(stepId, new Active(stepId, agent, handle, rewinds));
         named.remove(stepId);
+        backTo.remove(stepId);
         return handle;
     }
 
@@ -129,6 +134,34 @@ final class InterventionCoordinator {
             n++;
         }
         return n;
+    }
+
+    /**
+     * Cancels the running agents named by {@code target} and sends the run back to {@code checkpoint}, carrying {@code reason}. Refused (and traced, with
+     * the checkpoints there are) when the script does not declare the checkpoint, or when the step has no {@code on_stopped} rewind to take its limits from.
+     */
+    int cancelBack(String target, String checkpoint, String reason, String origin) {
+        int n = 0;
+        java.util.Set<String> declared = host.declaredCheckpoints();
+        for (Active a : matching(target)) {
+            String why = !declared.contains(checkpoint) ? "the script declares no checkpoint named " + checkpoint + " (it declares: " + String.join(", ", declared) + ")"
+                    : a.rewinds().isEmpty() ? "the step has no on_stopped { rewind ... } that allows going back" : null;
+            if (why != null) {
+                record("cancel_back_refused", a.agent(), a.stepId(), mapOf("checkpoint", checkpoint, "origin", origin, "why", why));
+                continue;
+            }
+            named.put(a.stepId(), StopOutcome.REWIND);
+            backTo.put(a.stepId(), checkpoint);
+            a.handle().cancel(reason, origin);
+            record("cancel_back", a.agent(), a.stepId(), mapOf("reason", reason, "origin", origin, "checkpoint", checkpoint));
+            n++;
+        }
+        return n;
+    }
+
+    /** The checkpoint a person sent this step back to, or null. */
+    String backTo(String stepId) {
+        return backTo.get(stepId);
     }
 
     /** Asks the running agents named by {@code target} to finish now with what they have. */

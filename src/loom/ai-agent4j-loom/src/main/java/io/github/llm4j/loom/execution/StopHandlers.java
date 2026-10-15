@@ -55,6 +55,17 @@ final class StopHandlers {
         return Optional.empty();
     }
 
+    /** The step's own rewind, aimed at the checkpoint a person chose: its limit, its side-effects policy and what it carries stay. */
+    static RewindStmt sendBackTo(RewindStmt template, String checkpoint) {
+        RewindStmt r = new RewindStmt(checkpoint, null, template.getAtMost());
+        r.getCarrying().putAll(template.getCarrying());
+        if (template.isEffectsStated()) r.setEffects(template.getEffects());
+        r.getIfStillFails().addAll(template.getIfStillFails());
+        r.getIfBlocked().addAll(template.getIfBlocked());
+        r.setLine(template.getLine());
+        return r;
+    }
+
     /** What {@code _stop} holds for a stop. */
     static java.util.Map<String, Object> fieldsOf(StopReport stop) {
         java.util.Map<String, Object> fields = new java.util.LinkedHashMap<>();

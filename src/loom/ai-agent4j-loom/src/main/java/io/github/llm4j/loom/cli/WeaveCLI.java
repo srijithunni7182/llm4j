@@ -94,6 +94,9 @@ public class WeaveCLI implements Callable<Integer> {
         private String trace;
 
         @CommandLine.Mixin
+        private SteerMixin steerOpts = new SteerMixin();
+
+        @CommandLine.Mixin
         private ObserveMixin observeOpts = new ObserveMixin();
 
         @CommandLine.Mixin
@@ -120,6 +123,7 @@ public class WeaveCLI implements Callable<Integer> {
                 System.err.println("Error: Script file not found: " + scriptFile);
                 return 1;
             }
+            if (!steerOpts.start(System.out, System.err)) return 2;
             WeaveEnv env = envFile.apply(WeaveEnv.system().withAskVia(askVia), scriptFile.toPath());
             if (env == null || !classesOptions.apply(scriptFile.toPath(), env) || !contextOptions.apply(scriptFile.toPath(), env)) return 2;
             env = secrets.apply(env, Prompts.console());

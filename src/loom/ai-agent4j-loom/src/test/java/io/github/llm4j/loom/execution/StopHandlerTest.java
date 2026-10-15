@@ -320,4 +320,70 @@ class StopHandlerTest {
                 }
                 """).stream().noneMatch(p -> p.severity() == ScriptValidator.Severity.ERROR));
     }
+
+    // ---- a person sends the run back ----
+
+    private HarnessExecutor reportRun(String script, java.util.List<String> collectorBriefings, InterventionRuntimeTest.Model model, RunJournal journal) {
+        ToolRegistry tools = new ToolRegistry();
+        tools.register("MockTool", new MockTool());
+        LLMClientFactory inner = model.factory();
+        HarnessExecutor ex = new HarnessExecutor(parse(script), tools, name -> {
+            io.github.llm4j.LLMClient real = inner.createClient(name);
+            return new io.github.llm4j.LLMClient() {
+                @Override public io.github.llm4j.model.LLMResponse chat(io.github.llm4j.model.LLMRequest r) {
+                    if (r.getMessages().get(0).getContent().contains("You are Collector")) collectorBriefings.add(r.getMessages().get(1).getContent());
+                    return real.chat(r);
+                }
+                @Override public java.util.stream.Stream<io.github.llm4j.model.LLMResponse> chatStream(io.github.llm4j.model.LLMRequest r) { return real.chatStream(r); }
+            };
+        });
+        ex.setJournal(journal);
+        ex.initialize();
+        return ex;
+    }
+
+    @Test
+    void aPersonMaySendTheRunBackToADeclaredCheckpointWithTheirOwnWords() throws Exception {
+        InterventionRuntimeTest.Model model = new InterventionRuntimeTest.Model(false);
+        java.util.List<String> collector = new java.util.concurrent.CopyOnWriteArrayList<>();
+        HarnessExecutor ex = reportRun(REPORT.replace("alt (_stop.reason == \"user\") {", "alt (_stop.reason == \"budget\") {"), collector, model, RunJournal.inMemory());
+        var run = new InterventionRuntimeTest.Run(ex).start(model);
+        model.finishNow = true;
+        assertEquals(1, ex.cancelBack("Looper", "collected", "the sources were stale", "alice"));
+        run.finish(model);
+
+        assertNull(run.error.get());
+        assertEquals(2, collector.size(), "the collector ran again");
+        assertTrue(collector.get(1).contains("Notes: the sources were stale"), collector.get(1));
+        assertEquals("done", ex.getContext().getVariable("out_text"));
+    }
+
+    @Test
+    void aPersonCannotSendTheRunBackToACheckpointTheScriptDoesNotDeclare() throws Exception {
+        InterventionRuntimeTest.Model model = new InterventionRuntimeTest.Model(false);
+        RunJournal journal = RunJournal.inMemory();
+        HarnessExecutor ex = reportRun(REPORT, new java.util.concurrent.CopyOnWriteArrayList<>(), model, journal);
+        var events = new java.util.concurrent.CopyOnWriteArrayList<TraceEvent>();
+        ex.addTraceListener(events::add);
+        var run = new InterventionRuntimeTest.Run(ex).start(model);
+        assertEquals(0, ex.cancelBack("Looper", "nowhere", "x", "alice"));
+        assertTrue(events.stream().anyMatch(e -> "cancel_back_refused".equals(e.data().get("action")) && String.valueOf(e.data().get("why")).contains("declares: start, collected")), events.toString());
+        model.finishNow = true;
+        run.finish(model);
+        assertNull(run.error.get());
+    }
+
+    @Test
+    void aStepWithNoRewindOfItsOwnCannotBeSentBack() throws Exception {
+        InterventionRuntimeTest.Model model = new InterventionRuntimeTest.Model(false);
+        HarnessExecutor ex = reportRun(REPORT.replace("rewind to collected at most 2 times carrying feedback = \"{_stop.note}\" side effects: keep", "skip"),
+                new java.util.concurrent.CopyOnWriteArrayList<>(), model, RunJournal.inMemory());
+        var events = new java.util.concurrent.CopyOnWriteArrayList<TraceEvent>();
+        ex.addTraceListener(events::add);
+        var run = new InterventionRuntimeTest.Run(ex).start(model);
+        assertEquals(0, ex.cancelBack("Looper", "collected", "x", "alice"));
+        assertTrue(events.stream().anyMatch(e -> String.valueOf(e.data().get("why")).contains("no on_stopped")), events.toString());
+        model.finishNow = true;
+        run.finish(model);
+    }
 }

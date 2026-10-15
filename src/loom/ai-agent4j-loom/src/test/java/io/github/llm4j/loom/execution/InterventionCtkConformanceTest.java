@@ -199,6 +199,8 @@ class InterventionCtkConformanceTest {
             case "steer" -> assertEquals(1, ex.steer(agent, i.get("note").asText(), origin), "the steer reached the agent");
             case "wrap_up" -> ex.wrapUp(agent, i.get("reason").asText(), origin);
             case "cancel" -> ex.cancel(agent, i.get("reason").asText(), origin, i.has("outcome") ? StopOutcome.valueOf(i.get("outcome").asText()) : null);
+            case "cancel_back" -> assertEquals(i.path("refused").asBoolean(false) ? 0 : 1,
+                    ex.cancelBack(agent, i.get("checkpoint").asText(), i.get("reason").asText(), origin), "the person's send-back " + (i.path("refused").asBoolean(false) ? "is refused" : "is taken"));
             default -> fail("unknown intervention kind " + i.get("kind"));
         }
     }
@@ -206,7 +208,7 @@ class InterventionCtkConformanceTest {
     @Test
     void everyScenarioHasAScriptAndATrace() throws Exception {
         List<String> all = scenarios();
-        assertTrue(all.size() >= 15, "the kit has the intervention scenarios: " + all);
+        assertTrue(all.size() >= 17, "the kit has the intervention scenarios: " + all);
         for (String name : all) {
             assertTrue(Files.exists(CTK.resolve("scripts/" + name + ".loom")), name + " has a script");
             assertTrue(Files.exists(CTK.resolve("traces/" + name + ".json")), name + " has a trace");

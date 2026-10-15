@@ -85,6 +85,9 @@ final class DelegateRunner {
         void trace(String type, String agent, String text, Map<String, Object> data);
 
         /** Runs an {@code on_stopped} rewind for the step this thread is on; throws to go back, returns when the rewind is not taken. */
+        /** Whether a rewind from where this thread is can reach the checkpoint. */
+        boolean canRewindTo(String checkpoint);
+
         void rewindFromStop(io.github.llm4j.loom.ast.RewindStmt rewind, io.github.llm4j.agent.StopReport stop);
 
         void runFailureHandler(List<Statement> onFailure, String message);
@@ -240,7 +243,7 @@ final class DelegateRunner {
                 // What the person has said to this step so far (also from before a restart) is part of what the agent is told.
                 String attemptBriefing = withSteers(contextBriefing, interventions.steersFor(stepId));
                 // The agent runs under a handle that is registered while it runs, so a timeout (or anyone else) can stop it.
-                io.github.llm4j.agent.RunHandle handle = interventions.open(stepId, agentName);
+                io.github.llm4j.agent.RunHandle handle = interventions.open(stepId, agentName, rewindsIn(del));
                 io.github.llm4j.agent.AgentResult result;
                 try {
                     result = del.getTimeoutMillis() > 0
@@ -253,7 +256,20 @@ final class DelegateRunner {
                 if (stop != null) {
                     // Stopped through its handle. Never a success by accident: the interpreter decides, and what was decided is on the journal.
                     StopOutcome byPerson = interventions.namedOutcome(stepId);
-                    StopHandlers.Declared declared = byPerson != null ? null : StopHandlers.resolve(del.getOnStopped(), host.intervention(), stop).orElse(null);
+                    StopHandlers.Declared declared = null;
+                    if (byPerson == StopOutcome.REWIND) {
+                        // a person sent the run back to a checkpoint: it takes the step's own rewind for its limits and for what it carries
+                        String checkpoint = interventions.backTo(stepId);
+                        io.github.llm4j.loom.ast.RewindStmt template = rewindsIn(del).stream().findFirst().orElse(null);
+                        if (template != null && checkpoint != null && host.canRewindTo(checkpoint)) {
+                            declared = new StopHandlers.Declared(StopOutcome.REWIND, StopHandlers.sendBackTo(template, checkpoint));
+                        } else {
+                            host.trace(TraceEvent.INTERVENTION, agentName, "cancel back refused: " + checkpoint + " cannot be reached from this step", Map.of("action", "cancel_back_refused", "checkpoint", String.valueOf(checkpoint), "step", stepId));
+                            byPerson = null; // the defaults decide, which for a person is to ask
+                        }
+                    }
+                    if (byPerson == null && declared == null) declared = StopHandlers.resolve(del.getOnStopped(), host.intervention(), stop).orElse(null);
+                    if (byPerson == StopOutcome.REWIND) byPerson = null;
                     StopOutcome byScript = declared == null ? null : declared.outcome();
                     StopInterpreter.Decision decision = StopInterpreter.decide(stop, byPerson != null ? byPerson : byScript, byPerson == null && byScript != null,
                             host.humanInterface() != null);
@@ -412,6 +428,13 @@ final class DelegateRunner {
      * Puts a stopped step to a person: use what the agent had, skip the step, run it again, or end the run. The answer is journaled, so a resumed run does not ask
      * twice. An answer that is not understood leaves the run suspended rather than guessing.
      */
+    /** The rewinds written in a step's {@code on_stopped}, however deep. */
+    static List<io.github.llm4j.loom.ast.RewindStmt> rewindsIn(DelegateStmt del) {
+        List<io.github.llm4j.loom.ast.RewindStmt> out = new java.util.ArrayList<>();
+        io.github.llm4j.loom.ast.StatementWalker.walk(del.getOnStopped(), st -> { if (st instanceof io.github.llm4j.loom.ast.RewindStmt r) out.add(r); });
+        return out;
+    }
+
     private StopOutcome askAboutStop(String stepId, String agentName, io.github.llm4j.agent.StopReport stop, int asked) {
         String key = stepId + "#stopped." + asked;
         String answer = host.journal().get(key).map(e -> String.valueOf(e.value())).orElse(null);

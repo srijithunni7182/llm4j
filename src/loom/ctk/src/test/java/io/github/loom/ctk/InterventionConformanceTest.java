@@ -31,7 +31,7 @@ class InterventionConformanceTest {
     @Test
     void everyScenarioHasAScriptATraceAndAFixtureThatSaysWhatHappens() throws IOException {
         List<String> all = scenarios();
-        assertTrue(all.size() >= 15, all.toString());
+        assertTrue(all.size() >= 17, all.toString());
         for (String name : all) {
             assertTrue(Files.exists(CTK.resolve("scripts").resolve(name + ".loom")), name + " has a script");
             assertEquals(name + ".loom", expected(name).scriptName());
@@ -39,7 +39,7 @@ class InterventionConformanceTest {
             assertTrue(fixture.has("description") && fixture.has("expect"), name);
             assertTrue(fixture.get("expect").has("run") || fixture.get("expect").has("loadError"), name + " says how the run ends");
             for (JsonNode i : fixture.path("interventions")) {
-                assertTrue(List.of("steer", "cancel", "wrap_up").contains(i.get("kind").asText()), name);
+                assertTrue(List.of("steer", "cancel", "wrap_up", "cancel_back").contains(i.get("kind").asText()), name);
                 assertTrue(i.get("atCall").asInt() >= 1, name);
             }
         }

@@ -126,6 +126,11 @@ public class HarnessExecutor implements LoomEngine {
         @Override public void audit(String event, Map<String, Object> data) { HarnessExecutor.this.audit(event, data); }
         @Override public java.time.Instant now() { return clock.instant(); }
         @Override public AgentGuard guard(String agent) { return guards.get(agent); }
+        @Override public java.util.Set<String> declaredCheckpoints() {
+            java.util.Set<String> names = new java.util.LinkedHashSet<>(java.util.List.of("start"));
+            io.github.llm4j.loom.ast.StatementWalker.any(script, st -> { if (st instanceof CheckpointStmt c) names.add(c.getName()); return false; });
+            return names;
+        }
         @Override public boolean steerable(String agent) { return script.getAgents().stream().anyMatch(a -> a.getName().equals(agent) && a.isSteerable()); }
     });
 
@@ -139,6 +144,14 @@ public class HarnessExecutor implements LoomEngine {
     /** Sends a message to the running agent(s) named by {@code target} (a step id, an agent name, or {@code *}); returns how many took it. See {@link InterventionCoordinator#steer}. */
     public int steer(String target, String text, String origin) {
         return interventions.steer(target, text, origin);
+    }
+
+    /**
+     * Cancels the running agent(s) and sends the run back to a checkpoint the script declared, carrying {@code reason} (the step's own {@code on_stopped}
+     * rewind gives the limit and the side-effects policy). Returns how many took it; 0 with a traced reason when the checkpoint is not declared or the step has no rewind.
+     */
+    public int cancelBack(String target, String checkpoint, String reason, String origin) {
+        return interventions.cancelBack(target, checkpoint, reason, origin);
     }
 
     /** Cancels the running agent(s); {@code outcome} is what the run does next, or null for the defaults. Returns how many were asked to stop. */
@@ -205,6 +218,7 @@ public class HarnessExecutor implements LoomEngine {
         @Override public ThreadLocal<List<io.github.llm4j.budget.Budget>> scopes() { return scopes; }
         @Override public void trace(String type, String agent, String text, Map<String, Object> data) { HarnessExecutor.this.trace(type, agent, text, data); }
         @Override public void runFailureHandler(List<Statement> onFailure, String message) { HarnessExecutor.this.runFailureHandler(onFailure, message); }
+        @Override public boolean canRewindTo(String checkpoint) { return rewinder.reaches(checkpoint, frames.get()); }
         @Override public void rewindFromStop(RewindStmt rewind, io.github.llm4j.agent.StopReport stop) {
             // _stop is readable by the rewind's condition and by what it carries ("{_stop.note}") while it decides
             context.setVariable("_stop", StopHandlers.fieldsOf(stop));

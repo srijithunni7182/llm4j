@@ -1815,7 +1815,25 @@ Inside `on_stopped`, `_stop` describes the stop: `_stop.reason` (one of the reas
 
 A `rewind` in `on_stopped` may name only a checkpoint the script declared, and it needs `at most N times`. `weave check` rejects a misspelt `_stop` field, a rewind to a checkpoint that is not there, and warns about `retry` for an agent with tools that does not test `_stop.changed`, and about `steerable` without `streaming`. `weave audit` lists every steerable agent as an input channel (`LA18`), `weave graph` draws the handler on a dotted `stopped` edge, and `weave explain` says it in words.
 
-Every steer, stop and decision is journaled and traced, so a resumed run knows what was said and what was decided. An application that embeds Loom calls `steer`, `wrapUp` and `cancel` on the executor while a run is going; a steer is checked by the agent's `guard` and refused if the agent is not `steerable`.
+Every steer, stop and decision is journaled and traced, so a resumed run knows what was said and what was decided. A steer is checked by the agent's `guard` and refused if the agent is not `steerable`.
+
+**Reaching a running workflow.** The script says what may happen; a person reaches the process that is running it in one of three ways.
+
+- *The console:* `weave run script.loom --steer-via console` reads commands typed in the same terminal (a line typed while a question is open is the answer to it).
+- *A chat:* a process that has a channel (`weave daemon --ask-via telegram`, or the application's own) lets the people on the channel's allowlist send the same commands to the runs going on in that process. A reply to a question is still an answer: a reply to its message, one that carries its code, or one of its choices is never taken for a command.
+- *An application that embeds Loom:* `LoomRun.start(executor, "Digest", inputs)` gives `steer`, `wrapUp`, `cancel(agent, Outcome, reason)`, `pause` and `resume`, and `run.cancel("Writer", Outcome.rewindTo("collected"), "the sources were stale")` to send the run back.
+
+```text
+agents                                          who is working
+steer Researcher focus on the EU market         correct its reasoning
+wrap up Writer : that is enough                 finish now with what it has
+cancel Writer skip : not needed                 outcome: use partial | skip | discard | retry | suspend | conclude | ask
+cancel Writer back to collected : sources stale send the run back to a checkpoint the script declared
+pause Writer / resume Writer
+#digest steer Researcher ...                    #label says which run, when several are going
+```
+
+Sending a run back needs two things from the script: the checkpoint must be declared, and the step must have an `on_stopped { rewind ... }` to take its limit (`at most N times`) and its side-effects policy from; otherwise the command is refused and says why. A run that is suspended or finished cannot be steered: its stops and answers travel through the journal. Fabric stays a window: it shows these events and has no control for them.
 
 ### Per-Step Schemas (`expecting`)
 One agent can return different structures in different steps. `expecting { ... }` on a delegate overrides

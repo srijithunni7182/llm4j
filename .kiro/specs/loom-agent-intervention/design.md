@@ -79,6 +79,17 @@ allowed once, and only when the agent's tools were all read-only (otherwise it i
 (`INTERVENTION`, `STEP_STOPPED`). Steers pass the agent's guard and a 2000-character limit. Existing step timeouts and `RunControl` keep their behaviour. Tests: `StopInterpreterTest` (18),
 `InterventionRuntimeTest` (8), `InterventionSafetyTest` (2); the whole Loom suite is unchanged apart from these (1,903 tests, 0 failures).
 
+**Phase 5, built (reaching a run).** A person reaches the agents of a run going on *in the same process*; nothing reaches a suspended or finished run (its stops and answers travel through the journal).
+
+- `cancelBack(agent, checkpoint, reason, origin)`: a person sends the run back to a declared checkpoint. Refused (and traced, listing the checkpoints) when the script does not declare it, when the step has no
+  `on_stopped { rewind ... }` to take its `at most N times` and side-effects policy from, or when the checkpoint cannot be reached from where the step is; a refused send-back leaves the agent running.
+- `LoomRun` / `Outcome` (embedding): `start`, `steer`, `wrapUp`, `cancel(agent, Outcome, reason)` with `Outcome.rewindTo(checkpoint)`, `pause`, `resume`, `status`, `await`. `LiveRuns` is the per-process registry.
+- `InterventionCommands`: `agents`, `steer`, `wrap up`, `cancel [outcome] [: reason]`, `cancel ... back to <checkpoint> [: reason]`, `pause`, `resume`, optional `#label`. Used by:
+  `weave run --steer-via console` (a line typed while a question is open is its answer) and by the chat `Listener` (only senders on the allowlist; a reply to a question's message, one carrying its code, or one of its choices is
+  always an answer).
+- CTK: person-initiated send-back, and its refusal. Fabric: unchanged, still no control.
+- *Not done:* a `LoomRun` for `weave resume`/`tick` (those are separate short processes), `--steer-via` on `resume`, run codes like `K7F3QX steer ...` (the label is `#workflow-name`), authenticated steering over HTTP.
+
 **Phase 4, built (language and tooling).**
 
 - *Language.* Agent settings `streaming`, `reasoning`, `steerable` (all off by default; `steerable` is checked when a steer arrives). A step's `on_stopped { }` (any order with `on_failure`) with the outcomes

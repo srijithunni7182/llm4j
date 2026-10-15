@@ -32,7 +32,7 @@ Each scenario is `scripts/intervention_*.loom`, a fixture `interventions/interve
 
 - `tool`: the tool the stoppable agent uses, `calculator` (only reads) or `MockTool` (not known to only read, so the agent *may have changed things*);
 - `replies`: what each agent's model returns, in call order (`act` calls the tool, `final:TEXT` answers); `wrapUp`: the answer to the wrap-up call (tools off);
-- `interventions`: "after call `atCall` of `agent`, issue `{kind: steer | cancel | wrap_up, reason, note, origin, outcome?}`" (`outcome` is the one a person may name);
+- `interventions`: "after call `atCall` of `agent`, issue `{kind: steer | cancel | wrap_up | cancel_back, reason, note, origin, outcome?, checkpoint?}`" (`outcome` is the one a person may name);
 - `human`: the answers of the person who is asked, in order;
 - `expect`: how the run ends (`completed`, `stopped` or `suspended`, or `loadError`), how many times a person was asked, and the variables afterwards.
 
@@ -48,7 +48,7 @@ A runtime issues each intervention as the stated model call returns, which makes
 The scenarios are one per row of the design's table of defaults (a person's cancel asks; a wrap-up keeps its answer; a timeout retries only if nothing may have changed;
 a sibling's stop is discarded; a shutdown suspends; a safety stop asks; a budget stop keeps the partial answer), plus the script's own `on_stopped` and `intervention`,
 cancel-and-send-back to a declared checkpoint, and three negative scenarios: a retry is refused when the agent may have changed something, a cancelled step is
-never recorded as a success, and a rewind to an undeclared checkpoint is refused before the run. What is not tested: when exactly a streaming call is cut off, and wall-clock timing.
+never recorded as a success, and a rewind to an undeclared checkpoint is refused before the run, and a person's send-back to a checkpoint the script does not declare is refused while the agent carries on. What is not tested: when exactly a streaming call is cut off, and wall-clock timing.
 The Java runtime runs them in `InterventionCtkConformanceTest` (module `ai-agent4j-loom`), because this kit's own runner is still a stub.
 
 ## Usage

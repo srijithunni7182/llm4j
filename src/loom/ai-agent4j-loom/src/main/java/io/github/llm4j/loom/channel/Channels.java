@@ -61,7 +61,8 @@ public final class Channels {
                 : new TelegramChannel(config.apiBase(), env.apply(config.tokenEnv()).strip(), pending.root().resolve("offset.json"));
         Answers answers = new Answers(pending, new FileTriggerStore(store.toAbsolutePath().normalize()), new Audit(pending, clock), clock);
         Dispatch dispatch = new Dispatch(channel, config, pending, clock);
-        return Optional.of(new Runtime(config, channel, pending, answers, dispatch, new Listener(channel, config, pending, answers, dispatch, clock), clock));
+        return Optional.of(new Runtime(config, channel, pending, answers, dispatch, new Listener(channel, config, pending, answers, dispatch, clock)
+                .withCommands(io.github.llm4j.loom.execution.InterventionCommands.forThisProcess()), clock));
     }
 
     /** The answers of a store, with no channel needed ({@code weave answer}, {@code weave questions}). */
