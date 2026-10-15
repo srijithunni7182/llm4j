@@ -59,8 +59,6 @@ public class HarnessExecutor implements LoomEngine {
     private io.github.llm4j.loom.prompt.PromptCatalog promptCatalog;
     private final String sessionId = UUID.randomUUID().toString();
     private MemoryEngine memoryEngine = new TranscriptAccumulationEngine();
-    private final io.github.llm4j.agent.StatsCollector runStats = new io.github.llm4j.agent.StatsCollector();
-    private final java.util.concurrent.atomic.AtomicLong compactionCount = new java.util.concurrent.atomic.AtomicLong();
     private io.github.llm4j.loom.context.WindowLayers contextWindows;
     private io.github.llm4j.loom.context.CompactorRegistry compactors;
 
@@ -148,7 +146,6 @@ public class HarnessExecutor implements LoomEngine {
     /** What {@code env.NAME} and {@code secret.NAME} resolve through: see {@link #credential(String)}. */
     private final java.util.function.Function<String, String> credentials = this::credential;
     private final List<java.util.function.Consumer<RunSuspended>> suspensionListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
-    private final List<TraceListener> traceListeners = new java.util.concurrent.CopyOnWriteArrayList<>();
     
     @FunctionalInterface
     public interface DelegateSuccessHandler {
@@ -379,20 +376,18 @@ public class HarnessExecutor implements LoomEngine {
         return guard == null ? text : guard.forStorage(text);
     }
 
+    private final RunTracing tracing = new RunTracing(new RunTracing.Host() {
+        @Override public String stepId() { return step.get(); }
+        @Override public java.time.Instant now() { return clock.instant(); }
+        @Override public boolean hold(Runnable deliver) { return decider.hold(deliver); }
+        @Override public io.github.llm4j.loom.security.ToolReach reachOf(String tool) { return HarnessExecutor.this.reachOf(tool); }
+    });
+
     private String stopAt;
     private final RunControl control = new RunControl();
 
     {
-        control.addListener(this::traceControl);
-    }
-
-    private void traceControl(RunControl.Event e) {
-        Map<String, Object> data = new java.util.LinkedHashMap<>();
-        data.put("action", e.action().name().toLowerCase(java.util.Locale.ROOT));
-        data.put("state", e.state());
-        if (e.by() != null) data.put("by", e.by());
-        if (e.step() != null) data.put("step", e.step());
-        trace(TraceEvent.CONTROL, null, e.action().name().toLowerCase(java.util.Locale.ROOT) + " " + e.state() + (e.by() == null ? "" : " by " + e.by()), data);
+        control.addListener(tracing::traceControl);
     }
 
     /** What an observer may do to this run: pause, resume, suspend, stop. Takes effect between steps. */
@@ -514,7 +509,7 @@ public class HarnessExecutor implements LoomEngine {
      * {@link #initialize()}: agents are wired to report only when someone listens.
      */
     public void addTraceListener(TraceListener listener) {
-        traceListeners.add(listener);
+        tracing.addListener(listener);
     }
 
     /** {@code researcher@v2} for the prompt the named agent runs, or empty when it runs an inline one or none resolves. */
@@ -531,144 +526,16 @@ public class HarnessExecutor implements LoomEngine {
 
     /** The statistics of the model and tool calls made so far in this run (kept whether or not anyone traces). */
     public io.github.llm4j.telemetry.RunStats stats() {
-        return runStats.snapshot();
-    }
-
-    /** Always attached to an agent: keeps the run's statistics and counts compactions, whether or not anyone listens to the trace. */
-    private io.github.llm4j.agent.AgentEventListener statsAdapter() {
-        return new io.github.llm4j.agent.AgentEventListener() {
-            @Override public void onThought(String thought) { }
-            @Override public void onAction(String toolName, String toolInput) { }
-            @Override public void onObservation(String observation) { }
-            @Override public void onModelCall(io.github.llm4j.telemetry.ModelCallEvent event) { runStats.onModelCall(event); }
-            @Override public void onToolCall(io.github.llm4j.telemetry.ToolCallEvent event) { runStats.onToolCall(event); }
-            @Override public void onCompaction(io.github.llm4j.context.CompactionEvent event) {
-                if (event.result() != null && event.result().outcome() == io.github.llm4j.context.CompactionResult.Outcome.COMPACTED) compactionCount.incrementAndGet();
-            }
-        };
+        return tracing.stats();
     }
 
     boolean tracing() {
-        return !traceListeners.isEmpty();
+        return tracing.tracing();
     }
 
     /** Tells trace listeners; free when nobody listens. */
     void trace(String type, String agent, String text, Map<String, Object> data) {
-        if (traceListeners.isEmpty()) return;
-        Map<String, Object> copy = new java.util.LinkedHashMap<>();
-        if (data != null) data.forEach((k, v) -> { if (k != null && v != null) copy.put(k, v); });
-        TraceEvent event = new TraceEvent(type, agent, step.get(), text == null ? "" : text,
-                java.util.Collections.unmodifiableMap(copy), clock.instant());
-        Runnable deliver = () -> {
-            for (TraceListener l : traceListeners) {
-                try {
-                    l.onEvent(event);
-                } catch (RuntimeException e) {
-                    log.warning("Trace listener failed: " + e.getMessage());
-                }
-            }
-        };
-        if (!decider.hold(deliver)) deliver.run();
-    }
-
-    /** Forwards one agent's own events (thoughts, tool calls, observations, spend) to the trace. */
-    private io.github.llm4j.agent.AgentEventListener traceAdapter(String agentName) {
-        return new io.github.llm4j.agent.AgentEventListener() {
-            @Override
-            public void onThought(String thought) {
-                trace(TraceEvent.THOUGHT, agentName, thought, null);
-            }
-
-            @Override
-            public void onAction(String toolName, String toolInput) {
-                trace(TraceEvent.ACTION, agentName, toolName + " " + (toolInput == null ? "" : toolInput),
-                        Map.of("tool", toolName));
-            }
-
-            @Override
-            public void onObservation(String observation) {
-                trace(TraceEvent.OBSERVATION, agentName, observation, null);
-            }
-
-            @Override
-            public void onContextUsage(io.github.llm4j.context.ContextUsage usage) {
-                Map<String, Object> d = new java.util.LinkedHashMap<>();
-                d.put("used", usage.used());
-                d.put("source", usage.source().name());
-                String text = "context " + usage.used() + " tokens";
-                if (usage.window() != null) {
-                    d.put("window", usage.window().tokens());
-                    d.put("usable", usage.window().usableInput());
-                    usage.fraction().ifPresent(f -> d.put("fraction", f));
-                    text += " of " + usage.window().usableInput() + " (" + Math.round(usage.fraction().orElse(0) * 100) + "%)";
-                }
-                trace(TraceEvent.CONTEXT, agentName, text, d);
-            }
-
-            @Override
-            public void onCompaction(io.github.llm4j.context.CompactionEvent event) {
-                io.github.llm4j.context.CompactionResult r = event.result();
-                Map<String, Object> d = new java.util.LinkedHashMap<>();
-                d.put("strategy", r.strategy());
-                d.put("outcome", r.outcome().name());
-                d.put("reason", event.reason().name());
-                d.put("before", r.tokensBefore());
-                d.put("after", r.tokensAfter());
-                d.put("messages_before", r.messagesBefore());
-                d.put("messages_after", r.messagesAfter());
-                if (event.failure() != null) d.put("error_type", event.failure().split(":", 2)[0]);
-                if (r.summarizerUsage() != null) {
-                    d.put("summary_tokens", r.summarizerUsage().promptTokens() + r.summarizerUsage().completionTokens());
-                    if (r.summarizerUsage().cost() != null) d.put("summary_cost", r.summarizerUsage().cost().toPlainString());
-                }
-                trace(TraceEvent.COMPACTION, agentName, r.strategy() + " " + r.outcome().name().toLowerCase() + ": " + r.tokensBefore() + " to " + r.tokensAfter() + " tokens", d);
-            }
-
-            @Override
-            public void onModelCall(io.github.llm4j.telemetry.ModelCallEvent e) {
-                Map<String, Object> d = new java.util.LinkedHashMap<>();
-                d.put("model", e.model());
-                d.put("requested_model", e.requestedModel());
-                d.put("iteration", e.iteration());
-                d.put("duration_ms", e.durationMillis());
-                d.put("waited_ms", e.waitedMillis());
-                d.put("attempts", e.attempts());
-                if (!e.failovers().isEmpty()) d.put("failovers", e.failovers());
-                d.put("prompt_tokens", e.promptTokens());
-                d.put("completion_tokens", e.completionTokens());
-                d.put("finish_reason", e.finishReason());
-                d.put("truncated", e.truncated());
-                d.put("outcome", e.outcome().name());
-                if (e.failed()) {
-                    d.put("category", e.category().name());
-                    d.put("error_type", e.errorType());
-                }
-                trace(TraceEvent.MODEL_CALL, agentName, (e.model() != null ? e.model() : "model") + " " + e.durationMillis() + " ms, "
-                        + e.promptTokens() + "+" + e.completionTokens() + " tokens" + (e.failed() ? ", failed: " + e.category() : ""), d);
-            }
-
-            @Override
-            public void onToolCall(io.github.llm4j.telemetry.ToolCallEvent e) {
-                Map<String, Object> d = new java.util.LinkedHashMap<>();
-                d.put("tool", e.tool());
-                d.put("outcome", e.outcome().name());
-                d.put("duration_ms", e.durationMillis());
-                d.put("approval_ms", e.approvalMillis());
-                d.put("result_chars", e.resultChars());
-                d.put("soft_failure", e.softFailure());
-                io.github.llm4j.loom.security.ToolReach reach = reachOf(e.tool());
-                d.put("reach", reach.legs());
-                d.put("reach_known", reach.known());
-                if (e.failed()) d.put("category", e.category().name());
-                trace(TraceEvent.TOOL_CALL, agentName, e.tool() + " " + (e.failed() ? "failed: " + e.category() : "ok") + " in " + e.durationMillis() + " ms", d);
-            }
-
-            @Override
-            public void onBudget(io.github.llm4j.budget.BudgetEvent event) {
-                trace(TraceEvent.BUDGET, agentName, event.kind() + " " + event.budget() + ": spent " + event.spent()
-                        + " of " + event.limits(), Map.of("budget", event.budget(), "kind", String.valueOf(event.kind())));
-            }
-        };
+        tracing.trace(type, agent, text, data);
     }
 
     /**
@@ -1343,8 +1210,8 @@ public class HarnessExecutor implements LoomEngine {
             }
             agentBuilder.auditLogger(auditLogger).sessionId(sessionId);
             applyContext(agentDef, agentBuilder);
-            agentBuilder.addListener(statsAdapter());
-            if (tracing()) agentBuilder.addListener(traceAdapter(agentDef.getName()));
+            agentBuilder.addListener(tracing.statsAdapter());
+            if (tracing()) agentBuilder.addListener(tracing.traceAdapter(agentDef.getName()));
 
             // MCP-sourced tools
             for (String serverName : agentDef.getMcpServers()) {
@@ -1520,13 +1387,13 @@ public class HarnessExecutor implements LoomEngine {
                 endData.put("workflow", workflowName);
                 if (runId != null) endData.put("run", runId);
                 endData.put("status", ended);
-                io.github.llm4j.telemetry.RunStats totals = runStats.snapshot();
+                io.github.llm4j.telemetry.RunStats totals = tracing.stats();
                 endData.put("model_calls", totals.totalModelCalls());
                 endData.put("tool_calls", totals.totalToolCalls());
                 endData.put("tool_failures", totals.totalToolFailures());
                 endData.put("retries", totals.totalRetries());
                 endData.put("failovers", totals.totalFailovers());
-                endData.put("compactions", compactionCount.get());
+                endData.put("compactions", tracing.compactions());
                 trace(TraceEvent.RUN_END, null, "workflow " + workflowName + " " + ended, endData);
             }
         }
