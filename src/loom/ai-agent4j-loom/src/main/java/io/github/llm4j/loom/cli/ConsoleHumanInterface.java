@@ -14,6 +14,6 @@ public class ConsoleHumanInterface implements HumanInterface {
         System.out.println("\n--- LOOM HUMAN PROMPT ---");
         System.out.println(message);
         System.out.print("> ");
-        return scanner.nextLine();
+        return ConsoleInput.routing() ? ConsoleInput.answer() : scanner.nextLine();
     }
 }

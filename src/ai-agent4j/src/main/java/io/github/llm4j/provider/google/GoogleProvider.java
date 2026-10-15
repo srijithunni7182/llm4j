@@ -62,7 +62,7 @@ public class GoogleProvider implements DescribableProvider {
 
             String endpoint = String.format("/models/%s:generateContent", model);
             String url = baseUrl + endpoint;
-            String requestJson = buildRequestJson(request);
+            String requestJson = buildRequestJson(request, false);
             Headers headers = buildHeaders();
 
             logger.debug("Calling Google API URL: {}", url);
@@ -90,13 +90,14 @@ public class GoogleProvider implements DescribableProvider {
         String url = baseUrl + String.format("/models/%s:streamGenerateContent?alt=sse", model);
         io.github.llm4j.http.StreamingBody body;
         try {
-            body = httpClient.stream(url, buildRequestJson(request), buildHeaders());
+            body = httpClient.stream(url, buildRequestJson(request, true), buildHeaders());
         } catch (IOException | LLMException e) {
             throw typed("Failed to start streaming", e);
         }
         String[] finish = {null};
         Integer[] usage = {null, null};
-        java.util.List<LLMResponse> end = new java.util.ArrayList<>();
+        int[] calls = {0}; // tool calls seen so far, to number the next
+        java.util.List<JsonNode> allParts = new java.util.ArrayList<>(); // every part, as Gemini sent it, to send back with tool results
         Stream<LLMResponse> text = body.events().flatMap(event -> {
             JsonNode root;
             try {
@@ -116,10 +117,18 @@ public class GoogleProvider implements DescribableProvider {
                 usage[0] = u.path("promptTokenCount").asInt(0);
                 usage[1] = u.path("candidatesTokenCount").asInt(0) + u.path("thoughtsTokenCount").asInt(0);
             }
-            String piece = answerText(candidate.path("content").path("parts"));
-            return piece.isEmpty() ? Stream.empty() : Stream.of(Providers.textChunk(piece, model));
+            JsonNode parts = candidate.path("content").path("parts");
+            if (parts.isArray()) parts.forEach(allParts::add);
+            return chunksOf(parts, model, request.isReasoning(), calls).stream();
         });
-        return Stream.concat(text, Stream.of(0).map(x -> Providers.finalChunk(finish[0], usage[0], usage[1], model)))
+        return Stream.concat(text, Stream.of(0).map(x -> {
+            java.util.Map<String, Object> raw = java.util.Map.of();
+            if (calls[0] > 0) {
+                raw = java.util.Map.of(RAW_PARTS, objectMapper.convertValue(allParts,
+                        new com.fasterxml.jackson.core.type.TypeReference<java.util.List<java.util.Map<String, Object>>>() {}));
+            }
+            return Providers.finalChunk(finish[0], usage[0], usage[1], model, raw);
+        }))
                 .onClose(body::close);
     }
 
@@ -148,6 +157,39 @@ public class GoogleProvider implements DescribableProvider {
         if (code == 429) return new io.github.llm4j.exception.RateLimitException(message);
         if (code >= 500) return new io.github.llm4j.exception.ServiceUnavailableException(getProviderName(), message, code, error.toString());
         return new ProviderException(getProviderName(), message, code);
+    }
+
+    /**
+     * One streamed event's parts as chunks, in order: consecutive answer-text parts joined into one text chunk, thought parts as reasoning
+     * chunks (only when asked for), and each function call whole, as one tool-call chunk.
+     */
+    private static java.util.List<LLMResponse> chunksOf(JsonNode parts, String model, boolean reasoning, int[] calls) {
+        java.util.List<LLMResponse> out = new java.util.ArrayList<>();
+        if (!parts.isArray()) return out;
+        StringBuilder text = new StringBuilder();
+        for (JsonNode part : parts) {
+            if (part.path("thought").asBoolean(false)) {
+                if (reasoning && part.hasNonNull("text") && !part.get("text").asText().isEmpty()) {
+                    flush(text, model, out);
+                    out.add(Providers.reasoningChunk(part.get("text").asText(), model));
+                }
+            } else if (part.has("functionCall")) {
+                flush(text, model, out);
+                JsonNode fc = part.get("functionCall");
+                String args = fc.has("args") ? fc.get("args").toString() : "{}";
+                out.add(Providers.toolCallChunk(new io.github.llm4j.model.ToolCallDelta(calls[0]++, fc.path("id").asText(null), fc.path("name").asText(), args), model));
+            } else if (part.has("text")) {
+                text.append(part.get("text").asText());
+            }
+        }
+        flush(text, model, out);
+        return out;
+    }
+
+    private static void flush(StringBuilder text, String model, java.util.List<LLMResponse> out) {
+        if (text.length() == 0) return;
+        out.add(Providers.textChunk(text.toString(), model));
+        text.setLength(0);
     }
 
     /** The answer's text: every text part except the model's thoughts. */
@@ -227,7 +269,7 @@ public class GoogleProvider implements DescribableProvider {
         }
     }
 
-    private String buildRequestJson(LLMRequest request) throws IOException {
+    private String buildRequestJson(LLMRequest request, boolean stream) throws IOException {
         ObjectNode root = objectMapper.createObjectNode();
         ArrayNode contentsArray = root.putArray("contents");
 
@@ -278,6 +320,8 @@ public class GoogleProvider implements DescribableProvider {
             ArrayNode stopArray = generationConfig.putArray("stopSequences");
             request.getStopSequences().forEach(stopArray::add);
         }
+        // thoughts come back as parts flagged "thought"; without this they are not sent at all
+        if (stream && request.isReasoning()) generationConfig.putObject("thinkingConfig").put("includeThoughts", true);
 
         return objectMapper.writeValueAsString(root);
     }

@@ -1,0 +1,34 @@
+{
+  "description": "user cancel, no outcome named, a person is asked",
+  "tool": "calculator",
+  "replies": {
+    "Writer": [
+      "act",
+      "act",
+      "final:finished"
+    ],
+    "Closer": [
+      "final:closed"
+    ]
+  },
+  "interventions": [
+    {
+      "agent": "Writer",
+      "atCall": 1,
+      "kind": "cancel",
+      "reason": "no longer needed",
+      "origin": "alice"
+    }
+  ],
+  "human": [
+    "use partial"
+  ],
+  "expect": {
+    "run": "completed",
+    "asked": 1,
+    "variables": {
+      "out_text": "act",
+      "done_text": "closed"
+    }
+  }
+}

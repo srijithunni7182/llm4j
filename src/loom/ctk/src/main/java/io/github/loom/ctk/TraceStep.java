@@ -26,12 +26,14 @@ public record TraceStep(
     /**
      * Creates a TraceStep with all fields.
      * 
-     * @param kind one of: delegate, handoff, broadcast, note, call, parallel, observe, task
+     * @param kind one of: delegate, handoff, broadcast, note, call, parallel, observe, task, and the intervention kinds stop, steer and rewind
      * @param taskName for a {@code task} step, the name of the task that ran ({@code run Name(...)}); null otherwise
      * @param agentName the name of the agent executing this step (nullable)
      * @param payload the input payload for this step (nullable). For a {@code task} step: the arguments as sorted-key,
      *                compact JSON, such as {@code {"amount":40,"order":"A-1"}}; unlike a model's payload it is deterministic
      *                and is compared
+     *                and for an intervention step: a {@code stop} is the sorted-key compact JSON {@code {"kind":"cancel","outcome":"USE_PARTIAL","reason":"user"}},
+     *                a {@code steer} is the person's note, a {@code rewind} is {@code {"checkpoint":"collected","generation":2}}
      * @param outputVariable the variable name where output is stored (nullable)
      * @param outputValue the actual output value (nullable, not compared in CTK)
      * @param subSteps nested steps for parallel/call statements (nullable)

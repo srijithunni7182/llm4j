@@ -184,6 +184,11 @@ final class Rewinder {
         run.journal().put(key, new RunJournal.Entry("rewind-decision", value));
     }
 
+    /** Whether a rewind from the block being run can reach this checkpoint (it has been passed, in this block or one around it). */
+    boolean reaches(String name, java.util.ArrayDeque<Frame> frames) {
+        return find(frames, name) != null;
+    }
+
     private static Frame find(java.util.ArrayDeque<Frame> frames, String name) {
         for (Frame f : frames) { // innermost first
             if (f.snapshots.containsKey(name)) return f;

@@ -12,7 +12,7 @@ public final class MermaidRenderer {
             out.append("  ").append(node(node)).append('\n');
         }
         for (GraphEdge edge : graph.edges()) {
-            boolean rewind = "rewind".equals(edge.label());
+            boolean rewind = "rewind".equals(edge.label()) || "stopped".equals(edge.label());
             out.append("  ").append(id(edge.from())).append(rewind ? " -.->" : " -->");
             if (edge.label() != null) {
                 out.append('|').append(escape(edge.label())).append('|');

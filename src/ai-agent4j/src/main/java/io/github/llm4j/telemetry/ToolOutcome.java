@@ -12,6 +12,8 @@ public enum ToolOutcome {
     APPROVAL_UNAVAILABLE(ErrorCategory.APPROVAL_UNAVAILABLE),
     /** A person rejected the action. */
     REJECTED_BY_HUMAN(ErrorCategory.REJECTED_BY_HUMAN),
+    /** A tool hook or the argument check refused the call; the tool did not run. */
+    REJECTED_BY_HOOK(ErrorCategory.INVALID_ARGUMENTS),
     /** The tool threw. */
     EXECUTION_ERROR(ErrorCategory.OTHER),
     /** The budget ran out. */

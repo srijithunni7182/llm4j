@@ -1,0 +1,12 @@
+// Canonical CTK test: intervention_timeout_changed
+// An agent that timed out after a tool that may change things is not run again: what it had is used.
+// Interventions are scripted, not timed: see interventions/intervention_timeout_changed.json (README, "Interventions").
+
+agent Collector { model: "ctk" system: "You are Collector." }
+agent Writer { model: "ctk" system: "You are Writer." tools: [MockTool] steerable: true }
+agent Closer { model: "ctk" system: "You are Closer." }
+
+workflow main() {
+    delegate "write" to Writer -> out_text
+    delegate "close" to Closer -> done_text
+}

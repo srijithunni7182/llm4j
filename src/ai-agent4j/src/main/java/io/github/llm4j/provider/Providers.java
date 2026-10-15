@@ -34,13 +34,32 @@ public final class Providers {
         return LLMResponse.builder().content(text).model(model).build();
     }
 
+    /** One piece of streamed reasoning: no answer text, only {@link LLMResponse#getReasoning()}. */
+    public static LLMResponse reasoningChunk(String reasoning, String model) {
+        return LLMResponse.builder().content("").reasoning(reasoning).model(model).build();
+    }
+
+    /** One piece of a streamed tool call: no answer text, only {@link LLMResponse#getToolCallDelta()}. */
+    public static LLMResponse toolCallChunk(io.github.llm4j.model.ToolCallDelta delta, String model) {
+        return LLMResponse.builder().content("").toolCallDelta(delta).model(model).build();
+    }
+
     /**
      * The last chunk of a stream: no text, the (normalised) finish reason with the provider's raw value,
      * and the token usage when the provider reported it (null counts as unreported).
      */
     public static LLMResponse finalChunk(String rawFinishReason, Integer promptTokens, Integer completionTokens,
                                          String model) {
-        LLMResponse.Builder b = LLMResponse.builder().content("").model(model).finishReason(rawFinishReason);
+        return finalChunk(rawFinishReason, promptTokens, completionTokens, model, java.util.Map.of());
+    }
+
+    /**
+     * As above, plus the provider data a tool turn needs sent back unchanged (as on a whole response), so a streamed turn can be continued
+     * exactly like one that was not streamed.
+     */
+    public static LLMResponse finalChunk(String rawFinishReason, Integer promptTokens, Integer completionTokens,
+                                         String model, java.util.Map<String, Object> providerData) {
+        LLMResponse.Builder b = LLMResponse.builder().content("").model(model).finishReason(rawFinishReason).providerData(providerData);
         if (rawFinishReason != null) b.addMetadata(FINISH_REASON_RAW, rawFinishReason);
         if (promptTokens != null || completionTokens != null) {
             int p = promptTokens == null ? 0 : promptTokens;

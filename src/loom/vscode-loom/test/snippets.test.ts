@@ -21,7 +21,7 @@ function expand(body: string[]): string {
 }
 
 // Statement-level snippets go inside a workflow; the rest are whole top-level definitions.
-const TOP = new Set(['agent', 'agent-private', 'workflow', 'budget', 'tool', 'tool-class', 'import']);
+const TOP = new Set(['agent', 'agent-private', 'agent-steerable', 'intervention', 'supervise', 'workflow', 'budget', 'tool', 'tool-class', 'import']);
 // Not checkable on their own: a task is Java (graph only), an import needs a file.
 const PARSE_ONLY = new Set(['run']);
 const SKIP = new Set(['import']);
@@ -39,7 +39,7 @@ function frame(name: string, text: string): string {
     if (name === 'workflow') {
         return PRELUDE + text + '\n';
     }
-    if (name === 'agent' || name === 'agent-private') {
+    if (name === 'agent' || name === 'agent-private' || name === 'agent-steerable') {
         return text + '\nworkflow Main(topic_text) {\n    delegate "x" to ' + /agent (\w+)/.exec(text)![1] + ' -> out_text\n    note "{out_text}"\n}\n';
     }
     if (TOP.has(name)) {

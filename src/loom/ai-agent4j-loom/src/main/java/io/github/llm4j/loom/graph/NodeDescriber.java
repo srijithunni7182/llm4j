@@ -95,6 +95,9 @@ final class NodeDescriber {
             return new Described(Kinds.CHECKPOINT, "checkpoint " + c.getName())
                     .attrs(Attrs.create().text("name", c.getName()).map("startingWith", c.getStartingWith()));
         }
+        if (st instanceof io.github.llm4j.loom.ast.OutcomeStmt o) {
+            return new Described(Kinds.OUTCOME, o.getKind().phrase());
+        }
         if (st instanceof RewindStmt r) {
             return new Described(Kinds.REWIND, "rewind to " + r.getTarget())
                     .attrs(Attrs.create()

@@ -1,0 +1,30 @@
+{
+  "description": "timeout, agent may have changed something: use partial",
+  "tool": "MockTool",
+  "replies": {
+    "Writer": [
+      "act",
+      "final:never reached"
+    ],
+    "Closer": [
+      "final:closed"
+    ]
+  },
+  "interventions": [
+    {
+      "agent": "Writer",
+      "atCall": 1,
+      "kind": "cancel",
+      "reason": "timeout",
+      "origin": "timer"
+    }
+  ],
+  "expect": {
+    "run": "completed",
+    "asked": 0,
+    "variables": {
+      "out_text": "act",
+      "done_text": "closed"
+    }
+  }
+}

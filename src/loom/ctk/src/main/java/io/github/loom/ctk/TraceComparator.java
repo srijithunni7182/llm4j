@@ -15,6 +15,11 @@ import java.util.List;
  */
 public class TraceComparator {
     
+    /** The step kinds whose payload is deterministic and so is compared: a task, and the three that record an intervention. */
+    private static boolean comparesPayload(String kind) {
+        return "task".equals(kind) || "stop".equals(kind) || "steer".equals(kind) || "rewind".equals(kind);
+    }
+
     /**
      * Compares an actual execution trace against an expected canonical trace.
      * 
@@ -57,7 +62,8 @@ public class TraceComparator {
             if (!areEqual(actualStep.taskName(), expectedStep.taskName())) {
                 differences.add("[step " + i + "] taskName: " + actualStep.taskName() + " vs " + expectedStep.taskName());
             }
-            if ("task".equals(expectedStep.kind()) && !areEqual(actualStep.payload(), expectedStep.payload())) {
+            // so is an intervention: a stop (its kind, outcome and reason), a steer (its note) and a rewind (its checkpoint and attempt)
+            if (comparesPayload(expectedStep.kind()) && !areEqual(actualStep.payload(), expectedStep.payload())) {
                 differences.add("[step " + i + "] payload: " + actualStep.payload() + " vs " + expectedStep.payload());
             }
 

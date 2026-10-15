@@ -1,0 +1,37 @@
+{
+  "description": "cancel back to a checkpoint",
+  "tool": "calculator",
+  "replies": {
+    "Collector": [
+      "final:sources one",
+      "final:sources two"
+    ],
+    "Writer": [
+      "act",
+      "final:rewritten"
+    ],
+    "Closer": [
+      "final:closed"
+    ]
+  },
+  "interventions": [
+    {
+      "agent": "Writer",
+      "atCall": 1,
+      "kind": "cancel",
+      "reason": "the sources were stale",
+      "origin": "alice"
+    }
+  ],
+  "expect": {
+    "run": "completed",
+    "asked": 0,
+    "variables": {
+      "out_text": "rewritten",
+      "done_text": "closed"
+    },
+    "modelSaw": {
+      "Collector": "Notes: the sources were stale"
+    }
+  }
+}

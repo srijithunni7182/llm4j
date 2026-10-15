@@ -1,0 +1,21 @@
+{
+  "scriptName": "intervention_person_cancel_back_refused.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "delegate",
+      "agentName": "Collector",
+      "outputVariable": "data"
+    },
+    {
+      "kind": "delegate",
+      "agentName": "Writer",
+      "outputVariable": "out_text"
+    },
+    {
+      "kind": "delegate",
+      "agentName": "Closer",
+      "outputVariable": "done_text"
+    }
+  ]
+}

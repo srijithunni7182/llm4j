@@ -1,0 +1,12 @@
+// Canonical CTK test: intervention_budget_partial
+// A step stopped for its budget keeps what it had.
+// Interventions are scripted, not timed: see interventions/intervention_budget_partial.json (README, "Interventions").
+
+agent Collector { model: "ctk" system: "You are Collector." }
+agent Writer { model: "ctk" system: "You are Writer." tools: [calculator] steerable: true }
+agent Closer { model: "ctk" system: "You are Closer." }
+
+workflow main() {
+    delegate "write" to Writer -> out_text
+    delegate "close" to Closer -> done_text
+}

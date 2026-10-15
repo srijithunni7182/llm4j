@@ -1,0 +1,21 @@
+{
+  "scriptName": "intervention_on_stopped_skip.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "delegate",
+      "agentName": "Writer",
+      "outputVariable": "out_text"
+    },
+    {
+      "kind": "stop",
+      "agentName": "Writer",
+      "payload": "{\"kind\":\"cancel\",\"outcome\":\"SKIP\",\"reason\":\"user\"}"
+    },
+    {
+      "kind": "delegate",
+      "agentName": "Closer",
+      "outputVariable": "done_text"
+    }
+  ]
+}

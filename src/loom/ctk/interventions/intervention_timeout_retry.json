@@ -1,0 +1,30 @@
+{
+  "description": "timeout, read-only agent: retry",
+  "tool": "calculator",
+  "replies": {
+    "Writer": [
+      "act",
+      "final:second try"
+    ],
+    "Closer": [
+      "final:closed"
+    ]
+  },
+  "interventions": [
+    {
+      "agent": "Writer",
+      "atCall": 1,
+      "kind": "cancel",
+      "reason": "timeout",
+      "origin": "timer"
+    }
+  ],
+  "expect": {
+    "run": "completed",
+    "asked": 0,
+    "variables": {
+      "out_text": "second try",
+      "done_text": "closed"
+    }
+  }
+}

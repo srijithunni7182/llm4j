@@ -477,7 +477,7 @@
   $('mermaid').addEventListener('click', function () { if (state.workflow) { send({ type: 'copyMermaid', name: state.workflow }); } });
   $('exportPng').addEventListener('click', exportPng);
   $('exportIcon').appendChild(V.svg('download'));
-  V.legend($('legend'));
+  V.legend($('legend'), null);
 
   window.addEventListener('message', function (event) {
     var message = event.data || {};

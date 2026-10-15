@@ -1,0 +1,15 @@
+{
+  "description": "rewind to an undeclared checkpoint is refused",
+  "tool": "calculator",
+  "replies": {
+    "Writer": [
+      "act",
+      "act",
+      "final:finished"
+    ]
+  },
+  "interventions": [],
+  "expect": {
+    "loadError": "no checkpoint named nowhere"
+  }
+}

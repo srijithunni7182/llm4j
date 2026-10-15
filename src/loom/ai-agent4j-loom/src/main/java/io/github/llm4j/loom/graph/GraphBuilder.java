@@ -28,7 +28,7 @@ import java.util.Set;
  *   <li>{@code loop} and {@code for each} have an edge into the body, an {@code again} edge back from it, and a
  *       {@code done} edge to the next step.
  *   <li>{@code parallel} is one node standing for the whole round.
- *   <li>Handler blocks ({@code on_failure}, {@code on_exhausted}, {@code on_violation}, a rewind's
+ *   <li>Handler blocks ({@code on_failure}, {@code on_stopped}, {@code on_exhausted}, {@code on_violation}, a rewind's
  *       {@code if still fails} and {@code if blocked}) hang off their owner on a labelled edge and rejoin the main
  *       path. They are numbered after the main path, so adding a handler never changes the id of another step.
  * </ul>
@@ -140,6 +140,7 @@ public final class GraphBuilder {
             } else if (statement instanceof DelegateStmt delegate) {
                 exits.add(new Exit(id, null));
                 defer(exits, id, "failure", "failure", delegate.getOnFailure());
+                defer(exits, id, "stopped", "stopped", delegate.getOnStopped());
             } else if (statement instanceof RunStmt run) {
                 exits.add(new Exit(id, null));
                 defer(exits, id, "failure", "failure", run.getOnFailure());

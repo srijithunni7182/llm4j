@@ -251,6 +251,17 @@ class TraceMapperTest {
         assertThat(rewind.text(Semconv.LOOM_STEP)).isEqualTo("W/s4");
     }
 
+    @Test
+    void anInterventionAndAStoppedStepAreShownReadOnlyAsLogRecords() {
+        TraceMapper m = new TraceMapper(RUN, Detail.FULL);
+        LogRec steer = m.map(ev(0, TraceEvent.INTERVENTION, "Writer", "W/s2", "steer Writer", "action", "steer", "origin", "alice")).logs().get(0);
+        assertThat(steer.eventName()).isEqualTo("loom.intervention");
+        assertThat(steer.attr("loom.data.action")).isEqualTo("steer");
+        LogRec stopped = m.map(ev(1, TraceEvent.STEP_STOPPED, "Writer", "W/s2", "stopped (user): use partial", "outcome", "USE_PARTIAL", "category", "user")).logs().get(0);
+        assertThat(stopped.eventName()).isEqualTo("loom.step_stopped");
+        assertThat(stopped.attr("loom.data.outcome")).isEqualTo("USE_PARTIAL");
+    }
+
     private List<SpanRec> spansOf(Detail detail, TraceEvent... events) {
         TraceMapper m = new TraceMapper(RUN, detail);
         List<LogRec> logs = new ArrayList<>();

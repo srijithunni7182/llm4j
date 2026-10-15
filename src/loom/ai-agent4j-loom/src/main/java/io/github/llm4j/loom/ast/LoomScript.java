@@ -23,6 +23,16 @@ public class LoomScript implements Node {
     private AuditConfig auditConfig;
     private BudgetDef budget;
     private RateLimitDef rateLimits;
+    private InterventionDef intervention;
+    private final List<SuperviseDef> supervisions = new ArrayList<>();
+
+    /** The {@code supervise Agent { }} blocks. */
+    public List<SuperviseDef> getSupervisions() { return supervisions; }
+    public void addSupervision(SuperviseDef def) { supervisions.add(def); }
+
+    /** The script-level {@code intervention { }} defaults, or null. */
+    public InterventionDef getIntervention() { return intervention; }
+    public void setIntervention(InterventionDef intervention) { this.intervention = intervention; }
 
     public void addAgent(AgentDef agent) {
         this.agents.add(agent);

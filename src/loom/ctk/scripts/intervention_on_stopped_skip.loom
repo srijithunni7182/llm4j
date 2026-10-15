@@ -1,0 +1,15 @@
+// Canonical CTK test: intervention_on_stopped_skip
+// A step's own on_stopped handler decides: skip, and the run goes on.
+// Interventions are scripted, not timed: see interventions/intervention_on_stopped_skip.json (README, "Interventions").
+
+agent Collector { model: "ctk" system: "You are Collector." }
+agent Writer { model: "ctk" system: "You are Writer." tools: [calculator] steerable: true }
+agent Closer { model: "ctk" system: "You are Closer." }
+
+workflow main() {
+    delegate "write" to Writer -> out_text
+    on_stopped {
+        alt (_stop.reason == "user") { skip }
+    }
+    delegate "close" to Closer -> done_text
+}

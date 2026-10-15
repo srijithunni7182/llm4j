@@ -23,6 +23,8 @@ public final class AgentResult {
     private final boolean budgetExhausted;
     private final io.github.llm4j.budget.BudgetExceeded budgetExceeded;
     private final io.github.llm4j.telemetry.RunStats stats;
+    private final boolean cancelled;
+    private final StopReport stop;
 
     private AgentResult(Builder builder) {
         this.finalAnswer = builder.finalAnswer;
@@ -38,6 +40,8 @@ public final class AgentResult {
         this.budgetExceeded = builder.budgetExceeded;
         this.budgetExhausted = builder.budgetExhausted || builder.budgetExceeded != null;
         this.stats = builder.stats != null ? builder.stats : io.github.llm4j.telemetry.RunStats.EMPTY;
+        this.stop = builder.stop;
+        this.cancelled = builder.cancelled || (builder.stop != null && builder.stop.kind() == StopReport.Kind.CANCEL);
     }
 
     public String getFinalAnswer() {
@@ -117,6 +121,21 @@ public final class AgentResult {
         return stats;
     }
 
+    /** True when the run was ended through its {@link RunHandle}. The final answer is then the last thing the agent said or saw, and {@link #isCompleted()} is false. */
+    public boolean isCancelled() {
+        return cancelled;
+    }
+
+    /** True when the run ended because it was asked to wrap up: its answer is the one last model call (tools off) gave. {@link #isCompleted()} is false. */
+    public boolean isWrappedUp() {
+        return stop != null && stop.kind() == StopReport.Kind.WRAP_UP;
+    }
+
+    /** Why, where and in what state the run stopped when it was ended through its {@link RunHandle}; null for a run that ended on its own. */
+    public StopReport getStop() {
+        return stop;
+    }
+
     public boolean isHighConfidence() {
         return confidence != null && confidence.isHigh();
     }
@@ -145,6 +164,8 @@ public final class AgentResult {
         b.budgetExhausted = budgetExhausted;
         b.budgetExceeded = budgetExceeded;
         b.stats = stats;
+        b.cancelled = cancelled;
+        b.stop = stop;
         return b;
     }
 
@@ -183,6 +204,8 @@ public final class AgentResult {
         REJECTED_BY_HUMAN,
         /** The tool was approved (or required none) but threw while executing. */
         EXECUTION_ERROR,
+        /** A {@link ToolHook} (or the argument check, see {@code ReActAgent.Builder#validateToolArguments}) refused the call; the tool did not run. */
+        REJECTED_BY_HOOK,
         /** The agent's budget ran out; the run stopped here with its best answer so far. */
         BUDGET_EXHAUSTED
     }
@@ -394,6 +417,8 @@ public final class AgentResult {
         private boolean protocolFollowed = true;
         private boolean budgetExhausted;
         private io.github.llm4j.budget.BudgetExceeded budgetExceeded;
+        private boolean cancelled;
+        private StopReport stop;
         private io.github.llm4j.telemetry.RunStats stats;
 
         private Builder() {}
@@ -406,6 +431,16 @@ public final class AgentResult {
 
         public Builder budgetExceeded(io.github.llm4j.budget.BudgetExceeded budgetExceeded) {
             this.budgetExceeded = budgetExceeded;
+            return this;
+        }
+
+        public Builder stop(StopReport stop) {
+            this.stop = stop;
+            return this;
+        }
+
+        public Builder cancelled(boolean cancelled) {
+            this.cancelled = cancelled;
             return this;
         }
 

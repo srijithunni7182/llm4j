@@ -80,7 +80,7 @@
         "id": { "type": "string" },
         "kind": {
           "enum": ["start", "end", "delegate", "task", "handoff", "broadcast", "parallel", "alt", "loop", "foreach",
-                   "human_prompt", "checkpoint", "rewind", "call", "guardrail", "decide", "observe", "note", "sleep", "unknown"]
+                   "human_prompt", "checkpoint", "rewind", "call", "guardrail", "decide", "observe", "note", "sleep", "outcome", "unknown"]
         },
         "label": { "type": "string" },
         "agent": { "type": "string" },
@@ -148,6 +148,9 @@
         "knowledge": { "type": "array", "items": { "type": "string" } },
         "approve": { "type": "array", "items": { "type": "string" } },
         "approveAll": { "const": true },
+        "streaming": { "const": true },
+        "reasoning": { "const": true },
+        "steerable": { "const": true },
         "budget": { "$ref": "#/$defs/budget" },
         "maxIterations": { "type": "integer" },
         "source": { "$ref": "#/$defs/source" }

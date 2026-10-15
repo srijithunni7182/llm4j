@@ -67,6 +67,28 @@ public final class ScriptExplainer {
         if (!approving.isEmpty()) out.append("  - A person is asked before a tool is used by: ").append(String.join(", ", approving)).append(".\n");
         List<String> withTools = script.getAgents().stream().filter(a -> !a.getTools().isEmpty()).map(AgentDef::getName).toList();
         if (!withTools.isEmpty()) out.append("  - Agents with tools: ").append(String.join(", ", withTools)).append(". Run weave audit to see what they can reach.\n");
+        List<String> steerable = script.getAgents().stream().filter(AgentDef::isSteerable).map(AgentDef::getName).toList();
+        if (!steerable.isEmpty()) out.append("  - A person may steer, while they work: ").append(String.join(", ", steerable)).append(".\n");
+        for (var sup : script.getSupervisions()) {
+            List<String> rules = new ArrayList<>();
+            for (var rule : sup.getRules()) {
+                List<String> does = new ArrayList<>();
+                for (var a : rule.getActions()) {
+                    does.add(switch (a.kind()) {
+                        case STEER -> "tell it \"" + a.text() + "\"" + (rule.isOnce() ? " (once)" : "");
+                        case WRAP_UP -> "ask it to finish with what it has";
+                        case CANCEL -> "stop it" + (a.outcome() == null ? "" : " and " + a.outcome().phrase());
+                    });
+                }
+                rules.add("when " + rule.describe() + ": " + String.join(", then ", does));
+            }
+            out.append("  - ").append(sup.getAgent()).append(" is watched by rules (no model involved): ").append(String.join("; ", rules)).append(".\n");
+        }
+        if (script.getIntervention() != null && !script.getIntervention().getByReason().isEmpty()) {
+            List<String> rules = new ArrayList<>();
+            script.getIntervention().getByReason().forEach((reason, outcome) -> rules.add("stopped for " + reason + ": " + outcome.phrase()));
+            out.append("  - When an agent is stopped and the step says nothing, ").append(String.join("; ", rules)).append(".\n");
+        }
         if (facts.loops > 0) out.append("  - ").append(facts.loops).append(" loop").append(facts.loops == 1 ? " is" : "s are").append(" bounded by a maximum.\n");
         return out.toString();
     }
@@ -88,6 +110,7 @@ public final class ScriptExplainer {
         parts.add(a.getTools().isEmpty() ? "no tools" : "tools " + String.join(", ", a.getTools()));
         if (a.isApproveAll()) parts.add("a person approves every tool call");
         else if (!a.getApprove().isEmpty()) parts.add("a person approves " + String.join(", ", a.getApprove()));
+        if (a.isSteerable()) parts.add("a person may steer it while it works" + (a.isStreaming() ? "" : " (slowly: it does not stream)"));
         if (a.getGuard() != null && a.getGuard().getPii() != null) parts.add("personal data " + a.getGuard().getPii());
         return a.getName() + ": " + String.join("; ", parts) + ".";
     }
@@ -129,9 +152,15 @@ public final class ScriptExplainer {
             steps(each.getBody(), indent, false, out, facts);
         } else if (s instanceof ParallelStmt par) {
             steps(par.getBody(), indent, false, out, facts);
-        } else if (s instanceof DelegateStmt d && !d.getOnFailure().isEmpty()) {
-            out.append(pad).append("- If it fails:\n");
-            steps(d.getOnFailure(), indent + 1, false, out, facts);
+        } else if (s instanceof DelegateStmt d && (!d.getOnFailure().isEmpty() || d.hasOnStopped())) {
+            if (!d.getOnFailure().isEmpty()) {
+                out.append(pad).append("- If it fails:\n");
+                steps(d.getOnFailure(), indent + 1, false, out, facts);
+            }
+            if (d.hasOnStopped()) {
+                out.append(pad).append("- If someone stops it:\n");
+                steps(d.getOnStopped(), indent + 1, false, out, facts);
+            }
         } else if (s instanceof RunStmt r && !r.getOnFailure().isEmpty()) {
             out.append(pad).append("- If it fails:\n");
             steps(r.getOnFailure(), indent + 1, false, out, facts);
@@ -185,7 +214,18 @@ public final class ScriptExplainer {
         if (s instanceof ForEachStmt f) return (f.isParallel() ? "For each " : "For each ") + f.getItemName() + " in " + f.getCollectionPath() + (f.isParallel() ? " (at the same time):" : ":");
         if (s instanceof ParallelStmt) return "At the same time:";
         if (s instanceof CheckpointStmt c) return "A checkpoint named " + c.getName() + " is saved.";
-        if (s instanceof RewindStmt r) return "Go back to " + r.getTarget() + " when " + say(r.getCondition()) + ", at most " + r.getAtMost() + " time" + (r.getAtMost() == 1 ? "" : "s") + ".";
+        if (s instanceof io.github.llm4j.loom.ast.OutcomeStmt o) {
+            return switch (o.getKind()) {
+                case USE_PARTIAL -> "Keep what the agent had so far, marked as incomplete.";
+                case SKIP -> "Skip the step: it produces nothing and the run goes on.";
+                case DISCARD -> "Drop the step quietly, as if it had never run.";
+                case RETRY -> "Run the step again (only if the agent has changed nothing outside the run).";
+                case SUSPEND -> "Pause the run until it is resumed; the step starts again then.";
+                case CONCLUDE -> "End the run here.";
+                case ASK -> "Ask a person what to do.";
+            };
+        }
+        if (s instanceof RewindStmt r) return "Go back to " + r.getTarget() + (r.getCondition() == null ? "" : " when " + say(r.getCondition())) + ", at most " + r.getAtMost() + " time" + (r.getAtMost() == 1 ? "" : "s") + ".";
         if (s instanceof DecideStmt d) {
             facts.people++;
             return "The decision " + d.getDecision() + " is made" + kept(d.getVariable());
