@@ -169,6 +169,8 @@ public class ReActAgent {
     private final boolean autoPlayAudio;
     private final boolean streaming;
     private final boolean reasoning;
+    private final List<ToolHook> toolHooks;
+    private final boolean validateToolArguments;
     private final String ttsLanguage;
     private final String ttsModel;
 
@@ -223,6 +225,8 @@ public class ReActAgent {
         this.autoPlayAudio = builder.autoPlayAudio;
         this.streaming = builder.streaming;
         this.reasoning = builder.reasoning;
+        this.toolHooks = List.copyOf(builder.toolHooks);
+        this.validateToolArguments = builder.validateToolArguments;
         this.ttsLanguage = builder.ttsLanguage;
         this.ttsModel = builder.ttsModel;
     }
@@ -1017,6 +1021,26 @@ public class ReActAgent {
                 args = new HashMap<>();
             }
 
+            // ── Checks on the arguments, before anyone is asked to approve them ─────────
+            if (validateToolArguments) {
+                String problems = ArgumentCheck.problems(tool.getParametersSchema(), args);
+                if (problems != null) {
+                    return rejectedByHook(action, "the arguments do not fit the tool: " + problems + ". Write the call again.", ErrorCategory.INVALID_ARGUMENTS);
+                }
+            }
+            for (ToolHook hook : toolHooks) {
+                ToolHook.Decision decision;
+                try {
+                    decision = hook.beforeCall(action, args);
+                } catch (RuntimeException e) {
+                    logger.error("Tool hook {} failed on '{}': {}", hook.getClass().getSimpleName(), action, e.toString());
+                    return rejectedByHook(action, "a check on this call could not be completed, so it was not run.", ErrorCategory.OTHER);
+                }
+                if (decision == null || decision.kind() == ToolHook.Decision.Kind.ALLOW) continue;
+                if (decision.kind() == ToolHook.Decision.Kind.REJECT) return rejectedByHook(action, decision.message(), decision.category());
+                args = new HashMap<>(decision.arguments());
+            }
+
             // ── Human-in-the-Loop approval gate ──────────────────────────────
             if (tool.requiresApproval(args)) {
                 notifyApprovalRequired(action, args, thought);
@@ -1046,6 +1070,16 @@ public class ReActAgent {
             executeStarted = clock.millis();
             String observation = tool.execute(args);
             long durationMillis = Math.max(0, clock.millis() - executeStarted);
+            for (ToolHook hook : toolHooks) {
+                try {
+                    String shown = hook.afterCall(action, args, observation);
+                    observation = shown == null ? "" : shown;
+                } catch (RuntimeException e) {
+                    logger.error("Tool hook {} failed on the result of '{}': {}", hook.getClass().getSimpleName(), action, e.toString());
+                    observation = "Error: the result was withheld because a check on it could not be completed.";
+                    break;
+                }
+            }
             logger.info("Tool '{}' returned observation: {}", action, observation);
             try {
                 auditLogger.logToolExecution(sessionId, action, String.valueOf(args), observation, java.time.Instant.now());
@@ -1067,6 +1101,13 @@ public class ReActAgent {
         }
     }
 
+    /** A call refused before it ran: the model is shown the reason as the result, and listeners are told. */
+    private ActionExecution rejectedByHook(String action, String message, ErrorCategory category) {
+        String shown = "Error: the call to '" + action + "' was not run: " + message;
+        notifyToolRejected(action, shown);
+        return new ActionExecution(shown, AgentResult.StepOutcome.REJECTED_BY_HOOK, 0, 0, false, category, "ToolHook");
+    }
+
     /** The telemetry name for a step outcome; a switch with no default, so a new outcome cannot be added without deciding what it is called here. */
     private static ToolOutcome toolOutcome(AgentResult.StepOutcome outcome) {
         return switch (outcome) {
@@ -1075,6 +1116,7 @@ public class ReActAgent {
             case DUPLICATE_BLOCKED -> ToolOutcome.DUPLICATE_BLOCKED;
             case APPROVAL_UNAVAILABLE -> ToolOutcome.APPROVAL_UNAVAILABLE;
             case REJECTED_BY_HUMAN -> ToolOutcome.REJECTED_BY_HUMAN;
+            case REJECTED_BY_HOOK -> ToolOutcome.REJECTED_BY_HOOK;
             case EXECUTION_ERROR -> ToolOutcome.EXECUTION_ERROR;
             case BUDGET_EXHAUSTED -> ToolOutcome.BUDGET_EXHAUSTED;
         };
@@ -1325,6 +1367,16 @@ public class ReActAgent {
         return prompt.toString();
     }
 
+    private void notifyToolRejected(String toolName, String message) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onToolRejected(toolName, message);
+            } catch (Exception e) {
+                logger.error("Error in listener onToolRejected", e);
+            }
+        }
+    }
+
     private void notifyReasoningDelta(String piece) {
         for (AgentEventListener listener : listeners) {
             try {
@@ -1552,6 +1604,8 @@ public class ReActAgent {
         private boolean autoPlayAudio = true;
         private boolean streaming;
         private boolean reasoning;
+        private List<ToolHook> toolHooks = new ArrayList<>();
+        private boolean validateToolArguments;
         private String ttsLanguage;
         private String ttsModel;
         private Budget budget;
@@ -1608,6 +1662,8 @@ public class ReActAgent {
             this.autoPlayAudio = agent.autoPlayAudio;
             this.streaming = agent.streaming;
             this.reasoning = agent.reasoning;
+            this.toolHooks = new ArrayList<>(agent.toolHooks);
+            this.validateToolArguments = agent.validateToolArguments;
             this.ttsLanguage = agent.ttsLanguage;
             this.ttsModel = agent.ttsModel;
             this.toolCalling = agent.toolCalling;
@@ -1849,6 +1905,25 @@ public class ReActAgent {
          */
         public Builder reasoning(boolean reasoning) {
             this.reasoning = reasoning;
+            return this;
+        }
+
+        /**
+         * Adds a check on every tool call; see {@link ToolHook}. Hooks run in the order added, on the arguments as the model wrote them (or as
+         * an earlier hook replaced them), before approval and before the tool runs.
+         */
+        public Builder addToolHook(ToolHook hook) {
+            this.toolHooks.add(Objects.requireNonNull(hook, "hook cannot be null"));
+            return this;
+        }
+
+        /**
+         * Checks each call's arguments against the tool's own parameter schema before anything else: required arguments present, declared
+         * types and allowed values respected. A call that fails is not run, and the model is told what is wrong so it can write the call
+         * again. Off by default, since tools that declare no schema, or declare one loosely, would then be held to it.
+         */
+        public Builder validateToolArguments(boolean validate) {
+            this.validateToolArguments = validate;
             return this;
         }
 

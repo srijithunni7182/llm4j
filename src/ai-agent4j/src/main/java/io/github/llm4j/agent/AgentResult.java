@@ -191,6 +191,8 @@ public final class AgentResult {
         REJECTED_BY_HUMAN,
         /** The tool was approved (or required none) but threw while executing. */
         EXECUTION_ERROR,
+        /** A {@link ToolHook} (or the argument check, see {@code ReActAgent.Builder#validateToolArguments}) refused the call; the tool did not run. */
+        REJECTED_BY_HOOK,
         /** The agent's budget ran out; the run stopped here with its best answer so far. */
         BUDGET_EXHAUSTED
     }

@@ -150,8 +150,9 @@ AgentEventListener listener = new AgentEventListener() {
 ```
 
 Calls that never reached the tool get an event too, because they matter to the health of the loop: a tool the model invented (`UNKNOWN_TOOL`), an exact
-repeat that was blocked (`DUPLICATE_BLOCKED`), an action that needs approval when nobody was set up to give it (`APPROVAL_UNAVAILABLE`), and one a person rejected
-(`REJECTED_BY_HUMAN`, with how long the person took in `approvalMillis`). A person's thinking time is never counted as the tool's time.
+repeat that was blocked (`DUPLICATE_BLOCKED`), an action that needs approval when nobody was set up to give it (`APPROVAL_UNAVAILABLE`), one a person rejected
+(`REJECTED_BY_HUMAN`, with how long the person took in `approvalMillis`), and one a tool hook or the argument check refused (`REJECTED_BY_HOOK`; see
+[Steering, Streaming and Hooks](Steering-Streaming-and-Hooks.md)). A person's thinking time is never counted as the tool's time.
 
 The result carries the statistics of its own run, always (empty when nothing was called):
 

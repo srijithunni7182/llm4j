@@ -118,6 +118,11 @@ public interface AgentEventListener {
         // no-op by default; implementors opt in
     }
 
+    /** Called when a tool hook (or the argument check) refuses a call; {@code message} is what the model is shown instead of a result. */
+    default void onToolRejected(String toolName, String message) {
+        // no-op by default; implementors opt in
+    }
+
     /** Called when a run stops at a checkpoint because its {@link RunHandle} was paused. */
     default void onPaused() {
         // no-op by default; implementors opt in
