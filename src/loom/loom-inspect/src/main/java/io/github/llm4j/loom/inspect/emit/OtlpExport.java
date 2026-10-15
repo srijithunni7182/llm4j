@@ -170,8 +170,9 @@ public final class OtlpExport implements AutoCloseable {
         int status = sender.post(path, body);
         if (status >= 200 && status < 300) return;
         if (status == 401 || status == 403) {
-            dead = true;
+            // say so before the flag flips, so whoever sees the export is dead can already read why
             out.println("loom-inspect: the OTLP endpoint rejected the credentials (HTTP " + status + "). Exporting has stopped; the workflow is not affected.");
+            dead = true;
             throw new IOException("rejected");
         }
         if (status == 400 || status == 413 || status == 404 || status == 415) {
