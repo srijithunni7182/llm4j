@@ -105,6 +105,21 @@ public class HarnessExecutor implements LoomEngine {
         @Override public String sessionId() { return sessionId; }
         @Override public boolean refills(io.github.llm4j.budget.BudgetExceeded be) { return budgets.refills(be); }
     });
+    private final AgentPrompts prompts = new AgentPrompts(new AgentPrompts.Host() {
+        @Override public LoomScript script() { return script; }
+        @Override public io.github.llm4j.loom.prompt.PromptCatalog promptCatalog() { return promptCatalog; }
+        @Override public Path baseDir() { return baseDir; }
+    });
+    private final PayloadText payloads = new PayloadText(new PayloadText.Host() {
+        @Override public VariableContext view() { return HarnessExecutor.this.view(); }
+        @Override public VariableContext context() { return context; }
+    });
+
+    /** Fills {@code {name}} and {@code {var.field}} placeholders in text the script wrote. */
+    private String resolvePayload(String rawPayload) {
+        return payloads.resolve(rawPayload);
+    }
+
     private final BudgetCoordinator budgets = new BudgetCoordinator(scopes, new BudgetCoordinator.Host() {
         @Override public LoomScript script() { return script; }
         @Override public java.time.Clock clock() { return clock; }
@@ -1108,7 +1123,7 @@ public class HarnessExecutor implements LoomEngine {
 
         // ── 2. Build agents ───────────────────────────────────────────────────
         for (AgentDef agentDef : script.getAgents()) {
-            String systemPrompt = resolveSystemPrompt(agentDef);
+            String systemPrompt = prompts.resolveSystemPrompt(agentDef);
 
             // Determine LLM Client (Routing vs Regular)
             io.github.llm4j.LLMClient llmClient = null;
@@ -1631,70 +1646,6 @@ public class HarnessExecutor implements LoomEngine {
     // Private helpers
     // -----------------------------------------------------------------------
 
-    /**
-     * Resolves the effective system prompt for an agent, in priority order:
-     * 1. {@code prompt} / {@code system_template} → looked up from the prompt catalog, followed by {@code system}
-     * 2. {@code persona} name       → looked up from PersonaLibrary via reflection
-     * 3. Inline {@code system}      → used verbatim
-     */
-    private String resolveSystemPrompt(AgentDef agentDef) {
-        String base = basePrompt(agentDef);
-        // Skills always apply, whatever the base prompt came from.
-        return agentDef.getSkills().isEmpty() ? base : base + "\n\n" + resolveSkills(agentDef.getSkills());
-    }
-
-    private String basePrompt(AgentDef agentDef) {
-        // A prompt file (prompt:) or registry template (system_template:) is the base; the agent's own system: follows it.
-        String ref = agentDef.getPromptRef();
-        if (ref != null && promptCatalog != null) {
-            var resolved = promptCatalog.resolve(ref);
-            if (resolved.isPresent()) {
-                String system = fallbackSystemPrompt(agentDef);
-                return system.isBlank() ? resolved.get().text() : resolved.get().text() + "\n\n" + system;
-            }
-            log.warning("prompt '" + ref + "' not found — falling back."); // load-time checks report this first
-            return fallbackSystemPrompt(agentDef);
-        }
-
-        // Persona (declared in the script, else PersonaLibrary), followed by the agent's own system prompt
-        if (agentDef.getPersona() != null) {
-            AgentPersona persona = persona(agentDef.getPersona());
-            if (persona == null) throw new IllegalStateException("persona " + agentDef.getPersona() + " is not defined"); // validated earlier
-            String system = fallbackSystemPrompt(agentDef);
-            return system.isBlank() ? persona.toSystemPromptAddition() : persona.toSystemPromptAddition() + "\n\n" + system;
-        }
-        return fallbackSystemPrompt(agentDef);
-    }
-
-    /** A persona declared in the script, else a {@code PersonaLibrary} one, else null. */
-    private AgentPersona persona(String name) {
-        for (io.github.llm4j.loom.ast.PersonaDef def : script.getPersonas()) {
-            if (!def.getName().equals(name)) continue;
-            AgentPersona.Builder b = AgentPersona.builder().name(def.getName()).role(def.getRole());
-            if (def.getExpertise() != null) b.expertise(def.getExpertise());
-            if (def.getTone() != null) b.tone(def.getTone());
-            if (def.getDescription() != null) b.description(def.getDescription());
-            def.getConstraints().forEach(b::addConstraint);
-            return b.build();
-        }
-        return ScriptValidator.libraryPersona(name);
-    }
-
-    private String resolveSkills(List<String> skillUris) {
-        StringBuilder sb = new StringBuilder("## Skills\n");
-        for (String uri : skillUris) {
-            try {
-                AgentSkill skill = ScriptValidator.loadSkill(uri, baseDir);
-                sb.append("\n").append(skill.toSystemPromptSection()).append("\n");
-                log.info("Loaded skill: " + skill.getName());
-            } catch (Exception e) {
-                // validated at load time; a skill that vanished since is still worth failing on
-                throw new IllegalStateException("Skill " + uri + " can't be loaded: " + e.getMessage(), e);
-            }
-        }
-        return sb.toString();
-    }
-
     private Duration parseDuration(String raw) {
         if (raw == null || raw.isEmpty()) return Duration.ZERO;
         String val = raw.toLowerCase().trim();
@@ -1702,10 +1653,6 @@ public class HarnessExecutor implements LoomEngine {
         if (val.endsWith("m")) return Duration.ofMinutes(Long.parseLong(val.substring(0, val.length()-1)));
         if (val.endsWith("h")) return Duration.ofHours(Long.parseLong(val.substring(0, val.length()-1)));
         return Duration.ofSeconds(Long.parseLong(val));
-    }
-
-    private String fallbackSystemPrompt(AgentDef agentDef) {
-        return agentDef.getSystemPrompt() != null ? agentDef.getSystemPrompt() : "";
     }
 
     /**
@@ -1884,7 +1831,7 @@ public class HarnessExecutor implements LoomEngine {
         io.github.llm4j.loom.ast.SchemaDef schema = del.getExpecting() != null ? del.getExpecting() : agentDef.getOutputSchema();
         if (schema != null) {
             contextBriefing += "\n\nCRITICAL: You MUST respond in valid JSON format only, following this schema: "
-                            + stringifySchema(schema);
+                            + PayloadText.stringify(schema);
         }
 
         int attempts = 0;
@@ -1926,7 +1873,7 @@ public class HarnessExecutor implements LoomEngine {
                 }
                 Object finalValue = answer;
                 if (schema != null && partial == null) {
-                    finalValue = parseJsonResult(answer);
+                    finalValue = PayloadText.parseJson(answer);
                 }
                 String spoken = null;
                 if (voice != null && voice.speaks() && partial == null) {
@@ -2270,83 +2217,7 @@ public class HarnessExecutor implements LoomEngine {
         }
     }
 
-    private String stringifySchema(SchemaDef schema) {
-        if (schema == null) return "any";
-        return switch (schema.getType()) {
-            case OBJECT -> "{" + schema.getFields().entrySet().stream()
-                    .map(e -> e.getKey() + ": " + stringifySchema(e.getValue()))
-                    .collect(java.util.stream.Collectors.joining(", ")) + "}";
-            case LIST -> "list<" + stringifySchema(schema.getElementType()) + ">";
-            case ENUM -> "enum" + schema.getEnumValues().toString();
-            default -> schema.getType().name().toLowerCase();
-        };
-    }
 
-    private Object parseJsonResult(String raw) {
-        try {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            String jsonPart = raw;
-            if (raw.contains("```json")) {
-                jsonPart = raw.substring(raw.indexOf("```json") + 7, raw.lastIndexOf("```"));
-            } else if (raw.contains("```")) {
-                jsonPart = raw.substring(raw.indexOf("```") + 3, raw.lastIndexOf("```"));
-            }
-            return mapper.readValue(jsonPart.trim(), Object.class);
-        } catch (Exception e) {
-            log.warning("Failed to parse JSON result: " + e.getMessage() + ". Returning raw string.");
-            return raw;
-        }
-    }
-
-    private static final java.util.regex.Pattern PAYLOAD_PATH =
-            java.util.regex.Pattern.compile("\\{([A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z0-9_]+)+)}");
-
-    private String resolvePayload(String rawPayload) {
-        if (rawPayload == null) return null;
-        // {name} and {var.field.sub} are replaced by values; bare names (the legacy form) only in the text the
-        // script wrote — never inside a value just inserted, so one variable's text can't rewrite another's.
-        VariableContext scope = view();
-        Map<String, Object> vars = scope.getAll();
-        java.util.regex.Matcher m = PLACEHOLDER.matcher(rawPayload);
-        StringBuilder out = new StringBuilder();
-        int last = 0;
-        while (m.find()) {
-            out.append(bareNames(rawPayload.substring(last, m.start())));
-            String name = m.group(1);
-            if (PAYLOAD_PATH.matcher(m.group()).matches()) {
-                // Like conditions, a missing field reads as empty (e.g. a step that failed and set nothing).
-                Object value = io.github.llm4j.loom.runtime.ConditionEvaluator.resolvePath(name, scope);
-                out.append(value != null ? String.valueOf(value) : "");
-            } else if (vars.containsKey(name)) {
-                out.append(String.valueOf(vars.get(name)));
-            } else {
-                out.append(m.group()); // not a variable: left as written
-            }
-            last = m.end();
-        }
-        out.append(bareNames(rawPayload.substring(last)));
-        return out.toString();
-    }
-
-    private static final java.util.regex.Pattern PLACEHOLDER = java.util.regex.Pattern.compile("\\{([^{}\\s]+)}");
-
-    /**
-     * Bare-name substitution, for backward compatibility with older scripts. Workflow variables only:
-     * block-local names (for each items, _error) are common words, so they must be written {like.this}.
-     */
-    private String bareNames(String text) {
-        if (text.isEmpty()) return text;
-        Map<String, Object> vars = context.getAll();
-        if (vars.isEmpty()) return text;
-        // One pass, longest names first: a value put in is never scanned again.
-        String alternatives = vars.keySet().stream().filter(k -> !k.isEmpty())
-                .sorted((x, y) -> Integer.compare(y.length(), x.length()))
-                .map(java.util.regex.Pattern::quote)
-                .collect(java.util.stream.Collectors.joining("|"));
-        if (alternatives.isEmpty()) return text;
-        return java.util.regex.Pattern.compile(alternatives).matcher(text)
-                .replaceAll(r -> java.util.regex.Matcher.quoteReplacement(String.valueOf(vars.get(r.group()))));
-    }
 
     /**
      * Hook called for every agent just before it is built, after its model, prompt and tools are
