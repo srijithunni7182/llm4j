@@ -130,6 +130,47 @@ public class HarnessExecutor implements LoomEngine {
         @Override public String sessionId() { return sessionId; }
         @Override public HumanInterface humanInterface() { return humanInterface; }
     });
+    private final DelegateRunner delegates = new DelegateRunner(budgets, limits, new DelegateRunner.Host() {
+        @Override public void beginAttempt() { attempt.set(delegateAttempts.incrementAndGet()); }
+        @Override public String resolveName(String name) { return HarnessExecutor.this.resolveName(name); }
+        @Override public AgentDef agentDef(String name) {
+            return script.getAgents().stream().filter(a -> a.getName().equals(name)).findFirst()
+                    .orElseThrow(() -> new IllegalStateException("Agent not found: " + name));
+        }
+        @Override public ReActAgent activeAgent(String name) { return activeAgents.get(name); }
+        @Override public String stepId() { return step.get(); }
+        @Override public RunJournal journal() { return journal; }
+        @Override public VariableContext context() { return context; }
+        @Override public VariableContext view() { return HarnessExecutor.this.view(); }
+        @Override public String resolvePayload(String raw) { return HarnessExecutor.this.resolvePayload(raw); }
+        @Override public Path baseDir() { return baseDir; }
+        @Override public AgentVoice voice(String agent) { return voices.get(agent); }
+        @Override public AgentMemory memory(String agent) { return memories.get(agent); }
+        @Override public AgentGuard guard(String agent) { return guards.get(agent); }
+        @Override public io.github.llm4j.loom.knowledge.Retriever retriever(String agent) { return retrievers.get(agent); }
+        @Override public Map<String, String> sessions() { return sessions; }
+        @Override public MemoryEngine memoryEngine() { return memoryEngine; }
+        @Override public AuditLogger auditLogger() { return auditLogger; }
+        @Override public String sessionId() { return sessionId; }
+        @Override public java.util.Optional<io.github.llm4j.loom.prompt.PromptUse> promptUsed(AgentDef agent) { return HarnessExecutor.this.promptUsed(agent); }
+        @Override public ThreadLocal<List<io.github.llm4j.budget.Budget>> scopes() { return scopes; }
+        @Override public void trace(String type, String agent, String text, Map<String, Object> data) { HarnessExecutor.this.trace(type, agent, text, data); }
+        @Override public void runFailureHandler(List<Statement> onFailure, String message) { HarnessExecutor.this.runFailureHandler(onFailure, message); }
+        @Override public void traceFailure(String kind, String name, String message, Throwable cause, io.github.llm4j.telemetry.ErrorCategory given, int attempts, boolean handled) {
+            HarnessExecutor.this.traceFailure(kind, name, message, cause, given, attempts, handled);
+        }
+        @Override public ThreadScope.Snapshot captureScope() { return threadScope.capture(); }
+        @Override public java.util.concurrent.ExecutorService branches() { return BRANCHES; }
+        @Override public ReActAgent agentForDelegate(DelegateStmt stmt, AgentDef agentDef, ReActAgent agent) { return HarnessExecutor.this.agentForDelegate(stmt, agentDef, agent); }
+        @Override public String beforeDelegateExecution(DelegateStmt stmt, AgentDef agentDef, String payload, String assembled) { return HarnessExecutor.this.beforeDelegateExecution(stmt, agentDef, payload, assembled); }
+        @Override public void afterDelegateExecution(DelegateStmt stmt, AgentDef agentDef, String payload, String effective, io.github.llm4j.agent.AgentResult result, Object finalValue, DelegateSuccessHandler onSuccess) {
+            HarnessExecutor.this.afterDelegateExecution(stmt, agentDef, payload, effective, result, finalValue, onSuccess);
+        }
+        @Override public void onDelegateError(DelegateStmt stmt, AgentDef agentDef, String payload, String effective, Exception error, int attemptNumber, int maxAttempts) {
+            HarnessExecutor.this.onDelegateError(stmt, agentDef, payload, effective, error, attemptNumber, maxAttempts);
+        }
+        @Override public void onDelegateReplayed(DelegateStmt stmt, AgentDef agentDef, Object value) { HarnessExecutor.this.onDelegateReplayed(stmt, agentDef, value); }
+    });
 
     // ── Pausing and resuming ─────────────────────────────────────────────
     /** Journal key of the run's latest pause for a limit. */
@@ -336,7 +377,7 @@ public class HarnessExecutor implements LoomEngine {
 
     /** Runs one delegate at the given step id: its result is journaled there and a resumed run reuses it. */
     void delegateAt(String stepId, DelegateStmt del) {
-        atStep(stepId, () -> executeDelegate(del));
+        atStep(stepId, () -> delegates.execute(del));
     }
 
     Decider decider() { return decider; }
@@ -1442,7 +1483,7 @@ public class HarnessExecutor implements LoomEngine {
         } else if (stmt instanceof io.github.llm4j.loom.ast.RunStmt run) {
             taskRunner.run(run);
         } else if (stmt instanceof DelegateStmt del) {
-            executeDelegate(del);
+            delegates.execute(del);
         } else if (stmt instanceof CallStmt call) {
             executeCall(call);
         } else if (stmt instanceof HandoffStmt handoff) {
@@ -1459,7 +1500,7 @@ public class HarnessExecutor implements LoomEngine {
                 String contextBriefing = memoryEngine.assembleContext(agentDef, resolvedPayload, view());
                 trace(TraceEvent.DELEGATE_START, handoff.getTargetAgent(), resolvedPayload, new java.util.LinkedHashMap<>(Map.of("variable", "handoff")));
                 io.github.llm4j.agent.AgentResult result = limits.runUnderLimits(agent, contextBriefing);
-                trace(TraceEvent.DELEGATE_END, handoff.getTargetAgent(), result.getFinalAnswer(), usageData(result));
+                trace(TraceEvent.DELEGATE_END, handoff.getTargetAgent(), result.getFinalAnswer(), DelegateRunner.usageData(result));
                 
                 memoryEngine.storeOutcome(agentDef, resolvedPayload, result, context);
                 
@@ -1506,7 +1547,7 @@ public class HarnessExecutor implements LoomEngine {
                                 // each target is a step of its own to anyone watching: it starts and ends like a delegate, with its tokens
                                 trace(TraceEvent.DELEGATE_START, agentName, resolvedPayload, new java.util.LinkedHashMap<>(Map.of("variable", broadcast.getVariableName())));
                                 io.github.llm4j.agent.AgentResult r = limits.runUnderLimits(broadcastAgent, resolvedPayload);
-                                trace(TraceEvent.DELEGATE_END, agentName, r.getFinalAnswer(), usageData(r));
+                                trace(TraceEvent.DELEGATE_END, agentName, r.getFinalAnswer(), DelegateRunner.usageData(r));
                                 if (r.budgetExhausted()) {
                                     budgets.markExhausted();
                                     if (r.getUsage().getLlmCalls() == 0) throw r.getBudgetExceeded();
@@ -1746,223 +1787,6 @@ public class HarnessExecutor implements LoomEngine {
         return String.valueOf(value);
     }
 
-    private void executeDelegate(DelegateStmt del) {
-        attempt.set(delegateAttempts.incrementAndGet());
-        String agentName = resolveName(del.getTargetAgent());
-        String variableName = resolveName(del.getVariableName());
-        AgentDef agentDef = script.getAgents().stream()
-                .filter(a -> a.getName().equals(agentName))
-                .findFirst().orElseThrow(() -> new IllegalStateException("Agent not found: " + agentName));
-        ReActAgent agent = activeAgents.get(agentName);
-        if (agent == null) throw new IllegalStateException("Agent not found: " + agentName);
-
-        // A resumed run: this step already happened — reuse its recorded result, don't call the model.
-        String stepId = step.get();
-        var recorded = journal.get(stepId).filter(e -> !"retry".equals(e.kind())); // "retry": an operator asked for a failed step to be tried again
-        if (recorded.isPresent()) {
-            RunJournal.Entry entry = recorded.get();
-            if ("failed".equals(entry.kind())) {
-                handleExhausted(del, agentName, String.valueOf(entry.value()), null);
-            } else {
-                context.setVariable(variableName, entry.value());
-                journal.get(stepId + "#audio").ifPresent(audio -> context.setVariable(variableName + "_audio", audio.value()));
-                onDelegateReplayed(del, agentDef, entry.value());
-                trace(TraceEvent.DELEGATE_REPLAYED, agentName, "reused the recorded result", null);
-            }
-            return;
-        }
-
-        String payload = resolvePayload(del.getPayload());
-        AgentVoice voice = voices.get(agentName);
-        Path heard = voice == null ? null : voice.audioTask(payload);
-        if (heard != null) {
-            try {
-                payload = voice.transcribe(heard);
-                trace(TraceEvent.VOICE, agentName, "heard " + baseDir.toAbsolutePath().normalize().relativize(heard.toAbsolutePath().normalize())
-                        + ": " + payload, null);
-            } catch (RuntimeException e) {
-                failStep(del, stepId, agentName, "voice: couldn't transcribe " + heard.getFileName() + ": " + e.getMessage(), e);
-                return;
-            }
-        }
-        final String resolvedPayload = payload;
-
-        String contextBriefing = memoryEngine.assembleContext(agentDef, resolvedPayload, view());
-        io.github.llm4j.loom.knowledge.Retriever retriever = retrievers.get(agentName);
-        if (retriever != null) {
-            String found = io.github.llm4j.loom.knowledge.Retriever.format(retriever.search(resolvedPayload, retriever.topK()));
-            if (!found.isEmpty()) contextBriefing = found + "\n" + contextBriefing;
-        }
-        AgentMemory agentMemory = memories.get(agentName);
-        final String session = agentMemory == null ? null : agentMemory.session(this::resolvePayload);
-        if (agentMemory != null) {
-            sessions.put(stepId, session);
-            AgentMemory.Recall recall = agentMemory.recall(session, resolvedPayload);
-            Map<String, Object> data = new java.util.LinkedHashMap<>();
-            data.put("agent", agentName);
-            data.put("session", session);
-            data.put("messages", String.valueOf(recall.messages().size()));
-            data.put("facts", String.valueOf(recall.facts().size()));
-            auditLogger.logConversationEvent(sessionId, null, "memory_recalled", data);
-            trace(TraceEvent.MEMORY, agentName, "recalled " + recall.messages().size() + " messages and "
-                    + recall.facts().size() + " facts for " + session, data);
-            if (!recall.isEmpty()) contextBriefing = recall.format(session) + contextBriefing;
-        }
-        contextBriefing = beforeDelegateExecution(del, agentDef, resolvedPayload, contextBriefing);
-        AgentGuard guard = guards.get(agentName);
-        if (guard != null) {
-            try {
-                guard.checkTask(contextBriefing);
-            } catch (StepFailure blocked) {
-                sessions.remove(stepId);
-                failStep(del, stepId, agentName, blocked.getMessage(), blocked);
-                return;
-            }
-        }
-        Map<String, Object> startData = new java.util.LinkedHashMap<>();
-        startData.put("variable", variableName);
-        promptUsed(agentDef).ifPresent(u -> {
-            startData.put("prompt", u.label());
-            startData.put("promptHash", u.hash());
-        });
-        trace(TraceEvent.DELEGATE_START, agentName, resolvedPayload, startData);
-        
-        // A step's own `expecting { ... }` schema wins over the agent's output_schema.
-        io.github.llm4j.loom.ast.SchemaDef schema = del.getExpecting() != null ? del.getExpecting() : agentDef.getOutputSchema();
-        if (schema != null) {
-            contextBriefing += "\n\nCRITICAL: You MUST respond in valid JSON format only, following this schema: "
-                            + PayloadText.stringify(schema);
-        }
-
-        int attempts = 0;
-        int maxAttempts = del.getRetryCount() + 1;
-        int[] limitWaits = {0};
-        int[] asks = {0};
-        Exception lastError = null;
-        io.github.llm4j.budget.BudgetExceeded refused = null;
-        io.github.llm4j.budget.BudgetExceeded partial = null;
-        List<io.github.llm4j.budget.Budget> outerScopes = scopes.get();
-        if (del.getBudget() != null && budgets.budgeting()) {
-            scopes.set(BudgetCoordinator.plus(outerScopes, budgets.newBudget("step " + stepId, del.getBudget())));
-        }
-        try {
-        while (attempts < maxAttempts) {
-            try {
-                if (attempts > 0 && del.getBackoffMillis() > 0) {
-                    Thread.sleep(del.getBackoffMillis() << Math.min(attempts - 1, 10));
-                }
-                log.info("Delegating to " + agentName + " (Attempt " + (attempts + 1) + ")");
-                ReActAgent runAgent = agentForDelegate(del, agentDef, agent);
-                io.github.llm4j.agent.AgentResult result = del.getTimeoutMillis() > 0
-                        ? runWithTimeout(runAgent, contextBriefing, del.getTimeoutMillis())
-                        : runAgent.run(contextBriefing);
-                if (result.budgetExhausted()) {
-                    io.github.llm4j.budget.BudgetExceeded be = result.getBudgetExceeded();
-                    if (budgets.refills(be)) throw io.github.llm4j.ratelimit.RateLimited.of(be); // pause until it refills
-                    if (budgets.askForMore(be, asks)) continue; // a person allowed more: run the step again
-                    budgets.markExhausted();
-                    // Refused before its first call: nothing to keep, the step failed.
-                    if (result.getUsage().getLlmCalls() == 0) throw result.getBudgetExceeded();
-                    partial = result.getBudgetExceeded(); // ran out part-way: keep its best answer
-                }
-
-                String answer = result.getFinalAnswer();
-                if (guard != null) {
-                    answer = guard.checkAnswer(answer);
-                    if (!answer.equals(result.getFinalAnswer())) result = result.toBuilder().finalAnswer(answer).build();
-                }
-                Object finalValue = answer;
-                if (schema != null && partial == null) {
-                    finalValue = PayloadText.parseJson(answer);
-                }
-                String spoken = null;
-                if (voice != null && voice.speaks() && partial == null) {
-                    try {
-                        spoken = voice.speak(answer, variableName.replaceAll("[^A-Za-z0-9_-]", "_") + "-" + shortHash(stepId));
-                    } catch (Exception e) {
-                        throw new StepFailure("voice: couldn't speak the answer: " + e.getMessage(), e);
-                    }
-                    trace(TraceEvent.VOICE, agentName, "spoke the answer to " + spoken, null);
-                }
-                final String audio = spoken;
-                final String remembered = answer;
-                DelegateSuccessHandler successHandler = (agentResult, value) -> {
-                    context.setVariable(variableName, value);
-                    journal.put(stepId, new RunJournal.Entry("delegate", value));
-                    if (audio != null) {
-                        context.setVariable(variableName + "_audio", audio);
-                        journal.put(stepId + "#audio", new RunJournal.Entry("audio", audio));
-                    }
-                    if (agentMemory != null) {
-                        agentMemory.remember(session, guard != null ? guard.forStorage(resolvedPayload) : resolvedPayload, remembered);
-                    }
-                    trace(TraceEvent.DELEGATE_END, agentName, remembered, usageData(agentResult));
-                    memoryEngine.storeOutcome(agentDef, resolvedPayload, agentResult, context);
-                    auditLogger.logAgentDecision(AuditEvent.builder()
-                            .sessionId(sessionId)
-                            .agentResult(agentResult)
-                            .addMetadata("agent", agentName)
-                            .addMetadata("statement", "delegate")
-                            .timestamp(Instant.now())
-                            .build());
-                };
-                afterDelegateExecution(del, agentDef, resolvedPayload, contextBriefing, result, finalValue, successHandler);
-                break; // Success (possibly a partial answer)
-            } catch (io.github.llm4j.budget.BudgetExceeded exceeded) {
-                budgets.markExhausted();
-                refused = exceeded; // never retried: a retry would only spend more
-                break;
-            } catch (io.github.llm4j.ratelimit.RateLimited limited) {
-                try {
-                    limits.onLimit(limited, limitWaits); // waited it out: run the step again (not a retry)
-                    continue;
-                } catch (RateLimitFailure f) {
-                    lastError = f; // not worth waiting for: the step failed, without retries
-                    attempts = maxAttempts;
-                    break;
-                }
-            } catch (StepFailure failure) {
-                lastError = failure; // a guard or voice failure: retrying wouldn't change it
-                attempts = maxAttempts;
-                break;
-            } catch (io.github.llm4j.agent.AgentInterrupt interrupt) {
-                throw interrupt; // waiting for a human is not a failure — never retried
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("Interrupted while delegating to " + agentName, e);
-            } catch (Exception e) {
-                log.warning("Delegation failed: " + e.getMessage());
-                onDelegateError(del, agentDef, resolvedPayload, contextBriefing, e, attempts + 1, maxAttempts);
-                lastError = e;
-                attempts++;
-            }
-        }
-        } finally {
-            scopes.set(outerScopes);
-            sessions.remove(stepId);
-        }
-
-        if (refused != null) {
-            // Refused by a budget: on_failure handles it (outside the exhausted step budget), else it propagates.
-            if (del.getOnFailure().isEmpty()) throw refused;
-            handleExhausted(del, agentName, refused.getMessage(), refused);
-            return;
-        }
-        if (partial != null) {
-            if (!del.getOnFailure().isEmpty()) handleExhausted(del, agentName, partial.getMessage(), partial);
-            return;
-        }
-        if (attempts < maxAttempts) return; // succeeded
-
-        // Exhausted retries
-        log.severe("Exhausted retries for delegate to " + agentName);
-        String message = lastError != null && lastError.getMessage() != null ? lastError.getMessage() : "Unknown error";
-        // Recorded only when on_failure lets the run continue past it; a step that fails the run is
-        // retried when the run is resumed.
-        if (!del.getOnFailure().isEmpty()) journal.put(stepId, new RunJournal.Entry("failed", message));
-        handleExhausted(del, agentName, message, lastError);
-    }
-
     /** Runs an {@code on_failure} block with {@code _error} in scope. */
     void runFailureHandler(List<Statement> onFailure, String message) {
         Map<String, Object> outer = locals.get();
@@ -1998,33 +1822,6 @@ public class HarnessExecutor implements LoomEngine {
         }
     }
 
-    /** A step that failed before its agent ran: recorded (when on_failure lets the run go on), then handled. */
-    private void failStep(DelegateStmt del, String stepId, String agentName, String message, Exception cause) {
-        log.warning("Step " + stepId + " failed: " + message);
-        if (!del.getOnFailure().isEmpty()) journal.put(stepId, new RunJournal.Entry("failed", message));
-        handleExhausted(del, agentName, message, cause);
-    }
-
-    private static String shortHash(String text) {
-        try {
-            byte[] h = java.security.MessageDigest.getInstance("SHA-256").digest(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            return java.util.HexFormat.of().formatHex(h, 0, 4);
-        } catch (java.security.NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    private static Map<String, Object> usageData(io.github.llm4j.agent.AgentResult r) {
-        Map<String, Object> data = new java.util.LinkedHashMap<>();
-        if (r == null || r.getUsage() == null) return data;
-        data.put("calls", r.getUsage().getLlmCalls());
-        data.put("tokens", r.getUsage().getTotalTokens());
-        data.put("promptTokens", r.getUsage().getPromptTokens()); // the split lets a server with a price table cost the step
-        data.put("completionTokens", r.getUsage().getCompletionTokens());
-        if (r.getUsage().getCost() != null) data.put("cost", r.getUsage().getCost().toPlainString());
-        return data;
-    }
-
     private final java.util.concurrent.atomic.AtomicReference<Map<String, Object>> unhandledFailure = new java.util.concurrent.atomic.AtomicReference<>();
 
     /** The category a failure belongs to: the given one, or the one the exception says (the same words a tool failure uses). */
@@ -2046,35 +1843,6 @@ public class HarnessExecutor implements LoomEngine {
         d.put("error", message == null ? "" : message);
         if (!handled) unhandledFailure.set(d);
         trace(TraceEvent.FAILURE, null, kind + " " + name + (handled ? " failed; on_failure took over" : " failed"), d);
-    }
-
-    /** Runs the on_failure block with {@code _error} in scope, or fails the workflow. */
-    private void handleExhausted(DelegateStmt del, String agentName, String message, Exception cause) {
-        traceFailure("delegate", agentName, message, cause, null, del.getRetryCount() + 1, !del.getOnFailure().isEmpty());
-        if (!del.getOnFailure().isEmpty()) {
-            runFailureHandler(del.getOnFailure(), message);
-        } else {
-            throw new RuntimeException("Delegate to " + agentName + " failed after " + del.getRetryCount()
-                    + " retries: " + message, cause);
-        }
-    }
-
-    private io.github.llm4j.agent.AgentResult runWithTimeout(ReActAgent agent, String task, long timeoutMillis) throws Exception {
-        ThreadScope.Snapshot scope = threadScope.capture();
-        CompletableFuture<io.github.llm4j.agent.AgentResult> future = CompletableFuture.supplyAsync(() -> {
-            try (ThreadScope.Installed ignored = scope.install()) {
-                return agent.run(task);
-            }
-        }, BRANCHES);
-        try {
-            return future.get(timeoutMillis, java.util.concurrent.TimeUnit.MILLISECONDS);
-        } catch (java.util.concurrent.TimeoutException e) {
-            future.cancel(true);
-            throw new java.util.concurrent.TimeoutException("Step timed out after " + timeoutMillis + " ms");
-        } catch (java.util.concurrent.ExecutionException e) {
-            if (e.getCause() instanceof RuntimeException re) throw re;
-            throw e;
-        }
     }
 
     // ── Budgets ─────────────────────────────────────────────────────────────────────────────
