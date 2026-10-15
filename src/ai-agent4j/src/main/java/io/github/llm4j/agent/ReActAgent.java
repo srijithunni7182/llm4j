@@ -300,10 +300,62 @@ public class ReActAgent {
     }
 
     public AgentResult run(String question) {
+        return run(question, null);
+    }
+
+    /**
+     * Runs the agent under the control of {@code handle}: while this call blocks, another thread can steer, pause, resume or cancel the run
+     * through the handle. See {@link RunHandle} for when each takes effect.
+     *
+     * @param handle the run's remote control; {@code null} for a run nobody controls
+     */
+    public AgentResult run(String question, RunHandle handle) {
         Objects.requireNonNull(question, "question cannot be null");
         RunTelemetry telemetry = new RunTelemetry();
-        AgentResult result = nativeCalling ? runNative(question, telemetry) : runText(question, telemetry);
-        return result.toBuilder().stats(telemetry.snapshot()).build();
+        if (handle != null) handle.bind();
+        try {
+            AgentResult result = nativeCalling ? runNative(question, telemetry, handle) : runText(question, telemetry, handle);
+            return result.toBuilder().stats(telemetry.snapshot()).build();
+        } finally {
+            if (handle != null) handle.release();
+        }
+    }
+
+    /** The loop's checkpoint: false when the run was cancelled. A paused run waits here. */
+    private boolean checkpoint(RunHandle handle) {
+        return handle == null || handle.proceed(this::notifyPaused, this::notifyResumed);
+    }
+
+    /** The messages sent through the handle since the last model call, oldest first, each announced to the listeners. */
+    private List<String> steering(RunHandle handle) {
+        if (handle == null) return List.of();
+        List<String> messages = handle.drainSteering();
+        for (String message : messages) notifySteered(message);
+        return messages;
+    }
+
+    private AgentResult buildCancelledResult(
+            List<AgentResult.AgentStep> steps, String bestSoFar, int iteration, AgentResult.Usage usage,
+            int redundantActionCount, boolean protocolFollowed) {
+        logger.info("Agent run cancelled after {} iteration(s)", iteration);
+        notifyCancelled();
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer(bestSoFar == null || bestSoFar.isBlank() ? "Run cancelled." : bestSoFar)
+                        .steps(steps)
+                        .iterations(iteration)
+                        .completed(false)
+                        .cancelled(true)
+                        .confidence(ConfidenceScore.low("Run cancelled"))
+                        .uncertaintyDetected(true)
+                        .uncertaintyReason("Run cancelled")
+                        .usage(usage)
+                        .redundantActionCount(redundantActionCount)
+                        .protocolFollowed(protocolFollowed)
+                        .build();
+        auditLogger.logAgentDecision(
+                AuditEvent.builder().sessionId(sessionId).agentResult(result).build());
+        return result;
     }
 
     /** What one run measures about its calls: the statistics that go on its result, and the events its listeners hear. */
@@ -326,7 +378,7 @@ public class ReActAgent {
     }
 
     /** The loop on the text protocol: the model writes a JSON block that the agent parses. */
-    private AgentResult runText(String question, RunTelemetry telemetry) {
+    private AgentResult runText(String question, RunTelemetry telemetry, RunHandle handle) {
 
         // If question starts with "VOICE:" (or similar marker), we could infer?
         // But better to have explicit methods.
@@ -349,6 +401,13 @@ public class ReActAgent {
 
         for (int i = 0; i < maxIterations; i++) {
             logger.debug("Agent iteration {}/{}", i + 1, maxIterations);
+            if (!checkpoint(handle)) {
+                return buildCancelledResult(
+                        steps, lastThought != null ? lastThought : lastObservation, i,
+                        new AgentResult.Usage(llmCallCount, totalPromptTokens, totalCompletionTokens, totalTokens, usageEstimated, totalCost),
+                        redundantActionCount.get(), protocolFollowed);
+            }
+            for (String said : steering(handle)) scratchpad.steer(said);
 
             // ... (request building is the same)
             String context = "";
@@ -617,7 +676,7 @@ public class ReActAgent {
      * message, and a reply with no tool calls is the final answer. Approvals, budgets, rate limits, duplicate blocking, listeners, audit and the
      * result are the same as on the text protocol.
      */
-    private AgentResult runNative(String question, RunTelemetry telemetry) {
+    private AgentResult runNative(String question, RunTelemetry telemetry, RunHandle handle) {
         List<AgentResult.AgentStep> steps = new ArrayList<>();
         Set<String> actionHistory = new HashSet<>();
         AtomicInteger redundantActionCount = new AtomicInteger(0);
@@ -647,6 +706,11 @@ public class ReActAgent {
 
         for (int i = 0; i < maxIterations; i++) {
             logger.debug("Agent iteration {}/{} (native tool calling)", i + 1, maxIterations);
+            if (!checkpoint(handle)) {
+                return buildCancelledResult(
+                        steps, lastThought != null ? lastThought : lastObservation, i, tally.usage(), redundantActionCount.get(), true);
+            }
+            for (String said : steering(handle)) conversation.add(Message.user(Scratchpad.STEER + said));
             if (contextManager != null) {
                 ContextManager.Prepared prepared = contextManager.prepare(conversation, i);
                 if (prepared.changed()) conversation = new ArrayList<>(prepared.messages());
@@ -707,7 +771,14 @@ public class ReActAgent {
             for (ToolCall c : response.getToolCalls()) calls.add(c.id() == null || c.id().isBlank() ? c.withId("call_" + (++callNumber)) : c);
             conversation.add(Message.assistantToolCalls(text, calls, response.getProviderData()));
 
+            boolean firstCall = true;
             for (ToolCall call : calls) {
+                if (!firstCall && !checkpoint(handle)) {
+                    // cancelled between the calls of one turn: the rest are not run, and the run ends here
+                    return buildCancelledResult(
+                            steps, lastObservation, i + 1, tally.usage(), redundantActionCount.get(), true);
+                }
+                firstCall = false;
                 Tool tool = tools.get(call.name().toLowerCase());
                 Map<String, Object> args = tool == null ? call.arguments() : unwrapFreeForm(tool, call.arguments());
                 String actionInput;
@@ -1218,6 +1289,46 @@ public class ReActAgent {
                         .replace("{tool_descriptions}", toolDescriptions.toString())
                         .replace("{tool_names}", String.join(", ", toolNames)));
         return prompt.toString();
+    }
+
+    private void notifySteered(String message) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onSteered(message);
+            } catch (Exception e) {
+                logger.error("Error in listener onSteered", e);
+            }
+        }
+    }
+
+    private void notifyPaused() {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onPaused();
+            } catch (Exception e) {
+                logger.error("Error in listener onPaused", e);
+            }
+        }
+    }
+
+    private void notifyResumed() {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onResumed();
+            } catch (Exception e) {
+                logger.error("Error in listener onResumed", e);
+            }
+        }
+    }
+
+    private void notifyCancelled() {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onCancelled();
+            } catch (Exception e) {
+                logger.error("Error in listener onCancelled", e);
+            }
+        }
     }
 
     private void notifyThought(String thought) {

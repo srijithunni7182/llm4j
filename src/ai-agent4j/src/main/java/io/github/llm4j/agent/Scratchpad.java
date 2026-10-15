@@ -32,6 +32,13 @@ final class Scratchpad {
         turns.add(Message.toolResult(id, name, String.valueOf(observation)));
     }
 
+    static final String STEER = "Message from the user: ";
+
+    /** Something the user said while the agent was working. */
+    void steer(String message) {
+        turns.add(Message.user(STEER + message));
+    }
+
     /** A reply that named no usable action, with the note the model is shown about it. */
     void noAction(String llmOutput) {
         turns.add(Message.assistant(llmOutput + "\nObservation: No valid action found.\n"));
@@ -62,7 +69,9 @@ final class Scratchpad {
         for (int i = 0; i < turns.size(); i++) {
             Message m = turns.get(i);
             switch (m.getRole()) {
-                case USER -> sb.append(i == 0 ? m.getContent() : "Earlier steps: " + m.getContent() + "\n");
+                case USER -> sb.append(i == 0 ? m.getContent()
+                        : m.getContent().startsWith(STEER) ? m.getContent() + "\n"
+                        : "Earlier steps: " + m.getContent() + "\n");
                 case TOOL -> sb.append("Observation: ").append(m.getContent()).append("\n");
                 case ASSISTANT -> {
                     if (m.getToolCalls().isEmpty()) {

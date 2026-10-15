@@ -90,4 +90,28 @@ public interface AgentEventListener {
     default void onToolCall(io.github.llm4j.telemetry.ToolCallEvent event) {
         // no-op by default; implementors opt in
     }
+
+    /**
+     * Called when a message sent through {@link RunHandle#steer} reaches the agent, just before the model call that will see it.
+     *
+     * @param message the text the user sent
+     */
+    default void onSteered(String message) {
+        // no-op by default; implementors opt in
+    }
+
+    /** Called when a run stops at a checkpoint because its {@link RunHandle} was paused. */
+    default void onPaused() {
+        // no-op by default; implementors opt in
+    }
+
+    /** Called when a paused run carries on. */
+    default void onResumed() {
+        // no-op by default; implementors opt in
+    }
+
+    /** Called when a run ends because its {@link RunHandle} was cancelled. */
+    default void onCancelled() {
+        // no-op by default; implementors opt in
+    }
 }

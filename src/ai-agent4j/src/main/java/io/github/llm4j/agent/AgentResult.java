@@ -23,6 +23,7 @@ public final class AgentResult {
     private final boolean budgetExhausted;
     private final io.github.llm4j.budget.BudgetExceeded budgetExceeded;
     private final io.github.llm4j.telemetry.RunStats stats;
+    private final boolean cancelled;
 
     private AgentResult(Builder builder) {
         this.finalAnswer = builder.finalAnswer;
@@ -38,6 +39,7 @@ public final class AgentResult {
         this.budgetExceeded = builder.budgetExceeded;
         this.budgetExhausted = builder.budgetExhausted || builder.budgetExceeded != null;
         this.stats = builder.stats != null ? builder.stats : io.github.llm4j.telemetry.RunStats.EMPTY;
+        this.cancelled = builder.cancelled;
     }
 
     public String getFinalAnswer() {
@@ -117,6 +119,11 @@ public final class AgentResult {
         return stats;
     }
 
+    /** True when the run was ended through its {@link RunHandle}. The final answer is then the last thing the agent said or saw, and {@link #isCompleted()} is false. */
+    public boolean isCancelled() {
+        return cancelled;
+    }
+
     public boolean isHighConfidence() {
         return confidence != null && confidence.isHigh();
     }
@@ -145,6 +152,7 @@ public final class AgentResult {
         b.budgetExhausted = budgetExhausted;
         b.budgetExceeded = budgetExceeded;
         b.stats = stats;
+        b.cancelled = cancelled;
         return b;
     }
 
@@ -394,6 +402,7 @@ public final class AgentResult {
         private boolean protocolFollowed = true;
         private boolean budgetExhausted;
         private io.github.llm4j.budget.BudgetExceeded budgetExceeded;
+        private boolean cancelled;
         private io.github.llm4j.telemetry.RunStats stats;
 
         private Builder() {}
@@ -406,6 +415,11 @@ public final class AgentResult {
 
         public Builder budgetExceeded(io.github.llm4j.budget.BudgetExceeded budgetExceeded) {
             this.budgetExceeded = budgetExceeded;
+            return this;
+        }
+
+        public Builder cancelled(boolean cancelled) {
+            this.cancelled = cancelled;
             return this;
         }
 
