@@ -19,7 +19,30 @@ AgentResult result = agent.run("Fix the build", handle);   // on the agent's own
 
 The loop looks at the handle before every model call and between the tool calls of one turn. A steer arrives as a user message ("Message from the user: ...") after the tool results, so each tool call stays next to its result. A handle controls one run at a time. A cancel is sticky: it holds even if it arrives before the run starts, and that run then ends cancelled without calling the model. `run(question)` without a handle is unchanged.
 
-Listeners hear `onSteered`, `onPaused`, `onResumed` and `onCancelled`.
+Listeners hear `onSteered`, `onPaused`, `onResumed`, `onCancelled` and `onWrappedUp`.
+
+### Reasons, wrapping up, and the stop report
+
+```java
+handle.cancel("the input was wrong", "alice");   // why, and who asked
+handle.steer("focus on the EU", "alice");        // handle.steers() keeps the history, with the sender
+handle.wrapUp("budget is low", "scheduler");     // finish now with what you have
+```
+
+`wrapUp` is the gentle stop: the agent makes **one last model call with tools switched off** (at once, if a streaming call is in progress) and returns that answer, with `isWrappedUp()` true and `isCompleted()` false. A cancel overrides a wrap-up.
+
+When a run ends through its handle, `result.getStop()` is a `StopReport`:
+
+| Field | Meaning |
+|---|---|
+| `kind` | `CANCEL` or `WRAP_UP` |
+| `reason`, `origin` | as given (the first cancel's reason is kept) |
+| `phase` | `BEFORE_START`, `MODEL_CALL` (a streaming call was closed), `BETWEEN_TOOLS` (some of a turn's calls ran, the rest did not), `BETWEEN_STEPS` |
+| `partialAnswer` | the last thing the agent said or saw |
+| `steps` | what it had done |
+| `mayHaveChangedThings` | a step ran a tool that is not known to only read |
+
+`mayHaveChangedThings` uses an `EffectClassifier`. The default is cautious: an `Effectful` tool says for each call, and any other tool is assumed to change something. A host that knows which of its tools only read supplies its own with `ReActAgent.builder().effectClassifier((tool, args) -> ...)`. A caller should not simply start a run again when this is true.
 
 ## Watch the model work: streaming and reasoning
 

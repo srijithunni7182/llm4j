@@ -169,6 +169,7 @@ public class ReActAgent {
     private final boolean autoPlayAudio;
     private final boolean streaming;
     private final boolean reasoning;
+    private final EffectClassifier effectClassifier;
     private final List<ToolHook> toolHooks;
     private final boolean validateToolArguments;
     private final String ttsLanguage;
@@ -225,6 +226,7 @@ public class ReActAgent {
         this.autoPlayAudio = builder.autoPlayAudio;
         this.streaming = builder.streaming;
         this.reasoning = builder.reasoning;
+        this.effectClassifier = builder.effectClassifier != null ? builder.effectClassifier : EffectClassifier.CAUTIOUS;
         this.toolHooks = List.copyOf(builder.toolHooks);
         this.validateToolArguments = builder.validateToolArguments;
         this.ttsLanguage = builder.ttsLanguage;
@@ -329,9 +331,43 @@ public class ReActAgent {
         }
     }
 
-    /** The loop's checkpoint: false when the run was cancelled. A paused run waits here. */
-    private boolean checkpoint(RunHandle handle) {
-        return handle == null || handle.proceed(this::notifyPaused, this::notifyResumed);
+    /** The loop's checkpoint: go on, end (cancelled), or wrap up. A paused run waits here. */
+    private RunHandle.Signal checkpoint(RunHandle handle) {
+        return handle == null ? RunHandle.Signal.GO : handle.proceed(this::notifyPaused, this::notifyResumed);
+    }
+
+    private static final String WRAP_UP_NOTE = "Stop using tools now. Give your best final answer from what you have so far; say what you could not finish.";
+
+    /** Whether any step that ran may have changed something outside the process, as the {@link EffectClassifier} sees it. */
+    private boolean mayHaveChanged(List<AgentResult.AgentStep> steps) {
+        for (AgentResult.AgentStep step : steps) {
+            if (step.getAction() == null) continue;
+            if (step.getOutcome() != AgentResult.StepOutcome.EXECUTED && step.getOutcome() != AgentResult.StepOutcome.EXECUTION_ERROR) continue;
+            Tool tool = tools.get(step.getAction().toLowerCase());
+            if (tool == null) continue;
+            Map<String, Object> args;
+            try {
+                args = step.getActionInput() == null || step.getActionInput().isBlank() ? Map.of()
+                        : objectMapper.readValue(step.getActionInput(), new TypeReference<Map<String, Object>>() {});
+            } catch (Exception e) {
+                args = Map.of("input", step.getActionInput());
+            }
+            try {
+                if (effectClassifier.mayChange(tool, args)) return true;
+            } catch (RuntimeException e) {
+                return true; // a classifier that cannot tell is a reason for caution
+            }
+        }
+        return false;
+    }
+
+    private StopReport stopReport(RunHandle handle, StopReport.Kind kind, StopReport.Phase phase, String partial, List<AgentResult.AgentStep> steps) {
+        return new StopReport(kind, handle.stopReason(), handle.stopOrigin(), phase, partial, steps, mayHaveChanged(steps));
+    }
+
+    private static StopReport.Phase phaseAtCheckpoint(StopReport.Phase aborted, int iteration, List<AgentResult.AgentStep> steps) {
+        if (aborted != null) return aborted;
+        return iteration == 0 && steps.isEmpty() ? StopReport.Phase.BEFORE_START : StopReport.Phase.BETWEEN_STEPS;
     }
 
     /** The messages sent through the handle since the last model call, oldest first, each announced to the listeners. */
@@ -343,6 +379,7 @@ public class ReActAgent {
     }
 
     private AgentResult buildCancelledResult(
+            RunHandle handle, StopReport.Phase phase,
             List<AgentResult.AgentStep> steps, String bestSoFar, int iteration, AgentResult.Usage usage,
             int redundantActionCount, boolean protocolFollowed) {
         logger.info("Agent run cancelled after {} iteration(s)", iteration);
@@ -353,10 +390,92 @@ public class ReActAgent {
                         .steps(steps)
                         .iterations(iteration)
                         .completed(false)
-                        .cancelled(true)
+                        .stop(stopReport(handle, StopReport.Kind.CANCEL, phase, bestSoFar, steps))
                         .confidence(ConfidenceScore.low("Run cancelled"))
                         .uncertaintyDetected(true)
                         .uncertaintyReason("Run cancelled")
+                        .usage(usage)
+                        .redundantActionCount(redundantActionCount)
+                        .protocolFollowed(protocolFollowed)
+                        .build();
+        auditLogger.logAgentDecision(
+                AuditEvent.builder().sessionId(sessionId).agentResult(result).build());
+        return result;
+    }
+
+    /** The wrap-up in the text protocol: tell the model to stop using tools, ask once more, and take whatever final answer it gives. */
+    private AgentResult wrapUpText(
+            RunHandle handle, StopReport.Phase phase, Scratchpad scratchpad, List<AgentResult.AgentStep> steps, String best, int iteration,
+            AgentResult.Usage usageNow, int redundantActionCount, boolean protocolFollowed, RunTelemetry telemetry) {
+        scratchpad.steer(WRAP_UP_NOTE);
+        String history = conversationHistory == null ? "" : "Previous conversation history:\n" + conversationHistory.getFormattedHistory() + "\n\n";
+        LLMRequest request = LLMRequest.builder().addSystemMessage(systemPrompt).addUserMessage(history + scratchpad.render()).temperature(temperature).build();
+        String answer = best;
+        AgentResult.Usage usage = usageNow;
+        try {
+            LLMResponse response = chatObserved(request, iteration, telemetry);
+            String out = response.getContent() == null ? "" : response.getContent();
+            answer = out;
+            try {
+                Map<String, Object> json = parseResponse(out);
+                if (json.get("final_answer") != null) answer = asAnswerText(json.get("final_answer"));
+            } catch (Exception notJson) {
+                // the model answered in plain words: that is the answer
+            }
+            usage = withCall(usageNow, response);
+        } catch (BudgetExceeded exhausted) {
+            // there is no budget for the last call: what the agent had stands
+        }
+        return buildWrappedUpResult(handle, phase, steps, answer, best, iteration, usage, redundantActionCount, protocolFollowed);
+    }
+
+    /** The wrap-up with native tool calling: one more call with tools switched off. */
+    private AgentResult wrapUpNative(
+            RunHandle handle, StopReport.Phase phase, List<Message> conversation, List<ToolSpec> specs, List<AgentResult.AgentStep> steps,
+            String best, int iteration, Tally tally, int redundantActionCount, RunTelemetry telemetry) {
+        conversation.add(Message.user(Scratchpad.STEER + WRAP_UP_NOTE));
+        LLMRequest request = LLMRequest.builder().messages(conversation).tools(specs).toolChoice(LLMRequest.ToolChoice.NONE).temperature(temperature).build();
+        String answer = best;
+        try {
+            LLMResponse response = chatObserved(request, iteration, telemetry);
+            tally.add(response);
+            if (response.getContent() != null && !response.getContent().isBlank()) answer = response.getContent();
+        } catch (BudgetExceeded exhausted) {
+            // there is no budget for the last call: what the agent had stands
+        }
+        return buildWrappedUpResult(handle, phase, steps, answer, best, iteration, tally.usage(), redundantActionCount, true);
+    }
+
+    /** The usage so far plus one more call. */
+    private static AgentResult.Usage withCall(AgentResult.Usage before, LLMResponse response) {
+        LLMResponse.TokenUsage u = response.getTokenUsage();
+        java.math.BigDecimal cost = before.getCost();
+        boolean estimated = before.isEstimated();
+        if (response.getMetadata() != null) {
+            if (Boolean.TRUE.equals(response.getMetadata().get(BudgetedLLMClient.ESTIMATED))) estimated = true;
+            if (response.getMetadata().get(BudgetedLLMClient.COST) instanceof java.math.BigDecimal c) cost = cost == null ? c : cost.add(c);
+        }
+        return new AgentResult.Usage(before.getLlmCalls() + 1,
+                before.getPromptTokens() + (u == null ? 0 : u.getPromptTokens()),
+                before.getCompletionTokens() + (u == null ? 0 : u.getCompletionTokens()),
+                before.getTotalTokens() + (u == null ? 0 : u.getTotalTokens()), estimated, cost);
+    }
+
+    private AgentResult buildWrappedUpResult(
+            RunHandle handle, StopReport.Phase phase, List<AgentResult.AgentStep> steps, String answer, String bestSoFar, int iteration,
+            AgentResult.Usage usage, int redundantActionCount, boolean protocolFollowed) {
+        logger.info("Agent run wrapped up after {} iteration(s)", iteration);
+        notifyWrappedUp();
+        AgentResult result =
+                AgentResult.builder()
+                        .finalAnswer(answer == null || answer.isBlank() ? (bestSoFar == null ? "" : bestSoFar) : answer)
+                        .steps(steps)
+                        .iterations(iteration)
+                        .completed(false)
+                        .stop(stopReport(handle, StopReport.Kind.WRAP_UP, phase, bestSoFar, steps))
+                        .confidence(ConfidenceScore.low("Run wrapped up early"))
+                        .uncertaintyDetected(true)
+                        .uncertaintyReason("Run wrapped up early")
                         .usage(usage)
                         .redundantActionCount(redundantActionCount)
                         .protocolFollowed(protocolFollowed)
@@ -409,11 +528,16 @@ public class ReActAgent {
 
         for (int i = 0; i < maxIterations; i++) {
             logger.debug("Agent iteration {}/{}", i + 1, maxIterations);
-            if (!checkpoint(handle)) {
-                return buildCancelledResult(
-                        steps, lastThought != null ? lastThought : lastObservation, i,
-                        new AgentResult.Usage(llmCallCount, totalPromptTokens, totalCompletionTokens, totalTokens, usageEstimated, totalCost),
-                        redundantActionCount.get(), protocolFollowed);
+            RunHandle.Signal signal = checkpoint(handle);
+            if (signal != RunHandle.Signal.GO) {
+                AgentResult.Usage usageNow = new AgentResult.Usage(
+                        llmCallCount, totalPromptTokens, totalCompletionTokens, totalTokens, usageEstimated, totalCost);
+                String best = lastThought != null ? lastThought : lastObservation;
+                StopReport.Phase phase = phaseAtCheckpoint(null, i, steps);
+                if (signal == RunHandle.Signal.CANCEL) {
+                    return buildCancelledResult(handle, phase, steps, best, i, usageNow, redundantActionCount.get(), protocolFollowed);
+                }
+                return wrapUpText(handle, phase, scratchpad, steps, best, i, usageNow, redundantActionCount.get(), protocolFollowed, telemetry);
             }
             for (String said : steering(handle)) scratchpad.steer(said);
 
@@ -711,12 +835,20 @@ public class ReActAgent {
         conversation.add(Message.user(context + question));
         List<ToolSpec> specs = toolSpecs();
         ContextManager contextManager = newContextManager(specs);
+        StopReport.Phase abortedIn = null; // set when a steer or wrap-up closed a streaming call, so a stop right after says where it happened
 
         for (int i = 0; i < maxIterations; i++) {
             logger.debug("Agent iteration {}/{} (native tool calling)", i + 1, maxIterations);
-            if (!checkpoint(handle)) {
-                return buildCancelledResult(
-                        steps, lastThought != null ? lastThought : lastObservation, i, tally.usage(), redundantActionCount.get(), true);
+            RunHandle.Signal signal = checkpoint(handle);
+            StopReport.Phase phase = phaseAtCheckpoint(abortedIn, i, steps);
+            abortedIn = null;
+            if (signal == RunHandle.Signal.CANCEL) {
+                return buildCancelledResult(handle, phase, steps, lastThought != null ? lastThought : lastObservation, i,
+                        tally.usage(), redundantActionCount.get(), true);
+            }
+            if (signal == RunHandle.Signal.WRAP_UP) {
+                return wrapUpNative(handle, phase, conversation, specs, steps, lastThought != null ? lastThought : lastObservation, i,
+                        tally, redundantActionCount.get(), telemetry);
             }
             for (String said : steering(handle)) conversation.add(Message.user(Scratchpad.STEER + said));
             if (contextManager != null) {
@@ -759,6 +891,7 @@ public class ReActAgent {
                 // The checkpoint at the top of the loop then ends the run (cancel) or delivers the steering (steer).
                 tally.add(response);
                 if (!response.getContent().isBlank()) conversation.add(Message.assistant(response.getContent()));
+                abortedIn = StopReport.Phase.MODEL_CALL;
                 continue;
             }
             tally.add(response);
@@ -797,10 +930,11 @@ public class ReActAgent {
 
             boolean firstCall = true;
             for (ToolCall call : calls) {
-                if (!firstCall && !checkpoint(handle)) {
-                    // cancelled between the calls of one turn: the rest are not run, and the run ends here
-                    return buildCancelledResult(
-                            steps, lastObservation, i + 1, tally.usage(), redundantActionCount.get(), true);
+                if (!firstCall && checkpoint(handle) == RunHandle.Signal.CANCEL) {
+                    // cancelled between the calls of one turn: the rest are not run, and the run ends here. (A wrap-up waits for the end of the
+                    // turn: the conversation cannot take another message while calls of this one still lack their results.)
+                    return buildCancelledResult(handle, StopReport.Phase.BETWEEN_TOOLS, steps, lastObservation, i + 1,
+                            tally.usage(), redundantActionCount.get(), true);
                 }
                 firstCall = false;
                 Tool tool = tools.get(call.name().toLowerCase());
@@ -1437,6 +1571,16 @@ public class ReActAgent {
         }
     }
 
+    private void notifyWrappedUp() {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onWrappedUp();
+            } catch (Exception e) {
+                logger.error("Error in listener onWrappedUp", e);
+            }
+        }
+    }
+
     private void notifyCancelled() {
         for (AgentEventListener listener : listeners) {
             try {
@@ -1604,6 +1748,7 @@ public class ReActAgent {
         private boolean autoPlayAudio = true;
         private boolean streaming;
         private boolean reasoning;
+        private EffectClassifier effectClassifier;
         private List<ToolHook> toolHooks = new ArrayList<>();
         private boolean validateToolArguments;
         private String ttsLanguage;
@@ -1662,6 +1807,7 @@ public class ReActAgent {
             this.autoPlayAudio = agent.autoPlayAudio;
             this.streaming = agent.streaming;
             this.reasoning = agent.reasoning;
+            this.effectClassifier = agent.effectClassifier;
             this.toolHooks = new ArrayList<>(agent.toolHooks);
             this.validateToolArguments = agent.validateToolArguments;
             this.ttsLanguage = agent.ttsLanguage;
@@ -1912,6 +2058,11 @@ public class ReActAgent {
          * Adds a check on every tool call; see {@link ToolHook}. Hooks run in the order added, on the arguments as the model wrote them (or as
          * an earlier hook replaced them), before approval and before the tool runs.
          */
+        public Builder effectClassifier(EffectClassifier classifier) {
+            this.effectClassifier = classifier;
+            return this;
+        }
+
         public Builder addToolHook(ToolHook hook) {
             this.toolHooks.add(Objects.requireNonNull(hook, "hook cannot be null"));
             return this;

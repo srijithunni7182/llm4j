@@ -133,6 +133,11 @@ public interface AgentEventListener {
         // no-op by default; implementors opt in
     }
 
+    /** Called when a run ends because its {@link RunHandle} asked it to wrap up. */
+    default void onWrappedUp() {
+        // no-op by default; implementors opt in
+    }
+
     /** Called when a run ends because its {@link RunHandle} was cancelled. */
     default void onCancelled() {
         // no-op by default; implementors opt in

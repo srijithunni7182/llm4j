@@ -72,24 +72,29 @@ Supervision uses signals Loom already has in-process (step counters, retries, bu
 Built (commits on `ccr-dcc3f74a-sevyba`): `RunHandle.steer / pause / resume / cancel`; `AgentResult.isCancelled()`; `ReActAgent.Builder.streaming(true)`
 so a steer or cancel ends a call in progress at once; listener events `onSteered`, `onPaused`, `onResumed`, `onCancelled`, and the streaming deltas.
 
-To be added, so that Loom can interpret a stop:
+**Phase 2, built.** So that Loom can interpret a stop, the library now has:
 
-- `RunHandle.cancel(reason)` and `steer(text, origin)`, recording who asked and why.
-- `RunHandle.wrapUp()`: the agent makes **one more model call with tools disabled** (`ToolChoice.NONE`) and returns its best answer. This is the graceful
-  way to end a step without discarding its work.
-- `AgentResult.stop()`, a `StopReport`, present when the run ended through its handle:
+- `RunHandle.cancel(reason, origin)`, `steer(text, origin)` (with `steers()` keeping the history) and `wrapUp(reason, origin)`. The first cancel's reason is kept, a cancel overrides a wrap-up, and a cancel is
+  sticky: it holds even if it arrives before the run starts.
+- `wrapUp`: at the next checkpoint (or at once, if a streaming call is in progress) the agent makes **one more model call with tools disabled** (`ToolChoice.NONE`) and returns that answer, with
+  `isWrappedUp()` true and `isCompleted()` false. A wrap-up waits for the end of a turn whose tool calls are partly run, so the conversation stays valid.
+- `AgentResult.getStop()`, a `StopReport`, present when the run ended through its handle:
 
 ```java
 record StopReport(
-    String reason,          // "operator", "timeout", "budget", ... as given to cancel(reason)
-    String origin,          // who or what asked
-    Phase phase,            // MODEL_CALL, TOOL_CALL, AWAITING_APPROVAL, BETWEEN_STEPS
-    String partialAnswer,   // the last thing the agent said or saw
-    List<AgentStep> steps,  // what it had done
-    boolean mayHaveChangedThings)   // a tool that changes state ran, or was running
+    Kind kind,                      // CANCEL or WRAP_UP
+    String reason,                  // as given to cancel / wrapUp
+    String origin,                  // who or what asked
+    Phase phase,                    // BEFORE_START, MODEL_CALL, BETWEEN_TOOLS, BETWEEN_STEPS
+    String partialAnswer,           // the last thing the agent said or saw
+    List<AgentStep> steps,          // what it had done
+    boolean mayHaveChangedThings)   // a step ran a tool not known to only read
 ```
 
-`mayHaveChangedThings` is what makes a retry safe or unsafe. It uses the same effect knowledge Loom already keeps for tasks (`TaskEffect`) and approved tool calls.
+`AWAITING_APPROVAL` is not a phase: an approval callback cannot be interrupted, so a stop is taken after it returns.
+
+`mayHaveChangedThings` is what makes a retry safe or unsafe. It comes from an `EffectClassifier`: the library's default is cautious (an `Effectful` tool says for each call; any other tool is assumed to change something). Loom
+installs its own classifier built on `ReadClass`, which already knows which built-in tools only read and sees through the wrappers (`DescribedTool`, `ApprovalTool`, `EffectTool`, ...), and the same effect knowledge it keeps for tasks (`TaskEffect`).
 
 ## 5. How Loom interprets a stop
 
