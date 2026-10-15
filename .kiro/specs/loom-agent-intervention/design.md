@@ -79,6 +79,24 @@ allowed once, and only when the agent's tools were all read-only (otherwise it i
 (`INTERVENTION`, `STEP_STOPPED`). Steers pass the agent's guard and a 2000-character limit. Existing step timeouts and `RunControl` keep their behaviour. Tests: `StopInterpreterTest` (18),
 `InterventionRuntimeTest` (8), `InterventionSafetyTest` (2); the whole Loom suite is unchanged apart from these (1,903 tests, 0 failures).
 
+**Phase 4, built (language and tooling).**
+
+- *Language.* Agent settings `streaming`, `reasoning`, `steerable` (all off by default; `steerable` is checked when a steer arrives). A step's `on_stopped { }` (any order with `on_failure`) with the outcomes
+  `use partial`, `skip`, `discard`, `retry`, `suspend`, `conclude`, `ask`, and a `rewind to` a declared checkpoint, chosen with `alt` over `_stop.reason | note | kind | phase | partial | changed | origin`.
+  A script-level `intervention { reason: outcome }`. The new words are contextual (they stay usable as names). The order is: a person's named outcome, then the step's handler, then the
+  `intervention` default, then the built-in table. A rewind from a handler goes through the existing `Rewinder` (its `at most N times`, effects policy, journal and generations), carrying `{_stop.note}`.
+- *Checks.* A misspelt `_stop` field is an error; a rewind in a handler follows the existing rewind rules (declared, earlier, not out of a parallel branch); warnings for `steerable` without `streaming`,
+  `reasoning` without `streaming`, and a `retry` for an agent with tools that does not test `_stop.changed`. `weave audit` rule **LA18** lists every steerable agent as an input channel (medium when it also
+  reaches private data and can act). `weave graph` draws the handler on a `stopped` edge, with `outcome` nodes and the rewind edge back to the checkpoint; `weave explain` says it in words.
+- *Docs.* A guide section (parse-tested), chapter 6, `LOOM_PROMPT.md`, the workflow-guide skill, `weave-audit.md`, `API_COMPATIBILITY.md`.
+- *Ecosystem.* CTK: 15 scripted intervention scenarios (one per row of the defaults table, `on_stopped`, `intervention`, cancel-and-send-back, and three negatives) run through the Java runtime
+  (`InterventionCtkConformanceTest`); the comparator checks the payload of `stop`, `steer` and `rewind` steps; a sabotage of one default fails a scenario. VS Code: highlighting, hover, three snippets
+  (checked by `weave`), completion of `_stop.` fields / declared checkpoints / outcomes, and in the Flow view a **dotted** *stopped* line and a **dashed** *sent back* line with a key inside the exported picture
+  (the shared renderer used by the eval4j report does the same). The console and the inspector show the two new trace events (read-only; Fabric gains no control).
+- *Not done.* `wrap_up` as a script outcome (the parser says so), `on_conclude`, `retry with <Agent>` / `carrying` on a retry, `ask "<question>" -> var`, the journal format stamp, the `weave init` starter,
+  eval scenarios that script interventions, and the other four line kinds of 13.4.1 (steer loop, use-partial/skip arrows, ask marker, suspend marker): the graph draws only the two lines that are facts of the script.
+  Reaching a running process (chat, console, `cancel back to <checkpoint>`, the embedding class `LoomRun`) is phase 5.
+
 **Phase 2, built.** So that Loom can interpret a stop, the library now has:
 
 - `RunHandle.cancel(reason, origin)`, `steer(text, origin)` (with `steers()` keeping the history) and `wrapUp(reason, origin)`. The first cancel's reason is kept, a cancel overrides a wrap-up, and a cancel is
