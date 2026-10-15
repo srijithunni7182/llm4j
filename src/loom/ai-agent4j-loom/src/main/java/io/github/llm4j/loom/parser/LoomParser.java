@@ -63,6 +63,19 @@ public class LoomParser {
                 advance(); // the colon
                 if (script.getPromptsDir() != null) throw error(keyword, "Only one prompts: folder can be named.");
                 script.setPromptsDir(consume(TokenType.STRING_LITERAL, "Expect a folder for prompts, e.g. prompts: \"./prompts\".").getValue(), keyword.getLine());
+            } else if (isNamedAttribute("shared_prompt")) {
+                // Contextual: stays usable as a name everywhere else.
+                Token keyword = advance();
+                advance(); // the colon
+                if (script.getSharedPrompt() != null || script.getSharedPromptRef() != null) throw error(keyword, "Only one shared_prompt can be given.");
+                if (isWord("prompt") && peekAt(1).getType() == TokenType.STRING_LITERAL) {
+                    advance();
+                    script.setSharedPrompt(null, advance().getValue(), keyword.getLine());
+                } else {
+                    Token text = consume(TokenType.STRING_LITERAL, "Write shared_prompt: \"text for every agent\" or shared_prompt: prompt \"house-rules\" (a prompt file).");
+                    if (text.getValue().isBlank()) throw error(text, "shared_prompt is empty.");
+                    script.setSharedPrompt(text.getValue(), null, keyword.getLine());
+                }
             } else if (isWord("supervise") && peekAt(1).getType() == TokenType.IDENTIFIER && peekAt(2).getType() == TokenType.LBRACE) {
                 Token keyword = advance();
                 script.addSupervision(parseSupervise(keyword));

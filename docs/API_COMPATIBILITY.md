@@ -31,6 +31,8 @@ Loom adds the agent settings `streaming`, `reasoning` and `steerable`, the `on_s
 The graph JSON gains an `outcome` node kind, a `stopped` edge label and the optional agent flags `streaming`, `reasoning` and `steerable` (older readers ignore what they do not know).
 The trace gains the events `intervention` and `step_stopped`, and the run journal the entry kinds `steer`, `stop`, `skipped` and `discarded`. The journal has no format version, so an older `weave` is not stopped from opening a journal with these entries (the design plans a stamp that would make it refuse; it is not built). Finish a run that has them with the version that wrote them.
 
+`RunHook` (checks on the question, each model call and the final answer) and `AgentResult.isInputRejected()` are additive: an agent with no run hook behaves as before. Loom's top-level `shared_prompt` is additive too; a script without it is unchanged.
+
 Internal implementation details may change without notice, especially:
 
 - `io.github.llm4j.http`

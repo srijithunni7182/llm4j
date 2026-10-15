@@ -24,6 +24,7 @@ public final class AgentResult {
     private final io.github.llm4j.budget.BudgetExceeded budgetExceeded;
     private final io.github.llm4j.telemetry.RunStats stats;
     private final boolean cancelled;
+    private final boolean inputRejected;
     private final StopReport stop;
 
     private AgentResult(Builder builder) {
@@ -42,6 +43,7 @@ public final class AgentResult {
         this.stats = builder.stats != null ? builder.stats : io.github.llm4j.telemetry.RunStats.EMPTY;
         this.stop = builder.stop;
         this.cancelled = builder.cancelled || (builder.stop != null && builder.stop.kind() == StopReport.Kind.CANCEL);
+        this.inputRejected = builder.inputRejected;
     }
 
     public String getFinalAnswer() {
@@ -126,6 +128,11 @@ public final class AgentResult {
         return cancelled;
     }
 
+    /** True when a {@link RunHook} refused the question: no model call was made and {@link #getFinalAnswer()} is the hook's message. */
+    public boolean isInputRejected() {
+        return inputRejected;
+    }
+
     /** True when the run ended because it was asked to wrap up: its answer is the one last model call (tools off) gave. {@link #isCompleted()} is false. */
     public boolean isWrappedUp() {
         return stop != null && stop.kind() == StopReport.Kind.WRAP_UP;
@@ -165,6 +172,7 @@ public final class AgentResult {
         b.budgetExceeded = budgetExceeded;
         b.stats = stats;
         b.cancelled = cancelled;
+        b.inputRejected = inputRejected;
         b.stop = stop;
         return b;
     }
@@ -418,6 +426,7 @@ public final class AgentResult {
         private boolean budgetExhausted;
         private io.github.llm4j.budget.BudgetExceeded budgetExceeded;
         private boolean cancelled;
+        private boolean inputRejected;
         private StopReport stop;
         private io.github.llm4j.telemetry.RunStats stats;
 
@@ -436,6 +445,11 @@ public final class AgentResult {
 
         public Builder stop(StopReport stop) {
             this.stop = stop;
+            return this;
+        }
+
+        public Builder inputRejected(boolean inputRejected) {
+            this.inputRejected = inputRejected;
             return this;
         }
 

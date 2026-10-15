@@ -46,6 +46,11 @@ public final class ScriptExplainer {
                 .append("   Agents: ").append(script.getAgents().size()).append('\n');
         out.append("  ").append(budget(script.getBudget(), "A run may use ")).append('\n');
 
+        if (script.getSharedPrompt() != null || script.getSharedPromptRef() != null) {
+            out.append("  Every agent is first told: ").append(script.getSharedPrompt() != null ? "an inline text (" + script.getSharedPrompt().strip().length() + " characters)"
+                    : "prompt file \"" + script.getSharedPromptRef() + "\"").append(".\n");
+        }
+
         out.append("\nAgents\n");
         if (script.getAgents().isEmpty()) out.append("  none\n");
         for (AgentDef a : script.getAgents()) out.append("  ").append(agent(a)).append('\n');

@@ -96,6 +96,10 @@ workflow Main(topic) {
 - `retry N` tries the step again (a task that changes things is retried only if it is idempotent; `weave check` refuses otherwise).
 - `on_failure { ... }` takes over when the retries are used up, and the workflow goes on: a person is asked, a note is made, another path is taken. A step that has **no** `on_failure` ends the run as failed, and the run says which step did it: `failed_kind` (`task` or `delegate`), `failed_name`, `failed_step` and `failed_category` in the trace. A watched run shows this as a banner naming the step, and a step that went through its `on_failure` is shown as a quieter *diverted* line.
 
+### Rules every agent needs
+
+Put what every agent must know (house rules, a glossary, the brief) in one `shared_prompt: "…"` or `shared_prompt: prompt "house-rules"` at the top of the script instead of pasting it into each agent. It comes first in every agent's system prompt, the same bytes each time; keep dates and run ids out of it. See `LOOM_GUIDE.md`, "A Prompt Every Agent Starts With".
+
 ### A step a person may stop
 
 A person watching a run may step in: **steer** an agent (correct its reasoning; the workflow is untouched), **wrap it up** (finish now with what it has), or **stop** it. Say what the run does then, or the answer is "ask the person; if nobody can be asked, suspend the run". Mark the agent `steerable: true` (with `streaming: true`, so a message reaches a call in progress) and write an `on_stopped { ... }` on the step, or set `intervention { ... }` defaults for the whole script:

@@ -248,6 +248,8 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**intervention** `{ reason: outcome ... }`\n\nScript-wide defaults for what happens when an agent is stopped, by reason (`user`, `operator`, `timeout`, `budget`, `limit`, `sibling`, `supervision`, `safety`, `shutdown`). A step\'s own `on_stopped` wins.',
     steerable:
         '**steerable** `: true`\n\nInside an agent: the person the run serves may steer it while it works. A steer corrects the agent\'s reasoning and never changes the workflow. Off unless declared; `weave audit` lists it as an input channel.',
+    shared_prompt:
+        '**shared_prompt** `: "text"` or `: prompt "id"`\n\nTop level: text put in front of every agent\'s own system prompt, the same bytes for every agent. `prompt "id"` takes a prompt file like an agent\'s `prompt:`. Keep it stable (no dates or run ids) so a provider that reuses the start of a prompt can reuse it across agents.',
     supervise:
         '**supervise** `Agent { when looping(3) { steer "…" once }  when tool_failing(Tool, 3) { wrap_up }  when context > 90% { wrap_up }  when steps > 15 { cancel use partial } }`\n\nRules that watch an agent while it works and act without a person. Every signal is a count of what the agent did, never a model\'s opinion. A rule fires when its condition becomes true; `once` makes it fire at most once in the step.',
     looping:

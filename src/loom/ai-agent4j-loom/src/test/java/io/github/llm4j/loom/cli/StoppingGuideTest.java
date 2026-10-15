@@ -52,4 +52,16 @@ class StoppingGuideTest {
         for (String field : io.github.llm4j.loom.ast.InterventionDef.STOP_FIELDS) assertThat(text).contains("_stop." + field);
         for (String reason : io.github.llm4j.loom.ast.InterventionDef.REASONS) assertThat(text).contains(reason);
     }
+
+    @Test
+    void theSharedPromptSectionLoadsAndEveryAgentGetsItsText() throws Exception {
+        String guide = Files.readString(GUIDE, StandardCharsets.UTF_8);
+        int from = guide.indexOf("### A Prompt Every Agent Starts With");
+        assertThat(from).isGreaterThanOrEqualTo(0);
+        String section = guide.substring(from, guide.indexOf("\n### ", from + 10));
+        Matcher m = Pattern.compile("```loom\\n(.*?)```", Pattern.DOTALL).matcher(section);
+        assertThat(m.find()).isTrue();
+        HarnessExecutor executor = new ScriptedRun(dir).executor(m.group(1));
+        executor.initialize();
+    }
 }

@@ -33,10 +33,17 @@ final class Scratchpad {
     }
 
     static final String STEER = "Message from the user: ";
+    static final String SETTLE = "Your answer was not accepted: ";
 
     /** Something the user said while the agent was working. */
     void steer(String message) {
         turns.add(Message.user(STEER + message));
+    }
+
+    /** An answer a hook did not accept, with the message the model is shown about it. */
+    void sentBack(String answerReply, String message) {
+        turns.add(Message.assistant(answerReply));
+        turns.add(Message.user(SETTLE + message));
     }
 
     /** A reply that named no usable action, with the note the model is shown about it. */
