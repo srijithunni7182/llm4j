@@ -170,6 +170,13 @@ before the starter uses them.
   - _Requirements: 26.3_
 - [ ] 28. JaCoCo rules for the autoconfigure module; CI matrix for Spring Boot baseline and latest
   - _Requirements: 27.1–27.3_
+- [ ] 29. Verification tooling (see `verification.md`)
+  - [ ] 29.1 Test fixtures: `RecordingScriptedClient`, `EchoMcpServer`, `RecordingObserveProvider`, `MutableClock`, the
+        scripts in `src/test/resources/scripts/`, the `test-scripts.jar` build step, the no-network JUnit extension
+  - [ ] 29.2 Every test tagged with its check (`@Tag("SB-V…")`); `scripts/verify_spec.py` `MODULES` extended with `src/spring/*`
+  - [ ] 29.3 `scripts/verify-spring-starter.sh` (gates G0–G10, evidence under `evidence/`)
+  - [ ] 29.4 `scripts/sabotage_spring_starter.py` applying S1–S24 in a scratch worktree
+  - [ ] 29.5 Run the gates at one commit, commit the evidence and `evidence/SIGN-OFF.md`
 
 ---
 
