@@ -181,3 +181,25 @@ test('ids and kinds named like Object.prototype members are plain names, not a w
     assert.deepEqual(m.nodes.map((n) => n.vk), ['term', 'unknown', 'unknown', 'term']);
     assert.equal(M.edgeWord('constructor'), 'constructor');
 });
+
+test('a call shows the called workflow inside it, and folding it hides those steps from the Flow view', () => {
+  const callee = { name: 'Review', file: 'r.loom', params: [], nodes: [
+    { id: 's', kind: 'start', label: 'start' }, { id: 'a', kind: 'agent', label: 'ask', source: { file: 'r.loom', line: 3 } },
+    { id: 'b', kind: 'task', label: 'run', source: { file: 'r.loom', line: 4 } }, { id: 'e', kind: 'end', label: 'end' }],
+    edges: [{ from: 's', to: 'a' }, { from: 'a', to: 'b' }, { from: 'b', to: 'e' }] };
+  const main = { name: 'Main', file: 'm.loom', params: [], nodes: [
+    { id: 's', kind: 'start', label: 'start' }, { id: 'c', kind: 'call', label: 'call Review', call: { workflow: 'Review' }, source: { file: 'm.loom', line: 9 } },
+    { id: 'e', kind: 'end', label: 'end' }], edges: [{ from: 's', to: 'c' }, { from: 'c', to: 'e' }] };
+  const V = (() => { global.document = {}; return require('../media/views.js'); })();
+  const plain = M.build(main);
+  assert.equal(plain.nodes.length, 3);
+  const m = M.build(main, { workflows: [main, callee] });
+  assert.deepEqual(m.by.c.children, ['c>a', 'c>b']);
+  assert.deepEqual(m.main, ['s', 'c', 'e']);
+  assert.equal(m.by['c>a'].anchor, 'c');
+  assert.equal(m.out['c>a'][0].to, 'c>b');
+  assert.deepEqual(V.flowLayout(m, new Set()).drops, ['c>a', 'c>b']);
+  assert.deepEqual(V.flowLayout(m, new Set(['c'])).drops, []);
+  const loop = { name: 'Review', file: 'r.loom', params: [], nodes: [{ id: 'x', kind: 'call', label: 'again', call: { workflow: 'Review' } }], edges: [] };
+  assert.equal(M.build({ name: 'Main', file: 'm.loom', params: [], nodes: [main.nodes[1]], edges: [] }, { workflows: [loop] }).nodes.length, 2);
+});
