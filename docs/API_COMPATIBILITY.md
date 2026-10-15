@@ -25,6 +25,13 @@ eval4j's `io.github.llm4j.eval.dataset.EvalScenario` is a record that grows by a
 null; `expectedMinWords()` and `expectedMaxWords()` are null when no limit is set). Code that builds a scenario with `new EvalScenario(...)` or reads its accessors is unaffected; code that destructures the record by its full component list
 (pattern matching) is the one case that must change.
 
+The agent library's run controls are additive. `ReActAgent.run(question)` behaves as before; `run(question, RunHandle)` adds steering, pausing, wrapping up and cancelling,
+and `AgentResult` gains `getStop()` (a `StopReport`), `isWrappedUp()` and `isCancelled()`. Streaming, reasoning and tool hooks are builder options that are off by default.
+Loom adds the agent settings `streaming`, `reasoning` and `steerable`, the `on_stopped` handler and the `intervention` block; a script that does not use them behaves exactly as before.
+The graph JSON gains an `outcome` node kind, a `stopped` edge label and the optional agent flags `streaming`, `reasoning` and `steerable` (older readers ignore what they do not know).
+The trace gains the events `intervention` and `step_stopped`, and the run journal the entry kinds `steer`, `stop`, `skipped` and `discarded`. An older `weave` does not read these
+entries and does not refuse them, so finish a run that has them with the same version that started it.
+
 Internal implementation details may change without notice, especially:
 
 - `io.github.llm4j.http`

@@ -239,6 +239,7 @@ The data follows OpenTelemetry so that anything that understands OTLP can read i
 | `sleep`, `human_prompt`, approvals | Spans `loom.sleep` (with `loom.sleep.wake_at`), `loom.human_prompt`, `loom.approval` |
 | `loop`, `for each`, `parallel`, `alt` | Spans `loom.loop` (with `loom.loop.round`), `loom.for_each`, `loom.parallel`, `loom.alt` |
 | `checkpoint`, `rewind`, budget warnings, guard findings, decision proposals | Span events (and log records) with `loom.*` attributes, for example `loom.rewind.to`, `loom.rewind.generation` |
+| A steer, cancel or wrap-up, and a step stopped (`intervention`, `step_stopped`) | Log records `loom.intervention` and `loom.step_stopped` with `loom.data.action`, `loom.data.outcome` and `loom.data.category`. Display only: the console and Fabric add no control for them |
 | A decision's rung | Attributes `loom.decision.name`, `loom.autonomy.level` (`watch`, `suggest`, `act`) on the decision span |
 | Tokens, time, cost, activity | Metrics: `gen_ai.client.token.usage` and `gen_ai.client.operation.duration` (the standard ones), and `loom.run.cost` (USD counter), `loom.tool.calls` (by tool and status), `loom.runs.active`, `loom.incidents.open` |
 
