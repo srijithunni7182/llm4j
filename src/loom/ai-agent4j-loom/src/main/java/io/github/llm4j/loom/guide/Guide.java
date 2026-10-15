@@ -36,6 +36,7 @@ public final class Guide {
             new Page("12", "Java quick reference: the imports and calls you need", "guide/12-java-quick-reference.md"),
             new Page("13", "Earned autonomy: let an agent earn the right to decide (optional)", "guide/13-earned-autonomy.md"),
             new Page("14", "Context and compaction: keep a long run inside the model's window", "guide/14-context-and-compaction.md"),
+            new Page("15", "Steer, stop and supervise a running workflow (optional)", "guide/15-steer-stop-and-supervise.md"),
             new Page("recipes", "Recipes: change the starter to do what you want", "guide/RECIPES.md"),
             new Page("loom", "The Loom reference: every statement, option and command", "guide/LOOM_GUIDE.md"),
             new Page("llms", "A one-page index of the framework, for tools and agents", "guide/llms.txt"),

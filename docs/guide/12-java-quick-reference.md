@@ -193,6 +193,11 @@ public final class QuickReference {
 | Keep a long run inside the model's window; your own strategy | `HarnessExecutor.setContextWindows`, `registerCompactor`; `ContextCompactors`, `ContextPolicy` (`io.github.llm4j.context`) | [chapter 14](14-context-and-compaction.md); the methods `context` and `javaAgent` above |
 | What a run did, in numbers (calls, failures, retries, truncated answers) | `executor.stats()` (`RunStats`, `io.github.llm4j.telemetry`) | the method `statistics` above; kept whether or not anyone traces |
 | Watch a run on a page, or report to a Fabric server | `Observe.open`, `ObserveOptions` (`io.github.llm4j.loom.observe`); needs the loom-inspect jar | the method `watch` above; the `llm4j-loom-deployer` skill sets up the server |
+| Steer, pause, wrap up or cancel a run from another thread | `RunHandle` (`io.github.llm4j.agent`): `agent.run(question, handle)`, then `handle.steer(text)`, `pause()`, `resume()`, `wrapUp(reason)`, `cancel(reason)`; the `AgentResult` has `isCancelled()`, `isWrappedUp()`, `getStop()` (`StopReport`) | [chapter 15](15-steer-stop-and-supervise.md) |
+| Check the question, each model call and the final answer | `RunHook` (`io.github.llm4j.agent`): `onInput` (allow, replace, reject), `beforeModelCall` (a note for that call), `beforeSettle` (accept, replace, send back); `ReActAgent.builder().addRunHook(hook).maxSettleRetries(2)`; `AgentResult.isInputRejected()` | fails closed; see the wiki page *Steering, Streaming and Hooks* |
+| Check or rewrite a tool call | `ToolHook` (`beforeCall`, `afterCall`), `validateToolArguments(true)` | same page |
+| Bound delegation | `DelegateTaskTool.builder(...).maxDepth(2).grantedTools(...)` (`io.github.llm4j.agent.tool`) | a helper cannot be given a tool its parent does not hold |
+| Run a workflow on its own thread and steer it | `LoomRun.start(executor, "Workflow", inputs)`, `steer`, `wrapUp`, `cancel(agent, Outcome, reason)`, `Outcome.rewindTo("checkpoint")` (`io.github.llm4j.loom.execution`); `LiveRuns` for a console or chat in the same process | [chapter 15](15-steer-stop-and-supervise.md) |
 | Describe, do not run, tasks that change things | `executor.setSimulateTasks(true)` | `weave eval --mock` does this |
 
 ## Rules that are easy to get wrong
