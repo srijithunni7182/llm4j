@@ -17,7 +17,7 @@ handle.cancel();                              // ends the run; result.isCancelle
 AgentResult result = agent.run("Fix the build", handle);   // on the agent's own thread
 ```
 
-The loop looks at the handle before every model call and between the tool calls of one turn. A steer arrives as a user message ("Message from the user: ...") after the tool results, so each tool call stays next to its result. A handle controls one run at a time, and a cancelled handle cannot be used again. `run(question)` without a handle is unchanged.
+The loop looks at the handle before every model call and between the tool calls of one turn. A steer arrives as a user message ("Message from the user: ...") after the tool results, so each tool call stays next to its result. A handle controls one run at a time. A cancel is sticky: it holds even if it arrives before the run starts, and that run then ends cancelled without calling the model. `run(question)` without a handle is unchanged.
 
 Listeners hear `onSteered`, `onPaused`, `onResumed` and `onCancelled`.
 

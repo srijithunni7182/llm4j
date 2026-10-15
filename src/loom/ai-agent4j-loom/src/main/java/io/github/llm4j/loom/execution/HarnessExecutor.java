@@ -120,6 +120,13 @@ public class HarnessExecutor implements LoomEngine {
         return payloads.resolve(rawPayload);
     }
 
+    private final InterventionCoordinator interventions = new InterventionCoordinator();
+
+    /** The agents running now, and the way to steer, pause or cancel them. */
+    InterventionCoordinator interventions() {
+        return interventions;
+    }
+
     private final BudgetCoordinator budgets = new BudgetCoordinator(scopes, new BudgetCoordinator.Host() {
         @Override public LoomScript script() { return script; }
         @Override public java.time.Clock clock() { return clock; }
@@ -130,7 +137,7 @@ public class HarnessExecutor implements LoomEngine {
         @Override public String sessionId() { return sessionId; }
         @Override public HumanInterface humanInterface() { return humanInterface; }
     });
-    private final DelegateRunner delegates = new DelegateRunner(budgets, limits, new DelegateRunner.Host() {
+    private final DelegateRunner delegates = new DelegateRunner(budgets, limits, interventions, new DelegateRunner.Host() {
         @Override public void beginAttempt() { attempt.set(delegateAttempts.incrementAndGet()); }
         @Override public String resolveName(String name) { return HarnessExecutor.this.resolveName(name); }
         @Override public AgentDef agentDef(String name) {

@@ -107,6 +107,7 @@ final class LimitPolicy {
         while (true) {
             try {
                 io.github.llm4j.agent.AgentResult r = agent.run(task);
+                if (r.isCancelled()) throw new StepFailure("the agent run was cancelled", null);
                 if (r.budgetExhausted() && host.refills(r.getBudgetExceeded())) {
                     throw io.github.llm4j.ratelimit.RateLimited.of(r.getBudgetExceeded());
                 }

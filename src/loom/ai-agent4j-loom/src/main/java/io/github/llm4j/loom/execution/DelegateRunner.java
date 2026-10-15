@@ -101,11 +101,13 @@ final class DelegateRunner {
 
     private final BudgetCoordinator budgets;
     private final LimitPolicy limits;
+    private final InterventionCoordinator interventions;
     private final Host host;
 
-    DelegateRunner(BudgetCoordinator budgets, LimitPolicy limits, Host host) {
+    DelegateRunner(BudgetCoordinator budgets, LimitPolicy limits, InterventionCoordinator interventions, Host host) {
         this.budgets = budgets;
         this.limits = limits;
+        this.interventions = interventions;
         this.host = host;
     }
 
@@ -214,9 +216,21 @@ final class DelegateRunner {
                 }
                 log.info("Delegating to " + agentName + " (Attempt " + (attempts + 1) + ")");
                 ReActAgent runAgent = host.agentForDelegate(del, agentDef, agent);
-                io.github.llm4j.agent.AgentResult result = del.getTimeoutMillis() > 0
-                        ? runWithTimeout(runAgent, contextBriefing, del.getTimeoutMillis())
-                        : runAgent.run(contextBriefing);
+                // The agent runs under a handle that is registered while it runs, so a timeout (or anyone else) can stop it.
+                io.github.llm4j.agent.RunHandle handle = interventions.open(stepId, agentName);
+                io.github.llm4j.agent.AgentResult result;
+                try {
+                    result = del.getTimeoutMillis() > 0
+                            ? runWithTimeout(runAgent, contextBriefing, del.getTimeoutMillis(), handle)
+                            : runAgent.run(contextBriefing, handle);
+                } finally {
+                    interventions.close(stepId);
+                }
+                if (result.isCancelled()) {
+                    // Never a success: not journaled as the step's value, and not retried (retrying would undo what the person asked for).
+                    String why = interventions.reasonFor(stepId);
+                    throw new StepFailure("the agent run was cancelled" + (why == null || why.isBlank() ? "" : ": " + why), null);
+                }
                 if (result.budgetExhausted()) {
                     io.github.llm4j.budget.BudgetExceeded be = result.getBudgetExceeded();
                     if (budgets.refills(be)) throw io.github.llm4j.ratelimit.RateLimited.of(be); // pause until it refills
@@ -362,16 +376,20 @@ final class DelegateRunner {
         }
     }
 
-    private io.github.llm4j.agent.AgentResult runWithTimeout(ReActAgent agent, String task, long timeoutMillis) throws Exception {
+    private io.github.llm4j.agent.AgentResult runWithTimeout(ReActAgent agent, String task, long timeoutMillis,
+                                                              io.github.llm4j.agent.RunHandle handle) throws Exception {
         ThreadScope.Snapshot scope = host.captureScope();
         CompletableFuture<io.github.llm4j.agent.AgentResult> future = CompletableFuture.supplyAsync(() -> {
             try (ThreadScope.Installed ignored = scope.install()) {
-                return agent.run(task);
+                return agent.run(task, handle);
             }
         }, host.branches());
         try {
             return future.get(timeoutMillis, java.util.concurrent.TimeUnit.MILLISECONDS);
         } catch (java.util.concurrent.TimeoutException e) {
+            // A CompletableFuture does not interrupt its thread when cancelled, so the agent is told to stop through its handle: without this it
+            // goes on calling (and paying for) the model after the step has failed.
+            handle.cancel();
             future.cancel(true);
             throw new java.util.concurrent.TimeoutException("Step timed out after " + timeoutMillis + " ms");
         } catch (java.util.concurrent.ExecutionException e) {

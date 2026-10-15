@@ -42,6 +42,11 @@ New Fabric controls or pages that act; detectors in Fabric driving anything; a m
 
 F3 and F4 are real hazards the moment anything passes a handle. They are fixed in phase 1 whatever else is decided.
 
+**Status (phase 1 done).** F4 was confirmed by a failing test before it was fixed: after a step timed out, its agent went on from 3 model calls to 10. A delegate attempt now runs under a
+`RunHandle` registered with a new `InterventionCoordinator`; a timeout cancels it. F3 is closed: a cancelled result is a step failure (not retried, not journaled as a success; `on_failure` can
+handle it), also in `LimitPolicy.runUnderLimits`, which handoff, broadcast and `runAgentTask` use. Tests: `InterventionSafetyTest`. A related race was closed in the library: a cancel is now
+sticky, so a handle cancelled before the run starts makes that run end cancelled without calling the model.
+
 ## 3. Why an agent is stopped or steered
 
 Every origin is Loom (the runtime, a declared rule, or a person acting through Loom).

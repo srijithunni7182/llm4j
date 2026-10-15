@@ -18,7 +18,7 @@ import java.util.Objects;
  *   <li>{@code pause()}: the loop stops at the next checkpoint and waits, holding its thread, until {@code resume()} or {@code cancel()}.
  *       Steering sent while paused is kept and delivered on resume.
  *   <li>{@code cancel()}: the run ends at the next checkpoint with a result that is not completed and {@link AgentResult#isCancelled()}.
- *       A cancel cannot be undone.
+ *       A cancel cannot be undone, and it holds even if it arrives before the run starts: that run ends cancelled without calling the model.
  * </ul>
  *
  * <p>A handle belongs to one run at a time; using it for a second run while the first is still going is an error. It is safe to call
@@ -96,11 +96,10 @@ public final class RunHandle {
 
     // ---- the loop's side ----
 
-    /** Called when a run starts. A handle that was cancelled cannot be used again. */
+    /** Called when a run starts. A handle cancelled before this point is still bound: the run then ends cancelled at its first checkpoint, before any model call. */
     void bind() {
         synchronized (lock) {
             if (bound) throw new IllegalStateException("this RunHandle is already controlling a run");
-            if (cancelRequested) throw new IllegalStateException("this RunHandle was cancelled; create a new one");
             bound = true;
             state = State.RUNNING;
         }

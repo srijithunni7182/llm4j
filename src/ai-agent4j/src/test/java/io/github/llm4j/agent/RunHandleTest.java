@@ -149,11 +149,34 @@ class RunHandleTest {
     }
 
     @Test
-    void aHandleControlsOneRunAtATime() {
+    void aHandleCancelledBeforeTheRunStartsEndsTheRunCancelledWithoutCallingTheModel() {
         RunHandle handle = new RunHandle();
         handle.cancel();
-        LLMClient client = scripted(new ArrayList<>(), () -> {}, DONE);
-        assertThatThrownBy(() -> agent(client).run("x", handle)).isInstanceOf(IllegalStateException.class);
+        List<LLMRequest> seen = new ArrayList<>();
+        LLMClient client = scripted(seen, () -> {}, DONE);
+
+        AgentResult result = agent(client).run("x", handle);
+
+        assertThat(result.isCancelled()).isTrue();
+        assertThat(seen).isEmpty();
+    }
+
+    @Test
+    void aHandleControlsOneRunAtATime() throws Exception {
+        RunHandle handle = new RunHandle();
+        CountDownLatch inside = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        LLMClient client = scripted(new ArrayList<>(), () -> {
+            inside.countDown();
+            try { release.await(5, TimeUnit.SECONDS); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        }, DONE);
+        Thread first = new Thread(() -> agent(client).run("x", handle));
+        first.start();
+        assertThat(inside.await(5, TimeUnit.SECONDS)).isTrue();
+
+        assertThatThrownBy(() -> agent(client).run("y", handle)).isInstanceOf(IllegalStateException.class);
+        release.countDown();
+        first.join(5000);
     }
 
     @Test
