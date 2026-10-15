@@ -18,6 +18,9 @@ public class LoomScript implements Node {
     private final List<MeasureDef> measures = new ArrayList<>();
     private final List<String> imports = new ArrayList<>();
     private final List<Integer> importLines = new ArrayList<>();
+    private String sharedPrompt;
+    private String sharedPromptRef;
+    private int sharedPromptLine;
     private String promptsDir;
     private int promptsDirLine;
     private AuditConfig auditConfig;
@@ -49,6 +52,16 @@ public class LoomScript implements Node {
     public List<WorkflowDef> getWorkflows() { return workflows; }
 
     /** The folder named by {@code prompts: "./prompts"}, relative to the script; null when the script does not name one. */
+    /**
+     * {@code shared_prompt: "text"}: text put in front of every agent's system prompt, or null. It is the same bytes in every agent's request, so a provider
+     * that reuses the start of a prompt it has just seen can reuse it across the agents of the workflow.
+     */
+    public String getSharedPrompt() { return sharedPrompt; }
+    /** {@code shared_prompt: prompt "id"}: a prompt file or registry prompt used the same way, or null. */
+    public String getSharedPromptRef() { return sharedPromptRef; }
+    public int getSharedPromptLine() { return sharedPromptLine; }
+    public void setSharedPrompt(String text, String ref, int line) { this.sharedPrompt = text; this.sharedPromptRef = ref; this.sharedPromptLine = line; }
+
     public String getPromptsDir() { return promptsDir; }
     public int getPromptsDirLine() { return promptsDirLine; }
     public void setPromptsDir(String dir, int line) { this.promptsDir = dir; this.promptsDirLine = line; }

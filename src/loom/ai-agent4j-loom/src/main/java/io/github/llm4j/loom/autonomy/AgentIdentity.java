@@ -47,6 +47,9 @@ public final class AgentIdentity {
         StringBuilder b = new StringBuilder();
         if (agent == null) return sha("no agent " + decision.getAgent());
         line(b, "model", agent.getModel());
+        // what every agent of the workflow is told first changes what this one does
+        line(b, "shared", script.getSharedPrompt());
+        if (script.getSharedPromptRef() != null) line(b, "shared.prompt", script.getSharedPromptRef() + promptContent(script.getSharedPromptRef(), prompts));
         line(b, "system", agent.getSystemPrompt());
         line(b, "template", agent.getSystemTemplate());
         if (agent.getPrompt() != null) line(b, "prompt", agent.getPrompt() + promptContent(agent.getPrompt(), prompts));

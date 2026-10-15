@@ -40,8 +40,29 @@ final class AgentPrompts {
     String resolveSystemPrompt(AgentDef agentDef) {
         String base = basePrompt(agentDef);
         // Skills always apply, whatever the base prompt came from.
-        return agentDef.getSkills().isEmpty() ? base : base + "\n\n" + resolveSkills(agentDef.getSkills());
+        String own = agentDef.getSkills().isEmpty() ? base : base + "\n\n" + resolveSkills(agentDef.getSkills());
+        // The workflow's shared prompt comes first, byte for byte the same for every agent, so a provider that reuses the start of a prompt can reuse it.
+        String shared = sharedPrompt();
+        return shared == null ? own : own.isBlank() ? shared : shared + "\n\n" + own;
     }
+
+    /** The text put in front of every agent's prompt, or null; resolved once so every agent gets the same bytes. */
+    String sharedPrompt() {
+        if (sharedResolved) return shared;
+        LoomScript script = host.script();
+        String text = script.getSharedPrompt();
+        if (text == null && script.getSharedPromptRef() != null) {
+            var resolved = host.promptCatalog() == null ? java.util.Optional.<io.github.llm4j.loom.prompt.PromptCatalog.Resolved>empty() : host.promptCatalog().resolve(script.getSharedPromptRef());
+            if (resolved.isPresent()) text = resolved.get().text();
+            else log.warning("shared prompt '" + script.getSharedPromptRef() + "' not found; agents run without it."); // load-time checks report this first
+        }
+        shared = text == null || text.isBlank() ? null : text.strip();
+        sharedResolved = true;
+        return shared;
+    }
+
+    private String shared;
+    private boolean sharedResolved;
 
     private String basePrompt(AgentDef agentDef) {
         // A prompt file (prompt:) or registry template (system_template:) is the base; the agent's own system: follows it.

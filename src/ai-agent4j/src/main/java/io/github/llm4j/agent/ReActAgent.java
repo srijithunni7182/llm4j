@@ -171,6 +171,8 @@ public class ReActAgent {
     private final boolean reasoning;
     private final EffectClassifier effectClassifier;
     private final List<ToolHook> toolHooks;
+    private final List<RunHook> runHooks;
+    private final int maxSettleRetries;
     private final boolean validateToolArguments;
     private final String ttsLanguage;
     private final String ttsModel;
@@ -228,6 +230,8 @@ public class ReActAgent {
         this.reasoning = builder.reasoning;
         this.effectClassifier = builder.effectClassifier != null ? builder.effectClassifier : EffectClassifier.CAUTIOUS;
         this.toolHooks = List.copyOf(builder.toolHooks);
+        this.runHooks = List.copyOf(builder.runHooks);
+        this.maxSettleRetries = builder.maxSettleRetries;
         this.validateToolArguments = builder.validateToolArguments;
         this.ttsLanguage = builder.ttsLanguage;
         this.ttsModel = builder.ttsModel;
@@ -324,10 +328,84 @@ public class ReActAgent {
         RunTelemetry telemetry = new RunTelemetry();
         if (handle != null) handle.bind();
         try {
+            for (RunHook hook : runHooks) {
+                RunHook.Input decision;
+                try {
+                    decision = hook.onInput(question);
+                } catch (RuntimeException e) {
+                    logger.error("A run hook failed to check the question; it is refused", e);
+                    decision = RunHook.Input.reject("The question could not be checked, so it was not run.");
+                }
+                if (decision == null || decision.kind() == RunHook.Input.Kind.ALLOW) continue;
+                if (decision.kind() == RunHook.Input.Kind.REJECT) {
+                    notifyRunHook("input", "rejected", decision.text());
+                    return AgentResult.builder().finalAnswer(decision.text()).completed(false).inputRejected(true).iterations(0)
+                            .confidence(ConfidenceScore.low("Question refused by a hook")).uncertaintyDetected(true)
+                            .uncertaintyReason("Question refused by a hook").build();
+                }
+                notifyRunHook("input", "replaced", decision.text());
+                question = decision.text();
+            }
             AgentResult result = nativeCalling ? runNative(question, telemetry, handle) : runText(question, telemetry, handle);
             return result.toBuilder().stats(telemetry.snapshot()).build();
         } finally {
             if (handle != null) handle.release();
+        }
+    }
+
+    /** What the hooks want the model to read in this one call, or an empty string. */
+    private String modelNote(int iteration, List<AgentResult.AgentStep> steps) {
+        if (runHooks.isEmpty()) return "";
+        RunHook.CallView view = new RunHook.CallView(iteration, maxIterations, steps);
+        StringBuilder note = new StringBuilder();
+        for (RunHook hook : runHooks) {
+            RunHook.ModelCall call = hook.beforeModelCall(view);
+            if (call == null || call.note() == null || call.note().isBlank()) continue;
+            notifyRunHook("model_call", "note", call.note());
+            if (note.length() > 0) note.append('\n');
+            note.append(call.note().strip());
+        }
+        return note.toString();
+    }
+
+    /** What became of an answer the model was about to finish with: the answer to use, or the message to send back (when {@code sendBack} is set). */
+    private record Settled(String answer, String sendBack) { }
+
+    /** The conversation as one call sees it: with the hooks' note as a last message, which is not kept. */
+    private static List<Message> withNote(List<Message> conversation, String note) {
+        if (note.isEmpty()) return conversation;
+        List<Message> shown = new ArrayList<>(conversation);
+        shown.add(Message.user(note));
+        return shown;
+    }
+
+    private Settled settle(String answer, List<AgentResult.AgentStep> steps, int sentBackSoFar) {
+        String current = answer;
+        for (RunHook hook : runHooks) {
+            RunHook.Settle decision = hook.beforeSettle(current, steps);
+            if (decision == null || decision.kind() == RunHook.Settle.Kind.ACCEPT) continue;
+            if (decision.kind() == RunHook.Settle.Kind.REPLACE) {
+                notifyRunHook("settle", "replaced", decision.text());
+                current = decision.text();
+                continue;
+            }
+            if (sentBackSoFar >= maxSettleRetries) {
+                notifyRunHook("settle", "limit_reached", decision.text());
+                continue;
+            }
+            notifyRunHook("settle", "sent_back", decision.text());
+            return new Settled(current, decision.text());
+        }
+        return new Settled(current, null);
+    }
+
+    private void notifyRunHook(String seam, String outcome, String message) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onRunHook(seam, outcome, message);
+            } catch (Exception e) {
+                logger.error("Error in listener onRunHook", e);
+            }
         }
     }
 
@@ -525,6 +603,7 @@ public class ReActAgent {
         String lastThought = null;
         String lastObservation = null;
         boolean protocolFollowed = true;
+        int sentBack = 0;
 
         for (int i = 0; i < maxIterations; i++) {
             logger.debug("Agent iteration {}/{}", i + 1, maxIterations);
@@ -577,10 +656,11 @@ public class ReActAgent {
                 }
             }
             int sent = scratchpad.size();
+            String hookNote = modelNote(i, steps);
             LLMRequest request =
                     LLMRequest.builder()
                             .addSystemMessage(systemPrompt)
-                            .addUserMessage(context + scratchpad.render())
+                            .addUserMessage(context + scratchpad.render() + (hookNote.isEmpty() ? "" : "\n\n" + hookNote))
                             .temperature(temperature)
                             .build();
             LLMResponse response;
@@ -675,6 +755,13 @@ public class ReActAgent {
                 if (responseJson.containsKey("final_answer")) {
                     String finalAnswer = asAnswerText(responseJson.get("final_answer"));
                     String thought = noteOf(responseJson);
+                    Settled settled = settle(finalAnswer, steps, sentBack);
+                    if (settled.sendBack() != null) {
+                        sentBack++;
+                        scratchpad.sentBack(llmOutput, settled.sendBack());
+                        continue;
+                    }
+                    finalAnswer = settled.answer();
                     return processFinalAnswer(
                             question,
                             finalAnswer,
@@ -816,6 +903,7 @@ public class ReActAgent {
         String lastThought = null;
         String lastObservation = null;
         int callNumber = 0;
+        int sentBack = 0;
 
         String context = "";
         if (conversationHistory != null) {
@@ -857,7 +945,8 @@ public class ReActAgent {
                 tally.add(prepared.summarizerUsage());
             }
             int sent = conversation.size();
-            LLMRequest request = LLMRequest.builder().messages(conversation).tools(specs).temperature(temperature).reasoning(streaming && reasoning).build();
+            String hookNote = modelNote(i, steps);
+            LLMRequest request = LLMRequest.builder().messages(withNote(conversation, hookNote)).tools(specs).temperature(temperature).reasoning(streaming && reasoning).build();
             LLMResponse response;
             try {
                 try {
@@ -869,7 +958,7 @@ public class ReActAgent {
                     tally.add(again.summarizerUsage());
                     conversation = new ArrayList<>(again.messages());
                     sent = conversation.size();
-                    request = LLMRequest.builder().messages(conversation).tools(specs).temperature(temperature).reasoning(streaming && reasoning).build();
+                    request = LLMRequest.builder().messages(withNote(conversation, hookNote)).tools(specs).temperature(temperature).reasoning(streaming && reasoning).build();
                     response = modelCall(request, i, telemetry, handle);
                 }
             } catch (io.github.llm4j.exception.RateLimitException limited) {
@@ -916,7 +1005,14 @@ public class ReActAgent {
                     conversation.add(Message.user("Your last reply was empty. Call a tool, or give your final answer."));
                     continue;
                 }
-                return processFinalAnswer(question, text, null, steps, i, tally.usage(), redundantActionCount.get(), true);
+                Settled settled = settle(text, steps, sentBack);
+                if (settled.sendBack() != null) {
+                    sentBack++;
+                    conversation.add(Message.assistant(text));
+                    conversation.add(Message.user(Scratchpad.SETTLE + settled.sendBack()));
+                    continue;
+                }
+                return processFinalAnswer(question, settled.answer(), null, steps, i, tally.usage(), redundantActionCount.get(), true);
             }
 
             String thought = text.isBlank() ? null : text.trim();
@@ -1750,6 +1846,8 @@ public class ReActAgent {
         private boolean reasoning;
         private EffectClassifier effectClassifier;
         private List<ToolHook> toolHooks = new ArrayList<>();
+        private List<RunHook> runHooks = new ArrayList<>();
+        private int maxSettleRetries = 2;
         private boolean validateToolArguments;
         private String ttsLanguage;
         private String ttsModel;
@@ -1809,6 +1907,8 @@ public class ReActAgent {
             this.reasoning = agent.reasoning;
             this.effectClassifier = agent.effectClassifier;
             this.toolHooks = new ArrayList<>(agent.toolHooks);
+            this.runHooks = new ArrayList<>(agent.runHooks);
+            this.maxSettleRetries = agent.maxSettleRetries;
             this.validateToolArguments = agent.validateToolArguments;
             this.ttsLanguage = agent.ttsLanguage;
             this.ttsModel = agent.ttsModel;
@@ -2060,6 +2160,22 @@ public class ReActAgent {
          */
         public Builder effectClassifier(EffectClassifier classifier) {
             this.effectClassifier = classifier;
+            return this;
+        }
+
+        /**
+         * Adds a check at the start of a run, before each model call, and before the agent settles on an answer; see {@link RunHook}. Hooks run
+         * in the order added.
+         */
+        public Builder addRunHook(RunHook hook) {
+            this.runHooks.add(Objects.requireNonNull(hook, "hook cannot be null"));
+            return this;
+        }
+
+        /** The most times a {@link RunHook} may send an answer back in one run (default 2); after that the answer is accepted. */
+        public Builder maxSettleRetries(int max) {
+            if (max < 0) throw new IllegalArgumentException("maxSettleRetries must not be negative, got " + max);
+            this.maxSettleRetries = max;
             return this;
         }
 

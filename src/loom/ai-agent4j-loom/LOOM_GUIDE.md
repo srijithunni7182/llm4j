@@ -1137,6 +1137,30 @@ From Java, `MarkdownFolderPromptRegistry` reads the same folder and implements `
 
 ---
 
+### A Prompt Every Agent Starts With
+
+Rules, a glossary or the brief that every agent of the workflow needs belong in one place, not pasted into each agent. `shared_prompt` puts that text in front of every agent's own prompt:
+
+```loom
+shared_prompt: "All of us work for Acme. Never promise a refund. Answer in plain English."
+// or a prompt file, as an agent's prompt: "house-rules" would be:
+// shared_prompt: prompt "house-rules"
+
+agent Researcher { model: "gemini-2.5-flash"  system: "You find the facts."  tools: [calculator] }
+agent Writer     { model: "gemini-2.5-flash"  system: "You write the answer." }
+
+workflow Brief(topic) {
+    delegate "Find the facts about {topic}" to Researcher -> facts
+    delegate "Write it up from {facts}" to Writer -> draft
+}
+```
+
+- Every agent's system prompt is the shared text, a blank line, then the agent's own prompt (its `prompt:` file, persona, `system:` and skills). The shared text is the same bytes for every agent.
+- That sameness is deliberate: a model provider that charges less for the start of a prompt it has just seen can reuse the shared part across the agents. Loom only lays the prompt out that way; it does not ask any provider for caching. The saving is real only when the shared text is long (a thousand tokens or more), the agents use the same model, and nothing in it changes between calls, so keep dates and run ids out of it.
+- `shared_prompt: prompt "id"` takes a prompt file or registry prompt like an agent's `prompt:` (the latest version, or `id@v2`), and `weave check` reports a missing file. A shared prompt file counts as used.
+- Editing the shared text is a different agent as far as earned autonomy is concerned, for every agent that has a decision. `weave explain` says that every agent is first told it.
+- One `shared_prompt` per script. There is no way to leave a single agent out.
+
 ### Personas, Skills and Knowledge Graphs
 
 **Personas** can be declared in the script. An agent's `system:` prompt follows its persona:

@@ -247,6 +247,13 @@ public class ScriptValidator {
             else c.error(line, "prompt files", text);
         }
         java.util.Set<String> used = new java.util.HashSet<>();
+        if (c.script().getSharedPromptRef() != null) {
+            try {
+                used.add(io.github.llm4j.loom.prompt.PromptRef.parse(c.script().getSharedPromptRef()).id());
+            } catch (IllegalArgumentException e) {
+                // a bad reference is reported where it is checked
+            }
+        }
         for (AgentDef a : c.script().getAgents()) {
             if (a.getPromptRef() == null) continue;
             try {
@@ -264,6 +271,14 @@ public class ScriptValidator {
 
     private void checkAgents(Checker c) {
         LoomScript s = c.script();
+        if (s.getSharedPromptRef() != null) {
+            if (c.context().prompts == null) {
+                c.error(s.getSharedPromptLine(), "shared_prompt", "prompt " + s.getSharedPromptRef() + " needs prompt files: create a prompts/ folder next to the script, or name one with prompts: \"./dir\" or --prompts, or write the text inline: shared_prompt: \"…\"");
+            } else {
+                String problem = c.context().prompts.problemWith(s.getSharedPromptRef(), "shared_prompt");
+                if (problem != null) c.error(s.getSharedPromptLine(), "shared_prompt", problem);
+            }
+        }
         for (AgentDef a : s.getAgents()) {
             String who = "agent " + a.getName();
             if (a.getPersona() != null && s.getPersonas().stream().noneMatch(p -> p.getName().equals(a.getPersona()))

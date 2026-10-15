@@ -88,6 +88,35 @@ ReActAgent.builder()
 
 Checks run before approval, so a person approving a call sees the arguments as the hooks left them. A rejected call is a step with outcome `REJECTED_BY_HOOK` (category `INVALID_ARGUMENTS` unless the hook says otherwise), and listeners hear `onToolRejected`. A hook that throws fails closed: the call does not run, or the result is withheld.
 
+## Check a whole run: `RunHook`
+
+`ToolHook` checks tool calls. A `RunHook` checks three other places: the question when it arrives, each model call, and the answer the agent is about to finish with.
+
+```java
+ReActAgent.builder()
+        .maxSettleRetries(2)                         // how often an answer may be sent back in one run (default 2)
+        .addRunHook(new RunHook() {
+            public Input onInput(String question) {
+                if (question.contains("password")) return Input.reject("Do not send passwords to this agent.");  // no model call
+                return Input.replace(question.replaceAll("\\d{4}-\\d{4}", "[card]"));                        // or Input.allow()
+            }
+            public ModelCall beforeModelCall(CallView view) {
+                return view.remaining() <= 2 ? ModelCall.withNote("You have " + view.remaining() + " steps left.")  // read in this call only
+                                             : ModelCall.proceed();
+            }
+            public Settle beforeSettle(String answer, List<AgentResult.AgentStep> steps) {
+                return ranTheTests(steps) ? Settle.accept()
+                        : Settle.sendBack("The tests have not been run. Run them, then answer.");   // the model reads this and carries on
+            }
+        })
+```
+
+- A rejected question is a result with `isInputRejected()` true, `isCompleted()` false and the hook's message as the answer; the model is never called.
+- A note from `beforeModelCall` is shown in that one call and not kept in the conversation.
+- `Settle.sendBack` is limited by `maxSettleRetries`: after that the answer is accepted and the listener hears `limit_reached`, so a hook can never keep an agent from finishing. A wrap-up asked for through a `RunHandle`, and a run whose budget ran out, are not sent back.
+- A hook that throws fails closed: a throwing `onInput` rejects the question; a throwing `beforeModelCall` ends the run with the exception; a throwing `beforeSettle` never lets the answer through.
+- Listeners hear every use through `onRunHook(seam, outcome, message)`.
+
 ## Bound delegation: `DelegateTaskTool`
 
 ```java
