@@ -34,6 +34,16 @@ public final class Providers {
         return LLMResponse.builder().content(text).model(model).build();
     }
 
+    /** One piece of streamed reasoning: no answer text, only {@link LLMResponse#getReasoning()}. */
+    public static LLMResponse reasoningChunk(String reasoning, String model) {
+        return LLMResponse.builder().content("").reasoning(reasoning).model(model).build();
+    }
+
+    /** One piece of a streamed tool call: no answer text, only {@link LLMResponse#getToolCallDelta()}. */
+    public static LLMResponse toolCallChunk(io.github.llm4j.model.ToolCallDelta delta, String model) {
+        return LLMResponse.builder().content("").toolCallDelta(delta).model(model).build();
+    }
+
     /**
      * The last chunk of a stream: no text, the (normalised) finish reason with the provider's raw value,
      * and the token usage when the provider reported it (null counts as unreported).

@@ -20,7 +20,19 @@ public final class AnthropicModels {
                     + "|(opus|sonnet)-4(-\\d{8})?"  // Opus 4, Sonnet 4 (optionally dated)
                     + ")");
 
+    /** Models that think adaptively and can say what they thought: Fable, Mythos, Opus 4.6+, Sonnet 4.6+ and Haiku 5.x. */
+    private static final Pattern ADAPTIVE_THINKING = Pattern.compile(
+            "claude-(fable-.*|mythos-.*|opus-(4-[6-9]|[5-9]).*|sonnet-(4-[6-9]|[5-9]).*|haiku-[5-9].*)");
+
     private AnthropicModels() {}
+
+    /**
+     * Whether {@code thinking: {type: "adaptive", display: "summarized"}} may be sent to this model. Older models need a token budget for
+     * thinking, which this provider does not set, so they are treated as unable to show reasoning (the request is sent without it).
+     */
+    public static boolean supportsAdaptiveThinking(String model) {
+        return model != null && ADAPTIVE_THINKING.matcher(model.toLowerCase(Locale.ROOT)).matches();
+    }
 
     /** Whether {@code temperature} and {@code top_p} may be sent to this model. */
     public static boolean acceptsSampling(String model) {

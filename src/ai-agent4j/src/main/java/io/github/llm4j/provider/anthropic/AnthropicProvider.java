@@ -18,6 +18,7 @@ import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
 import io.github.llm4j.model.Message;
 import io.github.llm4j.model.ToolCall;
+import io.github.llm4j.model.ToolCallDelta;
 import io.github.llm4j.model.ToolSpec;
 import io.github.llm4j.provider.LLMProvider;
 import io.github.llm4j.provider.Providers;
@@ -97,8 +98,9 @@ public class AnthropicProvider implements LLMProvider {
     /**
      * Server-sent events: {@code message_start} (model, input usage), {@code content_block_delta} with
      * {@code text_delta} (a chunk), {@code message_delta} (stop reason, output usage), {@code
-     * message_stop} (the final chunk), {@code error}. Everything else — pings, thinking deltas — is
-     * skipped.
+     * message_stop} (the final chunk), {@code error}. A {@code tool_use} block start and its
+     * {@code input_json_delta}s become tool-call chunks, and {@code thinking_delta}s become reasoning chunks when the request asked for
+     * reasoning. Everything else — pings, signatures — is skipped.
      */
     @Override
     public Stream<LLMResponse> chatStream(LLMRequest request) {
@@ -128,10 +130,28 @@ public class AnthropicProvider implements LLMProvider {
                     usage[0] = inputTokens(message.path("usage"));
                     return Stream.empty();
                 }
+                case "content_block_start" -> {
+                    JsonNode block = data.path("content_block");
+                    if (!"tool_use".equals(block.path("type").asText())) return Stream.empty();
+                    return Stream.of(Providers.toolCallChunk(new ToolCallDelta(data.path("index").asInt(),
+                            block.path("id").asText(null), block.path("name").asText(null), ""), answering[0]));
+                }
                 case "content_block_delta" -> {
                     JsonNode delta = data.path("delta");
-                    if (!"text_delta".equals(delta.path("type").asText())) return Stream.empty();
-                    return Stream.of(Providers.textChunk(delta.path("text").asText(""), answering[0]));
+                    switch (delta.path("type").asText()) {
+                        case "text_delta":
+                            return Stream.of(Providers.textChunk(delta.path("text").asText(""), answering[0]));
+                        case "thinking_delta": {
+                            String thought = delta.path("thinking").asText("");
+                            return !request.isReasoning() || thought.isEmpty() ? Stream.empty()
+                                    : Stream.of(Providers.reasoningChunk(thought, answering[0]));
+                        }
+                        case "input_json_delta":
+                            return Stream.of(Providers.toolCallChunk(new ToolCallDelta(data.path("index").asInt(), null, null,
+                                    delta.path("partial_json").asText("")), answering[0]));
+                        default:
+                            return Stream.empty();
+                    }
                 }
                 case "message_delta" -> {
                     JsonNode delta = data.path("delta");
@@ -240,6 +260,14 @@ public class AnthropicProvider implements LLMProvider {
         if (level != null) {
             if (!EFFORTS.contains(level)) throw new InvalidRequestException("effort must be one of " + EFFORTS + ", got " + level);
             root.putObject("output_config").put("effort", level);
+        }
+        if (stream && request.isReasoning()) {
+            if (AnthropicModels.supportsAdaptiveThinking(model)) {
+                // "summarized" is what makes the thinking blocks carry text; the default leaves them empty
+                root.putObject("thinking").put("type", "adaptive").put("display", "summarized");
+            } else {
+                logger.debug("{} can't show its reasoning; streaming without it", model);
+            }
         }
         if (stream) root.put("stream", true);
         return JSON.writeValueAsString(root);
