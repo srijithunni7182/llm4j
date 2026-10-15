@@ -84,6 +84,9 @@ final class DelegateRunner {
 
         void trace(String type, String agent, String text, Map<String, Object> data);
 
+        /** Runs an {@code on_stopped} rewind for the step this thread is on; throws to go back, returns when the rewind is not taken. */
+        void rewindFromStop(io.github.llm4j.loom.ast.RewindStmt rewind, io.github.llm4j.agent.StopReport stop);
+
         void runFailureHandler(List<Statement> onFailure, String message);
 
         void traceFailure(String kind, String name, String message, Throwable cause, io.github.llm4j.telemetry.ErrorCategory given, int attempts, boolean handled);
@@ -218,6 +221,8 @@ final class DelegateRunner {
         int stopRetries = 0;
         boolean degraded = false;
         StopOutcome leftOut = null;
+        io.github.llm4j.loom.ast.RewindStmt rewindWith = null;
+        io.github.llm4j.agent.StopReport rewindStop = null;
         String stopWhy = null;
         List<io.github.llm4j.budget.Budget> outerScopes = host.scopes().get();
         if (del.getBudget() != null && budgets.budgeting()) {
@@ -248,7 +253,8 @@ final class DelegateRunner {
                 if (stop != null) {
                     // Stopped through its handle. Never a success by accident: the interpreter decides, and what was decided is on the journal.
                     StopOutcome byPerson = interventions.namedOutcome(stepId);
-                    StopOutcome byScript = byPerson != null ? null : StopHandlers.declared(del.getOnStopped(), host.intervention(), stop).orElse(null);
+                    StopHandlers.Declared declared = byPerson != null ? null : StopHandlers.resolve(del.getOnStopped(), host.intervention(), stop).orElse(null);
+                    StopOutcome byScript = declared == null ? null : declared.outcome();
                     StopInterpreter.Decision decision = StopInterpreter.decide(stop, byPerson != null ? byPerson : byScript, byPerson == null && byScript != null,
                             host.humanInterface() != null);
                     StopOutcome outcome = decision.outcome() == StopOutcome.ASK ? askAboutStop(stepId, agentName, stop, stopRetries) : decision.outcome();
@@ -261,8 +267,12 @@ final class DelegateRunner {
                         continue;
                     }
                     if (outcome == StopOutcome.SUSPEND) throw RunSuspended.byOperator(stepId, stop.origin() == null || stop.origin().isBlank() ? "an intervention" : stop.origin());
-                    if (outcome == StopOutcome.CONCLUDE || outcome == StopOutcome.SKIP || outcome == StopOutcome.DISCARD) {
-                        leftOut = outcome; // acted on once the loop is over (RunStopped would be taken for a failure in here)
+                    if (outcome == StopOutcome.CONCLUDE || outcome == StopOutcome.SKIP || outcome == StopOutcome.DISCARD || outcome == StopOutcome.REWIND) {
+                        leftOut = outcome;
+                        if (outcome == StopOutcome.REWIND) {
+                            rewindWith = declared == null ? null : declared.rewind();
+                            rewindStop = stop;
+                        } // acted on once the loop is over (RunStopped would be taken for a failure in here)
                         stopWhy = reason;
                         break attemptLoop;
                     }
@@ -355,6 +365,11 @@ final class DelegateRunner {
             host.sessions().remove(stepId);
         }
 
+        if (leftOut == StopOutcome.REWIND && rewindWith != null) {
+            host.rewindFromStop(rewindWith, rewindStop); // goes back (throws) unless the rewind is not taken, in which case the step is skipped
+            leftOut = StopOutcome.SKIP;
+            stopWhy = "no rewind: " + stopWhy;
+        }
         if (leftOut == StopOutcome.CONCLUDE) throw new io.github.llm4j.loom.runtime.RunStopped("concluded at " + stepId + " (" + stopWhy + ")");
         if (leftOut != null) {
             host.journal().put(stepId, new RunJournal.Entry(leftOut == StopOutcome.DISCARD ? "discarded" : "skipped", stopWhy));

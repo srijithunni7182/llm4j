@@ -230,6 +230,8 @@ agent Analyst {
     system: "You are an analyst specialising in {domain}."   // follows the persona when both are given
     temperature: 0.3                     // 0.0–2.0: creative roles high, checkers low
     max_iterations: 8                    // how many reasoning steps it may take
+    streaming: true                      // show the reply as it is written (see "Steering, Stopping and Wrapping Up an Agent")
+    steerable: true                      // a person may steer it while it works
 
     skills: ["fs://skills/analyst_best_practices.md"]   // Markdown instructions, relative to the script
     tools: [Search, calculator]          // declared tools, built-ins, or .loot / Java tools
@@ -1762,6 +1764,58 @@ delegate "Summarise {doc}" to Writer -> summary retry 2 backoff 2s timeout 90s o
     note "Writer unavailable: {_error}"
 }
 ```
+
+### Steering, Stopping and Wrapping Up an Agent
+
+A person can watch an agent work and step in: correct its thinking, ask it to finish with what it has, or stop it. The script decides what the run does then, so a stop is never a silent failure and never counted as a success by accident.
+
+```loom
+agent Researcher {
+    model: "gemini-2.5-flash"
+    tools: [calculator]
+    streaming: true      // the reply is shown as it is written; a steer or stop ends a model call in progress
+    reasoning: true      // ask the model to show its reasoning where it can
+    steerable: true      // the person this run serves may steer it. Off unless you say so.
+}
+```
+
+- **Steer** sends the agent a message before its next model call. It corrects the agent's *reasoning*; it never changes the workflow.
+- **Wrap up** asks the agent to finish now: one more model call with tools off, and that answer is its result.
+- **Stop (cancel)** ends the agent. Whoever stops it gives a reason; the script (or a person) says what happens next.
+
+What happens next is one of: `use partial` (keep what the agent had, marked as incomplete), `skip` (the step produces nothing and the run goes on), `discard` (drop the step quietly), `retry` (run it again, once, and only if the agent changed nothing outside the run), `suspend` (pause the run; the step starts again on resume), `conclude` (end the run), `ask` (put it to a person) or `rewind` (go back to an earlier checkpoint). With nothing said, a stop by a person is put to a person; when there is nobody to ask, the run is suspended.
+
+A step can say what to do in its own `on_stopped` handler, and the script can set defaults for every step by the reason the agent was stopped:
+
+```loom
+intervention {
+    timeout:  retry          // the reasons: user, operator, timeout, budget, limit, sibling, supervision, safety, shutdown
+    sibling:  discard
+}
+
+agent Collector { model: "gemini-2.5-flash"  system: "Collect sources on the topic." }
+agent Writer    { model: "gemini-2.5-flash"  system: "Write the report."  streaming: true  steerable: true }
+
+workflow Report(topic) {
+    checkpoint collected  starting with feedback = "none"
+
+    delegate "Collect sources on {topic}. Notes so far: {feedback}" to Collector -> data
+    delegate "Write the report from {data}" to Writer -> draft
+        timeout 90s
+        on_stopped {
+            alt (_stop.reason == "user") {
+                rewind to collected at most 2 times carrying feedback = "{_stop.note}" side effects: keep
+            }
+            alt (_stop.reason == "budget") { use partial }
+        }
+}
+```
+
+Inside `on_stopped`, `_stop` describes the stop: `_stop.reason` (one of the reasons above; whatever a person wrote counts as `user`), `_stop.note` (the person's own words), `_stop.kind` (`cancel` or `wrap_up`), `_stop.phase`, `_stop.partial` (the last thing the agent said), `_stop.changed` (`yes` if the agent may already have changed something outside the run, otherwise `no`) and `_stop.origin`. The first outcome reached decides; if the handler reaches none, the `intervention` default for the reason applies, then the built-in default. A person who names an outcome when they stop an agent overrides the script.
+
+A `rewind` in `on_stopped` may name only a checkpoint the script declared, and it needs `at most N times`. `weave check` rejects a misspelt `_stop` field, a rewind to a checkpoint that is not there, and warns about `retry` for an agent with tools that does not test `_stop.changed`, and about `steerable` without `streaming`. `weave audit` lists every steerable agent as an input channel (`LA18`), `weave graph` draws the handler on a dotted `stopped` edge, and `weave explain` says it in words.
+
+Every steer, stop and decision is journaled and traced, so a resumed run knows what was said and what was decided. An application that embeds Loom calls `steer`, `wrapUp` and `cancel` on the executor while a run is going; a steer is checked by the agent's `guard` and refused if the agent is not `steerable`.
 
 ### Per-Step Schemas (`expecting`)
 One agent can return different structures in different steps. `expecting { ... }` on a delegate overrides

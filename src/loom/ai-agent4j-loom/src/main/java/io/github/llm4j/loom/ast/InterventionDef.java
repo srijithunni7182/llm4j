@@ -13,6 +13,9 @@ public class InterventionDef implements Node {
     /** The reasons a stop can have. Anything a person writes that is not one of these counts as {@code user}. */
     public static final List<String> REASONS = List.of("user", "operator", "timeout", "budget", "limit", "sibling", "supervision", "safety", "shutdown");
 
+    /** The fields {@code _stop} has inside an {@code on_stopped} handler. */
+    public static final List<String> STOP_FIELDS = List.of("reason", "note", "kind", "phase", "partial", "changed", "origin");
+
     private final Map<String, OutcomeStmt.Kind> byReason = new LinkedHashMap<>();
     private final Map<String, Integer> lines = new LinkedHashMap<>();
     private int line;

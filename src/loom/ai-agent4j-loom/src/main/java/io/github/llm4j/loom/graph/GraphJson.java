@@ -120,6 +120,9 @@ public final class GraphJson {
             out.put("budget", agent.budget());
         }
         put(out, "maxIterations", agent.maxIterations());
+        if (agent.streaming()) out.put("streaming", true);
+        if (agent.reasoning()) out.put("reasoning", true);
+        if (agent.steerable()) out.put("steerable", true);
         if (agent.prompt() != null) {
             Map<String, Object> prompt = new LinkedHashMap<>();
             prompt.put("ref", agent.prompt().ref());

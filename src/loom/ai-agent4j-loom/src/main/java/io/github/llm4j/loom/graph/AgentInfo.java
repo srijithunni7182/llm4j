@@ -18,7 +18,10 @@ public record AgentInfo(
         Map<String, Object> budget,
         Integer maxIterations,
         SourceRef source,
-        PromptInfo prompt) {
+        PromptInfo prompt,
+        boolean streaming,
+        boolean reasoning,
+        boolean steerable) {
 
     public AgentInfo {
         tools = List.copyOf(tools);
@@ -29,6 +32,13 @@ public record AgentInfo(
         budget = budget == null ? Map.of() : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(budget));
     }
 
+    /** As the 14-component form, for an agent that is not streaming, reasoning or steerable. */
+    public AgentInfo(String name, String model, Double temperature, String persona, List<String> tools, List<String> mcp,
+            List<String> skills, List<String> knowledge, List<String> approve, boolean approveAll,
+            Map<String, Object> budget, Integer maxIterations, SourceRef source, PromptInfo prompt) {
+        this(name, model, temperature, persona, tools, mcp, skills, knowledge, approve, approveAll, budget, maxIterations, source, prompt, false, false, false);
+    }
+
     /** As the 13-component form, for an agent with no prompt file. */
     public AgentInfo(String name, String model, Double temperature, String persona, List<String> tools, List<String> mcp,
             List<String> skills, List<String> knowledge, List<String> approve, boolean approveAll,
@@ -37,6 +47,6 @@ public record AgentInfo(
     }
 
     public AgentInfo withPrompt(PromptInfo info) {
-        return new AgentInfo(name, model, temperature, persona, tools, mcp, skills, knowledge, approve, approveAll, budget, maxIterations, source, info);
+        return new AgentInfo(name, model, temperature, persona, tools, mcp, skills, knowledge, approve, approveAll, budget, maxIterations, source, info, streaming, reasoning, steerable);
     }
 }

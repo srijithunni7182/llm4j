@@ -143,6 +143,7 @@ public class HarnessExecutor implements LoomEngine {
 
     /** Cancels the running agent(s); {@code outcome} is what the run does next, or null for the defaults. Returns how many were asked to stop. */
     public int cancel(String target, String reason, String origin, StopOutcome outcome) {
+        if (outcome == StopOutcome.REWIND) throw new IllegalArgumentException("a rewind needs a checkpoint to go back to; the script declares it in the step's on_stopped");
         return interventions.cancel(target, reason, origin, outcome);
     }
 
@@ -204,6 +205,15 @@ public class HarnessExecutor implements LoomEngine {
         @Override public ThreadLocal<List<io.github.llm4j.budget.Budget>> scopes() { return scopes; }
         @Override public void trace(String type, String agent, String text, Map<String, Object> data) { HarnessExecutor.this.trace(type, agent, text, data); }
         @Override public void runFailureHandler(List<Statement> onFailure, String message) { HarnessExecutor.this.runFailureHandler(onFailure, message); }
+        @Override public void rewindFromStop(RewindStmt rewind, io.github.llm4j.agent.StopReport stop) {
+            // _stop is readable by the rewind's condition and by what it carries ("{_stop.note}") while it decides
+            context.setVariable("_stop", StopHandlers.fieldsOf(stop));
+            try {
+                rewinder.rewind(rewind, frames.get());
+            } finally {
+                context.removeVariable("_stop");
+            }
+        }
         @Override public void traceFailure(String kind, String name, String message, Throwable cause, io.github.llm4j.telemetry.ErrorCategory given, int attempts, boolean handled) {
             HarnessExecutor.this.traceFailure(kind, name, message, cause, given, attempts, handled);
         }

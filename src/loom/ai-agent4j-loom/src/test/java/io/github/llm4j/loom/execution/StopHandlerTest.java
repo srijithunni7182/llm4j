@@ -234,4 +234,90 @@ class StopHandlerTest {
         assertTrue(problems(agent.formatted("alt (_stop.changed == \"no\") { retry }")).stream().noneMatch(p -> p.message().contains("_stop.changed")));
         assertTrue(problems("agent A { model: \"m\" } workflow W() { delegate \"go\" to A -> out on_stopped { retry } }").stream().noneMatch(p -> p.message().contains("_stop.changed")));
     }
+
+    // ---- rewinding from a handler ----
+
+    private static final String REPORT = """
+            agent Collector { model: "test" system: "You are Collector." }
+            agent Looper { model: "test" system: "You are Looper." tools: [MockTool] max_iterations: 50 }
+            workflow Main() {
+                checkpoint collected starting with feedback = "none"
+                delegate "collect. Notes: {feedback}" to Collector -> data
+                delegate "write from {data}" to Looper -> out_text
+                    on_stopped {
+                        alt (_stop.reason == "user") {
+                            rewind to collected at most 2 times carrying feedback = "{_stop.note}" side effects: keep
+                        }
+                    }
+            }
+            """;
+
+    @Test
+    void aHandlerMaySendTheRunBackToADeclaredCheckpointCarryingTheReason() throws Exception {
+        InterventionRuntimeTest.Model model = new InterventionRuntimeTest.Model(false);
+        RunJournal journal = RunJournal.inMemory();
+        ToolRegistry tools = new ToolRegistry();
+        tools.register("MockTool", new MockTool());
+        java.util.List<String> collectorBriefings = new java.util.concurrent.CopyOnWriteArrayList<>();
+        io.github.llm4j.loom.execution.LLMClientFactory inner = model.factory();
+        HarnessExecutor ex = new HarnessExecutor(parse(REPORT), tools, name -> {
+            io.github.llm4j.LLMClient real = inner.createClient(name);
+            return new io.github.llm4j.LLMClient() {
+                @Override public io.github.llm4j.model.LLMResponse chat(io.github.llm4j.model.LLMRequest r) {
+                    String first = r.getMessages().get(0).getContent();
+                    if (first.contains("You are Collector")) collectorBriefings.add(r.getMessages().get(1).getContent());
+                    return real.chat(r);
+                }
+                @Override public java.util.stream.Stream<io.github.llm4j.model.LLMResponse> chatStream(io.github.llm4j.model.LLMRequest r) { return real.chatStream(r); }
+            };
+        });
+        ex.setJournal(journal);
+        ex.initialize();
+        model.blockFirstCall = true;
+        var run = new InterventionRuntimeTest.Run(ex);
+        run.thread.start();
+        // the Looper is the one that blocks; wait for it, cancel it with a reason, let it go
+        assertTrue(model.entered.await(5, java.util.concurrent.TimeUnit.SECONDS));
+        model.finishNow = true;
+        assertEquals(1, ex.cancel("Looper", "the sources were stale", "alice", null));
+        run.finish(model);
+
+        assertNull(run.error.get());
+        assertEquals(2, collectorBriefings.size(), "the collector ran again");
+        assertTrue(collectorBriefings.get(0).contains("Notes: none"), collectorBriefings.get(0));
+        assertTrue(collectorBriefings.get(1).contains("Notes: the sources were stale"), collectorBriefings.get(1));
+        assertEquals("done", ex.getContext().getVariable("out_text"), "the writer ran again and finished");
+    }
+
+    @Test
+    void aRewindCannotBeNamedByWhoeverCancels() {
+        HarnessExecutor ex = new HarnessExecutor(parse(REPORT), new ToolRegistry(), new InterventionRuntimeTest.Model(false).factory());
+        assertThrows(IllegalArgumentException.class, () -> ex.cancel("Looper", "x", "alice", StopOutcome.REWIND));
+    }
+
+    @Test
+    void aRewindInAHandlerMustNameACheckpointTheScriptDeclared() {
+        var found = problems("""
+                agent A { model: "m" }
+                workflow W() {
+                    delegate "go" to A -> out on_stopped { rewind to nowhere at most 1 times }
+                }
+                """);
+        assertTrue(found.stream().anyMatch(p -> p.severity() == ScriptValidator.Severity.ERROR && p.message().contains("no checkpoint named nowhere")), found.toString());
+        var later = problems("""
+                agent A { model: "m" }
+                workflow W() {
+                    delegate "go" to A -> out on_stopped { rewind to later at most 1 times }
+                    checkpoint later
+                }
+                """);
+        assertTrue(later.stream().anyMatch(p -> p.severity() == ScriptValidator.Severity.ERROR && p.message().contains("must come earlier")), later.toString());
+        assertTrue(problems("""
+                agent A { model: "m" }
+                workflow W() {
+                    checkpoint c
+                    delegate "go" to A -> out on_stopped { rewind to c at most 1 times }
+                }
+                """).stream().noneMatch(p -> p.severity() == ScriptValidator.Severity.ERROR));
+    }
 }

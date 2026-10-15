@@ -4,6 +4,7 @@ import io.github.llm4j.agent.StopReport;
 import io.github.llm4j.loom.ast.AltStmt;
 import io.github.llm4j.loom.ast.InterventionDef;
 import io.github.llm4j.loom.ast.OutcomeStmt;
+import io.github.llm4j.loom.ast.RewindStmt;
 import io.github.llm4j.loom.ast.Statement;
 import io.github.llm4j.loom.runtime.ConditionEvaluator;
 import io.github.llm4j.loom.runtime.DefaultVariableContext;
@@ -21,7 +22,7 @@ import java.util.Optional;
 final class StopHandlers {
 
     /** The fields a handler can read from {@code _stop}. */
-    static final List<String> FIELDS = List.of("reason", "note", "kind", "phase", "partial", "changed", "origin");
+    static final List<String> FIELDS = InterventionDef.STOP_FIELDS;
 
     private StopHandlers() { }
 
@@ -31,35 +32,49 @@ final class StopHandlers {
         return InterventionDef.REASONS.contains(r) && !r.equals("user") ? r : "user";
     }
 
+    /** What the script declares for a stop: the outcome and, for {@link StopOutcome#REWIND}, the rewind to run. */
+    record Declared(StopOutcome outcome, RewindStmt rewind) { }
+
     /** The outcome the script declares for this stop, if any. */
     static Optional<StopOutcome> declared(List<Statement> onStopped, InterventionDef defaults, StopReport stop) {
+        return resolve(onStopped, defaults, stop).map(Declared::outcome);
+    }
+
+    static Optional<Declared> resolve(List<Statement> onStopped, InterventionDef defaults, StopReport stop) {
         String category = category(stop);
         if (onStopped != null && !onStopped.isEmpty()) {
             DefaultVariableContext scope = new DefaultVariableContext();
-            java.util.Map<String, Object> fields = new java.util.LinkedHashMap<>();
-            fields.put("reason", category);
-            fields.put("note", stop.reason() == null ? "" : stop.reason());
-            fields.put("kind", stop.kind().name().toLowerCase(Locale.ROOT));
-            fields.put("phase", stop.phase() == null ? "" : stop.phase().name().toLowerCase(Locale.ROOT));
-            fields.put("partial", stop.partialAnswer() == null ? "" : stop.partialAnswer());
-            fields.put("changed", stop.mayHaveChangedThings() ? "yes" : "no");
-            fields.put("origin", stop.origin() == null ? "" : stop.origin());
+            java.util.Map<String, Object> fields = fieldsOf(stop);
             scope.setVariable("_stop", fields);
-            Optional<StopOutcome> fromHandler = first(onStopped, scope);
+            Optional<Declared> fromHandler = first(onStopped, scope);
             if (fromHandler.isPresent()) return fromHandler;
         }
         if (defaults != null && defaults.getByReason().containsKey(category)) {
-            return Optional.of(StopOutcome.valueOf(defaults.getByReason().get(category).name()));
+            return Optional.of(new Declared(StopOutcome.valueOf(defaults.getByReason().get(category).name()), null));
         }
         return Optional.empty();
     }
 
-    private static Optional<StopOutcome> first(List<Statement> statements, DefaultVariableContext scope) {
+    /** What {@code _stop} holds for a stop. */
+    static java.util.Map<String, Object> fieldsOf(StopReport stop) {
+        java.util.Map<String, Object> fields = new java.util.LinkedHashMap<>();
+        fields.put("reason", category(stop));
+        fields.put("note", stop.reason() == null ? "" : stop.reason());
+        fields.put("kind", stop.kind().name().toLowerCase(Locale.ROOT));
+        fields.put("phase", stop.phase() == null ? "" : stop.phase().name().toLowerCase(Locale.ROOT));
+        fields.put("partial", stop.partialAnswer() == null ? "" : stop.partialAnswer());
+        fields.put("changed", stop.mayHaveChangedThings() ? "yes" : "no");
+        fields.put("origin", stop.origin() == null ? "" : stop.origin());
+        return fields;
+    }
+
+    private static Optional<Declared> first(List<Statement> statements, DefaultVariableContext scope) {
         for (Statement s : statements) {
-            if (s instanceof OutcomeStmt o) return Optional.of(StopOutcome.valueOf(o.getKind().name()));
+            if (s instanceof OutcomeStmt o) return Optional.of(new Declared(StopOutcome.valueOf(o.getKind().name()), null));
+            if (s instanceof RewindStmt r) return Optional.of(new Declared(StopOutcome.REWIND, r));
             if (s instanceof AltStmt a) {
                 List<Statement> branch = ConditionEvaluator.evaluate(a.getCondition(), scope) ? a.getIfBranch() : a.getElseBranch();
-                Optional<StopOutcome> found = first(branch, scope);
+                Optional<Declared> found = first(branch, scope);
                 if (found.isPresent()) return found;
             }
         }

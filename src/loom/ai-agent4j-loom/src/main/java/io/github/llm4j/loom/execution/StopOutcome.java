@@ -14,6 +14,8 @@ public enum StopOutcome {
     SUSPEND,
     /** Bring the whole run to an end. */
     CONCLUDE,
+    /** Send the run back to an earlier checkpoint the script declared, carrying the reason; the step runs again after the steps before it. */
+    REWIND,
     /** Put the decision to a person. */
     ASK
 }
