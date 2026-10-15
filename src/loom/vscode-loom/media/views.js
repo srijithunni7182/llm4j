@@ -115,15 +115,22 @@
       node.appendChild(el('span', { class: 't', text: n.kind === 'start' ? 'Start' : 'End' }));
       return node;
     }
+    var fold = null;
+    if (n.kind === 'call' && n.children.length && ctx.collapsed) {
+      var folded = ctx.collapsed.has(n.id);
+      node.setAttribute('aria-expanded', String(!folded));
+      node.title = n.label + (folded ? ' (click to show its steps)' : ' (click to hide its steps)');
+      fold = el('span', { class: 'ln', text: (folded ? '▸ ' : '▾ ') + n.children.length + ' steps' });
+    }
     if (variant === 'flow') {
-      node.appendChild(el('div', { class: 'kick' }, badge(n.vk, size), el('span', { class: 'kname', text: (VK[n.vk] || VK.unknown).name.toUpperCase() })));
+      node.appendChild(el('div', { class: 'kick' }, badge(n.vk, size), el('span', { class: 'kname', text: (VK[n.vk] || VK.unknown).name.toUpperCase() }), fold));
       node.appendChild(el('div', { class: 't', text: n.label }));
       add(node, chipRow(ctx, n, 1)); add(node, toolChips(ctx, n, 'count'));
       return node;
     }
     node.appendChild(badge(n.vk, size));
     node.appendChild(el('div', { class: 'body' },
-      el('div', { class: 'r1' }, el('span', { class: 't', text: n.label }), variant === 'drop' && n.exit ? el('span', { class: 'ends', text: 'ENDS' }) : null),
+      el('div', { class: 'r1' }, el('span', { class: 't', text: n.label }), variant === 'drop' && n.exit ? el('span', { class: 'ends', text: 'ENDS' }) : null, fold),
       el('div', { class: 'sub', text: kindLine(n) }),
       variant === 'stack' ? chipRow(ctx, n, 3) : null,
       variant === 'stack' ? toolChips(ctx, n, 'names') : null,
@@ -291,7 +298,8 @@
   var FLOW = { W: 184, G: 44, X0: 24, SY: 56, SH: 104, DH: 56, DG: 12, PILL_W: 110, PILL_H: 48 };
 
   /** The positions of everything in the Flow view, from the model alone (so it can be tested without a page). */
-  function flowLayout(m) {
+  function flowLayout(m, collapsed) {
+    var shown = Object.create(null); M.visibleOrder(m, collapsed).forEach(function (n) { shown[n.id] = true; });
     var F = FLOW, pos = Object.create(null), drops = [], paths = [], labels = [], maxY = F.SY + F.SH;
     function edgeLabel(a, b) { var e = m.out[a].filter(function (x) { return x.to === b; })[0]; return e && e.label; }
     m.main.forEach(function (id, i) {
@@ -307,7 +315,7 @@
       if (t) { labels.push({ t: t, x: (q.x + q.w + p.x) / 2, y: midY - 22 }); }
     });
     m.main.forEach(function (id) {
-      var off = m.nodes.filter(function (n) { return !n.main && n.anchor === id && n.kind !== 'start' && n.kind !== 'end'; });
+      var off = m.nodes.filter(function (n) { return !n.main && n.anchor === id && shown[n.id] && n.kind !== 'start' && n.kind !== 'end'; });
       if (!off.length) { return; }
       var p = pos[id], lx = p.x + 22, y = F.SY + F.SH + 40, anchor = m.by[id];
       var first = off[0], why = edgeLabel(id, first.id) || (first.parent && edgeLabel(first.parent, first.id)) || first.branch || 'then';
@@ -385,7 +393,7 @@
   }
 
   function flow(ctx) {
-    var m = ctx.model, L = flowLayout(m), F = FLOW;
+    var m = ctx.model, L = flowLayout(m, ctx.collapsed), F = FLOW;
     var stage = el('div', { class: 'stage', 'data-export': 'flow' });
     stage.style.width = L.width + 'px'; stage.style.height = L.height + 'px';
     var ns = 'http://www.w3.org/2000/svg', sv = document.createElementNS(ns, 'svg');

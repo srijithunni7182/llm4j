@@ -103,6 +103,11 @@
       return order[a.id] - order[b.id];
     });
 
+    if (options.workflows) {
+      var inlined = inlineCalls(sorted, workflow, options.workflows, edges);
+      sorted = inlined.nodes; edges = inlined.edges;
+    }
+
     var by = Object.create(null), nodes = sorted.map(function (n, i) {
       var vm = { id: n.id, raw: n, kind: n.kind, label: n.label || n.id, line: lineOf(n), file: n.source ? n.source.file : null, agent: n.agent || null,
         parent: parentOf(n) || null, branch: n.branch != null ? n.branch : attrsOf(n).branch, depth: 0, section: 0, main: false, exit: false, vk: 'unknown', index: i, children: [] };
@@ -164,6 +169,51 @@
 
     var endless = !main.some(function (id) { return by[id].kind === 'end'; });
     return { name: workflow.name, nodes: nodes, by: by, out: out, inn: inn, sections: sections, main: main, endless: endless, hasSections: sections.length > 1 || !!sections[0].real };
+  }
+
+  /**
+   * Draws each call to a workflow with the called workflow's steps inside it: they become children of the call step
+   * (ids prefixed with the call's, so one workflow called twice stays two copies). The callee's own start and end are
+   * left out, and a call inside a callee is opened the same way, unless the workflow is already being opened (recursion).
+   * Returns the nodes with each callee's steps right after their call, and the edges with the callee's added.
+   */
+  function inlineCalls(sorted, workflow, workflows, edges) {
+    function find(call) {
+      var list = workflows.filter(function (w) { return w.name === call.workflow; });
+      return list.filter(function (w) { return call.file != null && w.file === call.file; })[0] || list[0] || null;
+    }
+    var outNodes = [], outEdges = edges.slice(), budget = 5000;
+    function expand(list, stack) {
+      list.forEach(function (n) {
+        outNodes.push(n);
+        if (n.kind !== 'call' || !n.call || n.unresolved) { return; }
+        var callee = find(n.call);
+        if (!callee || stack.indexOf(callee.name + '@' + callee.file) >= 0 || budget <= 0) { return; }
+        var key = callee.name + '@' + callee.file, id = n.id, own = (callee.nodes || []).filter(function (c) { return c.kind !== 'start' && c.kind !== 'end'; });
+        budget -= own.length;
+        var kept = Object.create(null), order = Object.create(null);
+        own.forEach(function (c) { kept[c.id] = true; });
+        (callee.nodes || []).forEach(function (c, i) { order[c.id] = i; });
+        var copies = own.map(function (c) {
+          var copy = Object.assign({}, c, { id: id + '>' + c.id, parent: c.parent && kept[c.parent] ? id + '>' + c.parent : id });
+          delete copy.section;
+          if (copy.attrs) { copy.attrs = Object.assign({}, copy.attrs); delete copy.attrs.parent; delete copy.attrs.section; }
+          return copy;
+        });
+        (callee.edges || []).forEach(function (e) {
+          if (kept[e.from] && kept[e.to]) { outEdges.push({ from: id + '>' + e.from, to: id + '>' + e.to, label: e.label }); }
+        });
+        // the callee in its own source order, with the calls inside it opened in turn
+        copies.sort(function (a, b) {
+          var la = lineOf(a), lb = lineOf(b);
+          if (la != null && lb != null && la !== lb) { return la - lb; }
+          return order[a.id.slice(id.length + 1)] - order[b.id.slice(id.length + 1)];
+        });
+        expand(copies, stack.concat(key));
+      });
+    }
+    expand(sorted, [workflow.name + '@' + workflow.file]);
+    return { nodes: outNodes, edges: outEdges };
   }
 
   function normalizeSections(list, workflow, nodes) {

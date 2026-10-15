@@ -98,7 +98,7 @@
     var wf = workflowNamed(name);
     if (!wf) { return; }
     state.workflow = wf.name;
-    state.model = M.build(wf, { sections: state.sections[wf.name + '@' + wf.file] });
+    state.model = M.build(wf, { sections: state.sections[wf.name + '@' + wf.file], workflows: state.result.workflows });
     if (!keep) { state.collapsed = new Set(); }
     else { state.collapsed = new Set(Array.from(state.collapsed).filter(function (id) { return !!state.model.by[id]; })); }
     if (!state.selected || !state.model.by[state.selected]) { state.selected = defaultSelection(); }
@@ -301,6 +301,10 @@
     var n = nodeOfEvent(e);
     if (!n) { return; }
     if ((e.ctrlKey || e.metaKey) && n.kind === 'call') { activate(n, { ctrl: true }); return; }
+    // a call with its callee's steps inside folds and unfolds on a click (not again on the second click of a double-click)
+    if (n.kind === 'call' && n.children.length && e.detail < 2) {
+      if (state.collapsed.has(n.id)) { state.collapsed.delete(n.id); } else { state.collapsed.add(n.id); }
+    }
     select(n.id, { reveal: false });
     // a double-click is the second click (detail 2): the first one redrew the view, so the browser's own dblclick would miss
     if (e.detail === 2) { activate(n, {}); }
