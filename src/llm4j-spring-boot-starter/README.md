@@ -23,6 +23,7 @@ No llm4j module depends on this one, and the starter adds no behaviour: each bea
 |---|---|---|
 | `LLMClient` | `llm4j.provider` is set | `new DefaultLLMClient(provider)` for gemini, anthropic, ollama or sarvam |
 | `ToolRegistry` | always | the core registry holding every `Tool` bean you declare |
+| `ReActAgent.Builder` (a new one per injection) | there is an `LLMClient` | `ReActAgent.builder()` with the client, your tools and `llm4j.agent.*` applied |
 | `LoomScript`, Loom `ToolRegistry`, `LLMClientFactory`, `LoomRuntime` | `ai-agent4j-loom` is on the class path **and** `llm4j.loom.script` is set | the parsed script, its tools, its models, and a runner |
 
 Each backs off to a bean of your own type. Nothing is scanned, no tool appears that you did not declare, and nothing calls a model at start-up.
@@ -34,6 +35,10 @@ llm4j:
   model: claude-sonnet-5-5
   api-key: ${ANTHROPIC_API_KEY}     # never a literal in a file you commit
   # base-url, timeout, connect-timeout are optional
+  agent:                      # optional defaults for ReActAgent.Builder
+    system-prompt: You are a concise support assistant.
+    max-iterations: 8
+    temperature: 0.2
   loom:
     script: classpath:workflows/support.loom   # or file:/etc/app/support.loom
     loot: classpath:workflows/tools.loot       # optional: tool name = class
@@ -46,9 +51,15 @@ llm4j:
 class Support {
     private final LLMClient llm;            // llm4j.provider
     private final ToolRegistry tools;       // your Tool beans
+    private final ObjectProvider<ReActAgent.Builder> agents;  // a builder, see below
     private final LoomRuntime loom;         // llm4j.loom.script
 
     Support(LLMClient llm, ToolRegistry tools, LoomRuntime loom) { ... }
+
+    String ask(String question) {
+        ReActAgent agent = agents.getObject().build();   // one agent per conversation
+        return agent.run(question).getAnswer();
+    }
 
     void handle(String ticket) {
         loom.run("Triage", Map.of("ticket", ticket));          // blocks
@@ -63,6 +74,8 @@ class Calculator implements Tool { ... }   // lands in the ToolRegistry, and in 
 Without Spring, the same thing is: `new HarnessExecutor(script, tools, models)`, `initialize()`, `executeWorkflow(...)`.
 
 ## Things worth knowing
+
+- **You get a builder, not a `ReActAgent`.** An agent keeps a conversation, so one shared bean would mix your users' chats. Inject `ObjectProvider<ReActAgent.Builder>` (or the builder itself; each injection is a fresh one), add anything else you want, and `build()` per conversation.
 
 - **One executor for each run.** A `HarnessExecutor` holds one run's variables, journal and budgets, so `LoomRuntime` makes a new, initialized one per `run`/`start`. A script that is invalid, or whose model has no key, fails there, listing every problem, not mid-run. The application itself still starts.
 - **Configure executors with a bean.** Declare a `LoomExecutorCustomizer` (a `HumanInterface`, a run journal, an audit logger, a `SecretStore`); it runs on every new executor before `initialize()`.

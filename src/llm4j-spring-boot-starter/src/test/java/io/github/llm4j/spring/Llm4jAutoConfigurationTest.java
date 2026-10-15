@@ -196,4 +196,25 @@ class Llm4jAutoConfigurationTest {
             assertThat(run.status()).isEqualTo(io.github.llm4j.loom.execution.LoomRun.Status.COMPLETED);
         });
     }
+
+    @Test
+    void reActAgentBuilderIsFreshEachTimeAndCarriesYourTools() {
+        runner.withPropertyValues("llm4j.provider=ollama", "llm4j.agent.system-prompt=Be brief.", "llm4j.agent.max-iterations=3", "llm4j.agent.temperature=0.2")
+                .withBean("t", Tool.class, () -> tool("alpha"))
+                .run(ctx -> {
+                    assertThat(ctx).hasNotFailed();
+                    var first = ctx.getBean(io.github.llm4j.agent.ReActAgent.Builder.class);
+                    assertThat(ctx.getBean(io.github.llm4j.agent.ReActAgent.Builder.class)).isNotSameAs(first);
+                    assertThat(first.build()).isNotNull(); // two agents never share a conversation
+                    assertThat(first.build()).isNotSameAs(first.build());
+                });
+    }
+
+    @Test
+    void noBuilderWithoutAClientAndAnAgentBuilderOfYourOwnWins() {
+        runner.run(ctx -> assertThat(ctx).doesNotHaveBean(io.github.llm4j.agent.ReActAgent.Builder.class));
+        var mine = io.github.llm4j.agent.ReActAgent.builder();
+        runner.withPropertyValues("llm4j.provider=ollama").withBean(io.github.llm4j.agent.ReActAgent.Builder.class, () -> mine)
+                .run(ctx -> assertThat(ctx.getBean(io.github.llm4j.agent.ReActAgent.Builder.class)).isSameAs(mine));
+    }
 }

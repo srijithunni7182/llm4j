@@ -1,6 +1,7 @@
 package io.github.llm4j.spring;
 
 import io.github.llm4j.LLMClient;
+import io.github.llm4j.agent.ReActAgent;
 import io.github.llm4j.agent.Tool;
 import io.github.llm4j.agent.tool.ToolRegistry;
 import io.github.llm4j.loom.ast.LoomScript;
@@ -17,13 +18,16 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Scope;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -35,6 +39,7 @@ import org.springframework.core.io.ResourceLoader;
  * <ul>
  *   <li>{@link LLMClient}: when {@code llm4j.provider} is set;
  *   <li>{@link ToolRegistry}: always, holding every {@link Tool} bean;
+ *   <li>{@link ReActAgent.Builder} (a new one per injection): when there is an {@link LLMClient};
  *   <li>Loom ({@link LoomScript}, its tool registry, {@link LLMClientFactory}, {@link LoomRuntime}): when ai-agent4j-loom is on the
  *       class path and {@code llm4j.loom.script} is set.
  * </ul>
@@ -59,6 +64,24 @@ public class Llm4jAutoConfiguration {
         ToolRegistry registry = new ToolRegistry();
         tools.orderedStream().forEach(registry::register);
         return registry;
+    }
+
+    /**
+     * A builder, not an agent: a {@link ReActAgent} keeps a conversation, so one shared instance would mix users' chats. Each injection point
+     * (or {@code ObjectProvider.getObject()}) gets a fresh builder with the {@link LLMClient}, the {@link ToolRegistry}'s tools and the
+     * {@code llm4j.agent.*} settings already applied; call {@code build()} for each conversation, and change anything else first.
+     */
+    @Bean
+    @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+    @ConditionalOnMissingBean
+    @ConditionalOnBean(LLMClient.class)
+    public ReActAgent.Builder reActAgentBuilder(LLMClient client, ToolRegistry tools, Llm4jProperties properties) {
+        Llm4jProperties.Agent a = properties.getAgent();
+        ReActAgent.Builder builder = ReActAgent.builder().llmClient(client).addTools(tools.getAllTools());
+        if (a.getSystemPrompt() != null) builder.systemPrompt(a.getSystemPrompt());
+        if (a.getMaxIterations() != null) builder.maxIterations(a.getMaxIterations());
+        if (a.getTemperature() != null) builder.temperature(a.getTemperature());
+        return builder;
     }
 
     @Configuration(proxyBeanMethods = false)

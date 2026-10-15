@@ -33,6 +33,27 @@ public class Llm4jProperties {
 
     private final Loom loom = new Loom();
 
+    private final Agent agent = new Agent();
+
+    public static class Agent {
+
+        /** Instructions every agent built from the {@code ReActAgent.Builder} bean starts with. Left to the agent's own default when unset. */
+        private String systemPrompt;
+
+        /** How many reason-and-act steps an agent may take for one question. Left to the agent's own default when unset. */
+        private Integer maxIterations;
+
+        /** The sampling temperature. Left to the provider's own default when unset. */
+        private Double temperature;
+
+        public String getSystemPrompt() { return systemPrompt; }
+        public void setSystemPrompt(String systemPrompt) { this.systemPrompt = systemPrompt; }
+        public Integer getMaxIterations() { return maxIterations; }
+        public void setMaxIterations(Integer maxIterations) { this.maxIterations = maxIterations; }
+        public Double getTemperature() { return temperature; }
+        public void setTemperature(Double temperature) { this.temperature = temperature; }
+    }
+
     public static class Loom {
 
         /** The {@code .loom} script to load as the {@code LoomScript} bean ({@code classpath:} or {@code file:}). No Loom beans are created while this is unset and the application has no {@code LoomScript} of its own. */
@@ -62,4 +83,5 @@ public class Llm4jProperties {
     public Duration getConnectTimeout() { return connectTimeout; }
     public void setConnectTimeout(Duration connectTimeout) { this.connectTimeout = connectTimeout; }
     public Loom getLoom() { return loom; }
+    public Agent getAgent() { return agent; }
 }
