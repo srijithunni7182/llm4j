@@ -115,6 +115,9 @@ public class AnthropicProvider implements LLMProvider {
         String[] stop = {null};
         JsonNode[] stopDetails = {null};
         Integer[] usage = {null, null};
+        // the content blocks as Claude sends them, built up, so a tool turn can be continued with its thinking blocks intact
+        java.util.Map<Integer, ObjectNode> blocks = new java.util.TreeMap<>();
+        java.util.Map<Integer, StringBuilder> toolInput = new java.util.HashMap<>();
         return body.events().flatMap(event -> {
             JsonNode data;
             try {
@@ -132,21 +135,29 @@ public class AnthropicProvider implements LLMProvider {
                 }
                 case "content_block_start" -> {
                     JsonNode block = data.path("content_block");
+                    if (block.isObject()) blocks.put(data.path("index").asInt(), ((ObjectNode) block).deepCopy());
                     if (!"tool_use".equals(block.path("type").asText())) return Stream.empty();
                     return Stream.of(Providers.toolCallChunk(new ToolCallDelta(data.path("index").asInt(),
                             block.path("id").asText(null), block.path("name").asText(null), ""), answering[0]));
                 }
                 case "content_block_delta" -> {
                     JsonNode delta = data.path("delta");
+                    ObjectNode mine = blocks.get(data.path("index").asInt());
                     switch (delta.path("type").asText()) {
                         case "text_delta":
+                            if (mine != null) mine.put("text", mine.path("text").asText("") + delta.path("text").asText(""));
                             return Stream.of(Providers.textChunk(delta.path("text").asText(""), answering[0]));
                         case "thinking_delta": {
                             String thought = delta.path("thinking").asText("");
+                            if (mine != null) mine.put("thinking", mine.path("thinking").asText("") + thought);
                             return !request.isReasoning() || thought.isEmpty() ? Stream.empty()
                                     : Stream.of(Providers.reasoningChunk(thought, answering[0]));
                         }
+                        case "signature_delta":
+                            if (mine != null) mine.put("signature", delta.path("signature").asText(""));
+                            return Stream.empty();
                         case "input_json_delta":
+                            toolInput.computeIfAbsent(data.path("index").asInt(), k -> new StringBuilder()).append(delta.path("partial_json").asText(""));
                             return Stream.of(Providers.toolCallChunk(new ToolCallDelta(data.path("index").asInt(), null, null,
                                     delta.path("partial_json").asText("")), answering[0]));
                         default:
@@ -164,7 +175,22 @@ public class AnthropicProvider implements LLMProvider {
                 }
                 case "message_stop" -> {
                     if ("refusal".equals(stop[0])) throw refusal(stopDetails[0]);
-                    return Stream.of(Providers.finalChunk(stop[0], usage[0], usage[1], answering[0]));
+                    java.util.Map<String, Object> raw = java.util.Map.of();
+                    boolean calls = false;
+                    for (java.util.Map.Entry<Integer, ObjectNode> b : blocks.entrySet()) {
+                        if (!"tool_use".equals(b.getValue().path("type").asText())) continue;
+                        calls = true;
+                        StringBuilder json = toolInput.get(b.getKey());
+                        if (json != null && json.length() > 0) {
+                            try {
+                                b.getValue().set("input", JSON.readTree(json.toString()));
+                            } catch (IOException e) {
+                                // cut off or malformed: the caller sees the same text in the tool-call deltas and decides
+                            }
+                        }
+                    }
+                    if (calls) raw = java.util.Map.of(RAW_CONTENT, JSON.convertValue(blocks.values(), new com.fasterxml.jackson.core.type.TypeReference<List<java.util.Map<String, Object>>>() {}));
+                    return Stream.of(Providers.finalChunk(stop[0], usage[0], usage[1], answering[0], raw));
                 }
                 case "error" -> throw streamError(data.path("error"));
                 default -> {

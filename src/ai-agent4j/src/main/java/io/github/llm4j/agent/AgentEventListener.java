@@ -100,6 +100,24 @@ public interface AgentEventListener {
         // no-op by default; implementors opt in
     }
 
+    /**
+     * Streaming only: a piece of the model's reasoning, as it is written (see {@link ReActAgent.Builder#reasoning}). What it holds depends
+     * on the model; where the provider offers a summary of the thinking, this is the summary.
+     */
+    default void onReasoningDelta(String piece) {
+        // no-op by default; implementors opt in
+    }
+
+    /** Streaming only: a piece of the model's reply text, as it is written. The whole text still arrives through {@link #onThought} or the answer. */
+    default void onTextDelta(String piece) {
+        // no-op by default; implementors opt in
+    }
+
+    /** Streaming only: the model has begun writing a call to this tool; its arguments are still to come. */
+    default void onToolCallStarted(String toolName) {
+        // no-op by default; implementors opt in
+    }
+
     /** Called when a run stops at a checkpoint because its {@link RunHandle} was paused. */
     default void onPaused() {
         // no-op by default; implementors opt in

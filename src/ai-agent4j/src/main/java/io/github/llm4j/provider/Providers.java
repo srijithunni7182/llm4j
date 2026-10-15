@@ -50,7 +50,16 @@ public final class Providers {
      */
     public static LLMResponse finalChunk(String rawFinishReason, Integer promptTokens, Integer completionTokens,
                                          String model) {
-        LLMResponse.Builder b = LLMResponse.builder().content("").model(model).finishReason(rawFinishReason);
+        return finalChunk(rawFinishReason, promptTokens, completionTokens, model, java.util.Map.of());
+    }
+
+    /**
+     * As above, plus the provider data a tool turn needs sent back unchanged (as on a whole response), so a streamed turn can be continued
+     * exactly like one that was not streamed.
+     */
+    public static LLMResponse finalChunk(String rawFinishReason, Integer promptTokens, Integer completionTokens,
+                                         String model, java.util.Map<String, Object> providerData) {
+        LLMResponse.Builder b = LLMResponse.builder().content("").model(model).finishReason(rawFinishReason).providerData(providerData);
         if (rawFinishReason != null) b.addMetadata(FINISH_REASON_RAW, rawFinishReason);
         if (promptTokens != null || completionTokens != null) {
             int p = promptTokens == null ? 0 : promptTokens;

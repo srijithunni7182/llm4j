@@ -43,6 +43,7 @@ public final class RunHandle {
     private boolean bound;
     private boolean cancelRequested;
     private boolean pauseRequested;
+    private Runnable interruptListener;
 
     /** Queues a message for the model, delivered before its next model call. Blank messages are ignored. */
     public void steer(String message) {
@@ -52,6 +53,7 @@ public final class RunHandle {
             steering.add(message.strip());
             lock.notifyAll();
         }
+        interrupt();
     }
 
     /** Asks the run to wait at its next checkpoint until {@link #resume()}. Does nothing once cancelled. */
@@ -77,6 +79,7 @@ public final class RunHandle {
             pauseRequested = false;
             lock.notifyAll();
         }
+        interrupt();
     }
 
     public State state() {
@@ -135,6 +138,37 @@ public final class RunHandle {
         }
         onResume.run();
         return true;
+    }
+
+    /**
+     * Sets what to do the moment a steer or cancel arrives (the loop uses it to close a model call that is streaming, so a message does
+     * not wait for the next chunk). Runs at once if one is already waiting. Pass null to clear it.
+     */
+    void onInterrupt(Runnable listener) {
+        synchronized (lock) {
+            interruptListener = listener;
+        }
+        if (listener != null && interruptRequested()) interrupt();
+    }
+
+    /** Whether a steer or cancel is waiting. */
+    boolean interruptRequested() {
+        synchronized (lock) {
+            return cancelRequested || !steering.isEmpty();
+        }
+    }
+
+    private void interrupt() {
+        Runnable listener;
+        synchronized (lock) {
+            listener = interruptListener;
+        }
+        if (listener == null) return;
+        try {
+            listener.run();
+        } catch (RuntimeException ignored) {
+            // closing a stream that is already over is not a failure
+        }
     }
 
     /** The steering sent since the last call, oldest first. */

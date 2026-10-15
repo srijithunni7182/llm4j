@@ -97,6 +97,7 @@ public class GoogleProvider implements DescribableProvider {
         String[] finish = {null};
         Integer[] usage = {null, null};
         int[] calls = {0}; // tool calls seen so far, to number the next
+        java.util.List<JsonNode> allParts = new java.util.ArrayList<>(); // every part, as Gemini sent it, to send back with tool results
         Stream<LLMResponse> text = body.events().flatMap(event -> {
             JsonNode root;
             try {
@@ -116,9 +117,18 @@ public class GoogleProvider implements DescribableProvider {
                 usage[0] = u.path("promptTokenCount").asInt(0);
                 usage[1] = u.path("candidatesTokenCount").asInt(0) + u.path("thoughtsTokenCount").asInt(0);
             }
-            return chunksOf(candidate.path("content").path("parts"), model, request.isReasoning(), calls).stream();
+            JsonNode parts = candidate.path("content").path("parts");
+            if (parts.isArray()) parts.forEach(allParts::add);
+            return chunksOf(parts, model, request.isReasoning(), calls).stream();
         });
-        return Stream.concat(text, Stream.of(0).map(x -> Providers.finalChunk(finish[0], usage[0], usage[1], model)))
+        return Stream.concat(text, Stream.of(0).map(x -> {
+            java.util.Map<String, Object> raw = java.util.Map.of();
+            if (calls[0] > 0) {
+                raw = java.util.Map.of(RAW_PARTS, objectMapper.convertValue(allParts,
+                        new com.fasterxml.jackson.core.type.TypeReference<java.util.List<java.util.Map<String, Object>>>() {}));
+            }
+            return Providers.finalChunk(finish[0], usage[0], usage[1], model, raw);
+        }))
                 .onClose(body::close);
     }
 

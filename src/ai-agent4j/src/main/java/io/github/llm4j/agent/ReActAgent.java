@@ -167,6 +167,8 @@ public class ReActAgent {
     private final SpeechToTextProvider sttProvider;
     private final AudioPlayer audioPlayer;
     private final boolean autoPlayAudio;
+    private final boolean streaming;
+    private final boolean reasoning;
     private final String ttsLanguage;
     private final String ttsModel;
 
@@ -219,6 +221,8 @@ public class ReActAgent {
         this.audioPlayer =
                 builder.audioPlayer != null ? builder.audioPlayer : new JavaAudioPlayer();
         this.autoPlayAudio = builder.autoPlayAudio;
+        this.streaming = builder.streaming;
+        this.reasoning = builder.reasoning;
         this.ttsLanguage = builder.ttsLanguage;
         this.ttsModel = builder.ttsModel;
     }
@@ -717,11 +721,11 @@ public class ReActAgent {
                 tally.add(prepared.summarizerUsage());
             }
             int sent = conversation.size();
-            LLMRequest request = LLMRequest.builder().messages(conversation).tools(specs).temperature(temperature).build();
+            LLMRequest request = LLMRequest.builder().messages(conversation).tools(specs).temperature(temperature).reasoning(streaming && reasoning).build();
             LLMResponse response;
             try {
                 try {
-                    response = chatObserved(request, i, telemetry);
+                    response = modelCall(request, i, telemetry, handle);
                 } catch (io.github.llm4j.exception.ContextOverflowException overflow) {
                     // the provider says the prompt is too long: compact harder, once, and try again once
                     ContextManager.Prepared again = contextManager == null ? null : contextManager.recoverFromOverflow(conversation, i, 0);
@@ -729,8 +733,8 @@ public class ReActAgent {
                     tally.add(again.summarizerUsage());
                     conversation = new ArrayList<>(again.messages());
                     sent = conversation.size();
-                    request = LLMRequest.builder().messages(conversation).tools(specs).temperature(temperature).build();
-                    response = chatObserved(request, i, telemetry);
+                    request = LLMRequest.builder().messages(conversation).tools(specs).temperature(temperature).reasoning(streaming && reasoning).build();
+                    response = modelCall(request, i, telemetry, handle);
                 }
             } catch (io.github.llm4j.exception.RateLimitException limited) {
                 throw new io.github.llm4j.ratelimit.RateLimited(
@@ -746,12 +750,28 @@ public class ReActAgent {
                         lastThought != null ? lastThought : lastObservation != null ? lastObservation : "",
                         steps, i, tally.usage(), redundantActionCount.get(), true);
             }
+            if (response.getMetadata().containsKey(StreamedReply.INTERRUPTED)) {
+                // a steer or cancel closed the call. What the model had said so far stays in the conversation; half a tool call does not.
+                // The checkpoint at the top of the loop then ends the run (cancel) or delivers the steering (steer).
+                tally.add(response);
+                if (!response.getContent().isBlank()) conversation.add(Message.assistant(response.getContent()));
+                continue;
+            }
             tally.add(response);
             if (contextManager != null && response.getTokenUsage() != null) {
                 contextManager.reported(response.getTokenUsage().getPromptTokens(), sent);
             }
             String text = response.getContent() == null ? "" : response.getContent();
             logger.info("=== LLM Response (Iteration {}) ===\n{}{}", i + 1, text, response.hasToolCalls() ? "\n[tool calls: " + response.getToolCalls().size() + "]" : "");
+
+            if (response.getMetadata().get(StreamedReply.MALFORMED) instanceof List<?> broken && !broken.isEmpty()) {
+                // a call's arguments were cut off or not JSON: nothing from this turn runs (the calls that did parse are dropped with it,
+                // so the model writes them all again); say so, and let the model try again
+                if (!text.isBlank()) conversation.add(Message.assistant(text));
+                conversation.add(Message.user("Your call to " + String.join(", ", broken.stream().map(String::valueOf).toList())
+                        + " could not be read: its arguments were cut off or not valid JSON. Call it again."));
+                continue;
+            }
 
             if (!response.hasToolCalls()) {
                 if (text.isBlank()) {
@@ -876,13 +896,27 @@ public class ReActAgent {
      * summariser of a compaction strategy has its own client and is not a call of the run (its usage is reported with the compaction).
      */
     private LLMResponse chatObserved(LLMRequest request, int iteration, RunTelemetry telemetry) {
+        return observed(request, iteration, telemetry, () -> llmClient.chat(request));
+    }
+
+    /** The model call as the loop makes it: streamed and put back together when streaming is on, otherwise whole. */
+    private LLMResponse modelCall(LLMRequest request, int iteration, RunTelemetry telemetry, RunHandle handle) {
+        if (!streaming) return chatObserved(request, iteration, telemetry);
+        return observed(request, iteration, telemetry, () -> StreamedReply.read(llmClient.chatStream(request), handle, new StreamedReply.Sink() {
+            public void reasoning(String piece) { notifyReasoningDelta(piece); }
+            public void text(String piece) { notifyTextDelta(piece); }
+            public void toolCallStarted(String name) { notifyToolCallStarted(name); }
+        }));
+    }
+
+    private LLMResponse observed(LLMRequest request, int iteration, RunTelemetry telemetry, java.util.function.Supplier<LLMResponse> call) {
         java.time.Instant startedAt = clock.instant();
         long started = clock.millis();
         ModelCallEvent.Builder event = ModelCallEvent.builder().iteration(iteration).requestedModel(request.getModel()).startedAt(startedAt);
         LLMResponse response;
         CallTrace.begin();
         try {
-            response = llmClient.chat(request);
+            response = call.get();
         } catch (RuntimeException e) {
             long duration = Math.max(0, clock.millis() - started);
             telemetry.model(traced(event, duration, CallTrace.end()).failed(ErrorCategory.of(e), e.getClass().getSimpleName()).build());
@@ -1291,6 +1325,36 @@ public class ReActAgent {
         return prompt.toString();
     }
 
+    private void notifyReasoningDelta(String piece) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onReasoningDelta(piece);
+            } catch (Exception e) {
+                logger.error("Error in listener onReasoningDelta", e);
+            }
+        }
+    }
+
+    private void notifyTextDelta(String piece) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onTextDelta(piece);
+            } catch (Exception e) {
+                logger.error("Error in listener onTextDelta", e);
+            }
+        }
+    }
+
+    private void notifyToolCallStarted(String name) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onToolCallStarted(name);
+            } catch (Exception e) {
+                logger.error("Error in listener onToolCallStarted", e);
+            }
+        }
+    }
+
     private void notifySteered(String message) {
         for (AgentEventListener listener : listeners) {
             try {
@@ -1486,6 +1550,8 @@ public class ReActAgent {
         private SpeechToTextProvider sttProvider;
         private AudioPlayer audioPlayer;
         private boolean autoPlayAudio = true;
+        private boolean streaming;
+        private boolean reasoning;
         private String ttsLanguage;
         private String ttsModel;
         private Budget budget;
@@ -1540,6 +1606,8 @@ public class ReActAgent {
             this.sttProvider = agent.sttProvider;
             this.audioPlayer = agent.audioPlayer;
             this.autoPlayAudio = agent.autoPlayAudio;
+            this.streaming = agent.streaming;
+            this.reasoning = agent.reasoning;
             this.ttsLanguage = agent.ttsLanguage;
             this.ttsModel = agent.ttsModel;
             this.toolCalling = agent.toolCalling;
@@ -1761,6 +1829,26 @@ public class ReActAgent {
 
         public Builder audioPlayer(AudioPlayer audioPlayer) {
             this.audioPlayer = audioPlayer;
+            return this;
+        }
+
+        /**
+         * Streams each model call (native tool calling only; the text protocol parses a whole reply). Listeners then hear the reply as it is
+         * written ({@link AgentEventListener#onTextDelta}, {@link AgentEventListener#onToolCallStarted}), and a {@link RunHandle#steer steer} or
+         * {@link RunHandle#cancel cancel} ends the call in progress at once instead of after it finishes. Off by default: a streamed call
+         * is billed for what was generated before it was cut off, and a stream that fails half-way is not retried.
+         */
+        public Builder streaming(boolean streaming) {
+            this.streaming = streaming;
+            return this;
+        }
+
+        /**
+         * With {@link #streaming}, asks the model to show its reasoning, delivered to {@link AgentEventListener#onReasoningDelta}. Off by
+         * default: it makes the provider think and report it, which can cost more. Providers and models that cannot show reasoning ignore it.
+         */
+        public Builder reasoning(boolean reasoning) {
+            this.reasoning = reasoning;
             return this;
         }
 

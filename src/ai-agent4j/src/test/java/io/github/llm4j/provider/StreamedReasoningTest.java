@@ -118,6 +118,21 @@ class StreamedReasoningTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void theLastAnthropicChunkCarriesTheBlocksToSendBackWithTheToolResult() {
+        server.enqueue(sse(anthropicStream()));
+        List<LLMResponse> chunks = new AnthropicProvider(config("claude-opus-5-5")).chatStream(ask(false)).toList();
+
+        Map<String, Object> data = chunks.get(chunks.size() - 1).getProviderData();
+        List<Map<String, Object>> blocks = (List<Map<String, Object>>) data.get("anthropic.content");
+        assertThat(blocks).extracting(b -> b.get("type")).containsExactly("thinking", "text", "tool_use");
+        assertThat(blocks.get(0).get("thinking")).isEqualTo("I should look it up.");
+        assertThat(blocks.get(0).get("signature")).isEqualTo("sig");
+        assertThat(blocks.get(1).get("text")).isEqualTo("Looking.");
+        assertThat(blocks.get(2).get("input")).isEqualTo(Map.of("q", "cats"));
+    }
+
+    @Test
     void anOlderAnthropicModelIsAskedForNoThinking() throws Exception {
         server.enqueue(sse(anthropicStream()));
         new AnthropicProvider(config("claude-haiku-4-5")).chatStream(ask(true)).toList();
@@ -155,6 +170,16 @@ class StreamedReasoningTest {
         assertThat(reasoning(chunks)).isEmpty();
         assertThat(answer(chunks)).isEqualTo("Looking.");
         assertThat(JSON.readTree(server.takeRequest().getBody().readUtf8()).path("generationConfig").has("thinkingConfig")).isFalse();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void theLastGeminiChunkCarriesItsPartsWhenACallWasMade() {
+        server.enqueue(sse(geminiStream()));
+        List<LLMResponse> chunks = new GoogleProvider(config("gemini-2.5-flash")).chatStream(ask(false)).toList();
+
+        List<Map<String, Object>> parts = (List<Map<String, Object>>) chunks.get(chunks.size() - 1).getProviderData().get("google.parts");
+        assertThat(parts).anyMatch(p -> p.containsKey("functionCall"));
     }
 
     @Test
