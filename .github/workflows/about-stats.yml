@@ -1,0 +1,44 @@
+name: Refresh About stats
+
+# Regenerates the stats block in docs/ABOUT.md and opens a pull request when the numbers have moved.
+# The timeline in that file is curated by hand: see docs/PUBLISHING.md.
+
+on:
+  schedule:
+    - cron: '0 6 1 * *' # first of each month
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the commit count needs full history
+
+      - name: Regenerate stats
+        run: scripts/about-stats.sh
+
+      - name: Open a pull request if anything changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet docs/ABOUT.md; then
+            echo "Stats unchanged."
+            exit 0
+          fi
+          branch="chore/about-stats-$(date -u +%Y-%m)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add docs/ABOUT.md
+          git commit -m "docs: refresh About stats"
+          git push --force origin "$branch"
+          gh pr create --base "${GITHUB_REF_NAME}" --head "$branch" \
+            --title "docs: refresh About stats" \
+            --body "Automated run of \`scripts/about-stats.sh\`. Only the block between the stats markers in \`docs/ABOUT.md\` changes." \
+            || gh pr edit "$branch" --body "Automated run of \`scripts/about-stats.sh\`."

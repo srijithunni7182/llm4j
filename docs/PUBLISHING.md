@@ -50,6 +50,8 @@ Every release runs the default tests; `-Prelease` never skips them. Slow tests (
 6. Publish the VS Code extension separately: [PUBLISHING_VSCODE.md](PUBLISHING_VSCODE.md) (it bundles the `cli` jar).
 7. Attach `ai-agent4j-loom-<version>-cli.jar` to the GitHub release (the workflow keeps it as the `weave-cli-jar` artifact of the
    *Release check* job) so people can download `weave` without Maven.
+8. Add a row to the timeline in [ABOUT.md](ABOUT.md) for the release and any feature worth remembering. The stats block there
+   refreshes itself monthly (`scripts/about-stats.sh`, workflow `Refresh About stats`); only the timeline is written by hand.
 
 ## From your own machine
 
