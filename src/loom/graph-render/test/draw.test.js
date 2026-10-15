@@ -168,3 +168,38 @@ test('the markup carries no inline style attributes, so a strict content-securit
   assert.ok(svg.includes('lg-approve'), 'the approval hand is drawn');
   assert.ok(svg.includes('lg-chip-toggle'), 'a folded block shows its toggle');
 });
+
+test('interventions: a stopped edge is dotted, a rewind edge is dashed, each with its own class, and a key says which is which', () => {
+  const g = { nodes: [
+    { id: 'start', kind: 'start', label: 'Start' },
+    { id: 'n1', kind: 'checkpoint', label: 'checkpoint c' },
+    { id: 'n2', kind: 'delegate', label: 'delegate A', agent: 'A' },
+    { id: 'n3', kind: 'rewind', label: 'rewind to c', parent: 'n2', branch: 'stopped', attrs: { target: 'c', atMost: 2 } },
+    { id: 'n4', kind: 'outcome', label: 'skip', parent: 'n2', branch: 'stopped' },
+    { id: 'end', kind: 'end', label: 'End' }],
+    edges: [{ from: 'start', to: 'n1' }, { from: 'n1', to: 'n2' }, { from: 'n2', to: 'end' },
+      { from: 'n2', to: 'n3', label: 'stopped' }, { from: 'n3', to: 'n1', label: 'rewind' }, { from: 'n3', to: 'n4' }, { from: 'n4', to: 'end' }] };
+  const svg = body(G.svgText(g));
+  assert.match(svg, /class="lg-edge lg-e-stopped"/);
+  assert.match(svg, /class="lg-edge lg-dash lg-e-rewind"/);
+  assert.match(svg, /<g class="lg-key"/);
+  assert.ok(svg.includes('Stopped: to its handler (dotted)') && svg.includes('Sent back: to a checkpoint (dashed)'));
+  const css = G.css;
+  assert.match(css, /lg-e-stopped[^}]*stroke-dasharray:1\.5 5/);
+  assert.match(css, /lg-e-rewind[^}]*stroke-dasharray:8 4/);
+  assert.ok(svg.includes('lg-misc'), 'an outcome node is drawn');
+});
+
+test('interventions: a graph without them has no key and keeps its size', () => {
+  const g = { nodes: [{ id: 'start', kind: 'start', label: 'Start' }, { id: 'end', kind: 'end', label: 'End' }], edges: [{ from: 'start', to: 'end' }] };
+  assert.ok(!G.svgText(g).includes('lg-key"'));
+});
+
+test('interventions: the key fits inside the drawing', () => {
+  const g = { nodes: [{ id: 'start', kind: 'start', label: 'Start' }, { id: 'n1', kind: 'delegate', label: 'delegate A', agent: 'A' }, { id: 'n2', kind: 'note', label: 'n', parent: 'n1', branch: 'stopped' }, { id: 'end', kind: 'end', label: 'End' }],
+    edges: [{ from: 'start', to: 'n1' }, { from: 'n1', to: 'end' }, { from: 'n1', to: 'n2', label: 'stopped' }, { from: 'n2', to: 'end' }] };
+  const lay = G.layout(g, {});
+  assert.ok(lay.bounds.w >= 280);
+  const plain = G.layout({ nodes: g.nodes, edges: g.edges.map((e) => (e.label === 'stopped' ? { from: e.from, to: e.to } : e)) }, {});
+  assert.equal(lay.bounds.h - plain.bounds.h, 14 + 18);
+});

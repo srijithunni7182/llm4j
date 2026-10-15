@@ -181,3 +181,50 @@ test('ids and kinds named like Object.prototype members are plain names, not a w
     assert.deepEqual(m.nodes.map((n) => n.vk), ['term', 'unknown', 'unknown', 'term']);
     assert.equal(M.edgeWord('constructor'), 'constructor');
 });
+
+/* ---- interventions: what a stop does and where it goes ---- */
+
+function stopped() {
+    return { name: 'W', nodes: [
+        { id: 'start', kind: 'start', label: 'Start' },
+        { id: 'n1', kind: 'checkpoint', label: 'checkpoint c' },
+        { id: 'n2', kind: 'delegate', label: 'delegate A', agent: 'A' },
+        { id: 'n3', kind: 'note', label: 'note' },
+        { id: 'n4', kind: 'alt', label: 'alt (_stop.reason == "user")', parent: 'n2', branch: 'stopped' },
+        { id: 'n5', kind: 'rewind', label: 'rewind to c', parent: 'n4', branch: 'then', attrs: { atMost: 2, target: 'c' } },
+        { id: 'n6', kind: 'outcome', label: 'skip', parent: 'n4', branch: 'else' },
+        { id: 'end', kind: 'end', label: 'End' }],
+      edges: [{ from: 'start', to: 'n1' }, { from: 'n1', to: 'n2' }, { from: 'n2', to: 'n3' }, { from: 'n3', to: 'end' },
+        { from: 'n2', to: 'n4', label: 'stopped' }, { from: 'n4', to: 'n5', label: 'then' }, { from: 'n4', to: 'n6', label: 'else' },
+        { from: 'n5', to: 'n1', label: 'rewind' }, { from: 'n5', to: 'n3' }, { from: 'n6', to: 'n3' }] };
+}
+
+test('a stop outcome has its own kind and a handler edge reads "when stopped"', () => {
+    const m = M.build(stopped());
+    assert.equal(m.by.n6.vk, 'outcome');
+    assert.equal(M.VK.outcome.name, 'Stop outcome');
+    assert.equal(M.edgeWord('stopped'), 'when stopped');
+    assert.deepEqual(m.main, ['start', 'n1', 'n2', 'n3', 'end'], 'the handler is never on the main path');
+});
+
+test('the lines a workflow has are named, in a fixed order, and a workflow without interventions has none', () => {
+    assert.deepEqual(M.lineKinds(M.build(stopped())), ['stopped', 'rewind']);
+    assert.deepEqual(M.lineKinds(laptop()), []);
+    assert.notEqual(M.LINES.stopped.dash, M.LINES.rewind.dash, 'colour is never the only signal: the patterns differ');
+});
+
+test('Flow: the handler hangs off the step on a dotted line, and the way back to the checkpoint is a dashed line of its own', () => {
+    const V = (() => { global.document = {}; return require('../media/views.js'); })();
+    const L = V.flowLayout(M.build(stopped()));
+    assert.ok(L.paths.some((p) => p.cls === 'p-stopped'), 'a stopped line');
+    assert.ok(L.paths.some((p) => p.cls === 'p-rewind'), 'a sent-back line');
+    assert.ok(L.labels.some((l) => l.t === 'stopped'));
+    assert.ok(L.labels.some((l) => l.t === 'sent back ≤2'));
+    assert.ok(L.drops.includes('n4') && L.drops.includes('n5') && L.drops.includes('n6'), 'the handler steps are drawn under the step');
+});
+
+test('Flow: a workflow with a failure handler only keeps its plain detour line', () => {
+    const V = (() => { global.document = {}; return require('../media/views.js'); })();
+    const L = V.flowLayout(laptop());
+    assert.ok(!L.paths.some((p) => p.cls === 'p-stopped' || p.cls === 'p-rewind'));
+});

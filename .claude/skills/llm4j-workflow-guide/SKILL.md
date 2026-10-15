@@ -173,6 +173,8 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
 
 **2. A decision for every step that can fail (chapter 6).** A `run` task or a `delegate` can fail. For each one whose failure matters, decide with the user: `retry N` (only for a task that is idempotent), `on_failure { ... }` (a note, a person, another path), or let the run fail on purpose. A step with no `on_failure` ends the run as failed, and the run names the step (`failed_kind`, `failed_name`, `failed_step`, `failed_category`).
 
+**2b. Who may step in (chapter 6).** If a person will watch a run and may need to correct it, mark that agent `steerable: true` with `streaming: true`, and decide with the user what happens when an agent is stopped: `on_stopped { ... }` on the step or `intervention { ... }` for the script. Steer corrects an agent's reasoning and never alters the workflow; to send the run back, the handler uses `rewind to` a declared checkpoint carrying `{_stop.note}`. Every steerable agent shows up in `weave audit` as an input channel (`LA18`).
+
 **3. A security decision for every agent that reads, knows and can send (chapter 7).** `weave audit` marks an agent that can read untrusted content, reach private data and send something out (the *lethal trifecta*). Do not decide this for the user: either split the agent (one reads, one acts, with `approve:` on the one that acts) or the user accepts it **in writing, with a reason that names who looked and when**, in `<script>.inspect` (`trifecta: accepted "..."`). Tools declare what they reach (`reach: reads` in the script or `X.reach = reads` in the `.loot` file) so the audit and a watched run agree. Never accept it yourself, and never accept it for `*`.
 
 ## When the workflow is ready to be watched

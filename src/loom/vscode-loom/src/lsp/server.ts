@@ -17,6 +17,7 @@
  */
 
 import { ladderCompletions } from './ladderCompletion';
+import { stopCompletions } from './stopCompletion';
 import {
     createConnection,
     ProposedFeatures,
@@ -241,6 +242,16 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**retry** `<N> [backoff <duration>] [timeout <duration>]`\n\nSpecifies the number of retry attempts for a `delegate` statement.',
     on_failure:
         '**on_failure** `{ ... }`\n\nDefines a fallback block executed when all retry attempts for a `delegate` are exhausted.',
+    on_stopped:
+        '**on_stopped** `{ ... }`\n\nOn a `delegate`: what to do when its agent is stopped through its handle (cancelled or wrapped up). `_stop` holds `reason`, `note`, `kind`, `phase`, `partial`, `changed` and `origin`. The first outcome reached decides: `use partial`, `skip`, `discard`, `retry`, `suspend`, `conclude`, `ask`, or a `rewind to` a declared checkpoint.',
+    intervention:
+        '**intervention** `{ reason: outcome ... }`\n\nScript-wide defaults for what happens when an agent is stopped, by reason (`user`, `operator`, `timeout`, `budget`, `limit`, `sibling`, `supervision`, `safety`, `shutdown`). A step\'s own `on_stopped` wins.',
+    steerable:
+        '**steerable** `: true`\n\nInside an agent: the person the run serves may steer it while it works. A steer corrects the agent\'s reasoning and never changes the workflow. Off unless declared; `weave audit` lists it as an input channel.',
+    streaming:
+        '**streaming** `: true`\n\nInside an agent: its reply is shown as it is written, and a steer or stop ends a model call in progress.',
+    reasoning:
+        '**reasoning** `: true`\n\nInside an agent: ask the model to show its reasoning (a summary) where it can. Needs `streaming: true`.',
 };
 
 /** Ordered list of keyword names (used for completion). */
@@ -429,6 +440,18 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
                 label: c.label,
                 kind: c.kind === 'method' ? CompletionItemKind.Method : c.kind === 'field' ? CompletionItemKind.Field : c.kind === 'keyword' ? CompletionItemKind.Keyword
                     : c.kind === 'mode' ? CompletionItemKind.EnumMember : c.kind === 'measure' ? CompletionItemKind.Function : CompletionItemKind.Class,
+                detail: c.detail,
+            }));
+        }
+    }
+
+    // 0b. After `_stop.`, after `rewind to`, or at the start of a line inside an on_stopped handler
+    if (doc) {
+        const stop = stopCompletions(doc.getText(), doc.offsetAt(params.position));
+        if (stop) {
+            return stop.map(c => ({
+                label: c.label,
+                kind: c.kind === 'field' ? CompletionItemKind.Field : c.kind === 'checkpoint' ? CompletionItemKind.Reference : CompletionItemKind.Keyword,
                 detail: c.detail,
             }));
         }

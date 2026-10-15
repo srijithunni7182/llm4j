@@ -41,11 +41,12 @@
     observe: { k: 'misc', g: 'eye', shape: 'rect' },
     note: { k: 'misc', g: 'note', shape: 'rect', dashed: true },
     sleep: { k: 'misc', g: 'clock', shape: 'rect' },
+    outcome: { k: 'misc', g: 'outcome', shape: 'rect' },
     unknown: { k: 'misc', g: 'unknown', shape: 'rect', dashed: true },
     statement: { k: 'misc', g: 'unknown', shape: 'rect', dashed: true }
   };
   var CONTAINERS = { alt: 1, loop: 1, foreach: 1, guardrail: 1 };
-  var HANDLER_BRANCHES = { failure: 1, exhausted: 1, violation: 1, 'still fails': 1, blocked: 1 };
+  var HANDLER_BRANCHES = { failure: 1, exhausted: 1, violation: 1, 'still fails': 1, blocked: 1, stopped: 1 };
 
   var GLYPHS = {
     agent: '<rect x="3" y="4.5" width="10" height="8" rx="2"/><circle class="fill" cx="6.2" cy="8.5" r=".9"/><circle class="fill" cx="9.8" cy="8.5" r=".9"/><path d="M8 4.5V2.2"/>',
@@ -67,6 +68,7 @@
     person: '<circle cx="8" cy="5.2" r="2.4"/><path d="M3.2 13.5c0-3 2-4.6 4.8-4.6s4.8 1.6 4.8 4.6"/>',
     q: '<path d="M6 6a2 2 0 114 0c0 1.6-2 1.6-2 3.2M8 12v.3"/>',
     hand: '<path d="M5 8.5V4.2a1 1 0 012 0V7V3.4a1 1 0 012 0V7V4a1 1 0 012 0v5.5c0 2.4-1.8 4-4 4S4 12 4 10l-1-2a1 1 0 012 .3z"/>',
+    outcome: '<path d="M3 8h7M7.5 4.8L10.7 8l-3.2 3.2M13.5 3v10"/>',
     unknown: '<circle cx="8" cy="8" r="5"/><path d="M8 5.5v3M8 10.6v.2"/>'
   };
 
@@ -466,7 +468,20 @@
       bottom: function (id) { return placed[id] ? placed[id].y + placed[id].h : y[id]; }
     };
     var routes = chains.map(function (c) { return routeChain(c, geometry); }).concat(routeBack(back, placed));
-    return { nodes: nodes, routes: routes, bounds: bounds(nodes, routes, maxX - minX), hiddenCount: vg.hiddenCount };
+    var box = bounds(nodes, routes, maxX - minX);
+    var keyed = lineKinds(routes).length;
+    if (keyed) { box.h += KEY_PAD + keyed * KEY_ROW; box.w = Math.max(box.w, KEY_W); } // room for the key to the intervention lines
+    return { nodes: nodes, routes: routes, bounds: box, hiddenCount: vg.hiddenCount };
+  }
+
+  /** The kinds of intervention line a set of routes has, in a fixed order. */
+  var LINES = [
+    { label: 'stopped', cls: 'lg-e-stopped', name: 'Stopped: to its handler (dotted)' },
+    { label: 'rewind', cls: 'lg-e-rewind', name: 'Sent back: to a checkpoint (dashed)' }
+  ];
+  var KEY_ROW = 18, KEY_PAD = 14, KEY_W = 280;
+  function lineKinds(routes) {
+    return LINES.filter(function (l) { return routes.some(function (r) { return r.label === l.label; }); });
   }
 
   function bounds(nodes, routes, width) {
@@ -508,6 +523,10 @@
   var CSS = [
     '.lg-edge{fill:none;stroke:var(--lg-edge,#68708c);stroke-width:1.5;stroke-linejoin:round}',
     '.lg-edge.lg-dash{stroke-dasharray:5 4}',
+    '.lg-edge.lg-e-rewind,.lg-key .lg-e-rewind{stroke:var(--lg-rewind,#6a3fb5);stroke-dasharray:8 4}',
+    '.lg-edge.lg-e-stopped,.lg-key .lg-e-stopped{stroke:var(--lg-stopped,#b24a14);stroke-width:2.2;stroke-dasharray:1.5 5;stroke-linecap:round}',
+    '.lg-key text{fill:var(--lg-muted,#5a6177);font:11px var(--lg-mono,ui-monospace,Menlo,monospace)}',
+    '.lg-key path{fill:none;stroke-width:2}',
     '.lg-edge.lg-trav{stroke:var(--lg-ink,var(--lg-fg,#1d2130));stroke-width:2.6}',
     '.lg-edge.lg-untrav{opacity:.45}',
     '.lg-elabel rect{fill:var(--lg-surface,#fff);stroke:var(--lg-line,#d6d9e5)}',
@@ -613,11 +632,21 @@
     var travSet = {}; if (opts.overlay) { opts.overlay.traversed.forEach(function (t) { travSet[t[0] + '\u0000' + t[1]] = 1; }); }
     var out = '';
     lay.routes.forEach(function (r) {
-      var cls = 'lg-edge' + (r.label === 'rewind' ? ' lg-dash' : '') + (opts.overlay ? (travSet[r.from + '\u0000' + r.to] ? ' lg-trav' : ' lg-untrav') : '');
+      var cls = 'lg-edge' + (r.label === 'rewind' ? ' lg-dash lg-e-rewind' : r.label === 'stopped' ? ' lg-e-stopped' : '') + (opts.overlay ? (travSet[r.from + '\u0000' + r.to] ? ' lg-trav' : ' lg-untrav') : '');
       out += '<path class="' + cls + '" d="' + path(r.pts) + '" marker-end="url(#lg-arrow)" data-from="' + esc(r.from) + '" data-to="' + esc(r.to) + '"/>';
       if (r.label) { var w = r.label.length * 6.4 + 12; out += '<g class="lg-elabel"><rect x="' + (r.lx - w / 2) + '" y="' + (r.ly - 9) + '" width="' + w + '" height="18" rx="9"/><text x="' + r.lx + '" y="' + (r.ly + 3.8) + '">' + esc(r.label) + '</text></g>'; }
     });
     lay.nodes.forEach(function (p) { out += nodeSvg(p, opts); });
+    var keys = lineKinds(lay.routes);
+    if (keys.length) {
+      var x = lay.bounds.x + 14, top = lay.bounds.y + lay.bounds.h - keys.length * KEY_ROW - 4;
+      out += '<g class="lg-key" role="group" aria-label="Lines for interventions">';
+      keys.forEach(function (l, i) {
+        var y = top + i * KEY_ROW + 9;
+        out += '<path class="' + l.cls + '" d="M' + x + ' ' + y + 'H' + (x + 30) + '"/><text x="' + (x + 38) + '" y="' + (y + 4) + '">' + esc(l.name) + '</text>';
+      });
+      out += '</g>';
+    }
     return out;
   }
 

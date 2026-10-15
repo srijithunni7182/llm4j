@@ -311,16 +311,26 @@
       if (!off.length) { return; }
       var p = pos[id], lx = p.x + 22, y = F.SY + F.SH + 40, anchor = m.by[id];
       var first = off[0], why = edgeLabel(id, first.id) || (first.parent && edgeLabel(first.parent, first.id)) || first.branch || 'then';
+      // a step in an on_stopped handler (or inside a block in it) hangs off the step on a dotted line of its own
+      function stopped(n) { for (var q = n, hops = 0; q && hops++ < 50; q = q.parent ? m.by[q.parent] : null) { if (q.branch === 'stopped') { return true; } if (q.id === id) { break; } } return false; }
+      var firstStopped = null, lastStopped = null, lastPlain = null;
       off.forEach(function (n) {
-        var ind = Math.max(0, Math.min(n.depth - anchor.depth - 1, 2)) * 12;
+        var ind = Math.max(0, Math.min(n.depth - anchor.depth - 1, 2)) * 12, isStop = stopped(n);
         pos[n.id] = { x: lx + 18 + ind, y: y, w: F.W + 30 - ind, h: F.DH };
         drops.push(n.id);
-        paths.push({ d: 'M' + lx + ' ' + (y + F.DH / 2) + 'H' + (lx + 16 + ind), cls: 'p-detour' });
+        paths.push({ d: 'M' + lx + ' ' + (y + F.DH / 2) + 'H' + (lx + 16 + ind), cls: isStop ? 'p-stopped' : 'p-detour' });
+        if (isStop) { if (!firstStopped) { firstStopped = pos[n.id]; } lastStopped = pos[n.id]; } else { lastPlain = pos[n.id]; }
         y += F.DH + F.DG;
       });
-      var last = pos[off[off.length - 1].id];
-      paths.push({ d: 'M' + lx + ' ' + (F.SY + F.SH) + 'V' + (last.y + F.DH / 2), cls: 'p-detour' });
-      labels.push({ t: why, x: lx + 30, y: F.SY + F.SH + 10 });
+      var last = pos[off[off.length - 1].id], plainEnd = lastPlain || null;
+      if (firstStopped && !plainEnd) {
+        paths.push({ d: 'M' + lx + ' ' + (F.SY + F.SH) + 'V' + (last.y + F.DH / 2), cls: 'p-stopped' });
+        labels.push({ t: 'stopped', x: lx + 30, y: F.SY + F.SH + 10 });
+      } else {
+        paths.push({ d: 'M' + lx + ' ' + (F.SY + F.SH) + 'V' + (last.y + F.DH / 2), cls: 'p-detour' });
+        labels.push({ t: why, x: lx + 30, y: F.SY + F.SH + 10 });
+        if (firstStopped) { labels.push({ t: 'stopped', x: lx + 30, y: firstStopped.y - 12 }); }
+      }
       var inGroup = Object.create(null); off.forEach(function (n) { inGroup[n.id] = true; });
       var k = 0;
       m.nodes.forEach(function (n) {
@@ -328,7 +338,12 @@
         m.out[n.id].forEach(function (e) {
           var t = pos[e.to], s = pos[n.id];
           if (!t || !m.by[e.to].main || m.by[e.to].kind === 'end') { return; }
-          if (e.label === 'again') {
+          if (e.label === 'rewind') {
+            var rr = s.x + s.w + 14 + k * 8, ry = F.SY + F.SH + 18 + k * 6; k++;
+            paths.push({ d: 'M' + (s.x + s.w) + ' ' + (s.y + F.DH / 2) + 'H' + rr + 'V' + ry + 'H' + (t.x + t.w - 30) + 'V' + (F.SY + F.SH + 4), cls: 'p-rewind' });
+            var cap = (m.by[n.id].raw.attrs || {}).atMost;
+            labels.push({ t: 'sent back' + (cap ? ' ≤' + cap : ''), x: rr - 22, y: ry - 12 });
+          } else if (e.label === 'again') {
             var rx = s.x + s.w + 14 + k * 8, ty = F.SY + F.SH + 18 + k * 6; k++;
             paths.push({ d: 'M' + (s.x + s.w) + ' ' + (s.y + F.DH / 2) + 'H' + rx + 'V' + ty + 'H' + (t.x + t.w - 30) + 'V' + (F.SY + F.SH + 4), cls: 'p-back' });
             var bound = m.by[e.to].raw.bound || (m.by[e.to].raw.attrs || {}).max;
@@ -344,10 +359,16 @@
     var seenBack = Object.create(null);
     m.main.forEach(function (id) {
       m.out[id].forEach(function (e) {
-        if (e.label !== 'again' || !m.by[e.to].main || !pos[e.to] || !pos[id] || pos[e.to].x >= pos[id].x) { return; }
+        if ((e.label !== 'again' && e.label !== 'rewind') || !m.by[e.to].main || !pos[e.to] || !pos[id] || pos[e.to].x >= pos[id].x) { return; }
         var s = pos[id], t = pos[e.to], y = F.SY + F.SH + 22 + (seenBack[e.to] || 0) * 8;
         seenBack[e.to] = (seenBack[e.to] || 0) + 1;
-        paths.push({ d: 'M' + (s.x + s.w / 2) + ' ' + (F.SY + F.SH) + 'V' + y + 'H' + (t.x + t.w / 2 + 12) + 'V' + (F.SY + F.SH + 4), cls: 'p-back' });
+        paths.push({ d: 'M' + (s.x + s.w / 2) + ' ' + (F.SY + F.SH) + 'V' + y + 'H' + (t.x + t.w / 2 + 12) + 'V' + (F.SY + F.SH + 4), cls: e.label === 'rewind' ? 'p-rewind' : 'p-back' });
+        if (e.label === 'rewind') {
+          var capMain = (m.by[id].raw.attrs || {}).atMost;
+          labels.push({ t: 'sent back' + (capMain ? ' ≤' + capMain : ''), x: (s.x + t.x + t.w) / 2, y: y - 9 });
+          maxY = Math.max(maxY, y + 10);
+          return;
+        }
         var bound = m.by[e.to].raw.bound || (m.by[e.to].raw.attrs || {}).max;
         labels.push({ t: 'again' + (bound ? ' ≤' + bound : (m.endless ? ' forever' : '')), x: (s.x + t.x + t.w) / 2, y: y - 9 });
         maxY = Math.max(maxY, y + 10);
@@ -385,6 +406,8 @@
     m.main.forEach(function (id) { place(m.by[id], 'flow'); });
     L.drops.forEach(function (id) { place(m.by[id], 'drop'); });
     L.labels.forEach(function (l) { var chip = el('span', { class: 'edgechip abs', text: l.t }); chip.style.left = px(l.x); chip.style.top = px(l.y); stage.appendChild(chip); });
+    var lines = lineLegend(M.lineKinds(m));
+    if (lines) { lines.classList.add('inplace'); stage.appendChild(lines); }
     return el('div', { class: 'flow dots', tabindex: '-1' }, stage);
   }
 
@@ -410,9 +433,24 @@
     }
   }
 
-  function legend(box) {
+  function legend(box, model) {
     while (box.firstChild) { box.removeChild(box.firstChild); }
     M.LEGEND.forEach(function (vk) { box.appendChild(el('span', { class: 'lg' }, badge(vk, 16), el('span', { text: VK[vk].name }))); });
+    var lines = model ? lineLegend(M.lineKinds(model)) : null;
+    if (lines) { box.appendChild(lines); }
+  }
+
+  /** The key to the intervention lines a graph has: a sample of each line's pattern, its name, and what it means. Null when it has none. */
+  function lineLegend(kinds) {
+    if (!kinds.length) { return null; }
+    var ns = 'http://www.w3.org/2000/svg', box = el('span', { class: 'linelegend', 'aria-label': 'Lines for interventions' });
+    kinds.forEach(function (k) {
+      var sample = document.createElementNS(ns, 'svg');
+      sample.setAttribute('width', '34'); sample.setAttribute('height', '10'); sample.setAttribute('viewBox', '0 0 34 10'); sample.setAttribute('aria-hidden', 'true');
+      var line = document.createElementNS(ns, 'path'); line.setAttribute('d', 'M1 5H33'); line.setAttribute('class', 'sample p-' + k); sample.appendChild(line);
+      box.appendChild(el('span', { class: 'lg line-' + k, title: M.LINES[k].means }, sample, el('span', { text: M.LINES[k].name })));
+    });
+    return box;
   }
 
   /* ------------------------------------------------------------- breadcrumb */
@@ -511,5 +549,5 @@
     }
   }
 
-  return { render: render, reveal: reveal, rail: rail, legend: legend, crumbs: crumbs, snapshot: snapshot, flowLayout: flowLayout, FLOW: FLOW, GLYPHS: GLYPHS, svg: svg, el: el, badge: badge };
+  return { render: render, reveal: reveal, rail: rail, legend: legend, lineLegend: lineLegend, crumbs: crumbs, snapshot: snapshot, flowLayout: flowLayout, FLOW: FLOW, GLYPHS: GLYPHS, svg: svg, el: el, badge: badge };
 });

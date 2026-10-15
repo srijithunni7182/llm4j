@@ -791,3 +791,44 @@ test('the graph shows no line numbers, and long section titles and parameter lis
   assert.ok(wide.doc <= 0 && wide.crumbs <= 0, JSON.stringify(wide));
   await p.close();
 });
+
+test('Flow: an on_stopped handler hangs on a dotted line, a rewind goes back on a dashed one, and a key inside the picture says which is which', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open();
+  const result = golden('handlers');
+  const wf = result.workflows[0];
+  wf.nodes = [
+    { id: 'start', kind: 'start', label: 'Start' },
+    { id: 'n1', kind: 'checkpoint', label: 'checkpoint c' },
+    { id: 'n2', kind: 'delegate', label: 'delegate A', agent: 'A' },
+    { id: 'n3', kind: 'note', label: 'note' },
+    { id: 'n4', kind: 'alt', label: 'alt (_stop.reason == "user")', parent: 'n2', branch: 'stopped' },
+    { id: 'n5', kind: 'rewind', label: 'rewind to c', parent: 'n4', branch: 'then', attrs: { atMost: 2, target: 'c' } },
+    { id: 'n6', kind: 'outcome', label: 'skip', parent: 'n4', branch: 'else' },
+    { id: 'end', kind: 'end', label: 'End' }];
+  wf.edges = [{ from: 'start', to: 'n1' }, { from: 'n1', to: 'n2' }, { from: 'n2', to: 'n3' }, { from: 'n3', to: 'end' },
+    { from: 'n2', to: 'n4', label: 'stopped' }, { from: 'n4', to: 'n5', label: 'then' }, { from: 'n4', to: 'n6', label: 'else' },
+    { from: 'n5', to: 'n1', label: 'rewind' }, { from: 'n5', to: 'n3' }, { from: 'n6', to: 'n3' }];
+  await p.send({ type: 'graph', result, workflow: wf.name });
+  await view(p, 'flow');
+  assert.ok(await p.page.locator('.fpaths .p-stopped').count() >= 1, 'a dotted stopped line');
+  assert.ok(await p.page.locator('.fpaths .p-rewind').count() >= 1, 'a dashed sent-back line');
+  const dash = (cls) => p.page.locator('.fpaths .' + cls).first().evaluate((e) => getComputedStyle(e).strokeDasharray);
+  const [dotted, dashed] = [await dash('p-stopped'), await dash('p-rewind')];
+  assert.notEqual(dotted, dashed, 'the two patterns differ, so colour is not the only signal');
+  assert.notEqual(dotted, 'none');
+  assert.equal(await p.page.locator('[data-export] .linelegend.inplace .lg').count(), 2, 'the key is inside what the picture exports');
+  assert.ok((await p.page.locator('[data-export] .linelegend').textContent()).includes('Stopped'));
+  assert.ok((await p.page.locator('.edgechip', { hasText: 'sent back ≤2' }).count()) >= 1);
+  assert.deepEqual(p.errors, []);
+  await p.close();
+});
+
+test('Flow: a graph without interventions shows no key for them', async (t) => {
+  if (skipIfNoBrowser(t)) { return; }
+  const p = await open();
+  await p.send(laptop());
+  await view(p, 'flow');
+  assert.equal(await p.page.locator('.linelegend').count(), 0);
+  await p.close();
+});
