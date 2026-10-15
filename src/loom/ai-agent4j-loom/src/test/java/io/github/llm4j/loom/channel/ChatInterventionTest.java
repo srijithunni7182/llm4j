@@ -148,4 +148,58 @@ class ChatInterventionTest {
         listener().pollOnce(Duration.ZERO);
         assertThat(told).containsExactly("Nothing is running here.");
     }
+
+    private String openQuestion(String step, List<String> choices) {
+        assertThatThrownBy(() -> h.asker("/srv/runs/r").promptHuman(step, "Q " + step, new Hints(Hints.Kind.PROMPT, choices, null)))
+                .isInstanceOf(RunSuspended.class);
+        return h.pending.find("/srv/runs/r", step).orElseThrow().code();
+    }
+
+    @Test
+    void aReplyToTheQuestionsOwnMessageIsAnAnswerEvenIfItReadsLikeACommand() throws Exception {
+        LoomRun run = liveRun("reply-to-run");
+        String code = openQuestion("A/s0", List.of());
+        Channel.Reply toIt = new Channel.Reply("5550001", "5550001", "pause", "x1", null, null);
+        replies.add(toIt);
+        listener().pollOnce(Duration.ZERO);
+        assertThat(h.pending.get(code).orElseThrow().answer().text()).isEqualTo("pause");
+        assertThat(run.executor().getJournal().all().values()).noneMatch(e -> "pause".equals(e.kind()));
+        release.countDown();
+        assertThat(run.await(Duration.ofSeconds(10))).isTrue();
+    }
+
+    @Test
+    void aChoiceWithNoCodeToOneOpenQuestionIsItsAnswer() throws Exception {
+        LoomRun run = liveRun("choice-run");
+        String code = openQuestion("A/s0", List.of("keep", "repeat", "cancel"));
+        replies.add(reply("Cancel"));
+        listener().pollOnce(Duration.ZERO);
+        assertThat(h.pending.get(code).orElseThrow().answer().text()).isEqualToIgnoringCase("cancel");
+        assertThat(run.status()).isEqualTo(LoomRun.Status.RUNNING);
+        release.countDown();
+        assertThat(run.await(Duration.ofSeconds(10))).isTrue();
+    }
+
+    @Test
+    void aCommandThatIsNotAChoiceStillWorksWhileAQuestionIsOpen() throws Exception {
+        LoomRun run = liveRun("both-open-run");
+        String code = openQuestion("A/s0", List.of("keep", "repeat"));
+        replies.add(reply("steer Writer use the EU figures"));
+        listener().pollOnce(Duration.ZERO);
+        assertThat(told).hasSize(1);
+        assertThat(told.get(0)).startsWith("Sent to Writer");
+        assertThat(h.pending.get(code).orElseThrow().open()).isTrue();
+        release.countDown();
+        assertThat(run.await(Duration.ofSeconds(10))).isTrue();
+    }
+
+    @Test
+    void aListenerWithNoCommandsTreatsEverythingAsAnAnswerOrAHelp() throws Exception {
+        Scripted channel = new Scripted();
+        Listener plain = new Listener(channel, h.runtime.config(), h.pending, h.answers, new Dispatch(channel, h.runtime.config(), h.pending, h.clock), h.clock);
+        replies.add(reply("steer Writer hello"));
+        plain.pollOnce(Duration.ZERO);
+        assertThat(told).hasSize(1);
+        assertThat(told.get(0)).startsWith("Nothing is waiting for an answer");
+    }
 }
