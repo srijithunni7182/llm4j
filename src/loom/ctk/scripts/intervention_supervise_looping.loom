@@ -1,0 +1,15 @@
+// Canonical CTK test: intervention_supervise_looping
+// A supervise rule steers an agent that repeats itself: no person is involved, and the workflow is untouched.
+// Interventions are scripted, not timed: see interventions/intervention_supervise_looping.json (README, "Interventions").
+
+agent Writer { model: "ctk" system: "You are Writer." tools: [calculator] }
+agent Closer { model: "ctk" system: "You are Closer." }
+
+supervise Writer {
+    when looping(3) { steer "You are repeating yourself. Try something else." once }
+}
+
+workflow main() {
+    delegate "write" to Writer -> out_text
+    delegate "close" to Closer -> done_text
+}

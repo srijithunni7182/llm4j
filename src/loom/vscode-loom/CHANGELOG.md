@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `supervise`, `when`, `looping`, `tool_failing` and `wrap_up` are highlighted with hover text, and there is a `supervise` snippet.
+
 - Interventions: `on_stopped`, `intervention`, `steerable`, `streaming`, `reasoning`, the outcomes (`use partial`, `skip`, `discard`, `suspend`, `conclude`, `ask`) and `_stop.reason`, `_stop.note` and the other fields of a stop are highlighted and have hover text; three snippets (`agent-steerable`, `on-stopped`, `intervention`).
 - Completion: the fields after `_stop.`, only the checkpoints declared above after `rewind to`, and the outcomes inside an `on_stopped { }` handler.
 - The Flow view draws an `on_stopped` handler on a dotted *stopped* line and a rewind on a dashed *sent back* line, with a key (also in the exported picture). The shared renderer used by the eval4j report does the same.

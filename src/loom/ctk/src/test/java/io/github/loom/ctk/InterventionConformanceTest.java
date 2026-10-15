@@ -31,7 +31,7 @@ class InterventionConformanceTest {
     @Test
     void everyScenarioHasAScriptATraceAndAFixtureThatSaysWhatHappens() throws IOException {
         List<String> all = scenarios();
-        assertTrue(all.size() >= 17, all.toString());
+        assertTrue(all.size() >= 18, all.toString());
         for (String name : all) {
             assertTrue(Files.exists(CTK.resolve("scripts").resolve(name + ".loom")), name + " has a script");
             assertEquals(name + ".loom", expected(name).scriptName());

@@ -198,5 +198,15 @@
       "}"
     ],
     "description": "Script-wide defaults for what happens when an agent is stopped, by reason: user, operator, timeout, budget, limit, sibling, supervision, safety, shutdown."
+  },
+  "supervise": {
+    "prefix": "supervise",
+    "body": [
+      "supervise ${1:Writer} {",
+      "\twhen looping(${2:3}) { steer \"${3:You are repeating yourself. Try something else.}\" once }",
+      "\twhen steps > ${4:15} { wrap_up }",
+      "}"
+    ],
+    "description": "Rules that watch an agent and act without a person: steer it when it repeats itself, wrap it up when it takes too many steps. Signals are counts of what it did."
   }
 }

@@ -35,7 +35,7 @@ class StoppingGuideTest {
         List<String> blocks = new ArrayList<>();
         Matcher m = Pattern.compile("```loom\\n(.*?)```", Pattern.DOTALL).matcher(section());
         while (m.find()) blocks.add(m.group(1));
-        assertThat(blocks).hasSize(2);
+        assertThat(blocks).hasSize(3);
         for (String block : blocks) {
             HarnessExecutor executor = new ScriptedRun(dir).executor(block);
             try {

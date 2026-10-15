@@ -63,6 +63,9 @@ public class LoomParser {
                 advance(); // the colon
                 if (script.getPromptsDir() != null) throw error(keyword, "Only one prompts: folder can be named.");
                 script.setPromptsDir(consume(TokenType.STRING_LITERAL, "Expect a folder for prompts, e.g. prompts: \"./prompts\".").getValue(), keyword.getLine());
+            } else if (isWord("supervise") && peekAt(1).getType() == TokenType.IDENTIFIER && peekAt(2).getType() == TokenType.LBRACE) {
+                Token keyword = advance();
+                script.addSupervision(parseSupervise(keyword));
             } else if (isBlockKeyword("intervention")) {
                 Token keyword = advance();
                 if (script.getIntervention() != null) throw error(keyword, "Only one intervention block is allowed.");
@@ -1091,6 +1094,86 @@ public class LoomParser {
             kind = OutcomeStmt.Kind.ofPhrase(advance().getValue());
         }
         return kind == null ? null : new OutcomeStmt(kind);
+    }
+
+    /** {@code supervise Agent { when looping(3) { steer "…" once } ... }} after the keyword. */
+    private SuperviseDef parseSupervise(Token keyword) {
+        Token agent = consume(TokenType.IDENTIFIER, "Expect the agent to supervise.");
+        SuperviseDef def = new SuperviseDef(agent.getValue(), keyword.getLine());
+        consume(TokenType.LBRACE, "Expect '{' after supervise " + agent.getValue() + ".");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token when = advance();
+            if (!"when".equals(when.getValue())) throw error(when, "Inside supervise, write rules as: when looping(3) { ... }");
+            SuperviseDef.Rule rule = parseSignal(when.getLine());
+            consume(TokenType.LBRACE, "Expect '{' after the condition of the rule.");
+            boolean once = false;
+            java.util.List<SuperviseDef.Action> actions = new java.util.ArrayList<>();
+            while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                Token verb = advance();
+                String word = verb.getValue();
+                if ("steer".equals(word)) {
+                    Token text = consume(TokenType.STRING_LITERAL, "Write what to tell the agent: steer \"Use a different source.\"");
+                    actions.add(new SuperviseDef.Action(SuperviseDef.Do.STEER, text.getValue(), null));
+                } else if ("wrap_up".equals(word)) {
+                    actions.add(new SuperviseDef.Action(SuperviseDef.Do.WRAP_UP, null, null));
+                } else if ("cancel".equals(word)) {
+                    OutcomeStmt.Kind outcome = null;
+                    if (check(TokenType.RETRY)) { advance(); outcome = OutcomeStmt.Kind.RETRY; }
+                    else if (isWord("use") && peekAt(1).getType() == TokenType.IDENTIFIER && "partial".equals(peekAt(1).getValue())) { advance(); advance(); outcome = OutcomeStmt.Kind.USE_PARTIAL; }
+                    else if (check(TokenType.IDENTIFIER) && OutcomeStmt.Kind.ofPhrase(peek().getValue()) != null) outcome = OutcomeStmt.Kind.ofPhrase(advance().getValue());
+                    actions.add(new SuperviseDef.Action(SuperviseDef.Do.CANCEL, null, outcome));
+                } else if ("once".equals(word)) {
+                    once = true;
+                } else if ("retry".equals(word) || verb.getType() == TokenType.RETRY) {
+                    throw error(verb, "retry with another agent is not supported in supervise yet; use steer, wrap_up or cancel.");
+                } else {
+                    throw error(verb, "A rule can steer \"…\", wrap_up or cancel [outcome], and end with once; not \"" + word + "\".");
+                }
+            }
+            consume(TokenType.RBRACE, "Expect '}' after the rule.");
+            if (actions.isEmpty()) throw error(when, "The rule when " + rule.describe() + " does nothing; give it steer, wrap_up or cancel.");
+            SuperviseDef.Rule full = new SuperviseDef.Rule(rule.getSignal(), rule.getTool(), rule.getN(), once, rule.getLine());
+            full.getActions().addAll(actions);
+            def.getRules().add(full);
+        }
+        consume(TokenType.RBRACE, "Expect '}' after supervise.");
+        if (def.getRules().isEmpty()) throw error(keyword, "supervise " + agent.getValue() + " has no rules.");
+        return def;
+    }
+
+    /** The condition after {@code when}: looping(3), tool_failing(Tool, 3), context > 90%, steps > 20. */
+    private SuperviseDef.Rule parseSignal(int line) {
+        Token signal = advance();
+        String word = signal.getValue();
+        if ("looping".equals(word)) {
+            consume(TokenType.LPAREN, "Write looping(3): the same action this many times in a row.");
+            int n = whole("looping");
+            consume(TokenType.RPAREN, "Expect ')'.");
+            return positive(new SuperviseDef.Rule(SuperviseDef.Signal.LOOPING, null, n, false, line), signal);
+        }
+        if ("tool_failing".equals(word)) {
+            consume(TokenType.LPAREN, "Write tool_failing(Search, 3).");
+            Token tool = consume(TokenType.IDENTIFIER, "Expect the tool's name.");
+            consume(TokenType.COMMA, "Write tool_failing(" + tool.getValue() + ", 3): how many failures in a row.");
+            int n = whole("tool_failing");
+            consume(TokenType.RPAREN, "Expect ')'.");
+            return positive(new SuperviseDef.Rule(SuperviseDef.Signal.TOOL_FAILING, tool.getValue(), n, false, line), signal);
+        }
+        if ("context".equals(word) || "steps".equals(word)) {
+            consume(TokenType.GT, "Write " + word + " > " + ("context".equals(word) ? "90%" : "20") + ".");
+            if ("context".equals(word)) {
+                int n = (int) percent("the share of the model's window");
+                if (n < 1 || n > 100) throw error(signal, "context must be between 1% and 100%.");
+                return new SuperviseDef.Rule(SuperviseDef.Signal.CONTEXT, null, n, false, line);
+            }
+            return positive(new SuperviseDef.Rule(SuperviseDef.Signal.STEPS, null, whole("steps"), false, line), signal);
+        }
+        throw error(signal, "\"" + word + "\" is not something to watch. The signals are looping(N), tool_failing(Tool, N), context > N% and steps > N.");
+    }
+
+    private SuperviseDef.Rule positive(SuperviseDef.Rule rule, Token at) {
+        if (rule.getN() < 1) throw error(at, rule.describe() + " needs a number of at least 1.");
+        return rule;
     }
 
     /** {@code intervention { timeout: retry  user: ask }} after the keyword. */

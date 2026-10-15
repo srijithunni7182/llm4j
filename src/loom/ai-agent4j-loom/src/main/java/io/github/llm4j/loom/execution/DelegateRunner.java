@@ -31,6 +31,9 @@ final class DelegateRunner {
         /** The script's {@code intervention { }} defaults, or null. */
         io.github.llm4j.loom.ast.InterventionDef intervention();
 
+        /** The {@code supervise} rules for this agent, or null. */
+        io.github.llm4j.loom.ast.SuperviseDef supervision(String agent);
+
         /** Counts a delegate started on this thread, so a retried delegate's tool calls are numbered afresh. */
         void beginAttempt();
 
@@ -246,9 +249,11 @@ final class DelegateRunner {
                 io.github.llm4j.agent.RunHandle handle = interventions.open(stepId, agentName, rewindsIn(del));
                 io.github.llm4j.agent.AgentResult result;
                 try {
+                    Supervision.Run watching = host.supervision(agentName) == null ? null
+                            : new Supervision.Run(host.supervision(agentName), stepId, interventions.supervisor());
                     result = del.getTimeoutMillis() > 0
-                            ? runWithTimeout(runAgent, attemptBriefing, del.getTimeoutMillis(), handle)
-                            : runAgent.run(attemptBriefing, handle);
+                            ? runWithTimeout(runAgent, attemptBriefing, del.getTimeoutMillis(), handle, watching)
+                            : supervised(watching, runAgent, attemptBriefing, handle);
                 } finally {
                     interventions.close(stepId);
                 }
@@ -496,12 +501,20 @@ final class DelegateRunner {
         }
     }
 
+    private static io.github.llm4j.agent.AgentResult supervised(Supervision.Run watching, ReActAgent agent, String task, io.github.llm4j.agent.RunHandle handle) throws Exception {
+        return watching == null ? agent.run(task, handle) : Supervision.watching(watching, () -> agent.run(task, handle));
+    }
+
     private io.github.llm4j.agent.AgentResult runWithTimeout(ReActAgent agent, String task, long timeoutMillis,
-                                                              io.github.llm4j.agent.RunHandle handle) throws Exception {
+                                                              io.github.llm4j.agent.RunHandle handle, Supervision.Run watching) throws Exception {
         ThreadScope.Snapshot scope = host.captureScope();
         CompletableFuture<io.github.llm4j.agent.AgentResult> future = CompletableFuture.supplyAsync(() -> {
             try (ThreadScope.Installed ignored = scope.install()) {
-                return agent.run(task, handle);
+                return supervised(watching, agent, task, handle);
+            } catch (RuntimeException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
             }
         }, host.branches());
         try {

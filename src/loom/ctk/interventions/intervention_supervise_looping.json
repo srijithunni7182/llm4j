@@ -1,0 +1,27 @@
+{
+  "description": "supervise: looping steers the agent",
+  "tool": "calculator",
+  "replies": {
+    "Writer": [
+      "act",
+      "act",
+      "act",
+      "final:changed course"
+    ],
+    "Closer": [
+      "final:closed"
+    ]
+  },
+  "interventions": [],
+  "expect": {
+    "run": "completed",
+    "asked": 0,
+    "variables": {
+      "out_text": "changed course",
+      "done_text": "closed"
+    },
+    "modelSaw": {
+      "Writer": "repeating yourself"
+    }
+  }
+}

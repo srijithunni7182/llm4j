@@ -208,7 +208,7 @@ class InterventionCtkConformanceTest {
     @Test
     void everyScenarioHasAScriptAndATrace() throws Exception {
         List<String> all = scenarios();
-        assertTrue(all.size() >= 17, "the kit has the intervention scenarios: " + all);
+        assertTrue(all.size() >= 18, "the kit has the intervention scenarios: " + all);
         for (String name : all) {
             assertTrue(Files.exists(CTK.resolve("scripts/" + name + ".loom")), name + " has a script");
             assertTrue(Files.exists(CTK.resolve("traces/" + name + ".json")), name + " has a trace");

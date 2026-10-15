@@ -109,7 +109,7 @@ delegate "Write the report from {data}" to Writer -> draft
     }
 ```
 
-A rewind may name only a checkpoint the script declared. `weave audit` lists every steerable agent as an input channel (`LA18`). See `LOOM_GUIDE.md`, "Steering, Stopping and Wrapping Up an Agent".
+`supervise Agent { when looping(3) { steer "…" once } when tool_failing(Tool, 3) { wrap_up } }` does the same without a person, from counts of what the agent did. A rewind may name only a checkpoint the script declared. `weave audit` lists every steerable agent as an input channel (`LA18`). See `LOOM_GUIDE.md`, "Steering, Stopping and Wrapping Up an Agent".
 - Decide for each task and delegate: is a failure here worth stopping the run, worth a retry, or worth a person? Do not leave it to chance.
 
 **A prompt can outgrow the window.** An agent that loops over tools adds to its prompt on every step. The `context { ... }` block in the agent (above) says how it keeps the prompt inside the model's window, and the windows live outside the script. Whether an agent needs it, which strategies to chain, and how to watch it is [chapter 14](14-context-and-compaction.md): read it before you finish a script whose agents loop on tools.

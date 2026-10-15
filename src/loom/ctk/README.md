@@ -48,7 +48,7 @@ A runtime issues each intervention as the stated model call returns, which makes
 The scenarios are one per row of the design's table of defaults (a person's cancel asks; a wrap-up keeps its answer; a timeout retries only if nothing may have changed;
 a sibling's stop is discarded; a shutdown suspends; a safety stop asks; a budget stop keeps the partial answer), plus the script's own `on_stopped` and `intervention`,
 cancel-and-send-back to a declared checkpoint, and three negative scenarios: a retry is refused when the agent may have changed something, a cancelled step is
-never recorded as a success, and a rewind to an undeclared checkpoint is refused before the run, and a person's send-back to a checkpoint the script does not declare is refused while the agent carries on. What is not tested: when exactly a streaming call is cut off, and wall-clock timing.
+never recorded as a success, and a rewind to an undeclared checkpoint is refused before the run, and a person's send-back to a checkpoint the script does not declare is refused while the agent carries on. A `supervise` rule acts like a person but needs none: its steer is a `steer` step in the trace (`intervention_supervise_looping`). What is not tested: when exactly a streaming call is cut off, and wall-clock timing.
 The Java runtime runs them in `InterventionCtkConformanceTest` (module `ai-agent4j-loom`), because this kit's own runner is still a stub.
 
 ## Usage

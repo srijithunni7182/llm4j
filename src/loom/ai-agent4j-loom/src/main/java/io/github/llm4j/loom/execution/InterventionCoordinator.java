@@ -90,6 +90,11 @@ final class InterventionCoordinator {
      * agent's guard refused it. The text is journaled under the step so a restarted step is told what was said.
      */
     synchronized int steer(String target, String text, String origin) {
+        return steer(target, text, origin, true);
+    }
+
+    /** As above; {@code byPerson} false is a steer the script itself declared (a supervise rule), which needs no {@code steerable: true}. */
+    private synchronized int steer(String target, String text, String origin, boolean byPerson) {
         if (text == null || text.isBlank()) return 0;
         String message = text.strip();
         if (message.length() > MAX_STEER_CHARS) {
@@ -98,7 +103,7 @@ final class InterventionCoordinator {
         }
         int n = 0;
         for (Active a : matching(target)) {
-            if (!host.steerable(a.agent())) {
+            if (byPerson && !host.steerable(a.agent())) {
                 record("steer_refused", a.agent(), a.stepId(), Map.of("origin", String.valueOf(origin), "why", "the agent is not declared steerable"));
                 continue;
             }
@@ -157,6 +162,29 @@ final class InterventionCoordinator {
             n++;
         }
         return n;
+    }
+
+    /** What a {@code supervise} rule does for the step it watches. Each is traced as a supervision, and journaled and audited like what a person does. */
+    Supervision.Actor supervisor() {
+        return new Supervision.Actor() {
+            @Override
+            public void steer(String stepId, String agent, String text, String rule) {
+                record("supervision", agent, stepId, mapOf("rule", rule, "does", "steer"));
+                InterventionCoordinator.this.steer(stepId, text, "supervision", false);
+            }
+
+            @Override
+            public void wrapUp(String stepId, String agent, String rule) {
+                record("supervision", agent, stepId, mapOf("rule", rule, "does", "wrap_up"));
+                InterventionCoordinator.this.wrapUp(stepId, "supervision", "supervision");
+            }
+
+            @Override
+            public void cancel(String stepId, String agent, StopOutcome outcome, String rule) {
+                record("supervision", agent, stepId, mapOf("rule", rule, "does", "cancel", "outcome", outcome == null ? null : outcome.name()));
+                InterventionCoordinator.this.cancel(stepId, "supervision", "supervision", outcome);
+            }
+        };
     }
 
     /** The checkpoint a person sent this step back to, or null. */

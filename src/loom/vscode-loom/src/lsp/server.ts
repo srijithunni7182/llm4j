@@ -248,6 +248,14 @@ const LOOM_KEYWORDS: Record<string, string> = {
         '**intervention** `{ reason: outcome ... }`\n\nScript-wide defaults for what happens when an agent is stopped, by reason (`user`, `operator`, `timeout`, `budget`, `limit`, `sibling`, `supervision`, `safety`, `shutdown`). A step\'s own `on_stopped` wins.',
     steerable:
         '**steerable** `: true`\n\nInside an agent: the person the run serves may steer it while it works. A steer corrects the agent\'s reasoning and never changes the workflow. Off unless declared; `weave audit` lists it as an input channel.',
+    supervise:
+        '**supervise** `Agent { when looping(3) { steer "…" once }  when tool_failing(Tool, 3) { wrap_up }  when context > 90% { wrap_up }  when steps > 15 { cancel use partial } }`\n\nRules that watch an agent while it works and act without a person. Every signal is a count of what the agent did, never a model\'s opinion. A rule fires when its condition becomes true; `once` makes it fire at most once in the step.',
+    looping:
+        '**looping** `(N)`\n\nIn a `supervise` rule: the agent has made the same action (same tool, same input) N times in a row.',
+    tool_failing:
+        '**tool_failing** `(Tool, N)`\n\nIn a `supervise` rule: the tool has failed N times in a row.',
+    wrap_up:
+        '**wrap_up**\n\nIn a `supervise` rule: ask the agent to finish now with what it has (one last model call, tools off).',
     streaming:
         '**streaming** `: true`\n\nInside an agent: its reply is shown as it is written, and a steer or stop ends a model call in progress.',
     reasoning:

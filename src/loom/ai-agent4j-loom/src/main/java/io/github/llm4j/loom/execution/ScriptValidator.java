@@ -144,6 +144,7 @@ public class ScriptValidator {
         checkWorkflowLint(c);
         checkSteerable(c);
         checkStopHandlers(c);
+        checkSupervision(c);
         checkRouting(c);
         checkStatements(c);
         for (Consumer<Checker> extra : context.extraChecks) extra.accept(c);
@@ -190,6 +191,28 @@ public class ScriptValidator {
                     }
                 }
             });
+        }
+    }
+
+    /** What a {@code supervise} block watches must exist: the agent, and the tool of a {@code tool_failing} rule. */
+    private void checkSupervision(Checker c) {
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (io.github.llm4j.loom.ast.SuperviseDef def : c.script().getSupervisions()) {
+            AgentDef agent = c.script().getAgents().stream().filter(a -> a.getName().equals(def.getAgent())).findFirst().orElse(null);
+            if (agent == null) {
+                c.error(def.getLine(), "supervise " + def.getAgent(), "there is no agent named " + def.getAgent() + " to supervise");
+                continue;
+            }
+            if (!seen.add(def.getAgent())) c.error(def.getLine(), "supervise " + def.getAgent(), "agent " + def.getAgent() + " is supervised by two blocks; put the rules in one");
+            for (io.github.llm4j.loom.ast.SuperviseDef.Rule rule : def.getRules()) {
+                if (rule.getSignal() == io.github.llm4j.loom.ast.SuperviseDef.Signal.TOOL_FAILING && !agent.getTools().contains(rule.getTool())) {
+                    c.error(rule.getLine(), "supervise " + def.getAgent(), "agent " + def.getAgent() + " has no tool named " + rule.getTool()
+                            + (agent.getTools().isEmpty() ? " (it has no tools)" : " (its tools: " + String.join(", ", agent.getTools()) + ")"));
+                }
+                for (io.github.llm4j.loom.ast.SuperviseDef.Action a : rule.getActions()) {
+                    if (a.kind() == io.github.llm4j.loom.ast.SuperviseDef.Do.STEER && a.text().isBlank()) c.error(rule.getLine(), "supervise " + def.getAgent(), "a steer needs text");
+                }
+            }
         }
     }
 

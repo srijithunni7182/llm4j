@@ -69,6 +69,21 @@ public final class ScriptExplainer {
         if (!withTools.isEmpty()) out.append("  - Agents with tools: ").append(String.join(", ", withTools)).append(". Run weave audit to see what they can reach.\n");
         List<String> steerable = script.getAgents().stream().filter(AgentDef::isSteerable).map(AgentDef::getName).toList();
         if (!steerable.isEmpty()) out.append("  - A person may steer, while they work: ").append(String.join(", ", steerable)).append(".\n");
+        for (var sup : script.getSupervisions()) {
+            List<String> rules = new ArrayList<>();
+            for (var rule : sup.getRules()) {
+                List<String> does = new ArrayList<>();
+                for (var a : rule.getActions()) {
+                    does.add(switch (a.kind()) {
+                        case STEER -> "tell it \"" + a.text() + "\"" + (rule.isOnce() ? " (once)" : "");
+                        case WRAP_UP -> "ask it to finish with what it has";
+                        case CANCEL -> "stop it" + (a.outcome() == null ? "" : " and " + a.outcome().phrase());
+                    });
+                }
+                rules.add("when " + rule.describe() + ": " + String.join(", then ", does));
+            }
+            out.append("  - ").append(sup.getAgent()).append(" is watched by rules (no model involved): ").append(String.join("; ", rules)).append(".\n");
+        }
         if (script.getIntervention() != null && !script.getIntervention().getByReason().isEmpty()) {
             List<String> rules = new ArrayList<>();
             script.getIntervention().getByReason().forEach((reason, outcome) -> rules.add("stopped for " + reason + ": " + outcome.phrase()));

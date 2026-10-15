@@ -79,6 +79,15 @@ allowed once, and only when the agent's tools were all read-only (otherwise it i
 (`INTERVENTION`, `STEP_STOPPED`). Steers pass the agent's guard and a 2000-character limit. Existing step timeouts and `RunControl` keep their behaviour. Tests: `StopInterpreterTest` (18),
 `InterventionRuntimeTest` (8), `InterventionSafetyTest` (2); the whole Loom suite is unchanged apart from these (1,903 tests, 0 failures).
 
+**Phase 6, built (supervision).** `supervise Agent { when <signal> { actions } }`, symbolic and never a model (decision A3: not under the earned-autonomy ladder).
+
+- *Signals* (counted from the agent's own events, on the thread the agent runs on): `looping(N)` (same tool and input N times in a row), `tool_failing(Tool, N)` (N failures in a row; a success resets), `context > P%` (when the window is known), `steps > N` (model calls in the step).
+- *Actions:* `steer "text"`, `wrap_up`, `cancel [outcome]`, and `once`. A rule fires when its condition *becomes* true, and again only after it went false and true again; `once` limits it to one firing per step. A supervision steer
+  does not need `steerable: true` (the script declared it) but still passes the agent's guard and size limit. A wrap-up or cancel has the reason `supervision` and is settled by the same interpreter as any stop.
+- *Recorded:* each firing is a traced `intervention` (`action=supervision`, `rule`, `does`) and its steer, stop and decision are journaled and audited with origin `supervision`.
+- *Checks:* the agent must exist, a `tool_failing` tool must be one of its tools, one block per agent. Explain says the rules in words; VS Code highlights and hovers the words and has a snippet; the CTK has a scripted scenario.
+- *Not done:* `retry with <Agent>` (the parser says so), a supervise graph marker, signals from tool threads other than the agent's own, and any learning of thresholds.
+
 **Phase 5, built (reaching a run).** A person reaches the agents of a run going on *in the same process*; nothing reaches a suspended or finished run (its stops and answers travel through the journal).
 
 - `cancelBack(agent, checkpoint, reason, origin)`: a person sends the run back to a declared checkpoint. Refused (and traced, listing the checkpoints) when the script does not declare it, when the step has no

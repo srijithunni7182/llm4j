@@ -1817,6 +1817,23 @@ A `rewind` in `on_stopped` may name only a checkpoint the script declared, and i
 
 Every steer, stop and decision is journaled and traced, so a resumed run knows what was said and what was decided. A steer is checked by the agent's `guard` and refused if the agent is not `steerable`.
 
+**Rules that watch an agent.** A `supervise` block acts without a person when something the agent *does* can be counted. Every signal is a count, never a model's opinion, and what a rule does is journaled, traced and audited like what a person does.
+
+```loom
+agent Researcher { model: "gemini-2.5-flash"  tools: [calculator]  max_iterations: 20 }
+
+supervise Researcher {
+    when looping(3)                   { steer "You are repeating yourself. Try something else." once }
+    when tool_failing(calculator, 3)  { wrap_up }
+    when context > 90%                { wrap_up }
+    when steps > 15                   { cancel use partial }
+}
+
+workflow Brief(topic) { delegate "Research {topic}" to Researcher -> findings }
+```
+
+`looping(N)` is the same tool with the same input N times in a row; `tool_failing(Tool, N)` is N failures of that tool in a row (a success starts the count again); `context > P%` is how full the model's window is, when it is known; `steps > N` is model calls in the step. A rule fires when its condition *becomes* true, and again only if it goes false and true again; `once` makes it fire at most once in the step. The actions are `steer "text"`, `wrap_up` and `cancel [outcome]` (a cancel with no outcome is settled like any other stop, with the reason `supervision`). A supervision steer does not need `steerable: true`: the script declared it. Not supported: `retry with <Agent>`. Rules are not under the earned-autonomy ladder.
+
 **Reaching a running workflow.** The script says what may happen; a person reaches the process that is running it in one of three ways.
 
 - *The console:* `weave run script.loom --steer-via console` reads commands typed in the same terminal (a line typed while a question is open is the answer to it).

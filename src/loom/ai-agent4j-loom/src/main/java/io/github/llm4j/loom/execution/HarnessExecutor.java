@@ -192,6 +192,7 @@ public class HarnessExecutor implements LoomEngine {
     });
     private final DelegateRunner delegates = new DelegateRunner(budgets, limits, interventions, new DelegateRunner.Host() {
         @Override public io.github.llm4j.loom.ast.InterventionDef intervention() { return script.getIntervention(); }
+        @Override public io.github.llm4j.loom.ast.SuperviseDef supervision(String agent) { return script.getSupervisions().stream().filter(d -> d.getAgent().equals(agent)).findFirst().orElse(null); }
         @Override public void beginAttempt() { attempt.set(delegateAttempts.incrementAndGet()); }
         @Override public String resolveName(String name) { return HarnessExecutor.this.resolveName(name); }
         @Override public AgentDef agentDef(String name) {
@@ -1340,6 +1341,7 @@ public class HarnessExecutor implements LoomEngine {
             agentBuilder.effectClassifier((tool, args) -> !ReadClass.isRead(tool, args));
             applyContext(agentDef, agentBuilder);
             agentBuilder.addListener(tracing.statsAdapter());
+            if (script.getSupervisions().stream().anyMatch(d -> d.getAgent().equals(agentDef.getName()))) agentBuilder.addListener(Supervision.adapter());
             if (tracing()) agentBuilder.addListener(tracing.traceAdapter(agentDef.getName()));
 
             // MCP-sourced tools
