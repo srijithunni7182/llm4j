@@ -39,6 +39,8 @@ final class InterventionCoordinator {
 
         /** The agent's guard, or null when it has none. */
         AgentGuard guard(String agent);
+        /** Whether the script declares this agent {@code steerable: true}. */
+        boolean steerable(String agent);
     }
 
     private final Host host;
@@ -91,6 +93,10 @@ final class InterventionCoordinator {
         }
         int n = 0;
         for (Active a : matching(target)) {
+            if (!host.steerable(a.agent())) {
+                record("steer_refused", a.agent(), a.stepId(), Map.of("origin", String.valueOf(origin), "why", "the agent is not declared steerable"));
+                continue;
+            }
             AgentGuard guard = host.guard(a.agent());
             if (guard != null) {
                 try {

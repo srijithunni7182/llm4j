@@ -105,7 +105,7 @@ class InterventionRuntimeTest {
     }
 
     private static final String SCRIPT = """
-            agent Looper { model: "test" system: "You are Looper." tools: [%s] max_iterations: 50 }
+            agent Looper { model: "test" system: "You are Looper." tools: [%s] max_iterations: 50 steerable: true }
             agent Closer { model: "test" system: "You are Closer." }
             workflow Main() {
                 delegate "go" to Looper -> out_text %s
@@ -287,7 +287,7 @@ class InterventionRuntimeTest {
         ToolRegistry tools = new ToolRegistry();
         tools.register("MockTool", new MockTool());
         LoomScript parsed = new LoomParser(new Lexer("""
-                agent Looper { model: "test" system: "You are Looper." tools: [MockTool] guard { pii: block } }
+                agent Looper { model: "test" system: "You are Looper." tools: [MockTool] steerable: true guard { pii: block } }
                 workflow Main() { delegate "go" to Looper -> out_text }
                 """).tokenize()).parseScript();
         HarnessExecutor ex = new HarnessExecutor(parsed, tools, model.factory());
@@ -321,5 +321,26 @@ class InterventionRuntimeTest {
         assertFalse(run.thread.isAlive());
         assertNull(run.error.get());
         assertEquals("done", ex.getContext().getVariable("out_text"));
+    }
+
+    @Test
+    void anAgentThatIsNotDeclaredSteerableRefusesASteer() throws Exception {
+        Model model = new Model(false);
+        RunJournal journal = RunJournal.inMemory();
+        ToolRegistry tools = new ToolRegistry();
+        tools.register("MockTool", new MockTool());
+        LoomScript parsed = new LoomParser(new Lexer("""
+                agent Looper { model: "test" system: "You are Looper." tools: [MockTool] }
+                workflow Main() { delegate "go" to Looper -> out_text }
+                """).tokenize()).parseScript();
+        HarnessExecutor ex = new HarnessExecutor(parsed, tools, model.factory());
+        ex.setJournal(journal);
+        ex.initialize();
+        Run run = new Run(ex).start(model);
+
+        assertEquals(0, ex.steer("Looper", "hello", "alice"));
+        assertEquals(1, ex.wrapUp("Looper", "enough", "alice"), "wrap up and cancel do not need steerable");
+        run.finish(model);
+        assertTrue(journal.all().values().stream().noneMatch(e -> "steer".equals(e.kind())));
     }
 }

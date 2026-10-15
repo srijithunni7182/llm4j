@@ -28,6 +28,9 @@ final class DelegateRunner {
 
     /** What a delegate step needs from the run. */
     interface Host {
+        /** The script's {@code intervention { }} defaults, or null. */
+        io.github.llm4j.loom.ast.InterventionDef intervention();
+
         /** Counts a delegate started on this thread, so a retried delegate's tool calls are numbered afresh. */
         void beginAttempt();
 
@@ -244,7 +247,10 @@ final class DelegateRunner {
                 io.github.llm4j.agent.StopReport stop = result.getStop();
                 if (stop != null) {
                     // Stopped through its handle. Never a success by accident: the interpreter decides, and what was decided is on the journal.
-                    StopInterpreter.Decision decision = StopInterpreter.decide(stop, interventions.namedOutcome(stepId), host.humanInterface() != null);
+                    StopOutcome byPerson = interventions.namedOutcome(stepId);
+                    StopOutcome byScript = byPerson != null ? null : StopHandlers.declared(del.getOnStopped(), host.intervention(), stop).orElse(null);
+                    StopInterpreter.Decision decision = StopInterpreter.decide(stop, byPerson != null ? byPerson : byScript, byPerson == null && byScript != null,
+                            host.humanInterface() != null);
                     StopOutcome outcome = decision.outcome() == StopOutcome.ASK ? askAboutStop(stepId, agentName, stop, stopRetries) : decision.outcome();
                     String text = stop.kind() == io.github.llm4j.agent.StopReport.Kind.WRAP_UP ? result.getFinalAnswer() : stop.partialAnswer();
                     if (outcome == StopOutcome.USE_PARTIAL && (text == null || text.isBlank())) outcome = StopOutcome.SKIP; // nothing to keep

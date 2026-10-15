@@ -15,21 +15,26 @@ final class StopInterpreter {
     private StopInterpreter() { }
 
     static Decision decide(StopReport stop, StopOutcome named, boolean someoneToAsk) {
-        Decision d = choose(stop, named);
+        return decide(stop, named, false, someoneToAsk);
+    }
+
+    /** As above; {@code declaredByScript} says the named outcome came from the script's {@code on_stopped} or {@code intervention}, not from a person. */
+    static Decision decide(StopReport stop, StopOutcome named, boolean declaredByScript, boolean someoneToAsk) {
+        Decision d = choose(stop, named, declaredByScript);
         if (d.outcome() == StopOutcome.ASK && !someoneToAsk) {
             return new Decision(StopOutcome.SUSPEND, d.why() + "; nobody is set up to ask, so the run is suspended until it is resumed");
         }
         return d;
     }
 
-    private static Decision choose(StopReport stop, StopOutcome named) {
+    private static Decision choose(StopReport stop, StopOutcome named, boolean declaredByScript) {
         boolean changed = stop.mayHaveChangedThings();
         String reason = stop.reason() == null ? "" : stop.reason().toLowerCase(java.util.Locale.ROOT);
         if (named != null) {
             if (named == StopOutcome.RETRY && changed) {
                 return new Decision(StopOutcome.ASK, "a retry was asked for, but the agent may already have changed something outside the run");
             }
-            return new Decision(named, "named by whoever stopped it");
+            return new Decision(named, declaredByScript ? "declared by the script" : "named by whoever stopped it");
         }
         if (stop.kind() == StopReport.Kind.WRAP_UP) {
             return reason.equals("safety") ? new Decision(StopOutcome.ASK, "a safety stop is never settled silently")

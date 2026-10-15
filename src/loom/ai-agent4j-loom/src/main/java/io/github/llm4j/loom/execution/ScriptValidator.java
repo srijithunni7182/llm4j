@@ -142,6 +142,8 @@ public class ScriptValidator {
         checkAgents(c);
         checkPromptFiles(c);
         checkWorkflowLint(c);
+        checkSteerable(c);
+        checkStopHandlers(c);
         checkRouting(c);
         checkStatements(c);
         for (Consumer<Checker> extra : context.extraChecks) extra.accept(c);
@@ -159,6 +161,49 @@ public class ScriptValidator {
     }
 
     // ── checks ───────────────────────────────────────────────────────────────────────────────
+
+    /** What an {@code on_stopped} handler reads and does must exist: the {@code _stop} fields, and a way out for every path that matters. */
+    private void checkStopHandlers(Checker c) {
+        java.util.regex.Pattern ref = java.util.regex.Pattern.compile("_stop\\.([A-Za-z_]+)");
+        for (io.github.llm4j.loom.ast.WorkflowDef w : c.script().getWorkflows()) {
+            io.github.llm4j.loom.ast.StatementWalker.walk(w.getStatements(), st -> {
+                if (st instanceof io.github.llm4j.loom.ast.DelegateStmt d && d.hasOnStopped()) {
+                    boolean[] testsChanged = {false};
+                    boolean[] retries = {false};
+                    io.github.llm4j.loom.ast.StatementWalker.walk(d.getOnStopped(), inner -> {
+                        if (inner instanceof io.github.llm4j.loom.ast.OutcomeStmt o && o.getKind() == io.github.llm4j.loom.ast.OutcomeStmt.Kind.RETRY) retries[0] = true;
+                        if (inner instanceof io.github.llm4j.loom.ast.AltStmt a) {
+                            var m = ref.matcher(a.getCondition());
+                            while (m.find()) {
+                                if (!StopHandlers.FIELDS.contains(m.group(1))) {
+                                    c.error(a.getLine(), "on_stopped", "_stop." + m.group(1) + " is not something a stop has. A stop has: "
+                                            + String.join(", ", StopHandlers.FIELDS) + ".");
+                                }
+                                if (m.group(1).equals("changed")) testsChanged[0] = true;
+                            }
+                        }
+                    });
+                    boolean hasTools = c.script().getAgents().stream().anyMatch(a -> a.getName().equals(d.getTargetAgent()) && !a.getTools().isEmpty());
+                    if (retries[0] && hasTools && !testsChanged[0]) {
+                        c.warn(d.getLine(), "on_stopped", "retry for " + d.getTargetAgent() + ", which has tools, without testing _stop.changed; "
+                                + "a step that already changed something is not run again, it is put to a person instead");
+                    }
+                }
+            });
+        }
+    }
+
+    /** A steer reaches a model call in progress only if the agent streams; without it the message waits for the call to finish. */
+    private void checkSteerable(Checker c) {
+        for (AgentDef a : c.script().getAgents()) {
+            if (a.isSteerable() && !a.isStreaming()) {
+                c.warn(a.getLine(), "agent " + a.getName(), "steerable: true without streaming: true; a steer waits for the model call in progress to finish");
+            }
+            if (a.isReasoning() && !a.isStreaming()) {
+                c.warn(a.getLine(), "agent " + a.getName(), "reasoning: true has no effect without streaming: true");
+            }
+        }
+    }
 
     /** Warnings about what a workflow stores and never reads (see {@link WorkflowLint}). */
     private void checkWorkflowLint(Checker c) {

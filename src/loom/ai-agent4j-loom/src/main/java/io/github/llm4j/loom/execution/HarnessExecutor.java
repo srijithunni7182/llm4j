@@ -126,6 +126,7 @@ public class HarnessExecutor implements LoomEngine {
         @Override public void audit(String event, Map<String, Object> data) { HarnessExecutor.this.audit(event, data); }
         @Override public java.time.Instant now() { return clock.instant(); }
         @Override public AgentGuard guard(String agent) { return guards.get(agent); }
+        @Override public boolean steerable(String agent) { return script.getAgents().stream().anyMatch(a -> a.getName().equals(agent) && a.isSteerable()); }
     });
 
     /** The agents running now, and the way to steer, pause or cancel them. */
@@ -176,6 +177,7 @@ public class HarnessExecutor implements LoomEngine {
         @Override public HumanInterface humanInterface() { return humanInterface; }
     });
     private final DelegateRunner delegates = new DelegateRunner(budgets, limits, interventions, new DelegateRunner.Host() {
+        @Override public io.github.llm4j.loom.ast.InterventionDef intervention() { return script.getIntervention(); }
         @Override public void beginAttempt() { attempt.set(delegateAttempts.incrementAndGet()); }
         @Override public String resolveName(String name) { return HarnessExecutor.this.resolveName(name); }
         @Override public AgentDef agentDef(String name) {
@@ -1296,6 +1298,8 @@ public class HarnessExecutor implements LoomEngine {
                 agentBuilder.approvalCallback((tool, args, thought) -> approvals().approve(agentName, tool, args, thought));
             }
             if (agentDef.getMaxIterations() != null) agentBuilder.maxIterations(agentDef.getMaxIterations());
+            if (agentDef.isStreaming()) agentBuilder.streaming(true);
+            if (agentDef.isReasoning()) agentBuilder.reasoning(true);
             List<io.github.llm4j.loom.knowledge.KnowledgeIndex> inContext = new java.util.ArrayList<>();
             for (String kbName : agentDef.getKnowledgeBases()) {
                 io.github.llm4j.loom.knowledge.KnowledgeIndex index = knowledge.get(kbName);

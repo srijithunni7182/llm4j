@@ -63,6 +63,10 @@ public class LoomParser {
                 advance(); // the colon
                 if (script.getPromptsDir() != null) throw error(keyword, "Only one prompts: folder can be named.");
                 script.setPromptsDir(consume(TokenType.STRING_LITERAL, "Expect a folder for prompts, e.g. prompts: \"./prompts\".").getValue(), keyword.getLine());
+            } else if (isBlockKeyword("intervention")) {
+                Token keyword = advance();
+                if (script.getIntervention() != null) throw error(keyword, "Only one intervention block is allowed.");
+                script.setIntervention(parseIntervention(keyword));
             } else if (isBlockKeyword("rate_limits")) {
                 Token keyword = advance();
                 if (script.getRateLimits() != null) throw error(keyword, "Only one rate_limits block is allowed.");
@@ -89,7 +93,7 @@ public class LoomParser {
     }
 
     private static final java.util.List<String> AGENT_SETTINGS = java.util.List.of("model", "system", "system_template", "prompt", "persona", "tools",
-            "mcp_servers", "skills", "memory", "voice", "guard", "routing", "knowledge", "output_schema", "approve", "max_iterations", "temperature", "budget", "ladder", "ceiling", "context");
+            "mcp_servers", "skills", "memory", "voice", "guard", "routing", "knowledge", "output_schema", "approve", "max_iterations", "temperature", "budget", "ladder", "ceiling", "context", "streaming", "reasoning", "steerable");
 
     /** What to say when something that is not a setting turns up inside an agent: the word itself, what an agent can have, and the nearest guess. */
     private static String unknownAgentSetting(Token t) {
@@ -235,6 +239,19 @@ public class LoomParser {
                     throw error(keyword, "temperature must be between 0.0 and 2.0, got " + value.getValue());
                 }
                 agent.setTemperature(temperature);
+            } else if (isNamedAttribute("streaming") || isNamedAttribute("reasoning") || isNamedAttribute("steerable")) {
+                Token keyword = advance();
+                advance(); // the colon
+                Token value = advance();
+                if (!"true".equals(value.getValue()) && !"false".equals(value.getValue())) {
+                    throw error(value, keyword.getValue() + " must be true or false.");
+                }
+                boolean on = "true".equals(value.getValue());
+                switch (keyword.getValue()) {
+                    case "streaming" -> agent.setStreaming(on);
+                    case "reasoning" -> agent.setReasoning(on);
+                    default -> agent.setSteerable(on);
+                }
             } else if (isBudgetKeyword()) {
                 Token keyword = advance();
                 if (agent.getBudget() != null) throw error(keyword, "An agent can have only one budget block.");
@@ -321,6 +338,8 @@ public class LoomParser {
             return parseObserveStatement();
         } else if (match(TokenType.CALL)) {
             return parseCallStmt();
+        } else if (parseOutcomeAhead()) {
+            return pendingOutcome;
         } else if (isWord("checkpoint") && peekAt(1).getType() == TokenType.IDENTIFIER) {
             return parseCheckpoint();
         } else if (isWord("rewind") && peekAt(1).getType() == TokenType.TO) {
@@ -341,6 +360,13 @@ public class LoomParser {
     // -----------------------------------------------------------------------
 
     /** True when the next token is the plain word {@code word} (these words are keywords only where a statement starts). */
+    private OutcomeStmt pendingOutcome;
+
+    private boolean parseOutcomeAhead() {
+        pendingOutcome = parseOutcome();
+        return pendingOutcome != null;
+    }
+
     private boolean isWord(String word) {
         return check(TokenType.IDENTIFIER) && word.equals(peek().getValue());
     }
@@ -1013,15 +1039,84 @@ public class LoomParser {
             }
         }
 
-        if (match(TokenType.ON_FAILURE)) {
-            consume(TokenType.LBRACE, "Expect '{' before on_failure body.");
-            while (!check(TokenType.RBRACE) && !isAtEnd()) {
-                stmt.getOnFailure().add(parseStatement());
+        // on_failure and on_stopped, in either order
+        while (true) {
+            if (match(TokenType.ON_FAILURE)) {
+                consume(TokenType.LBRACE, "Expect '{' before on_failure body.");
+                while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                    stmt.getOnFailure().add(parseStatement());
+                }
+                consume(TokenType.RBRACE, "Expect '}' after on_failure body.");
+            } else if (isBlockKeyword("on_stopped")) {
+                Token keyword = advance();
+                if (stmt.hasOnStopped()) throw error(keyword, "A step can have only one on_stopped block.");
+                stmt.setHasOnStopped(true);
+                consume(TokenType.LBRACE, "Expect '{' before on_stopped body.");
+                stopHandlerDepth++;
+                try {
+                    while (!check(TokenType.RBRACE) && !isAtEnd()) {
+                        stmt.getOnStopped().add(parseStatement());
+                    }
+                } finally {
+                    stopHandlerDepth--;
+                }
+                consume(TokenType.RBRACE, "Expect '}' after on_stopped body.");
+            } else {
+                break;
             }
-            consume(TokenType.RBRACE, "Expect '}' after on_failure body.");
         }
 
         return stmt;
+    }
+
+    /** How many {@code on_stopped} blocks the parser is inside; outcome words are statements only there. */
+    private int stopHandlerDepth;
+
+    /** The outcome statement at the cursor ({@code use partial}, {@code skip}, ...), or null when the cursor is not at one. */
+    private OutcomeStmt parseOutcome() {
+        return parseOutcome(stopHandlerDepth);
+    }
+
+    private OutcomeStmt parseOutcome(int depth) {
+        if (depth == 0) return null;
+        OutcomeStmt.Kind kind = null;
+        if (check(TokenType.RETRY)) {
+            advance();
+            kind = OutcomeStmt.Kind.RETRY;
+        } else if (isWord("use") && peekAt(1).getType() == TokenType.IDENTIFIER && "partial".equals(peekAt(1).getValue())) {
+            advance();
+            advance();
+            kind = OutcomeStmt.Kind.USE_PARTIAL;
+        } else if (check(TokenType.IDENTIFIER) && OutcomeStmt.Kind.ofPhrase(peek().getValue()) != null) {
+            kind = OutcomeStmt.Kind.ofPhrase(advance().getValue());
+        }
+        return kind == null ? null : new OutcomeStmt(kind);
+    }
+
+    /** {@code intervention { timeout: retry  user: ask }} after the keyword. */
+    private InterventionDef parseIntervention(Token keyword) {
+        InterventionDef def = new InterventionDef();
+        def.setLine(keyword.getLine());
+        consume(TokenType.LBRACE, "Expect '{' after intervention.");
+        while (!check(TokenType.RBRACE) && !isAtEnd()) {
+            Token reason = advance();
+            String name = reason.getValue();
+            if (!InterventionDef.REASONS.contains(name)) {
+                throw error(reason, "\"" + name + "\" is not a reason an agent is stopped for. The reasons are: " + String.join(", ", InterventionDef.REASONS) + ".");
+            }
+            if (def.getByReason().containsKey(name)) throw error(reason, "The reason " + name + " is given twice in intervention.");
+            consume(TokenType.COLON, "Expect ':' after " + name + ".");
+            if (check(TokenType.IDENTIFIER) && "wrap_up".equals(peek().getValue())) {
+                throw error(peek(), "wrap_up is not an outcome here; name what the run does when the agent is stopped: use partial, skip, discard, retry, suspend, conclude or ask.");
+            }
+            OutcomeStmt outcome = parseOutcome(1);
+            if (outcome == null) {
+                throw error(peek(), "Expect an outcome after " + name + ": use partial, skip, discard, retry, suspend, conclude or ask.");
+            }
+            def.put(name, outcome.getKind(), reason.getLine());
+        }
+        consume(TokenType.RBRACE, "Expect '}' after intervention.");
+        return def;
     }
 
     /** An identifier, or a {@code {item.field}} reference resolved at run time. */
