@@ -58,7 +58,7 @@ class Support {
 
     String ask(String question) {
         ReActAgent agent = agents.getObject().build();   // one agent per conversation
-        return agent.run(question).getAnswer();
+        return agent.run(question).getFinalAnswer();
     }
 
     void handle(String ticket) {
