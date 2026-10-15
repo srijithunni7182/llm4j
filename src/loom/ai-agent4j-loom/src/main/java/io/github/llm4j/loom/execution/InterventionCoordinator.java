@@ -113,7 +113,7 @@ final class InterventionCoordinator {
             entry.put("origin", origin == null ? "" : origin);
             entry.put("at", host.now().toString());
             host.journal().put(a.stepId() + "#steer." + count, new RunJournal.Entry("steer", entry));
-            record("steer", a.agent(), a.stepId(), Map.of("origin", String.valueOf(origin), "chars", message.length()));
+            record("steer", a.agent(), a.stepId(), Map.of("origin", String.valueOf(origin), "chars", message.length(), "text", message));
             n++;
         }
         return n;
@@ -203,6 +203,7 @@ final class InterventionCoordinator {
         host.journal().put(stepId + "#stop." + n, new RunJournal.Entry("stop", value));
         Map<String, Object> data = new LinkedHashMap<>(value);
         data.put("step", stepId);
+        data.put("category", StopHandlers.category(stop)); // the reason as a script sees it
         host.audit("step_stopped", data);
         host.trace(TraceEvent.STEP_STOPPED, agent, "stopped (" + value.get("reason") + "): " + outcome.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' '), data);
     }

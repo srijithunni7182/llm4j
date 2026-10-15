@@ -1,0 +1,31 @@
+{
+  "description": "shutdown: suspend",
+  "tool": "calculator",
+  "replies": {
+    "Writer": [
+      "act",
+      "act",
+      "final:finished"
+    ],
+    "Closer": [
+      "final:closed"
+    ]
+  },
+  "interventions": [
+    {
+      "agent": "Writer",
+      "atCall": 1,
+      "kind": "cancel",
+      "reason": "shutdown",
+      "origin": "host"
+    }
+  ],
+  "expect": {
+    "run": "suspended",
+    "asked": 0,
+    "variables": {
+      "out_text": "",
+      "done_text": ""
+    }
+  }
+}

@@ -1,0 +1,12 @@
+// Canonical CTK test: intervention_shutdown_suspend
+// A shutdown suspends the run; the stopped step starts again on resume.
+// Interventions are scripted, not timed: see interventions/intervention_shutdown_suspend.json (README, "Interventions").
+
+agent Collector { model: "ctk" system: "You are Collector." }
+agent Writer { model: "ctk" system: "You are Writer." tools: [calculator] steerable: true }
+agent Closer { model: "ctk" system: "You are Closer." }
+
+workflow main() {
+    delegate "write" to Writer -> out_text
+    delegate "close" to Closer -> done_text
+}

@@ -1,0 +1,12 @@
+// Canonical CTK test: intervention_wrap_up
+// A wrap-up needs nobody to ask: the agent's last call, with tools off, is its answer.
+// Interventions are scripted, not timed: see interventions/intervention_wrap_up.json (README, "Interventions").
+
+agent Collector { model: "ctk" system: "You are Collector." }
+agent Writer { model: "ctk" system: "You are Writer." tools: [calculator] steerable: true }
+agent Closer { model: "ctk" system: "You are Closer." }
+
+workflow main() {
+    delegate "write" to Writer -> out_text
+    delegate "close" to Closer -> done_text
+}

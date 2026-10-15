@@ -1,0 +1,34 @@
+{
+  "description": "safety: ask",
+  "tool": "calculator",
+  "replies": {
+    "Writer": [
+      "act",
+      "act",
+      "final:finished"
+    ],
+    "Closer": [
+      "final:closed"
+    ]
+  },
+  "interventions": [
+    {
+      "agent": "Writer",
+      "atCall": 1,
+      "kind": "cancel",
+      "reason": "safety",
+      "origin": "monitor"
+    }
+  ],
+  "human": [
+    "skip"
+  ],
+  "expect": {
+    "run": "completed",
+    "asked": 1,
+    "variables": {
+      "out_text": "",
+      "done_text": "closed"
+    }
+  }
+}

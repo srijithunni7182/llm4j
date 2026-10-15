@@ -1,0 +1,14 @@
+// Canonical CTK test: intervention_conclude
+// The script's intervention default ends the run when a person stops an agent.
+// Interventions are scripted, not timed: see interventions/intervention_conclude.json (README, "Interventions").
+
+intervention { user: conclude }
+
+agent Collector { model: "ctk" system: "You are Collector." }
+agent Writer { model: "ctk" system: "You are Writer." tools: [calculator] steerable: true }
+agent Closer { model: "ctk" system: "You are Closer." }
+
+workflow main() {
+    delegate "write" to Writer -> out_text
+    delegate "close" to Closer -> done_text
+}

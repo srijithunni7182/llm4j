@@ -1,0 +1,33 @@
+{
+  "description": "steer continues",
+  "tool": "calculator",
+  "replies": {
+    "Writer": [
+      "act",
+      "final:steered answer"
+    ],
+    "Closer": [
+      "final:closed"
+    ]
+  },
+  "interventions": [
+    {
+      "agent": "Writer",
+      "atCall": 1,
+      "kind": "steer",
+      "note": "focus on the EU",
+      "origin": "alice"
+    }
+  ],
+  "expect": {
+    "run": "completed",
+    "asked": 0,
+    "variables": {
+      "out_text": "steered answer",
+      "done_text": "closed"
+    },
+    "modelSaw": {
+      "Writer": "focus on the EU"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "scriptName": "intervention_shutdown_suspend.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "delegate",
+      "agentName": "Writer",
+      "outputVariable": "out_text"
+    },
+    {
+      "kind": "stop",
+      "agentName": "Writer",
+      "payload": "{\"kind\":\"cancel\",\"outcome\":\"SUSPEND\",\"reason\":\"shutdown\"}"
+    }
+  ]
+}

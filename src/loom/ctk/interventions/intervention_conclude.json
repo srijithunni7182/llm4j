@@ -1,0 +1,30 @@
+{
+  "description": "intervention default: conclude",
+  "tool": "calculator",
+  "replies": {
+    "Writer": [
+      "act",
+      "act",
+      "final:finished"
+    ],
+    "Closer": [
+      "final:closed"
+    ]
+  },
+  "interventions": [
+    {
+      "agent": "Writer",
+      "atCall": 1,
+      "kind": "cancel",
+      "reason": "enough",
+      "origin": "alice"
+    }
+  ],
+  "expect": {
+    "run": "stopped",
+    "asked": 0,
+    "variables": {
+      "done_text": ""
+    }
+  }
+}
