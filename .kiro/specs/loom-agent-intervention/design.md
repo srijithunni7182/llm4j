@@ -1,6 +1,6 @@
 # Design Document: Intervening in a running agent from Loom
 
-Status: **draft for review**. Nothing in sections 5 to 9 is implemented. The agent-library half (section 4.1) is built; the Loom half is not.
+Status: **draft; all questions answered, phase 0 (the refactor) under way**. Nothing in sections 5 to 9 is implemented. The agent-library half (section 4.1) is built; the Loom half is not.
 Syntax shown in `loom` blocks is **proposed and illustrative**. `weave check` would validate it as it validates the rest of the language.
 
 ## 1. Overview
@@ -49,7 +49,7 @@ Every origin is Loom (the runtime, a declared rule, or a person acting through L
 | Reason | Examples | Natural outcome |
 |---|---|---|
 | `operator` | Pause, Suspend, Stop from Fabric, the CLI, a chat | Whatever the operator chose when asking |
-| `user` | The person the workflow serves cancels or steers their own request. A cancel is either *drop it* or *the input was wrong: send it back* (with a reason) | Drop: `skip`/`conclude`. Send back: `rewind` to a declared checkpoint carrying the reason |
+| `user` | The person the workflow serves cancels or steers their own request. A cancel is either *drop it* or *the input was wrong: send it back* (with a reason) | Drop: stop and ask. Send back: `rewind` to a declared checkpoint carrying the reason |
 | `timeout` | Step `timeout`, a workflow deadline, a schedule window closing | Retry if safe, otherwise wrap up |
 | `budget` | Budget low or exhausted (exhausted exists today) | Wrap up with the best answer so far |
 | `limit` | Provider rate limit or quota | Pause the run until the reset (exists today) |
@@ -105,7 +105,7 @@ Loom receives (reason, StopReport) and chooses one **outcome**:
 | Reason | Default outcome | Condition |
 |---|---|---|
 | `operator` | `ask` | the operator may name the outcome in the command |
-| `user` cancel, no target | `skip` the step and `conclude` the run | the person dropped the request |
+| `user` cancel, no target | `ask`: stop the run in a resumable state and ask the person what to do (use the partial answer, skip the step, or end the run) | decided (A2); a script may declare another default |
 | `user` cancel with `back to <checkpoint>` | `rewind` to that checkpoint, carrying the person's note | only a checkpoint the script declared; within `at most N times` |
 | `timeout` | `retry` | only if `mayHaveChangedThings` is false; else `use partial` |
 | `budget` | `use partial` | exists today |
@@ -130,7 +130,7 @@ A stop that carries `mayHaveChangedThings = true` is **never retried automatical
 | The agent's **reasoning** is off | **steer** | Same conversation, corrected. The workflow is untouched. |
 | This **attempt** is bad but its input is fine | **cancel, then `retry`** this step with a hint | Only this step runs again. |
 | The **input** to this step (an earlier step's output) is wrong | **cancel, then `rewind`** to a declared checkpoint, carrying the reason | The earlier steps run again with the reason; this step runs again after them. |
-| The request is **not wanted** | **cancel, then `skip` or `conclude`** | The step produces nothing; the run ends tidily or carries on. |
+| The request is **not wanted** | **cancel, then stop and ask** (the person then picks `skip` or `conclude`) | The run stops resumably until the person answers; the script may declare `skip` or `conclude` as the default instead. |
 
 Steer corrects an agent's thinking. It never alters the workflow. Changing the workflow is what a cancel with an outcome is for.
 
@@ -270,8 +270,8 @@ supervise Researcher {
 }
 ```
 
-The signals (`looping`, `tool_failing`, `context`) come from the runtime, not from Fabric. Open question 3 asks whether a `supervise` rule should start
-in `watch` (record what it would have done), then `suggest`, then `act`, using the existing earned-autonomy ladder.
+The signals (`looping`, `tool_failing`, `context`) come from the runtime, not from Fabric. **Decided (A3):** for now a `supervise` rule simply acts when its condition holds. It is not
+placed under the earned-autonomy ladder; that stays a possible later step. Every action a rule takes is traced and audited.
 
 ### 7.5 How a person reaches a run (not in the script)
 
@@ -334,7 +334,8 @@ A stopped step records its stop. On resume Loom either:
 | Complexity | None (exists) | Persist and reload the agent conversation, version it |
 | Steers | Replayed into the briefing | Already in the conversation |
 
-**Open question 2.** Likely answer: restart by default, `continue` opt-in per step.
+**Decided (A1).** A **stopped** step restarts from its beginning, with the steers journaled for it added to its briefing. A **paused** agent resumes in place, from where it waited. A
+stopped step does not continue from a saved conversation, so the agent's steps need not be persisted and nothing is stale on restart. (Continue-from-conversation stays out of scope.)
 
 ## 11. Security
 
@@ -411,7 +412,7 @@ Plan:
   user drop; user cancel-back; sibling discard; shutdown suspend; safety asks; budget wrap-up; steer continues; wrap-up; conclude.
 - **Negative scenarios:** a rewind to an undeclared checkpoint is refused; a cancelled step is never recorded as a success; a retry is refused when `changed` is true.
 - **What is implementation-defined and not tested:** when exactly a streaming call is cut off, and wall-clock timing.
-- **Feature tags.** A runtime declares which sets it supports (`core`, `tasks`, `intervention`), so a runtime without interventions is not failed by them.
+- **Part of the contract (decided, A5).** Interventions are part of the conformance contract: a runtime must pass these scenarios to claim conformance. The feature-tag idea is dropped.
 - **A sabotage check** (as `loom-vscode-graph` did in its evidence): change one default and confirm a CTK scenario fails.
 
 ### 13.4 VS Code extension (`vscode-loom`)
@@ -422,9 +423,26 @@ Plan:
 | Snippets | `snippets/loom.code-snippets` | A steerable agent, `on_stopped` with a rewind, an `intervention` block, `supervise` | `snippets.test.ts` (each snippet must parse) |
 | Language server | `src/lsp/server.ts`, `parseDocument.ts`, `ladderCompletion.ts` | Hover text for the new keywords; completion of `_stop.` fields, of the outcomes inside a handler, and of **only the declared checkpoints** after `rewind to`; outline entries | `parseDocument.test.ts`, a new completion test |
 | Diagnostics | `src/check/*` | New `weave check` rules arrive through the existing runner; confirm the line mapping and the severity of the new warnings | `check.test.ts`, `diagnosticsWiring.test.ts` |
-| Graph | `src/graph/*`, `media/graph-render.js` (synced from `src/loom/graph-render`), `views` | Draw handler blocks and the cancel-back edge; the legend and inspector explain them; PNG export includes them | `viewmodel.unit.test.js`, `webview.browser.test.js`, `sync.test.ts` |
+| Graph | `src/graph/*`, `media/graph-render.js` (synced from `src/loom/graph-render`), `views` | Show what a steer, cancel or stop does and where it goes (13.4.1); legend; inspector; PNG export | `viewmodel.unit.test.js`, `webview.browser.test.js`, `sync.test.ts` |
 | Commands | `src/commands/runWorkflow.ts` | Optional: pass `--steer-via console` for a local run. No new ops UI | `extension.integration.test.ts` |
 | Packaging | `package.json`, `CHANGELOG.md`, `README.md`, `docs/PUBLISHING_VSCODE.md`, `scripts/build-vsix.sh`, `verify-vsix.sh` | Version, changelog, README examples, the bundled `weave` rebuilt | `manifest.test.ts`, `assets.test.ts`, `docs.test.ts`, `verify-vsix.sh` |
+
+#### 13.4.1 Showing interventions in the graph (decided, A6)
+
+The extension is for visualization only. It shows what a steer, a cancel or a stop *does* and *where it goes*, with a legend and a different coloured dotted line for each kind. Colour is
+never the only signal: each kind also has its own dash pattern and a label, so it reads in grayscale and for colour-blind users (the palette is checked with the repository's dataviz rules).
+
+| Kind | Line | Where it goes |
+|---|---|---|
+| **steer** | dotted, first colour, a small loop on the step | Back into the same step. The agent's conversation is corrected; the workflow is untouched |
+| **cancel, send back** | dotted, second colour, an arrow | To the declared checkpoint it rewinds to, labelled with the attempt cap (`at most 2 times`) |
+| **cancel, use partial / skip** | dotted, third colour, an arrow | To the next step, labelled with the outcome |
+| **cancel, stop and ask** | dotted, fourth colour, an arrow | To a "stopped, asking" marker, then onward to each answer the person may give |
+| **stop (operator) / suspend** | dotted, fifth colour, an arrow | To a "suspended, can resume" marker at the end of the run |
+| **conclude** | dotted, sixth colour, an arrow | To the `on_conclude` block |
+
+A step that has an `on_stopped` handler shows these lines leaving it; a step without one shows the defaults of section 5.1. The legend is part of the graph panel and the exported PNG, and the
+inspector lists a selected step's interventions in words.
 
 The extension bundles its own `weave`, so extension and runtime stay matched. It should still tolerate unknown fields in the graph JSON, so an older extension does not break on a newer graph.
 
@@ -512,10 +530,10 @@ Steps 4 to 6 must be done before phase 3, because they are where the interventio
 | D4 | Steer and cancel reach a run through Loom's channels (chat, console, embedding API), not Fabric | **Decided** |
 | D5 | A cancel-and-send-back may name only checkpoints the script declared | **Decided** |
 | D6 | Fabric exposes no new action; steer and cancel reach a run through Loom's channels | **Decided** |
-| Q1 | Restart or continue a stopped step on resume (section 10) | Open |
-| Q2 | Default outcome for a user's cancel: `skip` the step and `conclude`, as in 5.1, or stop and ask | Open |
-| Q3 | Should `supervise` rules climb watch, suggest, act under an earned-autonomy ladder | Open |
-| Q4 | Keywords (`on_stopped`, `intervention`, `supervise`, `wrap_up`, `steerable`): names to settle before any parser work | Open |
-| Q5 | Do interventions belong to the conformance contract (section 13.3) as a tagged feature set, or only to the Java runtime for now | Open |
-| Q6 | Confirm that a live steer/cancel UI in VS Code is out of scope (the extension only highlights, completes, draws and checks) | Open |
-| Q7 | Do the `HarnessExecutor` refactor (phase 0) before any intervention runtime work, as one reviewed series of small changes | Proposed: yes |
+| A1 | A stopped step restarts; a paused agent resumes | **Decided** |
+| A2 | Default for a user's cancel: stop and ask | **Decided** |
+| A3 | `supervise` rules do not use the earned-autonomy ladder for now | **Decided** |
+| A4 | Keywords `on_stopped`, `intervention`, `supervise`, `wrap_up`, `steerable` | **Decided** |
+| A5 | Interventions are part of the conformance contract | **Decided** |
+| A6 | VS Code is for visualization: a legend and distinct dotted lines show where a steer, cancel or stop goes (13.4.1) | **Decided** |
+| A7 | The `HarnessExecutor` refactor (phase 0) comes before any intervention runtime work, as a series of small behaviour-preserving changes | **Decided** |
