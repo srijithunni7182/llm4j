@@ -120,11 +120,49 @@ public class HarnessExecutor implements LoomEngine {
         return payloads.resolve(rawPayload);
     }
 
-    private final InterventionCoordinator interventions = new InterventionCoordinator();
+    private final InterventionCoordinator interventions = new InterventionCoordinator(new InterventionCoordinator.Host() {
+        @Override public RunJournal journal() { return journal; }
+        @Override public void trace(String type, String agent, String text, Map<String, Object> data) { HarnessExecutor.this.trace(type, agent, text, data); }
+        @Override public void audit(String event, Map<String, Object> data) { HarnessExecutor.this.audit(event, data); }
+        @Override public java.time.Instant now() { return clock.instant(); }
+        @Override public AgentGuard guard(String agent) { return guards.get(agent); }
+    });
 
     /** The agents running now, and the way to steer, pause or cancel them. */
     InterventionCoordinator interventions() {
         return interventions;
+    }
+
+    // ---- reaching a running agent (for an embedding application, a channel, or a rule) ----
+
+    /** Sends a message to the running agent(s) named by {@code target} (a step id, an agent name, or {@code *}); returns how many took it. See {@link InterventionCoordinator#steer}. */
+    public int steer(String target, String text, String origin) {
+        return interventions.steer(target, text, origin);
+    }
+
+    /** Cancels the running agent(s); {@code outcome} is what the run does next, or null for the defaults. Returns how many were asked to stop. */
+    public int cancel(String target, String reason, String origin, StopOutcome outcome) {
+        return interventions.cancel(target, reason, origin, outcome);
+    }
+
+    /** Asks the running agent(s) to finish now with what they have (one last model call, tools off). */
+    public int wrapUp(String target, String reason, String origin) {
+        return interventions.wrapUp(target, reason, origin);
+    }
+
+    public int pauseAgents(String target, String origin) {
+        return interventions.pause(target, origin);
+    }
+
+    public int resumeAgents(String target, String origin) {
+        return interventions.resume(target, origin);
+    }
+
+    /** The steps with an agent running now, as {@code stepId -> agent name}. */
+    public Map<String, String> runningAgents() {
+        Map<String, String> out = new java.util.LinkedHashMap<>();
+        interventions.running().forEach(a -> out.put(a.stepId(), a.agent()));
+        return out;
     }
 
     private final BudgetCoordinator budgets = new BudgetCoordinator(scopes, new BudgetCoordinator.Host() {
@@ -159,6 +197,7 @@ public class HarnessExecutor implements LoomEngine {
         @Override public MemoryEngine memoryEngine() { return memoryEngine; }
         @Override public AuditLogger auditLogger() { return auditLogger; }
         @Override public String sessionId() { return sessionId; }
+        @Override public HumanInterface humanInterface() { return humanInterface; }
         @Override public java.util.Optional<io.github.llm4j.loom.prompt.PromptUse> promptUsed(AgentDef agent) { return HarnessExecutor.this.promptUsed(agent); }
         @Override public ThreadLocal<List<io.github.llm4j.budget.Budget>> scopes() { return scopes; }
         @Override public void trace(String type, String agent, String text, Map<String, Object> data) { HarnessExecutor.this.trace(type, agent, text, data); }
@@ -1269,6 +1308,8 @@ public class HarnessExecutor implements LoomEngine {
                 agentBuilder.addTool(agentMemory.factTool(() -> sessions.getOrDefault(step.get(), agentName)));
             }
             agentBuilder.auditLogger(auditLogger).sessionId(sessionId);
+            // what counts as a read is Loom's call (it sees through the wrappers it puts around tools), so a stopped agent can tell whether it may have changed anything
+            agentBuilder.effectClassifier((tool, args) -> !ReadClass.isRead(tool, args));
             applyContext(agentDef, agentBuilder);
             agentBuilder.addListener(tracing.statsAdapter());
             if (tracing()) agentBuilder.addListener(tracing.traceAdapter(agentDef.getName()));

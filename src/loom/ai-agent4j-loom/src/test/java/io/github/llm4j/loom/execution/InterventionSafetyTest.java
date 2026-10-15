@@ -9,9 +9,7 @@ import io.github.llm4j.loom.parser.LoomParser;
 import io.github.llm4j.loom.runtime.RunJournal;
 import io.github.llm4j.model.LLMRequest;
 import io.github.llm4j.model.LLMResponse;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -90,7 +88,6 @@ class InterventionSafetyTest {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         RunJournal journal = RunJournal.inMemory();
-        List<String> failures = new CopyOnWriteArrayList<>();
         HarnessExecutor run = executor("""
                 agent Looper { model: "test" system: "You are Looper." tools: [MockTool] max_iterations: 50 }
                 agent Closer { model: "test" system: "You are Closer." }
@@ -99,23 +96,21 @@ class InterventionSafetyTest {
                     delegate "after" to Closer -> done_text
                 }
                 """, looping(calls, 0, entered, release), journal);
-        run.addTraceListener(e -> { if ("failure".equals(e.type())) failures.add(e.text() + " | " + e.data().get("error")); });
 
         Thread runner = new Thread(() -> run.executeWorkflow("Main", Map.of()));
         runner.start();
         assertTrue(entered.await(5, TimeUnit.SECONDS), "the agent started");
-        assertEquals(1, run.interventions().cancel("Looper", "operator stop"));
+        assertEquals(1, run.cancel("Looper", "operator stop", "test", StopOutcome.SKIP));
         release.countDown();
         runner.join(10_000);
 
         assertFalse(runner.isAlive(), "the run ended");
         assertTrue(calls.get() <= 2, "a cancelled step is not retried: " + calls.get() + " calls");
         assertEquals("", run.getContext().getVariable("out_text"), "the cancelled agent's output was not taken as the step's result");
-        assertEquals("done", run.getContext().getVariable("done_text"), "the run carried on, since on_failure handled the step");
+        assertEquals("done", run.getContext().getVariable("done_text"), "the run carried on after the skipped step");
         assertTrue(journal.all().values().stream().noneMatch(e -> "delegate".equals(e.kind()) && String.valueOf(e.value()).contains("cancel")),
                 "no success entry holds the cancelled agent's text");
-        assertTrue(journal.all().values().stream().anyMatch(e -> "failed".equals(e.kind()) && String.valueOf(e.value()).contains("operator stop")),
-                "the step is recorded as failed, with the reason");
-        assertFalse(failures.isEmpty());
+        assertTrue(journal.all().values().stream().anyMatch(e -> "skipped".equals(e.kind()) && String.valueOf(e.value()).contains("operator stop")),
+                "the step is recorded as skipped, with the reason");
     }
 }

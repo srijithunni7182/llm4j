@@ -72,6 +72,13 @@ Supervision uses signals Loom already has in-process (step counters, retries, bu
 Built (commits on `ccr-dcc3f74a-sevyba`): `RunHandle.steer / pause / resume / cancel`; `AgentResult.isCancelled()`; `ReActAgent.Builder.streaming(true)`
 so a steer or cancel ends a call in progress at once; listener events `onSteered`, `onPaused`, `onResumed`, `onCancelled`, and the streaming deltas.
 
+**Phase 3, built (Loom runtime).** `HarnessExecutor` now has `steer`, `cancel(agent, reason, origin, outcome)`, `wrapUp`, `pauseAgents`, `resumeAgents` and `runningAgents`.
+`StopInterpreter` turns a `StopReport` into a `StopOutcome` (`ASK`, `USE_PARTIAL`, `RETRY`, `SKIP`, `DISCARD`, `CONCLUDE`, `SUSPEND`): a wrap-up uses its answer; a cancel with a named outcome
+does that; otherwise Loom asks the person if there is one (A2), and suspends the run if there is not (A1: on resume the stopped step restarts with the journaled steers in its briefing). A retry is
+allowed once, and only when the agent's tools were all read-only (otherwise it is refused). Everything is written to the journal (`steer`, `stop`, `skipped`, `discarded`) and traced
+(`INTERVENTION`, `STEP_STOPPED`). Steers pass the agent's guard and a 2000-character limit. Existing step timeouts and `RunControl` keep their behaviour. Tests: `StopInterpreterTest` (18),
+`InterventionRuntimeTest` (8), `InterventionSafetyTest` (2); the whole Loom suite is unchanged apart from these (1,903 tests, 0 failures).
+
 **Phase 2, built.** So that Loom can interpret a stop, the library now has:
 
 - `RunHandle.cancel(reason, origin)`, `steer(text, origin)` (with `steers()` keeping the history) and `wrapUp(reason, origin)`. The first cancel's reason is kept, a cancel overrides a wrap-up, and a cancel is

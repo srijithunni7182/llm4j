@@ -7,6 +7,7 @@ import io.github.llm4j.loom.ast.DelegateStmt;
 import io.github.llm4j.loom.ast.Statement;
 import io.github.llm4j.loom.memory.MemoryEngine;
 import io.github.llm4j.loom.runtime.RateLimitFailure;
+import io.github.llm4j.loom.runtime.RunSuspended;
 import io.github.llm4j.loom.runtime.RunJournal;
 import io.github.llm4j.loom.runtime.VariableContext;
 import java.nio.file.Path;
@@ -70,6 +71,9 @@ final class DelegateRunner {
 
         String sessionId();
 
+        /** Who a stopped step can be put to; null when nobody is set up to answer. */
+        io.github.llm4j.loom.runtime.HumanInterface humanInterface();
+
         java.util.Optional<io.github.llm4j.loom.prompt.PromptUse> promptUsed(AgentDef agent);
 
         /** The budgets that enclose the step this thread is running. */
@@ -126,6 +130,10 @@ final class DelegateRunner {
             RunJournal.Entry entry = recorded.get();
             if ("failed".equals(entry.kind())) {
                 handleExhausted(del, agentName, String.valueOf(entry.value()), null);
+            } else if ("skipped".equals(entry.kind())) {
+                if (!del.getOnFailure().isEmpty()) host.runFailureHandler(del.getOnFailure(), "skipped: " + entry.value());
+            } else if ("discarded".equals(entry.kind())) {
+                host.trace(TraceEvent.DELEGATE_REPLAYED, agentName, "discarded earlier: " + entry.value(), null);
             } else {
                 host.context().setVariable(variableName, entry.value());
                 host.journal().get(stepId + "#audio").ifPresent(audio -> host.context().setVariable(variableName + "_audio", audio.value()));
@@ -204,11 +212,16 @@ final class DelegateRunner {
         Exception lastError = null;
         io.github.llm4j.budget.BudgetExceeded refused = null;
         io.github.llm4j.budget.BudgetExceeded partial = null;
+        int stopRetries = 0;
+        boolean degraded = false;
+        StopOutcome leftOut = null;
+        String stopWhy = null;
         List<io.github.llm4j.budget.Budget> outerScopes = host.scopes().get();
         if (del.getBudget() != null && budgets.budgeting()) {
             host.scopes().set(BudgetCoordinator.plus(outerScopes, budgets.newBudget("step " + stepId, del.getBudget())));
         }
         try {
+        attemptLoop:
         while (attempts < maxAttempts) {
             try {
                 if (attempts > 0 && del.getBackoffMillis() > 0) {
@@ -216,20 +229,39 @@ final class DelegateRunner {
                 }
                 log.info("Delegating to " + agentName + " (Attempt " + (attempts + 1) + ")");
                 ReActAgent runAgent = host.agentForDelegate(del, agentDef, agent);
+                // What the person has said to this step so far (also from before a restart) is part of what the agent is told.
+                String attemptBriefing = withSteers(contextBriefing, interventions.steersFor(stepId));
                 // The agent runs under a handle that is registered while it runs, so a timeout (or anyone else) can stop it.
                 io.github.llm4j.agent.RunHandle handle = interventions.open(stepId, agentName);
                 io.github.llm4j.agent.AgentResult result;
                 try {
                     result = del.getTimeoutMillis() > 0
-                            ? runWithTimeout(runAgent, contextBriefing, del.getTimeoutMillis(), handle)
-                            : runAgent.run(contextBriefing, handle);
+                            ? runWithTimeout(runAgent, attemptBriefing, del.getTimeoutMillis(), handle)
+                            : runAgent.run(attemptBriefing, handle);
                 } finally {
                     interventions.close(stepId);
                 }
-                if (result.isCancelled()) {
-                    // Never a success: not journaled as the step's value, and not retried (retrying would undo what the person asked for).
-                    String why = interventions.reasonFor(stepId);
-                    throw new StepFailure("the agent run was cancelled" + (why == null || why.isBlank() ? "" : ": " + why), null);
+                io.github.llm4j.agent.StopReport stop = result.getStop();
+                if (stop != null) {
+                    // Stopped through its handle. Never a success by accident: the interpreter decides, and what was decided is on the journal.
+                    StopInterpreter.Decision decision = StopInterpreter.decide(stop, interventions.namedOutcome(stepId), host.humanInterface() != null);
+                    StopOutcome outcome = decision.outcome() == StopOutcome.ASK ? askAboutStop(stepId, agentName, stop, stopRetries) : decision.outcome();
+                    String text = stop.kind() == io.github.llm4j.agent.StopReport.Kind.WRAP_UP ? result.getFinalAnswer() : stop.partialAnswer();
+                    if (outcome == StopOutcome.USE_PARTIAL && (text == null || text.isBlank())) outcome = StopOutcome.SKIP; // nothing to keep
+                    interventions.recordStop(stepId, agentName, stop, outcome, decision.why());
+                    String reason = stop.reason() == null || stop.reason().isBlank() ? "stopped" : stop.reason();
+                    if (outcome == StopOutcome.RETRY) {
+                        if (++stopRetries > MAX_STOP_RETRIES) throw new StepFailure("stopped again after a retry (" + reason + ")", null);
+                        continue;
+                    }
+                    if (outcome == StopOutcome.SUSPEND) throw RunSuspended.byOperator(stepId, stop.origin() == null || stop.origin().isBlank() ? "an intervention" : stop.origin());
+                    if (outcome == StopOutcome.CONCLUDE || outcome == StopOutcome.SKIP || outcome == StopOutcome.DISCARD) {
+                        leftOut = outcome; // acted on once the loop is over (RunStopped would be taken for a failure in here)
+                        stopWhy = reason;
+                        break attemptLoop;
+                    }
+                    degraded = true; // USE_PARTIAL: what the agent had stands, marked as degraded
+                    result = result.toBuilder().finalAnswer(text).build();
                 }
                 if (result.budgetExhausted()) {
                     io.github.llm4j.budget.BudgetExceeded be = result.getBudgetExceeded();
@@ -251,7 +283,7 @@ final class DelegateRunner {
                     finalValue = PayloadText.parseJson(answer);
                 }
                 String spoken = null;
-                if (voice != null && voice.speaks() && partial == null) {
+                if (voice != null && voice.speaks() && partial == null && !degraded) {
                     try {
                         spoken = voice.speak(answer, variableName.replaceAll("[^A-Za-z0-9_-]", "_") + "-" + shortHash(stepId));
                     } catch (Exception e) {
@@ -317,6 +349,12 @@ final class DelegateRunner {
             host.sessions().remove(stepId);
         }
 
+        if (leftOut == StopOutcome.CONCLUDE) throw new io.github.llm4j.loom.runtime.RunStopped("concluded at " + stepId + " (" + stopWhy + ")");
+        if (leftOut != null) {
+            host.journal().put(stepId, new RunJournal.Entry(leftOut == StopOutcome.DISCARD ? "discarded" : "skipped", stopWhy));
+            if (leftOut == StopOutcome.SKIP && !del.getOnFailure().isEmpty()) host.runFailureHandler(del.getOnFailure(), "skipped: " + stopWhy);
+            return;
+        }
         if (refused != null) {
             // Refused by a budget: on_failure handles it (outside the exhausted step budget), else it propagates.
             if (del.getOnFailure().isEmpty()) throw refused;
@@ -336,6 +374,44 @@ final class DelegateRunner {
         // retried when the run is resumed.
         if (!del.getOnFailure().isEmpty()) host.journal().put(stepId, new RunJournal.Entry("failed", message));
         handleExhausted(del, agentName, message, lastError);
+    }
+
+    /** How many times a stopped step is run again on a RETRY outcome before it is given up on. */
+    static final int MAX_STOP_RETRIES = 1;
+
+    /** The briefing plus what the person has told the agent while it worked on this step. */
+    private static String withSteers(String briefing, List<String> steers) {
+        if (steers.isEmpty()) return briefing;
+        StringBuilder sb = new StringBuilder(briefing).append("\n\nThe person you are working for has told you, while you worked on this task:");
+        for (String said : steers) sb.append("\n- ").append(said);
+        return sb.toString();
+    }
+
+    /**
+     * Puts a stopped step to a person: use what the agent had, skip the step, run it again, or end the run. The answer is journaled, so a resumed run does not ask
+     * twice. An answer that is not understood leaves the run suspended rather than guessing.
+     */
+    private StopOutcome askAboutStop(String stepId, String agentName, io.github.llm4j.agent.StopReport stop, int asked) {
+        String key = stepId + "#stopped." + asked;
+        String answer = host.journal().get(key).map(e -> String.valueOf(e.value())).orElse(null);
+        if (answer == null) {
+            if (host.humanInterface() == null) return StopOutcome.SUSPEND;
+            String said = stop.partialAnswer().isBlank() ? "nothing yet"
+                    : "\"" + (stop.partialAnswer().length() > 200 ? stop.partialAnswer().substring(0, 200) + "..." : stop.partialAnswer()) + "\"";
+            String question = agentName + " was stopped" + (stop.reason() == null || stop.reason().isBlank() ? "" : " (" + stop.reason() + ")")
+                    + (stop.origin() == null || stop.origin().isBlank() ? "" : " by " + stop.origin()) + ". It had said: " + said
+                    + (stop.mayHaveChangedThings() ? ". It may already have changed something outside this run" : "")
+                    + ". What now? use partial / skip / retry / end";
+            answer = host.humanInterface().promptHuman(key, question, new io.github.llm4j.loom.runtime.HumanInterface.Hints(
+                    io.github.llm4j.loom.runtime.HumanInterface.Hints.Kind.PROMPT, List.of("use partial", "skip", "retry", "end"), null)); // may pause the run
+            host.journal().put(key, new RunJournal.Entry("human", answer));
+        }
+        String a = answer.trim().toLowerCase(java.util.Locale.ROOT);
+        if (a.startsWith("use") || a.startsWith("partial") || a.startsWith("keep")) return StopOutcome.USE_PARTIAL;
+        if (a.startsWith("skip")) return StopOutcome.SKIP;
+        if (a.startsWith("retry") || a.startsWith("again")) return StopOutcome.RETRY;
+        if (a.startsWith("end") || a.startsWith("stop") || a.startsWith("conclude")) return StopOutcome.CONCLUDE;
+        return StopOutcome.SUSPEND;
     }
 
     /** A step that failed before its agent ran: recorded (when on_failure lets the run go on), then handled. */
