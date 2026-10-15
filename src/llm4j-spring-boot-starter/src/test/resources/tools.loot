@@ -1,0 +1,2 @@
+Echo = io.github.llm4j.agent.tools.EchoTool
+Echo.reach = none

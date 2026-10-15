@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.srijithunni7182</groupId>
+        <artifactId>llm4j-parent</artifactId>
+        <version>5.0</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>llm4j-spring-boot-starter</artifactId>
+    <packaging>jar</packaging>
+
+    <name>llm4j Spring Boot Starter</name>
+    <description>Spring Boot auto-configuration for llm4j: an LLMClient, a ToolRegistry and the Loom runtime as beans. Nothing in llm4j depends on it.</description>
+
+    <properties>
+        <spring-boot.version>3.2.3</spring-boot.version>
+        <junit.version>5.10.2</junit.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Loom is optional: its beans appear only when the application also has ai-agent4j-loom -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j-loom</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+            <version>${spring-boot.version}</version>
+        </dependency>
+        <!-- generates the metadata that lets an IDE complete llm4j.* in application.yml -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <version>${spring-boot.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Tests -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-test</artifactId>
+            <version>${spring-boot.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.27.7</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
