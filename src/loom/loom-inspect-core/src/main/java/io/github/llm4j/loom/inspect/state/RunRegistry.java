@@ -15,6 +15,7 @@ public final class RunRegistry {
     private final Map<String, RunState> runs = new ConcurrentHashMap<>();
     private volatile Map<String, InspectRules> central = Map.of();
     private volatile PriceBook prices = PriceBook.EMPTY;
+    private volatile WindowBook windows = WindowBook.EMPTY;
 
     /** Applies log records from one resource (one process instance). Records without a trace id are ignored. */
     public void applyLogs(Resource resource, List<LogRec> records) {
@@ -62,6 +63,12 @@ public final class RunRegistry {
         for (RunState r : runs.values()) r.setPrices(prices);
     }
 
+    /** Context windows kept at the server: an agent whose process did not report one gets one by its model, in every run, from now on. */
+    public void setWindows(WindowBook book) {
+        windows = book == null ? WindowBook.EMPTY : book;
+        for (RunState r : runs.values()) r.setWindows(windows);
+    }
+
     /** What the runs known so far say they have: every agent, and each model with the agents that use it. For a page that offers them as choices. */
     public Map<String, Object> catalog() {
         java.util.Set<String> agents = new java.util.TreeSet<>();
@@ -73,6 +80,142 @@ public final class RunRegistry {
         List<Map<String, Object>> modelRows = new ArrayList<>();
         models.forEach((m, a) -> modelRows.add(Map.of("model", m, "agents", List.copyOf(a))));
         return Map.of("agents", List.copyOf(agents), "models", modelRows);
+    }
+
+    /**
+     * Every tool of every run (or of one client's runs), merged into one account per tool and listed with the failing ones first, then the degraded, then
+     * by the number of calls: the data of a tools-centric view. The thresholds are the defaults with the central {@code *} block laid over them.
+     */
+    public List<ToolSummary> toolRollup(String client) {
+        InspectRules all = central.get("*");
+        Thresholds t = all == null ? Thresholds.defaults() : all.over(Thresholds.defaults());
+        Map<String, ToolSummary> merged = new java.util.TreeMap<>();
+        for (RunState r : runs.values()) {
+            if (client != null && !client.equals(r.client())) continue;
+            for (ToolSummary s : r.toolSummaries()) merged.merge(s.kind() + ":" + s.name(), s, (a, b) -> a.merge(b, t));
+        }
+        List<ToolSummary> out = new ArrayList<>(merged.values());
+        out.sort((a, b) -> {
+            int c = Integer.compare(ToolHealth.rank(b.state()), ToolHealth.rank(a.state()));
+            if (c != 0) return c;
+            c = Long.compare(b.calls(), a.calls());
+            return c != 0 ? c : a.name().compareTo(b.name());
+        });
+        return out;
+    }
+
+    /** What each agent of a run can reach (from the static audit of its script), so the security view can show it next to what was done. */
+    public void setSecurityProfile(String client, String traceId, java.util.function.Supplier<List<Map<String, Object>>> profile) {
+        state(client, traceId).setSecurityProfile(profile);
+    }
+
+    /**
+     * The security counts of every run, added up (or of one client's): agents that used all three legs of the lethal trifecta (and those accepted),
+     * suspect results, refused access, unknown tools, refused approvals, and what the guards did.
+     */
+    public Map<String, Long> securityRollup(String client) {
+        Map<String, Long> total = new java.util.LinkedHashMap<>();
+        for (RunState r : runs.values()) {
+            if (client != null && !client.equals(r.client())) continue;
+            r.securityCounts().forEach((k, v) -> total.merge(k, v, Long::sum));
+        }
+        return total;
+    }
+
+    /**
+     * The tools and tasks of every run (or one client's) for a fleet view: each row is a {@link ToolSummary} as a map, plus the agents that use it and, when it has
+     * ever failed, the run it last failed in ({@code lastRun}: client, trace id, time, category); and the number of rows in each health state. Failing first.
+     */
+    public Map<String, Object> toolRows(String client) {
+        List<ToolSummary> rollup = toolRollup(client);
+        Map<String, Map<String, Object>> last = new java.util.HashMap<>();
+        for (RunState r : runs.values()) {
+            if (client != null && !client.equals(r.client())) continue;
+            for (ToolSummary s : r.toolSummaries()) {
+                if (s.lastFailureAt() == null) continue;
+                String key = s.kind() + ":" + s.name();
+                Map<String, Object> best = last.get(key);
+                if (best == null || s.lastFailureAt().compareTo(String.valueOf(best.get("at"))) > 0) {
+                    Map<String, Object> m = new java.util.LinkedHashMap<>();
+                    m.put("client", r.client());
+                    m.put("traceId", r.traceId());
+                    m.put("at", s.lastFailureAt());
+                    m.put("category", s.lastFailureCategory());
+                    last.put(key, m);
+                }
+            }
+        }
+        // the last ten outcomes of a tool across runs: each run's own last ten, oldest run first (a merged summary has none of its own)
+        List<RunState> oldestFirst = new ArrayList<>();
+        for (RunState r : runs.values()) if (client == null || client.equals(r.client())) oldestFirst.add(r);
+        oldestFirst.sort((a, b) -> {
+            java.time.Instant x = a.lastEventAt();
+            java.time.Instant y = b.lastEventAt();
+            if (x == null || y == null) return x == y ? 0 : x == null ? -1 : 1;
+            return x.compareTo(y);
+        });
+        Map<String, List<String>> recent = new java.util.HashMap<>();
+        for (RunState r : oldestFirst) {
+            for (ToolSummary s : r.toolSummaries()) {
+                List<String> all = recent.computeIfAbsent(s.kind() + ":" + s.name(), k -> new ArrayList<>());
+                all.addAll(s.recent());
+                while (all.size() > 10) all.remove(0);
+            }
+        }
+        List<Long> bounds = new ArrayList<>();
+        for (long b : ToolSummary.BOUNDS) bounds.add(b);
+        List<Map<String, Object>> rows = new ArrayList<>();
+        Map<String, Long> counts = new java.util.LinkedHashMap<>();
+        for (String state : List.of("failing", "degraded", "healthy", "unused")) counts.put(state, 0L);
+        for (ToolSummary s : rollup) {
+            Map<String, Object> m = new java.util.LinkedHashMap<>(s.toMap());
+            m.put("agents", new ArrayList<>(s.byAgent().keySet()));
+            m.put("recent", recent.getOrDefault(s.kind() + ":" + s.name(), List.of()));
+            m.put("histogramBounds", bounds);
+            Map<String, Object> lastRun = last.get(s.kind() + ":" + s.name());
+            if (lastRun != null) m.put("lastRun", lastRun);
+            rows.add(m);
+            counts.merge(s.state(), 1L, Long::sum);
+        }
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("rows", rows);
+        out.put("counts", counts);
+        return out;
+    }
+
+    /** How many tools and tasks, across every run, are failing now: what the Tools & tasks tab shows. */
+    public long toolsFailing() {
+        return toolRollup(null).stream().filter(s -> "failing".equals(s.state())).count();
+    }
+
+    /** The agent rows listed on a security page, and the open incidents shown on it. */
+    public static final int SECURITY_AGENTS = 200;
+    public static final int SECURITY_INCIDENTS = 100;
+
+    /**
+     * The security picture across runs (or one client's): the added-up counts, the agents whose verdict matters (exercised, accepted or armed), and the open
+     * security incidents, newest run first and bounded.
+     */
+    public Map<String, Object> securityOverview(String client) {
+        List<RunState> newestFirst = new ArrayList<>();
+        for (RunState r : runs.values()) if (client == null || client.equals(r.client())) newestFirst.add(r);
+        newestFirst.sort((a, b) -> {
+            java.time.Instant x = a.lastEventAt();
+            java.time.Instant y = b.lastEventAt();
+            if (x == null || y == null) return x == y ? 0 : x == null ? 1 : -1;
+            return y.compareTo(x);
+        });
+        List<Map<String, Object>> agents = new ArrayList<>();
+        List<Map<String, Object>> incidents = new ArrayList<>();
+        for (RunState r : newestFirst) {
+            for (Map<String, Object> a : r.securityAgents()) if (agents.size() < SECURITY_AGENTS) agents.add(a);
+            for (Map<String, Object> i : r.securityIncidents()) if (incidents.size() < SECURITY_INCIDENTS) incidents.add(i);
+        }
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("counts", securityRollup(client));
+        out.put("agents", agents);
+        out.put("incidents", incidents);
+        return out;
     }
 
     /** Gives a run the way to read its decision ladders. */
@@ -117,6 +260,7 @@ public final class RunRegistry {
             RunState r = new RunState(client, traceId);
             r.setCentralRules(central);
             r.setPrices(prices);
+            r.setWindows(windows);
             return r;
         });
         evict();

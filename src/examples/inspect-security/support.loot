@@ -1,0 +1,5 @@
+# What your own tools reach: the audit and the trace both read this, so a review of the script and the record of a run agree.
+# Without a line, a tool is assumed to read untrusted content, reach your data and send things out.
+Fetch.reach = fetches
+CustomerDB.reach = reads
+SendEmail.reach = sends

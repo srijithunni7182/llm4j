@@ -5,14 +5,14 @@
 <title>loom-inspect</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark light">
-<link rel="icon" href="/logo.png" type="image/png">
+<link id="favicon" rel="icon" href="/logo.png" type="image/png">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
 <div class="app">
 
   <header class="top">
-    <div class="brand"><span class="logo" role="img" aria-label="Loom"></span><span>loom<b>·</b>inspect</span></div>
+    <div class="brand"><span id="logo" class="logo" role="img" aria-label="Loom"></span><span id="brandname">loom<b>·</b>inspect</span></div>
     <div class="crumbs">
       <span id="client" class="faint"></span>
       <span id="wfname" class="wf"></span>
@@ -25,6 +25,7 @@
     </div>
     <div class="spacer"></div>
     <div id="controls" class="controls" hidden></div>
+    <button id="live" class="btn live" type="button" aria-pressed="false" title="Live: the page follows the runs. Paused: nothing moves until you resume."><span class="dot"></span><span id="livelbl">Live</span></button><span id="livechip" class="faint mono small" role="status" hidden></span>
     <button id="theme" class="btn" type="button" aria-label="Switch theme"><span id="themelbl">Light</span></button>
   </header>
 
@@ -120,6 +121,32 @@
           <div class="cfgactions"><button class="btn" id="rules-savetext" type="button">Save text</button></div>
         </details>
       </section>
+      <section class="cfgcard" aria-labelledby="h-windows">
+        <h3 id="h-windows">Context windows</h3>
+        <p class="muted" id="windows-summary"></p>
+        <p class="muted small">The usable window of each model, in tokens. An agent whose process was not told its window gets it from here, by its model, so its context gauge and the context-nearly-full rule work. A window a process reports itself wins.</p>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Model</th><th>Used by</th><th class="r">Window (tokens)</th><th></th></tr></thead>
+          <tbody id="windows-table"></tbody>
+        </table></div>
+        <p class="muted pad small" id="windows-none" hidden>No model has been seen yet. Add one below, or start a run.</p>
+        <div class="builder" id="wb" hidden>
+          <strong id="wb-model" class="mono"></strong>
+          <label>Window <input id="wb-window" type="number" min="1" step="1" inputmode="numeric"> <span class="muted">tokens</span></label>
+          <button class="btn" id="wb-set" type="button">Set window</button>
+          <button class="btn" id="wb-remove" type="button">Remove window</button>
+          <button class="btn" id="wb-cancel" type="button">Cancel</button>
+        </div>
+        <div class="builder"><label>Another model <input id="wb-new" type="text" placeholder="model name" spellcheck="false"></label><button class="btn" id="wb-add" type="button">Add</button></div>
+        <ul id="windows-problems" class="problems" role="alert" hidden></ul>
+        <div class="cfgactions"><button class="btn primary" id="windows-save" type="button">Save windows</button><button class="btn" id="windows-reset" type="button">Discard changes</button><span class="mono small" id="windows-msg" role="status"></span></div>
+        <details class="adv"><summary>Edit as text</summary>
+          <p class="muted small">The same table as a file: <code>model = tokens</code>.</p>
+          <label class="sr" for="windows-text">Context windows as text</label>
+          <textarea id="windows-text" class="mono" rows="6" spellcheck="false" placeholder="gemini-2.5-flash = 1048576"></textarea>
+          <div class="cfgactions"><button class="btn" id="windows-savetext" type="button">Save text</button></div>
+        </details>
+      </section>
       <section class="cfgcard" aria-labelledby="h-prices">
         <h3 id="h-prices">Price table</h3>
         <p class="muted" id="prices-summary"></p>
@@ -168,6 +195,67 @@
 
   <div id="banner" class="banner" hidden></div>
 
+  <section id="runslist" class="panel" hidden aria-labelledby="h-rl">
+    <div class="ph"><h2 id="h-rl">Runs</h2><span class="sub mono" id="rlsub"></span></div>
+    <div class="filters">
+      <label class="sr" for="rl-search">Search runs</label>
+      <input id="rl-search" type="search" placeholder="Search by process, workflow or status" spellcheck="false" autocomplete="off">
+      <span class="eyebrow">Show</span><span id="rl-status" class="chips" role="group" aria-label="Show by status"></span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Process</th><th>Workflow</th><th>Status</th><th>Started</th><th>Incidents</th><th class="r">Cost</th></tr></thead>
+        <tbody id="rlrows"></tbody>
+      </table>
+    </div>
+    <p id="norl" class="muted pad" hidden>No run has reported yet.</p>
+  </section>
+
+  <section id="fleettools" class="panel" hidden aria-labelledby="h-ft">
+    <div class="ph"><h2 id="h-ft">Tools and tasks</h2><span class="sub mono" id="ftsub"></span><span id="ftsortwrap" class="chip" hidden>order changed <button id="ftsort" class="runlink" type="button">Re-sort</button></span></div>
+    <div class="kpis ftkpis">
+      <div class="tile fc failing" id="ft-failing"><div class="eyebrow">Failing</div><div class="val" data-v>0</div></div>
+      <div class="tile fc degraded" id="ft-degraded"><div class="eyebrow">Degraded</div><div class="val" data-v>0</div></div>
+      <div class="tile fc healthy" id="ft-healthy"><div class="eyebrow">Healthy</div><div class="val" data-v>0</div></div>
+      <div class="tile fc" id="ft-unused"><div class="eyebrow">Unused</div><div class="val" data-v>0</div></div>
+    </div>
+    <div class="filters">
+      <span class="eyebrow">Show</span><span id="ftf-health" class="chips" role="group" aria-label="Show by health"></span>
+      <span class="eyebrow">Kind</span><span id="ftf-kind" class="chips" role="group" aria-label="Show by kind"></span>
+      <span class="eyebrow">Process</span><span id="ftf-proc" class="chips" role="group" aria-label="Show by process"></span>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tt-table">
+        <thead><tr><th>Name</th><th>Kind</th><th class="r">Calls</th><th>Success (all runs)</th><th>Last 10</th><th class="r">p50 / p95</th><th>Health</th><th>Why, and the usual failure</th></tr></thead>
+        <tbody id="ftrows"></tbody>
+      </table>
+    </div>
+    <p id="ftmore" class="muted pad small" hidden></p>
+    <p id="noft" class="muted pad" hidden>No tool or task has run yet on this server.</p>
+    <p class="faint mono small pad">Open a row for its failures by category, who calls it, its latency and a link to the run it last failed in.</p>
+  </section>
+
+  <section id="fleetsec" class="panel" hidden aria-labelledby="h-fs">
+    <div class="ph"><h2 id="h-fs">Security</h2><span class="sub mono" id="fssub">every run this server knows</span></div>
+    <div class="kpis seckpis">
+      <div class="tile" id="fs-trifecta"><div class="eyebrow">Lethal trifecta</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+      <div class="tile" id="fs-injection"><div class="eyebrow">Prompt injection</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+      <div class="tile" id="fs-access"><div class="eyebrow">Access</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+      <div class="tile" id="fs-data"><div class="eyebrow">Personal data</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+    </div>
+    <h3 class="sub3">Agents that matter</h3>
+    <p class="muted small">Agents whose run used all three legs of the trifecta (<b>exercised</b>), whose use was <b>accepted</b> in writing, or that <b>could</b> but have not (<b>armed</b>).</p>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Run</th><th>Agent</th><th>Verdict</th><th>Why</th></tr></thead>
+      <tbody id="fsagents"></tbody>
+    </table></div>
+    <p id="nofsagents" class="muted pad" hidden>No agent has used all three, and none is armed to.</p>
+    <h3 class="sub3">Open findings</h3>
+    <div id="fsfind"></div>
+    <p id="nofsfind" class="muted pad" hidden>No open security finding in any run.</p>
+    <p id="fsstatement" class="statement"></p>
+  </section>
+
   <div id="attention" class="attention" role="status" hidden></div>
 
   <section id="empty" class="empty" hidden>
@@ -177,15 +265,30 @@
   </section>
 
   <main id="main" hidden>
-    <section class="kpis" aria-label="Run totals">
+    <nav id="runtabs" class="runtabs" role="tablist" aria-label="Views of this run"></nav>
+    <div id="timebar" class="timebar" role="group" aria-label="Time: go back to see how this run looked" hidden>
+      <button id="tb-live" class="btn" type="button" aria-pressed="true" title="Follow the run as it happens">Live</button>
+      <button id="tb-prev" class="btn" type="button" aria-label="Previous incident" title="Go to the previous incident">&lsaquo; incident</button>
+      <div class="tbtrack">
+        <input id="tb-slider" type="range" min="0" max="0" step="1" value="0" aria-label="Point in the run">
+        <div id="tb-marks" class="tbmarks"></div>
+      </div>
+      <button id="tb-next" class="btn" type="button" aria-label="Next incident" title="Go to the next incident" disabled>incident &rsaquo;</button>
+      <span id="tb-at" class="mono small" aria-live="off">now</span>
+      <span id="tb-note" class="muted small" role="status"></span>
+    </div>
+    <div id="snapbanner" class="banner snap" role="status" hidden><span id="snaptext"></span><button id="snapback" class="btn" type="button">Back to live</button></div>
+    <section class="kpis" data-tab="overview" aria-label="Run totals">
       <div class="tile"><div class="eyebrow">Tokens used</div><div class="val" id="tokens">0</div><div class="foot mono" id="tokensfoot"></div></div>
       <div class="tile"><div class="eyebrow">Cost so far</div><div class="val" id="cost">$0</div><div class="foot mono" id="costfoot"></div></div>
       <div class="tile"><div class="eyebrow">Running now</div><div class="val"><span id="running" class="live-t">0</span> <small id="runningof"></small></div><div class="foot mono" id="runningfoot"></div></div>
+      <div class="tile" id="tile-context"><div class="eyebrow">Context</div><div class="val" id="ctxval">–</div><div class="foot mono" id="ctxfoot"></div></div>
       <div class="tile"><div class="eyebrow">Tool calls</div><div class="val" id="toolcalls">0</div><div class="foot mono" id="toolfoot"></div></div>
+      <div class="tile" id="tile-tasks"><div class="eyebrow">Tasks</div><div class="val" id="taskval">0</div><div class="foot mono" id="taskfoot"></div></div>
       <div class="tile"><div class="eyebrow">Run</div><div class="val sm" id="state">–</div><div class="foot mono" id="statefoot"></div></div>
     </section>
 
-    <div class="grid">
+    <div class="grid" data-tab="overview">
       <section class="panel c8" aria-labelledby="h-graph">
         <div class="ph"><h2 id="h-graph">Workflow</h2><span class="sub mono" id="graphsub"></span></div>
         <div class="graph-wrap" id="graphwrap"><svg id="graph" class="graph" role="img" aria-label="Workflow graph"></svg></div>
@@ -230,13 +333,56 @@
         <svg id="spend" class="spend" viewBox="0 0 600 140" preserveAspectRatio="none" role="img" aria-label="Cumulative tokens over time"></svg>
         <p id="nospend" class="muted pad" hidden>No model call has finished yet.</p>
       </section>
-
-      <section class="panel c8" aria-labelledby="h-tools">
-        <div class="ph"><h2 id="h-tools">Tool activity</h2><span class="sub mono" id="toolsub"></span></div>
-        <div class="tools" id="tools"></div>
-        <p id="notools" class="muted pad" hidden>No tool has been called yet.</p>
-      </section>
     </div>
+
+    <section class="panel" id="contextpanel" data-tab="context" aria-labelledby="h-ctx" hidden>
+      <div class="ph"><h2 id="h-ctx">Context and compaction</h2><span class="sub mono" id="ctxsub">how full each agent's window is, and what was cut to make room</span></div>
+      <div id="ctxrows" class="ctxrows"></div>
+      <p id="noctx" class="muted pad" hidden>No model call has reported its context yet.</p>
+      <div id="ctxtimeline" class="ctxtimeline" hidden>
+        <div class="ctxpick"><span class="eyebrow">Timeline</span><span id="ctxpick" class="chips" role="group" aria-label="Agent shown in the timeline"></span></div>
+        <svg id="ctxline" class="ctxline" viewBox="0 0 960 218" role="img" aria-labelledby="ctxline-title"><title id="ctxline-title">Context used over model calls, with a marker for each compaction</title></svg>
+        <p class="faint mono small" id="ctxlegend"></p>
+        <details id="ctxtable-details" class="adv"><summary>Compactions as a table</summary>
+          <div class="tbl-wrap"><table id="ctxtable"><thead><tr><th>After call</th><th>Strategy</th><th>Outcome</th><th class="r">Before</th><th class="r">After</th></tr></thead><tbody></tbody></table></div>
+        </details>
+      </div>
+    </section>
+
+    <section class="panel" id="toolspanel" data-tab="tools" aria-labelledby="h-tt" hidden>
+      <div class="ph"><h2 id="h-tt">Tools and tasks</h2><span class="sub mono" id="ttsub"></span><span id="ttsortwrap" class="chip" hidden>order changed <button id="ttsort" class="runlink" type="button">Re-sort</button></span><span class="spacer"></span><span id="ttfilter" class="chips" role="group" aria-label="Show"></span></div>
+      <div class="tbl-wrap">
+        <table class="tt-table">
+          <thead><tr><th>Name</th><th>Kind</th><th class="r">Calls</th><th>Success</th><th class="r">p50 / p95</th><th>Health</th><th>Last failure</th></tr></thead>
+          <tbody id="ttrows"></tbody>
+        </table>
+      </div>
+      <p id="nott" class="muted pad" hidden>No tool or task has run yet.</p>
+      <p class="faint mono small pad">Open a row for its failures by category, who calls it, its last ten outcomes and its latency.</p>
+    </section>
+
+    <section class="panel" id="securitypanel" data-tab="security" aria-labelledby="h-sec2" hidden>
+      <div class="ph"><h2 id="h-sec2">Security</h2><span class="sub mono" id="secsub2">what each agent could reach, and what it did</span></div>
+      <div class="kpis seckpis">
+        <div class="tile" id="sec-trifecta"><div class="eyebrow">Lethal trifecta</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+        <div class="tile" id="sec-injection"><div class="eyebrow">Prompt injection</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+        <div class="tile" id="sec-access"><div class="eyebrow">Access</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+        <div class="tile" id="sec-data"><div class="eyebrow">Personal data</div><div class="val sm" data-v></div><div class="foot mono" data-f></div></div>
+      </div>
+      <h3 class="sub3">The lethal trifecta, per agent</h3>
+      <p class="muted small">Three things that must not meet in one agent: reads content you do not control, reaches your private data, can send something out. <b>Can</b> comes from the script; <b>used</b> from what the run called.</p>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Agent</th><th>Reads untrusted content</th><th>Reaches private data</th><th>Sends or changes things outside</th><th>Verdict</th></tr></thead>
+        <tbody id="secagents"></tbody>
+      </table></div>
+      <p id="nosecagents" class="muted pad" hidden>No agent has called a tool yet.</p>
+      <h3 class="sub3">Findings</h3>
+      <div id="secfindings"></div>
+      <p id="nosecfind" class="muted pad" hidden>No security finding in this run.</p>
+      <h3 class="sub3">Guards</h3>
+      <ul id="secguards" class="plain"></ul>
+      <p id="secstatement" class="statement"></p>
+    </section>
   </main>
 
   <footer class="foot2 faint mono"><span id="mode">embedded mode</span><span id="updated"></span></footer>

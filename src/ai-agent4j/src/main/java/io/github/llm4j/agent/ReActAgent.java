@@ -21,6 +21,21 @@ import io.github.llm4j.budget.BudgetPolicy;
 import io.github.llm4j.budget.BudgetedLLMClient;
 import io.github.llm4j.budget.PriceTable;
 import io.github.llm4j.budget.TokenEstimator;
+import io.github.llm4j.context.CompactionEvent;
+import io.github.llm4j.telemetry.CallTrace;
+import io.github.llm4j.telemetry.ErrorCategory;
+import io.github.llm4j.telemetry.ModelCallEvent;
+import io.github.llm4j.telemetry.RunStats;
+import io.github.llm4j.telemetry.StatsAccumulator;
+import io.github.llm4j.telemetry.ToolCallEvent;
+import io.github.llm4j.telemetry.ToolOutcome;
+import io.github.llm4j.context.ContextCompactor;
+import io.github.llm4j.context.ContextEvents;
+import io.github.llm4j.context.ContextManager;
+import io.github.llm4j.context.ContextPolicy;
+import io.github.llm4j.context.ContextUsage;
+import io.github.llm4j.context.ContextWindow;
+import io.github.llm4j.context.ContextWindows;
 import io.github.llm4j.fairness.BiasContext;
 import io.github.llm4j.fairness.BiasEvent;
 import io.github.llm4j.fairness.BiasMonitor;
@@ -123,6 +138,13 @@ public class ReActAgent {
     private final PriceTable priceTable;
     private final String budgetModel;
     private final TokenEstimator tokenEstimator;
+    private final java.time.Clock clock;
+    private final ContextPolicy contextPolicy;
+    private final ContextCompactor compactor;
+    // as given to the builder, so toBuilder() can resolve the window again
+    private final ContextPolicy givenContextPolicy;
+    private final Integer givenContextWindow;
+    private final ContextWindows givenContextWindows;
     private final Map<String, Tool> tools;
     private final String systemPrompt;
     private final int maxIterations;
@@ -157,6 +179,12 @@ public class ReActAgent {
         this.priceTable = builder.priceTable;
         this.budgetModel = builder.budgetModel;
         this.tokenEstimator = builder.tokenEstimator;
+        this.clock = builder.clock != null ? builder.clock : java.time.Clock.systemUTC();
+        this.givenContextPolicy = builder.contextPolicy;
+        this.givenContextWindow = builder.contextWindow;
+        this.givenContextWindows = builder.contextWindows;
+        this.compactor = builder.compactor;
+        this.contextPolicy = resolveContextPolicy(builder);
         this.llmClient = budgeted(baseClient);
         this.tools = new HashMap<>(builder.tools);
         this.persona = builder.persona;
@@ -230,6 +258,35 @@ public class ReActAgent {
         return false;
     }
 
+    /** The policy with its window settled: the policy's own, else the shorthand, else the catalogue entry for the model name. */
+    private static ContextPolicy resolveContextPolicy(Builder b) {
+        ContextPolicy policy = b.contextPolicy != null ? b.contextPolicy : ContextPolicy.builder().build();
+        if (policy.window() != null) return policy;
+        if (b.contextWindow != null) return policy.withWindow(ContextWindow.of(b.contextWindow));
+        if (b.contextWindows != null && b.budgetModel != null) {
+            return b.contextWindows.window(b.budgetModel).map(policy::withWindow).orElse(policy);
+        }
+        return policy;
+    }
+
+    /** A manager for one run, or null when nothing about context was asked for (then the loop behaves exactly as it always has). */
+    private ContextManager newContextManager(List<ToolSpec> specs) {
+        if (compactor == null && listeners.isEmpty() && contextPolicy.window() == null) return null;
+        TokenEstimator estimator = tokenEstimator != null ? tokenEstimator : io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE;
+        long overhead = specs.isEmpty() ? 0 : estimator.prompt(LLMRequest.builder().messages(List.of(Message.user(""))).tools(specs).build());
+        return new ContextManager(contextPolicy, compactor, estimator, overhead, new ContextEvents() {
+            @Override
+            public void onUsage(ContextUsage usage) {
+                notifyContextUsage(usage);
+            }
+
+            @Override
+            public void onCompaction(CompactionEvent event) {
+                notifyCompaction(event);
+            }
+        });
+    }
+
     /** Wraps the client in a {@link BudgetedLLMClient} when this agent has a budget or a per-call cap. */
     private LLMClient budgeted(LLMClient client) {
         if ((budget == null && maxTokensPerCall == null) || client instanceof BudgetedLLMClient) return client;
@@ -243,16 +300,40 @@ public class ReActAgent {
     }
 
     public AgentResult run(String question) {
-        // ... (run method setup is the same)
         Objects.requireNonNull(question, "question cannot be null");
-        if (nativeCalling) return runNative(question);
+        RunTelemetry telemetry = new RunTelemetry();
+        AgentResult result = nativeCalling ? runNative(question, telemetry) : runText(question, telemetry);
+        return result.toBuilder().stats(telemetry.snapshot()).build();
+    }
+
+    /** What one run measures about its calls: the statistics that go on its result, and the events its listeners hear. */
+    private final class RunTelemetry {
+        private final StatsAccumulator stats = new StatsAccumulator();
+
+        void tool(ToolCallEvent event) {
+            stats.onToolCall(event);
+            notifyToolCall(event);
+        }
+
+        void model(ModelCallEvent event) {
+            stats.onModelCall(event);
+            notifyModelCall(event);
+        }
+
+        RunStats snapshot() {
+            return stats.snapshot();
+        }
+    }
+
+    /** The loop on the text protocol: the model writes a JSON block that the agent parses. */
+    private AgentResult runText(String question, RunTelemetry telemetry) {
 
         // If question starts with "VOICE:" (or similar marker), we could infer?
         // But better to have explicit methods.
 
         List<AgentResult.AgentStep> steps = new ArrayList<>();
-        StringBuilder scratchpad = new StringBuilder();
-        scratchpad.append("Question: ").append(question).append("\n");
+        Scratchpad scratchpad = new Scratchpad(question);
+        ContextManager contextManager = newContextManager(List.of());
 
         Set<String> actionHistory = new HashSet<>();
         AtomicInteger redundantActionCount = new AtomicInteger(0);
@@ -289,15 +370,52 @@ public class ReActAgent {
                     context += "\n";
                 }
             }
+            if (contextManager != null) {
+                // the system prompt (which lists the tools) and the history are part of the prompt too
+                TokenEstimator estimator = tokenEstimator != null ? tokenEstimator : io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE;
+                long overhead = estimator.prompt(LLMRequest.builder().addSystemMessage(systemPrompt).addUserMessage(context).build());
+                ContextManager.Prepared prepared = contextManager.prepare(scratchpad.messages(), i, overhead);
+                if (prepared.changed()) scratchpad.replace(prepared.messages());
+                io.github.llm4j.context.CompactionUsage spent = prepared.summarizerUsage();
+                if (spent != null) {
+                    llmCallCount += spent.calls();
+                    totalPromptTokens += (int) spent.promptTokens();
+                    totalCompletionTokens += (int) spent.completionTokens();
+                    totalTokens += (int) (spent.promptTokens() + spent.completionTokens());
+                    if (spent.cost() != null) totalCost = totalCost == null ? spent.cost() : totalCost.add(spent.cost());
+                }
+            }
+            int sent = scratchpad.size();
             LLMRequest request =
                     LLMRequest.builder()
                             .addSystemMessage(systemPrompt)
-                            .addUserMessage(context + scratchpad.toString())
+                            .addUserMessage(context + scratchpad.render())
                             .temperature(temperature)
                             .build();
             LLMResponse response;
             try {
-                response = llmClient.chat(request);
+                try {
+                    response = chatObserved(request, i, telemetry);
+                } catch (io.github.llm4j.exception.ContextOverflowException overflow) {
+                    // the provider says the prompt is too long: compact harder, once, and try again once
+                    TokenEstimator estimator = tokenEstimator != null ? tokenEstimator : io.github.llm4j.budget.CharsPerTokenEstimator.INSTANCE;
+                    long overhead = contextManager == null ? 0
+                            : estimator.prompt(LLMRequest.builder().addSystemMessage(systemPrompt).addUserMessage(context).build());
+                    ContextManager.Prepared again = contextManager == null ? null : contextManager.recoverFromOverflow(scratchpad.messages(), i, overhead);
+                    if (again == null || !again.changed()) throw overflow;
+                    scratchpad.replace(again.messages());
+                    io.github.llm4j.context.CompactionUsage spent = again.summarizerUsage();
+                    if (spent != null) {
+                        llmCallCount += spent.calls();
+                        totalPromptTokens += (int) spent.promptTokens();
+                        totalCompletionTokens += (int) spent.completionTokens();
+                        totalTokens += (int) (spent.promptTokens() + spent.completionTokens());
+                        if (spent.cost() != null) totalCost = totalCost == null ? spent.cost() : totalCost.add(spent.cost());
+                    }
+                    sent = scratchpad.size();
+                    request = LLMRequest.builder().addSystemMessage(systemPrompt).addUserMessage(context + scratchpad.render()).temperature(temperature).build();
+                    response = chatObserved(request, i, telemetry);
+                }
             } catch (io.github.llm4j.exception.RateLimitException limited) {
                 // Too long to wait inline (the HTTP layer already waited out short limits): hand the
                 // reset time to the caller instead of retrying or answering half-way.
@@ -324,6 +442,7 @@ public class ReActAgent {
 
             llmCallCount++;
             LLMResponse.TokenUsage tokenUsage = response.getTokenUsage();
+            if (contextManager != null && tokenUsage != null) contextManager.reported(tokenUsage.getPromptTokens(), sent);
             if (tokenUsage != null) {
                 totalPromptTokens += tokenUsage.getPromptTokens();
                 totalCompletionTokens += tokenUsage.getCompletionTokens();
@@ -399,12 +518,12 @@ public class ReActAgent {
                 if (action != null) notifyAction(action, actionInput);
 
                 if (action == null || action.isEmpty()) {
-                    scratchpad.append(llmOutput).append("\nObservation: No valid action found.\n");
+                    scratchpad.noAction(llmOutput);
                     continue;
                 }
 
                 ActionExecution execution =
-                        executeAction(action, actionInput, actionHistory, thought, redundantActionCount);
+                        executeAction(action, actionInput, actionHistory, thought, redundantActionCount, telemetry, i);
                 String observation = execution.observation();
                 lastObservation = observation;
 
@@ -413,23 +532,13 @@ public class ReActAgent {
                                 thought, action, actionInput, observation, execution.outcome());
                 steps.add(step);
 
-                scratchpad.append("Plan: ").append(thought != null ? thought : "").append("\n");
-                scratchpad.append("Action: ").append(action).append("\n");
-                scratchpad
-                        .append("Action Input: ")
-                        .append(actionInput != null ? actionInput : "")
-                        .append("\n");
-                scratchpad.append("Observation: ").append(observation).append("\n");
+                scratchpad.step(thought, action, actionInput, observation);
 
             } catch (AgentInterrupt interrupt) {
                 throw interrupt;
             } catch (Exception e) {
                 logger.error("Critical error in agent loop: {}", e.getMessage(), e);
-                scratchpad
-                        .append(llmOutput)
-                        .append("\nObservation: System Error: ")
-                        .append(e.getMessage())
-                        .append("\n");
+                scratchpad.error(llmOutput, e.getMessage());
             }
         }
         return buildFailureResult(
@@ -488,6 +597,16 @@ public class ReActAgent {
             }
         }
 
+        /** Model calls a compaction strategy made on the agent's behalf (a summary). */
+        void add(io.github.llm4j.context.CompactionUsage u) {
+            if (u == null) return;
+            calls += u.calls();
+            prompt += (int) u.promptTokens();
+            completion += (int) u.completionTokens();
+            total += (int) (u.promptTokens() + u.completionTokens());
+            if (u.cost() != null) cost = cost == null ? u.cost() : cost.add(u.cost());
+        }
+
         AgentResult.Usage usage() {
             return new AgentResult.Usage(calls, prompt, completion, total, estimated, cost);
         }
@@ -498,7 +617,7 @@ public class ReActAgent {
      * message, and a reply with no tool calls is the final answer. Approvals, budgets, rate limits, duplicate blocking, listeners, audit and the
      * result are the same as on the text protocol.
      */
-    private AgentResult runNative(String question) {
+    private AgentResult runNative(String question, RunTelemetry telemetry) {
         List<AgentResult.AgentStep> steps = new ArrayList<>();
         Set<String> actionHistory = new HashSet<>();
         AtomicInteger redundantActionCount = new AtomicInteger(0);
@@ -524,13 +643,31 @@ public class ReActAgent {
         conversation.add(Message.system(nativePrompt));
         conversation.add(Message.user(context + question));
         List<ToolSpec> specs = toolSpecs();
+        ContextManager contextManager = newContextManager(specs);
 
         for (int i = 0; i < maxIterations; i++) {
             logger.debug("Agent iteration {}/{} (native tool calling)", i + 1, maxIterations);
+            if (contextManager != null) {
+                ContextManager.Prepared prepared = contextManager.prepare(conversation, i);
+                if (prepared.changed()) conversation = new ArrayList<>(prepared.messages());
+                tally.add(prepared.summarizerUsage());
+            }
+            int sent = conversation.size();
             LLMRequest request = LLMRequest.builder().messages(conversation).tools(specs).temperature(temperature).build();
             LLMResponse response;
             try {
-                response = llmClient.chat(request);
+                try {
+                    response = chatObserved(request, i, telemetry);
+                } catch (io.github.llm4j.exception.ContextOverflowException overflow) {
+                    // the provider says the prompt is too long: compact harder, once, and try again once
+                    ContextManager.Prepared again = contextManager == null ? null : contextManager.recoverFromOverflow(conversation, i, 0);
+                    if (again == null || !again.changed()) throw overflow;
+                    tally.add(again.summarizerUsage());
+                    conversation = new ArrayList<>(again.messages());
+                    sent = conversation.size();
+                    request = LLMRequest.builder().messages(conversation).tools(specs).temperature(temperature).build();
+                    response = chatObserved(request, i, telemetry);
+                }
             } catch (io.github.llm4j.exception.RateLimitException limited) {
                 throw new io.github.llm4j.ratelimit.RateLimited(
                         limited.infoOrEstimate(java.time.Instant.now(), java.time.Duration.ofSeconds(60)),
@@ -546,6 +683,9 @@ public class ReActAgent {
                         steps, i, tally.usage(), redundantActionCount.get(), true);
             }
             tally.add(response);
+            if (contextManager != null && response.getTokenUsage() != null) {
+                contextManager.reported(response.getTokenUsage().getPromptTokens(), sent);
+            }
             String text = response.getContent() == null ? "" : response.getContent();
             logger.info("=== LLM Response (Iteration {}) ===\n{}{}", i + 1, text, response.hasToolCalls() ? "\n[tool calls: " + response.getToolCalls().size() + "]" : "");
 
@@ -577,7 +717,7 @@ public class ReActAgent {
                     actionInput = String.valueOf(args);
                 }
                 notifyAction(call.name(), actionInput);
-                ActionExecution execution = executeAction(call.name(), actionInput, actionHistory, thought, redundantActionCount);
+                ActionExecution execution = executeAction(call.name(), actionInput, actionHistory, thought, redundantActionCount, telemetry, i);
                 lastObservation = execution.observation();
                 steps.add(new AgentResult.AgentStep(thought, call.name(), actionInput, execution.observation(), execution.outcome()));
                 conversation.add(Message.toolResult(call.id(), call.name(), execution.observation()));
@@ -645,10 +785,92 @@ public class ReActAgent {
         throw new Exception("No valid JSON block or legacy format found in LLM output.");
     }
 
-    /** Pairs a step's observation text with what actually happened, for {@link AgentResult.AgentStep}. */
-    private record ActionExecution(String observation, AgentResult.StepOutcome outcome) {}
+    /** Pairs a step's observation text with what actually happened, and with what was measured about the call. */
+    private record ActionExecution(
+            String observation,
+            AgentResult.StepOutcome outcome,
+            long durationMillis,
+            long approvalMillis,
+            boolean softFailure,
+            ErrorCategory category,
+            String errorType) {
 
+        ActionExecution(String observation, AgentResult.StepOutcome outcome) {
+            this(observation, outcome, 0, 0, false, null, null);
+        }
+    }
+
+    /**
+     * One model call, timed and reported: an event for an answer and for a failure alike, and a failure still propagates exactly as it would have. The
+     * summariser of a compaction strategy has its own client and is not a call of the run (its usage is reported with the compaction).
+     */
+    private LLMResponse chatObserved(LLMRequest request, int iteration, RunTelemetry telemetry) {
+        java.time.Instant startedAt = clock.instant();
+        long started = clock.millis();
+        ModelCallEvent.Builder event = ModelCallEvent.builder().iteration(iteration).requestedModel(request.getModel()).startedAt(startedAt);
+        LLMResponse response;
+        CallTrace.begin();
+        try {
+            response = llmClient.chat(request);
+        } catch (RuntimeException e) {
+            long duration = Math.max(0, clock.millis() - started);
+            telemetry.model(traced(event, duration, CallTrace.end()).failed(ErrorCategory.of(e), e.getClass().getSimpleName()).build());
+            throw e;
+        } catch (Error e) {
+            CallTrace.end();
+            throw e;
+        }
+        long duration = Math.max(0, clock.millis() - started);
+        traced(event, duration, CallTrace.end());
+        if (response != null) {
+            event.model(response.getModel()).finishReason(response.getFinishReason()).toolCallsRequested(response.getToolCalls().size());
+            LLMResponse.TokenUsage usage = response.getTokenUsage();
+            if (usage != null) event.promptTokens(usage.getPromptTokens()).completionTokens(usage.getCompletionTokens()).totalTokens(usage.getTotalTokens());
+            Map<String, Object> meta = response.getMetadata();
+            if (meta != null) {
+                event.usageEstimated(Boolean.TRUE.equals(meta.get(BudgetedLLMClient.ESTIMATED)));
+                if (meta.get(BudgetedLLMClient.COST) instanceof java.math.BigDecimal cost) event.cost(cost);
+            }
+        }
+        telemetry.model(event.build());
+        return response;
+    }
+
+    /** Puts the duration and what the layers below reported on the event; the wait can never exceed the time the agent saw. */
+    private static ModelCallEvent.Builder traced(ModelCallEvent.Builder event, long duration, CallTrace.Totals t) {
+        return event.durationMillis(duration).attempts(t.attempts()).waitedMillis(Math.min(t.waitedMillis(), duration)).failovers(t.failovers());
+    }
+
+    /** Runs one action and reports it: one {@link ToolCallEvent} for whatever happened, a deliberate interrupt excepted. */
     private ActionExecution executeAction(
+            String action,
+            String actionInput,
+            Set<String> actionHistory,
+            String thought,
+            AtomicInteger redundantActionCount,
+            RunTelemetry telemetry,
+            int iteration) {
+        java.time.Instant startedAt = clock.instant();
+        ActionExecution x = performAction(action, actionInput, actionHistory, thought, redundantActionCount);
+        ToolOutcome outcome = toolOutcome(x.outcome());
+        ToolCallEvent.Builder event = ToolCallEvent.builder()
+                .iteration(iteration)
+                .tool(action)
+                .startedAt(startedAt)
+                .durationMillis(x.durationMillis())
+                .approvalMillis(x.approvalMillis())
+                .argumentChars(actionInput == null ? 0 : actionInput.length())
+                .resultChars(x.observation() == null ? 0 : x.observation().length());
+        if (outcome == ToolOutcome.EXECUTED) {
+            if (x.softFailure()) event.softFailure(x.category());
+        } else {
+            event.outcome(outcome, x.category() != null ? x.category() : outcome.defaultCategory(), x.errorType());
+        }
+        telemetry.tool(event.build());
+        return x;
+    }
+
+    private ActionExecution performAction(
             String action,
             String actionInput,
             Set<String> actionHistory,
@@ -675,6 +897,8 @@ public class ReActAgent {
                     AgentResult.StepOutcome.UNKNOWN_TOOL);
         }
 
+        long approvalMillis = 0;
+        long executeStarted = -1;
         try {
             logger.debug("Executing tool '{}' with input: {}", action, actionInput);
             Map<String, Object> args;
@@ -699,19 +923,24 @@ public class ReActAgent {
                                     + " Add one via ReActAgent.Builder#approvalCallback().",
                             AgentResult.StepOutcome.APPROVAL_UNAVAILABLE);
                 }
+                long asked = clock.millis();
                 boolean approved = approvalCallback.approve(action, args, thought != null ? thought : "");
+                approvalMillis = Math.max(0, clock.millis() - asked);
                 if (!approved) {
                     logger.info("Human rejected action '{}'. Feeding back to agent.", action);
                     return new ActionExecution(
                             "Observation: A human supervisor rejected this action. "
                                     + "Do not attempt it again. Choose a different approach to accomplish the goal.",
-                            AgentResult.StepOutcome.REJECTED_BY_HUMAN);
+                            AgentResult.StepOutcome.REJECTED_BY_HUMAN,
+                            0, approvalMillis, false, null, null);
                 }
                 logger.info("Human approved action '{}'.", action);
             }
             // ─────────────────────────────────────────────────────────────────
 
+            executeStarted = clock.millis();
             String observation = tool.execute(args);
+            long durationMillis = Math.max(0, clock.millis() - executeStarted);
             logger.info("Tool '{}' returned observation: {}", action, observation);
             try {
                 auditLogger.logToolExecution(sessionId, action, String.valueOf(args), observation, java.time.Instant.now());
@@ -719,13 +948,40 @@ public class ReActAgent {
                 logger.warn("Audit logging of tool '{}' failed: {}", action, auditFailure.getMessage());
             }
             notifyObservation(observation);
-            return new ActionExecution(observation, AgentResult.StepOutcome.EXECUTED);
+            boolean soft = readsAsFailure(tool, observation);
+            return new ActionExecution(observation, AgentResult.StepOutcome.EXECUTED, durationMillis, approvalMillis, soft,
+                    soft ? ToolResults.categoryOf(observation) : null, null);
         } catch (AgentInterrupt interrupt) {
             throw interrupt; // a deliberate stop (e.g. waiting for a human) is never a tool error
         } catch (Exception e) {
             logger.error("Error executing tool {}: {}", action, e.getMessage(), e);
+            long durationMillis = executeStarted < 0 ? 0 : Math.max(0, clock.millis() - executeStarted);
             return new ActionExecution(
-                    "Error executing tool: " + e.getMessage(), AgentResult.StepOutcome.EXECUTION_ERROR);
+                    "Error executing tool: " + e.getMessage(), AgentResult.StepOutcome.EXECUTION_ERROR,
+                    durationMillis, approvalMillis, false, ErrorCategory.of(e), e.getClass().getSimpleName());
+        }
+    }
+
+    /** The telemetry name for a step outcome; a switch with no default, so a new outcome cannot be added without deciding what it is called here. */
+    private static ToolOutcome toolOutcome(AgentResult.StepOutcome outcome) {
+        return switch (outcome) {
+            case EXECUTED -> ToolOutcome.EXECUTED;
+            case UNKNOWN_TOOL -> ToolOutcome.UNKNOWN_TOOL;
+            case DUPLICATE_BLOCKED -> ToolOutcome.DUPLICATE_BLOCKED;
+            case APPROVAL_UNAVAILABLE -> ToolOutcome.APPROVAL_UNAVAILABLE;
+            case REJECTED_BY_HUMAN -> ToolOutcome.REJECTED_BY_HUMAN;
+            case EXECUTION_ERROR -> ToolOutcome.EXECUTION_ERROR;
+            case BUDGET_EXHAUSTED -> ToolOutcome.BUDGET_EXHAUSTED;
+        };
+    }
+
+    /** Whether the tool says its own result is a failure; a tool whose check itself breaks is taken to have succeeded. */
+    private static boolean readsAsFailure(Tool tool, String observation) {
+        try {
+            return observation != null && tool.isFailure(observation);
+        } catch (RuntimeException e) {
+            logger.warn("Tool '{}' could not tell whether its result is a failure: {}", tool.getName(), e.toString());
+            return false;
         }
     }
 
@@ -994,6 +1250,46 @@ public class ReActAgent {
         }
     }
 
+    private void notifyContextUsage(ContextUsage usage) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onContextUsage(usage);
+            } catch (Exception e) {
+                logger.error("Error in listener onContextUsage", e);
+            }
+        }
+    }
+
+    private void notifyCompaction(CompactionEvent event) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onCompaction(event);
+            } catch (Exception e) {
+                logger.error("Error in listener onCompaction", e);
+            }
+        }
+    }
+
+    private void notifyToolCall(ToolCallEvent event) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onToolCall(event);
+            } catch (Exception e) {
+                logger.error("Error in listener onToolCall", e);
+            }
+        }
+    }
+
+    private void notifyModelCall(ModelCallEvent event) {
+        for (AgentEventListener listener : listeners) {
+            try {
+                listener.onModelCall(event);
+            } catch (Exception e) {
+                logger.error("Error in listener onModelCall", e);
+            }
+        }
+    }
+
     private void notifyObservation(String observation) {
         for (AgentEventListener listener : listeners) {
             try {
@@ -1087,6 +1383,11 @@ public class ReActAgent {
         private PriceTable priceTable;
         private String budgetModel;
         private TokenEstimator tokenEstimator;
+        private java.time.Clock clock;
+        private ContextPolicy contextPolicy;
+        private Integer contextWindow;
+        private ContextWindows contextWindows;
+        private ContextCompactor compactor;
         private ToolCalling toolCalling = ToolCalling.AUTO;
         private boolean inheritedPrompt;
         private String inheritedNativePrompt;
@@ -1101,6 +1402,11 @@ public class ReActAgent {
             this.priceTable = agent.priceTable;
             this.budgetModel = agent.budgetModel;
             this.tokenEstimator = agent.tokenEstimator;
+            this.clock = agent.clock;
+            this.contextPolicy = agent.givenContextPolicy;
+            this.contextWindow = agent.givenContextWindow;
+            this.contextWindows = agent.givenContextWindows;
+            this.compactor = agent.compactor;
             this.tools = new HashMap<>(agent.tools);
             this.systemPrompt = agent.systemPrompt;
             this.maxIterations = agent.maxIterations;
@@ -1133,6 +1439,53 @@ public class ReActAgent {
         /** How the agent asks the model to use tools; {@link ToolCalling#AUTO} by default. */
         public Builder toolCalling(ToolCalling mode) {
             this.toolCalling = mode == null ? ToolCalling.AUTO : mode;
+            return this;
+        }
+
+        /**
+         * The clock that times model and tool calls in events and statistics: the system clock by default; a test passes one it controls.
+         */
+        public Builder clock(java.time.Clock clock) {
+            this.clock = clock;
+            return this;
+        }
+
+        /**
+         * When to compact the conversation and how far, and what must never be touched. Without a compactor ({@link #compaction}) the
+         * agent only reports its context use to listeners.
+         */
+        public Builder contextPolicy(ContextPolicy policy) {
+            this.contextPolicy = policy;
+            return this;
+        }
+
+        /**
+         * The model's context window in tokens; shorthand for a policy with this window. A window in the policy wins over this. With a window the
+         * agent refuses, with a {@link io.github.llm4j.exception.ContextOverflowException} and without calling the model, a prompt that is still
+         * more than 25 % over it after any compaction.
+         */
+        public Builder contextWindow(int tokens) {
+            this.contextWindow = tokens;
+            return this;
+        }
+
+        /**
+         * Where to look up the window by the model name set with {@link #budgetModel}, when neither the policy nor
+         * {@link #contextWindow} gives one.
+         */
+        public Builder contextWindows(ContextWindows windows) {
+            this.contextWindows = windows;
+            return this;
+        }
+
+        /**
+         * How to make the conversation smaller when it nears the window; see {@code ContextCompactors} for the built-in strategies. Needs a
+         * window to act (from the policy, {@link #contextWindow} or {@link #contextWindows}); without one it is never called.
+         *
+         * <p>It applies to both loops: native tool calling and the text protocol.
+         */
+        public Builder compaction(ContextCompactor compactor) {
+            this.compactor = compactor;
             return this;
         }
 

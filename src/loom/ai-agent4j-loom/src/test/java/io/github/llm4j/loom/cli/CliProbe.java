@@ -48,4 +48,15 @@ public final class CliProbe {
                 c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""), List.of("weave"), env);
         return WeaveCLI.run(script, null, "Main", java.util.Map.of(), null, null, null, null, null, null, false, false, trace, e);
     }
+
+    /** {@code weave audit} on a script, writing to {@code out}; nothing else is reachable from it. */
+    public static int audit(File script, String format, PrintStream out) {
+        WeaveEnv e = new WeaveEnv(model -> { throw new IllegalStateException("no models in audit"); }, message -> "", out, out,
+                Clock.systemUTC(), d -> { }, c -> new io.github.llm4j.loom.trigger.system.CommandRunner.Result(0, "", ""), List.of("weave"));
+        AuditCommand command = new AuditCommand();
+        command.script = script;
+        command.format = format;
+        command.failOn = "none";
+        return AuditCommand.audit(command, e);
+    }
 }

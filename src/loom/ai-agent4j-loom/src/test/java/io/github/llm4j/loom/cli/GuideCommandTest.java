@@ -120,10 +120,11 @@ class GuideCommandTest {
         Path folder = Guide.skillFolder(dir);
         String skill = Files.readString(folder.resolve("SKILL.md"));
         assertThat(skill).startsWith("---\nname: llm4j-workflow-guide").contains("`references/").doesNotContain("`docs/guide/");
+        long guidePages = Guide.pages().stream().filter(p -> p.resource().startsWith("guide/")).count();
         for (Guide.Page p : Guide.pages()) {
-            assertThat(folder.resolve("references").resolve(p.resource().substring("guide/".length()))).as(p.name()).exists();
+            if (p.resource().startsWith("guide/")) assertThat(folder.resolve("references").resolve(p.resource().substring("guide/".length()))).as(p.name()).exists();
         }
-        assertThat(stdout()).contains("Installed the skill in").contains((Guide.pages().size() + 1) + " files");
+        assertThat(stdout()).contains("Installed the skill in").contains((guidePages + 1) + " files");
     }
 
     @Test

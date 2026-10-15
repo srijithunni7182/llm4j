@@ -74,6 +74,11 @@ class SarvamContractTest extends ProviderContract {
     }
 
     @Override
+    protected String overflowMessage() {
+        return "This model's maximum context length is 8192 tokens. However, your messages resulted in 9500 tokens. Please reduce the length of the messages.";
+    }
+
+    @Override
     protected String error(int status, String message) {
         return "{\"error\":{\"message\":" + AnthropicContractTest.quote(message) + ",\"code\":\"error_" + status + "\"}}";
     }

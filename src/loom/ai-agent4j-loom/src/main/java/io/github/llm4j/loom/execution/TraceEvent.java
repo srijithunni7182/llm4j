@@ -17,7 +17,7 @@ public record TraceEvent(String type, String agent, String step, String text, Ma
 
     /** A top-level run (or a resumed one) begins: {@code data} has {@code workflow}, {@code run} (the run id, when there is one) and {@code resumed}. */
     public static final String RUN_START = "run_start";
-    /** A top-level run leaves {@code executeWorkflow}: {@code data.status} is completed, suspended, stopped, budget or failed. */
+    /** A top-level run leaves {@code executeWorkflow}: {@code data.status} is completed, suspended, stopped, budget or failed; {@code model_calls}, {@code tool_calls}, {@code tool_failures}, {@code retries}, {@code failovers} and {@code compactions} are the run's totals so far. */
     public static final String RUN_END = "run_end";
     public static final String DELEGATE_START = "delegate_start";
     public static final String DELEGATE_END = "delegate_end";
@@ -41,6 +41,16 @@ public record TraceEvent(String type, String agent, String step, String text, Ma
     public static final String DECISION = "decision";
     /** A {@code note} step: a message the workflow wants shown (a result, a status). */
     public static final String NOTE = "note";
+    /** An agent's context use after a model call: {@code data} has {@code used} (tokens), {@code source} (REPORTED or ESTIMATED) and, when the model's window is known, {@code window}, {@code usable} and {@code fraction}. */
+    public static final String CONTEXT = "context";
+    /** A compaction was tried: {@code data} has {@code strategy}, {@code outcome}, {@code reason}, {@code before} and {@code after} (tokens), {@code messages_before} and {@code messages_after}, and, when a model wrote notes, {@code summary_tokens} and {@code summary_cost}. Numbers and names only. */
+    public static final String COMPACTION = "compaction";
+    /** One model call: {@code model}, {@code duration_ms}, {@code waited_ms}, {@code attempts}, {@code failovers}, token counts, {@code finish_reason}, {@code truncated}, {@code outcome} and, for a failure, {@code category} and {@code error_type}. */
+    public static final String MODEL_CALL = "model_call";
+    /** One tool call: {@code tool}, {@code outcome}, {@code duration_ms}, {@code approval_ms}, {@code result_chars}, {@code soft_failure}, {@code reach} (the legs of the lethal trifecta the tool touches: a sorted list of {@code outward}, {@code private}, {@code untrusted}; empty for none), {@code reach_known} (false when the reach is assumed) and, for a failure, {@code category}. */
+    public static final String TOOL_CALL = "tool_call";
+    /** A task or delegate failed: {@code kind} (task or delegate), {@code name}, {@code step}, {@code category}, {@code error_type}, {@code attempts}, {@code handled} (true when its {@code on_failure} took over; false when the run fails) and {@code error}. */
+    public static final String FAILURE = "failure";
     public static final String TASK_START = "task_start";
     public static final String TASK_END = "task_end";
     public static final String TASK_REPLAYED = "task_replayed";

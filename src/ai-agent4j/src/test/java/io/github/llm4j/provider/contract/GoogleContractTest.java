@@ -76,6 +76,11 @@ class GoogleContractTest extends ProviderContract {
     }
 
     @Override
+    protected String overflowMessage() {
+        return "The input token count (1100000) exceeds the maximum number of tokens allowed (1048575).";
+    }
+
+    @Override
     protected String error(int status, String message) {
         String s = switch (status) {
             case 401 -> "UNAUTHENTICATED";

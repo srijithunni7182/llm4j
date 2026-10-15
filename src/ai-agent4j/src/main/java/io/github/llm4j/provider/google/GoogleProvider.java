@@ -144,7 +144,7 @@ public class GoogleProvider implements DescribableProvider {
         int code = error.path("code").asInt(500);
         String message = error.path("status").asText("error") + ": " + error.path("message").asText("");
         if (code == 401 || code == 403) return new AuthenticationException(message);
-        if (code == 400 || code == 404) return new InvalidRequestException(message);
+        if (code == 400 || code == 404) return io.github.llm4j.context.ContextOverflowClassifier.invalidRequest(message, code, error.toString());
         if (code == 429) return new io.github.llm4j.exception.RateLimitException(message);
         if (code >= 500) return new io.github.llm4j.exception.ServiceUnavailableException(getProviderName(), message, code, error.toString());
         return new ProviderException(getProviderName(), message, code);
@@ -365,7 +365,7 @@ public class GoogleProvider implements DescribableProvider {
             String message = error.path("message").asText("Unknown error");
             int code = error.path("code").asInt(500);
             if (code == 401 || code == 403) throw new AuthenticationException(message);
-            if (code == 400) throw new InvalidRequestException(message);
+            if (code == 400) throw io.github.llm4j.context.ContextOverflowClassifier.invalidRequest(message, code, error.toString());
             throw new ProviderException(getProviderName(), message, code);
         }
 

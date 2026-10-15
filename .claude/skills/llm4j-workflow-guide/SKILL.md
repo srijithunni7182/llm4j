@@ -1,6 +1,6 @@
 ---
 name: llm4j-workflow-guide
-description: Guides a user through building, testing, securing and shipping a multi-agent workflow with llm4j (ai-agent4j agents, Loom workflows, eval4j evaluation) in ten gated stages: decide agents, golden dataset, prompt tests, prompt optimization, agent tests with spend caps, build the workflow, validate and audit, trajectory tests, go live under budgets, best practices. Use when the user wants to build or evaluate an llm4j agent or workflow, write a Loom script, create a golden dataset, run weave check, weave audit or weave eval, set spend caps, or asks how to do any of this "the right way".
+description: Guides a user through building, testing, securing and shipping a multi-agent workflow with llm4j (ai-agent4j agents, Loom workflows, eval4j evaluation) in gated stages: decide agents, golden dataset, prompt tests, prompt optimization, agent tests with spend caps, build the workflow (failing steps, retries and on_failure, a context window and compaction for agents that loop on tools), validate and audit (including the lethal trifecta), trajectory tests, go live under budgets, best practices. Use when the user wants to build or evaluate an llm4j agent or workflow, write a Loom script, create a golden dataset, run weave check, weave audit or weave eval, set spend caps, keep a long agent run inside the model's context window (compaction, context full, prompt too long), decide what happens when a task fails, or asks how to do any of this "the right way". Running the finished workflow where people can watch it (observe, Fabric, incidents) is the llm4j-loom-deployer skill.
 ---
 
 # llm4j workflow guide
@@ -29,6 +29,7 @@ may not be here, so never send the user to a repository path and never ask them 
 | 12 | Java quick reference (imports and calls) | `docs/guide/12-java-quick-reference.md` | read it before writing any Java; never open a jar or run `javap` to find a class or method |
 | 11 | Build the test examples with the user | `docs/guide/11-build-the-dataset-with-the-user.md` | every agent: the user answered the five quality questions, countable things are checked by code, no silent gaps |
 | 13 | Earned autonomy (optional, only when an agent will take over a decision a person makes) | `docs/guide/13-earned-autonomy.md` | the risk owner has read `weave ladder describe`; no level is claimed before real cases have run |
+| 14 | Context and compaction (only for an agent that loops on tools or a long-lived run) | `docs/guide/14-context-and-compaction.md` | each looping agent has a `context` block the user agreed to; every model's window is known; a free run that fills the window shows a compaction |
 
 Start with `weave guide readme` if the user is new to the path. When the user wants to change a starter, `weave guide recipes` has tested before-and-after changes (a different model, ask a person before publishing, escalate when a loop gives up, add an agent, add a tool, mask personal data); use them as patterns and give the user the matching "Ask your agent" sentence.
 
@@ -166,6 +167,18 @@ Start with `weave guide readme` if the user is new to the path. When the user wa
     <the steps from (d), with this project's real commands and cap>
     ```
 
+## Three things a real workflow needs that a first draft forgets
+
+**1. A plan for the context window (chapter 14, `weave guide 14`).** An agent that loops over tools adds to its prompt on every step, and the whole prompt is sent again each time: it ends in a "prompt too long" error, or in a cost that climbs during one run. Ask, per agent, whether it loops on tools. If it does, write a `context { compact: chain(trim_tool_results, drop_oldest) ... }` block with the user (add `summarize` only when the old steps carry decisions the agent still needs, and tell the user it is a model call that costs money, with a `summarizer` model). The size of a model's window is **not** written in the script: it is a fact about the model, in a windows file (`<script>.windows`), the catalogue that ships with the jar, or the server's catalogue; never invent a number, ask the user or read the provider's documentation. `weave check` rejects a bad block and warns when no window is known; `weave audit` shows each agent's strategy and window. A short run (a few steps, no tool loop) needs none of this: say so and leave it out.
+
+**2. A decision for every step that can fail (chapter 6).** A `run` task or a `delegate` can fail. For each one whose failure matters, decide with the user: `retry N` (only for a task that is idempotent), `on_failure { ... }` (a note, a person, another path), or let the run fail on purpose. A step with no `on_failure` ends the run as failed, and the run names the step (`failed_kind`, `failed_name`, `failed_step`, `failed_category`).
+
+**3. A security decision for every agent that reads, knows and can send (chapter 7).** `weave audit` marks an agent that can read untrusted content, reach private data and send something out (the *lethal trifecta*). Do not decide this for the user: either split the agent (one reads, one acts, with `approve:` on the one that acts) or the user accepts it **in writing, with a reason that names who looked and when**, in `<script>.inspect` (`trifecta: accepted "..."`). Tools declare what they reach (`reach: reads` in the script or `X.reach = reads` in the `.loot` file) so the audit and a watched run agree. Never accept it yourself, and never accept it for `*`.
+
+## When the workflow is ready to be watched
+
+Chapters 1 to 10 end at a tested workflow that can run. Running it where people can see it (the live page, a Fabric server for many processes, the rules that say what counts as trouble, who may sign in, TLS, retention, the incidents and what to do about them) is a separate job with its own skill, **`llm4j-loom-deployer`**; it is installed beside this one by `weave guide --install-skill`. Hand over when the user wants to run the workflow for real and have anyone but themselves look at it. Before you do, make sure these are in the project: the windows for its models, the trifecta decisions in `<script>.inspect`, the `retry` and `on_failure` decisions, and the spend limits of chapter 9. Say plainly what the deployer will do (start a server and the application, report the run to it) and that it will ask before anything that opens a port beyond this computer.
+
 ## Show the stages as a checklist
 
 At the start, and again after every stage, print a short checklist in the chat and tick what is done, so the user always sees where they are and what is left:
@@ -227,6 +240,8 @@ at once. Declare a `decision` and let it earn the freedom; the full language is 
 
 Loom's responsibility ends at the workflow: its script, its prompts, its golden dataset, and what `weave check`, `weave audit` and `weave eval` verify. Tests for tasks, tools, an application's screen, or any other code a developer or an agent writes are still written (by the agent, as part of writing the code) with the project's own test framework and run by the project's own build (Maven, npm, and so on); `weave` does not run, provide a harness for, or check them.
 
+The pages that watch a run (the context gauge, the tools and tasks health, the security view) show what happened; they are not a security guarantee: injection detection reads patterns in tool results, so a careful attack can pass it and a harmless page can trip it, and the trifecta and access signals say a risky combination was used, not that anyone abused it. Say so; a green page is not a review.
+
 llm4j does not (yet) provide: a cost estimator for Loom (keep a small cost model and compare it with the measured spend report); detection of
 prompt injection (defence is architectural, so write hostile cases and assert on tools used and the trace); ready-made PII-leak or red-team
 assertions in eval4j; or visibility into what Java or MCP tools, or your own tasks, do in `weave audit` (it reads the script only; review task
@@ -250,5 +265,7 @@ weave run workflow.loom --max-cost 0.50 --prices prices.properties --journal run
 weave run workflow.loom --prompt writer@v1      # run one version of a prompt, for a fair comparison
 weave ladder describe workflow.loom             # an earned-autonomy policy in plain words (also: weave ladder test)
 weave autonomy status <store>                   # where each decision stands (also: history, verify, promote, demote, freeze, outcome)
-weave guide 6                                   # read chapter 6
+weave run workflow.loom --trace                 # what the agents think and do, live; includes context and compaction events
+weave observe rules workflow.loom               # check the <script>.inspect rules file against the script, free (the thresholds that say what counts as trouble)
+weave guide 6                                   # read chapter 6 (weave guide 14: context and compaction)
 ```

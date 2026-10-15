@@ -19,7 +19,7 @@ final class Incidents {
 
     static final int KEEP_CLOSED = 20;
 
-    enum Kind { PAUSED, LOOPING, SUSPECT_OUTPUT, FAILED, BUDGET }
+    enum Kind { PAUSED, LOOPING, SUSPECT_OUTPUT, FAILED, BUDGET, CONTEXT, TRUNCATED, THRASH, TOOL_RATE, SPIKE, BROKEN, DIVERTED, TRIFECTA, INJECTION, ACCESS }
 
     private static final List<String> ORDER = List.of("info", "warn", "high");
 
@@ -91,6 +91,15 @@ final class Incidents {
     /** Closes every open incident whose key starts with {@code prefix} (empty: all). */
     void closeAll(String prefix, long nowNanos, String reason) {
         for (String key : new ArrayList<>(open.keySet())) if (key.startsWith(prefix)) close(key, nowNanos, reason);
+    }
+
+    /** Closes every open incident except those whose key starts with one of the prefixes. */
+    void closeAllExcept(long nowNanos, String reason, String... keep) {
+        for (String key : new ArrayList<>(open.keySet())) {
+            boolean kept = false;
+            for (String prefix : keep) if (key.startsWith(prefix)) kept = true;
+            if (!kept) close(key, nowNanos, reason);
+        }
     }
 
     int openCount() {

@@ -75,9 +75,7 @@ public final class SecurityAudit {
         List<String> unapprovedOutward = new ArrayList<>();
         for (String toolName : a.getTools()) {
             ToolDef def = tools.get(toolName);
-            Capabilities c = def != null ? Capabilities.of(def)
-                    : lootReach.containsKey(toolName) ? Capabilities.fromReach(lootReach.get(toolName), "Tool " + toolName + " from the .loot file")
-                    : Capabilities.ofName(toolName);
+            Capabilities c = Capabilities.resolve(toolName, tools, lootReach);
             boolean approved = a.isApproveAll() || a.getApprove().contains(toolName);
             boolean unattendedShell = def != null && "shell".equals(def.getKind()) && "true".equals(Capabilities.opt(def, "unattended"));
             if (c.untrusted()) untrusted.add(toolName);

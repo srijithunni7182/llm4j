@@ -6,6 +6,7 @@ import io.github.llm4j.loom.inspect.otel.LogRec;
 import io.github.llm4j.loom.inspect.otel.OtlpJson;
 import io.github.llm4j.loom.inspect.otel.Resource;
 import io.github.llm4j.loom.inspect.otel.Semconv;
+import io.github.llm4j.loom.inspect.otel.SpanRec;
 import io.github.llm4j.loom.inspect.wire.Hello;
 import io.github.llm4j.loom.inspect.wire.Snapshot;
 import java.io.ByteArrayOutputStream;
@@ -211,5 +212,39 @@ class ServerLinkTest {
         assertThat(System.currentTimeMillis() - t0).isLessThan(2000);
         assertThat(ob.read(cursor.get(), 10)).isNotEmpty(); // still on disk for the next process
         second.close();
+    }
+
+    private static byte[] span(long n) {
+        SpanRec sp = new SpanRec("0".repeat(32), String.format("%016x", n), null, "s", SpanRec.CLIENT, 1_000L * n, 2_000L * n, Map.of(Semconv.LOOM_SPAN_KIND, "tool"), SpanRec.STATUS_OK, null, List.of());
+        return ("S" + OtlpJson.encodeTraces(RES, "0.1", List.of(sp))).getBytes(StandardCharsets.UTF_8);
+    }
+
+    @Test
+    void aBatchOfAlternatingLogsAndSpansCostsOneRequestPerKindNotOnePerChange() throws Exception {
+        Outbox ob = newOutbox(dir.resolve("o"));
+        for (long i = 1; i <= 100; i++) {
+            ob.append(log(i));
+            ob.append(span(i));
+        }
+        open(ob, List.of());
+        link.start();
+        until(() -> cursor.get() == 200);
+        long dataCalls = calls.stream().filter(c -> c.equals("/v1/logs") || c.equals("/v1/traces")).count();
+        assertThat(dataCalls).as("200 records, alternating, in one batch").isEqualTo(2);
+        assertThat(seqs).as("the logs keep their order").isSorted();
+    }
+
+    @Test
+    void theRunEndRecordIsSentAfterTheSpansOfItsBatch() throws Exception {
+        Outbox ob = newOutbox(dir.resolve("o"));
+        LogRec end = new LogRec(5_000_000_000L, LogRec.INFO, "end", Map.of(Semconv.EVENT_NAME, Semconv.EV_RUN_END, Semconv.LOOM_SEQ, 3L), "0".repeat(32), null);
+        ob.append(("L" + OtlpJson.encodeLogs(RES, "0.1", List.of(end))).getBytes(StandardCharsets.UTF_8));
+        ob.append(span(1));
+        ob.append(log(4));
+        open(ob, List.of());
+        link.start();
+        until(() -> cursor.get() == 3);
+        List<String> data = calls.stream().filter(c -> c.equals("/v1/logs") || c.equals("/v1/traces")).toList();
+        assertThat(data).containsExactly("/v1/logs", "/v1/traces", "/v1/logs");
     }
 }

@@ -103,10 +103,13 @@ final class EvalCommand implements Callable<Integer> {
     @Mixin
     ClassesOptions classesOptions = new ClassesOptions();
 
+    @Mixin
+    ContextOptions contextOptions = new ContextOptions();
+
     @Override
     public Integer call() {
         WeaveEnv env = envFile.apply(WeaveEnv.system(), script.toPath());
-        if (env != null && !classesOptions.apply(script.toPath(), env)) return 2;
+        if (env != null && (!classesOptions.apply(script.toPath(), env) || !contextOptions.apply(script.toPath(), env))) return 2;
         env = env == null ? null : secrets.apply(env, Prompts.console());
         env = env == null ? null : promptOptions.apply(env);
         return env == null ? 2 : eval(this, env);

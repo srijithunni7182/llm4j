@@ -43,6 +43,9 @@ Skipping is not hidden: chapter 9 reminds you once that no evaluation exists, an
 | 11 | [Build the test examples together with the user](11-build-the-dataset-with-the-user.md) | interview the user, per agent, on five qualities; turn answers into the dataset | `weave eval --check` | $0 | every agent has an example per quality; countable things checked by code |
 | 12 | [Java quick reference](12-java-quick-reference.md) | the exact imports and calls for a host, a task, a tool and tests, so no jar needs opening | | $0 | |
 | 13 | [Earned autonomy](13-earned-autonomy.md) *(optional; skip unless an agent will take over a decision a person makes)* | decide with the user what would earn trust; write a `trust` block or a `ladder`; read it back | `weave ladder describe|test`, `weave autonomy` | $0 | the owner of the risk has read the policy; no level is claimed before real cases |
+| 14 | [Context and compaction](14-context-and-compaction.md) *(for any agent that loops on tools; skip for short runs)* | decide what may be lost; write a `context` block and a windows file; read the gauge and the thresholds | `weave check`, `weave audit`, `weave run --trace` | $0 | each looping agent has a chain the user agreed to; every model's window is known |
+
+After the workflow is built and tested, running it where people can watch it is a separate job with its own skill, **`llm4j-loom-deployer`** (`weave guide --install-skill` installs it beside this one): security decisions, the rules file, the Fabric server, launching both and reading the pages.
 
 ## The running example
 
@@ -62,7 +65,7 @@ the [Loom workflow](https://github.com/srijithunni7182/llm4j/blob/main/src/examp
 
 ## Use it as a Claude skill
 
-The same path is available as a skill, so Claude can walk you through it stage by stage and check each gate: in this repo it is `.claude/skills/llm4j-workflow-guide/`, and `scripts/package-skill.sh` builds a standalone bundle (`dist/llm4j-workflow-guide.zip`) from these chapters for distribution.
+The same path is available as a skill, so Claude can walk you through it stage by stage and check each gate: in this repo it is `.claude/skills/llm4j-workflow-guide/` (and `.claude/skills/llm4j-loom-deployer/` for running it, watched), and `scripts/package-skill.sh` builds a standalone bundle (`dist/llm4j-workflow-guide.zip`) from these chapters for distribution.
 
 ## Be honest about the edges
 

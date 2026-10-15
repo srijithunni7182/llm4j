@@ -3,7 +3,7 @@
 [← Back to the README](../README.md) · [Observability overview](OBSERVABILITY.md)
 
 This guide is for the person who puts Loom workflows into production and has to make them watchable: install **Fabric**,
-connect the processes, secure it, and keep it running. It is a checklist in the order you do things. For what the page
+connect the processes, secure it, and keep it running. It is a checklist in the order you do things. A coding agent can do most of it with you: the **`llm4j-loom-deployer`** skill (`weave guide --install-skill`) brings up Fabric, launches the application and teaches the pages, with scripts for each step ([the skills](PUBLISHING_SKILL.md)). For what the page
 shows, read the [overview](OBSERVABILITY.md); for every option, the [reference](../wiki/Observability-Reference.md).
 
 ## 1. Decide the shape

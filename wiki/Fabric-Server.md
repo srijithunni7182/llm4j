@@ -106,13 +106,16 @@ script. You edit them with pickers, not by typing syntax; each has its own **Sav
 **Inspect rules: pick an agent, a behaviour, then a threshold.**
 
 1. **Agent**: *All agents*, or one of the agents your runs have shown (read from the runs and their snapshots), or *Another agent…* to type a name.
-2. **Behaviour**: *Same tool call repeated*, *Same answer repeated*, *Tool keeps failing*, *Figures with no source*, *Paused for too long* or
-   *No progress across loop rounds*. A line under the picker says what it flags and the default.
+2. **Behaviour**: *Same tool call repeated*, *Same answer repeated*, *Tool keeps failing*, *Figures with no source*, *Paused for too long*,
+   *No progress across loop rounds*, *Context nearly full*, *Truncated answers*, *Compaction thrash*, *Tool success rate*, *Latency spike*,
+   *Access refused*, *Injection scan* or *Accepted trifecta*. A line under the picker says what it flags and the default.
 3. **Threshold**: the fields change with the behaviour: a count of times; *warn at* and *high at* for figures; a number with a unit (seconds
-   to days) for a pause; rounds and the workflow variable for no progress.
+   to days) for a pause; rounds and the workflow variable for no progress; warn and high percent for context; a count and a span for compaction thrash and refused access; a percent and a number of calls for tool success; a factor for a latency spike; on or off for the injection scan; and, for an accepted trifecta, a **reason** (required: the page will not add one without it, and accepting for *All agents* brings the check's warning that it hides the signal). The page does not check the grammar itself: what the server refuses comes back as it wrote it, and your edits stay on the page.
 
 **Add rule** puts it in the table (agent, behaviour, threshold, and the default it replaces); **Remove** takes one out. Nothing is kept until
 **Save rules**. The table is built from the saved rules, so a file written by hand shows up in it too.
+
+**Context windows: pick a model, then set its usable window in tokens.** The same table shape as the prices (set, edit, remove, save, discard), kept in `windows.properties`.
 
 **Price table: pick a model, then set its input and output price.** The table lists the models your runs use, with the agents that use each
 and its prices, or *not priced*. **Set price** (or **Edit**) on a row opens its two fields, **Input** and **Output**, in dollars per million
@@ -122,6 +125,7 @@ tokens, apart. **Another model** adds one that has not run yet. **Save prices** 
 |---|---|---|
 | **Inspect rules** (`<data>/config/rules.inspect`) | What counts as trouble, per agent (`Editor { same_action: 3 times }`, `* { paused_longer_than: 90s }`). Laid over each run's own rules, **rule by rule**, and in force at once for every run, running ones included | The format and the rules are those of [`flow.inspect`](Observability-Incidents-and-Rules.md). A variable for `no_progress` is read in the process, so it only takes effect where that process's own rules name it |
 | **Price table** (`<data>/config/prices.properties`) | `model = input / output`, dollars per million tokens. A step whose process reported tokens but no cost is costed from it | A process with its own price file keeps its own cost. Costs already counted do not change. A model with no price has no cost |
+| **Context windows** (`<data>/config/windows.properties`) | `model = tokens`, the usable context window of a model. An agent whose process was never told its model's window shows its context fill from here, by the agent's model (`provider/model` also matches `model`) | A window a process reports always wins, and the view says where each came from (`windowSource`). A model not listed changes nothing. Saved like the prices and recorded in the audit log |
 
 A save is **checked first**. Errors come back with line numbers (an unknown rule with the nearest name suggested, a price
 that is not a number) and **nothing is kept**. A valid save is written atomically, survives a restart, and is recorded in
@@ -159,3 +163,44 @@ and 2 GB by default (`--retention-days`, `--retention-size`), oldest day first; 
 
 [Observability](../docs/OBSERVABILITY.md) · [Incidents and rules](Observability-Incidents-and-Rules.md) ·
 [Controls, secrets and security](Observability-Controls-and-Security.md) · [Reference](Observability-Reference.md)
+
+## Reading across runs
+
+Two read-only routes (behind the same sign-in as the rest of the API) give the fleet views, each optionally limited with `?client=NAME`:
+
+- `GET /api/tools` is the roll-up of every tool and task of every run: one row each (`kind` is `tool` or `task`; a tool and a task with one name are two rows), failing first, with calls, success rate, latency percentiles and histogram, health with its reason, failures by category, the agents that use it and, when it has failed, the run it last failed in. `counts` is the number of rows in each health state.
+- `GET /api/security` is the security picture: the added-up counts, the agents whose verdict is `exercised`, `accepted` or `armed` (each with its run and, when accepted, the reason), and the open trifecta, injection and access incidents with their runs. At most 200 agents and 100 incidents, newest run first.
+
+`GET /api/runs/{trace}/timeline` returns a run's marks and the range of its kept history; `GET /api/runs/{trace}?at=N` returns the view as it was after record `N` (`live: false`, `asOf`), 404 with `historyStartsAt` when `N` is not kept.
+
+`GET /api/runs` carries `security`, the number of open security incidents, on each run, for a tab badge. An agent's `context` in a run's view also carries `points` (the last 120 model calls) and `events` (the last 60 compactions) for a timeline.
+
+### Holding still, and finding a run
+
+The page does not rearrange itself under your pointer. Run tabs keep the order they first appeared in; the tab row holds only the run you are looking at, the runs that are live and those that just finished (at most eight). Every run, finished or not, is in the **Runs** list: search it, filter by live, finished or failed, and open one. Rows of the tools and tasks tables keep their place; when the live order has changed a chip says "order changed" and **Re-sort** applies it. **Live / Paused** (top right) stops every redraw so you can read; while paused the page counts what changed ("Paused at 14:32:05 · 3 changes since") and **Live** brings it up to date.
+
+For a first look use the calm simulator: `./run.sh calm` in [fabric-sim](../src/examples/fabric-sim/README.md) makes one process and one run. The default is a busy fleet, which keeps adding runs and incidents.
+
+### Going back in time
+
+On a run's page the **time bar** under the view tabs spans everything the run has kept. Each marker is something that happened: the start, an incident opening or closing, a failure, a compaction, a change of state (hover or focus a marker for what it was). Click one, drag the slider, or use **‹ incident** and **incident ›**, and the whole page shows the run **as it was** at that point, under a banner: *As of 14:31:02 (3 min ago): a snapshot, not live*. Nothing in a snapshot changes while the run goes on; **Back to live** (or the end of the slider) returns. Run controls are hidden in a snapshot.
+
+A run keeps the records it was built from, up to 50,000; past that the oldest drop and a view says its totals are partial. A past view is made by the same code as the live one, using the rules, prices and windows the server holds now. The fleet pages are not replayed: use **Pause**.
+
+### What the pages show
+
+A run that broke says why, in words, and where:
+
+![A failed run: the banner names the task that broke it, the category, the attempts and the step](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/observability/fabric-run-broken.png)
+
+Each agent's context window, and what compaction cut to make room, with the thresholds the rules set drawn on it:
+
+![The Context view: a gauge per agent and a timeline with a marker for each compaction](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/observability/fabric-run-context.png)
+
+Across every run, the tools and tasks by health, and the agents that read untrusted content, reach private data and can send something out:
+
+![Tools and tasks across all runs, worst first, one row open](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/observability/fabric-fleet-tools.png)
+
+![The Security page: posture counts, the agents that exercised or were accepted for the lethal trifecta, and the open findings](https://raw.githubusercontent.com/srijithunni7182/llm4j/main/docs/images/observability/fabric-fleet-security.png)
+
+The pages work from a 360 px phone to a wide screen, in a light and a dark theme, from the keyboard alone, and treat every name and message from a run as text. The fleet tables draw at most 200 rows and say when they hold some back.

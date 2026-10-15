@@ -1,0 +1,243 @@
+# Phase 5 design: the Fabric page (context, tools and tasks, security, thresholds)
+
+Status: **approved, built (5a–5e); manual and live checks owed**. Layer: the page shared by the embedded add-on and the Fabric server
+(`loom-inspect-core/.../ui`), the server routes (`loom-inspect-core` and `loom-fabric`), and the simulator (`loom-inspect/.../sim`).
+Companion documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md), [roadmap](../README.md). Builds on [Phase 4](../04-inspect-and-incidents/DESIGN.md)
+(run state, incidents, rules, tool health, task health, security) which already computes everything this phase draws.
+
+**The mockup** ([Fabric Phase 5 Mockup](https://claude.ai/artifact/5wRYUaLamn8zWwyY5sz8Gf), five screens; private to the author) was reviewed before this spec. §3 states what it
+showed and what changed in review; the spec, not the mockup, is what is built.
+
+## 1. Problem
+
+Phase 4 made a run's cost, performance, stability, quality and security *knowable*: the run view carries per-agent context fill and compactions, per-tool and per-task health
+(success rate, latency percentiles, failures by category), the new incidents (`BROKEN`, `DIVERTED`, `TRIFECTA`, `INJECTION`, `ACCESS`, and the five of 4c) and a `security`
+section. The page shows almost none of it: it has no context gauge, no compaction history, no tools table, no security view, and its Configuration page edits only the older
+rules. Someone watching a fleet of workflows cannot yet see which tool is failing across runs, which agent is about to run out of window, or which agent used the lethal trifecta.
+
+## 2. Goals and non-goals
+
+Goals:
+
+- The **run page** shows the context gauge and compaction timeline, the tools-and-tasks table, the security panel, the cause when a run broke, and the new incidents.
+- A **Tools & tasks** page across every run the server knows, failing first: the tools-centric view asked for in phase 4.
+- A **Security** page across runs: where the trifecta was exercised or accepted, suspected injections, refused access.
+- The **Configuration** page edits the new thresholds (context, truncation, compaction, tool success rate, latency spike, access refused, injection scan, accepted trifecta with its
+  reason) and a **context-window catalog** beside the price table.
+- **Simulator scenarios** that produce each of these situations without a provider, used as the test fixtures for the page.
+- The same page for the embedded add-on and for Fabric (one code base), read-only except where admin rules already allow edits.
+
+Non-goals (stated so they are not mistaken for omissions):
+
+- No new records or detectors: if the page needs a number, 5a adds it to the view, not a new detector. (One exception, the compaction events list, is a view addition.)
+- No blocking, pausing or acting on security findings from the page (observe only, as in 4g). Existing pause, suspend and stop controls are untouched.
+- No live "what would this threshold have caught" preview on the Configuration page (decision 1): it needs a replay engine over history and is a follow-up.
+- No charting library: the page draws with inline SVG and the DOM, as it does today, and never builds HTML from run text.
+- No new runtime dependency, no build step for the page.
+
+## 3. What the mockup showed, and what review changed
+
+| Screen | Showed | Outcome of review |
+|---|---|---|
+| 1 Run page | A red cause banner (`BROKEN`); cards for Context and Tasks; per-agent context gauges with the 85 % and 95 % marks; a context-over-calls line with a marker per compaction; a tools-and-tasks table with health and last failure; incidents incl. `BROKEN`, `DIVERTED`, `CONTEXT` | Kept. The banner links to the step in the workflow graph |
+| 2 Tools & tasks | Counts by health; filters (health, kind, process); one row per tool or task with success, last ten outcomes, p50/p95, health and why; an expanded row (failures by category, who calls it, latency histogram, the run it last failed in) | Kept. This is the tools-centric view asked for in phase 4 |
+| 3 Configuration | The inspect-rules editor with the new thresholds; a live preview of what a threshold would have caught | Thresholds kept. **Preview cut** (decision 1) |
+| 4 Simulator | Eight scenarios and what each should show | Kept as the fixture set; the table is §7 |
+| 5 Security | Four posture cards; a per-agent matrix (can / used for the three legs, verdict); findings with evidence; guards in force; "what this cannot tell you" | Kept, plus the `accepted` state with its reason (added in 4g), and a fleet Security page |
+
+Review answers (decisions 2 to 5): "Tools & tasks" and "Security" are top-level tabs beside Processes and Configuration and also panels on each run; an agent without a known window shows
+a hatched bar and a hint, never an invented percentage; tasks share the tools table, told apart by a kind label and a filter; the catalog of context windows is built (5a, 5d) so the hatched bar is the exception.
+
+## 4. Data the page needs (5a)
+
+Everything but three things is already in `RunState.view()`. The additions, each backward compatible (new keys; nothing renamed or removed):
+
+1. **Context history.** `agents[].context` gains `points` (the last 120 model calls: `{n, used, fraction}`; `n` is the agent's call number) and `events` (the last 60 compactions:
+   `{n, strategy, outcome, before, after}` with `n` the call number it happened after). The existing `series` is kept as it is. Bounded; numbers only.
+2. **Fleet tools.** `GET /api/tools[?client=]` returns the roll-up (`RunRegistry.toolRollup`, tools and tasks, `kind`, failing first) as `{rows, counts}`: each row is `ToolSummary.toMap()`
+   plus `lastRun` (client and trace of the run it last failed in, when there is one) and `agents`; `counts` is `{failing, degraded, healthy, unused}`. In the embedded page and in Fabric.
+3. **Fleet security.** `GET /api/security[?client=]` returns `{counts, agents, incidents}`: the roll-up counts (`RunRegistry.securityRollup`), one row per (run, agent) whose verdict is `exercised`,
+   `accepted` or `armed`, and the open `TRIFECTA`, `INJECTION` and `ACCESS` incidents with the run they belong to. Bounded (200 agent rows, 100 incidents, newest first).
+4. **Context windows, centrally.** A Configuration section `windows` (model to usable window in tokens; same store, validation and audit as prices). When a run's context record has no
+   window, `RunState` fills `window`, `usable` and `fraction` from the catalog, using the model of the agent (the snapshot already carries it), and the `CONTEXT` incident uses the filled
+   fraction. A window the process reported always wins. The view says where it came from (`windowSource`: `process` or `catalog`).
+5. **Tab badges.** `GET /api/runs` summaries gain `security` (open trifecta, injection and access incidents) so tabs can show a count.
+
+## 5. The page (5b, 5c, 5d)
+
+One page, as today: `index.html`, `app.js`, `app.css`, no build step, text only through `textContent`, drawing in inline SVG. New renderers, each a pure function from the view (or API
+answer) to DOM, so a browser test can drive them with fixture data.
+
+### 5.1 Run page (5b)
+
+- **Cause banner.** When the run's status is failed and its `BROKEN` incident exists: "The run stopped: the task X failed", the category, attempts and step, "no on_failure to take over".
+  Click scrolls to and highlights the step in the workflow graph. A run that finished but had `DIVERTED` incidents shows a quieter line ("1 step went through on_failure").
+- **Cards.** The five cards become: Tokens, Cost, Context (the fullest agent's fraction, with the agent named and the compaction count), Tool calls, Tasks (count, failed, diverted).
+  Colours follow severity, never alone: every state also has a word.
+- **Context and compaction panel.** One row per agent: name, a bar (fraction of the usable window; marks at the warn and high thresholds in force for that agent), the numbers,
+  the compaction count and the last compaction (strategy, tokens freed). Without a window: a hatched bar and "no window known: set one on the Configuration page or in a `.windows` file".
+  Beside the rows, the timeline of the selected agent (default: the fullest): `points` as a line, `events` as markers with a tooltip (strategy, outcome, before and after, messages dropped),
+  the threshold lines drawn. Keyboard-reachable markers; the same facts in a table under a disclosure for screen readers.
+- **Tools and tasks table.** Columns: name, kind, calls, success (bar and "n of m"), p50 / p95, health word, last failure (category and age). Worst health first, then calls. Filter chips:
+  all, tools, tasks. A click or Enter expands a row: failures by category (bars), calls per agent, the last ten outcomes, a latency histogram, and the incidents it raised.
+  A tool and a task with one name are two rows.
+- **Security panel** (its own tab on the run, as in the mockup): four posture cards (trifecta, injection, access, personal data); the per-agent matrix with the three legs, each shown
+  as *used* (tools named), *can* (declared, not used) or none, and the verdict word (`none`, `one`, `two`, `armed`, `exercised`, `accepted`; an `accepted` row shows the reason);
+  findings (the three incident kinds) with evidence; the guards in force and counts; and the fixed statement of what the view cannot tell you. A leg that rests on an assumed tool is
+  marked "assumed". An agent without the script's profile shows the used legs only and says the "can" side is unknown.
+- **Incidents panel.** The new kinds get a label and their evidence formatted like the others; `BROKEN` first when open. Tabs show the count of open incidents as today.
+
+### 5.2 Fleet pages (5c)
+
+- **Tools & tasks.** The mockup's page: counts by health, filters (health, kind, process), the table of §5.1 over every run, `last 10` strip, the "why" text from the verdict reason, an expanded
+  row with a link to the run it last failed in. Refreshes with the page's existing poll; sorting is stable, so a row does not jump under the pointer while it is open.
+- **Security.** The posture counts across runs; the (run, agent) rows that are `exercised`, `accepted` or `armed` with their verdict and reason; the open security incidents with a link to
+  the run. Same words and the same "cannot tell you" statement as the run panel.
+- **Badges.** Tools & tasks shows the failing count; Security shows the open security incidents; both in the tab, as the processes tab does today.
+
+### 5.3 Configuration page (5d)
+
+The existing rules editor (agent, behaviour, threshold, Add rule, a table with defaults, Save and Discard, Edit as text) gains these behaviours, each with the inputs the rule needs
+and the default shown beside the value:
+
+| Behaviour | Inputs | Default |
+|---|---|---|
+| Context nearly full | warn %, high % | 85, 95 |
+| Truncated answers | times | 1 |
+| Compaction thrash | n in m calls | 4 in 10 |
+| Tool success rate | below %, over calls | 70, 10 |
+| Latency spike | factor | 5× p50 |
+| Access refused | n in span | 3 in 60 s |
+| Injection scan | on / off | on |
+| Accepted trifecta | agent, **reason (required)** | not accepted |
+
+The editor refuses what the file refuses and shows the same message (the server's check is the one source; the page does not re-implement the grammar). Accepting a trifecta needs a
+non-empty reason and, for `*`, shows the warning the check gives. Below the rules: the **context windows** table (model, usable window; add, edit, remove; same Save and audit as prices).
+The price table is unchanged.
+
+### 5.4 Cross-cutting
+
+- Light and dark themes (the existing toggle); every colour pair meets 4.5:1 (3:1 for large text); state is never colour alone.
+- Works from 360 px wide (tables scroll in their own box; nothing makes the page scroll sideways); keyboard operable (tabs, filter chips, row expansion, markers); roles and labels on
+  tables, tabs, the gauge (`role="meter"`) and the timeline (an accessible table equivalent).
+- Never builds HTML from run text; long names truncate with the full text in `title`; a hostile tool name or error text is shown as text (a test).
+- Empty states say what is missing and why ("no tools have run yet", "no run has declared what its agents can reach").
+- No console errors; no request storm: one poll for the run view as today plus one for the active fleet page, at the existing interval.
+
+## 6. Requirements (testable)
+
+| # | Requirement |
+|---|---|
+| R1 | `agents[].context` has `points` (at most 120, `{n, used, fraction}`) and `events` (at most 60, `{n, strategy, outcome, before, after}`); `series` is unchanged; a soak of 20,000 model calls keeps both bounded |
+| R2 | `GET /api/tools` returns `{rows, counts}` over every run (or one client's), tools and tasks with `kind`, failing first, each row with `lastRun` when it has failed; same answer embedded and in Fabric; gated like the other `/api/` routes |
+| R3 | `GET /api/security` returns `{counts, agents, incidents}` as in §4; bounded; one client's when asked |
+| R4 | The `windows` configuration section is saved, validated (positive whole tokens, model name rules), audited and persisted like prices; a bad value is refused with its line; old stores load |
+| R5 | A run whose agent reported no window gets `window`, `usable`, `fraction` and `windowSource: catalog` from the catalog by the agent's model; a process-reported window wins and says `process`; the `CONTEXT` incident uses the filled fraction; a model not in the catalog changes nothing |
+| R6 | `/api/runs` summaries carry `security` (open security incidents); older consumers are unaffected |
+| R7 | The run page shows the cause banner for a failed run with a `BROKEN` incident (words: the kind, name, category, attempts, step) and the quieter diverted line; neither appears for a run without them |
+| R8 | The Context card and panel show, per agent, the fraction, numbers, compaction count and last compaction; threshold marks are the ones in force for the agent; an agent without a window shows the hatched bar and the hint, never a percentage |
+| R9 | The timeline draws `points` and `events` for the selected agent with the thresholds; every marker is keyboard reachable and has its facts in a tooltip and in the equivalent table |
+| R10 | The tools-and-tasks table lists tools and tasks (kind shown), worst health first; filters work; a row expands to failures by category, calls per agent, last ten outcomes, latency histogram and incidents; a tool and a task of one name are two rows |
+| R11 | The Security panel shows the four cards, the per-agent matrix (used, can, none, assumed marks, verdict word, accepted reason), the findings with evidence, the guards, and the fixed "cannot tell you" statement; without a profile it says the "can" side is unknown |
+| R12 | The Tools & tasks page shows counts by health, the three filters, the table over every run, a link to the run each failing row last failed in, and a stable order while a row is open |
+| R13 | The Security page shows the counts, the (run, agent) rows that are `exercised`, `accepted` or `armed` with the reason, and the open security incidents with links; empty states say why |
+| R14 | The incidents panel shows `BROKEN`, `DIVERTED`, `TRIFECTA`, `INJECTION` and `ACCESS` with a label, severity word and evidence; `BROKEN` first |
+| R15 | The Configuration page edits the eight behaviours of §5.3 with their inputs and defaults; Save writes through the existing structured route; the server's refusal is shown verbatim; an accepted trifecta needs a reason; `*` shows the check's warning |
+| R16 | The Configuration page edits the context-window catalog (add, edit, remove, save, discard) with the same audit as prices |
+| R17 | Themes: both themes meet 4.5:1 for text and 3:1 for large text and graphical objects (checked by computation over the stylesheet's tokens); every state has a word besides its colour |
+| R18 | At 360 px the page has no horizontal page scroll; tables scroll inside their own box; the tab row wraps |
+| R19 | Keyboard: tabs, filter chips, row expansion, markers and the configuration controls are reachable and operable without a pointer; focus is visible; roles and labels as in §5.4 |
+| R20 | The page never builds HTML from run text (the existing static check, extended to the new code); a tool name, an error text or an agent name containing markup is shown as text |
+| R21 | No console error or failed request in any scenario of §7; one extra poll at most while a fleet page is open |
+| R22 | Each scenario of §7 (thirteen) runs without a provider and produces the view its table row says; the scenarios are selectable by name from `fabric-sim.sh` and the existing Studio scenario is unchanged |
+| R23 | With 500 tools and 200 agent rows the fleet pages render within a fixed budget and stay responsive (virtualised or paged beyond a bound; the bound is stated in the page) |
+| R24 | No new dependency; the page remains four static files plus fonts and the two marks; the server answers the new routes read-only (405 for other methods) |
+| R25 | Against a Fabric server the page is branded Fabric: the name in the header, the page title, the favicon and a mark of its own (`/fabric-logo.svg`, a woven grid); an embedded page keeps loom·inspect and the Loom mark. The brand is decided by the same probe that turns on the Processes view |
+| R26 | Run and workflow tabs keep the order in which they first appeared and never reorder between polls; a new run is added at the end and never takes the selection; the selected run and view never change unless the person changes them |
+| R35 | Finding a run scales: the tab row shows only what needs eyes (the selected run, runs that are live, and runs with an open high incident), at most 8; every other run is in a **Runs** list (a filterable table: process, workflow, status, started, incidents, cost) opened from one button, grouped by process and workflow, newest first within a group; two runs of one workflow are told apart by their start time; a finished run leaves the tab row on its own after it has been shown for a minute unless it is selected |
+| R27 | Tables whose rows are ordered by live numbers (tools and tasks, on a run and across runs) keep each row where it is while the page is open; when the live order differs a chip says "order changed" and **Re-sort** applies it |
+| R28 | A **Live / Paused** control: Paused stops every redraw; the header says "Paused at HH:MM:SS" and counts what changed since (new runs, new incidents, state changes) from the cheap run list alone; Live redraws at once |
+| R29 | `GET /api/runs/{trace}/timeline` returns the run's marks (start, each incident opened or closed, each failure, each compaction, each state change, end), bounded to 300, oldest first, each with a sequence number and a time |
+| R30 | `GET /api/runs/{trace}?at=SEQ` returns the run's view as it was at that point, in the same shape, with `live: false` and `asOf`; a point outside the kept history answers 404 with the time the history starts; a view inside a run whose earliest records were dropped is marked `partial` (its totals miss what was dropped); what the server knows now (rules, prices, windows) is applied to the past view as well |
+| R31 | The view at a point is made by the same code that makes the live view (the kept records are replayed into a scratch run), so the two cannot drift: the view at the last point equals the live view of a finished run, and the view at an earlier point equals the live view captured then |
+| R32 | The run page has a time bar: a slider over the marks, incident, failure and compaction markers (keyboard reachable, with their facts), previous and next incident buttons. Moving it shows the whole run page as of then under a banner "As of HH:MM:SS (N min ago): a snapshot, not live" with **Back to live**; run controls are hidden in a snapshot; nothing in a snapshot changes until the person moves it |
+| R33 | The kept history is bounded (50,000 records a run; the oldest drop and the page says where the history now starts); a 20,000-call soak stays within the bound; a run restored by Fabric from its stored messages has its history again |
+| R34 | The simulator has a calm preset (one process, one run, then stop) that the docs recommend first; `fabric-sim.sh calm` |
+| R36 | The guide has a new chapter, **14. Context and compaction**: when a run needs it, the Loom `context` block (strategies, trigger, target, keep-recent, limits), the window sources (`.windows`, the provider, the Fabric catalog), the Java API (`ContextManager`, the strategies, `ContextWindows`, the events), reading it on the page (gauge, timeline, the rules); it ships in the jar and is listed by `weave guide` |
+| R37 | The existing chapters say what changed: 6 (the `context` block, `run` tasks with `retry` and `on_failure`, what `weave check` now verifies), 7 (the lethal trifecta and tool reach, how `weave audit` and the inspect rules relate, accepting a trifecta in writing), 9 (a go-live stage for observability that hands over to the deployer skill), 10 (readiness checklist: windows, rules, trifecta decisions, observability on), 12 (the Java reference: context management, call telemetry, observe options, each compile-checked) and `LOOM_GUIDE.md` and `llms.txt` agree |
+| R38 | `SKILL.md` of the workflow skill lists chapter 14, the new gates (context for long runs; trifecta decided; observability handed over), the words people use to ask for these (compaction, window, context full, observe, incident, trifecta) in its description, and the honest edges; its stage table matches the chapters in the jar |
+| R39 | Every Loom snippet in the new and changed chapters passes `weave check`; every Java snippet is in the compile-checked class of chapter 12 (or compiled by a test); no chapter mentions a repository path; no command or flag in them is absent from `--help` |
+| R40 | A new skill, **`llm4j-loom-deployer`** (source `.claude/skills/llm4j-loom-deployer/`), guides a coding agent from a finished workflow to a running observed one: choose the shape (embedded page or Fabric), prerequisites, secrets, security decisions (audit gate, tool reach, the trifecta, accepting it in writing, hosts patterns), the `.inspect` rules file, windows and prices, TLS and controls, retention and backup, then launching the application and the server and checking both |
+| R41 | The deployer skill's scripts (`fabric-up`, `run-observed`, `fabric-down`, `fabric-status`, in the skill's `scripts/`, for macOS, Linux and Windows) do the launch: a data directory and admin password (from the environment, never the command line), the server in the background with a health wait, a client key into the process's secret store (never printed to the log), the workflow started with `--observe-fabric`; each is idempotent, says what it did, and refuses an unsafe choice (a non-loopback address without TLS or `--trust-proxy`) |
+| R42 | The skill teaches the developer to use both: a short tour of the embedded page and of Fabric (Processes, Runs, Tools & tasks, Security, Configuration; Live and Paused, the time bar), what to look at first when a run is slow, expensive, stuck or unsafe, and what each incident means and what to do; every claim names the page element it is about |
+| R43 | The skill's safety rules are tested: no secret on a command line or in a printed line, no listening beyond loopback without TLS or a proxy, no sign-in password in the skill or its scripts, the agent asks before opening a port, accepting a trifecta or changing the admin password |
+| R44 | `weave guide --install-skill` installs both skills (each in its own folder under `.claude/skills/`), with their references, and `--install-skill deployer` or `workflow` installs one; the package (`make skill-package`) holds both; `verify-skill-package` unpacks away from the repository and runs the deployer's launch scripts against a mock workflow and a real Fabric |
+| R45 | A drift test reads both skills and every chapter they ship: each `weave`, `fabric` and `fabric clients ...` command and each flag named must be in that command's `--help`; each page element or tab named must exist in the page's script; each file named must exist in the skill |
+| R46 | The docs say where the skills are and when to use which (`docs/PUBLISHING_SKILL.md`, the wiki, `docs/README.md` at the end with the other stack-level pages) |
+
+## 7. Simulator scenarios (5a, used as page fixtures)
+
+`fabric-sim.sh SCENARIO=name` (several allowed, comma separated; default as today). Each runs a process that reports through the real link, no provider.
+
+| Scenario | What happens | What the page shows |
+|---|---|---|
+| `context-fills` | An agent's prompt grows over 30 calls; a window is known; compaction fires three times | Gauge past 85 %, a timeline with three drops, a `CONTEXT` incident that closes after a compaction |
+| `compaction-thrash` | Compaction runs often and frees little | `THRASH` incident, barely visible drops |
+| `no-window` | An agent with no known window | The hatched bar and hint; after a catalog entry is added, a real gauge |
+| `flaky-tool` | One tool fails most calls (rate limits, timeouts), one always works | A failing row and a healthy row; a tool-rate incident |
+| `task-diverted` | A task throws; its `on_failure` takes over; the workflow completes | Finished run, "1 step went through on_failure", a `DIVERTED` incident |
+| `task-broken` | A task fails after retries with no `on_failure` | The cause banner, a `BROKEN` incident that stays, a failing task row |
+| `delegate-broken` | A delegate's model keeps failing | The same banner naming the delegate |
+| `latency-spike` | A tool becomes ten times slower | A `SPIKE` incident; the p95 column jumps |
+| `truncated-answers` | Replies stop at the token limit | A `TRUNCATED` incident |
+| `trifecta` | One agent reads a page, looks up a customer and sends mail | `TRIFECTA` high |
+| `trifecta-accepted` | The same, with the trifecta accepted in writing in the rules file | `TRIFECTA` as info with the reason, the verdict `accepted` |
+| `injected-page` | A page carries a planted instruction; the agent's next call is unusual | `INJECTION` high; the evidence has group names only; the planted text appears nowhere |
+| `access-refused` | A tool refuses a role three times; an agent calls a tool it does not have | An `ACCESS` warning and an info line; counts in the security panel |
+
+## 8. Sub-phases
+
+| Step | Delivers | Requirements |
+|---|---|---|
+| 5a | View additions (context points and events), `/api/tools`, `/api/security`, summaries' `security`, the `windows` section and the catalog fill; the simulator scenarios and their tests | R1 to R6, R22, R24 |
+| 5b | The run page: banner, cards, context panel and timeline, tools and tasks table, security panel, incidents | R7 to R11, R14, R20 |
+| 5c | The two fleet pages and the tab badges | R12, R13, R23 |
+| 5d | The Configuration page: the eight behaviours and the windows catalog | R15, R16 |
+| 5e | Cross-cutting checks (themes, narrow width, keyboard, console), screenshots, documentation, verification run | R17 to R21, all |
+| 5f-1 | **Calm**: stable tab order, a Runs list instead of a tab per run, held row order with Re-sort, Live / Paused, the calm simulator preset | R26 to R28, R34, R35 |
+| 5f-2 | **Time**: the kept history, the timeline and `?at=` routes, the time bar and the snapshot view | R29 to R33 |
+| 5f-3a | **The workflow skill and guide, brought up to date**: chapter 14, the changed chapters, the Java reference, `SKILL.md` | R36 to R39 |
+| 5f-3b | **The deployer skill**: its chapters, its launch scripts, the tour of both pages | R40 to R43 |
+| 5f-3c | **Packaging and drift tests**: install both, the package, the drift test, the docs | R44 to R46 |
+
+## 9. Decisions
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | The live "what would this threshold have caught" preview on Configuration? | Cut. It needs a replay engine over history and a second code path for the detectors. It is listed under "Not built" and can follow when there is data to judge it by |
+| 2 | Where do the new views live? | Top-level tabs **Tools & tasks** and **Security** beside Processes and Configuration (across runs), and the same content as panels on each run |
+| 3 | An agent with no known window | A hatched bar and a hint. A percentage is never invented. The catalog (decision 5) makes this the exception |
+| 4 | Tasks in the tools table? | Yes, one table, a kind label and a filter; a tool and a task with one name are two rows |
+| 5 | A context-window catalog on the server? | Yes (5a, 5d). Without it a fleet's gauges are blank whenever the process was not given a `.windows` file, which is the common case |
+| 6 | One page for embedded and Fabric? | Yes, one code base. Pages that need the whole server (Tools & tasks, Security) work over the registry either way; Processes and Configuration appear only where they already do |
+| 7 | How is the page tested? | Java tests for the routes, the view and the catalog; a browser test (node:test with Playwright, skipped when not installed, as the VS Code panel's is) against a real Fabric running the simulator scenarios, in both themes and at 360 px; computed contrast over the tokens; no charting or test library added to the product |
+| 8 | Where do the security "cannot tell you" words come from? | One constant in the page's script, the same text as the wiki page, with a test that the wiki still says it |
+| 9 | Fleet security rows: all agents or only the notable? | Only `exercised`, `accepted` and `armed` (and open incidents), so a fleet of quiet agents does not drown the page; the counts still include everyone |
+| 10 | What does the page do about a hostile run? | Shows text as text and never executes or fetches anything named in run data; a link is made only to a run page on the same server |
+| 11 | Why was the page hard to follow? (found by use, after 5e) | Tabs were sorted by last event, so they reordered on every poll; every poll redrew whole panels and re-sorted rows by live numbers; and the default simulator runs three processes forever, adding runs and incidents. Fix the page first (stable order, a Pause), then add time; do not lean on a quieter simulator alone |
+| 15 | A tab per run? | No (seen with the simulator: fifty identical tabs). Tabs are for the few runs that need eyes; everything else is a searchable Runs list. The same list is the way back to a finished run |
+| 12 | How does a person go back? | A time bar on the run page over the run's own history (decision 13); the fleet pages get Pause only |
+| 13 | How is a past view made? | The run keeps the records it was built from (bounded) and a past view is a scratch run fed the same records up to the point. Not stored snapshots (large, and they could differ from what live shows) and not a second view builder |
+| 14 | Pause automatically on interaction? | No. A page that sometimes stops by itself is its own surprise. The order of rows is held (R27) and Pause is explicit and visible |
+| 16 | Order of 5f | 5f-1 and 5f-2 first, then 5f-3, so the deployer skill describes the pages as they will be (Runs list, Live and Paused, the time bar) and not as they were. 5f-3 is the more important and is not cut if time is short |
+| 17 | One skill or two? | Two. The workflow skill is about building (and ends at go-live); the deployer skill is about running: different moments, different triggers, and a team may install only the second on a server. They hand over to each other by name |
+| 18 | Where do the deployer's chapters live? | `docs/deploy/` in the repository, shipped in the jar beside the guide (so `weave guide deploy N` works with no repository) and into the skill's `references/` |
+| 19 | Does the skill run commands? | Yes, through its scripts, and only those; the agent is told to read the script's output and to ask before anything that opens a port beyond loopback, accepts a trifecta or changes the admin password |
+
+## 10. Not built
+
+- The live threshold preview (decision 1).
+- Charts beyond the gauge, the compaction timeline and the latency histogram; no per-minute fleet history (the server keeps run state, not a time series).
+- Acting on a finding from the page (pause or stop already exist and are unchanged; blocking is a script policy).
+- Per-user views, saved filters and alert routing.
+- The fleet pages as of a past time (it needs every run replayed; Pause covers the need to read a page in peace). The compaction timeline already shows a run's own past.

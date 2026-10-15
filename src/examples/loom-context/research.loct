@@ -1,0 +1,3 @@
+# name = class: our own compaction strategy, used as "keep_newest" in the script.
+# (Mapped to a class on the project's class path; this demo registers it in code instead, so weave check warns that the class is not on the path.)
+keep_newest = com.acme.KeepNewest

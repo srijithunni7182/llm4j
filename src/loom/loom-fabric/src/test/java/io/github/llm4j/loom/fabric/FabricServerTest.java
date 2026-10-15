@@ -146,6 +146,21 @@ class FabricServerTest {
     }
 
     @Test
+    void aRestoredRunHasItsHistoryAgain_soItCanBeShownAsItWasAfterARestart() throws Exception {
+        post("/loom-inspect/v1/hello", "alpha", keyA, hello("alpha"));
+        post("/v1/logs", "alpha", keyA, logs("alpha", 1, Semconv.EV_RUN_START));
+        io.github.llm4j.loom.inspect.state.RunState before = server.registry().findByTrace(TRACE).orElseThrow();
+        long seqBefore = before.lastSeq();
+        server.close();
+        boot(100, 200);
+        io.github.llm4j.loom.inspect.state.RunState after = server.registry().findByTrace(TRACE).orElseThrow();
+        assertThat(after.lastSeq()).isEqualTo(seqBefore);
+        assertThat(after.firstSeq()).isZero();
+        assertThat(after.viewAt(after.lastSeq())).isPresent();
+        assertThat(after.timeline().get(0)).containsEntry("kind", "start");
+    }
+
+    @Test
     void theApiNeedsALogin_aWrongPasswordIsRefused_andAfterRepeatedFailuresTheAddressMustWait() throws Exception {
         assertThat(api("/api/runs", null).statusCode()).isEqualTo(401);
         assertThat(api("/api/processes", null).statusCode()).isEqualTo(401);

@@ -59,6 +59,10 @@ public class HarnessExecutor implements LoomEngine {
     private io.github.llm4j.loom.prompt.PromptCatalog promptCatalog;
     private final String sessionId = UUID.randomUUID().toString();
     private MemoryEngine memoryEngine = new TranscriptAccumulationEngine();
+    private final io.github.llm4j.agent.StatsCollector runStats = new io.github.llm4j.agent.StatsCollector();
+    private final java.util.concurrent.atomic.AtomicLong compactionCount = new java.util.concurrent.atomic.AtomicLong();
+    private io.github.llm4j.loom.context.WindowLayers contextWindows;
+    private io.github.llm4j.loom.context.CompactorRegistry compactors;
 
     // ── Durable runs ─────────────────────────────────────────────────────
     private RunJournal journal = RunJournal.inMemory();
@@ -167,6 +171,28 @@ public class HarnessExecutor implements LoomEngine {
      * ({@link io.github.llm4j.agent.task.TaskRegistry#discovered()}). Tasks are operator-supplied; a script can name one, never load one.
      */
     public void setTaskRegistry(io.github.llm4j.agent.task.TaskRegistry registry) { this.taskRegistry = registry; }
+
+    private java.util.Map<String, String> toolReach = java.util.Map.of();
+    private final java.util.Map<String, io.github.llm4j.loom.security.ToolReach> reachCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** What the {@code .loot} file declares your own tools reach ({@code Name.reach = reads}); without it a tool the script does not define is assumed to reach everything. */
+    public void setToolReach(java.util.Map<String, String> declared) {
+        this.toolReach = declared == null ? java.util.Map.of() : java.util.Map.copyOf(declared);
+        reachCache.clear();
+    }
+
+    /** What the tool reaches, as the static audit would say: the same code answers both. */
+    io.github.llm4j.loom.security.ToolReach reachOf(String tool) {
+        return reachCache.computeIfAbsent(tool, name -> {
+            // tools Loom itself adds to an agent reach only the agent's own data: the audit counts them as private data, and so does the trace
+            boolean ownData = "save_memory_fact".equals(name) || script.getKnowledgeBases().stream()
+                    .anyMatch(kb -> name.equals("search_" + kb.getName().toLowerCase(java.util.Locale.ROOT)));
+            if (ownData) return new io.github.llm4j.loom.security.ToolReach(false, true, false, true);
+            java.util.Map<String, io.github.llm4j.loom.ast.ToolDef> declared = new java.util.HashMap<>();
+            for (io.github.llm4j.loom.ast.ToolDef t : script.getTools()) declared.put(t.getName(), t);
+            return io.github.llm4j.loom.security.ToolReach.resolve(name, declared, toolReach);
+        });
+    }
 
     public synchronized io.github.llm4j.agent.task.TaskRegistry getTaskRegistry() {
         if (taskRegistry == null) taskRegistry = io.github.llm4j.agent.task.TaskRegistry.discovered();
@@ -503,6 +529,25 @@ public class HarnessExecutor implements LoomEngine {
         return promptCatalog.usesOf(script).stream().filter(u -> u.agent().equals(agent.getName()) && u.resolved()).findFirst();
     }
 
+    /** The statistics of the model and tool calls made so far in this run (kept whether or not anyone traces). */
+    public io.github.llm4j.telemetry.RunStats stats() {
+        return runStats.snapshot();
+    }
+
+    /** Always attached to an agent: keeps the run's statistics and counts compactions, whether or not anyone listens to the trace. */
+    private io.github.llm4j.agent.AgentEventListener statsAdapter() {
+        return new io.github.llm4j.agent.AgentEventListener() {
+            @Override public void onThought(String thought) { }
+            @Override public void onAction(String toolName, String toolInput) { }
+            @Override public void onObservation(String observation) { }
+            @Override public void onModelCall(io.github.llm4j.telemetry.ModelCallEvent event) { runStats.onModelCall(event); }
+            @Override public void onToolCall(io.github.llm4j.telemetry.ToolCallEvent event) { runStats.onToolCall(event); }
+            @Override public void onCompaction(io.github.llm4j.context.CompactionEvent event) {
+                if (event.result() != null && event.result().outcome() == io.github.llm4j.context.CompactionResult.Outcome.COMPACTED) compactionCount.incrementAndGet();
+            }
+        };
+    }
+
     boolean tracing() {
         return !traceListeners.isEmpty();
     }
@@ -546,6 +591,79 @@ public class HarnessExecutor implements LoomEngine {
             }
 
             @Override
+            public void onContextUsage(io.github.llm4j.context.ContextUsage usage) {
+                Map<String, Object> d = new java.util.LinkedHashMap<>();
+                d.put("used", usage.used());
+                d.put("source", usage.source().name());
+                String text = "context " + usage.used() + " tokens";
+                if (usage.window() != null) {
+                    d.put("window", usage.window().tokens());
+                    d.put("usable", usage.window().usableInput());
+                    usage.fraction().ifPresent(f -> d.put("fraction", f));
+                    text += " of " + usage.window().usableInput() + " (" + Math.round(usage.fraction().orElse(0) * 100) + "%)";
+                }
+                trace(TraceEvent.CONTEXT, agentName, text, d);
+            }
+
+            @Override
+            public void onCompaction(io.github.llm4j.context.CompactionEvent event) {
+                io.github.llm4j.context.CompactionResult r = event.result();
+                Map<String, Object> d = new java.util.LinkedHashMap<>();
+                d.put("strategy", r.strategy());
+                d.put("outcome", r.outcome().name());
+                d.put("reason", event.reason().name());
+                d.put("before", r.tokensBefore());
+                d.put("after", r.tokensAfter());
+                d.put("messages_before", r.messagesBefore());
+                d.put("messages_after", r.messagesAfter());
+                if (event.failure() != null) d.put("error_type", event.failure().split(":", 2)[0]);
+                if (r.summarizerUsage() != null) {
+                    d.put("summary_tokens", r.summarizerUsage().promptTokens() + r.summarizerUsage().completionTokens());
+                    if (r.summarizerUsage().cost() != null) d.put("summary_cost", r.summarizerUsage().cost().toPlainString());
+                }
+                trace(TraceEvent.COMPACTION, agentName, r.strategy() + " " + r.outcome().name().toLowerCase() + ": " + r.tokensBefore() + " to " + r.tokensAfter() + " tokens", d);
+            }
+
+            @Override
+            public void onModelCall(io.github.llm4j.telemetry.ModelCallEvent e) {
+                Map<String, Object> d = new java.util.LinkedHashMap<>();
+                d.put("model", e.model());
+                d.put("requested_model", e.requestedModel());
+                d.put("iteration", e.iteration());
+                d.put("duration_ms", e.durationMillis());
+                d.put("waited_ms", e.waitedMillis());
+                d.put("attempts", e.attempts());
+                if (!e.failovers().isEmpty()) d.put("failovers", e.failovers());
+                d.put("prompt_tokens", e.promptTokens());
+                d.put("completion_tokens", e.completionTokens());
+                d.put("finish_reason", e.finishReason());
+                d.put("truncated", e.truncated());
+                d.put("outcome", e.outcome().name());
+                if (e.failed()) {
+                    d.put("category", e.category().name());
+                    d.put("error_type", e.errorType());
+                }
+                trace(TraceEvent.MODEL_CALL, agentName, (e.model() != null ? e.model() : "model") + " " + e.durationMillis() + " ms, "
+                        + e.promptTokens() + "+" + e.completionTokens() + " tokens" + (e.failed() ? ", failed: " + e.category() : ""), d);
+            }
+
+            @Override
+            public void onToolCall(io.github.llm4j.telemetry.ToolCallEvent e) {
+                Map<String, Object> d = new java.util.LinkedHashMap<>();
+                d.put("tool", e.tool());
+                d.put("outcome", e.outcome().name());
+                d.put("duration_ms", e.durationMillis());
+                d.put("approval_ms", e.approvalMillis());
+                d.put("result_chars", e.resultChars());
+                d.put("soft_failure", e.softFailure());
+                io.github.llm4j.loom.security.ToolReach reach = reachOf(e.tool());
+                d.put("reach", reach.legs());
+                d.put("reach_known", reach.known());
+                if (e.failed()) d.put("category", e.category().name());
+                trace(TraceEvent.TOOL_CALL, agentName, e.tool() + " " + (e.failed() ? "failed: " + e.category() : "ok") + " in " + e.durationMillis() + " ms", d);
+            }
+
+            @Override
             public void onBudget(io.github.llm4j.budget.BudgetEvent event) {
                 trace(TraceEvent.BUDGET, agentName, event.kind() + " " + event.budget() + ": spent " + event.spent()
                         + " of " + event.limits(), Map.of("budget", event.budget(), "kind", String.valueOf(event.kind())));
@@ -564,6 +682,7 @@ public class HarnessExecutor implements LoomEngine {
             @Override public RunJournal journal() { return self.journal; }
             @Override public LoomScript script() { return self.script; }
             @Override public io.github.llm4j.secret.SecretStore secretStore() { return self.secretStore; }
+            @Override public java.util.Map<String, String> toolReach() { return self.toolReach; }
             @Override public java.util.Optional<io.github.llm4j.loom.autonomy.Ledger> ledger() { return java.util.Optional.ofNullable(self.ledger); }
             @Override public java.util.Optional<io.github.llm4j.loom.autonomy.LevelStore> levelStore() { return java.util.Optional.ofNullable(self.levelStore); }
             @Override public io.github.llm4j.budget.Budget runBudget() { return self.getRunBudget(); }
@@ -571,6 +690,7 @@ public class HarnessExecutor implements LoomEngine {
             @Override public RunControl control() { return self.control; }
             @Override public Map<String, Object> variables() { return java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(self.context.getAll())); }
             @Override public java.time.Clock clock() { return self.clock; }
+            @Override public io.github.llm4j.telemetry.RunStats stats() { return self.stats(); }
             @Override public void addTraceListener(TraceListener listener) { self.addTraceListener(listener); }
             @Override public void addSuspensionListener(java.util.function.Consumer<RunSuspended> listener) { self.addSuspensionListener(listener); }
         };
@@ -701,6 +821,7 @@ public class HarnessExecutor implements LoomEngine {
                 .baseDir(baseDir)
                 .prompts(promptCatalog)
                 .check(this::checkAgentSettings)
+                .check(this::checkCompactors)
                 .check(this::checkToolsAndApprovals)
                 .check(this::checkKnowledge)
                 .check(this::checkProviders);
@@ -835,7 +956,7 @@ public class HarnessExecutor implements LoomEngine {
     // ── Agent memory, voice and guard settings ──────────────────────────────────────────────
 
     private static final java.util.Set<String> MEMORY_KEYS = java.util.Set.of(
-            "conversation", "limit", "session", "facts", "embedding", "recall", "min_similarity");
+            "conversation", "limit", "session", "facts", "embedding", "recall", "min_similarity", "max_tokens", "compact");
     private static final java.util.Set<String> VOICE_KEYS = java.util.Set.of("listen", "speak", "language", "voice", "out");
     private static final java.util.Set<String> GUARD_KEYS = java.util.Set.of("pii", "bias", "bias_model");
 
@@ -845,6 +966,7 @@ public class HarnessExecutor implements LoomEngine {
             if (a.getMemory() != null) checkMemory(c, who, a.getMemory());
             if (a.getVoice() != null) checkVoice(c, who, a.getVoice());
             if (a.getGuard() != null) checkGuard(c, who, a.getGuard());
+            if (a.getContext() != null) ContextSettings.check(c, who, a.getContext(), customCompactorNames(), (line, model) -> checkModel(c, line, who, model));
         }
     }
 
@@ -868,8 +990,20 @@ public class HarnessExecutor implements LoomEngine {
 
     private void checkMemory(ScriptValidator.Checker c, String who, AgentDef.MemoryConfig m) {
         checkKeys(c, who, "memory", m, MEMORY_KEYS);
-        if (!m.has("conversation") && !m.has("facts")) {
-            c.error(m.getLine(), who, "memory needs conversation: \"<directory>\" | memory, or facts: \"<file>\" | memory (or both)");
+        if (!m.has("conversation") && !m.has("facts") && !m.has("max_tokens")) {
+            c.error(m.getLine(), who, "memory needs conversation: \"<directory>\" | memory, or facts: \"<file>\" | memory (or both), or max_tokens: <n> to bound the shared transcript");
+        }
+        wholeNumber(c, who, m, "max_tokens");
+        if (m.has("compact")) {
+            if (!m.has("max_tokens")) c.warn(m.lineOf("compact"), who, "memory compact: only applies with max_tokens:");
+            String name = m.get("compact");
+            java.util.TreeSet<String> known = ContextSettings.knownNames(customCompactorNames());
+            known.remove("chain");
+            if (name != null && !known.contains(name)) {
+                c.error(m.lineOf("compact"), who, "memory compact: unknown strategy '" + name + "'" + io.github.llm4j.loom.autonomy.expr.Suggest.hint(name, known) + "; use one of " + String.join(", ", known));
+            } else if ("summarize".equals(name)) {
+                c.warn(m.lineOf("compact"), who, "memory compact: summarize needs a model of its own, which the transcript does not have; it falls back to drop_oldest");
+            }
         }
         wholeNumber(c, who, m, "limit");
         wholeNumber(c, who, m, "recall");
@@ -928,6 +1062,117 @@ public class HarnessExecutor implements LoomEngine {
             c.error(v.lineOf("out"), who, "voice out: " + e.getMessage());
         }
     }
+
+    /**
+     * Where each model's context window comes from. The default is what the command line named (see {@link io.github.llm4j.loom.context.ContextFiles}),
+     * else the catalogue shipped with ai-agent4j.
+     */
+    public void setContextWindows(io.github.llm4j.loom.context.WindowLayers layers) {
+        this.contextWindows = layers;
+    }
+
+    io.github.llm4j.loom.context.WindowLayers contextWindows() {
+        if (contextWindows == null) contextWindows = io.github.llm4j.loom.context.ContextFiles.current().windowLayers();
+        return contextWindows;
+    }
+
+    /** Your own compaction strategies by name (a {@code .loct} file, or code). Starts with the files the command line named. */
+    public io.github.llm4j.loom.context.CompactorRegistry compactors() {
+        if (compactors == null) {
+            compactors = new io.github.llm4j.loom.context.CompactorRegistry();
+            for (Path f : io.github.llm4j.loom.context.ContextFiles.current().loctFiles()) compactors.load(f);
+        }
+        return compactors;
+    }
+
+    /** Reads a {@code .loct} file into {@link #compactors()}; returns what is wrong with it. */
+    public java.util.List<io.github.llm4j.loom.context.CompactorRegistry.Problem> loadCompactors(Path file) {
+        return compactors().load(file);
+    }
+
+    /** Makes a strategy of yours available to scripts by this name. */
+    public void registerCompactor(String name, io.github.llm4j.context.ContextCompactor compactor) {
+        compactors().register(name, compactor);
+    }
+
+    /** The names a {@code .loct} file (or code) maps to strategies. */
+    java.util.Set<String> customCompactorNames() {
+        return compactors().names();
+    }
+
+    /** The problems of the mapped strategies, as check messages. */
+    private void checkCompactors(ScriptValidator.Checker c) {
+        java.util.List<io.github.llm4j.loom.context.CompactorRegistry.Problem> all = new java.util.ArrayList<>(compactors().loadProblems());
+        all.addAll(compactors().verify());
+        for (var p : all) {
+            if (p.error()) c.error(p.line(), "context strategy", p.toString());
+            else c.warn(p.line(), "context strategy", p.toString());
+        }
+        boolean used = script.getAgents().stream().anyMatch(a -> a.getContext() != null);
+        if (!used) return;
+        for (AgentDef a : script.getAgents()) {
+            AgentDef.ContextConfig cfg = a.getContext();
+            if (cfg == null || cfg.compactNames().equals(java.util.List.of("none"))) continue;
+            java.util.List<String> models = modelsOf(a);
+            if (ContextWiring.governing(contextWindows(), models).isEmpty()) {
+                c.warn(cfg.getLine(), "agent " + a.getName(), "no context window is known for " + String.join(", ", models)
+                        + ": compaction can only react to a provider's \"prompt too long\" error; add the model to a windows file (--context-windows, or a .windows file beside the script)");
+            }
+        }
+    }
+
+    private final Map<String, io.github.llm4j.context.ContextCompactor> contextCompactors = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Bounds Loom's shared transcript when an agent asks for it: {@code memory { max_tokens, compact }}, or else a quarter of the usable window of an
+     * agent that has a {@code context} block, with that agent's strategy. Other memory engines are left as the host made them.
+     */
+    private void boundTranscript() {
+        if (!(memoryEngine instanceof TranscriptAccumulationEngine transcript) || transcript.bounded()) return;
+        boolean asked = script.getAgents().stream().anyMatch(a -> a.getMemory() != null && a.getMemory().has("max_tokens") || a.getContext() != null);
+        if (asked) transcript.limits(this::transcriptLimit);
+    }
+
+    private TranscriptAccumulationEngine.Limit transcriptLimit(AgentDef a) {
+        AgentDef.MemoryConfig mem = a.getMemory();
+        if (mem != null && mem.has("max_tokens")) {
+            io.github.llm4j.context.ContextCompactor compactor;
+            String name = mem.getCompact();
+            try {
+                compactor = compactors().has(name) ? compactors().create(name, Map.of(), null)
+                        : io.github.llm4j.context.ContextCompactors.byName("summarize".equals(name) ? "drop_oldest" : name, Map.of());
+            } catch (RuntimeException e) {
+                compactor = io.github.llm4j.context.ContextCompactors.dropOldest();
+            }
+            return new TranscriptAccumulationEngine.Limit(mem.getMaxTokens(), compactor, 0.5, 2);
+        }
+        AgentDef.ContextConfig cfg = a.getContext();
+        io.github.llm4j.context.ContextCompactor compactor = cfg == null ? null : contextCompactors.get(a.getName());
+        if (compactor == null) return null;
+        return ContextWiring.governing(contextWindows(), modelsOf(a))
+                .map(f -> new TranscriptAccumulationEngine.Limit(Math.max(1, f.window().usableInput() / 4), compactor, 0.5, 2))
+                .orElse(null);
+    }
+
+    /** Gives an agent with a {@code context} block its policy, its model's window and its compaction strategy. Agents without one are left as they were. */
+    private void applyContext(AgentDef agentDef, ReActAgent.Builder builder) {
+        AgentDef.ContextConfig cfg = agentDef.getContext();
+        if (cfg == null) return;
+        java.util.Optional<io.github.llm4j.loom.context.WindowLayers.Found> found = ContextWiring.governing(contextWindows(), modelsOf(agentDef));
+        builder.contextPolicy(ContextWiring.policy(cfg, found.map(io.github.llm4j.loom.context.WindowLayers.Found::window).orElse(null)));
+        io.github.llm4j.LLMClient summarizer = cfg.getSummarizer() == null ? null
+                : metered(clientFor(cfg.getSummarizer()), agentDef, cfg.getSummarizer());
+        try {
+            io.github.llm4j.context.ContextCompactor compactor = ContextWiring.compactor(cfg, compactors(), summarizer);
+            if (compactor != null) {
+                builder.compaction(compactor);
+                contextCompactors.put(agentDef.getName(), compactor);
+            }
+        } catch (IllegalArgumentException e) {
+            throw new LoomLoadException(List.of(new ScriptValidator.Problem(cfg.getLine(), "agent " + agentDef.getName(), "context: " + e.getMessage(), ScriptValidator.Severity.ERROR)));
+        }
+    }
+
 
     private void checkGuard(ScriptValidator.Checker c, String who, AgentDef.GuardConfig g) {
         checkKeys(c, who, "guard", g, GUARD_KEYS);
@@ -1388,6 +1633,8 @@ public class HarnessExecutor implements LoomEngine {
                 agentBuilder.addTool(agentMemory.factTool(() -> sessions.getOrDefault(step.get(), agentName)));
             }
             agentBuilder.auditLogger(auditLogger).sessionId(sessionId);
+            applyContext(agentDef, agentBuilder);
+            agentBuilder.addListener(statsAdapter());
             if (tracing()) agentBuilder.addListener(traceAdapter(agentDef.getName()));
 
             // MCP-sourced tools
@@ -1411,6 +1658,7 @@ public class HarnessExecutor implements LoomEngine {
             customizeAgent(agentDef, agentBuilder);
             ReActAgent agent = agentBuilder.build();
             activeAgents.put(agentDef.getName(), agent);
+            boundTranscript();
             
             log.info("Initialized Agent: " + agentDef.getName());
         }
@@ -1549,6 +1797,13 @@ public class HarnessExecutor implements LoomEngine {
         } catch (RuntimeException | Error failure) {
             ended = failure instanceof io.github.llm4j.budget.BudgetExceeded ? "budget" : "failed";
             endData.put("error", String.valueOf(failure.getMessage()));
+            Map<String, Object> culprit = unhandledFailure.get();
+            if (culprit != null) {
+                endData.put("failed_kind", culprit.get("kind"));
+                endData.put("failed_name", culprit.get("name"));
+                endData.put("failed_step", culprit.get("step"));
+                endData.put("failed_category", culprit.get("category"));
+            }
             throw failure;
         } finally {
             step.set(parent);
@@ -1556,6 +1811,13 @@ public class HarnessExecutor implements LoomEngine {
                 endData.put("workflow", workflowName);
                 if (runId != null) endData.put("run", runId);
                 endData.put("status", ended);
+                io.github.llm4j.telemetry.RunStats totals = runStats.snapshot();
+                endData.put("model_calls", totals.totalModelCalls());
+                endData.put("tool_calls", totals.totalToolCalls());
+                endData.put("tool_failures", totals.totalToolFailures());
+                endData.put("retries", totals.totalRetries());
+                endData.put("failovers", totals.totalFailovers());
+                endData.put("compactions", compactionCount.get());
                 trace(TraceEvent.RUN_END, null, "workflow " + workflowName + " " + ended, endData);
             }
         }
@@ -2243,8 +2505,32 @@ public class HarnessExecutor implements LoomEngine {
         return data;
     }
 
+    private final java.util.concurrent.atomic.AtomicReference<Map<String, Object>> unhandledFailure = new java.util.concurrent.atomic.AtomicReference<>();
+
+    /** The category a failure belongs to: the given one, or the one the exception says (the same words a tool failure uses). */
+    io.github.llm4j.telemetry.ErrorCategory failureCategory(Throwable cause, io.github.llm4j.telemetry.ErrorCategory given) {
+        if (given != null) return given;
+        return cause == null ? io.github.llm4j.telemetry.ErrorCategory.OTHER : io.github.llm4j.telemetry.ErrorCategory.of(cause);
+    }
+
+    /** Tells the trace a task or delegate failed, and remembers it for {@code run_end} when nothing handles it. */
+    void traceFailure(String kind, String name, String message, Throwable cause, io.github.llm4j.telemetry.ErrorCategory given, int attempts, boolean handled) {
+        Map<String, Object> d = new java.util.LinkedHashMap<>();
+        d.put("kind", kind);
+        d.put("name", name);
+        d.put("step", currentStep());
+        d.put("category", failureCategory(cause, given).name());
+        if (cause != null) d.put("error_type", cause.getClass().getSimpleName());
+        d.put("attempts", attempts);
+        d.put("handled", handled);
+        d.put("error", message == null ? "" : message);
+        if (!handled) unhandledFailure.set(d);
+        trace(TraceEvent.FAILURE, null, kind + " " + name + (handled ? " failed; on_failure took over" : " failed"), d);
+    }
+
     /** Runs the on_failure block with {@code _error} in scope, or fails the workflow. */
     private void handleExhausted(DelegateStmt del, String agentName, String message, Exception cause) {
+        traceFailure("delegate", agentName, message, cause, null, del.getRetryCount() + 1, !del.getOnFailure().isEmpty());
         if (!del.getOnFailure().isEmpty()) {
             runFailureHandler(del.getOnFailure(), message);
         } else {
@@ -2619,6 +2905,7 @@ public class HarnessExecutor implements LoomEngine {
 
     /** Start of a top-level run: counts a resume after a pause, and publishes {@code _run}. */
     private void beginRun() {
+        unhandledFailure.set(null);
         Map<String, Object> last = journal.get(SUSPENSION)
                 .map(e -> e.value() instanceof Map<?, ?> m ? new java.util.LinkedHashMap<>(castMap(m)) : null)
                 .orElse(null);

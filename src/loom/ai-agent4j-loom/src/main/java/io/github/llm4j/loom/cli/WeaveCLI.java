@@ -109,6 +109,9 @@ public class WeaveCLI implements Callable<Integer> {
         private ClassesOptions classesOptions = new ClassesOptions();
 
         @CommandLine.Mixin
+        private ContextOptions contextOptions = new ContextOptions();
+
+        @CommandLine.Mixin
         private InvokerOptions invokerOptions = new InvokerOptions();
 
         @Override
@@ -118,7 +121,7 @@ public class WeaveCLI implements Callable<Integer> {
                 return 1;
             }
             WeaveEnv env = envFile.apply(WeaveEnv.system().withAskVia(askVia), scriptFile.toPath());
-            if (env == null || !classesOptions.apply(scriptFile.toPath(), env)) return 2;
+            if (env == null || !classesOptions.apply(scriptFile.toPath(), env) || !contextOptions.apply(scriptFile.toPath(), env)) return 2;
             env = secrets.apply(env, Prompts.console());
             if (env == null) return 2;
             env = promptOptions.apply(env);
@@ -279,10 +282,13 @@ public class WeaveCLI implements Callable<Integer> {
         @CommandLine.Mixin
         private ClassesOptions classesOptions = new ClassesOptions();
 
+        @CommandLine.Mixin
+        private ContextOptions contextOptions = new ContextOptions();
+
         @Override
         public Integer call() {
             WeaveEnv env = envFile.apply(WeaveEnv.system(), scriptFile.toPath());
-            if (env == null || !classesOptions.apply(scriptFile.toPath(), env)) return 2;
+            if (env == null || !classesOptions.apply(scriptFile.toPath(), env) || !contextOptions.apply(scriptFile.toPath(), env)) return 2;
             env = secrets.apply(env, Prompts.console());
             if (env == null) return 2;
             env = promptOptions.apply(env);
@@ -331,6 +337,7 @@ public class WeaveCLI implements Callable<Integer> {
             }
             return 2;
         }
+        io.github.llm4j.loom.context.ContextFiles.beside(scriptFile.toPath());
         ToolRegistry registry = new ToolRegistry();
         if (lootFile != null && lootFile.exists()) new LootLoader().loadIntoRegistry(lootFile.getAbsolutePath(), registry);
         java.util.List<String> keyWarnings = new java.util.ArrayList<>();
@@ -359,6 +366,7 @@ public class WeaveCLI implements Callable<Integer> {
             }
         });
         executor.setLenient(settings.lenient());
+        if (lootFile != null && lootFile.exists()) executor.setToolReach(LootLoader.reaches(lootFile.toPath()));
         executor.setBaseDir(scriptFile.getAbsoluteFile().getParentFile().toPath());
         java.util.function.Function<String, String> lookup = env.env();
         executor.setEnvLookup(settings.noEnv() ? name -> {

@@ -1422,6 +1422,111 @@ Because a task is plain Java you also unit-test it directly, with no model and n
 
 ## 🛡️ 4. Enterprise Safety & Lifecycle
 
+### Context and Compaction
+
+> **Status: complete.** The `context` block, the windows files, `.loct` strategies, the trace events and run statistics, the transcript bound and `weave audit` are all in.
+> Design: [`docs/specs/03-loom-integration`](../../../docs/specs/03-loom-integration/DESIGN.md). A runnable example is in [`src/examples/loom-context`](../../examples/loom-context/README.md).
+
+A long tool loop makes the prompt grow until the model's context window is full. An agent's `context` block says **how it keeps the prompt inside the window**. The strategies are
+those of ai-agent4j ([Context and Compaction](../../ai-agent4j/wiki/Context-and-Compaction.md)):
+
+```loom
+agent Researcher {
+    model: "claude-sonnet-5-5"
+    tools: [search, fetch]
+    context {
+        compact: chain(trim_tool_results, summarize, drop_oldest)   // one strategy, or chain(a, b, c) tried in order
+        summarizer: "claude-haiku-5-5"                              // a cheaper model that writes the notes (for summarize)
+        trigger: 80%                                                // start compacting above this share of the usable window
+        target: 55%                                                 // compact down to this share
+        keep_recent: 6                                              // the latest messages are never touched
+        max_compactions: 20                                         // a safety stop per run
+    }
+}
+```
+
+- Every key is optional except `compact`. `context { compact: drop_oldest }` is a complete, useful declaration; `compact: none` switches compaction off.
+- **The size of the window is not written in the script.** It belongs to the model and is configured once, outside, in a windows file.
+- `trigger` and `target` are percentages written with a sign (`80%`); `target` must be below `trigger`. `keep_recent` is a number of messages.
+- Options of a strategy are further keys of the block: `max_summary_tokens` for `summarize`, `max_chars` for `trim_tool_results`.
+- Defaults when a key is left out: `trigger: 80%`, `target: 50%`, `keep_recent: 4`, `max_compactions: 8`. A run that adds a lot between model calls can need a higher
+  `max_compactions`; once it is reached the agent stops compacting (and a provider's "prompt too long" error then fails the step as it always did).
+- `weave audit` lists every agent's strategy, the window of its model and the file it comes from, and the strategies mapped in `.loct` files (it never loads the classes).
+- `weave check` rejects an unknown strategy (with the nearest guess and the known names), a bad number, `target` at or above `trigger`, a window written in the script,
+  and a `summarizer` that is not a usable model. It warns when `summarize` has no `summarizer` (it falls back to `drop_oldest`) and when no window is known for the agent's
+  model. It calls no model and runs none of your code.
+
+#### Where a model's window is configured
+
+The window belongs to the model, so it is written once, outside any script, in a **windows file**: one model per line, `model = window / reserve for the answer`.
+
+```text
+claude-sonnet-5-5 = 1000000 / 128000      # tokens
+my-finetune       = 32768 / 4096
+```
+
+Files are layered, highest priority first: those given with `--context-windows <file>` (repeatable; the last wins), `<script>.windows` beside the script, `~/.llm4j/context-windows`,
+then the catalogue that ships with ai-agent4j (the current Claude models). A host sets them in code with `executor.setContextWindows(...)`.
+
+- A routing agent is governed by the **smallest** window among its models, because whichever answers must fit.
+- A model that is in none of the files has no known window: the agent cannot compact by fill, but still recovers from the provider's "prompt too long" error, and `weave check`
+  warns once.
+
+#### Your own strategy: the `.loct` file
+
+A strategy of your own is mapped to a name in a **`.loct`** file, the way a tool is mapped in a `.loot` file, and then used by that name:
+
+```text
+# name = class
+keep_decisions = com.acme.KeepDecisionsCompactor
+```
+```loom
+agent Researcher { model: "claude-sonnet-5-5"  context { compact: chain(trim_tool_results, keep_decisions, drop_oldest) } }
+```
+
+- The class implements `ContextCompactor` (a public constructor without arguments), or `ContextCompactorProvider` when it wants the block's other keys as options (they are
+  handed to it as text) or a model client.
+- Give the file with `--loct strategies.loct` (repeatable), or name it `<script>.loct` and it is found beside the script. A host registers one in code with
+  `executor.registerCompactor("name", compactor)`.
+- A name may not be the same as a built-in strategy, and must be lower case with underscores. `weave check` reports a mapping that is wrong with its file and line, and warns
+  about a class that is not on the class path yet (build your project, or use `--classes`).
+- Your strategy is held to the same rules as the built-ins (it must not change its input, must keep a tool call with its results, and must not return more than it was
+  given). The agent discards a result that breaks them, and carries on with the conversation as it was.
+
+#### Bounding Loom's shared transcript
+
+By default Loom hands each agent a briefing that holds every earlier task and answer of the run (the *transcript*), and it grows without limit. Bound it with `max_tokens`:
+
+```loom
+agent Writer {
+    model: "claude-sonnet-5-5"
+    memory { max_tokens: 4000  compact: drop_oldest }     // the shared transcript never exceeds about 4,000 tokens
+}
+```
+
+- When the transcript is over the limit, the strategy named by `compact` (default `drop_oldest`; any non-model strategy, yours from a `.loct` file included) is applied to it. The
+  latest two exchanges are kept, and a task is never separated from its answer. A line says that earlier exchanges were removed (or carries the strategy's notes).
+- An agent that has a `context` block and a known window, and no `max_tokens`, bounds the transcript to **a quarter of its usable window** with its own strategy.
+- `rewind` still restores the transcript to what it was at the checkpoint. A strategy that fails or does not make the transcript smaller leaves it as it was.
+- `memory { max_tokens: … }` is enough on its own; it does not need `conversation` or `facts`.
+
+#### What you can see: trace events and statistics
+
+With `weave run --trace` (or any trace listener) the run shows, for every agent, numbers and names only; never a prompt, an answer, an argument or a result:
+
+| event | when | data |
+|---|---|---|
+| `context` | after each model call | `used` tokens and `source` (`REPORTED`: the provider's own count; `ESTIMATED`); with a known window also `window`, `usable`, `fraction` |
+| `compaction` | a compaction was tried | `strategy`, `outcome` (`COMPACTED`, `NO_GAIN`, `SKIPPED`, `FAILED`), `reason`, `before` and `after` in tokens, `messages_before` and `messages_after`, and the tokens and cost of a model-written summary |
+| `model_call` | each model call | `model`, `duration_ms`, `waited_ms`, `attempts`, `failovers`, token counts, `finish_reason`, `truncated`, `outcome`, and for a failure the `category` (`RATE_LIMITED`, `TIMEOUT`, `CONTEXT_OVERFLOW`, ...) |
+| `guard` | a guard acted | `event` (`pii_masked`, `pii_blocked`, `pii_detected`, `bias_detected`, `bias_blocked`), `agent`, `step`, and for personal data the `where` and the types found, never the values |
+| `tool_call` | each tool call | `tool`, `outcome`, `duration_ms`, `approval_ms`, `result_chars`, `soft_failure` (the tool returned its error as text), `reach` (which legs of the lethal trifecta the tool touches: `outward`, `private`, `untrusted`; empty for none), `reach_known` (`false` when the reach is assumed because nothing says what the tool does) and for a failure the `category` |
+| `failure` | a task or delegate failed | `kind` (`task` or `delegate`), `name`, `step`, `category`, `error_type`, `attempts`, `handled` (`true` when its `on_failure` took over, `false` when the run fails) and `error`. It is told on every path: retries used up, bad arguments, no approval, a refused effect, a replayed failure. A failed `task_end` carries the same `category`, `error_type` and `attempts` |
+
+`run_end` carries the totals (`model_calls`, `tool_calls`, `tool_failures`, `retries`, `failovers`, `compactions`). A run that failed because of a task or delegate also names it: `failed_kind`, `failed_name`, `failed_step`, `failed_category`. A host reads the statistics of the run so far (per tool and per
+model, with success rates and latency percentiles) from `executor.stats()` or `ObservableRun.stats()`; they are kept whether or not anyone traces.
+An agent without a `context` block reports `context` events too (its use, with no window); what it sends to the model is unchanged.
+
 ### Agent Guards
 
 An agent's `guard` protects everything it does:
@@ -2072,8 +2177,12 @@ weave daemon triggers/ --secrets keys.store \
       no_progress: 3 rounds on review.score   # this workflow variable unchanged at the end of 3 loop rounds in a row
   }
   Scriptwriter { ungrounded_figures: warn at 2, high at 4 }
+  Researcher   { context_nearly_full: warn at 85%, high at 95%;  tool_success_rate: below 70% over 10 calls;  latency_spike: 5x p50 }
+  Support      { trifecta: accepted "customer support: reads tickets, looks up the account, replies";  access_denied: 3 in 60s;  injection_scan: on }
   *            { paused_longer_than: 90s }    # for every agent that does not say otherwise
   ```
+
+  Beside the loops and the figures, the page also flags an agent's context nearly full, a truncated answer, compaction that thrashes, a tool whose success rate collapsed and a latency spike, and shows each tool's health and failures by category (see [Observing a workflow](../../../docs/OBSERVABILITY.md)). It also watches for security: an agent that has read untrusted content, reached private data and sent something out in one run (the lethal trifecta; `trifecta: accepted "reason"` accepts it in writing), a tool result that reads like injected instructions, and refused access (see [Security signals](../../../wiki/Observability-Security-Signals.md)). `weave audit` is the static review of the same trifecta; list what your own tools reach with `Name.reach` in the `.loot` file so the audit and the trace agree.
 
   `weave observe rules flow.loom` checks the file against the script without running anything: it refuses an agent the script does not have and a variable nothing sets (and suggests the nearest name). A file with errors is reported once when a run starts and not used.
 - The admin password may be stored as a hash: `weave observe hash-password` prints one to store as `LOOM_INSPECT_ADMIN_PASSWORD` in place of the password (Fabric stores a hash itself). Wrong guesses are slowed per address and across all addresses.

@@ -180,12 +180,14 @@ public class HttpClientWrapper {
                                 retryPolicy.getMaxRetries());
                     }
                     retryPolicy.getSleeper().sleep(backoff);
+                    io.github.llm4j.telemetry.CallTrace.waited(backoff);
                 }
 
                 if (enableLogging) {
                     logger.debug("Executing HTTP {} to {}", request.method(), request.url().redact());
                 }
 
+                io.github.llm4j.telemetry.CallTrace.attempt();
                 Response response = http.newCall(request).execute();
                 if (response.isSuccessful()) {
                     if (enableLogging) {
@@ -270,7 +272,7 @@ public class HttpClientWrapper {
         String message = "HTTP request failed with status " + status + ": " + describe(body) + requestId(headers, body);
         return switch (status) {
             case 401, 403 -> new AuthenticationException(message, status, body);
-            case 400, 404, 413, 422 -> new InvalidRequestException(message, status, body);
+            case 400, 404, 413, 422 -> io.github.llm4j.context.ContextOverflowClassifier.invalidRequest(message, status, body);
             case 500, 502, 503, 504, 529 -> new ServiceUnavailableException(provider, message, status, body);
             default -> new LLMException(message, status, body);
         };

@@ -60,7 +60,15 @@ public final class Simulate {
               --detail LEVEL      full, truncated (default) or metadata
               --outbox DIR        where unsent events wait (default ./loom-sim-outbox)
               --admin-password-env VAR   with --embedded, the page's admin password (from this variable) so its controls are on
+              --scenario NAMES    instead of the studio workflow, run these small scenarios (comma separated), each once per run:
+                                  context-fills, compaction-thrash, no-window, flaky-tool, task-diverted, task-broken, delegate-broken,
+                                  latency-spike, truncated-answers, trifecta, trifecta-accepted, injected-page, access-refused
             """;
+
+    /** The command line's help text. */
+    public static String helpText() {
+        return HELP;
+    }
 
     public static void main(String[] argv) throws Exception {
         String fabric = null;
@@ -79,6 +87,7 @@ public final class Simulate {
         String adminEnv = null;
         String prices = null;
         boolean noPrices = false;
+        String scenario = null;
         for (int i = 0; i < argv.length; i++) {
             String a = argv[i];
             switch (a) {
@@ -99,6 +108,7 @@ public final class Simulate {
                 case "--outbox" -> outbox = argv[++i];
                 case "--prices" -> prices = argv[++i];
                 case "--no-prices" -> noPrices = true;
+                case "--scenario" -> scenario = argv[++i];
                 case "--admin-password-env" -> adminEnv = argv[++i];
                 case "-h", "--help" -> {
                     System.out.print(HELP);
@@ -114,7 +124,7 @@ public final class Simulate {
             System.err.println("Nothing to show it on: give --fabric URL (with --name) or --embedded.\n\n" + HELP);
             System.exit(2);
         }
-        System.exit(new Simulation(fabric, name, keyEnv, ca, pin, embedded, port, runs, gap, speed, topic, detail, outbox, adminEnv, System.out).withPrices(prices).withoutPrices(noPrices).run());
+        System.exit(new Simulation(fabric, name, keyEnv, ca, pin, embedded, port, runs, gap, speed, topic, detail, outbox, adminEnv, System.out).withPrices(prices).withoutPrices(noPrices).withScenarios(scenario).run());
     }
 
     /** The simulation itself, apart from the command line so a test can run it. */
@@ -139,6 +149,13 @@ public final class Simulate {
         private String key;
         private String prices;
         private boolean noPrices;
+        private List<Scenarios.Scenario> scenarios = List.of();
+
+        /** Run these scenarios (comma separated names, checked now) in place of the studio workflow. */
+        public Simulation withScenarios(String names) {
+            this.scenarios = Scenarios.parse(names);
+            return this;
+        }
 
         public Simulation(String fabric, String name, String keyEnv, String ca, String pin, boolean embedded, int port, int runs, int gap, double speed,
                           String topic, String detail, String outbox, String adminEnv, PrintStream out) {
@@ -202,10 +219,17 @@ public final class Simulate {
             out.println("simulating " + name + (fabric != null ? " -> " + fabric : "") + (embedded ? ", page at " + session.describe() : "") + "; about four minutes a run at --speed 1");
             try {
                 for (int n = 1; !stop && (runs == 0 || n <= runs); n++) {
-                    oneRun(session, script, text, secrets, n);
+                    if (!scenarios.isEmpty()) {
+                        for (Scenarios.Scenario sc : scenarios) {
+                            if (!stop) Scenarios.runLive(session, sc, name + "-" + sc.name() + "-" + System.currentTimeMillis() % 100000 + "-" + n, dir, out, secrets);
+                        }
+                    } else {
+                        oneRun(session, script, text, secrets, n);
+                    }
                     if (!stop && (runs == 0 || n < runs)) pause(gap * 1000L);
                 }
             } finally {
+                if (!stop && session instanceof io.github.llm4j.loom.inspect.InspectSession live) live.awaitDelivered(Duration.ofSeconds(10)); // the last events reach the server
                 session.close();
             }
             return 0;

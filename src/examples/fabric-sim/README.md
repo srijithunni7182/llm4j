@@ -10,6 +10,13 @@ Try out Fabric (and the console) with **no model, no network and no API key**. A
 | ~3:00 | thumbnails and captions for three shots in parallel; the first audit fails and the run **rewinds** once |
 | ~4:00 | the Publisher saves the report; the run finishes |
 
+## Start calm
+
+`./run.sh calm` starts one process that makes one run (the studio workflow, about four minutes) and then stops: a page that holds still while you
+look around. The default (`./run.sh`, three processes, runs one after another until Ctrl-C) is a **busy fleet**: it keeps adding runs and incidents,
+which is what it is for (try it for load and for the Runs list), not for learning the pages. To see one situation and nothing else, use a scenario:
+`SCENARIO=task-broken ./run.sh calm`. The page has a **Live / Paused** control for reading a page in peace while runs keep arriving.
+
 ## Run it
 
 From the repository root, once (builds the jars):
@@ -28,6 +35,31 @@ BUILD=1 ./run.sh                   # build first
 ```
 
 Open `http://127.0.0.1:9090` and sign in with the printed password (`simulate-admin-1` unless you set `ADMIN_PASSWORD`). You get the Processes page and one tab per process and workflow. `run.sh` makes a new data directory each time (`./fabric-sim-data`) and starts the simulators a couple of seconds apart so they are at different steps.
+
+## Scenarios
+
+Instead of the studio workflow, a simulated process can run small scenarios, each producing one situation for the page to show (the fixtures of the Phase 5 page tests). Several can be given, comma separated; each runs once per run.
+
+```bash
+SCENARIO=flaky-tool,task-broken,trifecta,injected-page ./run.sh
+java -cp ... io.github.llm4j.loom.inspect.sim.Simulate --embedded --scenario context-fills,no-window --runs 1
+```
+
+| Scenario | What happens | What the page shows |
+|---|---|---|
+| `context-fills` | An agent's prompt grows over 40 calls in a small window; it passes 85 % and compaction brings it down, again and again | The gauge past the warning, a timeline with several drops, a `CONTEXT` incident |
+| `compaction-thrash` | Each call adds a lot, so compaction runs on nearly every call and frees little | A `THRASH` incident |
+| `no-window` | An agent whose model's window nobody told the process | A hatched bar until a window is set on Fabric's Configuration page (the `windows` catalog) |
+| `flaky-tool` | One tool times out most of the time, one always works | A failing row and a healthy row; a tool-rate incident |
+| `task-diverted` | A task throws; its `on_failure` takes over; the workflow completes | A finished run with a `DIVERTED` incident |
+| `task-broken` | A task fails after its retries with no `on_failure` | A failed run and a `BROKEN` incident naming the task |
+| `delegate-broken` | A delegate's model keeps failing | A failed run and a `BROKEN` incident naming the delegate |
+| `latency-spike` | A tool that takes a few milliseconds suddenly takes over two seconds | A `SPIKE` incident |
+| `truncated-answers` | Replies stop at the token limit | A `TRUNCATED` incident |
+| `trifecta` | One agent reads a page, looks a customer up and sends mail | A high `TRIFECTA` incident |
+| `trifecta-accepted` | The same, with the trifecta accepted in writing in the rules file | The incident as information, with the reason |
+| `injected-page` | A fetched page carries a planted instruction; the next call is unusual | A high `INJECTION` incident; the planted text appears nowhere |
+| `access-refused` | A tool refuses a role three times; then a call to a tool the agent does not have | An `ACCESS` warning and an information line |
 
 ## Things to try
 

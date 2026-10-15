@@ -348,7 +348,7 @@ public class AnthropicProvider implements LLMProvider {
         String message = type + ": " + error.path("message").asText("");
         return switch (type) {
             case "authentication_error", "permission_error" -> new AuthenticationException(message);
-            case "invalid_request_error", "not_found_error", "request_too_large" -> new InvalidRequestException(message);
+            case "invalid_request_error", "not_found_error", "request_too_large" -> io.github.llm4j.context.ContextOverflowClassifier.invalidRequest(message, null, error.toString());
             case "rate_limit_error" -> new RateLimitException(message);
             case "overloaded_error", "api_error" -> new ServiceUnavailableException(getProviderName(), message);
             default -> new ProviderException(getProviderName(), message);

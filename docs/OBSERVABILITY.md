@@ -13,6 +13,8 @@ whether something has gone wrong. **loom-inspect** and **Fabric** do that.
 
 Both show the same page. Neither changes how a workflow behaves, and a missing or broken Fabric never slows or stops a run.
 
+Beyond a single run, the page has a **Context** view (how full each agent's window is, and what compaction cut), a **Tools & tasks** view (health, success rate and latency, per run and across every run, with the run each tool last failed in) and a **Security** view (the lethal trifecta per agent, suspected injection, refused access, and what the view cannot tell you). A run that broke says which task or delegate broke it and why. [Screenshots](../wiki/Fabric-Server.md#what-the-pages-show).
+
 ![A run on the page: tokens and cost so far, the whole workflow with each step's state, the incidents raised, and a live trace of what the agents are doing](images/observability/fabric-run.png)
 
 *The page for one run: total tokens and cost across the top, the workflow with each step marked done, running or waiting, the incidents raised, and a plain-language trace of what agents and tools are doing. Fabric shows one such tab per process and workflow.*
@@ -28,14 +30,16 @@ Both show the same page. Neither changes how a workflow behaves, and a missing o
 | **Workflow graph** | The script's own graph with each step marked done, running, waiting or paused |
 | **Sleeps and pauses** | A sleeping run shows its wake time; a rate-limit or budget-window pause is information, not an error |
 | **Autonomy ladders** | Where each decision sits on its earned-autonomy ladder |
-| **Incidents** | Looping calls and answers, failing tools, no progress across loop rounds, figures with no source, long pauses, budgets nearly spent. Thresholds live in a file beside the script ([details](../wiki/Observability-Incidents-and-Rules.md)) |
+| **Tools, models and context** | Per tool and per task: health (`healthy`, `degraded`, `failing`), success rate, failures by category, latency percentiles and which agents use it; per model: calls, tokens, retries, fail-overs, latency; per agent: how full its context is and its compactions. Across runs, a roll-up lists failing tools first ([details](../wiki/Observability-Incidents-and-Rules.md#tools-which-ones-are-failing)) |
+| **Incidents** | A context nearly full, a truncated answer, compaction thrash, a tool whose success rate collapsed, a latency spike; a workflow diverted by `on_failure` or broken by a failing task or delegate, looping calls and answers, failing tools, no progress across loop rounds, figures with no source, long pauses, budgets nearly spent. Thresholds live in a file beside the script ([details](../wiki/Observability-Incidents-and-Rules.md)) |
 | **One tab per process and workflow** | In Fabric, runs of different processes are never merged. A Processes page lists every process: online or offline, backlog, loss, last seen |
 | **Controls** | **Pause, resume, suspend and stop** a run from the page, embedded or through Fabric. Admin sign-in, confirm dialog, CSRF protection, audit log ([details](../wiki/Observability-Controls-and-Security.md)) |
 | **Secrets** | List the app's secrets (hosts, last update, fingerprint, used-by) and replace a value. Embedded only; values are never shown |
 | **Fault tolerance** | Events go to a local on-disk outbox first. A server that is down, slow or restarted loses nothing; the page shows *catching up*, then no gaps |
 | **OpenTelemetry** | Traces and logs in OTLP/JSON, to Fabric and optionally to any OTLP endpoint (Collector, Tempo, Honeycomb, Datadog) |
+| **Security** | Per agent, what its script lets it reach next to what it actually did: the lethal trifecta (untrusted content, private data, a way out) exercised, tool results that read like injected instructions, refused access, personal data masked. A trifecta can be accepted in writing; observe only, nothing is blocked ([details](../wiki/Observability-Security-Signals.md)) |
 | **Privacy levels** | `--observe-detail full`, `truncated` (default) or `metadata`: how much of what agents say leaves the process |
-| **Central configuration** | In Fabric, an admin edits the **inspect rules** (pick an agent, a behaviour, a threshold) and the **price table** (pick a model, set its input and output price) on a Configuration page: checked on save, in force at once, kept across restarts ([details](../wiki/Fabric-Server.md#configuration-page)) |
+| **Central configuration** | In Fabric, an admin edits the **inspect rules** (pick an agent, a behaviour, a threshold: fourteen behaviours, context, tools, security and more), the **context windows** (a model's usable window) and the **price table** (pick a model, set its input and output price) on a Configuration page: checked on save, in force at once, kept across restarts ([details](../wiki/Fabric-Server.md#configuration-page)) |
 | **Cost** | From a price file at the process, or from the price table kept on Fabric ([cost](#cost)) |
 
 ## What the page looks like

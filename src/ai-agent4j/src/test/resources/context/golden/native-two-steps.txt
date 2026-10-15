@@ -1,0 +1,48 @@
+=== request 1 ===
+temperature=0.2 maxTokens=null
+tool lookup: test tool lookup {additionalProperties=true, properties={}, type=object}
+tool search: test tool search {additionalProperties=true, properties={}, type=object}
+--- SYSTEM
+You are a helpful assistant with access to tools. Call a tool when it helps, using the exact tool name and its arguments.
+Use a tool's result as given and never invent one. When you have the answer, or no tool is needed, reply directly in plain text.
+
+--- USER
+Compare the plans.
+=== request 2 ===
+temperature=0.2 maxTokens=null
+tool lookup: test tool lookup {additionalProperties=true, properties={}, type=object}
+tool search: test tool search {additionalProperties=true, properties={}, type=object}
+--- SYSTEM
+You are a helpful assistant with access to tools. Call a tool when it helps, using the exact tool name and its arguments.
+Use a tool's result as given and never invent one. When you have the answer, or no tool is needed, reply directly in plain text.
+
+--- USER
+Compare the plans.
+--- ASSISTANT
+call c1 search {q=plans}
+looking
+--- TOOL name=search toolCallId=c1
+result text for search
+=== request 3 ===
+temperature=0.2 maxTokens=null
+tool lookup: test tool lookup {additionalProperties=true, properties={}, type=object}
+tool search: test tool search {additionalProperties=true, properties={}, type=object}
+--- SYSTEM
+You are a helpful assistant with access to tools. Call a tool when it helps, using the exact tool name and its arguments.
+Use a tool's result as given and never invent one. When you have the answer, or no tool is needed, reply directly in plain text.
+
+--- USER
+Compare the plans.
+--- ASSISTANT
+call c1 search {q=plans}
+looking
+--- TOOL name=search toolCallId=c1
+result text for search
+--- ASSISTANT
+call c2 search {q=prices}
+call c3 lookup {id=7}
+and again
+--- TOOL name=search toolCallId=c2
+result text for search
+--- TOOL name=lookup toolCallId=c3
+record 7

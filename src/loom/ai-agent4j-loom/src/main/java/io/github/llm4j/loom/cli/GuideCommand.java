@@ -17,11 +17,14 @@ import picocli.CommandLine.Parameters;
 @Command(name = "guide", description = "Prints the guide that ships inside this jar: weave guide (list), weave guide 6, weave guide loom. --install-skill adds the agent skill to a project.")
 final class GuideCommand implements Callable<Integer> {
 
-    @Parameters(index = "0", arity = "0..1", paramLabel = "<page>", description = "A chapter number (1 to 10), readme, loom (the reference) or llms.")
+    @Parameters(index = "0", arity = "0..1", paramLabel = "<page>", description = "A chapter number (1 to 14), readme, loom (the reference), llms, deploy (the deployer skill's map) or d1 to d8.")
     String page;
 
-    @Option(names = "--install-skill", description = "Write the skill and the guide into <dir>/.claude/skills/llm4j-workflow-guide (default: this folder).", arity = "0..1", fallbackValue = ".")
+    @Option(names = "--install-skill", description = "Write the skills and the guide into <dir>/.claude/skills (default: this folder): llm4j-workflow-guide (build, test, secure, ship) and llm4j-loom-deployer (run it, watched).", arity = "0..1", fallbackValue = ".")
     File installTo;
+
+    @Option(names = "--skill", description = "With --install-skill: workflow, deployer or all (default all).", defaultValue = "all")
+    String which;
 
     @Option(names = "--force", description = "With --install-skill: replace the skill if it is already there.")
     boolean force;
@@ -33,15 +36,30 @@ final class GuideCommand implements Callable<Integer> {
 
     static int guide(GuideCommand c, WeaveEnv env) {
         if (c.installTo != null) {
+            if (!List.of("all", "workflow", "deployer").contains(c.which)) {
+                env.err().println("Error: --skill is workflow, deployer or all (not " + c.which + ").");
+                return 2;
+            }
             try {
                 Path project = c.installTo.toPath().toAbsolutePath().normalize();
-                List<String> written = Guide.installSkill(project, c.force);
-                if (written.isEmpty()) {
-                    env.err().println("The skill is already in " + Guide.skillFolder(project) + ". Use --force to replace it.");
-                    return 2;
+                int installed = 0;
+                if (!c.which.equals("deployer")) {
+                    List<String> written = Guide.installSkill(project, c.force);
+                    if (written.isEmpty()) env.err().println("The skill is already in " + Guide.skillFolder(project) + ". Use --force to replace it.");
+                    else {
+                        installed++;
+                        env.out().println("Installed the skill in " + Guide.skillFolder(project) + " (" + written.size() + " files). An agent that reads this project will find it.");
+                    }
                 }
-                env.out().println("Installed the skill in " + Guide.skillFolder(project) + " (" + written.size() + " files). An agent that reads this project will find it.");
-                return 0;
+                if (!c.which.equals("workflow")) {
+                    List<String> written = Guide.installDeployerSkill(project, c.force);
+                    if (written.isEmpty()) env.err().println("The skill is already in " + Guide.deployerFolder(project) + ". Use --force to replace it.");
+                    else {
+                        installed++;
+                        env.out().println("Installed the skill in " + Guide.deployerFolder(project) + " (" + written.size() + " files): it takes a finished workflow to a running, watched one. Its scripts are in scripts/; the jars they launch come with the skill package (bin/) or from FABRIC_JAR, WEAVE_JAR, INSPECT_JAR and INSPECT_CORE_JAR.");
+                    }
+                }
+                return installed == 0 ? 2 : 0;
             } catch (java.io.IOException | IllegalStateException e) {
                 env.err().println("Error: could not install the skill: " + e.getMessage());
                 return 2;

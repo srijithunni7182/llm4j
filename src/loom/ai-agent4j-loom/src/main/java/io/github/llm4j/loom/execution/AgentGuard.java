@@ -96,6 +96,7 @@ final class AgentGuard {
                 data.put("type", e.getType().name());
                 data.put("severity", e.getSeverity().name());
                 data.put("explanation", e.getExplanation() == null ? "" : e.getExplanation());
+                data.put("event", "bias_detected");
                 executor.audit("bias_detected", data);
                 executor.trace(TraceEvent.GUARD, agent, "bias " + e.getSeverity() + " " + e.getType() + ": " + e.getExplanation(), data);
             }
@@ -105,6 +106,7 @@ final class AgentGuard {
                 data.put("agent", agent);
                 data.put("step", executor.currentStep());
                 data.put("findings", what);
+                data.put("event", "bias_blocked");
                 executor.audit("bias_blocked", data);
                 throw new StepFailure("guard: " + agent + "'s answer was blocked for bias " + what, null);
             }
@@ -138,6 +140,7 @@ final class AgentGuard {
         Map<String, Integer> byType = new java.util.TreeMap<>();
         counts.forEach((t, n) -> byType.put(t.name(), n));
         data.put("types", byType.toString());
+        data.put("event", event);
         executor.audit(event, data);
         executor.trace(TraceEvent.GUARD, agent, event.replace('_', ' ') + " in " + where + ": " + byType, data);
     }

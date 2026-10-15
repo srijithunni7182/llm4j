@@ -38,6 +38,7 @@ public final class InspectServer {
             "/", new String[] {"index.html", "text/html; charset=utf-8"},
             "/app.css", new String[] {"app.css", "text/css; charset=utf-8"},
             "/app.js", new String[] {"app.js", "text/javascript; charset=utf-8"},
+            "/fabric-logo.svg", new String[] {"fabric-logo.svg", "image/svg+xml"},
             "/logo.png", new String[] {"loom-logo.png", "image/png"},
             "/favicon.ico", new String[] {"loom-logo.png", "image/png"},
             "/fonts/HankenGrotesk.woff2", new String[] {"fonts/HankenGrotesk.woff2", "font/woff2"},
@@ -241,17 +242,45 @@ public final class InspectServer {
                 return; // the gate has answered
             } else if (config.api.containsKey(path)) {
                 send(x, 200, "application/json", json(config.api.get(path).get()));
+            } else if (path.equals("/api/tools")) {
+                send(x, 200, "application/json", json(registry.toolRows(clientParam(x))));
+            } else if (path.equals("/api/security")) {
+                send(x, 200, "application/json", json(registry.securityOverview(clientParam(x))));
             } else if (path.equals("/api/health")) {
                 send(x, 200, "application/json", json(Map.of("status", "ok", "runs", registry.summaries().size())));
             } else if (path.equals("/api/runs")) {
-                send(x, 200, "application/json", json(Map.of("runs", registry.summaries())));
+                send(x, 200, "application/json", json(Map.of("runs", registry.summaries(), "fleet", Map.of("toolsFailing", registry.toolsFailing()))));
             } else if (path.startsWith("/api/runs/")) {
                 String trace = path.substring("/api/runs/".length());
                 boolean wantsGraph = trace.endsWith("/graph");
+                boolean wantsTimeline = trace.endsWith("/timeline");
                 if (wantsGraph) trace = trace.substring(0, trace.length() - "/graph".length());
+                if (wantsTimeline) trace = trace.substring(0, trace.length() - "/timeline".length());
                 Optional<RunState> run = trace.matches("[0-9a-f]{32}") ? registry.findByTrace(trace) : Optional.empty();
+                String at = queryParam(x, "at");
                 if (run.isPresent() && wantsGraph) send(x, 200, "application/json", json(run.get().graph() == null ? Map.of() : run.get().graph()));
-                else if (run.isPresent()) send(x, 200, "application/json", json(withControls(run.get().view(), run.get().traceId(), x)));
+                else if (run.isPresent() && wantsTimeline) {
+                    Map<String, Object> t = new java.util.LinkedHashMap<>();
+                    t.put("marks", run.get().timeline());
+                    t.put("history", Map.of("firstSeq", run.get().firstSeq(), "lastSeq", run.get().lastSeq()));
+                    send(x, 200, "application/json", json(t));
+                } else if (run.isPresent() && at != null) {
+                    long seq;
+                    try {
+                        seq = Long.parseLong(at);
+                    } catch (NumberFormatException e) {
+                        send(x, 400, "application/json", json(Map.of("error", "at is the number of a record")));
+                        return;
+                    }
+                    Optional<Map<String, Object>> past = run.get().viewAt(seq);
+                    if (past.isPresent()) send(x, 200, "application/json", json(past.get()));
+                    else {
+                        Map<String, Object> gone = new java.util.LinkedHashMap<>();
+                        gone.put("error", "no such point in this run's history");
+                        if (run.get().historyStartsAt() != null) gone.put("historyStartsAt", run.get().historyStartsAt().toString());
+                        send(x, 404, "application/json", json(gone));
+                    }
+                } else if (run.isPresent()) send(x, 200, "application/json", json(withControls(run.get().view(), run.get().traceId(), x)));
                 else send(x, 404, "application/json", json(Map.of("error", "no such run")));
             } else {
                 send(x, 404, "application/json", json(Map.of("error", "not found")));
@@ -266,6 +295,24 @@ public final class InspectServer {
     // ------------------------------------------------------------------------------ the administrator
 
     /** The run's view, with what the page may do to it now: nothing at all unless controls are on here. */
+    /** The {@code client} query parameter of a fleet route, or null for every client. */
+    private static String clientParam(HttpExchange x) {
+        return queryParam(x, "client");
+    }
+
+    /** One query parameter, decoded; null when absent or empty. */
+    private static String queryParam(HttpExchange x, String name) {
+        String query = x.getRequestURI().getRawQuery();
+        if (query == null) return null;
+        for (String pair : query.split("&")) {
+            if (pair.startsWith(name + "=")) {
+                String v = java.net.URLDecoder.decode(pair.substring(name.length() + 1), java.nio.charset.StandardCharsets.UTF_8);
+                return v.isEmpty() ? null : v;
+            }
+        }
+        return null;
+    }
+
     private Map<String, Object> withControls(Map<String, Object> view, String trace, HttpExchange x) {
         if (config.controls == null) return view;
         Map<String, Object> out = new java.util.LinkedHashMap<>(view);

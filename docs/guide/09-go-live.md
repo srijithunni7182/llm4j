@@ -217,6 +217,19 @@ How it fits together:
 - **Keys.** `WorkflowRun.open(...)` reads the model key from an encrypted store (`weave secrets create` and `weave secrets set GEMINI_API_KEY --secrets <file>` make it) with the master key in an environment variable the platform sets. The project's `.env` and `.env.example` are for `weave` on a developer's machine and for the model that judges evaluations, not for the application.
 - **Tests for the host** use the free model (`io.github.llm4j.loom.eval.MockModels`) and a temporary output folder; answer the question with the same calls the screen makes (`start`, wait for `status` to be `waiting`, `answer("yes")`, wait for `done`). Run the free tests before any real run.
 
+## Watch it: the page, the server, and who does what
+
+A run that nobody can see is a run you find out about from the invoice. Two ways to see it, both from the same flag family:
+
+```
+weave run main.loom --observe                                  # one process: a live page on 127.0.0.1:8787
+weave run main.loom --observe-fabric https://fabric.example --observe-name checkout   # many processes: reports to a Fabric server
+```
+
+`--observe` shows the run as it happens: cost, the workflow with each step's state, tool health, the context window and what compaction cut, the security signals, and incidents (a loop, a failing tool, a context nearly full, the lethal trifecta). **Fabric** is the server many processes report to: one place with every run, **Tools & tasks** and **Security** across all of them, and a **Configuration** page where an admin sets the rules (what counts as trouble), the context windows and the price table for every process at once. A process whose server is down keeps working and delivers later from a local outbox.
+
+Setting this up is a job of its own, with decisions about who may sign in, TLS, retention, where the keys live and what the rules should be. **Hand it to the `llm4j-loom-deployer` skill** (install both with `weave guide --install-skill`): it takes a finished workflow to a running, observed one, starts the server and the application with you, and shows you how to read the pages. Before you hand over, make sure the project has: windows for its models ([chapter 14](14-context-and-compaction.md)), the trifecta decisions of [chapter 7](07-validate-and-audit.md) written in `<script>.inspect`, and the spend limits of this chapter.
+
 ## Keys and secrets: two different people
 
 **A developer running the workflow and its evaluations on their own machine** (including an LLM as judge). Use a `.env` file beside the script:
@@ -357,5 +370,7 @@ approvals above still apply. If you want a safety net after all, `weave eval <sc
 `weave eval <script> --mock` is free.
 
 ## Gate
+
+If the run will be watched by anyone but its author: it reports with `--observe` or `--observe-fabric`, the deployer skill's checks are done, and the people who will look know what the page's incidents mean.
 
 The smoke run and the first real run cost about what the model said, no limit was hit unexpectedly, the audit trail and trace look right, and provider limits and caps are set.

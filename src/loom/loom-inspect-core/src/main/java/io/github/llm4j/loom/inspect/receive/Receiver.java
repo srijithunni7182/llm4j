@@ -110,6 +110,7 @@ public final class Receiver {
         registry.setGraph(client, s.traceId(), s.graph());
         registry.setLadders(client, s.traceId(), s::ladders);
         registry.setRules(client, s.traceId(), s.inspect());
+        registry.setSecurityProfile(client, s.traceId(), s::security);
         registry.setModels(client, s.traceId(), s.models());
         touch(client);
     }

@@ -48,7 +48,7 @@ final class TaskRunner {
         if (recorded.isPresent()) {
             RunJournal.Entry entry = recorded.get();
             if ("failed".equals(entry.kind())) {
-                fail(stmt, stepId, String.valueOf(entry.value()), null, false);
+                fail(stmt, stepId, String.valueOf(entry.value()), null, false, 0, null);
             } else {
                 executor.setVariable(variable, entry.value());
                 replayed(name, entry.value());
@@ -60,7 +60,7 @@ final class TaskRunner {
         try {
             args = arguments(stmt);
         } catch (StepFailure bad) {
-            fail(stmt, stepId, bad.getMessage(), bad, true);
+            fail(stmt, stepId, bad.getMessage(), bad, true, 0, null);
             return;
         }
 
@@ -77,7 +77,7 @@ final class TaskRunner {
         }
 
         if (task.requiresApproval(args) && !executor.approvals().approveTask(name, args)) {
-            fail(stmt, stepId, "a person did not approve running " + name, null, true);
+            fail(stmt, stepId, "a person did not approve running " + name, null, true, 0, io.github.llm4j.telemetry.ErrorCategory.REJECTED_BY_HUMAN);
             return;
         }
 
@@ -118,7 +118,7 @@ final class TaskRunner {
             }
             if (refusal != null) {
                 if (unknownOutcome) executor.audit("task_unknown", data(name, effect, "unknown", 0));
-                fail(stmt, stepId, refusal, null, true);
+                fail(stmt, stepId, refusal, null, true, 0, null);
                 return;
             }
         }
@@ -135,7 +135,10 @@ final class TaskRunner {
         int maxAttempts = stmt.getRetryCount() + 1;
         Throwable last = null;
         boolean unknown = false;
+        int tried = 0;
+        long firstStarted = executor.clock().millis();
         for (int attempt = 0; attempt < maxAttempts; attempt++) {
+            tried++;
             long started = executor.clock().millis();
             try {
                 if (attempt > 0 && stmt.getBackoffMillis() > 0) {
@@ -177,12 +180,19 @@ final class TaskRunner {
         }
         Map<String, Object> failed = data(name, effect, unknown ? "unknown" : "failed", 0);
         failed.put("error", message);
+        failed.put("attempts", tried);
+        failed.put("category", executor.failureCategory(last, null).name());
+        if (last != null) failed.put("error_type", last.getClass().getSimpleName());
+        long spent = executor.clock().millis() - firstStarted;
+        if (spent > 0) failed.put("millis", spent);
         executor.trace(TraceEvent.TASK_END, null, name + " failed: " + message, failed);
-        fail(stmt, stepId, message, last, true);
+        fail(stmt, stepId, message, last, true, tried, null);
     }
 
     /** The step failed: run {@code on_failure} (recording the failure so a resume goes straight there), or fail the run. */
-    private void fail(RunStmt stmt, String stepId, String message, Throwable cause, boolean record) {
+    private void fail(RunStmt stmt, String stepId, String message, Throwable cause, boolean record, int attempts,
+                      io.github.llm4j.telemetry.ErrorCategory category) {
+        executor.traceFailure("task", stmt.getTaskName(), message, cause, category, attempts, !stmt.getOnFailure().isEmpty());
         if (stmt.getOnFailure().isEmpty()) {
             throw new RuntimeException("Task " + stmt.getTaskName() + " failed: " + message, cause);
         }

@@ -217,16 +217,27 @@ public final class ServerLink implements AutoCloseable {
                 if (s.orphan() && !keepOrphans) finished(s); // we hold its lock, so nobody else is writing to it
                 continue;
             }
-            int i = 0;
-            while (i < batch.size()) {
-                char type = (char) batch.get(i).payload()[0];
-                int j = i;
-                while (j < batch.size() && (char) batch.get(j).payload()[0] == type) j++;
-                send(type, batch.subList(i, j));
-                s.cursor().advance(batch.get(j - 1).offset());
-                sent += j - i;
-                i = j;
+            // One request per kind of record in the batch, logs first and then spans, each in the order it was written. A batch is mostly alternating
+            // logs and spans, and sending every change of kind as its own request would cost hundreds of requests for a few hundred records. The
+            // server tolerates the order (a span that ends before its start log is seen is counted once), and the cursor moves only when the whole
+            // batch has been acknowledged, so a failure part-way resends it and the server drops the repeats.
+            // The record that says the run has ended goes last of all, so a page never shows "finished" while the last spans are still on their way.
+            List<Outbox.Entry> logs = new ArrayList<>();
+            List<Outbox.Entry> spans = new ArrayList<>();
+            List<Outbox.Entry> endings = new ArrayList<>();
+            for (Outbox.Entry e : batch) {
+                char type = (char) e.payload()[0];
+                if (type == 'S') spans.add(e);
+                else if (type == 'L') (text(e).contains("\"loom.run.end\"") ? endings : logs).add(e);
             }
+            if (!logs.isEmpty()) send('L', logs);
+            if (!spans.isEmpty()) send('S', spans);
+            if (!endings.isEmpty()) send('L', endings);
+            List<Outbox.Entry> unknown = new ArrayList<>();
+            for (Outbox.Entry e : batch) if ((char) e.payload()[0] != 'L' && (char) e.payload()[0] != 'S') unknown.add(e);
+            if (!unknown.isEmpty()) send('?', unknown);
+            s.cursor().advance(batch.get(batch.size() - 1).offset());
+            sent += batch.size();
             long limit = s.cursor().get();
             if (!s.orphan() && trimLimit != null) limit = Math.min(limit, trimLimit.getAsLong());
             s.outbox().trim(limit);

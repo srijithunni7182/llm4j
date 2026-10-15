@@ -180,6 +180,17 @@
                 <targetPath>skill</targetPath>
                 <includes><include>SKILL.md</include></includes>
             </resource>
+            <!-- the deployer skill: its chapters, its SKILL.md and its launch scripts (the jars it launches are not here: they travel in the skill package) -->
+            <resource>
+                <directory>../../../docs/deploy</directory>
+                <targetPath>deploy</targetPath>
+                <includes><include>*.md</include></includes>
+            </resource>
+            <resource>
+                <directory>../../../.claude/skills/llm4j-loom-deployer</directory>
+                <targetPath>skill-deployer</targetPath>
+                <includes><include>SKILL.md</include><include>scripts/*</include></includes>
+            </resource>
         </resources>
         <plugins>
             <plugin>
@@ -223,6 +234,21 @@
                                     <limits>
                                         <limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.90</minimum></limit>
                                         <limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit>
+                                    </limits>
+                                </rule>
+                                <rule>
+                                    <element>CLASS</element>
+                                    <includes>
+                                        <include>io.github.llm4j.loom.context.CompactorRegistry</include>
+                                        <include>io.github.llm4j.loom.context.WindowLayers</include>
+                                        <include>io.github.llm4j.loom.context.ContextFiles</include>
+                                        <include>io.github.llm4j.loom.execution.ContextWiring</include>
+                                        <include>io.github.llm4j.loom.execution.ContextSettings</include>
+                                        <include>io.github.llm4j.loom.memory.TranscriptAccumulationEngine</include>
+                                    </includes>
+                                    <limits>
+                                        <limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit>
+                                        <limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.75</minimum></limit>
                                     </limits>
                                 </rule>
                                 <rule>

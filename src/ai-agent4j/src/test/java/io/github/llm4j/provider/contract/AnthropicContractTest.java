@@ -72,6 +72,11 @@ class AnthropicContractTest extends ProviderContract {
     }
 
     @Override
+    protected String overflowMessage() {
+        return "prompt is too long: 213456 tokens > 200000 maximum";
+    }
+
+    @Override
     protected String error(int status, String message) {
         String type = switch (status) {
             case 401 -> "authentication_error";

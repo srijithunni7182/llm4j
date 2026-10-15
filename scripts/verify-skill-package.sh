@@ -30,3 +30,28 @@ script="$work/project/app/src/main/resources/main.loom"
 "$weave" check "$script" --no-env >/dev/null 2>&1 || { echo "weave check failed on the starter" >&2; exit 1; }
 "$weave" eval "$script" --mock >/dev/null 2>&1 || { echo "weave eval --mock failed on the starter" >&2; exit 1; }
 echo "ok: the skill package works from an empty folder with its bundled weave"
+
+# ---------------------------------------------------------------------------------------------------------------------------------------
+# The deployer skill, from its own zip, away from the repository: its scripts bring up a real Fabric, a workflow reports to it, and everything is stopped.
+dzip="${2:-$root/dist/llm4j-loom-deployer.zip}"
+if [ -f "$dzip" ]; then
+  dwork="$(mktemp -d)"; trap 'rm -rf "$work" "$dwork"' EXIT
+  unzip -q "$dzip" -d "$dwork"
+  dep="$dwork/llm4j-loom-deployer"
+  for f in SKILL.md bin/weave.jar bin/fabric.jar bin/loom-inspect.jar bin/loom-inspect-core.jar scripts/fabric-up.sh scripts/run-observed.sh scripts/fabric-down.sh scripts/fabric-status.sh scripts/fabric-up.ps1 references/01-decide-the-shape.md references/08-operate-and-troubleshoot.md; do
+    [ -e "$dep/$f" ] || { echo "missing from the deployer package: $f" >&2; exit 1; }
+  done
+  if grep -rEn 'docs/deploy|docs/guide|\]\(\.\./' "$dep/SKILL.md" "$dep/references" | grep -v "https://" >/dev/null; then
+    echo "the deployer skill points at a repository path" >&2; exit 1
+  fi
+  mkdir -p "$dwork/app"; printf 'workflow Main() {\n    note "hello from the package check"\n}\n' > "$dwork/app/flow.loom"
+  port="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1])' 2>/dev/null || echo 19399)"
+  trap '"$dep/scripts/fabric-down.sh" --data "$dwork/fd" >/dev/null 2>&1 || true; rm -rf "$work" "$dwork"' EXIT
+  "$dep/scripts/fabric-up.sh" --data "$dwork/fd" --port "$port" --generate-password >/dev/null || { echo "fabric-up failed from the package" >&2; exit 1; }
+  ( cd "$dwork/app" && "$dep/scripts/run-observed.sh" --script flow.loom --fabric "http://127.0.0.1:$port" --name pkgcheck --data "$dwork/fd" >/dev/null 2>&1 ) || { echo "run-observed failed from the package" >&2; exit 1; }
+  status="$("$dep/scripts/fabric-status.sh" --data "$dwork/fd" --port "$port")"
+  case "$status" in running*) ;; *) echo "fabric-status does not say running: $status" >&2; exit 1 ;; esac
+  echo "ok: the deployer package starts a Fabric, a workflow reports to it, and both stop, from an empty folder"
+else
+  echo "(no deployer package at $dzip: run scripts/package-skill.sh)"
+fi

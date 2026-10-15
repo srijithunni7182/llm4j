@@ -84,6 +84,9 @@ public abstract class ProviderContract {
     /** An error body for this status. */
     protected abstract String error(int status, String message);
 
+    /** The message this provider documents for a prompt that is longer than the model's context window. */
+    protected abstract String overflowMessage();
+
     /** A 429 response that says the limit resets at {@code reset}. */
     protected abstract MockResponse rateLimited(Instant reset);
 
@@ -353,5 +356,29 @@ public abstract class ProviderContract {
 
     protected static Headers headers(Map<String, String> values) {
         return Headers.of(values);
+    }
+
+    // ── a prompt that is too long ──────────────────────────────────────────────────────────
+
+    /** C15: a prompt the provider rejects as too long is a {@code ContextOverflowException}, which is still an {@code InvalidRequestException}. */
+    @Test
+    void c15_aPromptThatIsTooLongIsAContextOverflow() throws Exception {
+        server.enqueue(new MockResponse().setResponseCode(400).setBody(error(400, overflowMessage())));
+        LLMProvider p = provider(model());
+        assertThatThrownBy(() -> p.chat(LLMRequest.builder().addUserMessage("a very long prompt").build()))
+                .isInstanceOf(io.github.llm4j.exception.ContextOverflowException.class)
+                .isInstanceOf(InvalidRequestException.class)
+                .satisfies(e -> assertThat(((InvalidRequestException) e).getStatusCode()).isEqualTo(400))
+                .satisfies(e -> assertThat(((InvalidRequestException) e).getResponseBody()).contains(overflowMessage().substring(0, 15)).doesNotContain(SECRET));
+        assertThat(server.getRequestCount()).as("not retried: a prompt that is too long stays too long").isEqualTo(1);
+    }
+
+    /** C15b: any other bad request is not mistaken for it. */
+    @Test
+    void c15b_anotherBadRequestIsNotAContextOverflow() throws Exception {
+        server.enqueue(new MockResponse().setResponseCode(400).setBody(error(400, "temperature must be between 0 and 2")));
+        LLMProvider p = provider(model());
+        assertThatThrownBy(() -> p.chat(LLMRequest.builder().addUserMessage("hi").build()))
+                .isExactlyInstanceOf(InvalidRequestException.class);
     }
 }

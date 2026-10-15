@@ -67,7 +67,7 @@ The embedded server and Fabric serve the same routes (Fabric adds `processes`). 
 | `POST /api/logout` | Ends the session |
 | `POST /api/runs/{trace}/{pause\|resume\|suspend\|stop}` | A control. Needs session, `X-CSRF-Token`, same origin. `202` taken, `401`, `403`, `404`, `409` not available now |
 | `GET /api/config` | (Fabric) `{sections, catalog}`: `rules` and `prices`, each `{text, summary, warnings, structured}` (rules also `defaults`); `catalog` is `{agents, models:[{model, agents}]}` from the runs known so far |
-| `PUT /api/config/{rules\|prices}` | (Fabric) `{text}`, or `{structured}` from the page's editors (rules: `{agent: {same_action, same_output, tool_failures, ungrounded_figures:{warn,high}, paused_longer_than (seconds), no_progress:{rounds, variable}}}`; prices: `[{model, input, output}]`), turned into the same text and checked the same way. Checked, then kept whole or not at all: `200` saved, `422` with `problems` (line numbers), `413`, `403`. Needs session and `X-CSRF-Token` |
+| `PUT /api/config/{rules\|prices}` | (Fabric) `{text}`, or `{structured}` from the page's editors (rules: `{agent: {same_action, same_output, tool_failures, ungrounded_figures:{warn,high}, paused_longer_than (seconds), no_progress:{rounds, variable}, context_nearly_full:{warn, high} (percent), truncated_answers, compaction_thrash:{count, of_calls}, tool_success_rate:{below (percent), over_calls}, latency_spike (a factor)}}`; prices: `[{model, input, output}]`), turned into the same text and checked the same way. Checked, then kept whole or not at all: `200` saved, `422` with `problems` (line numbers), `413`, `403`. Needs session and `X-CSRF-Token` |
 | `GET /api/secrets` | (embedded) secrets with fingerprints, hosts, used-by. Never values |
 | `PUT /api/secrets/{name}` | (embedded) `{value, password}`. Replaces an existing secret |
 
@@ -135,3 +135,24 @@ Log events (`event.name`): `loom.run.start`, `loom.run.end`, `loom.run.suspended
 [Observability](../docs/OBSERVABILITY.md) · [Fabric server](Fabric-Server.md) ·
 [Incidents and rules](Observability-Incidents-and-Rules.md) · [Controls, secrets and security](Observability-Controls-and-Security.md) ·
 [Design and status](../docs/loom-inspect/DESIGN.md)
+
+## Failure records (4f)
+
+| Record | Where | Attributes |
+|---|---|---|
+| `loom.failure` (log; warn if handled, error if not) | a task or delegate failed | `loom.failure.kind` (`task`/`delegate`), `.name`, `.category`, `.attempts`, `.handled`, `error.type`, `loom.step`; `loom.failure.error` only as far as the detail level allows text |
+| `loom.task` span | a failed task | `error.type` is the failure category; `loom.task.attempts` |
+| `loom.run.end` log and the workflow span | a run broken by a task or delegate | `loom.run.failed_kind`, `.failed_name`, `.failed_step`, `.failed_category` |
+
+The run view has `tasks` (like `tools`: calls, errors, success rate, p50/p95, failures, health); the incident kinds `DIVERTED` and `BROKEN` are new.
+
+## Security records (4g)
+
+| Record | Where | Attributes |
+|---|---|---|
+| tool span | every tool call | `loom.tool.reach` (a sorted list of `outward`, `private`, `untrusted`; empty for none) and `loom.tool.reach_known` (`false` when assumed) |
+| tool span | a result of an untrusted tool that matched the scan | `loom.injection.patterns` (group names: `exfil`, `hidden`, `override`, `reveal`, `role`) and `loom.injection.count` (at most 50). Never text |
+| `loom.guard` (log, warn) | a guard acted | `loom.data.event` is `pii_masked`, `pii_blocked`, `pii_detected`, `bias_detected` or `bias_blocked` |
+
+The run view has `security`: `agents` (each with `used` tools per leg, `can` when the script's audit is known, `assumed`, `verdict`, and `acceptedReason`), `injection` (`suspect`, `byGroup`, `bySource`), `access` (`refused`, `byCategory`, `unknownTools`, `approvalsRefused`) and `guards`. The incident kinds `TRIFECTA`, `INJECTION` and `ACCESS` are new. `RunRegistry.securityRollup(client)` adds the counts across runs. The rules `access_denied`, `injection_scan` and `trifecta` are in the central form as `access_denied: {count, seconds}`, `injection_scan` (boolean) and `trifecta_accepted` (the reason). How these are read: [Security signals](Observability-Security-Signals.md).
+

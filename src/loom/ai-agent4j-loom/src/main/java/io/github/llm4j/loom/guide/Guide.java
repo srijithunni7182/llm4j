@@ -12,7 +12,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * The written guide, from inside the jar: the ten chapters, the Loom reference and a short index for tools, and the skill that teaches an agent
+ * The written guide, from inside the jar: the chapters, the Loom reference and a short index for tools, and the skill that teaches an agent
  * to use them. They are copied in when the jar is built, so they are there for someone who has the jar and nothing else.
  */
 public final class Guide {
@@ -35,9 +35,23 @@ public final class Guide {
             new Page("11", "Build the test examples together with the user", "guide/11-build-the-dataset-with-the-user.md"),
             new Page("12", "Java quick reference: the imports and calls you need", "guide/12-java-quick-reference.md"),
             new Page("13", "Earned autonomy: let an agent earn the right to decide (optional)", "guide/13-earned-autonomy.md"),
+            new Page("14", "Context and compaction: keep a long run inside the model's window", "guide/14-context-and-compaction.md"),
             new Page("recipes", "Recipes: change the starter to do what you want", "guide/RECIPES.md"),
             new Page("loom", "The Loom reference: every statement, option and command", "guide/LOOM_GUIDE.md"),
-            new Page("llms", "A one-page index of the framework, for tools and agents", "guide/llms.txt"));
+            new Page("llms", "A one-page index of the framework, for tools and agents", "guide/llms.txt"),
+            new Page("deploy", "Deploying a workflow, watched: the map of the deployer skill", "deploy/README.md"),
+            new Page("d1", "Deploy 1: decide the shape (one page, or a Fabric)", "deploy/01-decide-the-shape.md"),
+            new Page("d2", "Deploy 2: security decisions before anything runs for real", "deploy/02-security-before-you-run.md"),
+            new Page("d3", "Deploy 3: the rules, the windows and the prices", "deploy/03-rules-windows-prices.md"),
+            new Page("d4", "Deploy 4: launch the application with its own page", "deploy/04-run-with-its-own-page.md"),
+            new Page("d5", "Deploy 5: bring up a Fabric server", "deploy/05-bring-up-fabric.md"),
+            new Page("d6", "Deploy 6: launch the application reporting to Fabric", "deploy/06-run-reporting-to-fabric.md"),
+            new Page("d7", "Deploy 7: read the pages, and what to do about each incident", "deploy/07-read-the-pages.md"),
+            new Page("d8", "Deploy 8: operate it, and fix what goes wrong", "deploy/08-operate-and-troubleshoot.md"));
+
+    /** The launch scripts that travel with the deployer skill (macOS and Linux {@code .sh}, Windows {@code .ps1}). */
+    public static final List<String> DEPLOYER_SCRIPTS = List.of("lib.sh", "fabric-up.sh", "fabric-status.sh", "fabric-down.sh", "run-observed.sh",
+            "lib.ps1", "fabric-up.ps1", "fabric-status.ps1", "fabric-down.ps1", "run-observed.ps1");
 
     private Guide() {}
 
@@ -75,6 +89,47 @@ public final class Guide {
         }
     }
 
+    /** The deployer skill, with its chapter paths pointing at {@code references/}. */
+    public static Optional<String> deployerSkill() {
+        return read("skill-deployer/SKILL.md").map(s -> s.replace("`docs/deploy/", "`references/"));
+    }
+
+    /** Where the deployer skill goes inside a project. */
+    public static Path deployerFolder(Path project) {
+        return project.resolve(".claude").resolve("skills").resolve("llm4j-loom-deployer");
+    }
+
+    /**
+     * Writes the deployer skill into {@code project/.claude/skills/llm4j-loom-deployer}: {@code SKILL.md}, {@code references/} (its chapters) and {@code scripts/}
+     * (the launch scripts, executable). The jars the scripts launch are not in the jar of weave: the skill package carries them in {@code bin/}.
+     * Without {@code force} nothing is written when the skill is already there.
+     *
+     * @return the files written, relative to the skill folder; empty when it was already there
+     */
+    public static List<String> installDeployerSkill(Path project, boolean force) throws IOException {
+        Path folder = deployerFolder(project);
+        if (Files.exists(folder.resolve("SKILL.md")) && !force) return List.of();
+        String skill = deployerSkill().orElseThrow(() -> new IllegalStateException("this jar has no deployer skill (a broken jar?)"));
+        List<String> written = new ArrayList<>();
+        Files.createDirectories(folder.resolve("references"));
+        Files.createDirectories(folder.resolve("scripts"));
+        Files.writeString(folder.resolve("SKILL.md"), skill, StandardCharsets.UTF_8);
+        written.add("SKILL.md");
+        for (Page p : PAGES) {
+            if (!p.resource().startsWith("deploy/")) continue;
+            String name = p.resource().substring("deploy/".length());
+            Files.writeString(folder.resolve("references").resolve(name), text(p).orElseThrow(() -> new IllegalStateException("this jar has no " + p.resource())), StandardCharsets.UTF_8);
+            written.add("references/" + name);
+        }
+        for (String script : DEPLOYER_SCRIPTS) {
+            Path target = folder.resolve("scripts").resolve(script);
+            Files.writeString(target, read("skill-deployer/scripts/" + script).orElseThrow(() -> new IllegalStateException("this jar has no script " + script)), StandardCharsets.UTF_8);
+            if (script.endsWith(".sh")) target.toFile().setExecutable(true, false);
+            written.add("scripts/" + script);
+        }
+        return written;
+    }
+
     /** Where the skill goes inside a project. */
     public static Path skillFolder(Path project) {
         return project.resolve(".claude").resolve("skills").resolve("llm4j-workflow-guide");
@@ -95,6 +150,7 @@ public final class Guide {
         Files.writeString(folder.resolve("SKILL.md"), skill, StandardCharsets.UTF_8);
         written.add("SKILL.md");
         for (Page p : PAGES) {
+            if (!p.resource().startsWith("guide/")) continue;
             String name = p.resource().substring("guide/".length());
             Files.writeString(folder.resolve("references").resolve(name), text(p).orElseThrow(() -> new IllegalStateException("this jar has no " + p.resource())), StandardCharsets.UTF_8);
             written.add("references/" + name);

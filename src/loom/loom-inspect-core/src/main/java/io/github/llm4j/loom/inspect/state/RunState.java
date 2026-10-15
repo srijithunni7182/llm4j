@@ -29,6 +29,7 @@ public final class RunState {
     public enum Status { RUNNING, SLEEPING, PAUSED, WAITING, FINISHED, FAILED, STOPPED }
 
     private static final int RECENT = 200;
+    private static final int SERIES = 60;
 
     /** A step that has started and not yet ended. */
     private record Open(String spanId, String name, String kind, String agent, String tool, String step, long startNanos) { }
@@ -44,6 +45,56 @@ public final class RunState {
         long calls;
         long errors;
         long totalNanos;
+        long successes;
+        long softFailures;
+        final Map<String, Long> failures = new java.util.TreeMap<>();
+        final Percentiles latency = new Percentiles();
+        ToolTally tally;
+    }
+
+    /** One model's calls, as the chat spans report them. */
+    private static final class ModelStat {
+        long calls;
+        long prompt;
+        long completion;
+        long retries;
+        long failovers;
+        long truncated;
+        long waited;
+        final Map<String, Long> failures = new java.util.TreeMap<>();
+        final Percentiles latency = new Percentiles();
+    }
+
+    /** What an agent's context looks like now, and how it got there. */
+    private static final class ContextStat {
+        long used;
+        Long window;
+        Long usable;
+        Double fraction;
+        String source;
+        long compactions;
+        long compactionAttempts;
+        Map<String, Object> last;
+        final ArrayDeque<Double> series = new ArrayDeque<>();
+        long calls;
+        long lastNanos;
+        /** The last {@link #POINTS} model calls: call number, tokens used, and the fraction the process reported (null when it did not know the window). */
+        final ArrayDeque<Object[]> points = new ArrayDeque<>();
+        /** The last {@link #EVENTS} compactions, each with the call number it followed. */
+        final ArrayDeque<Map<String, Object>> events = new ArrayDeque<>();
+    }
+
+    private static final int POINTS = 120;
+    private static final int EVENTS = 60;
+
+    /** What an agent's window is, from the process or, failing that, from the server's catalog. */
+    private record Window(Long window, Long usable, Double fraction, String source) { }
+
+    private Window windowOf(String agent, ContextStat c) {
+        if (c.window != null || c.usable != null || c.fraction != null) return new Window(c.window, c.usable, c.fraction, "process");
+        Long fromCatalog = windows.usable(models.get(agent));
+        if (fromCatalog == null) return new Window(null, null, null, null);
+        return new Window(null, fromCatalog, c.used / (double) fromCatalog, "catalog");
     }
 
     private final String client;
@@ -61,6 +112,8 @@ public final class RunState {
     private final List<Object[]> spend = new ArrayList<>();
     private final Incidents incidents = new Incidents();
     private final Detectors detectors = new Detectors(incidents, Thresholds.defaults());
+    private final SecurityState security = new SecurityState(incidents, detectors::thresholdsFor);
+    private java.util.function.Supplier<List<Map<String, Object>>> securityProfile;
     private String controlPending;
     private String controlBy;
     private boolean heldByOperator;
@@ -68,6 +121,7 @@ public final class RunState {
     private Map<String, InspectRules> centralRules = Map.of();
     private Map<String, String> models = Map.of();
     private PriceBook prices = PriceBook.EMPTY;
+    private WindowBook windows = WindowBook.EMPTY;
     private Map<String, Object> graph;
     private java.util.function.Supplier<List<Map<String, Object>>> ladders;
     private String suspendReason;
@@ -78,15 +132,35 @@ public final class RunState {
     private final Map<String, Open> open = new LinkedHashMap<>();
     private final Map<String, Agent> agents = new LinkedHashMap<>();
     private final Map<String, Tool> tools = new LinkedHashMap<>();
+    private final Map<String, Tool> tasks = new LinkedHashMap<>();
+    private final Map<String, ModelStat> modelStats = new LinkedHashMap<>();
+    private final Map<String, ContextStat> contexts = new LinkedHashMap<>();
     /** Where each statement of the script stands, by {@link StepPaths#normalize normalized} step id: state and how often it ran. */
     private final Map<String, Object[]> steps = new LinkedHashMap<>();
     private final Set<String> finished = new HashSet<>();
     private final Map<String, Long> lastSeq = new HashMap<>();
     private final ArrayDeque<Map<String, Object>> recent = new ArrayDeque<>();
 
+    /** The most records a run keeps of what it was built from: enough to show how the run looked at any point of it. */
+    public static final int HISTORY_MAX = 50_000;
+
+    /** One record as it arrived, kept so the run can be shown as it was. */
+    private record Fed(long nanos, String instance, LogRec log, SpanRec span) { }
+
+    private final int historyMax;
+    private final ArrayDeque<Fed> fed = new ArrayDeque<>();
+    private long fedTotal;
+    private Thresholds baseThresholds;
+
     public RunState(String client, String traceId) {
+        this(client, traceId, HISTORY_MAX);
+    }
+
+    /** A run that keeps at most {@code historyMax} records of its history (0: none, as a scratch run for a past view does). */
+    public RunState(String client, String traceId, int historyMax) {
         this.client = client;
         this.traceId = traceId;
+        this.historyMax = historyMax;
     }
 
     public String client() {
@@ -102,6 +176,14 @@ public final class RunState {
         return graph;
     }
 
+    /**
+     * What each agent can reach, from the static audit (one map per agent: {@code agent} and the tools of each leg, {@code untrusted}, {@code private}, {@code outward});
+     * asked for whenever the view is built, so the page can show what an agent could do next to what it did. Without it nothing is guessed.
+     */
+    public synchronized void setSecurityProfile(java.util.function.Supplier<List<Map<String, Object>>> profile) {
+        this.securityProfile = profile;
+    }
+
     /** Where the run's decisions stand on their autonomy ladders; asked for whenever the view is built. Embedded mode only. */
     public synchronized void setLadders(java.util.function.Supplier<List<Map<String, Object>>> ladders) {
         this.ladders = ladders;
@@ -109,6 +191,7 @@ public final class RunState {
 
     /** The thresholds the incident rules use (the defaults until a script's {@code inspect} blocks say otherwise). */
     public synchronized void setThresholds(Thresholds thresholds) {
+        baseThresholds = thresholds;
         detectors.thresholds(thresholds);
     }
 
@@ -141,7 +224,9 @@ public final class RunState {
                 top.ungroundedHigh() != null ? top.ungroundedHigh() : base.ungroundedHigh(),
                 top.pausedLongerThanSeconds() != null ? top.pausedLongerThanSeconds() : base.pausedLongerThanSeconds(),
                 top.noProgressRounds() != null ? top.noProgressRounds() : base.noProgressRounds(),
-                top.noProgressVariable() != null ? top.noProgressVariable() : base.noProgressVariable());
+                top.noProgressVariable() != null ? top.noProgressVariable() : base.noProgressVariable(),
+                top.telemetry() == null ? base.telemetry() : top.telemetry().over(base.telemetry()),
+                top.security() == null ? base.security() : top.security().over(base.security()));
     }
 
     /** The agents this run has shown or declared, and the model each declared agent uses. */
@@ -157,6 +242,24 @@ public final class RunState {
 
     public synchronized void setModels(Map<String, String> models) {
         this.models = models == null ? Map.of() : Map.copyOf(models);
+    }
+
+    /**
+     * Context windows kept at the server: an agent whose process did not report a window gets one from here, by its model, from now on and in what it already showed.
+     * What a process reports wins.
+     */
+    public synchronized void setWindows(WindowBook windows) {
+        this.windows = windows == null ? WindowBook.EMPTY : windows;
+        for (Map.Entry<String, ContextStat> e : contexts.entrySet()) {
+            ContextStat c = e.getValue();
+            if (c.calls == 0) continue;
+            Window w = windowOf(e.getKey(), c);
+            detectors.onContext(e.getKey(), w.fraction(), c.used, w.usable(), c.compactions, c.lastNanos);
+        }
+    }
+
+    public synchronized WindowBook windows() {
+        return windows;
     }
 
     public synchronized void setPrices(PriceBook prices) {
@@ -183,6 +286,7 @@ public final class RunState {
 
     /** Applies a log record from the process instance {@code instance}. */
     public synchronized void apply(String instance, LogRec r) {
+        keep(new Fed(r.timeNanos(), instance, r, null));
         long seq = r.seq();
         if (seq >= 0 && instance != null) {
             Long last = lastSeq.get(instance);
@@ -203,19 +307,28 @@ public final class RunState {
             case Semconv.EV_SPAN_START -> spanStart(r);
             case Semconv.EV_INSPECT_SAMPLE -> detectors.onSample(r.text(Semconv.LOOM_INSPECT_AGENT), r.text(Semconv.LOOM_INSPECT_VAR), r.text(Semconv.LOOM_INSPECT_LOOP), r.text(Semconv.LOOM_INSPECT_HASH), r.timeNanos());
             case Semconv.EV_CONTROL -> control(r);
+            case Semconv.EV_CONTEXT -> contextSample(r);
+            case Semconv.EV_COMPACTION -> compactionSeen(r);
+            case Semconv.EV_FAILURE -> failureSeen(r);
+            case Semconv.EV_GUARD -> security.onGuard(r.text("loom.data.event"));
             case Semconv.EV_BUDGET -> detectors.onBudget(String.valueOf(r.text("loom.data.budget")), r.text("loom.data.kind"), r.body(), r.timeNanos());
             default -> { }
         }
-        remember(r);
+        if (!Semconv.EV_CONTEXT.equals(r.eventName())) remember(r); // one per model call: the feed would be all context lines
     }
 
     /** Applies a finished span. */
     public synchronized void apply(SpanRec s) {
+        keep(new Fed(s.endNanos(), null, null, s));
         if (!finished.add(s.spanId())) return; // already counted
         touch(s.endNanos());
         Open was = open.remove(s.spanId());
         String kind = s.text(Semconv.LOOM_SPAN_KIND);
         if (kind == null) return;
+        if (Semconv.KIND_MODEL.equals(kind)) { // a model call belongs to its agent's step: it adds to the statistics, not to the steps or the feed
+            modelEnded(s);
+            return;
+        }
         rememberEnd(s, kind);
         stepState(s.text(Semconv.LOOM_STEP), kind, s.statusCode() == SpanRec.STATUS_ERROR ? "failed" : "done");
         switch (kind) {
@@ -229,6 +342,7 @@ public final class RunState {
                 // a call the runtime blocked as a repeat says nothing about whether the tool works: neither a failure nor a success
                 if (!Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_NO_RESULT))) detectors.onToolEnd(s.text(Semconv.GEN_AI_AGENT_NAME), s.text(Semconv.GEN_AI_TOOL_NAME), s.statusCode() == SpanRec.STATUS_ERROR, s.text(Semconv.LOOM_STEP), s.endNanos());
             }
+            case Semconv.KIND_TASK -> taskEnded(s);
             case Semconv.KIND_SLEEP -> {
                 sleepWakeAt = null;
                 if (status == Status.SLEEPING) status = Status.RUNNING;
@@ -268,6 +382,11 @@ public final class RunState {
             controlPending = null; // nothing can be asked of a run that has ended
             heldByOperator = false;
             detectors.onRunEnd(r.timeNanos());
+            security.onRunEnd(r.timeNanos());
+            if (status == Status.FAILED && r.text(Semconv.LOOM_RUN_FAILED_NAME) != null) {
+                detectors.onBroken(r.text(Semconv.LOOM_RUN_FAILED_KIND), r.text(Semconv.LOOM_RUN_FAILED_NAME), r.text(Semconv.LOOM_RUN_FAILED_STEP),
+                        r.text(Semconv.LOOM_RUN_FAILED_CATEGORY), r.timeNanos());
+            }
         }
         open.clear();
         controlPending = null;
@@ -368,10 +487,132 @@ public final class RunState {
     private void toolEnded(SpanRec s, Open was) {
         String name = s.text(Semconv.GEN_AI_TOOL_NAME);
         if (name == null) return;
+        security.onTool(s.text(Semconv.GEN_AI_AGENT_NAME), name, s.text(Semconv.LOOM_TOOL_REACH), !Boolean.FALSE.equals(s.attr(Semconv.LOOM_TOOL_REACH_KNOWN)),
+                s.text(Semconv.LOOM_INJECTION_PATTERNS), number(s.attr(Semconv.LOOM_INJECTION_COUNT)), s.text(Semconv.ERROR_TYPE),
+                Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_NO_RESULT)), s.text(Semconv.LOOM_STEP), s.endNanos());
         Tool t = tools.computeIfAbsent(name, k -> new Tool());
+        if (t.tally == null) t.tally = new ToolTally(name);
         t.calls++;
-        if (s.statusCode() == SpanRec.STATUS_ERROR) t.errors++;
+        long nanos = Math.max(0, s.endNanos() - s.startNanos());
+        t.totalNanos += nanos;
+        boolean noResult = Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_NO_RESULT));
+        if (s.statusCode() == SpanRec.STATUS_ERROR) {
+            t.errors++;
+            String category = s.text(Semconv.ERROR_TYPE);
+            t.failures.merge(category == null ? "other" : category, 1L, Long::sum);
+            if (Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_SOFT_FAILURE))) t.softFailures++;
+        } else if (!noResult) {
+            t.successes++;
+        }
+        if (!noResult) {
+            long millis = s.attr(Semconv.LOOM_TOOL_DURATION_MS) != null ? number(s.attr(Semconv.LOOM_TOOL_DURATION_MS)) : nanos / 1_000_000L;
+            boolean failed = s.statusCode() == SpanRec.STATUS_ERROR;
+            detectors.onToolCall(s.text(Semconv.GEN_AI_AGENT_NAME), name, !failed, s.text(Semconv.ERROR_TYPE), millis, t.latency.p50(), t.latency.count(), s.endNanos());
+            t.latency.add(millis);
+            t.tally.record(s.text(Semconv.GEN_AI_AGENT_NAME), !failed, s.text(Semconv.ERROR_TYPE), OtlpJson.instant(s.endNanos()).toString(), millis,
+                    Boolean.TRUE.equals(s.attr(Semconv.LOOM_TOOL_SOFT_FAILURE)));
+        } else {
+            t.tally.skipped();
+        }
+    }
+
+    /** A task finished: it counts like a tool call (a replayed or simulated one ran nowhere, so it counts for nothing). */
+    private void taskEnded(SpanRec s) {
+        String name = s.text(Semconv.LOOM_TASK);
+        if (name == null || Boolean.TRUE.equals(s.attr("loom.replayed")) || "simulated".equals(s.text(Semconv.LOOM_TASK_OUTCOME))) return;
+        Tool t = tasks.computeIfAbsent(name, k -> new Tool());
+        if (t.tally == null) t.tally = new ToolTally(name, "task");
+        boolean failed = s.statusCode() == SpanRec.STATUS_ERROR;
+        long millis = Math.max(0, s.endNanos() - s.startNanos()) / 1_000_000L;
+        t.calls++;
         t.totalNanos += Math.max(0, s.endNanos() - s.startNanos());
+        if (failed) {
+            t.errors++;
+            String category = s.text(Semconv.ERROR_TYPE);
+            t.failures.merge(category == null ? "other" : category, 1L, Long::sum);
+        } else {
+            t.successes++;
+        }
+        t.latency.add(millis);
+        t.tally.record(null, !failed, s.text(Semconv.ERROR_TYPE), OtlpJson.instant(s.endNanos()).toString(), millis, false);
+    }
+
+    /** A task or delegate failed. If its {@code on_failure} took over, that is an incident; if not, the run's end says so. */
+    private void failureSeen(LogRec r) {
+        if (!Boolean.TRUE.equals(r.attr(Semconv.LOOM_FAILURE_HANDLED))) return;
+        detectors.onDiverted(r.text(Semconv.LOOM_FAILURE_KIND), r.text(Semconv.LOOM_FAILURE_NAME), r.text(Semconv.LOOM_STEP), r.text(Semconv.LOOM_FAILURE_CATEGORY),
+                number(r.attr(Semconv.LOOM_FAILURE_ATTEMPTS)), r.timeNanos());
+    }
+
+    private void modelEnded(SpanRec s) {
+        String model = s.text(Semconv.GEN_AI_RESPONSE_MODEL);
+        if (model == null) model = s.text(Semconv.GEN_AI_REQUEST_MODEL);
+        ModelStat m = modelStats.computeIfAbsent(model == null ? "unknown" : model, k -> new ModelStat());
+        m.calls++;
+        m.prompt += number(s.attr(Semconv.GEN_AI_USAGE_INPUT_TOKENS));
+        m.completion += number(s.attr(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS));
+        long attempts = s.attr(Semconv.LOOM_MODEL_ATTEMPTS) == null ? 1 : number(s.attr(Semconv.LOOM_MODEL_ATTEMPTS));
+        m.retries += Math.max(0, attempts - 1);
+        m.waited += number(s.attr(Semconv.LOOM_MODEL_WAITED_MS));
+        String failovers = s.text(Semconv.LOOM_MODEL_FAILOVERS);
+        if (failovers != null && !failovers.isBlank()) m.failovers += failovers.split(",").length;
+        if (Boolean.TRUE.equals(s.attr(Semconv.LOOM_MODEL_TRUNCATED))) m.truncated++;
+        if (s.statusCode() == SpanRec.STATUS_ERROR) {
+            String category = s.text(Semconv.ERROR_TYPE);
+            m.failures.merge(category == null ? "other" : category, 1L, Long::sum);
+        }
+        long millis = s.attr(Semconv.LOOM_MODEL_DURATION_MS) != null ? number(s.attr(Semconv.LOOM_MODEL_DURATION_MS)) : Math.max(0, s.endNanos() - s.startNanos()) / 1_000_000L;
+        String agent = s.text(Semconv.GEN_AI_AGENT_NAME);
+        detectors.onModelCall(agent, s.text(Semconv.LOOM_STEP), Boolean.TRUE.equals(s.attr(Semconv.LOOM_MODEL_TRUNCATED)), number(s.attr(Semconv.GEN_AI_USAGE_OUTPUT_TOKENS)),
+                s.text(Semconv.GEN_AI_RESPONSE_FINISH_REASONS), s.endNanos());
+        if (s.statusCode() != SpanRec.STATUS_ERROR) detectors.onModelDuration(model == null ? "unknown" : model, agent, millis, m.latency.p50(), m.latency.count(), s.endNanos());
+        m.latency.add(millis);
+    }
+
+    private void contextSample(LogRec r) {
+        String agent = r.text(Semconv.GEN_AI_AGENT_NAME);
+        if (agent == null) return;
+        ContextStat c = contexts.computeIfAbsent(agent, k -> new ContextStat());
+        c.used = number(r.attr(Semconv.LOOM_CONTEXT_USED));
+        c.window = r.attr(Semconv.LOOM_CONTEXT_WINDOW) == null ? null : number(r.attr(Semconv.LOOM_CONTEXT_WINDOW));
+        c.usable = r.attr(Semconv.LOOM_CONTEXT_USABLE) == null ? null : number(r.attr(Semconv.LOOM_CONTEXT_USABLE));
+        c.fraction = r.attr(Semconv.LOOM_CONTEXT_FRACTION) instanceof Number f ? f.doubleValue() : null;
+        c.source = r.text(Semconv.LOOM_CONTEXT_SOURCE);
+        if (c.fraction != null) {
+            c.series.addLast(c.fraction);
+            while (c.series.size() > SERIES) c.series.removeFirst();
+        }
+        c.calls++;
+        c.lastNanos = r.timeNanos();
+        c.points.addLast(new Object[] {c.calls, c.used, c.fraction});
+        while (c.points.size() > POINTS) c.points.removeFirst();
+        Window w = windowOf(agent, c);
+        detectors.onContext(agent, w.fraction(), c.used, w.usable(), c.compactions, r.timeNanos());
+    }
+
+    private void compactionSeen(LogRec r) {
+        String agent = r.text(Semconv.GEN_AI_AGENT_NAME);
+        if (agent == null) return;
+        ContextStat c = contexts.computeIfAbsent(agent, k -> new ContextStat());
+        c.compactionAttempts++;
+        String outcome = r.text(Semconv.LOOM_COMPACTION_OUTCOME);
+        if ("COMPACTED".equals(outcome)) c.compactions++;
+        Map<String, Object> last = new LinkedHashMap<>();
+        last.put("strategy", r.text(Semconv.LOOM_COMPACTION_STRATEGY));
+        last.put("outcome", outcome);
+        last.put("before", number(r.attr(Semconv.LOOM_COMPACTION_BEFORE)));
+        last.put("after", number(r.attr(Semconv.LOOM_COMPACTION_AFTER)));
+        last.put("at", OtlpJson.instant(r.timeNanos()).toString());
+        c.last = last;
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("n", c.calls);
+        event.put("strategy", last.get("strategy"));
+        event.put("outcome", outcome);
+        event.put("before", last.get("before"));
+        event.put("after", last.get("after"));
+        c.events.addLast(event);
+        while (c.events.size() > EVENTS) c.events.removeFirst();
+        detectors.onCompaction(agent, outcome, number(r.attr(Semconv.LOOM_COMPACTION_BEFORE)), number(r.attr(Semconv.LOOM_COMPACTION_AFTER)), r.timeNanos());
     }
 
     /** A tool call shares its step id with the agent that made it, so only agent, task and sleep spans speak for a step. */
@@ -429,6 +670,148 @@ public final class RunState {
         while (recent.size() > RECENT) recent.removeFirst();
     }
 
+    // ------------------------------------------------------------------------------ history
+
+    private void keep(Fed f) {
+        if (historyMax <= 0) return;
+        fed.addLast(f);
+        fedTotal++;
+        while (fed.size() > historyMax) fed.removeFirst();
+    }
+
+    /** How many records are kept. */
+    public synchronized int historySize() {
+        return fed.size();
+    }
+
+    /** The number of the oldest kept record (the first record of a run is 0). */
+    public synchronized long firstSeq() {
+        return fedTotal - fed.size();
+    }
+
+    /** The number of the newest record, or -1 before any. */
+    public synchronized long lastSeq() {
+        return fedTotal - 1;
+    }
+
+    /** When the oldest kept record happened, or null before any. */
+    public synchronized Instant historyStartsAt() {
+        return fed.isEmpty() ? null : OtlpJson.instant(fed.peekFirst().nanos());
+    }
+
+    private Map<String, Object> historyInfo() {
+        Map<String, Object> h = new LinkedHashMap<>();
+        h.put("firstSeq", firstSeq());
+        h.put("lastSeq", lastSeq());
+        h.put("from", historyStartsAt().toString());
+        return h;
+    }
+
+    private void configureLike(RunState o) {
+        if (baseThresholds != null) o.setThresholds(baseThresholds);
+        o.setRules(processRules);
+        o.setCentralRules(centralRules);
+        o.setModels(models);
+        o.setPrices(prices);
+        o.setWindows(windows);
+        o.setGraph(graph);
+        o.setSecurityProfile(securityProfile);
+        o.setLadders(ladders);
+    }
+
+    /**
+     * The view as it was after record number {@code seq}: the kept records up to it are fed to a scratch run set up like this one, by the very code that
+     * builds the live view, so the two cannot differ. Empty before the kept history or after its end. What the server knows now (rules, prices, windows) is
+     * applied to the past as well; a run whose earliest records were dropped is marked {@code partial}, its totals missing what was dropped.
+     */
+    public synchronized java.util.Optional<Map<String, Object>> viewAt(long seq) {
+        if (fed.isEmpty() || seq < firstSeq() || seq > lastSeq()) return java.util.Optional.empty();
+        RunState scratch = new RunState(client, traceId, 0);
+        configureLike(scratch);
+        long at = firstSeq();
+        long nanos = 0;
+        for (Fed f : fed) {
+            if (at++ > seq) break;
+            if (f.log() != null) scratch.apply(f.instance(), f.log());
+            else scratch.apply(f.span());
+            nanos = f.nanos();
+        }
+        Instant asOf = OtlpJson.instant(nanos);
+        Map<String, Object> v = scratch.view(asOf);
+        v.put("live", false);
+        v.put("asOf", asOf.toString());
+        v.put("seq", seq);
+        v.put("history", historyInfo());
+        if (firstSeq() > 0) v.put("partial", true);
+        return java.util.Optional.of(v);
+    }
+
+    /** The first record at or after {@code nanos}: the point at which something that happened then is already in the view. */
+    private long seqAtOrAfter(long nanos) {
+        long at = firstSeq();
+        for (Fed f : fed) {
+            if (f.nanos() >= nanos) return at;
+            at++;
+        }
+        return lastSeq();
+    }
+
+    /** The run's marks, oldest first and at most 300: its start and end, each incident opened and closed, failures, compactions and changes of state. */
+    public synchronized List<Map<String, Object>> timeline() {
+        List<Map<String, Object>> marks = new ArrayList<>();
+        long at = firstSeq();
+        for (Fed f : fed) {
+            long seq = at++;
+            LogRec r = f.log();
+            if (r == null) continue;
+            String kind = switch (r.eventName() == null ? "" : r.eventName()) {
+                case Semconv.EV_RUN_START -> "start";
+                case Semconv.EV_RUN_END -> "end";
+                case Semconv.EV_FAILURE -> "failure";
+                case Semconv.EV_COMPACTION -> "compaction";
+                case Semconv.EV_RUN_SUSPENDED, Semconv.EV_CONTROL -> "state";
+                default -> null;
+            };
+            if (kind != null) marks.add(mark(seq, f.nanos(), kind, r.body(), null));
+        }
+        for (Map<String, Object> i : incidents.view()) {
+            String title = String.valueOf(i.get("title"));
+            marks.add(mark(seqAtOrAfter(OtlpJson.nanos(Instant.parse(String.valueOf(i.get("since"))))), OtlpJson.nanos(Instant.parse(String.valueOf(i.get("since")))), "incident-open", title, String.valueOf(i.get("severity"))));
+            if (i.get("closedAt") != null) {
+                long closed = OtlpJson.nanos(Instant.parse(String.valueOf(i.get("closedAt"))));
+                marks.add(mark(seqAtOrAfter(closed), closed, "incident-close", title, String.valueOf(i.get("severity"))));
+            }
+        }
+        marks.sort((a, b) -> Long.compare((Long) a.get("seq"), (Long) b.get("seq")));
+        if (marks.size() > TIMELINE_MAX) {
+            List<Map<String, Object>> keepFirst = new ArrayList<>();
+            List<Map<String, Object>> rest = new ArrayList<>();
+            for (Map<String, Object> m : marks) {
+                String k = String.valueOf(m.get("kind"));
+                if (k.equals("start") || k.equals("end") || k.startsWith("incident")) keepFirst.add(m);
+                else rest.add(m);
+            }
+            int room = Math.max(0, TIMELINE_MAX - keepFirst.size());
+            if (rest.size() > room) rest = new ArrayList<>(rest.subList(rest.size() - room, rest.size())); // the newest ones
+            keepFirst.addAll(rest);
+            keepFirst.sort((a, b) -> Long.compare((Long) a.get("seq"), (Long) b.get("seq")));
+            marks = keepFirst.size() > TIMELINE_MAX ? new ArrayList<>(keepFirst.subList(0, TIMELINE_MAX)) : keepFirst;
+        }
+        return marks;
+    }
+
+    static final int TIMELINE_MAX = 300;
+
+    private static Map<String, Object> mark(long seq, long nanos, String kind, String label, String severity) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("seq", seq);
+        m.put("at", OtlpJson.instant(nanos).toString());
+        m.put("kind", kind);
+        m.put("label", label == null ? "" : label);
+        if (severity != null) m.put("severity", severity);
+        return m;
+    }
+
     // ------------------------------------------------------------------------------ reading
 
     /** A copy of everything the console shows for this run, as plain maps and lists (ready for JSON). */
@@ -445,6 +828,8 @@ public final class RunState {
         v.put("runId", runId);
         v.put("workflow", workflow);
         v.put("status", status.name().toLowerCase(java.util.Locale.ROOT));
+        v.put("live", true);
+        if (!fed.isEmpty()) v.put("history", historyInfo());
         if (startedNanos > 0) v.put("startedAt", OtlpJson.instant(startedNanos).toString());
         if (endedNanos > 0) v.put("endedAt", OtlpJson.instant(endedNanos).toString());
         if (lastEventNanos > 0) v.put("lastEventAt", OtlpJson.instant(lastEventNanos).toString());
@@ -470,6 +855,7 @@ public final class RunState {
         List<Map<String, Object>> agentList = new ArrayList<>();
         Set<String> names = new java.util.LinkedHashSet<>(agents.keySet());
         for (Open o : open.values()) if (o.agent() != null) names.add(o.agent());
+        names.addAll(contexts.keySet());
         for (String name : names) {
             Agent a = agents.getOrDefault(name, new Agent());
             List<String> activeTools = new ArrayList<>();
@@ -492,6 +878,8 @@ public final class RunState {
             m.put("calls", a.calls);
             m.put("cost", a.cost.toPlainString());
             m.put("activeTools", activeTools);
+            ContextStat cs = contexts.get(name);
+            if (cs != null) m.put("context", contextView(name, cs));
             agentList.add(m);
         }
         v.put("agents", agentList);
@@ -508,9 +896,57 @@ public final class RunState {
             m.put("errors", t.errors);
             m.put("inFlight", inFlight);
             m.put("avgMillis", t.calls == 0 ? 0L : t.totalNanos / t.calls / 1_000_000L);
+            m.put("successes", t.successes);
+            long ran = t.successes + t.errors; // a call the runtime never ran says nothing about whether the tool works
+            if (ran > 0) m.put("successRate", t.successes / (double) ran);
+            m.put("softFailures", t.softFailures);
+            m.put("failures", new LinkedHashMap<>(t.failures));
+            m.put("p50Ms", t.latency.p50());
+            m.put("p95Ms", t.latency.p95());
+            if (t.tally != null) {
+                ToolSummary sum = t.tally.snapshot(detectors.thresholdsFor(null));
+                m.put("health", sum.toHealthMap());
+                recentAndHistogram(m, sum);
+            }
             toolList.add(m);
         }
         v.put("tools", toolList);
+        v.put("security", security.view(securityProfile == null ? List.of() : securityProfile.get()));
+        List<Map<String, Object>> taskList = new ArrayList<>();
+        tasks.forEach((name, t) -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("name", name);
+            m.put("calls", t.calls);
+            m.put("errors", t.errors);
+            m.put("successes", t.successes);
+            if (t.calls > 0) m.put("successRate", t.successes / (double) t.calls);
+            m.put("avgMillis", t.calls == 0 ? 0L : t.totalNanos / t.calls / 1_000_000L);
+            m.put("failures", new LinkedHashMap<>(t.failures));
+            m.put("p50Ms", t.latency.p50());
+            m.put("p95Ms", t.latency.p95());
+            ToolSummary sum = t.tally.snapshot(detectors.thresholdsFor(null));
+            m.put("health", sum.toHealthMap());
+            recentAndHistogram(m, sum);
+            taskList.add(m);
+        });
+        v.put("tasks", taskList);
+        List<Map<String, Object>> modelList = new ArrayList<>();
+        modelStats.forEach((name, ms) -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("name", name);
+            m.put("calls", ms.calls);
+            m.put("failures", new LinkedHashMap<>(ms.failures));
+            m.put("promptTokens", ms.prompt);
+            m.put("completionTokens", ms.completion);
+            m.put("retries", ms.retries);
+            m.put("failovers", ms.failovers);
+            m.put("truncated", ms.truncated);
+            m.put("waitedMs", ms.waited);
+            m.put("p50Ms", ms.latency.p50());
+            m.put("p95Ms", ms.latency.p95());
+            modelList.add(m);
+        });
+        v.put("models", modelList);
 
         List<Map<String, Object>> steps = new ArrayList<>();
         for (Open o : open.values()) {
@@ -552,6 +988,112 @@ public final class RunState {
         return v;
     }
 
+    private static final java.util.Set<String> SECURITY_KINDS = java.util.Set.of("TRIFECTA", "INJECTION", "ACCESS");
+
+    /** Open security incidents (trifecta, injection, access), as the incident view shows them. */
+    private List<Map<String, Object>> openSecurityIncidents() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Map<String, Object> i : incidents.view()) if ("open".equals(i.get("state")) && SECURITY_KINDS.contains(String.valueOf(i.get("kind")))) out.add(i);
+        return out;
+    }
+
+    /** How many security incidents are open now: what a tab shows. */
+    public synchronized int openSecurityCount() {
+        return openSecurityIncidents().size();
+    }
+
+    /** The open security incidents of this run, each with the run it belongs to. For a server's security page. */
+    public synchronized List<Map<String, Object>> securityIncidents() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Map<String, Object> i : openSecurityIncidents()) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("client", client);
+            m.put("traceId", traceId);
+            m.put("runId", runId);
+            m.putAll(i);
+            out.add(m);
+        }
+        return out;
+    }
+
+    /** The agents of this run whose security verdict matters (exercised, accepted or armed), each with the run it belongs to. */
+    public synchronized List<Map<String, Object>> securityAgents() {
+        List<Map<String, Object>> out = new ArrayList<>();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> all = (List<Map<String, Object>>) security.view(securityProfile == null ? List.of() : securityProfile.get()).get("agents");
+        for (Map<String, Object> a : all) {
+            String verdict = String.valueOf(a.get("verdict"));
+            if (!verdict.equals("exercised") && !verdict.equals("accepted") && !verdict.equals("armed")) continue;
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("client", client);
+            m.put("traceId", traceId);
+            m.put("runId", runId);
+            m.put("workflow", workflow);
+            m.put("agent", a.get("agent"));
+            m.put("verdict", verdict);
+            if (a.get("acceptedReason") != null) m.put("acceptedReason", a.get("acceptedReason"));
+            m.put("assumed", a.get("assumed"));
+            out.add(m);
+        }
+        return out;
+    }
+
+    /** The security counts of this run, for a server to add up across runs. */
+    public synchronized Map<String, Long> securityCounts() {
+        return security.counts();
+    }
+
+    /** Every tool this run has seen, with its health (see {@link ToolSummary}); for a server to merge across runs. */
+    public synchronized List<ToolSummary> toolSummaries() {
+        List<ToolSummary> out = new ArrayList<>();
+        Thresholds t = detectors.thresholdsFor(null);
+        for (Tool tool : tools.values()) if (tool.tally != null) out.add(tool.tally.snapshot(t));
+        for (Tool task : tasks.values()) if (task.tally != null) out.add(task.tally.snapshot(t));
+        return out;
+    }
+
+    /** The last ten outcomes of a tool or task (an empty string is a success, anything else the failure's category) and its latency histogram with the bounds of its buckets. */
+    private static void recentAndHistogram(Map<String, Object> row, ToolSummary sum) {
+        row.put("recent", new ArrayList<>(sum.recent()));
+        row.put("histogram", new ArrayList<>(sum.histogram()));
+        List<Long> bounds = new ArrayList<>();
+        for (long b : ToolSummary.BOUNDS) bounds.add(b);
+        row.put("histogramBounds", bounds);
+    }
+
+    private Map<String, Object> contextView(String agent, ContextStat c) {
+        Window w = windowOf(agent, c);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("used", c.used);
+        if (w.window() != null) m.put("window", w.window());
+        if (w.usable() != null) m.put("usable", w.usable());
+        if (w.fraction() != null) m.put("fraction", w.fraction());
+        if (w.source() != null) m.put("windowSource", w.source());
+        Thresholds in = detectors.thresholdsFor(agent);
+        m.put("warnAt", in.contextWarn()); // where this agent's "nearly full" incident starts, and where it becomes high
+        m.put("highAt", in.contextHigh());
+        if (c.source != null) m.put("source", c.source);
+        m.put("compactions", c.compactions);
+        m.put("attempts", c.compactionAttempts);
+        if (c.last != null) m.put("lastCompaction", new LinkedHashMap<>(c.last));
+        if (!c.series.isEmpty()) m.put("series", new ArrayList<>(c.series));
+        List<Map<String, Object>> pts = new ArrayList<>();
+        for (Object[] p : c.points) {
+            Map<String, Object> pm = new LinkedHashMap<>();
+            pm.put("n", p[0]);
+            pm.put("used", p[1]);
+            Double reported = (Double) p[2];
+            if (reported != null) pm.put("fraction", reported);
+            else if (w.source() != null && w.usable() != null) pm.put("fraction", ((Number) p[1]).longValue() / (double) w.usable());
+            pts.add(pm);
+        }
+        m.put("points", pts);
+        List<Map<String, Object>> evs = new ArrayList<>();
+        for (Map<String, Object> e : c.events) evs.add(new LinkedHashMap<>(e));
+        m.put("events", evs);
+        return m;
+    }
+
     /** A short view for a list of runs: who, what, how it is going, and the totals. */
     public synchronized Map<String, Object> summary() {
         Map<String, Object> v = new LinkedHashMap<>();
@@ -569,6 +1111,8 @@ public final class RunState {
         v.put("totals", totals);
         v.put("runningAgents", open.values().stream().filter(o -> Semconv.KIND_AGENT.equals(o.kind())).count());
         v.put("incidents", incidents.openCount());
+        v.put("security", openSecurityIncidents().size());
+        contexts.entrySet().stream().map(e -> windowOf(e.getKey(), e.getValue()).fraction()).filter(java.util.Objects::nonNull).max(Double::compare).ifPresent(f -> v.put("contextFraction", f));
         if (incidents.worst() != null) v.put("worstIncident", incidents.worst());
         return v;
     }

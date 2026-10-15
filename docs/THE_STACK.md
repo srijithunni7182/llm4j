@@ -82,15 +82,20 @@ a process (`--observe`); **Fabric** is a standalone server that many processes r
 workflow.
 
 - **See it.** Tokens and cost, which agent and tool is active, the workflow graph with the running step marked, sleeps and
-  pauses, autonomy ladders.
-- **Flag it.** Looping calls and answers, failing tools, no progress across loop rounds, figures with no source. The
-  thresholds live in a file beside the script, never in it.
+  pauses, autonomy ladders; each agent's context window and what compaction cut; tool and task health across every run.
+- **Go back.** A time bar shows a run as it was at any point; a Runs list finds any run; Pause holds the page still.
+- **Flag it.** Looping calls and answers, failing tools, a run that broke and which step did it, a context nearly full,
+  figures with no source, the lethal trifecta, suspected injection, refused access. The thresholds live in a file beside
+  the script, or centrally on Fabric's Configuration page, never in the script.
 - **Steer it.** Pause, resume, suspend and stop from the page (admin only, audited), even for a process on another machine;
   replace a secret's value on an embedded page.
 - **Never lose it.** Events go to a local on-disk outbox first, so a server that is down never slows a workflow.
 - **Standard.** OpenTelemetry-shaped records, optionally exported to any OTLP endpoint.
 
-👉 [Observability guide](OBSERVABILITY.md) · [Fabric server](../wiki/Fabric-Server.md) ·
+- **Set it up with an agent.** The `llm4j-loom-deployer` skill brings up Fabric, launches the application and teaches the
+  pages; its sibling `llm4j-workflow-guide` builds and tests the workflow first ([the skills](PUBLISHING_SKILL.md)).
+
+👉 [Observability guide](OBSERVABILITY.md) · [Fabric server](../wiki/Fabric-Server.md) · [Deployer skill](../wiki/Deployer-Skill.md) ·
 [Try it with no model](../src/examples/fabric-sim/README.md)
 
 ### 🧠 [Engram](../src/engram/engram-core/): *"How does an agent remember without drowning in context?"*

@@ -63,6 +63,7 @@ public class RoutingLLMClient implements LLMClient {
             } catch (Exception e) {
                 logger.warn("RoutingLLMClient: Client {} failed. Failing over. Error: {}", clientToTry.getClass().getSimpleName(), e.getMessage());
                 strategy.onFailure(clientToTry, request, e);
+                io.github.llm4j.telemetry.CallTrace.failover(nameOf(clientToTry));
                 suppressedExceptions.add(e);
                 removeClientFromAvailability(availableClients, clientToTry);
             }
@@ -75,6 +76,12 @@ public class RoutingLLMClient implements LLMClient {
             fatal.addSuppressed(e);
         }
         throw fatal;
+    }
+
+    /** The class's simple name; an anonymous or lambda class has none, so its binary name stands in. */
+    private static String nameOf(LLMClient client) {
+        String simple = client.getClass().getSimpleName();
+        return simple.isEmpty() ? client.getClass().getName() : simple;
     }
 
     /** True only when every client supports it, since any of them may end up serving a request. */
