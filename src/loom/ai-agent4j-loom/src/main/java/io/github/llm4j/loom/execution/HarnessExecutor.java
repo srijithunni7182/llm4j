@@ -95,6 +95,16 @@ public class HarnessExecutor implements LoomEngine {
 
     // ── Budgets ──────────────────────────────────────────────────────────
     private final ThreadLocal<List<io.github.llm4j.budget.Budget>> scopes = threadScope.budgets;
+    private final LimitPolicy limits = new LimitPolicy(new LimitPolicy.Host() {
+        @Override public LoomScript script() { return script; }
+        @Override public RunJournal journal() { return journal; }
+        @Override public java.time.Clock clock() { return clock; }
+        @Override public io.github.llm4j.ratelimit.Sleeper sleeper() { return sleeper; }
+        @Override public String stepId() { return step.get(); }
+        @Override public AuditLogger auditLogger() { return auditLogger; }
+        @Override public String sessionId() { return sessionId; }
+        @Override public boolean refills(io.github.llm4j.budget.BudgetExceeded be) { return budgets.refills(be); }
+    });
     private final BudgetCoordinator budgets = new BudgetCoordinator(scopes, new BudgetCoordinator.Host() {
         @Override public LoomScript script() { return script; }
         @Override public java.time.Clock clock() { return clock; }
@@ -109,11 +119,8 @@ public class HarnessExecutor implements LoomEngine {
     // ── Pausing and resuming ─────────────────────────────────────────────
     /** Journal key of the run's latest pause for a limit. */
     public static final String SUSPENSION = "#suspension";
-    static final int DEFAULT_MAX_RESUMES = 50;
     /** A sleep this short is waited out in place even with a durable journal: pausing the run costs more than it saves. */
     static final Duration INLINE_SLEEP = Duration.ofSeconds(30);
-    static final Duration DEFAULT_MAX_INLINE_WAIT = Duration.ofMinutes(5);
-    static final Duration DEFAULT_MAX_SUSPEND = Duration.ofDays(7);
     private java.time.Clock clock = java.time.Clock.systemUTC();
     private io.github.llm4j.ratelimit.Sleeper sleeper = io.github.llm4j.ratelimit.Sleeper.SYSTEM;
     private int resumes;
@@ -590,7 +597,7 @@ public class HarnessExecutor implements LoomEngine {
     public io.github.llm4j.agent.AgentResult runAgentTask(String agentName, String task) {
         ReActAgent agent = activeAgents.get(agentName);
         if (agent == null) throw new IllegalArgumentException("Agent not found: " + agentName);
-        return runUnderLimits(agent, task);
+        return limits.runUnderLimits(agent, task);
     }
 
     /**
@@ -1436,7 +1443,7 @@ public class HarnessExecutor implements LoomEngine {
             if (agent != null && agentDef != null && !replayed) {
                 String contextBriefing = memoryEngine.assembleContext(agentDef, resolvedPayload, view());
                 trace(TraceEvent.DELEGATE_START, handoff.getTargetAgent(), resolvedPayload, new java.util.LinkedHashMap<>(Map.of("variable", "handoff")));
-                io.github.llm4j.agent.AgentResult result = runUnderLimits(agent, contextBriefing);
+                io.github.llm4j.agent.AgentResult result = limits.runUnderLimits(agent, contextBriefing);
                 trace(TraceEvent.DELEGATE_END, handoff.getTargetAgent(), result.getFinalAnswer(), usageData(result));
                 
                 memoryEngine.storeOutcome(agentDef, resolvedPayload, result, context);
@@ -1483,7 +1490,7 @@ public class HarnessExecutor implements LoomEngine {
                             try (ThreadScope.Installed ignored = scope.install()) {
                                 // each target is a step of its own to anyone watching: it starts and ends like a delegate, with its tokens
                                 trace(TraceEvent.DELEGATE_START, agentName, resolvedPayload, new java.util.LinkedHashMap<>(Map.of("variable", broadcast.getVariableName())));
-                                io.github.llm4j.agent.AgentResult r = runUnderLimits(broadcastAgent, resolvedPayload);
+                                io.github.llm4j.agent.AgentResult r = limits.runUnderLimits(broadcastAgent, resolvedPayload);
                                 trace(TraceEvent.DELEGATE_END, agentName, r.getFinalAnswer(), usageData(r));
                                 if (r.budgetExhausted()) {
                                     budgets.markExhausted();
@@ -1960,7 +1967,7 @@ public class HarnessExecutor implements LoomEngine {
                 break;
             } catch (io.github.llm4j.ratelimit.RateLimited limited) {
                 try {
-                    onLimit(limited, limitWaits); // waited it out: run the step again (not a retry)
+                    limits.onLimit(limited, limitWaits); // waited it out: run the step again (not a retry)
                     continue;
                 } catch (RateLimitFailure f) {
                     lastError = f; // not worth waiting for: the step failed, without retries
@@ -2149,91 +2156,8 @@ public class HarnessExecutor implements LoomEngine {
 
     // ── Limits: pause, wait or fail ─────────────────────────────────────────────────────────
 
-    private RateLimitDef.OnLimit onLimitPolicy() {
-        RateLimitDef rl = script.getRateLimits();
-        if (rl != null && rl.getOnLimit() != null) return rl.getOnLimit();
-        return journal.isDurable() ? RateLimitDef.OnLimit.SUSPEND : RateLimitDef.OnLimit.WAIT;
-    }
-
-    private Duration maxWait(RateLimitDef.OnLimit policy) {
-        RateLimitDef rl = script.getRateLimits();
-        if (rl != null && rl.getMaxWait() != null) return rl.getMaxWait();
-        return policy == RateLimitDef.OnLimit.WAIT ? DEFAULT_MAX_INLINE_WAIT : DEFAULT_MAX_SUSPEND;
-    }
-
-    private int maxResumes() {
-        RateLimitDef rl = script.getRateLimits();
-        return rl != null && rl.getMaxResumes() != null ? rl.getMaxResumes() : DEFAULT_MAX_RESUMES;
-    }
-
-    /**
-     * A step hit a limit. Returns after waiting it out inline (the caller runs the step again), or throws
-     * {@link RunSuspended} to pause the run until the reset, or {@link RateLimitFailure}.
-     * A budget that refills pauses the run (its {@code when_exhausted: suspend}); a provider limit
-     * follows {@code rate_limits { on_limit }}.
-     */
-    private void onLimit(io.github.llm4j.ratelimit.RateLimited limited, int[] waits) {
-        io.github.llm4j.ratelimit.RateLimitInfo info = limited.info();
-        boolean window = limited.reason() == io.github.llm4j.ratelimit.RateLimited.Reason.BUDGET_WINDOW;
-        RateLimitDef.OnLimit policy = window ? RateLimitDef.OnLimit.SUSPEND : onLimitPolicy();
-        Duration wait = info.waitFrom(clock.instant());
-        Duration max = maxWait(policy);
-        String stepId = step.get();
-        if (policy == RateLimitDef.OnLimit.FAIL) throw new RateLimitFailure(info, null);
-        if (wait.compareTo(max) > 0) {
-            throw new RateLimitFailure(info, "that is more than max_wait " + human(max) + " away");
-        }
-        if (policy == RateLimitDef.OnLimit.SUSPEND) {
-            throw new RunSuspended(stepId, window ? RunSuspended.Reason.BUDGET_WINDOW : RunSuspended.Reason.RATE_LIMIT, info);
-        }
-        if (++waits[0] > maxResumes()) {
-            throw new RateLimitFailure(info, "still limited after " + (waits[0] - 1) + " waits (max_resumes)");
-        }
-        log.warning("Rate limited at " + stepId + " (" + info.describe() + "): waiting " + human(wait));
-        Map<String, Object> data = limitData(info);
-        data.put("step", stepId);
-        data.put("waitMillis", String.valueOf(wait.toMillis()));
-        auditLogger.logConversationEvent(sessionId, null, "rate_limit_wait", data);
-        try {
-            sleeper.sleep(wait);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted while waiting for a rate limit", e);
-        }
-    }
-
-    /** Runs an agent, waiting out or pausing for limits as {@link #onLimit} decides. */
-    private io.github.llm4j.agent.AgentResult runUnderLimits(ReActAgent agent, String task) {
-        int[] waits = {0};
-        while (true) {
-            try {
-                io.github.llm4j.agent.AgentResult r = agent.run(task);
-                if (r.budgetExhausted() && budgets.refills(r.getBudgetExceeded())) {
-                    throw io.github.llm4j.ratelimit.RateLimited.of(r.getBudgetExceeded());
-                }
-                return r;
-            } catch (io.github.llm4j.ratelimit.RateLimited limited) {
-                onLimit(limited, waits);
-            }
-        }
-    }
-
     public static String human(Duration d) {
-        long s = d.toSeconds();
-        if (s < 60) return s + "s";
-        if (s < 3600) return (s / 60) + "m" + (s % 60 == 0 ? "" : (s % 60) + "s");
-        if (s < 86_400) return (s / 3600) + "h" + ((s % 3600) / 60 == 0 ? "" : ((s % 3600) / 60) + "m");
-        return (s / 86_400) + "d" + ((s % 86_400) / 3600 == 0 ? "" : ((s % 86_400) / 3600) + "h");
-    }
-
-    private static Map<String, Object> limitData(io.github.llm4j.ratelimit.RateLimitInfo info) {
-        Map<String, Object> data = new java.util.LinkedHashMap<>();
-        data.put("provider", info.provider());
-        data.put("scope", info.scope().name());
-        if (info.quotaId() != null) data.put("quotaId", info.quotaId());
-        data.put("resumeAt", info.resetAt().toString());
-        data.put("estimated", String.valueOf(info.estimated()));
-        return data;
+        return LimitPolicy.human(d);
     }
 
     /** Start of a top-level run: counts a resume after a pause, and publishes {@code _run}. */
@@ -2250,11 +2174,11 @@ public class HarnessExecutor implements LoomEngine {
             if (!slept) resumes++;
             Instant now = clock.instant();
             last.put("resumes", resumes);
-            if (!slept && resumes > maxResumes()) {
+            if (!slept && resumes > limits.maxResumes()) {
                 last.put("state", "failed");
                 journal.put(SUSPENSION, new RunJournal.Entry("suspension", last));
                 throw new IllegalStateException("Run paused for limits and resumed " + (resumes - 1)
-                        + " times already (max_resumes " + maxResumes() + "); giving up. Last limit: " + last.get("detail"));
+                        + " times already (max_resumes " + limits.maxResumes() + "); giving up. Last limit: " + last.get("detail"));
             }
             last.put("state", "resumed");
             last.put("resumedAt", now.toString());
@@ -2292,7 +2216,7 @@ public class HarnessExecutor implements LoomEngine {
         rec.put("suspendedAt", clock.instant().toString());
         rec.put("resumes", resumes);
         if (paused.limit() != null) {
-            rec.putAll(limitData(paused.limit()));
+            rec.putAll(LimitPolicy.limitData(paused.limit()));
             rec.put("detail", paused.limit().describe());
         } else if (paused.detail() != null) {
             rec.put("detail", paused.detail());
