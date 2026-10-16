@@ -2,495 +2,183 @@
 
 ## Overview
 
+The starter is thin wiring. The only substantial new code is `LoomHost` in the Loom library, because the run/pause/resume
+behaviour a web application needs exists today only in package-private CLI classes.
+
 ```
- application.yml ──► Llm4jProperties (llm4j.*)                 user beans (always win)
-                         │                                          │
-                         ▼                                          ▼
- ┌──────────────────────────── llm4j-spring-boot-autoconfigure ────────────────────────────┐
- │ SecretsAutoConfiguration      SecretStore ─────────────────────────────┐                │
- │ ClientsAutoConfiguration      LLMClients{name→client} ─► Primary LLMClient              │
- │                               Masking( Budgeted( Routing|Named( DefaultLLMClient ))))    │
- │ ToolsAutoConfiguration        Tool beans + kinds + built-ins + MCP ─► ToolRegistry      │
- │ AgentsAutoConfiguration       ReActAgent.Builder (prototype), Agents, AgentSessions     │
- │ Memory/Rag/Prompts/Tasks      ConversationStore, VectorStore, PromptRegistry, Tasks     │
- │ LoomAutoConfiguration         LoomRuntimes{name→LoomRuntime}                            │
- │   ├─ LoomPersistence          RunJournalFactory, TriggerStore, RunStore, Ledger…        │
- │   ├─ LoomTriggers             TriggerRunner (SmartLifecycle), TriggerEndpoint           │
- │   ├─ LoomHuman                HumanInterface, channels                                  │
- │   └─ LoomSecurityGate         SecurityAudit at start-up                                 │
- │ ObserveAutoConfiguration      ObserveProvider.Session (loom-inspect / Fabric)           │
- │ Llm4jMetrics/Health/Endpoint  Micrometer binders, HealthIndicators, /actuator/loom      │
- │ LoomWebAutoConfiguration      /llm4j/loom/** (opt-in, secured)                          │
- └─────────────────────────────────────────────────────────────────────────────────────────┘
-                         ▼ only public llm4j API ▼
-      ai-agent4j · ai-agent4j-tools · ai-agent4j-addons · ai-agent4j-loom · loom-inspect · eval4j
+ application.yml ─► Llm4jProperties (llm4j.*)                    user beans always win
+                         │
+ ┌──── llm4j-spring-boot-starter (one artifact, wiring only) ──────────────────────────┐
+ │ Secrets      SecretStore                                                            │
+ │ Clients      LLMClients{name→client} ─► Masking(Budgeted(Routing|Named)) = LLMClient │
+ │ Agents       ReActAgent.Builder (prototype) ◄─ Tool beans, hooks, prompts, context   │
+ │ Tools        ToolCatalog ─► ToolRegistry (core) + Loom registry; TaskRegistry        │
+ │ Memory/Rag   ConversationStore, PromptRegistry, VectorStore, EmbeddingProvider       │
+ │ Loom         LoomRuntime ─► LoomHost ──────────────┐ validate + audit + guards       │
+ │ Triggers     SmartLifecycle ─► host.startTriggers  │                                 │
+ │ Observe      loom-inspect session (optional)       │                                 │
+ └────────────────────────────────────────────────────┼─────────────────────────────────┘
+                                                      ▼
+   ai-agent4j-loom: io.github.llm4j.loom.host.LoomHost   (NEW, public, no Spring)
+        │ builds + initializes a HarnessExecutor per run, in one place
+        │ RunStore (file: weave's run-dir layout │ jdbc: llm4j_loom_runs) · journals · trigger store
+        │ run · start · resume · answer · runs · triggerTarget · startTriggers
+        ▼
+   HarnessExecutor · FileRunJournal/JdbcRunJournal · TriggerRunner · Answers · RunTravel
 ```
 
-Every box is a separate `@AutoConfiguration` class with explicit `after`/`before` ordering, so each can be excluded on
-its own (`spring.autoconfigure.exclude`), and each is guarded by `@ConditionalOnClass` for its optional module.
+## 1. Packaging
 
----
+One artifact `src/spring/llm4j-spring-boot-starter` (v1's `src/llm4j-spring-boot-starter` moves there; the root `pom.xml` entry is updated).
+Dependencies: `ai-agent4j`, `spring-boot-autoconfigure` (compile); `ai-agent4j-loom`, `ai-agent4j-tools`, `ai-agent4j-addons`, `loom-inspect`,
+`spring-jdbc`, `spring-boot-configuration-processor` (`optional`). Spring Boot 3.2.x pinned by property; BOM not imported (Jackson stays on llm4j's).
+It can be split into autoconfigure + starter later without changing properties or beans.
 
-## 1. Modules
+Auto-configuration classes (each `@AutoConfiguration`, ordered with `after`/`before`, excludable on its own):
+`Llm4jSecretsAutoConfiguration` → `Llm4jClientsAutoConfiguration` → `Llm4jToolsAutoConfiguration` → `Llm4jAgentsAutoConfiguration`
+→ `Llm4jRagAutoConfiguration` → `Llm4jLoomAutoConfiguration` (→ nested `Triggers`, `Observe`).
 
-| Artifact | Contents | Dependencies |
-|---|---|---|
-| `llm4j-spring-boot-autoconfigure` | all auto-configuration, properties, `LoomRuntime`, web adapters | `ai-agent4j`, `spring-boot-autoconfigure`; everything else `optional` |
-| `llm4j-spring-boot-starter` | POM only | autoconfigure, `ai-agent4j`, `spring-boot-starter` |
-| `llm4j-spring-boot-starter-loom` | POM only | starter, `ai-agent4j-loom`, `ai-agent4j-tools` |
-| `llm4j-spring-boot-starter-test` | test annotations and auto-configuration | autoconfigure, `eval4j`, `spring-boot-test` |
-
-The v1 single module `src/llm4j-spring-boot-starter` becomes `src/spring/` with the four sub-modules. Spring Boot is pinned
-by a `spring-boot.version` property (3.2.x baseline); its BOM is not imported, so Jackson stays on the llm4j version.
-
-### 1.1 Missing-module guard (Req 1.4)
-
-`Llm4jModuleGuard` is an `EnvironmentPostProcessor`. For each property prefix that needs an optional module, it checks
-with `ClassUtils.isPresent` and throws an `IllegalStateException` naming the artifact:
-
-| Prefix set | Needs class | Message names |
-|---|---|---|
-| `llm4j.loom.*` | `io.github.llm4j.loom.execution.HarnessExecutor` | `llm4j-spring-boot-starter-loom` |
-| `llm4j.tools.*.kind` | `io.github.llm4j.tools.GenericKind` | `ai-agent4j-tools` |
-| `llm4j.rag.store=pgvector\|pinecone`, `llm4j.rag.embedding=onnx\|djl` | the addon class | `ai-agent4j-addons` |
-| `llm4j.observe.*` | `io.github.llm4j.loom.observe.Observe` provider on the class path | `loom-inspect` |
-
-A `FailureAnalyzer` turns these, and every other `Llm4jConfigurationException`, into Spring Boot's
-"Description / Action" output.
-
----
+**Module guard (R1.3).** An `EnvironmentPostProcessor` checks each property prefix against `ClassUtils.isPresent` of a marker class and throws
+`Llm4jConfigurationException` naming the artifact. A `FailureAnalyzer` renders every `Llm4jConfigurationException` as Description/Action
+(ZM5), so each failure message in the requirements has one code path.
 
 ## 2. Properties
-
-One root `@ConfigurationProperties("llm4j")` class per area (each a `record` or JavaBean with constructor binding),
-validated with `@Validated` where the rule is static. The full tree:
 
 ```yaml
 llm4j:
   enabled: true
-  primary: default                         # which client is the LLMClient bean
-  secrets:
-    store: env | encrypted-file | chained | none
-    file: /var/app/keys.store
-    master-key-env: LLM4J_MASTER_KEY       # or master-key-file
-    chain: [encrypted-file, env]
+  primary: default
+  secrets: { store: env|encrypted-file|chained, file: …, master-key-env: …, master-key-file: …, chain: [encrypted-file, env] }
   clients:
-    default:
-      provider: anthropic                  # gemini | anthropic | ollama | sarvam
-      model: claude-sonnet-5-5
-      api-key-secret: ANTHROPIC_API_KEY    # or api-key: ${…} (literal; discouraged)
-      base-url: …
-      timeout: 60s
-      connect-timeout: 10s
-      tier: REASONING
-      effort: medium                       # anthropic only
-      retry: { max-retries: 3, initial-backoff: 1s, max-backoff: 30s, inline-wait-threshold: 30s }
-    cheap:
-      provider: gemini
-      model: gemini-2.5-flash
-      api-key-secret: GEMINI_API_KEY
-      tier: FAST_CHEAP
-  routing:
-    strategy: none | fallback | cost-aware
-    clients: [cheap, default]
-  pricing:
-    file: classpath:prices.yaml            # or models.<model>.input-per-million / output-per-million
-  budget: { tokens: 2000000, calls: 5000, cost: "25.00", window: day, warn-at: 0.8, per-call-max-tokens: 4000,
-            scope: primary }                # primary | each (each named client gets its own Budgeted wrapper)
-  privacy: { mask-pii: true, types: [EMAIL, PHONE, CREDIT_CARD] }
-  fairness: { monitor: rule-based }
-  audit: { file: /var/log/app/llm4j-audit.jsonl, max-file-size: 50MB, max-files: 10 }
-  agent:                                   # defaults for every agent
-    client: default
-    system-prompt: …                       # or system-prompt-id (from llm4j.prompts)
-    persona: support
-    max-iterations: 8
-    temperature: 0.2
-    tool-calling: auto
-    tools: [calculator, Slack]             # default: all
-    skills: [refunds]
-    context: { window: 200000, compaction: summarize, compaction-client: cheap }
-  agents:
-    triage: { system-prompt-id: triage, client: cheap, tools: [Search] }
-  memory:
-    conversations: file                    # memory | file
-    dir: /var/app/conversations
-    max-history: 50
-    semantic: { … SemanticMemoryConfig … , tool: false }
+    default: { provider: anthropic, model: claude-sonnet-5-5, api-key-secret: ANTHROPIC_API_KEY, base-url: …, timeout: 60s,
+               connect-timeout: 10s, tier: REASONING, effort: medium,
+               retry: { enabled: true, max-retries: 3, initial-backoff: 1s, max-backoff: 30s, inline-wait-threshold: 30s } }
+    cheap:   { provider: gemini, model: gemini-2.5-flash, api-key-secret: GEMINI_API_KEY, tier: FAST_CHEAP }
+  routing: { strategy: none|fallback|cost-aware, clients: [cheap, default] }
+  pricing: { file: classpath:prices.yaml }            # or models.<model>.{input-per-million,output-per-million}
+  budget:  { tokens: 2000000, calls: 5000, cost: "25.00", window: day, warn-at: 0.8, per-call-max-tokens: 4000 }
+  privacy: { mask-pii: true, types: [EMAIL, PHONE] }
+  audit:   { file: /var/log/app/llm4j-audit.jsonl, max-file-size: 50MB, max-files: 10 }
+  agent:   { client: default, system-prompt: …, system-prompt-id: triage, max-iterations: 8, temperature: 0.2, tools: [Slack],
+             context: { window: 200000, compaction: summarize, compaction-client: cheap } }
+  memory:  { conversations: file, dir: /var/app/chats, max-history: 50 }
   prompts: { location: classpath:prompts/ }
-  skills: { locations: [classpath:skills/], allow-remote: false }
-  personas: { location: classpath:personas.yaml }
-  tasks: { discover: true }
+  skills:  { locations: [classpath:skills/], allow-remote: false }
+  tasks:   { discover: true }
   tools:
-    builtin: [calculator, current-time]
-    Slack: { kind: webhook, options: { format: slack, url-secret: SLACK_WEBHOOK } }
-    Orders: { kind: sql, options: { url: "jdbc:postgresql://db/orders", user: ro, password-secret: ORDERS_DB, max_rows: "200" } }
-  mcp:
-    servers:
-      github: { command: npx, args: [-y, "@modelcontextprotocol/server-github"], env: { GITHUB_TOKEN-secret: GH_TOKEN }, tools: [search_issues] }
-  rag: { embedding: gemini, store: pgvector, pgvector: { table: docs, dimension: 768 }, chunking: { size: 800, overlap: 100 } }
+    builtin: [calculator]
+    Slack:  { kind: webhook, options: { url-secret: SLACK_WEBHOOK, format: slack } }
+  rag: { embedding: gemini, store: pgvector, pgvector: { table: docs, dimension: 768, password-secret: PG_PASSWORD } }
   loom:
-    scripts:
-      default: { location: classpath:workflows/support.loom, loot: classpath:workflows/tools.loot }
-      digest:  { location: classpath:workflows/digest.loom }
-    validate: strict | lenient
-    persistence: none | file | jdbc
-    persistence.dir: /var/app/loom            # file
-    persistence.datasource: loomDataSource    # jdbc; default the DataSource bean
-    persistence.initialize-schema: embedded   # always | embedded | never
+    script: classpath:workflows/support.loom
+    loot:   classpath:workflows/tools.loot
+    validate: strict|lenient
+    persistence: none|file|jdbc                       # + dir / datasource / initialize-schema: always|embedded|never
     allow-non-durable: false
-    executor: virtual-threads | platform | application
+    executor: virtual-threads|platform|application
     max-concurrent-runs: 32
     shutdown-grace: 30s
-    budget: { tokens: …, calls: …, cost: … }  # setBudgetOverrides
+    budget: { tokens: …, calls: …, cost: … }
     context: { windows-files: [classpath:windows.yaml] }
-    audit: { fail-on: high }                  # high | medium | low | info | none
-    human: { ask-via: telegram }
-    triggers: { enabled: true, poll-interval: 15s, stale-after: 5m, overdue-threshold: 2m,
-                endpoint: { enabled: false, path: /llm4j/loom/tick } }
-    web: { enabled: false, path: /llm4j/loom, authority: LOOM_OPERATOR, allow-unsecured: false, include-text: false }
-  observe:
-    enabled: false
-    port: 8787
-    bind: 127.0.0.1
-    detail: metadata
-    name: support-prod
-    rules-file: classpath:support.inspect
-    fabric: { url: https://fabric.internal:9090, ca: /etc/ssl/fabric-ca.pem, outbox: /var/app/outbox, flush-timeout: 5s }
-    otlp: { … }
-  test:                                       # starter-test only
-    max-spend: "0.50"
-    replay: { mode: off, dir: src/test/resources/replays }
+    audit: { fail-on: high }
+    triggers: { enabled: false, poll-interval: 15s, stale-after: 5m }
+  observe: { enabled: false, port: 8787, bind: 127.0.0.1, detail: metadata, name: svc, rules-file: …, fabric: { url: …, ca: …, outbox: … } }
 ```
 
-Shorthand mapping for v1 compatibility (`Llm4jLegacyProperties` `EnvironmentPostProcessor`): `llm4j.provider|model|
-api-key|base-url|timeout|connect-timeout` → `llm4j.clients.default.*`; `llm4j.loom.script|loot` →
-`llm4j.loom.scripts.default.location|loot`. Setting both forms fails (ZM5).
-
-### 2.1 Credential properties (Req 2.5–2.7)
-
-`CredentialProperty` resolves a pair `(literal, secretName)`:
-
-```java
-SecretRef ref(String property, String literal, String secretName, SecretStore store)
-  // both set      → Llm4jConfigurationException("set " + property + " or " + property + "-secret, not both")
-  // secretName    → SecretRef.of(requireStore(property), secretName)   (fails if no SecretStore bean)
-  // literal       → SecretRef.literal(literal)
-  // neither       → null
-```
-
-All literal credential keys (`*api-key`, `*password`, `*token`, `url` of webhook) are added to
-`management.endpoint.env.additional-keys-to-sanitize` / `configprops` sanitizing via a `SanitizingFunction` bean.
-Properties classes override `toString()` to print `***`.
-
-For tool options, an option key ending in `-secret` is resolved to the value at **tool creation** only when the kind
-needs a string (the generic kinds take resolved strings); the README says this value then lives in the tool, which is
-the same as a Loom script's `env.NAME`.
-
----
+**Credentials (R2.3).** `CredentialProperty.ref(path, literal, secretName, store)`: both set → fail naming both; secret → `SecretRef.of(store, name)`
+(fail if no store); literal → `SecretRef.literal`. Literal credential keys are added to the sanitizing function; properties classes print `***`.
 
 ## 3. Clients
 
-### 3.1 Building a Named_Client
+```java
+LLMConfig.builder().defaultModel(p.model()).apiKey(ref).baseUrl(...).timeout(...).connectTimeout(...).retryPolicy(RetryPolicies.from(p.retry(), clock, sleeper))
+provider = switch (p.provider()) { gemini→GoogleProvider, anthropic→AnthropicProvider(config[, effort]), ollama→OllamaProvider (base-url + "/api"), sarvam→SarvamChatProvider }
+new DefaultLLMClient(provider)      // validate() checks config only
+```
+
+Decoration order, outermost first: `LLMClientCustomizer`s → `MaskingLLMClient` → `BudgetedLLMClient` → `RoutingLLMClient` | named client.
+Masking is outside the budget so the estimator and providers see masked text; the budget is outside routing so a logical call is charged once.
+The budget estimator is the `TokenEstimator` bean when present.
+
+## 4. LoomHost (library)
 
 ```java
-final class ClientFactory {
-  LLMClient create(String name, ClientProperties p, SecretStore secrets, Clock clock, Sleeper sleeper) {
-    LLMConfig.Builder c = LLMConfig.builder().defaultModel(p.model());
-    SecretRef key = CredentialProperty.ref("llm4j.clients." + name + ".api-key", p.apiKey(), p.apiKeySecret(), secrets);
-    if (key == null && !p.provider().equals("ollama")) throw missingKey(name, p.provider());
-    if (key != null) c.apiKey(key);
-    if (p.baseUrl() != null) c.baseUrl(p.provider().equals("ollama") ? ollamaApi(p.baseUrl()) : p.baseUrl());
-    if (p.timeout() != null) c.timeout(p.timeout());
-    if (p.connectTimeout() != null) c.connectTimeout(p.connectTimeout());
-    c.retryPolicy(RetryPolicies.from(p.retry(), clock, sleeper));
-    LLMProvider provider = switch (p.provider()) {
-      case "gemini" -> new GoogleProvider(c.build());
-      case "anthropic" -> p.effort() == null ? new AnthropicProvider(c.build()) : new AnthropicProvider(c.build(), p.effort());
-      case "ollama" -> new OllamaProvider(c.build());
-      case "sarvam" -> new SarvamChatProvider(c.build());
-      default -> throw unknownProvider(name, p.provider());
-    };
-    return new DefaultLLMClient(provider);   // validate() checks config only; no network
-  }
-}
-```
+package io.github.llm4j.loom.host;
 
-`LLMClients` (bean) holds `Map<String, LLMClient>` in declaration order, plus the tier of each.
-
-### 3.2 Decoration order (Req 3, 5, 6)
-
-```
-Primary = customizers( Masking( Budgeted( base ) ) )
-base    = routing.strategy == none ? clients.get(primary)
-                                   : RoutingLLMClient.builder().strategy(s).addClient(tier, client)….build()
-```
-
-- **Masking outermost**: masked text is what the budget estimates and what every provider sees.
-- **Budget outside routing**: one logical call is charged once, whichever tier answered; a failover's failed attempt is
-  not charged (it returned no usage).
-- `BudgetedLLMClient.builder(base).budget(budget).prices(prices).model(primaryModel).perCallCap(n).estimator(est)`.
-- The decorated client is the `@Primary LLMClient` bean. The undecorated named clients stay reachable through
-  `LLMClients` for code that must bypass routing (never the budget: `LLMClients.get(name)` returns
-  `Budgeted(Masking?)` per client when `llm4j.budget.scope=each`; default `scope=primary`).
-
-### 3.3 Retry policy
-
-`RetryPolicies.from(RetryProperties, Clock, Sleeper)` → `RetryPolicy.builder()` with only the set fields; `enabled=false`
-→ `RetryPolicy.noRetry()`. `Clock`/`Sleeper` beans are used when present, else system defaults.
-
----
-
-## 4. Loom
-
-### 4.1 Script runtimes
-
-```java
-public final class LoomRuntime {                 // one per script; thread-safe
-  public String name();
-  public LoomScript script();
-  public RunOutcome run(RunRequest request);     // blocking; suspension/stop are outcomes
-  public LoomRun start(RunRequest request);      // async; executor shut down on completion
+public final class LoomHost implements AutoCloseable {
+  public static Builder builder(LoomScript script, io.github.llm4j.loom.execution.ToolRegistry tools, LLMClientFactory models);
+  public RunOutcome run(RunRequest r);            // blocking
+  public LoomRun   start(RunRequest r);           // on the configured Executor; executor.shutdown() in every outcome
   public RunOutcome resume(String runId, InvokerCredentials invoker);
-  public LoomRun resumeAsync(String runId, InvokerCredentials invoker);
+  public LoomRun   resumeAsync(String runId, InvokerCredentials invoker);
   public AnswerResult answer(String runId, String stepId, String text, String by);
-  public List<RunRecord> runs();                 // from RunStore (empty when not durable)
-  public Optional<RunRecord> run(String runId);
-  public RunTravel travel(String runId);         // rewind / fork through the library
-  public HarnessExecutor newExecutor(String runId);  // escape hatch, fully configured + initialized
+  public List<RunRecord> runs();  public Optional<RunRecord> run(String id);
+  public TriggerTarget triggerTarget();
+  public void startTriggers(Duration poll, String owner, Duration staleAfter, Consumer<TriggerRunner.Fired> listener);  public void stopTriggers();
+  public HarnessExecutor newExecutor(String runId);   // assembled and initialized; for tests and advanced use
+  public static void createSchema(DataSource ds);      // JdbcRunJournal, JdbcTriggerStore, JdbcLedger, JdbcLevelStore, llm4j_loom_runs
 }
-
-public record RunRequest(String workflow, Map<String,String> inputs, String runId, String label, String origin,
-                         InvokerCredentials invoker) {
-  public static RunRequest of(String workflow, Map<String,String> inputs);
-  public RunRequest withRunId(String id); public RunRequest as(InvokerCredentials invoker); public RunRequest origin(String o);
-}
-
-public sealed interface RunOutcome {
-  String runId();
-  record Completed(String runId, Map<String,Object> variables) implements RunOutcome {}
-  record Suspended(String runId, RunSuspended.Reason reason, Instant resumeAt, String stepId, String prompt) implements RunOutcome {}
-  record Stopped(String runId, String detail) implements RunOutcome {}
-}
-// a failure throws LoomRunFailedException(runId, cause)
+public record RunRequest(String workflow, Map<String,String> inputs, String runId, String label, String origin, InvokerCredentials invoker) { … }
+public sealed interface RunOutcome { Completed, Suspended(reason, resumeAt, stepId, prompt), Stopped }   // failure → LoomRunFailedException(runId, cause)
+public record RunRecord(String runId, String workflow, Map<String,String> inputs, String origin, Status status, Reason reason, Instant resumeAt, String stepId, Instant updated)
+public interface QuestionListener { void asked(String runId, String stepId, String prompt, List<String> choices); }
 ```
 
-v1's `run(String, Map)` and `start(String, Map)` stay as one-line overloads.
+**Executor assembly (one method, one order):** construct → `setBaseDir`, `setScriptRef`, `setRunId`, `setRunLocator` → `setSecretStore`, `setEnvLookup`, `setClock`, `setSleeper`
+→ `setToolReach`, `setTaskRegistry`, `setPromptRegistry`, `setPriceTable`, `setBudgetOverrides`, `setContextWindows`, `setEmbeddingFactory`, `setMemoryEngine`, `setAuditLogger`
+→ durable: `setJournal`, `setTriggerStore`, `setAutonomy` → `setHumanInterface` → observe `attach` (before initialize) → customizer → `initialize()`.
+Each step is skipped when its input is absent, so a host with no options behaves like v1's `LoomRuntime`.
 
-**Executor assembly** (`ExecutorAssembler`, the single place that knows every setter, in this order):
+**Persistence.** `file(dir)`: `<dir>/runs/<id>/journal.json` (`FileRunJournal`) and the run's spec file in the format `RunSpec` writes (so `weave resume` can read it; the
+host reads `RunSpec`'s JSON through a small public `RunSpecFile` reader/writer extracted from the CLI, with the CLI delegating to it), `<dir>/triggers/` (`FileTriggerStore`),
+ledger and levels beside them. `jdbc(ds)`: `JdbcRunJournal(ds, runId)`, `JdbcTriggerStore`, `JdbcLedger`/`JdbcLevelStore`, and `llm4j_loom_runs`
+(run_id PK, workflow, inputs JSON, origin, status, reason, resume_at, step_id, created, updated). Invoker credentials are never written.
 
-1. `new HarnessExecutor(script, loomTools, models)`
-2. `setBaseDir(scriptDir)`, `setScriptRef(name)`, `setRunId(runId)`, `setRunLocator(...)` (durable)
-3. `setSecretStore`, `setEnvLookup(environment::getProperty)`, `setClock`, `setSleeper`
-4. `setToolReach(loot reach)`, `setTaskRegistry`, `setPromptRegistry`, `setPriceTable`, `setTokenEstimator`,
-   `setBudgetOverrides`, `setContextWindows`, `setEmbeddingFactory`, `setMemoryEngine` (bean), `setAuditLogger`
-5. durable: `setJournal(journals.forRun(runId))`, `setTriggerStore(runTriggerStore)`, `setAutonomy(ledger, levels)`
-6. `setHumanInterface(humanInterfaces.forRun(runId))`
-7. metrics `addTraceListener(...)`; observe `session.attach(executor.observable(), scriptFile)`
-8. `LoomExecutorCustomizer`s (in `@Order`)
-9. `initialize()`
+**Answering.** `answer` loads the RunRecord (must be `SUSPENDED/HUMAN` at `stepId`), matches choices with `Answers.match`, writes the journal entry that
+`ApprovalGate`/`human_prompt` read on replay (the form `channel/Answers` and the CLI's `weave answer` already produce — Task 3.1 confirms the key and kind and, if the CLI uses
+a different path, factors it into one public `HumanAnswers.record(journal, stepId, answer)` that both call), audits `answered`, sets status `RESUMING`, and upserts
+`Trigger.resume(runId, now, "answered", 0)`; without a running trigger runner it resumes asynchronously itself.
 
-Each step is skipped when its bean is absent, so a minimal app gets exactly v1's behaviour.
+**Suspending human interface.** `promptHuman(stepId, message, hints)`: journaled answer present → return it; otherwise notify `QuestionListener`s and throw `RunSuspended(stepId, message)`.
 
-**Threads (Req 16.5–16.6).** `start` submits to a `TaskExecutor` (`SimpleAsyncTaskExecutor` with virtual threads,
-a bounded `ThreadPoolTaskExecutor`, or `applicationTaskExecutor`) behind a `Semaphore(max-concurrent-runs)`.
-`LoomRun` today creates its own platform thread; the library gains `LoomRun.start(executor, label, workflow, inputs,
-origin, invoker, java.util.concurrent.Executor)` so the starter supplies the thread and the invoker (Req 16.3) and is
-notified on completion (to `shutdown()` the executor and release the permit). The existing `start` overloads keep
-their behaviour.
+**Triggers.** `triggerTarget()` is `WeaveTriggerTarget`'s logic over the host: `ResumeRun` → `resume` (a run needing credentials → `Outcome.human("needs the person's credentials")`),
+`StartWorkflow` → `run` with the slot run id, `AgentTask` → executor with an in-memory trigger store then `runAgentTask`. Schedule triggers are written once by `registerSchedules()` at host
+start (Task 3.5 checks whether `HarnessExecutor.initialize()` re-registers them per run and, if so, adds `HarnessExecutor.setRegisterSchedules(boolean)`, default `true`).
 
-**Shutdown (Req 16.8).** `LoomRuntimes` is a `SmartLifecycle` with a late phase: `stop()` calls `wrapUp` on every live
-run, waits `shutdown-grace`, then `cancel` (non-durable) or suspend by operator (`RunSuspended.byOperator`, durable).
+**Scripts in jars.** `ScriptSource { String read(String location); String resolve(String from, String imported); Optional<Path> directory(String location); static fileSystem(); }`,
+`LoomLoader.load(location, source)`, `LootLoader.loadIntoRegistry(Reader, ToolRegistry)` and `reaches(Reader)`. The existing path-based methods delegate.
 
-### 4.2 Scripts inside jars (Req 15.2–15.3, library change)
+**CLI.** The CLI is not rewritten. Only `RunSpec` read/write is extracted (Task 3.1). A follow-up, out of scope here, can move `Runs.execute` onto `LoomHost`.
 
-ai-agent4j-loom gains:
+## 5. Spring wiring of Loom
 
 ```java
-public interface ScriptSource {                      // io.github.llm4j.loom.execution
-  String read(String location) throws IOException;   // the script text
-  String resolve(String from, String imported);       // an import relative to the importing script
-  default Optional<Path> directory(String location) { return Optional.empty(); }   // baseDir when on disk
-  static ScriptSource fileSystem();                  // today's behaviour
-}
-public LoomScript LoomLoader.load(String location, ScriptSource source) throws IOException;   // new overload
-public void LootLoader.loadIntoRegistry(Reader loot, ToolRegistry registry);                 // new overload
-public static Map<String,String> LootLoader.reaches(Reader loot);                            // new overload
+@Bean LoomRuntime loomRuntime(...):
+   script  = load via ResourceScriptSource (Spring ResourceLoader)           tools = ToolCatalog.loomRegistry() + .loot
+   models  = LLMClientFactory bean | new DefaultLLMClientFactory(environment::getProperty, secretStore)
+   validate: ScriptValidator.validateOrThrow(...)                            // R9.3
+   audit:    SecurityAudit.audit(script, name, lootReach).failsAt(threshold) // R9.4
+   guard:    DurabilityGuard.check(script, persistence, allowNonDurable)     // R9.5
+   host = LoomHost.builder(...)…build();   return new LoomRuntime(host);
 ```
 
-`load(String filePath)` becomes `load(filePath, ScriptSource.fileSystem())`. The starter implements `ScriptSource` over
-Spring's `ResourceLoader` (`Resource.createRelative`), with circular-import detection keyed by the resource URL. The
-`.loom` parse-test and `RepositoryScriptsTest` are unaffected. `docs/API_COMPATIBILITY.md` lists the additions.
+`LoomRuntime` is a `final` class whose methods call the host; it exists so the bean has a Spring-free-looking surface and so the shutdown hook lives in one place.
+A `SmartLifecycle` (`Llm4jLoomLifecycle`) starts triggers after validation and, on stop, stops triggers, wraps up running runs, waits `shutdown-grace`, then suspends/cancels, then closes the host.
+`HumanQuestionEvent` is published by a `QuestionListener` registered by the Starter.
 
-For a script in a jar the run's `baseDir` (used by `file` tools, prompts folder, knowledge sources) is
-`llm4j.loom.scripts.<name>.base-dir` (default `llm4j.loom.persistence.dir`, else the working directory); the README
-states this and validation reports a script whose relative paths cannot resolve.
+## 6. Tools, agents, RAG
 
-### 4.3 Validation and security gate (Req 15.4, 21)
+`ToolCatalog` gathers `Tool` beans → built-ins → kinds (`check` then `create`, `-secret` options resolved from the store) and fails on duplicate names naming both sources. The core `ToolRegistry`
+and the Loom registry are filled from it. `TaskRegistry` = `Task` beans + `discovered()`. `ReActAgent.Builder` is assembled by one method in the order: client, tools, prompts/system, loop settings,
+context, budget/prices, audit, hooks, listeners, then customizers. `PromptRegistry`, `ConversationStore`, `VectorStore`, `EmbeddingProvider` are one `@Bean` each.
 
-At `ContextRefreshedEvent`-independent bean creation of each `LoomRuntime`:
-
-1. `ScriptValidator.validateOrThrow(script, context)` with `registeredTools(loomTools.names())`, `tasks(taskRegistry)`,
-   `env(environment::getProperty)`, `prompts(catalog)`, `baseDir(dir)`, `humanInterface(present)`,
-   `lenient(validate == lenient)`. Errors fail start-up with all problems; warnings are logged.
-2. `SecurityAudit.audit(script, name, lootReach)`; `report.failsAt(threshold)` → fail with `report.markdown()`.
-3. Durability guard (Req 17.6, 20.2): `EffectScan`/`StatementWalker` finds `human_prompt`, `approve:`, `sleep`,
-   `rate_limits`, windowed budgets, `decision`/`ladder`; with persistence `none` it fails unless `allow-non-durable`.
-
-### 4.4 Persistence (Req 17, 20)
-
-```java
-interface RunJournals { RunJournal forRun(String runId); }        // file: FileRunJournal(dir/runs/<id>/journal.json)
-                                                                  // jdbc: new JdbcRunJournal(ds, runId)
-interface RunStore {                                              // new, in the starter
-  void save(RunRecord r);  Optional<RunRecord> get(String runId);  List<RunRecord> all(); void update(String runId, Status s, …);
-}
-record RunRecord(String runId, String script, String workflow, Map<String,String> inputs, String origin,
-                 Status status, RunSuspended.Reason reason, Instant resumeAt, String stepId, Instant created, Instant updated) {}
-```
-
-- File `RunStore` writes `runs/<id>/run.json` (the same directory `weave` uses, so `weave timeline`/`weave resume`
-  can read a starter run's journal by path).
-- JDBC `RunStore` uses table `llm4j_loom_runs`; DDL ships as a constant in the starter, created the same way as the
-  library tables, by `Llm4jSchemaInitializer` (`initialize-schema`, using `DatabaseInitializationMode` semantics) which
-  calls `JdbcRunJournal.createTable`, `JdbcTriggerStore.createTable`, `JdbcLedger.createTable`,
-  `JdbcLevelStore.createTable` and the RunStore DDL.
-- Inputs are stored; invoker credentials never (Req 17.3). Inputs are application data: the README warns not to pass
-  secrets as inputs.
-
-**Answering (Req 17.5).** `answer` checks the RunRecord is `SUSPENDED` with reason `HUMAN` and `stepId` matches, then
-`journal.put(stepId, new RunJournal.Entry("human", text))` (the form `ApprovalGate` and `BudgetCoordinator` read), audits
-`answered` with `by`, sets the record to `RESUMING`, and `triggerStore.upsert(Trigger.resume(runId, now, "answered", 0))`.
-Choices are matched with `Answers.match`. When triggers are disabled, `answer` resumes asynchronously itself.
-Verification task: confirm against `human_prompt` and `approve:` replay that this key and kind are exactly what they
-read (task 7.3); if a step uses a different key, add a small public `RunJournal`-level helper in ai-agent4j-loom
-(`HumanAnswers.record(journal, stepId, answer)`) and use it from both the CLI and the starter.
-
-### 4.5 Human interface (Req 18)
-
-`SuspendingHumanInterface implements HumanInterface`: `promptHuman(stepId, message, hints)` → if the journal already holds
-an answer for `stepId`, return it; else publish `HumanQuestionEvent(runId, stepId, message, hints.choices())` to
-`HumanQuestionListener` beans and the `ApplicationEventPublisher`, and throw `new RunSuspended(stepId, message)`.
-With `ask-via`, `Channels.open(dir, askVia, env, clock)` gives a `Runtime`; its `humanFor(runDir, runId)` is used instead,
-and `listen(...)` runs in a `SmartLifecycle` thread with the library's backoff.
-
-### 4.6 Triggers (Req 19)
-
-- `LoomTriggerTarget implements TriggerTarget`: `ResumeRun` → `runtimes.forRun(runId).resume(runId, null)` (the RunStore
-  says which script); `StartWorkflow(script, workflow, args)` → `runtimes.get(script).run(...)`; `AgentTask` →
-  `newExecutor` with an `InMemoryTriggerStore` then `runAgentTask(agent, task)` (as `WeaveTriggerTarget`). A run that
-  needs invoker credentials cannot be resumed by a trigger: the outcome is `human("needs the person's credentials")`
-  and the RunRecord says so.
-- `TriggerRunner(store, target, clock, owner).staleAfter(d).onFired(publisher::publishEvent)`, `start(pollInterval)` /
-  `stop()` from a `SmartLifecycle`.
-- Schedule registration (Req 19.3): at start-up, for each script, one executor is initialized with the persistent
-  trigger store (this writes its `schedule` triggers, idempotent upserts by id) and shut down; run executors get the
-  persistent store only for resume triggers. Task 9.2 verifies the library's split between schedule and resume
-  registration and, if executors re-register schedules on every `initialize()`, adds
-  `HarnessExecutor.setRegisterSchedules(boolean)` (default `true`) in ai-agent4j-loom.
-- Endpoint: `TriggerEndpoint(runner, () -> secret("LOOM_TRIGGER_TOKEN"), bearerVerifier)`, adapted to a
-  `RouterFunction` (MVC) / `RouterFunction` (WebFlux) that passes method and headers and returns `Response.status/body`.
-
-### 4.7 Observe (Req 22)
-
-`ObserveSessionLifecycle` opens `Observe.open(options, logPrintStream)` in `start()`, closes it in `stop()`.
-`ObserveOptions(port, bind, detail, name, linger, embedded=true, fabric, otlp).withRules(file)`. The `PrintStream` is
-an SLF4J-backed stream (one log line per println). Bind other than loopback requires `LOOM_INSPECT_ADMIN_PASSWORD` in the
-secret store (checked before open).
-
----
-
-## 5. Agents (Req 8–11)
-
-```java
-@Bean @Scope("prototype") ReActAgent.Builder reActAgentBuilder(...)    // defaults (llm4j.agent.*)
-@Bean Agents agents(ObjectProvider<…> …)                               // llm4j.agents.<name>
-@Bean AgentSessions agentSessions(Agents agents, ConversationStore store)   // only with a ConversationStore
-```
-
-`AgentBuilderAssembler.assemble(AgentProperties merged)`:
-
-```
-ReActAgent.builder()
-  .llmClient(merged.client == null ? primary : clients.get(merged.client))
-  .addTools(tools.select(merged.tools))           // all when unset; unknown name → fail
-  .systemPrompt | .promptRegistry(reg).systemPromptId(id) | .instructions
-  .persona(personas.get(merged.persona)) .skills(skills.select(merged.skills))
-  .maxIterations .temperature .toolCalling .streaming .reasoning .validateToolArguments
-  .contextPolicy | .contextWindow | .contextWindows  .compaction(ContextCompactors.byName(name, opts, providerContext))
-  .budget(budget) .priceTable(prices) .tokenEstimator(est) .maxTokensPerCall .onBudgetExhausted
-  .auditLogger .biasMonitor .approvalCallback .effectClassifier .clock
-  .addListener(each AgentEventListener + metrics listener) .addRunHook(each) .addToolHook(each, ordered)
-  .semanticMemory(service)
-→ ReActAgentBuilderCustomizer beans
-```
-
-`AgentSessions.agent(name, sessionId)` adds `.conversationHistory(new ConversationHistory(sessionId, store, maxHistory))`.
-
-## 6. Tools (Req 12)
-
-`ToolCatalog` (bean) collects, in this order, and fails on a duplicate name naming both sources:
-`Tool` beans → `llm4j.tools.builtin` → `llm4j.tools.<name>` kinds → MCP tools → `.loot` tools (Loom registry only).
-The core `ToolRegistry` and each script's Loom `ToolRegistry` are filled from it.
-
-Kinds: `Map<String, ToolKind>` = `{webhook: new WebhookKind(), email: new EmailKind(), http: new HttpKind(),
-file: new FileKind(), shell: new ShellKind(), sql: new SqlKind()}` plus any `ToolKind` bean (so applications add kinds).
-`check(options, baseDir)` then `create(name, options, baseDir, effectContext)` when an `EffectContext` bean exists, else
-`create(name, options, baseDir)`.
-
-MCP: `McpServerLifecycle` (`SmartLifecycle`, early phase): for each server, `new McpClient(new StdioMcpTransport(command + args, env))`,
-`initialize()`, `listTools()`, filter by `tools` allow-list, `new McpToolAdapter(client, def)`; close on stop. Because the tool
-list is known only after the process starts, MCP tools are registered in `start()`; the Loom runtimes validate after the
-MCP lifecycle phase (they validate in their own `start()`), which is why Loom validation runs in `SmartLifecycle.start`
-rather than in bean creation when MCP servers are configured.
-
-## 7. Metrics, health, endpoint (Req 23)
-
-- `MetricsAgentListener implements AgentEventListener` (`onModelCall`, `onBudget`, `onCompaction`, tool events) and
-  `MetricsTraceListener implements TraceListener` for Loom: registered on every builder/executor when a `MeterRegistry`
-  exists. Tags: `client`, `provider`, `model`, `outcome`, `tool`, `script`, `workflow`, `reason`, `status`. No free text.
-- `Llm4jHealthIndicator`: per client, `provider` and `keyPresent` (`SecretRef.exists()`/non-blank), never the key.
-- `LoomHealthIndicator`: scripts valid; journal/trigger store reachable (a `SELECT 1` on JDBC or directory writable);
-  runner running; `overdue = due(now - threshold).size()`.
-- `@Endpoint(id = "loom")` read operations only: `scripts`, `runs`, `runs/{id}`, `audit/{script}` (JSON from
-  `AuditReport.json()`).
-- `ObservationRegistry`: `ObservedLLMClient` decorator (innermost of the customizers) and an observation per run.
-
-## 8. Run-control web API (Req 24)
-
-`LoomRunController` (MVC) / `LoomRunHandler` (WebFlux), mounted at `llm4j.loom.web.path`:
-
-| Method | Path | Does |
-|---|---|---|
-| GET | `/runs` | `runs()` (+ `LiveRuns.shared().all()` labels) |
-| GET | `/runs/{id}` | one RunRecord |
-| POST | `/scripts/{script}/workflows/{workflow}` | `start` with JSON inputs; origin = principal |
-| POST | `/runs/{id}/answers/{step}` | `answer` |
-| POST | `/runs/{id}/steer` · `/wrap-up` · `/pause` · `/resume` · `/cancel` | `LoomRun` / executor control, origin = principal |
-
-`LoomWebSecurityGuard` (`SmartInitializingSingleton`): with Spring Security present, contributes a `SecurityFilterChain`
-for the path (authenticated, `hasAuthority(authority)` for POST) at an order before the application's default chain, and
-backs off if the application defines one matching the path; without Spring Security, fails unless `allow-unsecured`.
-
-## 9. Test support (Req 25)
-
-- `@AutoConfigureLlm4jMock` imports `Llm4jMockAutoConfiguration`: `@Primary ScriptedClient llm4jScriptedClient()`,
-  replaces `LLMClients` entries with the same scripted client (or one per name via `Llm4jMocks.client(name)`), and
-  `@Primary LLMClientFactory` = `MockModels`. Persistence defaults to in-memory journal/trigger stores; `Clock` is a
-  `MutableClock` bean the test can advance.
-- `@AutoConfigureLlm4jLive`: JUnit `ExecutionCondition` skips when keys are missing; each client wrapped by
-  `SpendGuard.withPrices(priceTable)` stopping at `llm4j.test.max-spend`.
-- `@Llm4jTest`: `@BootstrapWith` slice including only `Llm4j*AutoConfiguration` + `@AutoConfigureLlm4jMock`.
-- Replay: `AgentReplay.at(dir)` wrapping the primary client in `record`/`replay` mode.
-
----
-
-## 10. Compatibility and risks
+## 7. Compatibility and risks
 
 | Topic | Decision |
 |---|---|
-| v1 API | `LoomRuntime.run/start(String, Map)` and all v1 properties keep working (shorthands). v1 was never released, so no deprecation cycle is needed; shorthands stay because they are the simplest form. |
-| Library changes | Only additive: `ScriptSource` + `LoomLoader.load(location, source)`, `LootLoader` Reader overloads, `LoomRun.start(..., invoker, Executor)`, possibly `setRegisterSchedules` and `HumanAnswers`. Each is usable without Spring and listed in `API_COMPATIBILITY.md`. |
-| Two `ToolRegistry` types | Kept: the core one is the `ToolRegistry` bean; Loom's are per script, inside each `LoomRuntime`, and not beans (avoids a second bean of a confusingly named type). v1's `loomToolRegistry` bean is removed; `LoomRuntime.tools()` exposes it. |
-| Multiple replicas | Trigger claims (`claim/complete` with owner and stale-after) make firing once-only; `LiveRuns` and run control are per process, so the web API answers only for runs in this replica (documented; Fabric gives the fleet view). |
-| JDBC on any database | Library DDL targets PostgreSQL and H2; MySQL/Oracle users set `initialize-schema=never` and create tables themselves (documented with the DDL constants). |
+| v1 | v1 was never released; its two properties stay as shorthands. v1's `LoomRuntime.run/start(String, Map)` stay as overloads. |
+| Library changes | Additive only: `loom.host.*`, `ScriptSource`, `LoomLoader`/`LootLoader` overloads, a public `RunSpecFile`, possibly `HumanAnswers` and `setRegisterSchedules`. All listed in `API_COMPATIBILITY.md`; all tested in `ai-agent4j-loom` without Spring. |
+| Two `ToolRegistry` types | The core one is the bean; Loom's is internal to the `LoomRuntime`. |
+| Replicas | Trigger claims make firing once-only; `LiveRuns` is per process. |
+| JDBC | The library's DDL targets PostgreSQL and H2; other databases use `initialize-schema=never` and the DDL constants. |
+| Biggest unknowns | Whether `weave`'s answer path writes the key `human_prompt` replays from (3.1); whether `initialize()` re-registers schedules (3.5). Both are scheduled first. |
