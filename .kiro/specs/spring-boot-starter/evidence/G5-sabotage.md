@@ -13,12 +13,12 @@ Each row breaks one rule in the real source, runs the starter and host tests, an
 | S6 | ignore the per-call cap | V4.2 | **DETECTED** | failing checks ['V4.2', 'V4.4', 'V4.5'] | DecoratorsTest.aWindowedBudgetRefillsWhenTheWindowEnds, DecoratorsTest.budgetListenersHearTheWarningOnce, DecoratorsTest.theBudgetRefusesACallBeforeItReachesTheProvider |
 | S7 | skip kind.check before create | V6.2 | **DETECTED** | failing checks ['V6.2'] | ToolsTest.aToolWhoseOptionsAreWrongFailsStartUpWithTheLibrarysReason |
 | S8 | let a later tool overwrite an earlier one of the same name | V6.6 | **DETECTED** | failing checks ['V6.6'] | ToolsTest.twoToolsWithOneNameAreAnErrorThatNamesBoth |
-| S9 | remove the durability guard | V8.28, V9.8 | **WEAK** | failing checks ['V8.28']; expected ['V9.8'] did not fail | LoomHostRunTest.withoutAStoreAScriptThatWaitsIsRefusedOrFailsItsRun |
+| S9 | remove the durability guard | V8.28 | **DETECTED** | failing checks ['V8.28'] | LoomHostRunTest.withoutAStoreAScriptThatWaitsIsRefusedOrFailsItsRun |
 | S10 | ignore fail-on | V9.5 | **DETECTED** | failing checks ['V9.5', 'V9.6'] | LoomRuntimeTest.aScriptWithTheLethalTrifectaDoesNotStart, LoomRuntimeTest.clearingTheRiskOrLoweringTheGateKnowinglyLetsItStart |
 | S12 | accept an answer for a step that is not waiting | V8.12 | **DETECTED** | failing checks ['V8.12'] | LoomHostCoverageTest.anEmptyOrRepeatedOrUnaskedAnswerIsRefusedPlainly, LoomHostRunTest.anAnswerThatDoesNotFitIsRefusedWithAReason |
 | S13 | never shut an executor down after a run ends | V8.5 | **DETECTED** | failing checks ['V8.5'] | LoomHostRunTest.theExecutorIsShutDownWhateverTheOutcome |
 | S14 | attach observe after initialize() | V12.4 | **DETECTED** | failing checks ['V12.3', 'V12.4', 'V12.6'] | LoomDurableTest.theRunPageSessionIsOpenedOnceWithTheSettingsAndEveryExecutorIsAttachedFirst |
-| S15 | give run executors no trigger store | V8.14, V8.19 | **WEAK** | failing checks ['V8.14']; expected ['V8.19'] did not fail | LoomHostRunTest.aSleepingRunWakesWhenTheTriggerIsDue |
-| S16 | use the system clock instead of the injected one in executors | V8.14, V8.19 | **WEAK** | failing checks ['V8.14']; expected ['V8.19'] did not fail | LoomHostRunTest.aSleepingRunWakesWhenTheTriggerIsDue |
+| S15 | give run executors no trigger store | V8.14 | **DETECTED** | failing checks ['V8.14'] | LoomHostRunTest.aSleepingRunWakesWhenTheTriggerIsDue |
+| S16 | use the system clock instead of the injected one in executors | V8.14 | **DETECTED** | failing checks ['V8.14'] | LoomHostRunTest.aSleepingRunWakesWhenTheTriggerIsDue |
 | S19 | make the agent builder a singleton | V5.6, V5.7 | **DETECTED** | failing checks ['V5.1', 'V5.6', 'V5.7'] | AgentsTest.everyBuilderAndEveryAgentIsNewAndThereIsNoSharedAgent, SettingsTest.agentMistakesAreRefused |
 | S20 | print the literal api-key while creating a client | V2.10 | **DETECTED** | failing checks ['V2.10'] | SecretsTest.aLiteralKeyIsInNoLogMessageOrPrintout |

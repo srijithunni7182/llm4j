@@ -36,7 +36,7 @@ class LoomHostTriggersTest {
         try {
             env.clock.advance(Duration.ofMinutes(2)); // 07:01
             HostEnv.await(() -> env.host.runs().size() == 1 && env.host.runs().get(0).status() == RunRecord.Status.COMPLETED, "the scheduled run");
-            assertThat(env.host.runs().get(0).runId()).startsWith("Daily@2026-10-15T07:00");
+            assertThat(env.host.runs().get(0).runId()).startsWith("Daily@2026-10-15T07-00");
             assertThat(env.host.runs().get(0).origin()).isEqualTo("trigger");
             HostEnv.await(() -> !fired.isEmpty(), "the fired event");
         } finally {

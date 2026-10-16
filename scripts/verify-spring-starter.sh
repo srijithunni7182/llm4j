@@ -102,8 +102,8 @@ g4() {
   local out="$EVIDENCE/G4-dependencies.txt" bad=0
   { echo "commit $SHA"; date -u; } > "$out"
   for m in ${LIBS//,/ }; do
-    if mvn -B -q -pl "$m" dependency:tree -DoutputFile="$ROOT/$EVIDENCE/.tree.txt" > /dev/null 2>&1 || true; then :; fi
-    if [ -f "$EVIDENCE/.tree.txt" ] && grep -q "org.springframework" "$EVIDENCE/.tree.txt"; then echo "SPRING in $m:" | tee -a "$out"; grep "org.springframework" "$EVIDENCE/.tree.txt" | tee -a "$out"; bad=1
+    if mvn -B -q -pl "$m" dependency:tree -DoutputFile="$EVIDENCE/.tree.txt" > /dev/null 2>&1 || true; then :; fi
+    if [ ! -s "$EVIDENCE/.tree.txt" ]; then echo "no dependency tree for $m" | tee -a "$out"; bad=1; elif grep -q "org.springframework" "$EVIDENCE/.tree.txt"; then echo "SPRING in $m:" | tee -a "$out"; grep "org.springframework" "$EVIDENCE/.tree.txt" | tee -a "$out"; bad=1
     else echo "no Spring in $m" | tee -a "$out"; fi
     rm -f "$EVIDENCE/.tree.txt"
   done

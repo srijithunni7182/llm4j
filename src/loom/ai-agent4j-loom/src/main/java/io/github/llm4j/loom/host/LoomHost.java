@@ -329,7 +329,7 @@ public final class LoomHost implements AutoCloseable {
         if (trigger.target() instanceof Trigger.StartWorkflow w) {
             if (o.scriptRef != null && !o.scriptRef.equals(w.script())) return TriggerTarget.Outcome.failed("not this host's script: " + w.script());
             try {
-                return outcome(run(RunRequest.of(w.workflow(), w.args()).withRunId(runId).from("trigger")));
+                return outcome(run(RunRequest.of(w.workflow(), w.args()).withRunId(RunRegistry.idFrom(runId)).from("trigger")));
             } catch (MissingInvokerCredentialException e) {
                 return TriggerTarget.Outcome.human("needs the person's credentials");
             } catch (LoomRunFailedException e) {

@@ -229,6 +229,19 @@ interface RunRegistry {
 
     /** A run id as a folder name: the characters {@code weave} allows. */
     static String safe(String runId) {
-        return runId.replaceAll("[^A-Za-z0-9._@-]", "-");
+        if (!validId(runId)) throw new IllegalArgumentException("not a run id: " + runId);
+        return runId;
+    }
+
+    /** A run id made from text the host itself produced (a trigger's name and time), which may hold characters a folder name cannot. */
+    static String idFrom(String text) {
+        String id = text.replaceAll("[^A-Za-z0-9._@-]", "-");
+        if (!id.matches("[A-Za-z0-9].*")) id = "t-" + id;
+        return id.length() > 100 ? id.substring(0, 100) : id;
+    }
+
+    /** What a run id may be: it becomes a folder name, so it cannot hold a separator or start with a dot. */
+    static boolean validId(String runId) {
+        return runId != null && runId.matches("[A-Za-z0-9][A-Za-z0-9._@-]{0,99}");
     }
 }

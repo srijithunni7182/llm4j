@@ -37,6 +37,11 @@ final class GuardedTools {
         Map<String, String> options = resolve(where, custom.options(), secrets);
         String problem = kind.check(options, baseDir);
         if (problem != null) throw new Llm4jConfigurationException(where + ": " + problem, "Fix the options under " + where + ".options (they are the ones a Loom script writes for 'use: " + custom.kind() + "').");
+        String agentProblem = kind.agentProblem(options, name, "an agent", false);
+        if (agentProblem != null) {
+            throw new Llm4jConfigurationException(where + ": " + agentProblem,
+                    "Every agent can use a registered tool, so a tool that needs approval must say so: set " + where + ".options.unattended=true to accept that agents run it without being asked.");
+        }
         try {
             return context == null ? kind.create(name, options, baseDir) : kind.create(name, options, baseDir, context);
         } catch (Exception e) {

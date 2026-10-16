@@ -1,0 +1,7 @@
+commit 46b13c7b957085890f78f6a4194ff992e5cb7d1b
+Fri Oct 16 11:46:18 UTC 2026
+ok  starter    line 0.919 (>= 0.85)  branch 0.860 (>= 0.80)
+ok  loom.host  line 0.891 (>= 0.85)  branch 0.816 (>= 0.80)
+ok  CredentialProperty                 branch 20/20 (>= 0.90)
+ok  Llm4jGuardAutoConfiguration        branch 22/22 (>= 0.90)
+ok  DurabilityGuard                    branch 28/30 (>= 0.90)

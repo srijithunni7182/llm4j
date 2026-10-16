@@ -221,4 +221,18 @@ class SettingsTest {
         assertThat(RecordingObserveProvider.OPENED).hasSize(1);
         assertRefuses("llm4j.observe", "llm4j.observe.enabled=true", "llm4j.observe.detail=everything");
     }
+
+    @Tag("SB-V9.4")
+    @Test
+    void scriptsAndLootFilesAreNeverFetchedOverTheNetwork() {
+        assertRefuses("network address", "llm4j.loom.script=https://example.com/flow.loom");
+        assertRefuses("network address", "llm4j.loom.script=classpath:scripts/three-steps.loom", "llm4j.loom.loot=http://example.com/tools.loot");
+    }
+
+    @Tag("SB-V6.2")
+    @Test
+    void aToolThatRunsProgramsMustSayNobodyWillBeAsked() {
+        assertRefuses("unattended", "llm4j.tools.custom.Run.kind=shell", "llm4j.tools.custom.Run.options.allow=echo");
+        assertStarts("llm4j.tools.custom.Run.kind=shell", "llm4j.tools.custom.Run.options.allow=echo", "llm4j.tools.custom.Run.options.unattended=true");
+    }
 }

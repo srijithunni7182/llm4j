@@ -98,4 +98,12 @@ class HostPartsTest {
         assertThat(r.labelled("L").from("web").withRunId("id").label()).isEqualTo("L");
         assertThat(r.from(" ").origin()).isEqualTo("app");
     }
+
+    @Tag("SB-V8.1")
+    @ParameterizedTest @ValueSource(strings = {"..", ".hidden", "a/b", "a b", "", "x\\y", "../etc"})
+    void aRunIdThatCouldNotBeAFolderNameIsRefused(String id) {
+        assertThatThrownBy(() -> RunRequest.of("Main", Map.of()).withRunId(id)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(RunRequest.of("Main", Map.of()).withRunId("ok-1.2_x@y").runId()).isEqualTo("ok-1.2_x@y");
+        assertThat(RunRequest.of("Main", Map.of()).withRunId(java.util.UUID.randomUUID().toString()).runId()).isNotBlank();
+    }
 }

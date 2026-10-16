@@ -101,6 +101,7 @@ public class Llm4jLoomAutoConfiguration {
                                    ApplicationEventPublisher events) throws IOException {
         Llm4jProperties.Loom l = properties.loom();
         String location = l.script();
+        refuseRemote("llm4j.loom.script", location);
         Resource scriptResource = resources.getResource(location);
         if (!scriptResource.exists()) throw new Llm4jConfigurationException("llm4j.loom.script " + location + " does not exist", "Point it at a .loom file (classpath: or file:).");
         boolean onDisk = scriptResource.isFile();
@@ -118,6 +119,7 @@ public class Llm4jLoomAutoConfiguration {
         tools.tools().forEach(t -> loomTools.register(t.getName(), t));
         Map<String, String> reach = Map.of();
         if (l.loot() != null) {
+            refuseRemote("llm4j.loom.loot", l.loot());
             Resource loot = resources.getResource(l.loot());
             if (!loot.exists()) throw new Llm4jConfigurationException("llm4j.loom.loot " + l.loot() + " does not exist", "Point it at a .loot file (tool name = class), or remove it.");
             try (Reader in = new InputStreamReader(loot.getInputStream(), StandardCharsets.UTF_8)) {
@@ -198,6 +200,14 @@ public class Llm4jLoomAutoConfiguration {
     }
 
     /** The trifecta and the other findings of {@code weave audit}, as a start-up check, with {@code weave audit --fail-on}'s threshold. No setting silences a single rule. */
+    /** A script, and above all a loot file (which names classes to load), is code: it is never fetched over the network. */
+    static void refuseRemote(String property, String location) {
+        String lower = location.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("http:") || lower.startsWith("https:") || lower.startsWith("ftp:")) {
+            throw new Llm4jConfigurationException(property + " " + location + " is a network address", "Use classpath: or file:. Workflow scripts and tool-reach files are code and are not loaded from the network.");
+        }
+    }
+
     static void securityGate(LoomScript script, String name, Map<String, String> reach, String failOn) {
         AuditReport report = SecurityAudit.audit(script, name, reach);
         if (failOn.equalsIgnoreCase("none")) {

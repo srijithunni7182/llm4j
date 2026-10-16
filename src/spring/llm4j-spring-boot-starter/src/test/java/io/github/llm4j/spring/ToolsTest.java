@@ -112,7 +112,7 @@ class ToolsTest {
                         "llm4j.tools.custom.Mail.kind=email", "llm4j.tools.custom.Mail.options.from=bot@example.com", "llm4j.tools.custom.Mail.options.to=ops@example.com", "llm4j.tools.custom.Mail.options.outbox=" + outbox,
                         "llm4j.tools.custom.Api.kind=http", "llm4j.tools.custom.Api.options.base_url=" + api.url("/"), "llm4j.tools.custom.Api.options.allow_http=true", "llm4j.tools.custom.Api.options.allow_private=true", "llm4j.tools.custom.Api.options.allow_paths=/ping",
                         "llm4j.tools.custom.Files.kind=file", "llm4j.tools.custom.Files.options.root=" + files,
-                        "llm4j.tools.custom.Run.kind=shell", "llm4j.tools.custom.Run.options.allow=echo",
+                        "llm4j.tools.custom.Run.kind=shell", "llm4j.tools.custom.Run.options.allow=echo", "llm4j.tools.custom.Run.options.unattended=true",
                         "llm4j.tools.custom.Db.kind=sql", "llm4j.tools.custom.Db.options.url=" + url, "llm4j.tools.custom.Db.options.user=sa").run(ctx -> {
                     assertThat(ctx).hasNotFailed();
                     ToolRegistry tools = ctx.getBean(ToolRegistry.class);
