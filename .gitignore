@@ -57,3 +57,9 @@ secret-keys*.asc
 dist/
 loom-inspect-audit.log
 loom-inspect-outbox/
+
+# Fabric server / simulator data: vault, master.key, admin credentials, run history, outbox
+fabric-data/
+fabric-sim-data/
+**/fabric-data/
+**/fabric-sim-data/
