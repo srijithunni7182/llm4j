@@ -79,7 +79,7 @@ llm4j:
     max-concurrent-runs: 32
     shutdown-grace: 30s
     budget: { tokens: …, calls: …, cost: … }
-    context: { windows-files: [classpath:windows.yaml] }
+    context: { windows-files: [classpath:windows.txt] }
     audit: { fail-on: high }
     triggers: { enabled: false, poll-interval: 15s, stale-after: 5m }
   observe: { enabled: false, port: 8787, bind: 127.0.0.1, detail: metadata, name: svc, rules-file: …, fabric: { url: …, ca: …, outbox: … } }

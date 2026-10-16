@@ -87,6 +87,15 @@ class MetadataAndReadmeTest {
         }
     }
 
+    @Tag("SB-V9.7")
+    @Test
+    void noPropertyNamesAnAuditRule() throws IOException {
+        Pattern ruleId = Pattern.compile("\\bLA\\d{2}\\b");
+        for (JsonNode p : metadata().get("properties")) {
+            assertThat(ruleId.matcher(p.get("name").asText() + " " + p.path("description").asText()).find()).as(p.get("name").asText()).isFalse();
+        }
+    }
+
     // ---- README ----
 
     private static final Pattern BLOCK = Pattern.compile("```(yaml|java)\\n(.*?)```", Pattern.DOTALL);

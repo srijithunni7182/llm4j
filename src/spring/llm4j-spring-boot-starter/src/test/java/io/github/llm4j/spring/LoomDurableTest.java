@@ -247,7 +247,25 @@ class LoomDurableTest {
         loom("file", "ladder.loom").withBean(Ledger.class, () -> ledger).withBean(LevelStore.class, () -> levels).run(ctx -> assertThat(ctx).hasNotFailed());
     }
 
+    @Tag("SB-V12.2")
+    @Test
+    void storesOfYourOwnAreTheOnesUsedNotTheOnesNextToTheRuns() throws Exception {
+        Path mineLedger = dir.resolve("mine-ledger");
+        Path mineLevels = dir.resolve("mine-levels");
+        Ledger ledger = new FileLedger(mineLedger);
+        LevelStore levels = new FileLevelStore(mineLevels);
+        loom("file", "ladder.loom").withBean(Ledger.class, () -> ledger).withBean(LevelStore.class, () -> levels).run(ctx -> {
+            assertThat(ctx).hasNotFailed();
+            assertThat(ctx.getBeansOfType(Ledger.class)).hasSize(1).containsValue(ledger);
+            assertThat(ctx.getBeansOfType(LevelStore.class)).hasSize(1).containsValue(levels);
+            ctx.getBean(LoomRuntime.class).run(RunRequest.of("Main", Map.of()));
+        });
+        assertThat(Files.exists(dir.resolve("store/autonomy")) ? Files.list(dir.resolve("store/autonomy")).count() : 0L).as("nothing written to the default place").isZero();
+    }
+
     @Tag("SB-V12.3")
+    @Tag("SB-V12.4")
+    @Tag("SB-V12.6")
     @Test
     void theRunPageSessionIsOpenedOnceWithTheSettingsAndEveryExecutorIsAttachedFirst() {
         RecordingObserveProvider.reset();
@@ -266,6 +284,7 @@ class LoomDurableTest {
         assertThat(order.stream().filter(e -> e.startsWith("attach")).count()).isGreaterThanOrEqualTo(3); // start-up check plus two runs
         assertThat(order.get(0)).isEqualTo("open");
         assertThat(order.get(order.size() - 1)).isEqualTo("close");
+        assertThat(order.stream().filter(e -> e.equals("close")).count()).isEqualTo(1);
     }
 
     @Tag("SB-V12.5")

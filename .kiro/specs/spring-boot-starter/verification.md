@@ -122,12 +122,12 @@ Scripts (`src/test/resources/scripts/`): `three-steps.loom` (research → draft 
 
 | ID | Given | Then |
 |---|---|---|
-| V6.1 | `tools.Slack.kind=webhook` with `url-secret` and `format: slack` | executing the tool makes one POST with Slack's body to the stand-in |
-| V6.2 | a kind whose `check` rejects its options | start-up fails with `check`'s message and `llm4j.tools.<name>` |
+| V6.1 | `tools.custom.Slack.kind=webhook` with `url-secret` and `format: slack` | executing the tool makes one POST with Slack's body to the stand-in |
+| V6.2 | a kind whose `check` rejects its options | start-up fails with `check`'s message and `llm4j.tools.custom.<name>` |
 | V6.3 | one valid tool of each kind (`webhook`, `email`, `http`, `file`, `shell`, `sql` on H2) | each executes once against its stand-in |
-| V6.4 | a `ToolKind` bean named `pager` and `tools.Page.kind=pager` | the bean created the tool |
+| V6.4 | a `ToolKind` bean named `pager` and `tools.custom.Page.kind=pager` | the bean created the tool |
 | V6.5 | `tools.builtin=[calculator, current-time]`; none; `[nope]` | those two; none; fails listing the valid names |
-| V6.6 | a `Tool` bean `Slack` and `tools.Slack.kind=webhook` | fails naming both sources |
+| V6.6 | a `Tool` bean `Slack` and `tools.custom.Slack.kind=webhook` | fails naming both sources |
 | V6.7 | one tool from each source | each is in the core registry (except `.loot`) and in the Loom registry |
 | V6.8 | an `EffectContext` with a durable journal; the webhook tool called twice with the same arguments under one step | the stand-in received 1 request |
 | V6.9 | a `Task` bean `Refund`, `tasks.loom` | `verdict` carries the bean's result; called once; not called again on a replay |
@@ -138,10 +138,10 @@ Scripts (`src/test/resources/scripts/`): `three-steps.loom` (research → draft 
 | ID | Given | Then |
 |---|---|---|
 | V7.1 | `rag.embedding=gemini` (MockWebServer), `rag.store=memory`, then `file` | the beans exist; add then search returns the added id first; the file exists |
-| V7.2 | `rag.store=pgvector`, `spring.datasource.*` set | the store is constructed with those URL, user and password (captured; no connection attempted) |
-| V7.3 | `password-secret`; `pinecone` with `api-key-secret` | built through `PGVectorStore.withSecret` / `PineconeVectorStore.withSecret` |
+| V7.2 | `rag.store=pgvector`, `spring.datasource.*` set | the settings resolve to that URL, user and password (resolution is tested without connecting; the real database is V7.5) |
+| V7.3 | `password-secret`; `pinecone` with `api-key-secret` | the settings carry a secret reference, never the value |
 | V7.4 | an `EmbeddingFactory` bean and a script with `knowledge` | indexing went through the bean |
-| V7.5 | a real pgvector round trip in a container | add, search, delete work *(`@Tag("integration")`, run in the extended pass)* |
+| V7.5 | a real pgvector round trip in a container | add, search, delete work *(`@Tag("integration")`; needs `LLM4J_TEST_PGVECTOR_URL`, `_USER`, `_PASSWORD`, set by the gate script against a local pgvector database)* |
 
 ## V8: LoomHost (library, `ai-agent4j-loom`)
 
@@ -166,7 +166,7 @@ Each check runs on the persistence matrix: `file` and `jdbc` (H2), except where 
 | V8.15 | a rate-limit suspension (scripted 429, reset 09:30) | `Suspended(RATE_LIMIT, 09:30)`; resumes at 09:30 |
 | V8.16 | a question with a `QuestionListener` | notified once with run id, step id, prompt and choices; none on the replay after the answer |
 | V8.17 | a user `HumanInterface` | used instead of the suspending one |
-| V8.18 | persistence `file`: a host run | `RunSpec.read` and `RunTravel.timeline` read `<dir>/runs/<id>` (unit test); `weave resume` and `weave timeline` open it *(gate-checked: G7)* |
+| V8.18 | persistence `file`: a host run | `RunSpec.read` and `RunTravel.timeline` read `<dir>/runs/<id>` (unit test); the real-process half (`weave resume`, `weave timeline` open it) is gate G7 |
 | V8.19 | `scheduled.loom`; clock 06:59 → 07:00 | `Digest` started once with the library's `<schedule>@<slot>` run id |
 | V8.20 | two hosts with different owners on one H2 store, both polling at 07:00 | `Digest` ran once in total |
 | V8.21 | the host restarted 3 times, and a run made in between | the schedule trigger exists once in the store |
@@ -189,7 +189,7 @@ Each check runs on the persistence matrix: `file` and `jdbc` (H2), except where 
 | V9.3 | an `LLMClientFactory` bean; none, with the key only in the secret store; none, with the key only in the `Environment`; neither | the bean is used; the store key is used; the environment key is used; start-up fails naming `GEMINI_API_KEY` |
 | V9.4 | `broken.loom` | fails once listing all three errors with line numbers; with `validate=lenient`, starts with three WARN lines |
 | V9.5 | `trifecta.loom` | fails; the failure text is the report's Markdown and names the trifecta rule |
-| V9.6 | `trifecta-accepted.loom`; `fail-on=none` on `trifecta.loom`; `fail-on=medium` vs `high` on a MEDIUM-worst script | starts; starts with a WARN per finding and one "gate is off"; fails / starts |
+| V9.6 | `trifecta-approved.loom` (the owner's acceptance lives in the `.inspect` file, not the script, so the starter's way through is `fail-on`); `fail-on=none` on `trifecta.loom`; `fail-on=medium` vs `high` on a MEDIUM-worst script | starts; starts with a WARN per finding and one "gate is off"; fails / starts |
 | V9.7 | the properties metadata | no property names an audit rule id |
 | V9.8 | `approve.loom` with persistence `none`; with `allow-non-durable=true`; `ladder.loom` with `none` and the flag | fails naming `llm4j.loom.persistence` and the line; starts and a suspension fails the run; fails |
 | V9.9 | `executor=platform`; `application`; `virtual-threads` on JDK 21 (`@EnabledForJreRange(min = JAVA_21)`) | the run's thread is a platform thread named `llm4j-loom-*`; an `applicationTaskExecutor` thread; a virtual thread |
@@ -197,7 +197,7 @@ Each check runs on the persistence matrix: `file` and `jdbc` (H2), except where 
 | V9.11 | context closed with one durable and one non-durable run blocked, `shutdown-grace=2s` | both are wrapped up; after the grace the durable run is suspended (record `SUSPENDED`), the other cancelled; one INFO line per run |
 | V9.12 | a `LoomExecutorCustomizer` recording what was already set | it runs after every starter setter and before `initialize()` |
 | V9.13 | `loom.budget.tokens=500`, a `PriceTable`, `PromptRegistry`, `AuditLogger`, `Clock` beans | each reached the executor (checked through a customizer); the run stops at 500 tokens |
-| V9.14 | `loom.context.windows-files` giving `gemini-2.5-flash` 8 000 tokens | that window is used for the model; others come from the catalogue |
+| V9.14 | `loom.context.windows-files` (lines of `model = tokens`) giving `gemini-2.5-flash` 8 000 tokens | that window is used for the model; others come from the catalogue |
 | V9.15 | v1 overloads `run("Main", map)` and `start("Main", map)` | behave as V8.1 and V8.6 |
 
 ## V10: Persistence, resume, people (R10)
@@ -210,7 +210,7 @@ Each check runs on the persistence matrix: `file` and `jdbc` (H2), except where 
 | V10.4 | `approve.loom` through the Spring `LoomRuntime`: suspend, `answer`, trigger tick | as V8.10, and again after a context restart between suspend and answer |
 | V10.5 | a question | a `HumanQuestionEvent` is published once and `QuestionListener` beans are told; none after the answer |
 | V10.6 | a user `HumanInterface` bean | used instead |
-| V10.7 | a run started with credentials, then suspended and resumed with new credentials | the second set is used; the first is not stored |
+| V10.7 | a run started through the Spring `LoomRuntime` with credentials | the tool used them; they are in no file under the store *(resuming with new credentials is V8.22)* |
 
 ## V11: Triggers (R11)
 
@@ -228,7 +228,7 @@ Each check runs on the persistence matrix: `file` and `jdbc` (H2), except where 
 | V12.1 | `ladder.loom` with `persistence=file`, then `jdbc` | file then JDBC ledger and level store are set; a decision's record survives a context restart |
 | V12.2 | user `Ledger` and `LevelStore` beans | used instead |
 | V12.3 | `observe.enabled=true`, `port=0`, `name=svc`, `rules-file=…` with a recording `ObserveProvider` on the test class path | `open` called once with those options |
-| V12.4 | two runs | `attach` called twice, each before that executor's `initialize()`, with the script's path |
+| V12.4 | the start-up check and two runs | `attach` is called for each executor, before the last customizer (so before `initialize()`), with the script's file |
 | V12.5 | `bind=0.0.0.0` without `LOOM_INSPECT_ADMIN_PASSWORD`; with it | fails naming the secret; starts |
 | V12.6 | context close | the session is closed once |
 | V12.7 | the real loom-inspect on the class path | the page answers on the chosen port and lists a running run *(gate-checked: G7)* |
