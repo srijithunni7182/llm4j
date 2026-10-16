@@ -13,15 +13,14 @@ Each phase leaves `mvn verify` green. Library work is marked **[lib]** and lands
 <!-- PHASE 1: LoomHost (library) -->
 
 - [ ] 1. Resolve the unknowns first
-  - [ ] 1.1 Read how `weave answer` / `Answers` / `ApprovalGate` store and replay a person's answer; confirm the journal key and kind; if the CLI uses a different
-        path than replay reads, add public `HumanAnswers.record(journal, stepId, answer)` used by both **[lib]**
+  - [x] 1.1 Read how `weave answer` / `Answers` / `ApprovalGate` store and replay a person's answer. Result: answers live in a question store, not the journal; the host keeps its own `AnswerBook`
     - _Requirements: 8.4_
-  - [ ] 1.2 Check whether `HarnessExecutor.initialize()` registers `schedule` triggers on every run; if so add `setRegisterSchedules(boolean)` **[lib]**
+  - [x] 1.2 Check whether `HarnessExecutor.initialize()` registers `schedule` triggers on every run. Result: it does, idempotently; no flag needed
     - _Requirements: 8.6_
 - [ ] 2. Loading from jars **[lib]**
   - [ ] 2.1 `ScriptSource`, `LoomLoader.load(location, source)`, `LootLoader` Reader overloads; path-based methods delegate; regression test over every repository `.loom`
     - _Requirements: 8.8_
-  - [ ] 2.2 Extract `RunSpecFile` (read/write of the run spec) from the CLI's `RunSpec`; CLI delegates, behaviour unchanged
+  - [x] 2.2 (dropped: the host writes `run.json` with `weave`'s keys itself; no CLI change)
     - _Requirements: 8.3_
 - [ ] 3. `LoomHost` **[lib]**
   - [ ] 3.1 Types: `RunRequest`, `RunOutcome`, `RunRecord`, `LoomRunFailedException`, `QuestionListener`, `Persistence` (`none`, `file`, `jdbc`)

@@ -33,6 +33,12 @@ The trace gains the events `intervention` and `step_stopped`, and the run journa
 
 `RunHook` (checks on the question, each model call and the final answer) and `AgentResult.isInputRejected()` are additive: an agent with no run hook behaves as before. Loom's top-level `shared_prompt` is additive too; a script without it is unchanged.
 
+`io.github.llm4j.loom.host` is new and additive: `LoomHost` (with its `Builder`), `RunRequest`, `RunOutcome` (`Completed`, `Suspended`, `Stopped`), `RunRecord`, `AnswerResult`, `QuestionListener`,
+`LoomRunFailedException`, `Persistence` and `DurabilityGuard`. It runs workflows from an application and resumes them from a store (`Persistence.file(dir)` uses the folder layout `weave` uses; `Persistence.jdbc(dataSource)` uses
+the tables `LoomHost.createSchema` creates, including `llm4j_loom_runs` and `llm4j_loom_answers`). Beside it, `ScriptSource` and `LoomLoader.load(location, source)` read a script and its imports from anywhere (a jar, say),
+`LootLoader.loadIntoRegistry(Reader, ToolRegistry)` and `LootLoader.reaches(Reader)` do the same for a loot file, and `LoomRun.start(executor, label, workflow, inputs, origin, invoker, runner, onDone)` runs on a thread the
+application provides, for a named person, and reports when it ends. `LoomLoader.load(String)`, `LootLoader.loadIntoRegistry(String, ToolRegistry)`, `LootLoader.reaches(Path)` and the other `LoomRun.start` forms are unchanged.
+
 Internal implementation details may change without notice, especially:
 
 - `io.github.llm4j.http`

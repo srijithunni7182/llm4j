@@ -129,26 +129,25 @@ public interface QuestionListener { void asked(String runId, String stepId, Stri
 → durable: `setJournal`, `setTriggerStore`, `setAutonomy` → `setHumanInterface` → observe `attach` (before initialize) → customizer → `initialize()`.
 Each step is skipped when its input is absent, so a host with no options behaves like v1's `LoomRuntime`.
 
-**Persistence.** `file(dir)`: `<dir>/runs/<id>/journal.json` (`FileRunJournal`) and the run's spec file in the format `RunSpec` writes (so `weave resume` can read it; the
-host reads `RunSpec`'s JSON through a small public `RunSpecFile` reader/writer extracted from the CLI, with the CLI delegating to it), `<dir>/triggers/` (`FileTriggerStore`),
-ledger and levels beside them. `jdbc(ds)`: `JdbcRunJournal(ds, runId)`, `JdbcTriggerStore`, `JdbcLedger`/`JdbcLevelStore`, and `llm4j_loom_runs`
-(run_id PK, workflow, inputs JSON, origin, status, reason, resume_at, step_id, created, updated). Invoker credentials are never written.
+**Persistence.** `file(dir)`: `<dir>/runs/<id>/journal.json` (`FileRunJournal`) and the run's spec file in the format `RunSpec` writes (`run.json` carries the keys `weave resume` reads, `script`, `workflow`, `inputs` and `store`, beside the host's own, so `weave` can open a host's run; nothing is extracted from the CLI), `<dir>/triggers/` (`FileTriggerStore`),
+ledger and levels beside them. `jdbc(ds)`: `JdbcRunJournal(ds, runId)`, `JdbcTriggerStore`, `JdbcLedger`/`JdbcLevelStore`, `llm4j_loom_runs`
+(run_id PK, workflow, inputs JSON, origin, status, reason, resume_at, step_id, prompt, detail, created, updated) and `llm4j_loom_answers` (run_id + step_id PK, message, choices, answer, answered_by, asked, answered_at). Invoker credentials are never written.
 
-**Answering.** `answer` loads the RunRecord (must be `SUSPENDED/HUMAN` at `stepId`), matches choices with `Answers.match`, writes the journal entry that
-`ApprovalGate`/`human_prompt` read on replay (the form `channel/Answers` and the CLI's `weave answer` already produce — Task 3.1 confirms the key and kind and, if the CLI uses
-a different path, factors it into one public `HumanAnswers.record(journal, stepId, answer)` that both call), audits `answered`, sets status `RESUMING`, and upserts
-`Trigger.resume(runId, now, "answered", 0)`; without a running trigger runner it resumes asynchronously itself.
+**Answering.** A person's answer is **not** a journal write. `weave`'s own path (`ChannelHumanInterface`, `PendingStore`, `Answers.record`) keeps the question and its answer in a
+store, and the executor journals the answer itself when the step replays. `LoomHost` does the same with an `AnswerBook` (file: `runs/<id>/questions.json`; jdbc: `llm4j_loom_answers`; memory when
+there is no store). `answer` checks the RunRecord is `SUSPENDED`, finds the open question for `stepId`, matches choices with `Answers.match`, records the answer, audits `answered`, sets the record
+`RESUMING`, and either upserts `Trigger.resume(runId, now, "answered", 0)` (a trigger runner is running) or resumes asynchronously itself. (Confirmed in Task 1.1; no `HumanAnswers` helper is needed.)
 
 **Suspending human interface.** `promptHuman(stepId, message, hints)`: journaled answer present → return it; otherwise notify `QuestionListener`s and throw `RunSuspended(stepId, message)`.
 
 **Triggers.** `triggerTarget()` is `WeaveTriggerTarget`'s logic over the host: `ResumeRun` → `resume` (a run needing credentials → `Outcome.human("needs the person's credentials")`),
-`StartWorkflow` → `run` with the slot run id, `AgentTask` → executor with an in-memory trigger store then `runAgentTask`. Schedule triggers are written once by `registerSchedules()` at host
-start (Task 3.5 checks whether `HarnessExecutor.initialize()` re-registers them per run and, if so, adds `HarnessExecutor.setRegisterSchedules(boolean)`, default `true`).
+`StartWorkflow` → `run` with the slot run id, `AgentTask` → executor with an in-memory trigger store then `runAgentTask`. `registerSchedules()` writes the script's schedules when triggers start. `HarnessExecutor.initialize()` also calls `Schedules.reconcile` for every executor given the trigger store; that is idempotent
+(an unchanged schedule keeps its next time), so run executors get the persistent store as `weave` gives them. No new flag is needed (confirmed in Task 1.2).
 
 **Scripts in jars.** `ScriptSource { String read(String location); String resolve(String from, String imported); Optional<Path> directory(String location); static fileSystem(); }`,
 `LoomLoader.load(location, source)`, `LootLoader.loadIntoRegistry(Reader, ToolRegistry)` and `reaches(Reader)`. The existing path-based methods delegate.
 
-**CLI.** The CLI is not rewritten. Only `RunSpec` read/write is extracted (Task 3.1). A follow-up, out of scope here, can move `Runs.execute` onto `LoomHost`.
+**CLI.** The CLI is not changed. A follow-up, out of scope here, can move `Runs.execute` onto `LoomHost`.
 
 ## 5. Spring wiring of Loom
 
@@ -177,8 +176,8 @@ context, budget/prices, audit, hooks, listeners, then customizers. `PromptRegist
 | Topic | Decision |
 |---|---|
 | v1 | v1 was never released; its two properties stay as shorthands. v1's `LoomRuntime.run/start(String, Map)` stay as overloads. |
-| Library changes | Additive only: `loom.host.*`, `ScriptSource`, `LoomLoader`/`LootLoader` overloads, a public `RunSpecFile`, possibly `HumanAnswers` and `setRegisterSchedules`. All listed in `API_COMPATIBILITY.md`; all tested in `ai-agent4j-loom` without Spring. |
+| Library changes | Additive only: `loom.host.*`, `ScriptSource`, `LoomLoader`/`LootLoader` overloads, and a `LoomRun.start` overload that takes an invoker, an `Executor` and a completion callback. All listed in `API_COMPATIBILITY.md`; all tested in `ai-agent4j-loom` without Spring. |
 | Two `ToolRegistry` types | The core one is the bean; Loom's is internal to the `LoomRuntime`. |
 | Replicas | Trigger claims make firing once-only; `LiveRuns` is per process. |
 | JDBC | The library's DDL targets PostgreSQL and H2; other databases use `initialize-schema=never` and the DDL constants. |
-| Biggest unknowns | Whether `weave`'s answer path writes the key `human_prompt` replays from (3.1); whether `initialize()` re-registers schedules (3.5). Both are scheduled first. |
+| Unknowns | Both resolved in Task 1: answers live in an answer book, not the journal; schedule registration is idempotent. |

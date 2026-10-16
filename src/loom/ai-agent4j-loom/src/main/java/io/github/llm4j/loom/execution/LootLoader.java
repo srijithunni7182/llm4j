@@ -29,13 +29,17 @@ public class LootLoader {
             return;
         }
 
-        Properties properties = new Properties();
         try (var reader = Files.newBufferedReader(path)) {
-            properties.load(reader);
+            loadIntoRegistry(reader, registry);
         } catch (IOException e) {
             log.severe("Failed to read loot file: " + e.getMessage());
-            return;
         }
+    }
+
+    /** As {@link #loadIntoRegistry(String, ToolRegistry)}, for a loot file that is not on disk (inside a jar, say). */
+    public void loadIntoRegistry(java.io.Reader loot, ToolRegistry registry) throws IOException {
+        Properties properties = new Properties();
+        properties.load(loot);
 
         properties.forEach((key, value) -> {
             if (key.toString().trim().endsWith(REACH_SUFFIX)) return; // a declaration about a tool, not a tool
@@ -58,8 +62,18 @@ public class LootLoader {
 
     /** The declared reach per tool name, as written ({@code Name.reach = reads}); empty when there is no file or no declaration. */
     public static Map<String, String> reaches(Path file) {
+        return reaches(read(file));
+    }
+
+    /** As {@link #reaches(Path)}, for a loot file that is not on disk. */
+    public static Map<String, String> reaches(java.io.Reader loot) throws IOException {
+        Properties p = new Properties();
+        p.load(loot);
+        return reaches(p);
+    }
+
+    private static Map<String, String> reaches(Properties p) {
         Map<String, String> out = new LinkedHashMap<>();
-        Properties p = read(file);
         if (p == null) return out;
         p.forEach((k, v) -> {
             String key = k.toString().trim();

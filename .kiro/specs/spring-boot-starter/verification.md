@@ -166,18 +166,19 @@ Each check runs on the persistence matrix: `file` and `jdbc` (H2), except where 
 | V8.15 | a rate-limit suspension (scripted 429, reset 09:30) | `Suspended(RATE_LIMIT, 09:30)`; resumes at 09:30 |
 | V8.16 | a question with a `QuestionListener` | notified once with run id, step id, prompt and choices; none on the replay after the answer |
 | V8.17 | a user `HumanInterface` | used instead of the suspending one |
-| V8.18 | persistence `file`: a host run | `weave resume` and `weave timeline` read `<dir>/runs/<id>` *(gate-checked: G7)*; a `weave` run is resumable by the host (`file` only) |
+| V8.18 | persistence `file`: a host run | `RunSpec.read` and `RunTravel.timeline` read `<dir>/runs/<id>` (unit test); `weave resume` and `weave timeline` open it *(gate-checked: G7)* |
 | V8.19 | `scheduled.loom`; clock 06:59 → 07:00 | `Digest` started once with the library's `<schedule>@<slot>` run id |
 | V8.20 | two hosts with different owners on one H2 store, both polling at 07:00 | `Digest` ran once in total |
-| V8.21 | the host restarted 3 times | the schedule trigger exists once in the store |
+| V8.21 | the host restarted 3 times, and a run made in between | the schedule trigger exists once in the store |
 | V8.22 | a `ResumeRun` trigger for a run that needs credentials | outcome "needs the person's credentials"; nothing ran |
-| V8.23 | an `AgentTask` trigger | the agent ran the task; that executor registered no schedule |
+| V8.23 | an `AgentTask` trigger | the agent ran the task; no run record was made; the store still holds one schedule |
 | V8.24 | `jar/main.loom` with an import, loaded from `target/test-scripts.jar` on a `URLClassLoader` | the imported agents are present; a run completes; no temporary file is created for the `.loot` |
-| V8.25 | `lib/agents.loom` importing `../main.loom` | the library's circular-import error naming both jar URLs |
+| V8.25 | `lib/agents.loom` importing `../main.loom` | the library's circular-import error naming the script |
 | V8.26 | `LoomLoader.load(String)` and `load(path, ScriptSource.fileSystem())` on every `.loom` in the repository | identical `LoomScript`s |
-| V8.27 | `createSchema(ds)` twice | creates the five tables once; the second call is harmless |
+| V8.27 | `createSchema(ds)` twice | creates the host's tables (journal, triggers, ledger, levels, runs, answers) once; the second call is harmless |
 | V8.28 | persistence `none` with `approve.loom`; with `allowNonDurable` | construction fails naming persistence; with the flag, a suspension fails the run saying it cannot resume |
 | V8.29 | every existing `ai-agent4j-loom` test | passes unchanged *(gate-checked: G9)* |
+| V8.30 | a script with an unknown agent and an unregistered task; `host.validate()` | one `LoomLoadException` naming both; nothing is written to the store |
 
 ## V9: Loom in Spring (R9)
 
@@ -299,13 +300,13 @@ Gates run in this order at one commit by `scripts/verify-spring-starter.sh [Gn]`
 | S12 | accept an answer for a step that is not waiting | V8.12 |
 | S13 | skip `shutdown()` after a failed `start` | V8.5 |
 | S14 | attach observe after `initialize()` | V12.4 |
-| S15 | register schedules in every run's executor | V8.21, V8.23 |
+| S15 | give run executors no trigger store (schedules and wake-ups never stored) | V8.14, V8.19 |
 | S16 | use the system clock instead of the injected one in the host | V8.14, V8.19 |
 | S17 | copy a jar `.loot` to a temp file | V8.24 |
 | S18 | close a user-supplied `SecretStore` on shutdown | V2.5 |
 | S19 | make `ReActAgent` a singleton bean | V5.6, V5.7 |
 | S20 | log the literal `api-key` at DEBUG | V2.10 |
-| S21 | answer a resume trigger for a run needing credentials | V8.22 |
+| S21 | let a resume trigger run a run that needs credentials with none | V8.22 |
 
 ---
 
@@ -320,7 +321,7 @@ Gates run in this order at one commit by `scripts/verify-spring-starter.sh [Gn]`
 | R5 Agents | V5.1–V5.13 |
 | R6 Tools and tasks | V6.1–V6.10 |
 | R7 RAG beans | V7.1–V7.5 |
-| R8 Loom_Host (library) | V8.1–V8.29 |
+| R8 Loom_Host (library) | V8.1–V8.30 |
 | R9 Loom in Spring | V9.1–V9.15 |
 | R10 Persistence, resume, people | V10.1–V10.7 |
 | R11 Triggers | V11.1–V11.4 |

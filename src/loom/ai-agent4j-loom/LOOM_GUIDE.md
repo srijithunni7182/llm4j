@@ -2334,6 +2334,34 @@ executor.shutdown();
 > [!TIP]
 > **Why use the Java API?** While `weave` is best for standalone microservices and CLI tools, the Java API is essential for building custom UI wrappers, injecting proprietary database connections as tools, or integrating with Spring Boot / Quarkus.
 
+### Running workflows from an application: `LoomHost`
+
+`HarnessExecutor` runs one workflow once. An application that starts workflows for users, waits for their answers, and survives restarts wants more:
+`LoomHost` (package `io.github.llm4j.loom.host`) makes a fresh executor for each run, remembers each run in a store, and resumes it from its journal, so a step that
+was paid for or sent is never done twice. It needs no framework.
+
+```java
+LoomHost host = LoomHost.builder(script, registry, factory)
+        .persistence(Persistence.file(Path.of("var/loom")))     // or Persistence.jdbc(dataSource) after LoomHost.createSchema(dataSource)
+        .taskRegistry(tasks)
+        .questionListener((run, step, prompt, choices) -> notifyTheTeam(run, prompt))
+        .build();
+
+RunOutcome out = host.run(RunRequest.of("Support", Map.of("ticket", text)).as(credentialsOfTheUser));
+if (out instanceof RunOutcome.Suspended s) {                    // it asked a person, or is waiting for a timer or a limit; nothing is running
+    // later, from a web request, a chat message, anywhere:
+    host.answer(s.runId(), s.stepId(), "yes", "asha");           // the run carries on from where it stopped
+}
+host.startTriggers(Duration.ofSeconds(15), null, Duration.ofMinutes(5), null);   // fire schedule blocks and wake sleeping runs
+```
+
+- `run` blocks and returns how the run ended; a failure is thrown as `LoomRunFailedException` with the run id. `start` returns a `LoomRun` and runs on the executor you give the builder.
+- A host with no persistence cannot resume anything, so it refuses a script that can wait (`human_prompt`, `approve:`, `sleep`, `rate_limits`, a windowed budget) unless you say `allowNonDurable(true)`,
+  and then such a run fails instead of suspending. A script that keeps earned-autonomy records always needs a store.
+- With `Persistence.file(dir)` a host's runs are in the folder layout `weave` uses (`dir/runs/<id>/journal.json` and `run.json`), so `weave timeline` and the other run commands read them.
+- The credentials of `RunRequest.as(...)` are used for that run and never stored. A run that needs a person's credentials cannot be resumed by a trigger; resume it with `resume(runId, credentials)`.
+- A script and its imports need not be files: `new LoomLoader().load(location, scriptSource)` reads them from a jar or anywhere else, and `LootLoader.loadIntoRegistry(Reader, registry)` does the same for a loot file.
+
 ---
 
 ## 🏗️ 6. Full Sample: The Autonomous Project Factory

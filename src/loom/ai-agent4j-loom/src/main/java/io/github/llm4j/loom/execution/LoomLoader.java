@@ -19,15 +19,19 @@ import java.util.logging.Logger;
 public class LoomLoader {
     private static final Logger log = Logger.getLogger(LoomLoader.class.getName());
 
-    private final Set<Path> visitedFiles = new HashSet<>();
+    private final Set<String> visitedFiles = new HashSet<>();
 
     public LoomScript load(String filePath) throws IOException {
-        Path startPath = Paths.get(filePath).toAbsolutePath().normalize();
-        visitedFiles.clear();
-        return loadRecursive(startPath);
+        return load(Paths.get(filePath).toAbsolutePath().normalize().toString(), ScriptSource.fileSystem());
     }
 
-    private LoomScript loadRecursive(Path path) throws IOException {
+    /** Loads the script at {@code location} and, recursively, what it imports, reading them all through {@code source}. */
+    public LoomScript load(String location, ScriptSource source) throws IOException {
+        visitedFiles.clear();
+        return loadRecursive(location, source);
+    }
+
+    private LoomScript loadRecursive(String path, ScriptSource source) throws IOException {
         if (visitedFiles.contains(path)) {
             throw new RuntimeException("Circular dependency detected: " + path);
         }
@@ -35,7 +39,7 @@ public class LoomLoader {
         visitedFiles.add(path);
         log.info("Loading Loom script: " + path);
 
-        String content = Files.readString(path);
+        String content = source.read(path);
         Lexer lexer = new Lexer(content);
         LoomParser parser = new LoomParser(lexer.tokenize());
         LoomScript script = parser.parseScript();
@@ -48,8 +52,7 @@ public class LoomLoader {
                 effectiveScript.merge(LibraryImports.load(importPathRaw));
                 continue;
             }
-            Path importPath = path.getParent().resolve(importPathRaw).normalize();
-            LoomScript importedScript = loadRecursive(importPath);
+            LoomScript importedScript = loadRecursive(source.resolve(path, importPathRaw), source);
             effectiveScript.merge(importedScript);
         }
 

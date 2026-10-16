@@ -179,14 +179,14 @@ across restarts, without copying the CLI's code.
    run id, label, origin and `InvokerCredentials`.
 3. WITH persistence `file`, runs SHALL use the layout `weave` uses (`<dir>/runs/<id>/journal.json` and the run's spec file), so
    `weave resume`, `weave timeline` and `weave rewind` work on a host run and a host can resume a `weave` run. WITH `jdbc` it SHALL use
-   `JdbcRunJournal`, `JdbcTriggerStore`, `JdbcLedger`, `JdbcLevelStore` and one new `llm4j_loom_runs` table, all created by `LoomHost.createSchema(DataSource)`.
-4. `answer` SHALL record a person's answer for a `human_prompt`/`approve:` step in the journal exactly as the CLI's answer path does, audit
+   `JdbcRunJournal`, `JdbcTriggerStore`, `JdbcLedger`, `JdbcLevelStore` and two new tables (`llm4j_loom_runs`, `llm4j_loom_answers`), all created by `LoomHost.createSchema(DataSource)`.
+4. `answer` SHALL record a person's answer for a `human_prompt`/`approve:` step in an answer book (the executor journals it when the step replays, as it does for the CLI's channel answers), audit
    it, and make the run resumable at once; an answer for a step that is not waiting, or a repeat, SHALL be refused with the reason; choices SHALL be matched
    with `Answers.match`.
 5. IN Durable_Mode with no `HumanInterface`, THE host SHALL use a suspending interface (the run suspends at the question) and SHALL notify a
    `QuestionListener` with run id, step id, prompt and choices.
 6. THE host SHALL provide `triggerTarget()` (resume a run, start a workflow, give an agent a task, as `weave` does) and `startTriggers(pollInterval, owner, staleAfter)` /
-   `stopTriggers()` around `TriggerRunner`, and SHALL register the script's `schedule` triggers once, not on every run's executor.
+   `stopTriggers()` around `TriggerRunner`, and SHALL write the script's `schedule` triggers to the store (idempotently) when triggers start.
 7. THE host SHALL never store invoker credentials, SHALL refuse to resume a run that needs credentials when none are given (outcome "needs credentials"), and SHALL
    fail construction in Durable_Mode `none` for a script that can suspend (see Requirement 9.4) unless told `allowNonDurable`.
 8. `LoomLoader` SHALL gain `load(location, ScriptSource)` and `LootLoader` Reader-based overloads so a script and its imports can be read from a
