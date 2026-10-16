@@ -151,6 +151,10 @@ public final class GraphBuilder {
                 rewindBack(rewind, id);
                 defer(exits, id, "still fails", "still fails", rewind.getIfStillFails());
                 defer(exits, id, "blocked", "blocked", rewind.getIfBlocked());
+            } else if (statement instanceof io.github.llm4j.loom.ast.HaltStmt || statement instanceof io.github.llm4j.loom.ast.ReturnStmt) {
+                // the path ends here: straight to End, and nothing after it is reached from this node
+                edges.add(new GraphEdge(id, Kinds.END, null));
+                return List.of();
             } else {
                 exits.add(new Exit(id, null));
             }

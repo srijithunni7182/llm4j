@@ -1478,6 +1478,8 @@ public class HarnessExecutor implements LoomEngine {
             }
             if (cause instanceof RunSuspended rs) {
                 paused.add(rs);
+            } else if (cause instanceof io.github.llm4j.loom.runtime.RunHalted halted) {
+                failure = halted; // a halt is the reason the run ended, whatever else its sibling branches reported
             } else if (failure == null) {
                 failure = cause instanceof RuntimeException re ? re : new java.util.concurrent.CompletionException(cause);
             }
@@ -1785,6 +1787,12 @@ public class HarnessExecutor implements LoomEngine {
             log.info("Workflow completed: " + workflowName);
         } catch (HandoffSignal hs) {
             log.info("Workflow terminated via handoff: " + hs.getMessage());
+        } catch (ReturnSignal returned) {
+            log.info("Workflow returned: " + workflowName);
+        } catch (io.github.llm4j.loom.runtime.RunHalted halted) {
+            ended = "halted";
+            endData.put("reason", halted.reason());
+            throw halted;
         } catch (RunSuspended paused) {
             ended = "suspended";
             endData.put("reason", paused.reason().name());
@@ -1832,6 +1840,48 @@ public class HarnessExecutor implements LoomEngine {
      * Internal signal thrown when a {@code handoff} statement is executed.
      * Propagates up through the workflow loop to terminate execution cleanly.
      */
+    /** {@code return}: unwinds to the end of the workflow that ran it. Carries nothing: the value is already in {@code result}. */
+    static final class ReturnSignal extends RuntimeException {
+        ReturnSignal() {
+            super("return", null, false, false);
+        }
+    }
+
+    /** {@code halt}: the reason is journaled at the step (a resumed run halts again without running anything), traced, and thrown as {@link io.github.llm4j.loom.runtime.RunHalted}. */
+    private void executeHalt(io.github.llm4j.loom.ast.HaltStmt halt) {
+        String where = step.get();
+        String reason = journal.get(where).filter(e -> "halt".equals(e.kind())).map(e -> String.valueOf(e.value())).orElse(null);
+        if (reason == null) {
+            reason = resolvePayload(halt.getMessage());
+            journal.put(where, new RunJournal.Entry("halt", reason));
+        }
+        log.info("HALT: " + reason);
+        trace(TraceEvent.HALT, null, reason, new java.util.LinkedHashMap<>(Map.of("reason", reason)));
+        auditLogger.logConversationEvent(sessionId, null, "RUN_HALTED", Map.of("reason", reason));
+        throw new io.github.llm4j.loom.runtime.RunHalted(reason);
+    }
+
+    /** A script's value as a plain Java value: texts have their placeholders filled in, a reference keeps the type of what it names. */
+    private Object valueOf(io.github.llm4j.loom.ast.ValueExpr value, String where) {
+        if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Text t) return resolvePayload(t.text());
+        if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Num n) {
+            return n.literal().matches("-?\\d+") ? (Object) Long.parseLong(n.literal()) : (Object) Double.parseDouble(n.literal());
+        }
+        if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Bool b) return b.value();
+        if (value instanceof io.github.llm4j.loom.ast.ValueExpr.Ref r) {
+            Object found = ConditionEvaluator.resolvePath(r.path(), view());
+            // a name nothing has set reads as empty text elsewhere; copying it would hand on a silent empty value, so it is an error here
+            boolean unset = found == null || (!r.path().contains(".") && !view().getAll().containsKey(r.path()));
+            if (unset) throw new IllegalStateException(where + ": " + r.path() + " has no value, so it cannot be copied");
+            return found;
+        }
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        for (Map.Entry<String, io.github.llm4j.loom.ast.ValueExpr> f : ((io.github.llm4j.loom.ast.ValueExpr.Obj) value).fields().entrySet()) {
+            out.put(f.getKey(), valueOf(f.getValue(), where));
+        }
+        return out;
+    }
+
     static final class HandoffSignal extends RuntimeException {
         HandoffSignal(String message) { super(message, null, true, false); }
     }
@@ -1849,6 +1899,13 @@ public class HarnessExecutor implements LoomEngine {
             String noteText = resolvePayload(note.getMessage());
             log.info("NOTE: " + noteText);
             trace(TraceEvent.NOTE, null, noteText, null);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.HaltStmt halt) {
+            executeHalt(halt);
+        } else if (stmt instanceof io.github.llm4j.loom.ast.SetStmt set) {
+            setVariable(set.getName(), valueOf(set.getValue(), "set " + set.getName()));
+        } else if (stmt instanceof io.github.llm4j.loom.ast.ReturnStmt ret) {
+            setVariable("result", valueOf(ret.getValue(), "return"));
+            throw new ReturnSignal();
         } else if (stmt instanceof io.github.llm4j.loom.ast.SleepStmt sleep) {
             executeSleep(sleep);
         } else if (stmt instanceof io.github.llm4j.loom.ast.RunStmt run) {
@@ -2316,6 +2373,7 @@ public class HarnessExecutor implements LoomEngine {
 
         int attempts = 0;
         int maxAttempts = del.getRetryCount() + 1;
+        boolean corrected = false;
         int[] limitWaits = {0};
         int[] asks = {0};
         Exception lastError = null;
@@ -2353,7 +2411,8 @@ public class HarnessExecutor implements LoomEngine {
                 }
                 Object finalValue = answer;
                 if (schema != null && partial == null) {
-                    finalValue = parseJsonResult(answer);
+                    // An answer that is not what the schema promised is a failed attempt, not a raw string to carry on with.
+                    finalValue = del.isLenientSchema() ? StructuredAnswer.parseOrRaw(answer, schema) : StructuredAnswer.parse(answer, schema);
                 }
                 String spoken = null;
                 if (voice != null && voice.speaks() && partial == null) {
@@ -2410,6 +2469,21 @@ public class HarnessExecutor implements LoomEngine {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Interrupted while delegating to " + agentName, e);
+            } catch (StructuredAnswer.SchemaViolation violation) {
+                log.warning("Agent " + agentName + " broke its output schema: " + violation.getMessage());
+                Map<String, Object> violationData = new java.util.LinkedHashMap<>();
+                violationData.put("attempt", attempts + 1);
+                violationData.put("problems", violation.problems());
+                trace(TraceEvent.SCHEMA_VIOLATION, agentName, violation.getMessage(), violationData);
+                onDelegateError(del, agentDef, resolvedPayload, contextBriefing, violation, attempts + 1, maxAttempts);
+                lastError = violation;
+                attempts++;
+                // One correction is always allowed, whatever `retry` says: telling a model what was wrong is the cheapest way to get it right.
+                if (!corrected) {
+                    corrected = true;
+                    maxAttempts++;
+                }
+                contextBriefing += violation.correction();
             } catch (Exception e) {
                 log.warning("Delegation failed: " + e.getMessage());
                 onDelegateError(del, agentDef, resolvedPayload, contextBriefing, e, attempts + 1, maxAttempts);
@@ -3044,22 +3118,6 @@ public class HarnessExecutor implements LoomEngine {
             case ENUM -> "enum" + schema.getEnumValues().toString();
             default -> schema.getType().name().toLowerCase();
         };
-    }
-
-    private Object parseJsonResult(String raw) {
-        try {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            String jsonPart = raw;
-            if (raw.contains("```json")) {
-                jsonPart = raw.substring(raw.indexOf("```json") + 7, raw.lastIndexOf("```"));
-            } else if (raw.contains("```")) {
-                jsonPart = raw.substring(raw.indexOf("```") + 3, raw.lastIndexOf("```"));
-            }
-            return mapper.readValue(jsonPart.trim(), Object.class);
-        } catch (Exception e) {
-            log.warning("Failed to parse JSON result: " + e.getMessage() + ". Returning raw string.");
-            return raw;
-        }
     }
 
     private static final java.util.regex.Pattern PAYLOAD_PATH =

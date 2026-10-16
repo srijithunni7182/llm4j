@@ -55,4 +55,19 @@ public class DelegateStmt extends LocatedStatement {
     /** This statement's own budget ({@code budget N tokens}), or null. */
     public BudgetDef getBudget() { return budget; }
     public void setBudget(BudgetDef budget) { this.budget = budget; }
+
+    private boolean lenientSchema;
+
+    /**
+     * True for a delegate the runtime builds itself and whose answer it checks on its own terms (a decision's proposal, where a missing
+     * confidence is allowed). The answer is read as JSON when it is JSON and left as text when it is not, as every schema answer used to be.
+     * A script's own delegates are never lenient: the parser does not set this.
+     */
+    public boolean isLenientSchema() {
+        return lenientSchema;
+    }
+
+    public void setLenientSchema(boolean lenientSchema) {
+        this.lenientSchema = lenientSchema;
+    }
 }

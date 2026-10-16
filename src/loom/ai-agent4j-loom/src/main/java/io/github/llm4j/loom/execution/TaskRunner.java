@@ -51,6 +51,7 @@ final class TaskRunner {
                 fail(stmt, stepId, String.valueOf(entry.value()), null, false, 0, null);
             } else {
                 executor.setVariable(variable, entry.value());
+                markOk(task, variable, entry.value());
                 replayed(name, entry.value());
             }
             return;
@@ -68,8 +69,10 @@ final class TaskRunner {
         boolean changes = effect == TaskEffect.CHANGES;
         if (executor.simulatingTasks() && changes) {
             // described, not performed: nobody is asked to approve it, and nothing is recorded as done
+            // nothing ran that could have failed, so a simulated step is ok: that is what lets a free mock run reach the end of the workflow
             Map<String, Object> simulated = Map.of("outcome", "simulated");
             executor.setVariable(variable, simulated);
+            executor.setVariable(OK_PREFIX + variable, true);
             Map<String, Object> data = data(name, effect, "simulated", 0);
             data.put("simulated", true);
             executor.trace(TraceEvent.TASK_END, null, name + " → simulated (not run)", data);
@@ -113,6 +116,7 @@ final class TaskRunner {
             if (reuse) {
                 journal.put(stepId, new RunJournal.Entry("task", reused));
                 executor.setVariable(variable, reused);
+                markOk(task, variable, reused);
                 replayed(name, reused);
                 return;
             }
@@ -152,6 +156,7 @@ final class TaskRunner {
                 if (changes) journal.put(effectKey, new RunJournal.Entry(DONE, value));
                 journal.put(stepId, new RunJournal.Entry("task", value));
                 executor.setVariable(variable, value);
+                markOk(task, variable, value);
                 Map<String, Object> end = data(name, effect, result.outcome(), executor.clock().millis() - started);
                 executor.trace(TraceEvent.TASK_END, null, name + " → " + result.outcome(), end);
                 Map<String, Object> audit = new LinkedHashMap<>(end);
@@ -198,6 +203,15 @@ final class TaskRunner {
         }
         if (record) executor.journal().put(stepId, new RunJournal.Entry("failed", message));
         executor.runFailureHandler(stmt.getOnFailure(), message);
+    }
+
+    /** The hidden variable beside a run result that says whether the task called its outcome ok: what {@code x is ok} reads. */
+    static final String OK_PREFIX = "_ok:";
+
+    /** Decided here, by the task's own word for success, and kept beside the result so the result keeps exactly the shape it is documented to have. */
+    private void markOk(Task task, String variable, Object value) {
+        String outcome = value instanceof Map<?, ?> map ? String.valueOf(map.get("outcome")) : "";
+        executor.setVariable(OK_PREFIX + variable, task.okOutcomes().contains(outcome));
     }
 
     private void replayed(String name, Object value) {

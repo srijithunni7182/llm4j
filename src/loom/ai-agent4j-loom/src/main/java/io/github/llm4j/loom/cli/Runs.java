@@ -184,6 +184,9 @@ final class Runs {
         } catch (io.github.llm4j.budget.BudgetExceeded stop) {
             env.out().println("⛔ Stopped: " + stop.getMessage() + ". Everything paid for so far is kept.");
             return new Result(3, null, null, stop.getMessage());
+        } catch (io.github.llm4j.loom.runtime.RunHalted halted) {
+            env.out().println("🛑 Halted by the workflow: " + halted.reason());
+            return new Result(6, null, null, halted.reason());
         } catch (Exception e) {
             env.err().println("❌ Execution failed: " + e.getMessage());
             e.printStackTrace(env.err());

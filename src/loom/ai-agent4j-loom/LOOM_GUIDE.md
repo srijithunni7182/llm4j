@@ -66,7 +66,7 @@ weave triggers install runs/.loom-triggers --apply     # let the OS wake Loom (s
 weave schedule sync digest.loom --store runs/.loom-triggers
 ```
 
-Exit codes: `0` done, `1` failed, `2` bad options, `3` stopped by a budget, `4` paused.
+Exit codes: `0` done, `1` failed, `2` bad options, `3` stopped by a budget, `4` paused, `5` stopped at `--stop-at`, `6` halted by the workflow (`halt`).
 
 ```bash
 weave check digest.loom          # every problem, with its line — without running anything or spending
@@ -1685,6 +1685,43 @@ workflow Audit() {
 
 `{var.field}` paths work in delegate payloads exactly as they do in conditions: map keys and list
 indexes (`{plan.hooks.0}`). A missing field reads as empty, as it does in `alt` conditions.
+
+#### What is checked
+
+An answer is checked where it arrives, against the schema (the agent's `output_schema`, or the step's own `expecting`):
+
+- The JSON may be wrapped in a code fence or in a sentence of chatter; the first complete object (or list, for a list schema) is used.
+- Every field the schema names must be there, with the right kind: text (a number or true/false is accepted as text), number, true/false, a list whose elements match, a nested object. An enum must be exactly one of its words. Fields the schema does not name are ignored.
+- An answer that is not valid JSON, is cut off, or does not match is a **failed attempt**: the agent is told what was wrong ("Your previous reply was rejected: files: missing") and asked again. One such correction is always allowed, whatever `retry` says; further attempts follow `retry N`. When they run out the step fails and its `on_failure` runs, with `{_error}` naming the problems. It is never passed on as raw text.
+- A `trace` event `schema_violation` (with `attempt` and `problems`) is written for each rejected answer.
+- The answer of an agent that ran out of budget part-way is kept as it is, unchecked.
+
+Gemini does not yet use its native JSON mode for this (it cannot be combined with tool calling); the check is what makes a model that answers in YAML cost one extra call instead of a broken run.
+
+### Ending a run, handing back a value, and asking whether a step worked
+
+Three small statements and one condition, so a workflow needs no Java for the plumbing around its real steps.
+
+```loom
+workflow Refund(order, amount) {
+    run RefundPolicy(order = order, amount = amount) -> policy_run
+    alt (policy_run.outcome != "approved") {
+        halt "refund {order} refused: {policy_run.reason}"
+    }
+    run IssueRefund(order = order, amount = amount) -> receipt
+    alt (receipt is ok) {
+        return { status: "REFUNDED", detail: "receipt {receipt.value}" }
+    }
+    halt "refund {order} ended in an unexpected state: {receipt.outcome}"
+}
+```
+
+- **`halt "reason"`** ends the whole run, from any depth (a `call`, a loop, an `alt`, a `parallel` branch), and says why (placeholders are filled in). It is not a failure: nothing retries it, `on_failure` and a loop's `on_exhausted` do not run, a `rewind` does not go back past it. The run's status is `halted` (the exit code is `6`; `RunHalted` from Java), the reason is in the journal, the trace (`halt`), the audit log and the Fabric run list, and a resumed run halts again at once without running anything. Use it when a stage cannot go on and the later stages must not work on something broken.
+- **`set name = value`** gives a variable a value. A value is a quoted text (with `{placeholders}`), a number, `true` or `false`, another variable or `var.path` (copied with its type; it is an error if it has no value), or an object `{ key: value, ... }`. Names starting with `_` are the runtime's.
+- **`return value`** is `set result = value` followed by the end of the workflow, so a `call` hands the value back: `call Fix(...) -> got`, then `got.verdict`. A `return` inside `parallel` or `for each` is refused (which branch's value?).
+- **`x is ok` / `x is not ok`** asks whether a `run` step did what it was for. A task says which of its outcomes are ok (`Task.okOutcomes()`, default `{ok}`; a task that reports `passed` and `failed` says `{passed}`). It **fails closed**: a step that never ran, a variable that is not a run result, an outcome the task does not call ok, an unexpected word, all mean *not ok*. The one thing that counts as ok without being checked is a step that was only *described* in a simulated run (`weave eval --mock`, a fork with simulated effects), because nothing ran that could have failed; a real run never produces one, so this cannot weaken it. `x.outcome == "passed"` keeps meaning exactly that, and is false in a simulated run. `is ok` on anything but the result of a `run` step (an agent's answer, a person's reply, a parameter) is a load error naming the line.
+
+`weave check` warns about a statement that follows a `halt`, `return` or `handoff` in the same block. `weave explain` and `weave graph` draw them (a halt or return goes straight to the end).
 
 ### Bounded Loops
 `loop until` can carry a safety bound. If the condition still isn't true after `max` rounds, the loop stops

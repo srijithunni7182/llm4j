@@ -134,6 +134,15 @@ final class NodeDescriber {
         if (st instanceof NoteStmt n) {
             return new Described(Kinds.NOTE, "note").attrs(Attrs.create().text("text", n.getMessage()));
         }
+        if (st instanceof io.github.llm4j.loom.ast.HaltStmt h) {
+            return new Described(Kinds.HALT, "halt").attrs(Attrs.create().text("text", h.getMessage()));
+        }
+        if (st instanceof io.github.llm4j.loom.ast.SetStmt s) {
+            return new Described(Kinds.SET, "set " + s.getName());
+        }
+        if (st instanceof io.github.llm4j.loom.ast.ReturnStmt) {
+            return new Described(Kinds.RETURN, "return");
+        }
         return new Described(Kinds.UNKNOWN, st.getClass().getSimpleName().replaceAll("(Stmt|Statement)$", "").toLowerCase(Locale.ROOT));
     }
 

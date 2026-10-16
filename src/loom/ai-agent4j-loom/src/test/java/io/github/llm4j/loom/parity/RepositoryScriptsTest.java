@@ -27,13 +27,22 @@ class RepositoryScriptsTest {
         Path repo = Path.of("../../..").toAbsolutePath().normalize();
         List<Path> scripts;
         try (Stream<Path> all = Files.walk(repo)) {
-            scripts = all.filter(p -> p.toString().endsWith(".loom"))
+            scripts = all.filter(p -> p.toString().endsWith(".loom") && Files.isRegularFile(p)) // a folder named .loom (a secret store) is not a script
                     .filter(p -> !p.toString().contains("/target/") && !p.toString().contains("/node_modules/"))
                     // scripts that are deliberately wrong: a graph fixture with an agent that is not defined, and a script made to fail
                     .filter(p -> !p.toString().endsWith("graph/undefined_agent.loom") && !p.toString().endsWith("ctk/scripts/failing_test.loom"))
                     .sorted().toList();
         }
         assertThat(scripts).hasSizeGreaterThan(5);
+        // A file another script imports is checked as part of that script (its imports are loaded with it), not on its own: an agents file
+        // has no workflow to call its agents, a flows file has no agents. Only the entry scripts are checked here.
+        java.util.Set<Path> imported = new java.util.HashSet<>();
+        java.util.regex.Pattern importLine = java.util.regex.Pattern.compile("(?m)^\\s*import\\s+\"([^\"]+)\"");
+        for (Path script : scripts) {
+            java.util.regex.Matcher m = importLine.matcher(Files.readString(script));
+            while (m.find()) imported.add(script.getParent().resolve(m.group(1)).normalize());
+        }
+        scripts = scripts.stream().filter(p -> !imported.contains(p.normalize())).toList();
         List<String> failures = new ArrayList<>();
         for (Path script : scripts) {
             LoomScript parsed;
