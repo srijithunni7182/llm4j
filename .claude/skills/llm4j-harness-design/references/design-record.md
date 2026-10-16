@@ -43,6 +43,8 @@ Personal data: <where it is masked or blocked>
 Budgets: provider limit <...> > run <...> > per agent or stage <...>
 Behaviour rules: <looping, failing tool, context nearly full, too many steps: and the response>
 Limits that lift: <rate limits, quotas, refilling budgets: suspend, max wait, max resumes>
+| Fan-out | Width bound | If one branch fails or is stopped | Checkpoint before / combined check after |
+|---|---|---|---|
 
 ## 5. State, memory and context
 - Journal: <where; what is recorded>

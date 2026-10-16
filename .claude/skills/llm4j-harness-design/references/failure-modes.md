@@ -30,6 +30,9 @@ happen.
 | A retry fails the same way every time | the retry carries no reason forward | carry the error into the next attempt, or take another path | 7 |
 | A rewind loops between two bad drafts | no maximum, or nothing new carried forward | a maximum per rewind and per run; carry the reviewer's notes | 4, 5 |
 | The planner invents an agent or a step | dynamic work is a free hand | a typed plan from a declared menu; unknown names stop the run | 1 |
+| One malformed branch spoils the combined result | branch answers merged without a schema check | check each answer against its schema before merging | 15 |
+| A fan-out burns the budget or hits rate limits at once | the list's size is whatever the model produced | cap the width where the plan is checked; mind provider limits | 15 |
+| The build refuses the design's retry-with-feedback | the rewind or checkpoint was placed inside a parallel branch or per-item loop | checkpoint before the fan-out, combined check and rewind after it | 4, 15 |
 
 ## Runs that are turned against their user
 

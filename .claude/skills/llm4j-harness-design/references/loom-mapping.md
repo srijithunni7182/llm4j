@@ -15,7 +15,8 @@ this table names constructs, it does not define them.
 | Schemas at every hand-off | `expecting { ... }` per step; `output_schema` per agent | `weave guide loom` ("Per-Step Schemas", "Output Schema Enforcement") |
 | Least reach per tool | built-in tool options (`allow_paths`, `methods`, allowed programs, a read-only `sql` user); `reach: reads` in the script or `X.reach = reads` in the `.loot` file | `weave guide 7`, `weave guide 9` ("Built-in tools when deployed") |
 | The lethal trifecta split, or accepted in writing | split agents joined by `expecting`; or `trifecta: accepted "<who looked, when, why>"` in `<script>.inspect`; found by `weave audit` | `weave guide 7`; deployer `weave guide d2` |
-| Approval before an action | `requiresApproval` on the tool and `approve: [Name]` in the script; `human_prompt` for a question | `weave guide 6`, `weave guide 9` |
+| Approval before an action | `requiresApproval` on the tool and `approve: [Name]` in the script; or `human_prompt "..." -> answer` then `alt (answer == "...")` before a `run` step | `weave guide 6`, `weave guide 9` |
+| An approval that shows it was read (irreversible actions) | `human_prompt` that asks for the amount or id and an `alt` that compares it; approvals over `--ask-via telegram` need the code in the reply | `weave guide loom` ("Human-in-the-Loop", "Answering from Your Phone") |
 | Secrets | `env.NAME` or `secret.NAME` (a literal is refused); `weave secrets create`, `weave secrets set NAME`; a `SecretStore` host for a vault | `weave guide 9` ("Keys and secrets") |
 | Personal data | `guard { pii: mask }` or `pii: block` on the agent | `weave guide loom` ("PII Guardrails") |
 | Rules every agent shares, kept stable | `shared_prompt: "..."` or `shared_prompt: prompt "id"` | `weave guide 6` |
@@ -31,11 +32,29 @@ this table names constructs, it does not define them.
 | Behaviour rules for a looping agent | `supervise Agent { when looping(n) ... when tool_failing(Tool, n) ... when context > N% ... when steps > N ... }` | `weave guide 15` |
 | Durable runs and crash recovery | a run journal (`--journal <dir>`; `FileRunJournal` or `JdbcRunJournal` from Java); `weave timeline <dir>` | `weave guide 9`, `weave guide loom` ("Durable Runs") |
 | Idempotent effects and the crash window | a task with an idempotent effect policy and an `idempotencyKey()`; `effect_pending` / `effect_done` in the journal; `weave check` refuses `retry` on a non-idempotent `CHANGES` task | `weave guide loom` ("Failure, retries and crashes") |
-| Points worth returning to | `checkpoint Name starting with ...`; `rewind to Name when (...) at most N times carrying ... side effects: ask first / keep / repeat`; `--max-rewinds` | `weave guide loom` ("Checkpoints, Rewind and Fork") |
+| Points worth returning to | `checkpoint Name starting with ...`; `rewind to Name when (...) at most N times carrying ... side effects: ask first / keep / repeat`; `--max-rewinds`. A rewind cannot leave `parallel` or a `for each` body, nor point forward; `weave check` refuses it | `weave guide loom` ("Checkpoints, Rewind and Fork") |
 | Waiting for a person without a thread | a `HumanInterface` that throws `RunSuspended`; `journal.answer(stepId, answer)`; run again | `weave guide 9` ("Plugging the host into the workflow") |
 | A context plan for agents that loop on tools | a `context { compact: chain(trim_tool_results, drop_oldest) ... }` block; `summarize` only with a `summarizer` model | `weave guide 14` |
 | Each model's window | a `<script>.windows` file or the shipped catalogue; never in the script | `weave guide 14` |
+| A bound on the shared transcript every agent receives by default | `memory { max_tokens: N  compact: drop_oldest }` on the agent; an agent with a `context` block and a known window bounds it to a quarter of its window | `weave guide loom` ("Bounding Loom's shared transcript") |
 | Harness-owned memory across steps | Engram: `executor.setMemoryEngine(engram)` from a Java host | `weave guide loom` ("Memory, Voice and Languages") |
+
+## Concurrency and composition (stage 4, principles §15)
+
+| Decision | In Loom | Built in |
+|---|---|---|
+| Independent steps side by side | `parallel { ... }`; execution waits for every branch | `weave guide loom` ("Concurrency Example") |
+| The same question to several agents, results combined | `broadcast`; each agent's `output_schema` checks its answer | `weave guide loom` ("The Primitive Set") |
+| One branch per item of a list | `parallel for each item in list { ... }`; cap the list where the plan is checked | `weave guide loom` ("for each") |
+| What happens to the other branches when one is stopped | `intervention { sibling: ... }` (and `on_stopped` per step) | `weave guide 15` |
+| Pauses and budgets across branches | branches that can still work finish and are journaled, then the run pauses once (limits, sleeps); all branches spend from one `budget` | `weave guide loom` ("Pausing and Resuming on Limits") |
+| Checks and rewinds around a fan-out | `checkpoint` before the fan-out, the combined check and `rewind` after it; `retry` and `on_failure` inside branches; no `return` inside `parallel` or `for each` | `weave guide loom` ("Checkpoints, Rewind and Fork", "Ending a run") |
+| A durable wait | `sleep 5m` (pauses with a journal when over 30 seconds; does not count against `budget` or `max_resumes`); something must wake the run (`weave daemon`, `weave triggers install`, `weave tick`, or `--wait`) | `weave guide loom` ("Sleeping") |
+| Something that repeats on a clock | `schedule`, not `sleep` | `weave guide loom` ("Schedules and Triggers") |
+| A sub-workflow with its own scope | `call Name(arg = value) -> result`; it hands back the variable `result`; names are one flat namespace across files; `budget` in the entry file only | `weave guide 6` ("When the script gets long") |
+| End this branch by passing control on | `handoff "..." to Agent` | `weave guide loom` ("The Primitive Set") |
+| A guard around a stretch of steps | `guardrail (PII) { ... } on_violation { ... }` (PII only; use an agent's `guard { }` otherwise) | `weave guide loom` ("PII Guardrails") |
+| Named points in the trace; reasons on a path | `observe "label" {var}`; `note "..."` | `weave guide loom` ("Observability") |
 
 ## Failure and people (stages 6 and 7)
 

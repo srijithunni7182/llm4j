@@ -28,8 +28,9 @@ this skill's `references/` folder and in the tools:
 
 1. **Use the least autonomy that works.** A fixed sequence beats a router, a router beats a planner, a planner beats an open loop.
    Move up only when the task needs it, and say why.
-2. **Let models read and propose; let code decide and act.** Anything that moves money, deletes, sends, or must be exact is a
-   deterministic step the model cannot call, skip or talk its way past.
+2. **Let models read and propose; let code decide and act.** A step that must happen every time, must be exact, or moves money is a
+   deterministic step the model cannot call, skip or talk its way past. An agent may hold a tool that sends, writes or deletes only
+   behind an approval a person gives (or a code check), and only with the least reach that does the job.
 3. **Done is checked, not declared.** Every exit has a criterion. Where it can be counted or compared, code checks it. The agent that
    did the work is never the only one who grades it.
 4. **The agent cannot edit its own yardstick.** The objective, the evaluator, the tests, the budget and the autonomy level are locked
@@ -54,7 +55,7 @@ this skill's `references/` folder and in the tools:
 | 1 | Frame the job | principles §1 | one paragraph: what goes in, what comes out, how long it runs, who watches, what cannot be undone; an autonomy shape chosen with a reason |
 | 2 | Define done and who checks it | principles §2 | every exit (success, gave up, stopped, halted) has a criterion; each criterion is marked **code**, **model** or **person**; no agent grades only itself |
 | 3 | Draw the boundary | principles §3, §9 | the surface table is filled (locked, editable, read, write, send) for each agent and tool; each tool has the least reach that works; each agent that reads untrusted content, reaches private data and can send something out is split, or the user accepted it in writing with a reason |
-| 4 | Shape the control loop | principles §4 | every loop and rewind has a maximum and an outcome when it is reached; budgets at three levels (run, agent, provider); a rule for an agent that loops or stalls |
+| 4 | Shape the control loop | principles §4, §15 | every loop and rewind has a maximum and an outcome when it is reached; budgets at three levels (run, agent, provider); a rule for an agent that loops or stalls; every parallel fan-out says what happens when one branch fails or is stopped, and keeps its rewinds outside the fan-out |
 | 5 | State, memory and context | principles §5, §6 | a crash at any step is described: what is replayed, what is re-run, what is never repeated; every step that changes the world has an idempotency story; every agent that loops on tools has a context plan and a known window |
 | 6 | Failure and recovery | principles §7, failure-modes | the failure table is complete: for each step, its failure kinds and the decision for each (retry, other path, person, rewind, halt, let it fail) |
 | 7 | People in the loop | principles §8 | each irreversible action has an approver or a written decision not to; who may steer, stop and approve is named, and how they reach a running process; earned autonomy only where the user asked for it |

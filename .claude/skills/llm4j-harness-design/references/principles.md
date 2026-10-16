@@ -108,7 +108,9 @@ repeatedly, the context nearly full, too many steps) and respond (nudge it, make
 more reliable than asking the model whether it is stuck.
 
 **Bound rewinds too.** Going back to an earlier point when a later check fails is powerful; it needs a maximum per rewind and a cap
-across the run, and it carries the reason forward so the next attempt is different.
+across the run, and it carries the reason forward so the next attempt is different. A rewind goes back, never forward, and cannot
+leave a parallel branch or a per-item loop body: put the checkpoint and the check that sends the run back outside the fan-out
+(§15).
 
 **Limits that lift at a known time are pauses, not failures.** A per-minute rate limit, a daily quota or a budget that refills
 should suspend the run and resume it, holding no thread, with a maximum wait and a maximum number of resumes.
@@ -147,7 +149,8 @@ say what the resumed run does at each.
 ## §6. Context and memory
 
 **The harness owns what each step sees.** Assemble the context for each call deliberately: the task, the relevant facts and decisions,
-the tools. Do not hand every agent the whole transcript.
+the tools. Many runtimes (Loom among them) give each agent the run's shared transcript by default; that is fine for a short run, but it
+grows with every step. Bound it per agent, and for long runs hand agents selected facts rather than everything that happened.
 
 **Plan for the window of every agent that loops on tools.** Each step adds to the prompt, and the whole prompt is sent again. Decide
 the compaction in order of cost: trim long tool results, drop the oldest steps, and only then summarize (a model call that costs money
@@ -200,8 +203,9 @@ Check: the failure table has a row for every step that can fail and a decision f
 **Put a person in front of every irreversible way out**, until autonomy has been earned. Keep approvals few and meaningful: an
 approval nobody reads is worse than none, because it looks like a control.
 
-**Make approvals hard to give by accident.** The person sees what will happen, in full, and answers with something specific (a code,
-a choice), not a bare "yes".
+**Make approvals for irreversible actions hard to give by accident.** The person sees what will happen, in full. For a routine,
+reversible step a plain yes or no is enough. For a payment, a deletion or a message to many people, ask for something specific that
+shows they read it: the amount, the record id, or a code sent with the question.
 
 **Plan for the unattended run.** An approval needs a way to reach the person (a chat, a phone, an application), an allowlist of who may
 answer, and a decision for when nobody answers in time.
@@ -321,3 +325,43 @@ Check: the record's test plan has one row per decision in §4 to §8.
 - Reach a person from their phone for questions and approvals, from an allowlist, in a private channel.
 - Detect a stalled run (no step for longer than expected) as trouble, not as quiet.
 - Keep one action that freezes autonomy for everything at once.
+- A fixed wait (polling a job, a cooldown) is a durable sleep that holds no thread, inside a loop that has a maximum. Something must
+  wake the run (a daemon, a system trigger); a sleep is not a schedule.
+
+---
+
+## §15. Concurrency and composition
+
+Running work side by side, and splitting a workflow into pieces, change what the rest of the design must say.
+
+**Decide what one branch's failure means for the others.** When several branches run at once (independent steps in parallel, the same
+question to several agents, one item per branch), say for each fan-out: if one branch fails or is stopped, do the others finish, get
+stopped, or have their results thrown away? And does the step after the fan-out run on partial results, or not at all?
+
+**Each branch's effects are separate effects.** Every branch that changes the world needs its own idempotency key, and a crash must be
+safe to resume with some branches done and some not.
+
+**Keep checks and rewinds outside the fan-out.** A rewind cannot leave a parallel branch or a per-item loop body, and a branch cannot
+hand back a value for the whole workflow. Put the checkpoint before the fan-out and the check that judges the combined result after
+it. Inside a branch, use retries and failure handlers.
+
+**Budgets and pauses see the whole fan-out.** Parallel branches spend from the same budget at the same time, so a fan-out can exhaust a
+budget faster than a sequence would. When a limit or a sleep pauses the run, branches that can still work finish first, then the run
+pauses once.
+
+**Bound the width.** A fan-out over a list a model produced is as wide as the model made it. Cap the list's size where the plan is
+checked (§1), and think about rate limits before running many branches against one provider.
+
+**Combine with a schema.** The results of several agents are merged for the next step; each agent's answer is checked against its
+schema before it is merged, so one malformed answer does not poison the combined result.
+
+**Split long workflows into named pieces.** A sub-workflow that runs in its own scope and hands back one value is easier to read, test
+and reuse. Budgets and run-wide settings belong to the entry point, not to the pieces.
+
+**Wrap the sensitive stretch, not the whole run.** A guard around a block of steps (for example one that checks for personal data,
+with a handler for a violation) is clearer than a rule on every agent, when only that stretch touches the data.
+
+**Mark the points worth seeing.** Recording a named state at key points (inputs received, plan made, results merged) makes a trace
+readable later; a short note on a decision path tells the reader why the run went that way.
+
+Check: every fan-out in the record names its width bound, its failure decision, and where its checkpoint and its combined check sit.
