@@ -24,8 +24,10 @@ final class AddonsRag {
             return (EmbeddingProvider) Class.forName("io.github.llm4j.agent.rag.embedding.DjlEmbeddingProvider").getConstructor(String.class).newInstance(r.model());
         } catch (Llm4jConfigurationException e) {
             throw e;
-        } catch (Exception e) {
-            throw new Llm4jConfigurationException("llm4j.rag.embedding=" + kind + " could not load " + r.model() + ": " + e.getMessage(), "Check llm4j.rag.model.");
+        } catch (Exception | LinkageError e) {
+            String missing = e instanceof LinkageError ? " (a library it needs is not on the class path: " + e.getMessage() + ")" : "";
+            throw new Llm4jConfigurationException("llm4j.rag.embedding=" + kind + " could not load " + r.model() + ": " + e.getMessage() + missing,
+                    "Check llm4j.rag.model" + (kind.equals("djl") ? ", and that ai.djl:api, ai.djl.huggingface:tokenizers and an engine are dependencies." : "."));
         }
     }
 
