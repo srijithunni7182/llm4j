@@ -187,7 +187,7 @@ Each check runs on the persistence matrix: `file` and `jdbc` (H2), except where 
 | V9.1 | `llm4j.loom.script=classpath:scripts/three-steps.loom` | a `LoomRuntime`; `run` completes; Loom tools = the Requirement 6 tools |
 | V9.2 | the script and its import loaded from the test jar; a `.loot` in the jar | works as V8.24 through Spring `Resource`s |
 | V9.3 | an `LLMClientFactory` bean; none, with the key only in the secret store; none, with the key only in the `Environment`; neither | the bean is used; the store key is used; the environment key is used; start-up fails naming `GEMINI_API_KEY` |
-| V9.4 | `broken.loom` | fails once listing all three errors with line numbers; with `validate=lenient`, starts with three WARN lines |
+| V9.4 | `broken.loom.txt` (named so the repository-wide script check skips it) | fails once listing all three errors with line numbers; with `validate=lenient`, starts with three WARN lines |
 | V9.5 | `trifecta.loom` | fails; the failure text is the report's Markdown and names the trifecta rule |
 | V9.6 | `trifecta-approved.loom` (the owner's acceptance lives in the `.inspect` file, not the script, so the starter's way through is `fail-on`); `fail-on=none` on `trifecta.loom`; `fail-on=medium` vs `high` on a MEDIUM-worst script | starts; starts with a WARN per finding and one "gate is off"; fails / starts |
 | V9.7 | the properties metadata | no property names an audit rule id |

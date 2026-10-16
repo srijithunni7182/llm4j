@@ -139,11 +139,11 @@ class LoomRuntimeTest {
     @Tag("SB-V9.4")
     @Test
     void aBrokenScriptFailsOnceListingEveryProblemOrWarnsWhenLenient() {
-        loom("broken.loom").run(ctx -> {
+        loom("broken.loom.txt").run(ctx -> {
             assertThat(ctx).hasFailed();
             assertThat(rootConfigurationProblem(ctx.getStartupFailure()).getMessage()).contains("Nobody").contains("NoSuchTask").contains("Ghost").contains("line");
         });
-        loom("broken.loom", "llm4j.loom.validate=lenient").run(ctx -> assertThat(ctx).hasNotFailed());
+        loom("broken.loom.txt", "llm4j.loom.validate=lenient").run(ctx -> assertThat(ctx).hasNotFailed());
     }
 
     @Tag("SB-V9.5")

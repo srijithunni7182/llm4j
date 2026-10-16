@@ -1,0 +1,56 @@
+commit c016eb96d729bfe68dbfe5050226a84ec01251b4
+Fri Oct 16 11:05:36 UTC 2026
+-- run 1 
+   BUILD FAILURE
+[ERROR] Failures: 
+[ERROR]   RepositoryScriptsTest.n2_everyScriptInTheRepositoryPassesTheChecks:74 
+Expecting empty but was: ["src/spring/llm4j-spring-boot-starter/src/test/resources/scripts/broken.loom: line 4: delegate Nobody: there is no agent named Nobody Agents defined: Writer.",
+    "src/spring/llm4j-spring-boot-starter/src/test/resources/scripts/broken.loom: line 6: delegate Ghost: there is no agent named Ghost Agents defined: Writer."]
+[INFO] 
+[ERROR] Tests run: 2072, Failures: 1, Errors: 0, Skipped: 1
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for AI Agent4J 5.0:
+[INFO] 
+[INFO] AI Agent4J ......................................... SUCCESS [01:08 min]
+[INFO] AI Agent4J - RAG Addons ............................ SUCCESS [ 12.714 s]
+[INFO] AI Agent4J - Tools ................................. SUCCESS [ 26.883 s]
+[INFO] eval4j ............................................. SUCCESS [ 14.225 s]
+[INFO] AI Agent4J Loom .................................... FAILURE [04:12 min]
+[INFO] eval4j-report ...................................... SKIPPED
+[INFO] Loom Inspect Core .................................. SKIPPED
+[INFO] Loom Fabric ........................................ SKIPPED
+[INFO] Loom Inspect ....................................... SKIPPED
+[INFO] llm4j Spring Boot Starter .......................... SKIPPED
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  06:14 min
+[INFO] Finished at: 2026-10-16T11:11:52Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.2.5:test (default-test) on project ai-agent4j-loom: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /home/user/llm4j/src/loom/ai-agent4j-loom/target/surefire-reports for the individual test results.
+[ERROR] Please refer to dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+[ERROR] 
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR]   mvn <args> -rf :ai-agent4j-loom
+   src/ai-agent4j: tests=2758 failures=0 errors=0 skipped=2
+   src/ai-agent4j-addons: tests=17 failures=0 errors=0 skipped=0
+   src/ai-agent4j-tools: tests=364 failures=0 errors=0 skipped=0
+   src/eval4j: tests=500 failures=0 errors=0 skipped=0
+   src/eval4j-report: tests=0 failures=0 errors=0 skipped=0
+   src/loom/ai-agent4j-loom: tests=2072 failures=1 errors=0 skipped=1
+   src/loom/loom-inspect-core: tests=0 failures=0 errors=0 skipped=0
+   src/loom/loom-inspect: tests=0 failures=0 errors=0 skipped=0
+   src/loom/loom-fabric: tests=0 failures=0 errors=0 skipped=0
+   src/spring/llm4j-spring-boot-starter: tests=132 failures=1 errors=0 skipped=0
+[ERROR] Tests run: 2072, Failures: 1, Errors: 0, Skipped: 1
+-- run 2 
