@@ -432,7 +432,7 @@ public final class LoomHost implements AutoCloseable {
             } else {
                 ex.setTriggerStore(new InMemoryTriggerStore()); // a task given to an agent: the script's schedules are already stored
             }
-            if (!script.getDecisions().isEmpty() || !script.getLadders().isEmpty()) ex.setAutonomy(persistence.ledger(), persistence.levels());
+            if (!script.getDecisions().isEmpty() || !script.getLadders().isEmpty()) ex.setAutonomy(o.ledger != null ? o.ledger : persistence.ledger(), o.levels != null ? o.levels : persistence.levels());
         } else if (human == null) {
             human = new HumanInterface() {
                 @Override
@@ -557,6 +557,8 @@ public final class LoomHost implements AutoCloseable {
         private Consumer<HarnessExecutor> customizer;
         private Executor runner;
         private boolean allowNonDurable;
+        private io.github.llm4j.loom.autonomy.Ledger ledger;
+        private io.github.llm4j.loom.autonomy.LevelStore levels;
 
         private Builder(LoomScript script, ToolRegistry tools, LLMClientFactory models) {
             this.script = java.util.Objects.requireNonNull(script, "script");
@@ -597,6 +599,9 @@ public final class LoomHost implements AutoCloseable {
         public Builder runner(Executor runner) { this.runner = runner; return this; }
         /** Accept a script that can wait when there is no persistence; such a run then fails instead of suspending. Never accepts a script that needs a store. */
         public Builder allowNonDurable(boolean allow) { this.allowNonDurable = allow; return this; }
+
+        /** Keep earned-autonomy records somewhere of your own instead of with the persistence. */
+        public Builder autonomy(io.github.llm4j.loom.autonomy.Ledger ledger, io.github.llm4j.loom.autonomy.LevelStore levels) { this.ledger = ledger; this.levels = levels; return this; }
 
         public LoomHost build() {
             return new LoomHost(this);

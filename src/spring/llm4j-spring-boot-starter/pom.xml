@@ -8,7 +8,7 @@
         <groupId>io.github.srijithunni7182</groupId>
         <artifactId>llm4j-parent</artifactId>
         <version>5.0</version>
-        <relativePath>../../pom.xml</relativePath>
+        <relativePath>../../../pom.xml</relativePath>
     </parent>
 
     <artifactId>llm4j-spring-boot-starter</artifactId>
@@ -19,6 +19,7 @@
 
     <properties>
         <spring-boot.version>3.2.3</spring-boot.version>
+        <spring.version>6.1.4</spring.version>
         <junit.version>5.10.2</junit.version>
     </properties>
 
@@ -34,6 +35,26 @@
             <groupId>io.github.srijithunni7182</groupId>
             <artifactId>ai-agent4j-loom</artifactId>
             <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Optional: each is used only by the settings that need it -->
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j-tools</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j-addons</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-jdbc</artifactId>
+            <version>${spring.version}</version>
             <optional>true</optional>
         </dependency>
 
@@ -70,9 +91,27 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
             <version>3.27.7</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>mockwebserver</artifactId>
+            <version>5.3.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>2.2.224</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
