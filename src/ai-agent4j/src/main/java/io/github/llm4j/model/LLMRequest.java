@@ -20,6 +20,7 @@ public final class LLMRequest {
     private final Map<String, Object> additionalParameters;
     private final List<ToolSpec> tools;
     private final ToolChoice toolChoice;
+    private final boolean reasoning;
 
     /** Whether the model may call the tools it is offered. */
     public enum ToolChoice {
@@ -47,6 +48,7 @@ public final class LLMRequest {
 
         this.tools = builder.tools == null ? List.of() : List.copyOf(builder.tools);
         this.toolChoice = builder.toolChoice == null ? ToolChoice.AUTO : builder.toolChoice;
+        this.reasoning = builder.reasoning;
 
         validate();
     }
@@ -107,10 +109,15 @@ public final class LLMRequest {
         return toolChoice;
     }
 
+    /** Whether a streamed answer should also carry the model's reasoning; see {@link Builder#reasoning(boolean)}. */
+    public boolean isReasoning() {
+        return reasoning;
+    }
+
     /** A builder holding everything of this request, so a copy never drops a field. */
     public Builder toBuilder() {
         Builder b = builder().messages(messages).model(model).temperature(temperature).maxTokens(maxTokens).topP(topP)
-                .stopSequences(stopSequences).complexityHint(complexityHint).tools(tools).toolChoice(toolChoice);
+                .stopSequences(stopSequences).complexityHint(complexityHint).tools(tools).toolChoice(toolChoice).reasoning(reasoning);
         if (!additionalParameters.isEmpty()) b.additionalParameters(additionalParameters);
         return b;
     }
@@ -133,13 +140,14 @@ public final class LLMRequest {
                 && Objects.equals(complexityHint, that.complexityHint)
                 && Objects.equals(additionalParameters, that.additionalParameters)
                 && Objects.equals(tools, that.tools)
-                && toolChoice == that.toolChoice;
+                && toolChoice == that.toolChoice
+                && reasoning == that.reasoning;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(
-                messages, model, temperature, maxTokens, topP, stopSequences, complexityHint, additionalParameters, tools, toolChoice);
+                messages, model, temperature, maxTokens, topP, stopSequences, complexityHint, additionalParameters, tools, toolChoice, reasoning);
     }
 
     @Override
@@ -176,8 +184,20 @@ public final class LLMRequest {
         private Map<String, Object> additionalParameters;
         private List<ToolSpec> tools;
         private ToolChoice toolChoice;
+        private boolean reasoning;
 
         private Builder() {}
+
+        /**
+         * Asks the model to show its reasoning on a streamed call ({@code chatStream}); it arrives as chunks whose
+         * {@link LLMResponse#getReasoning()} is set. Off by default, because it changes the request: the provider is told to think and to
+         * report what it thought, which can cost more and, on some models, takes the place of settings such as temperature. A provider or
+         * model that cannot show reasoning ignores this. Has no effect on {@code chat}.
+         */
+        public Builder reasoning(boolean reasoning) {
+            this.reasoning = reasoning;
+            return this;
+        }
 
         public Builder tools(List<ToolSpec> tools) {
             this.tools = tools;

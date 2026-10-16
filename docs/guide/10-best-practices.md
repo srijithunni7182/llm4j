@@ -41,6 +41,7 @@ Lessons from building and evaluating Hexamind, in the order they would have save
 - [ ] Trajectory tests (path, branches, rounds, call count, budget stop) pass for free in CI
 - [ ] Provider limits set; caps below them; stage ceilings from measured costs
 - [ ] Keys in the environment only; `audit` logging on; journal on for real runs
+- [ ] If a person may step in or an agent can loop: steerable agents are marked on purpose and stream, each step whose stop matters has an `on_stopped` or `intervention` default, rewinds name declared checkpoints, and a looping agent has a `supervise` rule or a decision not to ([chapter 15](15-steer-stop-and-supervise.md))
 - [ ] Agents that loop on tools have a `context` block, and each model's context window is known ([chapter 14](14-context-and-compaction.md))
 - [ ] Every agent holding the lethal trifecta is split or accepted in writing; tools declare their `reach`
 - [ ] Every `run` and `delegate` that can fail says what happens (`retry`, `on_failure`, or a decision to stop)

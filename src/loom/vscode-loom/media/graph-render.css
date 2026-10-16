@@ -1,5 +1,9 @@
 .lg-edge{fill:none;stroke:var(--lg-edge,#68708c);stroke-width:1.5;stroke-linejoin:round}
 .lg-edge.lg-dash{stroke-dasharray:5 4}
+.lg-edge.lg-e-rewind,.lg-key .lg-e-rewind{stroke:var(--lg-rewind,#6a3fb5);stroke-dasharray:8 4}
+.lg-edge.lg-e-stopped,.lg-key .lg-e-stopped{stroke:var(--lg-stopped,#b24a14);stroke-width:2.2;stroke-dasharray:1.5 5;stroke-linecap:round}
+.lg-key text{fill:var(--lg-muted,#5a6177);font:11px var(--lg-mono,ui-monospace,Menlo,monospace)}
+.lg-key path{fill:none;stroke-width:2}
 .lg-edge.lg-trav{stroke:var(--lg-ink,var(--lg-fg,#1d2130));stroke-width:2.6}
 .lg-edge.lg-untrav{opacity:.45}
 .lg-elabel rect{fill:var(--lg-surface,#fff);stroke:var(--lg-line,#d6d9e5)}

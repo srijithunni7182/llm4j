@@ -1,0 +1,12 @@
+// Canonical CTK test: intervention_retry_refused_when_changed
+// A person asks for a retry, but the agent may already have changed something: the retry is refused and the person is asked.
+// Interventions are scripted, not timed: see interventions/intervention_retry_refused_when_changed.json (README, "Interventions").
+
+agent Collector { model: "ctk" system: "You are Collector." }
+agent Writer { model: "ctk" system: "You are Writer." tools: [MockTool] steerable: true }
+agent Closer { model: "ctk" system: "You are Closer." }
+
+workflow main() {
+    delegate "write" to Writer -> out_text
+    delegate "close" to Closer -> done_text
+}

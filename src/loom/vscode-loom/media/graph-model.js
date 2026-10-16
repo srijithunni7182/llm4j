@@ -33,6 +33,7 @@
     decide: { name: 'Decision', glyph: 'scale', shape: 'square', h: 330, c: 0.09 },
     checkpoint: { name: 'Checkpoint', glyph: 'flag', shape: 'sharp', h: 250, c: 0.03 },
     rewind: { name: 'Rewind', glyph: 'rewind', shape: 'sharp', h: 300, c: 0.08 },
+    outcome: { name: 'Stop outcome', glyph: 'stop', shape: 'sharp', h: 40, c: 0.08 },
     observe: { name: 'Observe', glyph: 'eye', shape: 'sharp', h: 250, c: 0.03 },
     sleep: { name: 'Sleep', glyph: 'eyeclosed', shape: 'sharp', h: 250, c: 0.03 },
     unknown: { name: 'Step', glyph: 'unknown', shape: 'sharp', h: 250, c: 0.012 }
@@ -44,14 +45,14 @@
   var BY_KIND = {
     delegate: 'agent', handoff: 'agent', broadcast: 'agent', task: 'task', loop: 'loop', foreach: 'loop',
     human_prompt: 'human', note: 'note', start: 'term', end: 'term', parallel: 'parallel', call: 'call',
-    guardrail: 'guardrail', decide: 'decide', checkpoint: 'checkpoint', rewind: 'rewind', observe: 'observe', sleep: 'sleep',
+    guardrail: 'guardrail', decide: 'decide', checkpoint: 'checkpoint', rewind: 'rewind', observe: 'observe', sleep: 'sleep', outcome: 'outcome',
     halt: 'exit', set: 'note', return: 'term'
   };
 
   var CONTAINERS = { alt: 1, loop: 1, foreach: 1, guardrail: 1, parallel: 1 };
   var LOOPS = { loop: 1, foreach: 1 };
   var BACK = { again: 1, rewind: 1 };
-  var HANDLERS = { failure: 1, exhausted: 1, violation: 1, 'still fails': 1, blocked: 1 };
+  var HANDLERS = { failure: 1, exhausted: 1, violation: 1, 'still fails': 1, blocked: 1, stopped: 1 };
 
   function has(table, key) { return Object.prototype.hasOwnProperty.call(table, key); }
   function attrsOf(node) { return node.attrs || {}; }
@@ -331,8 +332,21 @@
 
   /* ---------------------------------------------------------------- helpers */
 
-  var EDGE_WORDS = { again: 'loops back', done: 'when done', round: 'each round', rewind: 'rewinds' };
+  var EDGE_WORDS = { again: 'loops back', done: 'when done', round: 'each round', rewind: 'rewinds', stopped: 'when stopped' };
   /** The words on the line between two steps in the Focus view. */
+  /** The kinds of intervention line a graph draws, with how each looks and what it means. Colour is never the only signal: each has its own dash pattern and a label. */
+  var LINES = {
+    stopped: { name: 'Stopped', means: 'where the step goes when its agent is stopped (its on_stopped handler)', dash: '1.5 5' },
+    rewind: { name: 'Sent back', means: 'a rewind to a checkpoint the script declared, carrying the reason', dash: '8 4' }
+  };
+
+  /** Which of the intervention lines this workflow has, in the order of LINES. */
+  function lineKinds(model) {
+    var found = {};
+    model.nodes.forEach(function (n) { (model.out[n.id] || []).forEach(function (e) { if (has(LINES, e.label)) { found[e.label] = true; } }); });
+    return Object.keys(LINES).filter(function (k) { return found[k]; });
+  }
+
   function edgeWord(label) { return label ? (has(EDGE_WORDS, label) ? EDGE_WORDS[label] : label) : 'next'; }
 
   /** Steps in the order of a tree walk: the order the arrow keys and the Outline use. */
@@ -364,6 +378,7 @@
   }
 
   return {
+    LINES: LINES, lineKinds: lineKinds,
     VK: VK, LEGEND: LEGEND, CONTAINERS: CONTAINERS, build: build, mainPath: mainPath, edgeWord: edgeWord,
     visibleOrder: visibleOrder, descendants: descendants, railNote: railNote, conditionVariable: conditionVariable
   };

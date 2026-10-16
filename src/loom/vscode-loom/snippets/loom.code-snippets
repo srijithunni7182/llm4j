@@ -190,5 +190,53 @@
       "import \"${1:agents/team.loom}\""
     ],
     "description": "Bring in the agents and workflows of another file (paths are relative to this file)."
+  },
+  "agent-steerable": {
+    "prefix": "agent-steerable",
+    "body": [
+      "agent ${1:Researcher} {",
+      "\tmodel: \"${2:gemini-2.5-flash}\"",
+      "\tprompt: \"${3:writer}\"",
+      "\tstreaming: true      // the reply is shown as it is written; a steer or stop ends a call in progress",
+      "\treasoning: true      // show the model's reasoning where it can",
+      "\tsteerable: true      // the person this run serves may steer it while it works",
+      "}"
+    ],
+    "description": "An agent a person may steer while it works (streaming so a message reaches a call in progress). Steering corrects its reasoning and never changes the workflow."
+  },
+  "on-stopped": {
+    "prefix": "on-stopped",
+    "body": [
+      "checkpoint ${1:collected}  starting with ${2:feedback_text} = \"none\"",
+      "delegate \"Write from the notes. Feedback: {${2:feedback_text}}\" to ${3:Writer} -> ${4:draft_text}",
+      "\ton_stopped {",
+      "\t\talt (_stop.reason == \"user\") {",
+      "\t\t\trewind to ${1:collected} at most ${5:2} times carrying ${2:feedback_text} = \"{_stop.note}\" side effects: keep",
+      "\t\t}",
+      "\t\talt (_stop.changed == \"no\") { retry } else { use partial }",
+      "\t}"
+    ],
+    "description": "What a step does when its agent is stopped by a person: send the run back to a checkpoint carrying the reason, retry if nothing changed, otherwise keep what the agent had."
+  },
+  "intervention": {
+    "prefix": "intervention",
+    "body": [
+      "intervention {",
+      "\ttimeout: ${1|retry,use partial,skip,suspend|}",
+      "\tsibling: discard",
+      "\tuser:    ${2|ask,use partial,skip,suspend,conclude|}",
+      "}"
+    ],
+    "description": "Script-wide defaults for what happens when an agent is stopped, by reason: user, operator, timeout, budget, limit, sibling, supervision, safety, shutdown."
+  },
+  "supervise": {
+    "prefix": "supervise",
+    "body": [
+      "supervise ${1:Writer} {",
+      "\twhen looping(${2:3}) { steer \"${3:You are repeating yourself. Try something else.}\" once }",
+      "\twhen steps > ${4:15} { wrap_up }",
+      "}"
+    ],
+    "description": "Rules that watch an agent and act without a person: steer it when it repeats itself, wrap it up when it takes too many steps. Signals are counts of what it did."
   }
 }

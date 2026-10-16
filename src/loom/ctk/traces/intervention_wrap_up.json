@@ -1,0 +1,21 @@
+{
+  "scriptName": "intervention_wrap_up.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "delegate",
+      "agentName": "Writer",
+      "outputVariable": "out_text"
+    },
+    {
+      "kind": "stop",
+      "agentName": "Writer",
+      "payload": "{\"kind\":\"wrap_up\",\"outcome\":\"USE_PARTIAL\",\"reason\":\"user\"}"
+    },
+    {
+      "kind": "delegate",
+      "agentName": "Closer",
+      "outputVariable": "done_text"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "description": "cancelled is not success",
+  "tool": "calculator",
+  "replies": {
+    "Writer": [
+      "act",
+      "final:this must never be kept"
+    ],
+    "Closer": [
+      "final:closed"
+    ]
+  },
+  "interventions": [
+    {
+      "agent": "Writer",
+      "atCall": 1,
+      "kind": "cancel",
+      "reason": "abort",
+      "origin": "alice"
+    }
+  ],
+  "expect": {
+    "run": "completed",
+    "asked": 0,
+    "variables": {
+      "out_text": ""
+    },
+    "journalHasNoDelegateFor": "Writer"
+  }
+}

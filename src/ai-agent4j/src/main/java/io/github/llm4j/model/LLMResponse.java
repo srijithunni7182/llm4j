@@ -65,6 +65,8 @@ public final class LLMResponse {
     private final Map<String, Object> metadata;
     private final java.util.List<ToolCall> toolCalls;
     private final Map<String, Object> providerData;
+    private final String reasoning;
+    private final ToolCallDelta toolCallDelta;
 
     private LLMResponse(Builder builder) {
         this.content = builder.content;
@@ -74,6 +76,8 @@ public final class LLMResponse {
                 builder.finishReason != null ? builder.finishReason : FinishReason.UNKNOWN;
         this.toolCalls = builder.toolCalls == null ? java.util.List.of() : java.util.List.copyOf(builder.toolCalls);
         this.providerData = builder.providerData == null ? Map.of() : Map.copyOf(builder.providerData);
+        this.reasoning = builder.reasoning;
+        this.toolCallDelta = builder.toolCallDelta;
         this.metadata =
                 builder.metadata != null
                         ? Collections.unmodifiableMap(new HashMap<>(builder.metadata))
@@ -114,6 +118,21 @@ public final class LLMResponse {
         return providerData;
     }
 
+    /**
+     * On a streamed chunk: a piece of the model's reasoning (null on every other chunk, and on every chunk unless the request asked for it
+     * with {@link LLMRequest.Builder#reasoning}). It is never part of {@link #getContent()}, which stays the answer only, so a consumer that
+     * joins the content of the chunks gets the same answer with or without reasoning. What it holds depends on the model: a summary of its
+     * thinking where the provider offers one, otherwise nothing.
+     */
+    public String getReasoning() {
+        return reasoning;
+    }
+
+    /** On a streamed chunk: a piece of a tool call being written (null on every other chunk). See {@link ToolCallDelta}. */
+    public ToolCallDelta getToolCallDelta() {
+        return toolCallDelta;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -129,12 +148,14 @@ public final class LLMResponse {
                 && finishReason == that.finishReason
                 && Objects.equals(metadata, that.metadata)
                 && Objects.equals(toolCalls, that.toolCalls)
-                && Objects.equals(providerData, that.providerData);
+                && Objects.equals(providerData, that.providerData)
+                && Objects.equals(reasoning, that.reasoning)
+                && Objects.equals(toolCallDelta, that.toolCallDelta);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(content, model, tokenUsage, finishReason, metadata, toolCalls, providerData);
+        return Objects.hash(content, model, tokenUsage, finishReason, metadata, toolCalls, providerData, reasoning, toolCallDelta);
     }
 
     @Override
@@ -215,8 +236,20 @@ public final class LLMResponse {
         private Map<String, Object> metadata;
         private java.util.List<ToolCall> toolCalls;
         private Map<String, Object> providerData;
+        private String reasoning;
+        private ToolCallDelta toolCallDelta;
 
         private Builder() {}
+
+        public Builder reasoning(String reasoning) {
+            this.reasoning = reasoning;
+            return this;
+        }
+
+        public Builder toolCallDelta(ToolCallDelta toolCallDelta) {
+            this.toolCallDelta = toolCallDelta;
+            return this;
+        }
 
         public Builder toolCalls(java.util.List<ToolCall> toolCalls) {
             this.toolCalls = toolCalls;

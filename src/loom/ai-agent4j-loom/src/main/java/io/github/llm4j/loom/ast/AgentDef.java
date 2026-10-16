@@ -34,6 +34,9 @@ public class AgentDef implements Node {
     private final List<String> approve = new ArrayList<>();
     private boolean approveAll;
     private Integer maxIterations;
+    private boolean streaming;
+    private boolean reasoning;
+    private boolean steerable;
 
     public AgentDef(String name) {
         this.name = name;
@@ -96,6 +99,15 @@ public class AgentDef implements Node {
     /** {@code approve: all}. */
     public boolean isApproveAll() { return approveAll; }
     public void setApproveAll(boolean approveAll) { this.approveAll = approveAll; }
+    /** {@code streaming: true}: the reply is shown as it is written, and a steer or cancel ends a model call in progress. */
+    public boolean isStreaming() { return streaming; }
+    public void setStreaming(boolean streaming) { this.streaming = streaming; }
+    /** {@code reasoning: true}: ask the model to show its reasoning (a summary) where it can. */
+    public boolean isReasoning() { return reasoning; }
+    public void setReasoning(boolean reasoning) { this.reasoning = reasoning; }
+    /** {@code steerable: true}: the person this run serves may steer the agent while it works. Off by default. */
+    public boolean isSteerable() { return steerable; }
+    public void setSteerable(boolean steerable) { this.steerable = steerable; }
     public Integer getMaxIterations() { return maxIterations; }
     public void setMaxIterations(Integer maxIterations) { this.maxIterations = maxIterations; }
     public BudgetDef getBudget() { return budget; }

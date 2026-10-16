@@ -97,6 +97,25 @@ workflow Main(topic) {
 - `on_failure { ... }` takes over when the retries are used up, and the workflow goes on: a person is asked, a note is made, another path is taken. A step that has **no** `on_failure` ends the run as failed, and the run says which step did it: `failed_kind` (`task` or `delegate`), `failed_name`, `failed_step` and `failed_category` in the trace. A watched run shows this as a banner naming the step, and a step that went through its `on_failure` is shown as a quieter *diverted* line.
 - Decide for each task and delegate: is a failure here worth stopping the run, worth a retry, or worth a person? Do not leave it to chance.
 
+### Rules every agent needs
+
+Put what every agent must know (house rules, a glossary, the brief) in one `shared_prompt: "…"` or `shared_prompt: prompt "house-rules"` at the top of the script instead of pasting it into each agent. It comes first in every agent's system prompt, the same bytes each time; keep dates and run ids out of it. See `LOOM_GUIDE.md`, "A Prompt Every Agent Starts With".
+
+### A step a person may stop
+
+A person watching a run may step in: **steer** an agent (correct its reasoning; the workflow is untouched), **wrap it up** (finish now with what it has), or **stop** it. Say what the run does then, or the answer is "ask the person; if nobody can be asked, suspend the run". Mark the agent `steerable: true` (with `streaming: true`, so a message reaches a call in progress) and write an `on_stopped { ... }` on the step, or set `intervention { ... }` defaults for the whole script:
+
+```loom
+delegate "Write the report from {data}" to Writer -> draft
+    on_stopped {
+        alt (_stop.reason == "user") { rewind to collected at most 2 times carrying feedback = "{_stop.note}" side effects: keep }
+        alt (_stop.changed == "no") { retry }
+        else { use partial }
+    }
+```
+
+`supervise Agent { when looping(3) { steer "…" once } when tool_failing(Tool, 3) { wrap_up } }` does the same without a person, from counts of what the agent did. A rewind may name only a checkpoint the script declared. `weave audit` lists every steerable agent as an input channel (`LA18`). See [chapter 15](15-steer-stop-and-supervise.md) and `LOOM_GUIDE.md`, "Steering, Stopping and Wrapping Up an Agent".
+
 **A prompt can outgrow the window.** An agent that loops over tools adds to its prompt on every step. The `context { ... }` block in the agent (above) says how it keeps the prompt inside the model's window, and the windows live outside the script. Whether an agent needs it, which strategies to chain, and how to watch it is [chapter 14](14-context-and-compaction.md): read it before you finish a script whose agents loop on tools.
 
 ## When something is missing: write it, do not leave a gap

@@ -1,0 +1,19 @@
+// Canonical CTK test: intervention_person_cancel_back_refused
+// A person cannot send the run back to a checkpoint the script does not declare: the command is refused and the agent carries on.
+// Interventions are scripted, not timed: see interventions/intervention_person_cancel_back_refused.json (README, "Interventions").
+
+agent Collector { model: "ctk" system: "You are Collector." }
+agent Writer { model: "ctk" system: "You are Writer." tools: [calculator] steerable: true }
+agent Closer { model: "ctk" system: "You are Closer." }
+
+workflow main() {
+    checkpoint collected starting with notes = "none"
+    delegate "collect. Notes: {notes}" to Collector -> data
+    delegate "write from {data}" to Writer -> out_text
+        on_stopped {
+            alt (_stop.reason == "budget") {
+                rewind to collected at most 2 times carrying notes = "{_stop.note}" side effects: keep
+            }
+        }
+    delegate "close" to Closer -> done_text
+}

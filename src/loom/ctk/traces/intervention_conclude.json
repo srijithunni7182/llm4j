@@ -1,0 +1,16 @@
+{
+  "scriptName": "intervention_conclude.loom",
+  "workflowName": "main",
+  "steps": [
+    {
+      "kind": "delegate",
+      "agentName": "Writer",
+      "outputVariable": "out_text"
+    },
+    {
+      "kind": "stop",
+      "agentName": "Writer",
+      "payload": "{\"kind\":\"cancel\",\"outcome\":\"CONCLUDE\",\"reason\":\"user\"}"
+    }
+  ]
+}

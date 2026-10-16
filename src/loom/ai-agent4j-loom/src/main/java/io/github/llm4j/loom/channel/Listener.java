@@ -27,6 +27,7 @@ public final class Listener {
     private final Dispatch dispatch;
     private final Clock clock;
     private static final Duration SKEW = Duration.ofSeconds(60);
+    private io.github.llm4j.loom.execution.InterventionCommands commands;
     private boolean noted;
     private boolean notedStale;
     private int ignoredTotal;
@@ -38,6 +39,15 @@ public final class Listener {
         this.answers = answers;
         this.dispatch = dispatch;
         this.clock = clock;
+    }
+
+    /**
+     * Lets people who may answer also steer, wrap up, cancel, pause and resume the runs going on in this process (see {@code InterventionCommands}).
+     * A reply that answers a question (it replies to it, carries its code, or is one of its choices) is always an answer, never a command.
+     */
+    public Listener withCommands(io.github.llm4j.loom.execution.InterventionCommands commands) {
+        this.commands = commands;
+        return this;
     }
 
     /** How many replies from people who may not answer have been ignored so far. */
@@ -121,6 +131,9 @@ public final class Listener {
         }
         if (target == null && codeToken != null) target = store.get(codeToken).orElse(null);
         if (target == null && codeToken == null && open.size() == 1) target = open.get(0);
+        if (commands != null && commands.isCommand(text) && !answersAQuestion(reply, codeToken, target, text)) {
+            return new Handled(true, commands.handle(text, channel.name() + ":" + reply.sender()));
+        }
         if (target == null) return new Handled(false, help(open, codeToken));
         if (olderThanQuestion(reply, target)) {
             if (!notedStale) {
@@ -136,6 +149,11 @@ public final class Listener {
         String answer = codeGiven ? rest : text;
         Answers.Outcome o = answers.record(target.code(), answer, channel.name() + ":" + reply.sender());
         return new Handled(o.recorded(), o.message());
+    }
+
+    private static boolean answersAQuestion(Channel.Reply reply, String codeToken, Pending target, String text) {
+        if (target == null) return false;
+        return reply.replyToRef() != null || codeToken != null || target.choices().stream().anyMatch(c -> c.equalsIgnoreCase(text.strip()));
     }
 
     private static String help(List<Pending> open, String codeToken) {

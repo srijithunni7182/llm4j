@@ -21,6 +21,7 @@
   <a href="docs/THE_STACK.md">The stack</a> ·
   <a href="docs/EXAMPLES.md">Examples</a> ·
   <a href="docs/README.md">Docs</a> ·
+  <a href="docs/ABOUT.md">About</a> ·
   <a href="src/ai-agent4j/wiki/WHY_AI_AGENT4J.md">Why ai-agent4j?</a> ·
   <a href="src/loom/ai-agent4j-loom/WHY_LOOM.md">Why Loom?</a> ·
   <a href="SECURITY.md"><b>Security</b></a>
@@ -119,6 +120,7 @@ and a [Gmail MCP app](src/examples/gmail-mcp-app/). [All examples](docs/EXAMPLES
 [Secret Store](src/ai-agent4j/wiki/Secret-Store.md) ·
 [Security](SECURITY.md) ·
 [eval4j](src/eval4j/README.md) ·
+[About and history](docs/ABOUT.md) ·
 [Contributing](CONTRIBUTING.md)
 
 > [!TIP]

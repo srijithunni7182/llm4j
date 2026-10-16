@@ -32,6 +32,7 @@ calls tools, and the building blocks around them: memory, RAG, knowledge graphs,
 | **[💰 Budgets and Rate Limits](Budgets-and-Rate-Limits.md)** | Cap tokens and money before each call; pause on provider limits. |
 | **[📈 Telemetry and Statistics](Telemetry-and-Statistics.md)** | What each model call and tool call did: durations, failures by one shared category, success rates, latency percentiles. Every tool call and model call is reported, with retries, waits and fail-overs; a runnable example is in `src/examples/call-telemetry`. |
 | **[🗜️ Context and Compaction](Context-and-Compaction.md)** | Keep a growing prompt inside the model's context window with built-in or your own strategies. Works in both agent loops and for conversation history; a runnable example is in `src/examples/context-compaction`. |
+| **[🎛️ Steering, Streaming and Hooks](Steering-Streaming-and-Hooks.md)** | Steer, pause or cancel a running agent from another thread, watch its reply and reasoning as they are written, check tool calls before they run, and bound sub-agent delegation. |
 
 ### Memory and knowledge
 

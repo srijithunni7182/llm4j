@@ -1,0 +1,12 @@
+// Canonical CTK test: intervention_rewind_undeclared
+// A rewind in on_stopped may name only a checkpoint the script declared; the script is refused before it runs.
+// Interventions are scripted, not timed: see interventions/intervention_rewind_undeclared.json (README, "Interventions").
+
+agent Collector { model: "ctk" system: "You are Collector." }
+agent Writer { model: "ctk" system: "You are Writer." tools: [calculator] steerable: true }
+agent Closer { model: "ctk" system: "You are Closer." }
+
+workflow main() {
+    delegate "write" to Writer -> out_text
+        on_stopped { rewind to nowhere at most 1 times }
+}

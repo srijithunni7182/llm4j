@@ -74,7 +74,11 @@ final class AgentCatalog {
                 a.isApproveAll(),
                 BudgetSummary.of(a.getBudget()),
                 a.getMaxIterations(),
-                a.getLine() > 0 ? new SourceRef(located.file(), a.getLine()) : null);
+                a.getLine() > 0 ? new SourceRef(located.file(), a.getLine()) : null,
+                null,
+                a.isStreaming(),
+                a.isReasoning(),
+                a.isSteerable());
     }
 
     /** An agent definition and the file it is written in. */

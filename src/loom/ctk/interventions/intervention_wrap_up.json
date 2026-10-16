@@ -1,0 +1,34 @@
+{
+  "description": "wrap up",
+  "tool": "calculator",
+  "replies": {
+    "Writer": [
+      "act",
+      "act",
+      "final:finished"
+    ],
+    "Closer": [
+      "final:closed"
+    ]
+  },
+  "wrapUp": {
+    "Writer": "wrapped answer"
+  },
+  "interventions": [
+    {
+      "agent": "Writer",
+      "atCall": 1,
+      "kind": "wrap_up",
+      "reason": "the deadline is near",
+      "origin": "scheduler"
+    }
+  ],
+  "expect": {
+    "run": "completed",
+    "asked": 0,
+    "variables": {
+      "out_text": "wrapped answer",
+      "done_text": "closed"
+    }
+  }
+}

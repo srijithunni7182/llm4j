@@ -120,6 +120,15 @@ public final class SecurityAudit {
         AgentProfile profile = new AgentProfile(a.getName(), a.getLine(), dedupe(untrusted), dedupe(privateData), dedupe(outward), dedupe(unapproved), a.isApproveAll(),
                 a.getBudget() != null ? "own" : script.getBudget() != null ? "run budget" : "none", pii, memory);
 
+        if (a.isSteerable()) {
+            boolean exposed = profile.trifecta() || (!profile.privateData().isEmpty() && !profile.outward().isEmpty());
+            findings.add(new Finding("LA18", exposed ? Severity.MEDIUM : Severity.INFO, List.of(Owasp.LLM01),
+                    a.getName(), a.getLine(), exposed ? "A steerable agent can reach private data and act" : "A person's text reaches this agent while it works",
+                    a.getName() + " is steerable: whoever may steer the run can put new instructions in front of it at any time" + (exposed
+                            ? ", and it reaches private data (" + String.join(", ", profile.privateData()) + ") and can send or act (" + String.join(", ", profile.outward())
+                            + "). A steer is checked by its guard and recorded, but it is an input channel like any other." : "."),
+                    "Allow steering only for the people the run serves (the channel's allowlist), keep a guard on the agent, and leave steerable off where no one needs it."));
+        }
         if (profile.trifecta()) {
             boolean open = !unapprovedOutward.isEmpty();
             findings.add(new Finding("LA01", open ? Severity.HIGH : Severity.MEDIUM, List.of(Owasp.LLM01, Owasp.LLM02, Owasp.LLM06), a.getName(), a.getLine(),

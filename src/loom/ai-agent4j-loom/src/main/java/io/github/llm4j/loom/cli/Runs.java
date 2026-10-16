@@ -171,7 +171,7 @@ final class Runs {
         }
 
         env.out().println("🚀 Executing workflow: " + spec.workflow() + "...");
-        try {
+        try (AutoCloseable live = io.github.llm4j.loom.execution.LiveRuns.shared().register(spec.workflow(), executor)) {
             executor.executeWorkflow(spec.workflow(), spec.inputs(), env.invoker());
             env.out().println("✅ Workflow completed successfully.");
             return new Result(0, null, null, null);

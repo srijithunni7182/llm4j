@@ -1,0 +1,31 @@
+{
+  "description": "sibling: discard",
+  "tool": "calculator",
+  "replies": {
+    "Writer": [
+      "act",
+      "act",
+      "final:finished"
+    ],
+    "Closer": [
+      "final:closed"
+    ]
+  },
+  "interventions": [
+    {
+      "agent": "Writer",
+      "atCall": 1,
+      "kind": "cancel",
+      "reason": "sibling",
+      "origin": "race"
+    }
+  ],
+  "expect": {
+    "run": "completed",
+    "asked": 0,
+    "variables": {
+      "out_text": "",
+      "done_text": "closed"
+    }
+  }
+}

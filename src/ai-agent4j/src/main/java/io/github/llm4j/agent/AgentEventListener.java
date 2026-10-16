@@ -90,4 +90,68 @@ public interface AgentEventListener {
     default void onToolCall(io.github.llm4j.telemetry.ToolCallEvent event) {
         // no-op by default; implementors opt in
     }
+
+    /**
+     * Called when a message sent through {@link RunHandle#steer} reaches the agent, just before the model call that will see it.
+     *
+     * @param message the text the user sent
+     */
+    default void onSteered(String message) {
+        // no-op by default; implementors opt in
+    }
+
+    /**
+     * Called when a {@link RunHook} changed the course of a run.
+     *
+     * @param seam {@code input}, {@code model_call} or {@code settle}
+     * @param outcome {@code replaced}, {@code rejected}, {@code note}, {@code sent_back} or {@code limit_reached} (the agent had been sent back as often as
+     *     it may be, and the answer was accepted)
+     * @param message the text the hook gave, or null
+     */
+    default void onRunHook(String seam, String outcome, String message) {
+        // no-op by default; implementors opt in
+    }
+
+    /**
+     * Streaming only: a piece of the model's reasoning, as it is written (see {@link ReActAgent.Builder#reasoning}). What it holds depends
+     * on the model; where the provider offers a summary of the thinking, this is the summary.
+     */
+    default void onReasoningDelta(String piece) {
+        // no-op by default; implementors opt in
+    }
+
+    /** Streaming only: a piece of the model's reply text, as it is written. The whole text still arrives through {@link #onThought} or the answer. */
+    default void onTextDelta(String piece) {
+        // no-op by default; implementors opt in
+    }
+
+    /** Streaming only: the model has begun writing a call to this tool; its arguments are still to come. */
+    default void onToolCallStarted(String toolName) {
+        // no-op by default; implementors opt in
+    }
+
+    /** Called when a tool hook (or the argument check) refuses a call; {@code message} is what the model is shown instead of a result. */
+    default void onToolRejected(String toolName, String message) {
+        // no-op by default; implementors opt in
+    }
+
+    /** Called when a run stops at a checkpoint because its {@link RunHandle} was paused. */
+    default void onPaused() {
+        // no-op by default; implementors opt in
+    }
+
+    /** Called when a paused run carries on. */
+    default void onResumed() {
+        // no-op by default; implementors opt in
+    }
+
+    /** Called when a run ends because its {@link RunHandle} asked it to wrap up. */
+    default void onWrappedUp() {
+        // no-op by default; implementors opt in
+    }
+
+    /** Called when a run ends because its {@link RunHandle} was cancelled. */
+    default void onCancelled() {
+        // no-op by default; implementors opt in
+    }
 }

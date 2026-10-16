@@ -58,6 +58,7 @@ button { font: inherit; color: inherit; }
 .k-decide { --h: 330; --c: 0.09; }
 .k-checkpoint { --h: 250; --c: 0.03; }
 .k-rewind { --h: 300; --c: 0.08; }
+.k-outcome { --h: 40; --c: 0.08; }
 .k-observe { --h: 250; --c: 0.03; }
 .k-sleep { --h: 250; --c: 0.03; }
 .k-unknown { --h: 250; --c: 0.012; }
@@ -250,6 +251,13 @@ body.vscode-high-contrast .card { border-width: 2px; }
 .fpaths .p-main { stroke: var(--accent-700); }
 .fpaths .p-detour, .fpaths .p-rejoin { stroke: var(--n500); stroke-width: 1.5; }
 .fpaths .p-back { stroke: var(--accent-600); stroke-width: 1.5; stroke-dasharray: 4 3; }
+/* interventions: each has its own pattern as well as its own colour, so neither alone is the signal */
+.fpaths .p-stopped, .linelegend .p-stopped { stroke: oklch(52% 0.15 45); stroke-width: 2.2; stroke-dasharray: 1.5 5; stroke-linecap: round; }
+.fpaths .p-rewind, .linelegend .p-rewind { stroke: oklch(48% 0.15 300); stroke-width: 2; stroke-dasharray: 8 4; }
+.linelegend { display: inline-flex; flex-wrap: wrap; gap: 2px 12px; align-items: center; }
+.linelegend svg { fill: none; vertical-align: middle; }
+.linelegend .sample { fill: none; }
+.linelegend.inplace { position: absolute; left: 14px; bottom: 6px; padding: 3px 8px; border: 1px solid var(--lg-line); border-radius: 6px; background: var(--vscode-editor-background, #fff); font-size: 11px; }
 .stage .card { position: absolute; max-width: none; }
 .band { position: absolute; border-top: 2px solid var(--lg-line); padding-top: 6px; display: flex; align-items: baseline; gap: 8px; overflow: hidden; white-space: nowrap; color: var(--n600); }
 .band.on { border-top-color: var(--accent); color: var(--accent-700); }

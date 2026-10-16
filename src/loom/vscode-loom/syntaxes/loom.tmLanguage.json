@@ -2,14 +2,33 @@
   "name": "Loom",
   "scopeName": "source.loom",
   "patterns": [
-    { "include": "#comments" },
-    { "include": "#strings" },
-    { "include": "#ladder-modes" },
-    { "include": "#keywords" },
-    { "include": "#numbers" },
-    { "include": "#operators" },
-    { "include": "#punctuation" },
-    { "include": "#identifiers" }
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#ladder-modes"
+    },
+    {
+      "include": "#stop-variable"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#punctuation"
+    },
+    {
+      "include": "#identifiers"
+    }
   ],
   "repository": {
     "comments": {
@@ -29,11 +48,18 @@
     },
     "ladder-modes": {
       "match": "\\b(mode)(\\s*:\\s*)(blind|confirm|autonomous)\\b",
-      "captures": { "1": { "name": "keyword.control.loom" }, "3": { "name": "support.constant.loom" } }
+      "captures": {
+        "1": {
+          "name": "keyword.control.loom"
+        },
+        "3": {
+          "name": "support.constant.loom"
+        }
+      }
     },
     "keywords": {
       "name": "keyword.control.loom",
-      "match": "\\b(agent|workflow|delegate|handoff|broadcast|parallel|loop|alt|call|guardrail|observe|schedule|routing|import|mcp|audit|note|halt|set|return|retry|on_failure|for|each|in|max|on_exhausted|expecting|backoff|timeout|human_prompt|else|until|to|temperature|budget|per_call|warn_at|rate_limits|on_limit|max_wait|max_resumes|when_exhausted|per|cron|every|timezone|run|misfire|overlap|use|approve|max_iterations|source|top_k|store|mode|env|provider|persona|memory|voice|guard|context|compact|summarizer|trigger|keep_recent|max_compactions|conversation|session|facts|recall|min_similarity|listen|speak|pii|bias|bias_model|checkpoint|rewind|sleep|decision|decide|trust|ladder|rung|measure|climb|slip|escalate|climbing|ceiling|proposes|sample)\\b"
+      "match": "\\b(agent|workflow|delegate|handoff|broadcast|parallel|loop|alt|call|guardrail|observe|schedule|routing|import|mcp|audit|note|halt|set|return|retry|on_failure|for|each|in|max|on_exhausted|expecting|backoff|timeout|human_prompt|else|until|to|temperature|budget|per_call|warn_at|rate_limits|on_limit|max_wait|max_resumes|when_exhausted|per|cron|every|timezone|run|misfire|overlap|use|approve|max_iterations|source|top_k|store|mode|env|provider|persona|memory|voice|guard|context|compact|summarizer|trigger|keep_recent|max_compactions|conversation|session|facts|recall|min_similarity|listen|speak|pii|bias|bias_model|checkpoint|rewind|sleep|decision|decide|trust|ladder|rung|measure|climb|slip|escalate|climbing|ceiling|proposes|sample|on_stopped|intervention|steerable|streaming|reasoning|skip|discard|suspend|conclude|partial|ask|supervise|shared_prompt|when|looping|tool_failing|wrap_up)\\b"
     },
     "numbers": {
       "name": "constant.numeric.loom",
@@ -66,6 +92,17 @@
     "identifiers": {
       "name": "variable.other.loom",
       "match": "\\b[\\w]+\\b"
+    },
+    "stop-variable": {
+      "match": "\\b(_stop)(\\.)(reason|note|kind|phase|partial|changed|origin)\\b",
+      "captures": {
+        "1": {
+          "name": "variable.language.loom"
+        },
+        "3": {
+          "name": "variable.other.property.loom"
+        }
+      }
     }
   }
 }

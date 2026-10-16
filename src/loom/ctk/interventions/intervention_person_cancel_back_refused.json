@@ -1,0 +1,35 @@
+{
+  "description": "a person cannot send the run back to an undeclared checkpoint",
+  "tool": "calculator",
+  "replies": {
+    "Collector": [
+      "final:sources one"
+    ],
+    "Writer": [
+      "act",
+      "final:carried on"
+    ],
+    "Closer": [
+      "final:closed"
+    ]
+  },
+  "interventions": [
+    {
+      "agent": "Writer",
+      "atCall": 1,
+      "kind": "cancel_back",
+      "checkpoint": "nowhere",
+      "reason": "x",
+      "origin": "alice",
+      "refused": true
+    }
+  ],
+  "expect": {
+    "run": "completed",
+    "asked": 0,
+    "variables": {
+      "out_text": "carried on",
+      "done_text": "closed"
+    }
+  }
+}

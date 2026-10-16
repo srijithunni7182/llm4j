@@ -230,6 +230,8 @@ agent Analyst {
     system: "You are an analyst specialising in {domain}."   // follows the persona when both are given
     temperature: 0.3                     // 0.0–2.0: creative roles high, checkers low
     max_iterations: 8                    // how many reasoning steps it may take
+    streaming: true                      // show the reply as it is written (see "Steering, Stopping and Wrapping Up an Agent")
+    steerable: true                      // a person may steer it while it works
 
     skills: ["fs://skills/analyst_best_practices.md"]   // Markdown instructions, relative to the script
     tools: [Search, calculator]          // declared tools, built-ins, or .loot / Java tools
@@ -1135,6 +1137,30 @@ From Java, `MarkdownFolderPromptRegistry` reads the same folder and implements `
 
 ---
 
+### A Prompt Every Agent Starts With
+
+Rules, a glossary or the brief that every agent of the workflow needs belong in one place, not pasted into each agent. `shared_prompt` puts that text in front of every agent's own prompt:
+
+```loom
+shared_prompt: "All of us work for Acme. Never promise a refund. Answer in plain English."
+// or a prompt file, as an agent's prompt: "house-rules" would be:
+// shared_prompt: prompt "house-rules"
+
+agent Researcher { model: "gemini-2.5-flash"  system: "You find the facts."  tools: [calculator] }
+agent Writer     { model: "gemini-2.5-flash"  system: "You write the answer." }
+
+workflow Brief(topic) {
+    delegate "Find the facts about {topic}" to Researcher -> facts
+    delegate "Write it up from {facts}" to Writer -> draft
+}
+```
+
+- Every agent's system prompt is the shared text, a blank line, then the agent's own prompt (its `prompt:` file, persona, `system:` and skills). The shared text is the same bytes for every agent.
+- That sameness is deliberate: a model provider that charges less for the start of a prompt it has just seen can reuse the shared part across the agents. Loom only lays the prompt out that way; it does not ask any provider for caching. The saving is real only when the shared text is long (a thousand tokens or more), the agents use the same model, and nothing in it changes between calls, so keep dates and run ids out of it.
+- `shared_prompt: prompt "id"` takes a prompt file or registry prompt like an agent's `prompt:` (the latest version, or `id@v2`), and `weave check` reports a missing file. A shared prompt file counts as used.
+- Editing the shared text is a different agent as far as earned autonomy is concerned, for every agent that has a decision. `weave explain` says that every agent is first told it.
+- One `shared_prompt` per script. There is no way to leave a single agent out.
+
 ### Personas, Skills and Knowledge Graphs
 
 **Personas** can be declared in the script. An agent's `system:` prompt follows its persona:
@@ -1799,6 +1825,93 @@ delegate "Summarise {doc}" to Writer -> summary retry 2 backoff 2s timeout 90s o
     note "Writer unavailable: {_error}"
 }
 ```
+
+### Steering, Stopping and Wrapping Up an Agent
+
+A person can watch an agent work and step in: correct its thinking, ask it to finish with what it has, or stop it. The script decides what the run does then, so a stop is never a silent failure and never counted as a success by accident.
+
+```loom
+agent Researcher {
+    model: "gemini-2.5-flash"
+    tools: [calculator]
+    streaming: true      // the reply is shown as it is written; a steer or stop ends a model call in progress
+    reasoning: true      // ask the model to show its reasoning where it can
+    steerable: true      // the person this run serves may steer it. Off unless you say so.
+}
+```
+
+- **Steer** sends the agent a message before its next model call. It corrects the agent's *reasoning*; it never changes the workflow.
+- **Wrap up** asks the agent to finish now: one more model call with tools off, and that answer is its result.
+- **Stop (cancel)** ends the agent. Whoever stops it gives a reason; the script (or a person) says what happens next.
+
+What happens next is one of: `use partial` (keep what the agent had, marked as incomplete), `skip` (the step produces nothing and the run goes on), `discard` (drop the step quietly), `retry` (run it again, once, and only if the agent changed nothing outside the run), `suspend` (pause the run; the step starts again on resume), `conclude` (end the run), `ask` (put it to a person) or `rewind` (go back to an earlier checkpoint). With nothing said, a stop by a person is put to a person; when there is nobody to ask, the run is suspended.
+
+A step can say what to do in its own `on_stopped` handler, and the script can set defaults for every step by the reason the agent was stopped:
+
+```loom
+intervention {
+    timeout:  retry          // the reasons: user, operator, timeout, budget, limit, sibling, supervision, safety, shutdown
+    sibling:  discard
+}
+
+agent Collector { model: "gemini-2.5-flash"  system: "Collect sources on the topic." }
+agent Writer    { model: "gemini-2.5-flash"  system: "Write the report."  streaming: true  steerable: true }
+
+workflow Report(topic) {
+    checkpoint collected  starting with feedback = "none"
+
+    delegate "Collect sources on {topic}. Notes so far: {feedback}" to Collector -> data
+    delegate "Write the report from {data}" to Writer -> draft
+        timeout 90s
+        on_stopped {
+            alt (_stop.reason == "user") {
+                rewind to collected at most 2 times carrying feedback = "{_stop.note}" side effects: keep
+            }
+            alt (_stop.reason == "budget") { use partial }
+        }
+}
+```
+
+Inside `on_stopped`, `_stop` describes the stop: `_stop.reason` (one of the reasons above; whatever a person wrote counts as `user`), `_stop.note` (the person's own words), `_stop.kind` (`cancel` or `wrap_up`), `_stop.phase`, `_stop.partial` (the last thing the agent said), `_stop.changed` (`yes` if the agent may already have changed something outside the run, otherwise `no`) and `_stop.origin`. The first outcome reached decides; if the handler reaches none, the `intervention` default for the reason applies, then the built-in default. A person who names an outcome when they stop an agent overrides the script.
+
+A `rewind` in `on_stopped` may name only a checkpoint the script declared, and it needs `at most N times`. `weave check` rejects a misspelt `_stop` field, a rewind to a checkpoint that is not there, and warns about `retry` for an agent with tools that does not test `_stop.changed`, and about `steerable` without `streaming`. `weave audit` lists every steerable agent as an input channel (`LA18`), `weave graph` draws the handler on a dotted `stopped` edge, and `weave explain` says it in words.
+
+Every steer, stop and decision is journaled and traced, so a resumed run knows what was said and what was decided. A steer is checked by the agent's `guard` and refused if the agent is not `steerable`.
+
+**Rules that watch an agent.** A `supervise` block acts without a person when something the agent *does* can be counted. Every signal is a count, never a model's opinion, and what a rule does is journaled, traced and audited like what a person does.
+
+```loom
+agent Researcher { model: "gemini-2.5-flash"  tools: [calculator]  max_iterations: 20 }
+
+supervise Researcher {
+    when looping(3)                   { steer "You are repeating yourself. Try something else." once }
+    when tool_failing(calculator, 3)  { wrap_up }
+    when context > 90%                { wrap_up }
+    when steps > 15                   { cancel use partial }
+}
+
+workflow Brief(topic) { delegate "Research {topic}" to Researcher -> findings }
+```
+
+`looping(N)` is the same tool with the same input N times in a row; `tool_failing(Tool, N)` is N failures of that tool in a row (a success starts the count again); `context > P%` is how full the model's window is, when it is known; `steps > N` is model calls in the step. A rule fires when its condition *becomes* true, and again only if it goes false and true again; `once` makes it fire at most once in the step. The actions are `steer "text"`, `wrap_up` and `cancel [outcome]` (a cancel with no outcome is settled like any other stop, with the reason `supervision`). A supervision steer does not need `steerable: true`: the script declared it. Not supported: `retry with <Agent>`. Rules are not under the earned-autonomy ladder.
+
+**Reaching a running workflow.** The script says what may happen; a person reaches the process that is running it in one of three ways.
+
+- *The console:* `weave run script.loom --steer-via console` reads commands typed in the same terminal (a line typed while a question is open is the answer to it).
+- *A chat:* a process that has a channel (`weave daemon --ask-via telegram`, or the application's own) lets the people on the channel's allowlist send the same commands to the runs going on in that process. A reply to a question is still an answer: a reply to its message, one that carries its code, or one of its choices is never taken for a command.
+- *An application that embeds Loom:* `LoomRun.start(executor, "Digest", inputs)` gives `steer`, `wrapUp`, `cancel(agent, Outcome, reason)`, `pause` and `resume`, and `run.cancel("Writer", Outcome.rewindTo("collected"), "the sources were stale")` to send the run back.
+
+```text
+agents                                          who is working
+steer Researcher focus on the EU market         correct its reasoning
+wrap up Writer : that is enough                 finish now with what it has
+cancel Writer skip : not needed                 outcome: use partial | skip | discard | retry | suspend | conclude | ask
+cancel Writer back to collected : sources stale send the run back to a checkpoint the script declared
+pause Writer / resume Writer
+#digest steer Researcher ...                    #label says which run, when several are going
+```
+
+Sending a run back needs two things from the script: the checkpoint must be declared, and the step must have an `on_stopped { rewind ... }` to take its limit (`at most N times`) and its side-effects policy from; otherwise the command is refused and says why. A run that is suspended or finished cannot be steered: its stops and answers travel through the journal. Fabric stays a window: it shows these events and has no control for them.
 
 ### Per-Step Schemas (`expecting`)
 One agent can return different structures in different steps. `expecting { ... }` on a delegate overrides

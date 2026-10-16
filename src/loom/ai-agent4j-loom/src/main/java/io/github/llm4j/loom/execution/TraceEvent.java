@@ -38,6 +38,10 @@ public record TraceEvent(String type, String agent, String step, String text, Ma
     public static final String TOOL = "tool";
     public static final String CHECKPOINT = "checkpoint";
     public static final String REWIND = "rewind";
+    /** Someone steered, paused, resumed, wrapped up or cancelled a running agent (data: action, step, origin, reason). */
+    public static final String INTERVENTION = "intervention";
+    /** A step whose agent was stopped, and what the run decided to do about it (data: reason, phase, outcome, changed, why). */
+    public static final String STEP_STOPPED = "step_stopped";
     public static final String DECISION = "decision";
     /** A {@code note} step: a message the workflow wants shown (a result, a status). */
     public static final String NOTE = "note";

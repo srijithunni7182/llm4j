@@ -1,0 +1,35 @@
+{
+  "description": "named retry refused when changed",
+  "tool": "MockTool",
+  "replies": {
+    "Writer": [
+      "act",
+      "act",
+      "final:finished"
+    ],
+    "Closer": [
+      "final:closed"
+    ]
+  },
+  "interventions": [
+    {
+      "agent": "Writer",
+      "atCall": 1,
+      "kind": "cancel",
+      "reason": "try again",
+      "origin": "alice",
+      "outcome": "RETRY"
+    }
+  ],
+  "human": [
+    "use partial"
+  ],
+  "expect": {
+    "run": "completed",
+    "asked": 1,
+    "variables": {
+      "out_text": "act",
+      "done_text": "closed"
+    }
+  }
+}

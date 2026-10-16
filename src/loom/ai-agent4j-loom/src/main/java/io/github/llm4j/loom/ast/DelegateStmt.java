@@ -15,6 +15,8 @@ public class DelegateStmt extends LocatedStatement {
     /** Optional per-step schema ({@code expecting { ... }}) that overrides the agent's output_schema. */
     private SchemaDef expecting;
     private final List<Statement> onFailure = new ArrayList<>();
+    private final List<Statement> onStopped = new ArrayList<>();
+    private boolean hasOnStopped;
 
     public DelegateStmt(String payload, String targetAgent, String variableName) {
         this.payload = payload;
@@ -50,6 +52,11 @@ public class DelegateStmt extends LocatedStatement {
     public void setRetryCount(int retryCount) { this.retryCount = retryCount; }
 
     public List<Statement> getOnFailure() { return onFailure; }
+
+    /** The {@code on_stopped { }} handler: what to do when the agent is stopped through its handle. Empty when there is none. */
+    public List<Statement> getOnStopped() { return onStopped; }
+    public boolean hasOnStopped() { return hasOnStopped; }
+    public void setHasOnStopped(boolean hasOnStopped) { this.hasOnStopped = hasOnStopped; }
 
     private BudgetDef budget;
     /** This statement's own budget ({@code budget N tokens}), or null. */

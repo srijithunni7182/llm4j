@@ -25,6 +25,18 @@ eval4j's `io.github.llm4j.eval.dataset.EvalScenario` is a record that grows by a
 null; `expectedMinWords()` and `expectedMaxWords()` are null when no limit is set). Code that builds a scenario with `new EvalScenario(...)` or reads its accessors is unaffected; code that destructures the record by its full component list
 (pattern matching) is the one case that must change.
 
+The agent library's run controls are additive. `ReActAgent.run(question)` behaves as before; `run(question, RunHandle)` adds steering, pausing, wrapping up and cancelling,
+and `AgentResult` gains `getStop()` (a `StopReport`), `isWrappedUp()` and `isCancelled()`. Streaming, reasoning and tool hooks are builder options that are off by default.
+Loom adds the agent settings `streaming`, `reasoning` and `steerable`, the `on_stopped` handler and the `intervention` block; a script that does not use them behaves exactly as before.
+The graph JSON gains an `outcome` node kind, a `stopped` edge label and the optional agent flags `streaming`, `reasoning` and `steerable` (older readers ignore what they do not know).
+The trace gains the events `intervention` and `step_stopped`, and the run journal the entry kinds `steer`, `stop`, `skipped` and `discarded`. The journal has no format version, so an older `weave` is not stopped from opening a journal with these entries (the design plans a stamp that would make it refuse; it is not built). Finish a run that has them with the version that wrote them.
+
+`RunHook` (checks on the question, each model call and the final answer) and `AgentResult.isInputRejected()` are additive: an agent with no run hook behaves as before. Loom's top-level `shared_prompt` is additive too; a script without it is unchanged.
+
+Loom adds the statements `halt`, `set` and `return` and the condition `x is ok` / `x is not ok`; a script that does not use them is unchanged (the words are contextual, so a variable called `set` or `ok` keeps working). `io.github.llm4j.agent.task.Task` gains the default method `okOutcomes()` (`{ok}`), so every existing task keeps working. `HarnessExecutor.executeWorkflow` can now throw `io.github.llm4j.loom.runtime.RunHalted` (a `RuntimeException`) when a script halts, next to `BudgetExceeded`, `RunSuspended` and `RunStopped`; `weave run` exits with code 6. The trace gains the events `halt` and `schema_violation`, the run's final status `halted`, and the graph JSON the node kinds `halt`, `set` and `return`; loom-inspect shows a halted run as stopped.
+
+**One behaviour change, deliberately.** An agent's answer is now checked against its `output_schema` / `expecting`. Before, an answer that was not JSON (or did not match) reached the script as raw text; now the step is retried once with a correction, and then fails into `on_failure`. A script that relied on the raw text must handle the failure (or drop the schema). Decision proposals (`decide`) keep reading answers leniently.
+
 Internal implementation details may change without notice, especially:
 
 - `io.github.llm4j.http`
