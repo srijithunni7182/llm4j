@@ -172,4 +172,17 @@ class SecretsTest {
             return t;
         }
     }
+
+    @Tag("SB-V2.8")
+    @Test
+    void blankSettingsCountAsNotSetAndValueResolvesNow() {
+        io.github.llm4j.secret.InMemorySecretStore store = new io.github.llm4j.secret.InMemorySecretStore();
+        store.put("K", "v");
+        assertThat(CredentialProperty.ref("p", null, null, null)).isNull();
+        assertThat(CredentialProperty.ref("p", " ", "", null)).isNull();
+        assertThat(CredentialProperty.ref("p", "", "K", store)).isNotNull();
+        assertThat(CredentialProperty.value("p", null, "K", store)).isEqualTo("v");
+        assertThat(CredentialProperty.value("p", "lit", null, null)).isEqualTo("lit");
+        assertThat(CredentialProperty.value("p", null, null, store)).isNull();
+    }
 }
