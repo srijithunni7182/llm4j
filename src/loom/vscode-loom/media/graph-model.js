@@ -44,7 +44,8 @@
   var BY_KIND = {
     delegate: 'agent', handoff: 'agent', broadcast: 'agent', task: 'task', loop: 'loop', foreach: 'loop',
     human_prompt: 'human', note: 'note', start: 'term', end: 'term', parallel: 'parallel', call: 'call',
-    guardrail: 'guardrail', decide: 'decide', checkpoint: 'checkpoint', rewind: 'rewind', observe: 'observe', sleep: 'sleep'
+    guardrail: 'guardrail', decide: 'decide', checkpoint: 'checkpoint', rewind: 'rewind', observe: 'observe', sleep: 'sleep',
+    halt: 'exit', set: 'note', return: 'term'
   };
 
   var CONTAINERS = { alt: 1, loop: 1, foreach: 1, guardrail: 1, parallel: 1 };

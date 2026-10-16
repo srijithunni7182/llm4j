@@ -23,7 +23,8 @@ function expand(body: string[]): string {
 // Statement-level snippets go inside a workflow; the rest are whole top-level definitions.
 const TOP = new Set(['agent', 'agent-private', 'workflow', 'budget', 'tool', 'tool-class', 'import']);
 // Not checkable on their own: a task is Java (graph only), an import needs a file.
-const PARSE_ONLY = new Set(['run']);
+// halt and return end the path (the frame's own statements after them would never run), and `is ok` needs a real run result.
+const PARSE_ONLY = new Set(['run', 'halt', 'return', 'isok']);
 const SKIP = new Set(['import']);
 
 const PRELUDE = [
@@ -46,7 +47,7 @@ function frame(name: string, text: string): string {
         return PRELUDE + text + '\nworkflow Main(topic_text) {\n    note "{topic_text}"\n}\n';
     }
     // read every variable the snippet sets, so the check's "never used" warning is not about the frame
-    const sets = [...text.matchAll(/->\s*(\w+)/g)].map((m) => m[1]);
+    const sets = [...text.matchAll(/(?:->|\bset)\s+(\w+)/g)].map((m) => m[1]);
     const reads = sets.map((v) => `    note "{${v}}"`).join('\n');
     return (
         PRELUDE +
