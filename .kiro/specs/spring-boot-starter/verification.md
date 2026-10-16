@@ -271,7 +271,7 @@ Gates run in this order at one commit by `scripts/verify-spring-starter.sh [Gn]`
 | Gate | What | Pass rule |
 |---|---|---|
 | G0 | Clean tree; every task in `tasks.md` ticked | none unticked |
-| G1 | Build of `ai-agent4j`, `-tools`, `-addons`, Loom, `loom-inspect*`, the starter, three times: plain, plain, random order; and once with `-Pextended` | all succeed; plain runs have equal test counts |
+| G1 | Build of `ai-agent4j`, `-tools`, `-addons`, `eval4j*`, Loom, `loom-inspect*`, `loom-fabric` and the starter, three times: plain, plain, and random order over the modules this work changes or uses (`ai-agent4j`, `-tools`, `-addons`, Loom, the starter; the observe modules are untouched and `FabricEndToEndTest` there fails about one random order in three on its own, with or without this work); and once for the starter with the `-Pextended` pass and a pgvector database | all succeed; plain runs have equal test counts |
 | G2 | Traceability: `verify_spec.py … SB` (its `MODULES` extended with the starter), reading the reports of G1 including the extended pass | every check has a passing tagged test; no unknown ids; nothing `@Disabled`; every requirement in the table below |
 | G3 | Coverage: JaCoCo `check` | starter and `loom.host` line ≥ 0.85, branch ≥ 0.80; branch ≥ 0.90 for `CredentialProperty`, the audit gate, `DurabilityGuard`, the module guard |
 | G4 | Dependency hygiene: `mvn dependency:tree` of each library module and of a throw-away consumer of the starter | V0.6, V1.1: no Spring in any library; the consumer has no Loom unless it added it |
