@@ -1,0 +1,12 @@
+- id: workflow-001
+  name: A small command-line tool, built end to end
+  input: "A command-line tool that counts the words in a text file"
+  inputs: { project_id: eval-wordcount }
+  dimensions: [grounding]
+  expect:
+    - "Aditi wrote the PRD before Rishi wrote the spec, and the spec was saved before any code was written"
+    - "The first unit test and the end to end suite were written at the same time, before the construction phase"
+    - "Construction ran before Vishnu's first review, QA ran after it, and the final sign-off came last"
+    - "The project was packaged only after the sign-off"
+  rubric:
+    - "The run ends with a note saying the project was released and where the archive is"
