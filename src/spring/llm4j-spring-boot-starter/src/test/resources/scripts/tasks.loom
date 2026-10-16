@@ -1,0 +1,5 @@
+agent Writer { model: "test/model" system: "You are Writer." }
+
+workflow Main() {
+    run Refund(amount = "12.50") -> verdict
+}

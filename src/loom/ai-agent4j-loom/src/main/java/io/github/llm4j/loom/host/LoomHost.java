@@ -431,6 +431,7 @@ public final class LoomHost implements AutoCloseable {
                 if (human == null) human = new HostHumanInterface(runId, answers, o.listeners, clock);
             } else {
                 ex.setTriggerStore(new InMemoryTriggerStore()); // a task given to an agent: the script's schedules are already stored
+                if (human == null) human = new HostHumanInterface("(no run)", answers, o.listeners, clock); // so a script that asks a person passes validation; a task has no run to wait in
             }
             if (!script.getDecisions().isEmpty() || !script.getLadders().isEmpty()) ex.setAutonomy(o.ledger != null ? o.ledger : persistence.ledger(), o.levels != null ? o.levels : persistence.levels());
         } else if (human == null) {

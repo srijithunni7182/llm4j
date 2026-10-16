@@ -34,7 +34,9 @@ public class Llm4jRagAutoConfiguration {
             case "gemini": {
                 SecretRef key = CredentialProperty.ref("llm4j.rag.api-key", r.apiKey(), r.apiKeySecret(), secrets.getIfAvailable());
                 if (key == null) throw new Llm4jConfigurationException("llm4j.rag.embedding=gemini has no API key", "Set llm4j.rag.api-key-secret to the name of a secret.");
-                LLMConfig config = LLMConfig.builder().apiKey(key).build();
+                LLMConfig.Builder builder = LLMConfig.builder().apiKey(key);
+                if (r.baseUrl() != null) builder.baseUrl(r.baseUrl());
+                LLMConfig config = builder.build();
                 return r.model() == null ? new GeminiEmbeddingProvider(config) : new GeminiEmbeddingProvider(config, r.model());
             }
             case "onnx":
@@ -56,8 +58,8 @@ public class Llm4jRagAutoConfiguration {
                 if (r.file() == null) throw new Llm4jConfigurationException("llm4j.rag.store=file needs llm4j.rag.file", "Give the path of the file the vectors are kept in.");
                 yield new FileVectorStore(new File(r.file()));
             }
-            case "pgvector" -> AddonsRag.pgvector(r.pgvector(), secrets.getIfAvailable(), environment);
-            case "pinecone" -> AddonsRag.pinecone(r.pinecone(), secrets.getIfAvailable());
+            case "pgvector" -> AddonsRag.pgvector(PgvectorSettings.resolve(r.pgvector(), secrets.getIfAvailable(), environment));
+            case "pinecone" -> AddonsRag.pinecone(PineconeSettings.resolve(r.pinecone(), secrets.getIfAvailable()));
             default -> throw new Llm4jConfigurationException("llm4j.rag.store=" + r.store() + " is not known", "Use memory, file, pgvector or pinecone, or declare a VectorStore bean.");
         };
     }

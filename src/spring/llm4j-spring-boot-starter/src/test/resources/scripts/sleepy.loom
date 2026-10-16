@@ -1,0 +1,8 @@
+agent Researcher { model: "test/model" system: "You are Researcher." }
+agent Drafter { model: "test/model" system: "You are Drafter." }
+
+workflow Main() {
+    delegate "research" to Researcher -> research
+    sleep 1h
+    delegate "draft {research}" to Drafter -> draft
+}

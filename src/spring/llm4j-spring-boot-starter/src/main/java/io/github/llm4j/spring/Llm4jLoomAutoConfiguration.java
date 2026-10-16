@@ -198,7 +198,7 @@ public class Llm4jLoomAutoConfiguration {
         return new Llm4jLoomLifecycle(runtime, properties.loom(), events);
     }
 
-    /** The trifecta and the other findings of {@code weave audit}, as a start-up check. Acceptance of a risk stays in the script. */
+    /** The trifecta and the other findings of {@code weave audit}, as a start-up check, with {@code weave audit --fail-on}'s threshold. No setting silences a single rule. */
     static void securityGate(LoomScript script, String name, Map<String, String> reach, String failOn) {
         AuditReport report = SecurityAudit.audit(script, name, reach);
         if (failOn.equalsIgnoreCase("none")) {
@@ -214,7 +214,7 @@ public class Llm4jLoomAutoConfiguration {
         }
         if (report.failsAt(threshold)) {
             throw new Llm4jConfigurationException("the security audit of " + name + " found problems at or above " + threshold.name().toLowerCase(Locale.ROOT) + ":\n" + report.markdown(),
-                    "Fix them in the script. A risk you accept is accepted in writing in the script itself (for example 'trifecta: accepted \"reason\"'); there is no property that silences one.");
+                    "Fix them in the script (split the agent so no one agent reads untrusted content, holds private data and can send, or put approve: on the tool that sends), or lower llm4j.loom.audit.fail-on knowingly. There is no property that silences one rule.");
         }
     }
 

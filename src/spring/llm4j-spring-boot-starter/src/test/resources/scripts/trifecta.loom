@@ -1,0 +1,7 @@
+tool Files { use: file root: "data" mode: read }
+tool Mail { use: email host: "smtp.example.com" from: "a@example.com" to: "me@example.com" }
+agent A { model: "test/model" system: "You are A." tools: [web_search, Files, Mail] }
+
+workflow Main(q) {
+    delegate "{q}" to A -> r
+}

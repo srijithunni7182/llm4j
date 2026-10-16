@@ -1,0 +1,5 @@
+ladder L { rung x { mode: blind } }
+agent A { model: "test/model" system: "You are A." output_schema: { choice: string, reasoning: string } }
+decision D { proposed by: A choices: yes, no ladder: L ask: someone }
+
+workflow Main() { note "x" }

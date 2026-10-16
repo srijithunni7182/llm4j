@@ -97,12 +97,12 @@ public record Llm4jProperties(
 
     public record Tasks(@DefaultValue("true") boolean discover) { }
 
-    /** Built-in tools by name, and guarded tools of the six kinds ({@code webhook}, {@code email}, {@code http}, {@code file}, {@code shell}, {@code sql}). */
-    public record Tools(List<String> builtin, Map<String, Custom> custom) {
+    /** Built-in tools by name, and guarded tools of the six kinds (files and outboxes they use must be inside {@code base-dir}, the working directory by default) ({@code webhook}, {@code email}, {@code http}, {@code file}, {@code shell}, {@code sql}). */
+    public record Tools(List<String> builtin, Map<String, Custom> custom, String baseDir) {
         public record Custom(String kind, Map<String, String> options) { }
     }
 
-    public record Rag(String embedding, String store, String file, String apiKey, String apiKeySecret, String model, String tokenizer, @DefaultValue Pgvector pgvector,
+    public record Rag(String embedding, String store, String file, String apiKey, String apiKeySecret, String baseUrl, String model, String tokenizer, @DefaultValue Pgvector pgvector,
                       @DefaultValue Pinecone pinecone) {
         public record Pgvector(String url, String user, String password, String passwordSecret, @DefaultValue("rag_documents") String table, Integer dimension) {
             @Override

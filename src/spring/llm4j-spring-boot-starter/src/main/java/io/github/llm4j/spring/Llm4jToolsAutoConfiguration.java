@@ -48,7 +48,7 @@ public class Llm4jToolsAutoConfiguration {
         Map<String, Llm4jProperties.Tools.Custom> custom = properties.tools().custom() == null ? Map.of() : properties.tools().custom();
         if (!custom.isEmpty()) {
             Map<String, ToolKind> kinds = GuardedTools.kinds(extraKinds.orderedStream().toList());
-            Path baseDir = Path.of("").toAbsolutePath();
+            Path baseDir = properties.tools().baseDir() == null ? Path.of("").toAbsolutePath() : Path.of(properties.tools().baseDir()).toAbsolutePath();
             custom.forEach((name, def) -> catalog.add(GuardedTools.create(name, def, kinds, secrets.getIfAvailable(), effects.getIfAvailable(), baseDir), "llm4j.tools.custom." + name));
         }
         return catalog;

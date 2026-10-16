@@ -1,0 +1,5 @@
+agent Writer { model: "test/model" system: "You are Writer." }
+
+workflow Digest() { delegate "digest" to Writer -> out }
+
+schedule Daily { cron: "0 7 * * *" run: Digest() }

@@ -28,6 +28,12 @@ final class Fixtures {
                 Llm4jAgentsAutoConfiguration.class, Llm4jRagAutoConfiguration.class, Llm4jObserveAutoConfiguration.class, Llm4jLoomAutoConfiguration.class));
     }
 
+    static org.springframework.core.env.StandardEnvironment environment(java.util.Map<String, Object> properties) {
+        var env = new org.springframework.core.env.StandardEnvironment();
+        env.getPropertySources().addFirst(new org.springframework.core.env.MapPropertySource("test", properties));
+        return env;
+    }
+
     static LLMResponse ask(LLMClient client, String text) {
         return client.chat(LLMRequest.builder().addMessage(Message.user(text)).build());
     }
