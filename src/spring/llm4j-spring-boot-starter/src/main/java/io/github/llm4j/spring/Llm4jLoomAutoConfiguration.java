@@ -14,7 +14,6 @@ import io.github.llm4j.loom.execution.LLMClientFactory;
 import io.github.llm4j.loom.execution.LootLoader;
 import io.github.llm4j.loom.execution.LoomLoadException;
 import io.github.llm4j.loom.execution.LoomLoader;
-import io.github.llm4j.loom.host.DurabilityGuard;
 import io.github.llm4j.loom.host.LoomHost;
 import io.github.llm4j.loom.host.Persistence;
 import io.github.llm4j.loom.host.QuestionListener;

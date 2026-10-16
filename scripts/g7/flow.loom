@@ -1,0 +1,7 @@
+agent Writer { model: "ollama/m" system: "You are Writer." }
+
+workflow Main() {
+    delegate "draft" to Writer -> draft
+    human_prompt "Publish the draft? (yes/no)" -> ok
+    delegate "finish {ok}" to Writer -> done
+}

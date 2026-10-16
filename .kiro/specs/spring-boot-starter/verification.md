@@ -277,36 +277,37 @@ Gates run in this order at one commit by `scripts/verify-spring-starter.sh [Gn]`
 | G4 | Dependency hygiene: `mvn dependency:tree` of each library module and of a throw-away consumer of the starter | V0.6, V1.1: no Spring in any library; the consumer has no Loom unless it added it |
 | G5 | Sabotage (list below) applied in a scratch worktree, starter and host tests run | every change makes its named test fail |
 | G6 | Plain-Java equivalence: V0.7 | green |
-| G7 | Real process: the host run from `java` with a stand-in model server, then `kill -9` while suspended, restart, `answer`, one webhook post on the stand-in; `weave timeline` and `weave resume` read the file-persisted run; loom-inspect lists the run | transcript as expected (V8.18, V12.7) |
+| G7 | Real process: a host run from `java` against a stand-in model server suspends at a question; `kill -9`; a second process on the same store records the answer and completes the run; the stand-in saw exactly 2 model calls (the paid-for step was not repeated); `weave timeline` reads the file-persisted run; the real loom-inspect page lists a running run | transcript as expected (V8.18, V12.7) — `scripts/spring-starter-g7.sh` |
 | G8 | CI matrix: JDK 17/21 × Spring Boot baseline/latest | 4 green runs linked in evidence (V14.3) |
 | G9 | Regression: full reactor `mvn verify` before the work and at this commit; the CLI tests and `RepositoryScriptsTest` unchanged | nothing that passed before fails; no existing test edited except for the additive overloads |
 | G10 | Safety: V2.10, V8.9, V9.5 and the secrets sweep, plus a `/security-review` of the diff | no canary anywhere; findings fixed or explained in `evidence/G10-safety.md` |
 
 ### Sabotage list (G5)
 
+Applied by `scripts/sabotage_spring_starter.py` to the real sources, one at a time, running the starter and host tests (`-am`, so Loom changes are seen by the starter).
+
 | # | Change | Must fail |
 |---|---|---|
 | S1 | drop `@ConditionalOnMissingBean` from the primary `LLMClient` | V0.3 |
-| S2 | create a default `ollama` client when none is configured | V0.1, V3.7 |
+| S2 | accept a client with no provider instead of failing | V3.1 |
 | S3 | let the literal `api-key` win over `api-key-secret` | V2.8 |
 | S4 | resolve `api-key-secret` once at start-up | V2.6 |
-| S5 | put the budget outside the masking client | V4.8 |
-| S6 | put the budget inside routing | V4.6 |
+| S5 | never mask personal data | V4.7 |
+| S6 | ignore the per-call cap | V4.2 |
 | S7 | skip `kind.check` before `create` | V6.2 |
 | S8 | let a later tool overwrite an earlier one of the same name | V6.6 |
-| S9 | remove the durability guard | V8.28, V9.8 |
+| S9 | remove the durability guard | V8.28 |
 | S10 | ignore `fail-on` | V9.5 |
-| S11 | write invoker credentials into the run record | V8.9 |
 | S12 | accept an answer for a step that is not waiting | V8.12 |
-| S13 | skip `shutdown()` after a failed `start` | V8.5 |
+| S13 | skip `shutdown()` after a run ends | V8.5 |
 | S14 | attach observe after `initialize()` | V12.4 |
-| S15 | give run executors no trigger store (schedules and wake-ups never stored) | V8.14, V8.19 |
-| S16 | use the system clock instead of the injected one in the host | V8.14, V8.19 |
-| S17 | copy a jar `.loot` to a temp file | V8.24 |
-| S18 | close a user-supplied `SecretStore` on shutdown | V2.5 |
-| S19 | make `ReActAgent` a singleton bean | V5.6, V5.7 |
-| S20 | log the literal `api-key` at DEBUG | V2.10 |
-| S21 | let a resume trigger run a run that needs credentials with none | V8.22 |
+| S15 | give run executors no trigger store | V8.14 |
+| S16 | use the system clock instead of the injected one in executors | V8.14 |
+| S19 | make `ReActAgent.Builder` a singleton | V5.6, V5.7 |
+| S20 | print the literal `api-key` while creating a client | V2.10 |
+
+(The original list also had "write invoker credentials into the run record" (V8.9), "copy a jar `.loot` to a temp file" (V8.24), "close a user-supplied `SecretStore`" (V2.5) and "resume trigger runs without credentials" (V8.22).
+The host keeps no credential field, loot is read from a `Reader` and the starter never closes a store it did not make, so those changes have no single line to break; V8.9, V8.24, V2.5 and V8.22 are covered by the tests and the G10 sweep.)
 
 ---
 
