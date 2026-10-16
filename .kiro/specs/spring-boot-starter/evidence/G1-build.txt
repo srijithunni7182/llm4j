@@ -1,5 +1,5 @@
-commit 46b13c7b957085890f78f6a4194ff992e5cb7d1b
-Fri Oct 16 11:16:49 UTC 2026
+commit 116786ea737a350f287b405d9314e5d321e9ce5a
+Fri Oct 16 12:36:19 UTC 2026
 -- run 1 
    BUILD SUCCESS
    src/ai-agent4j: tests=2758 failures=0 errors=0 skipped=2
@@ -7,12 +7,12 @@ Fri Oct 16 11:16:49 UTC 2026
    src/ai-agent4j-tools: tests=364 failures=0 errors=0 skipped=0
    src/eval4j: tests=500 failures=0 errors=0 skipped=0
    src/eval4j-report: tests=68 failures=0 errors=0 skipped=0
-   src/loom/ai-agent4j-loom: tests=2072 failures=0 errors=0 skipped=1
+   src/loom/ai-agent4j-loom: tests=2079 failures=0 errors=0 skipped=1
    src/loom/loom-inspect-core: tests=333 failures=0 errors=0 skipped=0
    src/loom/loom-inspect: tests=210 failures=0 errors=0 skipped=0
    src/loom/loom-fabric: tests=56 failures=0 errors=0 skipped=0
-   src/spring/llm4j-spring-boot-starter: tests=132 failures=0 errors=0 skipped=0
-[INFO] Tests run: 132, Failures: 0, Errors: 0, Skipped: 0
+   src/spring/llm4j-spring-boot-starter: tests=134 failures=0 errors=0 skipped=0
+[INFO] Tests run: 134, Failures: 0, Errors: 0, Skipped: 0
 -- run 2 
    BUILD SUCCESS
    src/ai-agent4j: tests=2758 failures=0 errors=0 skipped=2
@@ -20,24 +20,64 @@ Fri Oct 16 11:16:49 UTC 2026
    src/ai-agent4j-tools: tests=364 failures=0 errors=0 skipped=0
    src/eval4j: tests=500 failures=0 errors=0 skipped=0
    src/eval4j-report: tests=68 failures=0 errors=0 skipped=0
-   src/loom/ai-agent4j-loom: tests=2072 failures=0 errors=0 skipped=1
+   src/loom/ai-agent4j-loom: tests=2079 failures=0 errors=0 skipped=1
    src/loom/loom-inspect-core: tests=333 failures=0 errors=0 skipped=0
    src/loom/loom-inspect: tests=210 failures=0 errors=0 skipped=0
    src/loom/loom-fabric: tests=56 failures=0 errors=0 skipped=0
-   src/spring/llm4j-spring-boot-starter: tests=132 failures=0 errors=0 skipped=0
-[INFO] Tests run: 132, Failures: 0, Errors: 0, Skipped: 0
+   src/spring/llm4j-spring-boot-starter: tests=134 failures=0 errors=0 skipped=0
+[INFO] Tests run: 134, Failures: 0, Errors: 0, Skipped: 0
 -- run 3 -Dsurefire.runOrder=random
-   BUILD SUCCESS
+   BUILD FAILURE
+  "/v1/logs Bearer tok-123 {"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"alpha"}},{"key":"service.instance.id","value":{"stringValue":"i_ff5120da-1"}},{"key":"telemetry.sdk.name","value":{"stringValue":"loom-inspect"}}]},"scopeLogs":[{"scope":{"name":"loom-inspect","version":"0.1"},"logRecords":[{"timeUnixNano":"1792155922481823052","severityNumber":9,"body":{"stringValue":"workflow Main"},"attributes":[{"key":"event.name","value":{"stringValue":"loom.run.start"}},{"key":"loom.seq","value":{"intValue":"1"}},{"key":"loom.run.id","value":{"stringValue":"r-e2e"}},{"key":"loom.workflow","value":{"stringValue":"Main"}},{"key":"loom.run.resumed","value":{"boolValue":false}}],"traceId":"0056877a18f106e09ec60c09e1ee1140"},{"timeUnixNano":"1792155922482036918","severityNumber":9,"body":{"stringValue":"invoke_agent Researcher"},"attributes":[{"key":"event.name","value":{"stringValue":"loom.span.start"}},{"key":"loom.seq","value":{"intValue":"2"}},{"key":"gen_ai.operation.name","value":{"stringValue":"invoke_agent"}},{"key":"gen_ai.agent.name","value":{"stringValue":"Researcher"}},{"key":"loom.span.kind","value":{"stringValue":"agent"}},{"key":"loom.step","value":{"stringValue":"Main/s0"}},{"key":"loom.text","value":{"stringValue":"find the answer"}}],"traceId":"0056877a18f106e09ec60c09e1ee1140","spanId":"73d1db49cb8e1236"},{"timeUnixNano":"1792155922482449115","severityNumber":9,"body":{"stringValue":"context 233 tokens"},"attributes":[{"key":"event.name","value":{"stringValue":"loom.context"}},{"key":"loom.seq","value":{"intValue":"3"}},{"key":"gen_ai.agent.name","value":{"stringValue":"Researcher"}},{"key":"loom.step","value":{"stringValue":"Main/s0"}},{"key":"loom.context.used","value":{"intValue":"233"}},{"key":"loom.context.source","value":{"stringValue":"ESTIMATED"}}],"traceId":"0056877a18f106e09ec60c09e1ee1140"}]}]}]}
+/v1/traces Bearer tok-123 {"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"alpha"}},{"key":"service.instance.id","value":{"stringValue":"i_ff5120da-1"}},{"key":"telemetry.sdk.name","value":{"stringValue":"loom-inspect"}}]},"scopeSpans":[{"scope":{"name":"loom-inspect","version":"0.1"},"spans":[{"traceId":"0056877a18f106e09ec60c09e1ee1140","spanId":"07a827a4282f0bb9","parentSpanId":"632c20f86526a55e","name":"chat m","kind":3,"startTimeUnixNano":"1792155922482822081","endTimeUnixNano":"1792155922482822081","attributes":[{"key":"gen_ai.operation.name","value":{"stringValue":"chat"}},{"key":"gen_ai.agent.name","value":{"stringValue":"Researcher"}},{"key":"gen_ai.response.model","value":{"stringValue":"m"}},{"key":"gen_ai.usage.input_tokens","value":{"intValue":"10"}},{"key":"gen_ai.usage.output_tokens","value":{"intValue":"5"}},{"key":"gen_ai.response.finish_reasons","value":{"stringValue":"UNKNOWN"}},{"key":"loom.span.kind","value":{"stringValue":"model"}},{"key":"loom.step","value":{"stringValue":"Main/s0"}},{"key":"loom.model.attempts","value":{"intValue":"1"}},{"key":"loom.model.waited_ms","value":{"intValue":"0"}},{"key":"loom.model.duration_ms","value":{"intValue":"0"}},{"key":"loom.model.truncated","value":{"boolValue":false}}],"status":{"code":1}}]}]}]}"
+to contain:
+  "execute_tool Lookup" 
+[INFO] 
+[ERROR] Tests run: 210, Failures: 1, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for AI Agent4J 5.0:
+[INFO] 
+[INFO] AI Agent4J ......................................... SUCCESS [01:08 min]
+[INFO] AI Agent4J - RAG Addons ............................ SUCCESS [  7.995 s]
+[INFO] AI Agent4J - Tools ................................. SUCCESS [ 29.360 s]
+[INFO] eval4j ............................................. SUCCESS [ 14.780 s]
+[INFO] AI Agent4J Loom .................................... SUCCESS [04:38 min]
+[INFO] eval4j-report ...................................... SUCCESS [ 24.896 s]
+[INFO] Loom Inspect Core .................................. SUCCESS [ 43.702 s]
+[INFO] Loom Fabric ........................................ SUCCESS [ 29.072 s]
+[INFO] Loom Inspect ....................................... FAILURE [01:08 min]
+[INFO] llm4j Spring Boot Starter .......................... SKIPPED
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  09:26 min
+[INFO] Finished at: 2026-10-16T13:06:20Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.2.5:test (default-test) on project loom-inspect: There are test failures.
+[ERROR] 
+[ERROR] Please refer to /home/user/llm4j/src/loom/loom-inspect/target/surefire-reports for the individual test results.
+[ERROR] Please refer to dump files (if any exist) [date].dump, [date]-jvmRun[N].dump and [date].dumpstream.
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+[ERROR] 
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR]   mvn <args> -rf :loom-inspect
    src/ai-agent4j: tests=2758 failures=0 errors=0 skipped=2
    src/ai-agent4j-addons: tests=17 failures=0 errors=0 skipped=0
    src/ai-agent4j-tools: tests=364 failures=0 errors=0 skipped=0
    src/eval4j: tests=500 failures=0 errors=0 skipped=0
    src/eval4j-report: tests=68 failures=0 errors=0 skipped=0
-   src/loom/ai-agent4j-loom: tests=2072 failures=0 errors=0 skipped=1
+   src/loom/ai-agent4j-loom: tests=2079 failures=0 errors=0 skipped=1
    src/loom/loom-inspect-core: tests=333 failures=0 errors=0 skipped=0
-   src/loom/loom-inspect: tests=210 failures=0 errors=0 skipped=0
+   src/loom/loom-inspect: tests=210 failures=1 errors=0 skipped=0
    src/loom/loom-fabric: tests=56 failures=0 errors=0 skipped=0
-   src/spring/llm4j-spring-boot-starter: tests=132 failures=0 errors=0 skipped=0
-[INFO] Tests run: 132, Failures: 0, Errors: 0, Skipped: 0
+   src/spring/llm4j-spring-boot-starter: tests=134 failures=0 errors=0 skipped=0
+[ERROR] Tests run: 210, Failures: 1, Errors: 0, Skipped: 0
 -- extended pass for the starter (pgvector: jdbc:postgresql://127.0.0.1:54329/vdb)
-   BUILD SUCCESS; starter: tests=133 failures=0 errors=0 skipped=0
+   BUILD SUCCESS; starter: tests=135 failures=0 errors=0 skipped=0
