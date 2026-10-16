@@ -73,7 +73,7 @@ Each phase leaves `mvn verify` green. Library work is marked **[lib]** and lands
   - _Requirements: 12.1, 12.2_
 - [x] 14. Metadata (descriptions, hints), README per capability with the deferred list, root README row
   - _Requirements: 13.1, 13.2_
-- [ ] 15. Verification tooling: fixtures, `@Tag("SB-V…")` on every test, `scripts/verify_spec.py` `MODULES` extended, `scripts/verify-spring-starter.sh`
+- [x] 15. Verification tooling: fixtures, `@Tag("SB-V…")` on every test, `scripts/verify_spec.py` `MODULES` extended, `scripts/verify-spring-starter.sh`
         (gates G0–G9), `scripts/sabotage_spring_starter.py`, run the gates at one commit and commit the evidence
   - _Requirements: 14.1–14.3_
 

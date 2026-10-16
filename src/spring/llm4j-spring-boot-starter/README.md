@@ -151,6 +151,7 @@ llm4j:
 
 **Bean:** `io.github.llm4j.agent.tool.ToolRegistry` and `io.github.llm4j.spring.ToolCatalog`. Your `Tool` beans are added; nothing is scanned.
 Guarded tools run only with the guards you set (`check`, allow-lists, `base-dir`), and a script needs a `.loot` reach line to use one.
+Every agent can use a registered tool, so a tool that runs programs (`shell`) is refused unless you set `options.unattended: true`.
 
 Without Spring:
 
