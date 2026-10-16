@@ -28,89 +28,24 @@ Meet the team responsible for building your software. Each agent has a distinct 
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ How it works
 
-Nirmaan Yantra operates as a multi-agent system orchestrated by a Spring Boot server, with a React frontend for real-time visibility.
+Nirmaan Yantra is a [Loom](../../loom/ai-agent4j-loom/README.md) workflow. The whole factory is a few short `.loom` files
+(`nirmaan-yantra-server/src/main/resources`), with a small web host that runs it and a React UI that shows it.
 
-```mermaid
-graph TD
-    Client[React UI] <-->|WebSocket| Server[Nirmaan Server]
-    
-    subgraph ServerSide [Nirmaan Server - Spring Boot]
-        Orchestrator[Nirmaan Orchestrator]
-        Context[Project Context]
-        
-        subgraph Agents [Agent Crew]
-            direction TB
-            Rishi
-            Vihaan
-            Dhruv
-            Drishti
-            Vishnu
-        end
-        
-        Orchestrator -->|Directs| Rishi
-        Orchestrator -->|Directs| Vihaan
-        Vihaan <-->|Reads/Writes| Context
-        Rishi -->|Writes| Context
-    end
-    
-    Context <-->|I/O| Sandbox[File System Sandbox]
+```
+1 Plan      Aditi (PRD) -> Rishi (spec with the exact commands)
+2 Prepare   Vihaan: first failing test  |  Drishti: end to end suite        (written at the same time)
+3 Build     red -> Vihaan writes the code -> Fix the unit tests
+4 Review    code checks tests exist -> Vishnu -> (one polish if rejected, then Fix again)
+5 Assure    clean build (one command, no model) -> Fix the end to end suite -> Fix the unit tests again
+6 Release   Vishnu signs off (a person decides if he refuses) -> zip
 ```
 
----
-
-## ⚙️ Development Process
-
-Nirmaan follows a strict **Test-Driven Development (TDD)** pipeline to ensure reliability.
-
-1. **Planning Phase (Aditi)**: You provide a one-line idea (e.g., *"Build a Snake Game"*). Aditi transforms this into a **Product Requirements Document (PRD)**.
-2. **Spec Phase (Rishi)**: Rishi analyzes the PRD and creates a detailed **Technical Specification** (`SPEC.md`).
-3. **Red Phase (Vihaan/Dhruv)**: A failing test is created to define the expected behavior. Dhruv (Build Engineer) executes it to confirm failure.
-4. **Green Phase (Vihaan)**: Vihaan writes the implementation code to make the test pass.
-    * *Self-Healing*: If compilation fails, Vihaan searches for dependencies (`pom.xml`) and fixes the code.
-    * *Anti-Loop*: If Vihaan gets stuck (5 failed attempts), Nirmaan triggers a **Fresh Start**, discarding the bad code and retrying from the Spec.
-5. **Refinement Phase**: The code is polished and optimized.
-6. **QA Phase (Drishti)**: Drishti writes and runs **End-to-End (E2E)** tests to verify the application works as a whole.
-7. **Sign-Off (Vishnu)**: Vishnu reviews the artifacts and gives the final build approval.
-
-```mermaid
-graph TD
-    Start((Start)) --> Aditi[Aditi: Planning]
-    Aditi --> Rishi[Rishi: Architecture]
-    
-    subgraph TDD [Construction Phase - TDD]
-        Rishi --> RedPhase[Red Phase: Fail Test]
-        RedPhase --> Vihaan[Vihaan: Green Phase]
-        
-        Vihaan --> BuildCheck{Build Passes?}
-        BuildCheck -- No --> Fix[Fix Compilation]
-        Fix --> BuildCheck
-        
-        BuildCheck -- Yes --> Verify{Tests Pass?}
-        Verify -- No --> RetryCount{Retries > 5?}
-        RetryCount -- No --> Fix
-        RetryCount -- Yes --> FreshStart[Fresh Start]
-        FreshStart --> Vihaan
-        
-        Verify -- Yes --> SelfReview{Self Review?}
-        SelfReview -- Missing Logic --> Dhruv[Dhruv: Validate]
-        SelfReview -- OK --> QA[Drishti: QA Phase]
-    end
-    
-    subgraph Release [QA and Release]
-        QA --> QAKey{E2E Pass?}
-        QAKey -- No --> SpecUpdate[Rishi: Update Spec]
-        SpecUpdate --> Vihaan
-        
-        QAKey -- Yes --> Vishnu[Vishnu: Sign Off]
-        Vishnu --> Approved{Approved?}
-        Approved -- No --> Refactor[Refactor]
-        Refactor --> Vishnu
-        
-        Approved -- Yes --> End((Released))
-    end
-```
+The only loop is **Fix**: run a command, let Vihaan fix the code up to 3 times, then ask a person. Models read and write; code decides
+and acts: Dhruv is not an agent but the command runner, every check fails closed, and tests are locked so a fix cannot make a command
+pass by weakening its test. Details, safety notes and costs: [nirmaan-yantra-server/README.md](nirmaan-yantra-server/README.md) and
+[COST.md](nirmaan-yantra-server/COST.md).
 
 ---
 
@@ -118,36 +53,26 @@ graph TD
 
 ### Prerequisites
 
-* Java 17+
-* Maven 3+
-* Node.js 18+ (for UI)
-* **Google Gemini API Key**
+* Java 17+ and Maven 3+
+* Node.js 20.19+ (to build the UI)
+* A **Google Gemini API key**, kept in the encrypted secret store (never in a file you commit)
 
-### Installation
+### Run it
 
-1. Clone the repository:
-
-    ```bash
-    git clone https://github.com/srijithunni7182/llm4j.git
-    cd llm4j/nirmaan-yantra
-    ```
-
-2. Configure Secrets:
-    Create a `secrets.sh` file in `nirmaan-yantra/`:
+1. Store your key (you are asked for it with no echo; it is locked to Google's API host):
 
     ```bash
-    export GOOGLE_API_KEY="your-gemini-api-key"
-    export GOOGLE_SEARCH_CX="your-search-engine-id" # Optional, for web search
+    cd nirmaan-yantra-server && mkdir -p .loom
+    # create the store once, then set the key (see nirmaan-yantra-server/README.md, "Deploying and observing")
     ```
 
-3. Launch the Factory:
+2. Launch the factory:
 
     ```bash
     ./start_nirmaan.sh
     ```
 
-4. Access the UI:
-    Open **[http://localhost:5173](http://localhost:5173)** in your browser.
+3. Open **[http://127.0.0.1:8080](http://127.0.0.1:8080)**, type an idea, and watch the crew work. Decisions the factory needs from you appear in the page.
 
 ---
 

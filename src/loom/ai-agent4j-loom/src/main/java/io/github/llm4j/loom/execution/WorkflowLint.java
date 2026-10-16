@@ -33,7 +33,7 @@ public final class WorkflowLint {
     public record Finding(int line, String construct, String message) {}
 
     /** Getters that name what a statement assigns, or are not text it carries. */
-    private static final Set<String> NOT_TEXT = Set.of("getLine", "getVariableName", "getResultVariable", "getVariable", "getClass");
+    private static final Set<String> NOT_TEXT = Set.of("getLine", "getVariableName", "getResultVariable", "getVariable", "getClass", "getName");
 
     private WorkflowLint() {}
 
@@ -91,7 +91,8 @@ public final class WorkflowLint {
             StatementWalker.walk(loop.getBody(), inside::add);
             boolean setBefore = false;
             for (Statement t : all) {
-                if (t != loop && !inside.contains(t) && t.getLine() < loop.getLine() && root.equals(assigned(t))) setBefore = true;
+                String setsIt = t instanceof io.github.llm4j.loom.ast.RunStmt r ? r.getVariableName() : assigned(t); // a run step's result counts: it is not reported as unused, but it is set
+                if (t != loop && !inside.contains(t) && t.getLine() < loop.getLine() && root.equals(setsIt)) setBefore = true;
             }
             if (setBefore) continue;
             if (io.github.llm4j.loom.runtime.ConditionEvaluator.evaluate(condition, new io.github.llm4j.loom.runtime.DefaultVariableContext())) {
@@ -136,6 +137,7 @@ public final class WorkflowLint {
         else if (s instanceof BroadcastStmt b) name = b.getVariableName();
         else if (s instanceof CallStmt c) name = c.getResultVariable();
         else if (s instanceof DecideStmt d) name = d.getVariable();
+        else if (s instanceof io.github.llm4j.loom.ast.SetStmt set) name = set.getName();
         // `result` is what a workflow hands back to the one that `call`s it, so it is used by the caller, not here
         if (name == null || name.isBlank() || name.startsWith("{") || name.startsWith("_") || name.equals("result")) return null;
         return name;
@@ -157,6 +159,8 @@ public final class WorkflowLint {
 
     private static void append(StringBuilder out, Object value) {
         if (value instanceof String str) out.append(str).append('\n');
+        else if (value instanceof io.github.llm4j.loom.ast.ValueExpr v) v.visitTexts(t -> out.append(t).append('\n'));
+        else if (value instanceof io.github.llm4j.loom.ast.RunStmt.Arg arg) out.append(arg.text()).append('\n'); // what a task is handed is read, even when only a task reads it
         else if (value instanceof Map<?, ?> map) map.values().forEach(v -> append(out, v));
         else if (value instanceof Collection<?> list) list.forEach(v -> {
             if (!(v instanceof Statement)) append(out, v);

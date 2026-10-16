@@ -135,6 +135,36 @@
     ],
     "description": "Show a message (it also reaches an application's transcript)."
   },
+  "halt": {
+    "prefix": "halt",
+    "body": [
+      "halt \"${1:why the run cannot go on: {variable}}\""
+    ],
+    "description": "End the whole run on purpose, saying why. Not a failure: nothing retries or handles it."
+  },
+  "set": {
+    "prefix": "set",
+    "body": [
+      "set ${1:label_text} = \"${2:a value}\""
+    ],
+    "description": "Give a variable a value: a text, a number, true or false, another variable, or { key: value }."
+  },
+  "return": {
+    "prefix": "return",
+    "body": [
+      "return { verdict: \"${1:PASSED}\", detail: \"${2:what happened}\" }"
+    ],
+    "description": "Hand a structured result back to the workflow that called this one, and end here."
+  },
+  "isok": {
+    "prefix": "isok",
+    "body": [
+      "alt (${1:step_result} is ok) {",
+      "    $0",
+      "}"
+    ],
+    "description": "True when a run step did what it was for. Fails closed: a step that never ran, or ended another way, is not ok."
+  },
   "parallel": {
     "prefix": "parallel",
     "body": [

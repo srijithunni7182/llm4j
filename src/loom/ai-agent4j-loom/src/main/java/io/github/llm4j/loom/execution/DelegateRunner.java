@@ -219,6 +219,7 @@ final class DelegateRunner {
 
         int attempts = 0;
         int maxAttempts = del.getRetryCount() + 1;
+        boolean corrected = false;
         int[] limitWaits = {0};
         int[] asks = {0};
         Exception lastError = null;
@@ -317,7 +318,8 @@ final class DelegateRunner {
                 }
                 Object finalValue = answer;
                 if (schema != null && partial == null) {
-                    finalValue = PayloadText.parseJson(answer);
+                    // An answer that is not what the schema promised is a failed attempt, not a raw string to carry on with.
+                    finalValue = del.isLenientSchema() ? StructuredAnswer.parseOrRaw(answer, schema) : StructuredAnswer.parse(answer, schema);
                 }
                 String spoken = null;
                 if (voice != null && voice.speaks() && partial == null && !degraded) {
@@ -374,6 +376,21 @@ final class DelegateRunner {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Interrupted while delegating to " + agentName, e);
+            } catch (StructuredAnswer.SchemaViolation violation) {
+                log.warning("Agent " + agentName + " broke its output schema: " + violation.getMessage());
+                Map<String, Object> violationData = new java.util.LinkedHashMap<>();
+                violationData.put("attempt", attempts + 1);
+                violationData.put("problems", violation.problems());
+                host.trace(TraceEvent.SCHEMA_VIOLATION, agentName, violation.getMessage(), violationData);
+                host.onDelegateError(del, agentDef, resolvedPayload, contextBriefing, violation, attempts + 1, maxAttempts);
+                lastError = violation;
+                attempts++;
+                // One correction is always allowed, whatever `retry` says: telling a model what was wrong is the cheapest way to get it right.
+                if (!corrected) {
+                    corrected = true;
+                    maxAttempts++;
+                }
+                contextBriefing += violation.correction();
             } catch (Exception e) {
                 log.warning("Delegation failed: " + e.getMessage());
                 host.onDelegateError(del, agentDef, resolvedPayload, contextBriefing, e, attempts + 1, maxAttempts);

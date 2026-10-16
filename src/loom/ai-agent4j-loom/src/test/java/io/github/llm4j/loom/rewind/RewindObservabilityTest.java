@@ -104,7 +104,7 @@ class RewindObservabilityTest {
         Path repo = Path.of("../../..").toAbsolutePath().normalize();
         List<Path> scripts;
         try (Stream<Path> all = Files.walk(repo)) {
-            scripts = all.filter(p -> p.toString().endsWith(".loom"))
+            scripts = all.filter(p -> p.toString().endsWith(".loom") && Files.isRegularFile(p))
                     .filter(p -> !p.toString().contains("/target/") && !p.toString().contains("/node_modules/")).sorted().toList();
         }
         assertThat(scripts).hasSizeGreaterThan(5);

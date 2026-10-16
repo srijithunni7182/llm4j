@@ -80,7 +80,7 @@
         "id": { "type": "string" },
         "kind": {
           "enum": ["start", "end", "delegate", "task", "handoff", "broadcast", "parallel", "alt", "loop", "foreach",
-                   "human_prompt", "checkpoint", "rewind", "call", "guardrail", "decide", "observe", "note", "sleep", "outcome", "unknown"]
+                   "human_prompt", "checkpoint", "rewind", "call", "guardrail", "decide", "observe", "note", "halt", "set", "return", "sleep", "outcome", "unknown"]
         },
         "label": { "type": "string" },
         "agent": { "type": "string" },

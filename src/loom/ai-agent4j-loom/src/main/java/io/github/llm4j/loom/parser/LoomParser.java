@@ -362,6 +362,12 @@ public class LoomParser {
             return parseRewind();
         } else if (isWord("decide") && peekAt(1).getType() == TokenType.IDENTIFIER) {
             return parseDecide();
+        } else if (isWord("halt")) {
+            return parseHalt();
+        } else if (isWord("set")) {
+            return parseSet();
+        } else if (isWord("return")) {
+            return parseReturn();
         } else if (isRunStart()) {
             return parseRun();
         } else if (isWord("sleep") && isDurationStart(peekAt(1))) {
@@ -524,15 +530,8 @@ public class LoomParser {
         if (isWord("when")) {
             advance();
             consume(TokenType.LPAREN, "Write the condition in brackets: rewind to " + target.getValue() + " when (score < 7)");
-            StringBuilder b = new StringBuilder();
-            while (!check(TokenType.RPAREN) && !isAtEnd()) {
-                if (isWord("and") || isWord("or")) {
-                    throw error(peek(), "a condition is one comparison, such as (score < 7), or one true/false variable; combine several tests into a variable first");
-                }
-                b.append(advance().getValue());
-            }
+            condition = readCondition();
             consume(TokenType.RPAREN, "Expect ')' after the rewind condition.");
-            condition = b.toString();
         }
 
         if (!isWord("at")) throw error(peek(), "A rewind needs a limit: add \"at most 2 times\" (or another number).");
@@ -991,6 +990,91 @@ public class LoomParser {
         return new SleepStmt(duration, written);
     }
 
+    // -----------------------------------------------------------------------
+    // Conditions, and the statements that end a run or give a variable a value.
+    // -----------------------------------------------------------------------
+
+    /**
+     * The text of a condition, up to the closing bracket: its tokens joined, as ever, with one addition. {@code name is ok} and
+     * {@code name is not ok} are kept as those words (with single spaces), which is how {@code ConditionEvaluator} recognises them.
+     */
+    private String readCondition() {
+        StringBuilder text = new StringBuilder();
+        while (!check(TokenType.RPAREN) && !isAtEnd()) {
+            if (isWord("and") || isWord("or")) {
+                throw error(peek(), "a condition is one comparison, such as (score < 7), or one true/false variable; combine several tests into a variable first");
+            }
+            if (text.length() > 0 && isWord("is")) {
+                if ("ok".equals(peekAt(1).getValue())) {
+                    advance();
+                    advance();
+                    text.append(" is ok");
+                    continue;
+                }
+                if ("not".equals(peekAt(1).getValue()) && "ok".equals(peekAt(2).getValue())) {
+                    advance();
+                    advance();
+                    advance();
+                    text.append(" is not ok");
+                    continue;
+                }
+            }
+            text.append(advance().getValue());
+        }
+        return text.toString();
+    }
+
+    /** {@code halt "reason"} */
+    private HaltStmt parseHalt() {
+        advance();
+        Token reason = consume(TokenType.STRING_LITERAL, "Say why in quotes after halt, as in: halt \"the build could not be fixed: {check_run.reason}\"");
+        return new HaltStmt(reason.getValue());
+    }
+
+    /** {@code set name = value} */
+    private SetStmt parseSet() {
+        advance();
+        Token name = advance();
+        if (!isNameToken(name) || !check(TokenType.ASSIGN)) throw error(name, "Write set as: set name = value");
+        if (name.getValue().startsWith("_")) throw error(name, "A variable whose name starts with _ is the runtime's: choose another name than " + name.getValue());
+        advance(); // =
+        return new SetStmt(name.getValue(), parseValue());
+    }
+
+    /** {@code return value} */
+    private ReturnStmt parseReturn() {
+        advance();
+        return new ReturnStmt(parseValue());
+    }
+
+    /** A text, a number, true or false, a variable or {@code var.path}, or an object {@code { key: value, ... }}. */
+    private io.github.llm4j.loom.ast.ValueExpr parseValue() {
+        Token t = peek();
+        if (match(TokenType.STRING_LITERAL)) return new io.github.llm4j.loom.ast.ValueExpr.Text(previous().getValue());
+        if (match(TokenType.NUMBER_LITERAL)) return new io.github.llm4j.loom.ast.ValueExpr.Num(previous().getValue());
+        if (match(TokenType.LBRACE)) {
+            java.util.Map<String, io.github.llm4j.loom.ast.ValueExpr> fields = new java.util.LinkedHashMap<>();
+            if (!check(TokenType.RBRACE)) {
+                do {
+                    Token key = advance();
+                    if (!isNameToken(key) && key.getType() != TokenType.STRING_LITERAL) throw error(key, "Expect a field name, as in { verdict: \"PASSED\" }.");
+                    if (fields.containsKey(key.getValue())) throw error(key, "The field " + key.getValue() + " is given twice.");
+                    consume(TokenType.COLON, "Expect ':' after " + key.getValue() + ", as in " + key.getValue() + ": value.");
+                    fields.put(key.getValue(), parseValue());
+                } while (match(TokenType.COMMA));
+            }
+            consume(TokenType.RBRACE, "Expect '}' to close the object.");
+            return new io.github.llm4j.loom.ast.ValueExpr.Obj(fields);
+        }
+        if (isNameToken(t) || (t.getValue() != null && t.getValue().matches("[A-Za-z][A-Za-z0-9_.-]*"))) {
+            advance();
+            if ("true".equals(t.getValue())) return new io.github.llm4j.loom.ast.ValueExpr.Bool(true);
+            if ("false".equals(t.getValue())) return new io.github.llm4j.loom.ast.ValueExpr.Bool(false);
+            return new io.github.llm4j.loom.ast.ValueExpr.Ref(t.getValue());
+        }
+        throw error(t, "Expect a value: a quoted text, a number, true or false, a variable (request.amount), or an object { key: value }.");
+    }
+
     private NoteStmt parseNoteStmt() {
         Token msg = consume(TokenType.STRING_LITERAL, "Expect string literal after note.");
         return new NoteStmt(msg.getValue());
@@ -1349,14 +1433,10 @@ public class LoomParser {
     private AltStmt parseAltStmt() {
         // Form: alt (condition) { } else { }
         consume(TokenType.LPAREN, "Expect '(' before alt condition.");
-        // We will just read the tokens as a raw conditions string for simplicity right now
-        StringBuilder conditionBuilder = new StringBuilder();
-        while (!check(TokenType.RPAREN) && !isAtEnd()) {
-            conditionBuilder.append(advance().getValue());
-        }
+        String altCondition = readCondition();
         consume(TokenType.RPAREN, "Expect ')' after alt condition.");
 
-        AltStmt altStmt = new AltStmt(conditionBuilder.toString());
+        AltStmt altStmt = new AltStmt(altCondition);
 
         consume(TokenType.LBRACE, "Expect '{' before alt true branch.");
         while (!check(TokenType.RBRACE) && !isAtEnd()) {
@@ -1407,10 +1487,7 @@ public class LoomParser {
     private LoopStmt parseLoopStmt() {
         consume(TokenType.UNTIL, "Expect 'until' after loop.");
         consume(TokenType.LPAREN, "Expect '(' before loop condition.");
-        StringBuilder conditionBuilder = new StringBuilder();
-        while (!check(TokenType.RPAREN) && !isAtEnd()) {
-            conditionBuilder.append(advance().getValue());
-        }
+        StringBuilder conditionBuilder = new StringBuilder(readCondition());
         consume(TokenType.RPAREN, "Expect ')' after loop condition.");
 
         // Optional safety bound: loop until (cond) max 5 { ... } on_exhausted { ... }

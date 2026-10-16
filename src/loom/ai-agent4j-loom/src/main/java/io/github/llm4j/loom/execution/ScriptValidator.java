@@ -364,6 +364,7 @@ public class ScriptValidator {
     private void checkStatements(Checker c) {
         for (WorkflowDef w : c.script().getWorkflows()) walk(w.getStatements(), c);
         TaskChecks.run(c);
+        ControlChecks.run(c);
         RewindChecks.run(c);
         DecisionChecks.run(c);
         io.github.llm4j.loom.ladder.LadderChecks.run(c);

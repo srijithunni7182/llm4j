@@ -24,6 +24,12 @@ public final class Kinds {
     public static final String DECIDE = "decide";
     public static final String OBSERVE = "observe";
     public static final String NOTE = "note";
+    /** A {@code halt} statement: the run ends here on purpose. */
+    public static final String HALT = "halt";
+    /** A {@code set} statement: a variable is given a value. */
+    public static final String SET = "set";
+    /** A {@code return} statement: the workflow hands back its {@code result} and ends. */
+    public static final String RETURN = "return";
     /** A {@code sleep} statement: the workflow waits for a fixed time. */
     public static final String SLEEP = "sleep";
     /** What an {@code on_stopped} handler decides for a stopped step: {@code use partial}, {@code skip}, {@code retry} and so on. */
@@ -32,7 +38,7 @@ public final class Kinds {
 
     public static final List<String> ALL = List.of(
             START, END, DELEGATE, TASK, HANDOFF, BROADCAST, PARALLEL, ALT, LOOP, FOREACH, HUMAN_PROMPT,
-            CHECKPOINT, REWIND, CALL, GUARDRAIL, DECIDE, OBSERVE, NOTE, SLEEP, OUTCOME, UNKNOWN);
+            CHECKPOINT, REWIND, CALL, GUARDRAIL, DECIDE, OBSERVE, NOTE, HALT, SET, RETURN, SLEEP, OUTCOME, UNKNOWN);
 
     private Kinds() {
     }

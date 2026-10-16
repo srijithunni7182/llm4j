@@ -180,7 +180,17 @@ public final class ScriptExplainer {
 
     /** A condition as written in the script, said in words. */
     private static String say(String condition) {
-        return condition.replace("==", " is ").replace("!=", " is not ").replace("&&", " and ").replace("||", " or ").replaceAll("\\s+", " ").strip();
+        return condition.replace(" is not ok", " did not do what it was for").replace(" is ok", " did what it was for").replace("==", " is ").replace("!=", " is not ").replace("&&", " and ").replace("||", " or ").replaceAll("\\s+", " ").strip();
+    }
+
+    /** A value a script writes, in words. */
+    private static String say(io.github.llm4j.loom.ast.ValueExpr v) {
+        if (v instanceof io.github.llm4j.loom.ast.ValueExpr.Text t) return quote(t.text());
+        if (v instanceof io.github.llm4j.loom.ast.ValueExpr.Num n) return n.literal();
+        if (v instanceof io.github.llm4j.loom.ast.ValueExpr.Bool b) return String.valueOf(b.value());
+        if (v instanceof io.github.llm4j.loom.ast.ValueExpr.Ref r) return r.path();
+        io.github.llm4j.loom.ast.ValueExpr.Obj o = (io.github.llm4j.loom.ast.ValueExpr.Obj) v;
+        return "{" + o.fields().entrySet().stream().map(f -> f.getKey() + ": " + say(f.getValue())).collect(java.util.stream.Collectors.joining(", ")) + "}";
     }
 
     private static String describe(Statement s, Facts facts) {
@@ -204,6 +214,9 @@ public final class ScriptExplainer {
             return "A person is asked: " + quote(h.getMessage()) + kept(h.getVariableName());
         }
         if (s instanceof NoteStmt n) return "A note is shown: " + quote(n.getMessage());
+        if (s instanceof io.github.llm4j.loom.ast.HaltStmt h) return "The run stops here, saying: " + quote(h.getMessage());
+        if (s instanceof io.github.llm4j.loom.ast.SetStmt set) return set.getName() + " is set to " + say(set.getValue());
+        if (s instanceof io.github.llm4j.loom.ast.ReturnStmt r) return "The workflow ends here and hands back " + say(r.getValue());
         if (s instanceof SleepStmt z) return "The workflow sleeps for " + z.getText() + ", then carries on";
         if (s instanceof RunStmt r) {
             facts.tasks++;

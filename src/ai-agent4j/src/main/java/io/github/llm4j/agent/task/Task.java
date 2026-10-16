@@ -22,6 +22,16 @@ public interface Task {
     /** The name a script uses: {@code run RefundPolicy(...)}. */
     String getName();
 
+    /**
+     * The outcomes that mean "it did what was wanted". A workflow asks {@code x is ok} of a step's result and gets true exactly when the
+     * outcome is one of these (or the step was only described in a simulated run). Anything else, an unexpected word included, is not ok.
+     * The default is {@code ok}, which is what {@link TaskResult#ok()} and {@link TaskResult#value(Object)} produce; a task that reports
+     * {@code passed} and {@code failed} says {@code Set.of("passed")}.
+     */
+    default java.util.Set<String> okOutcomes() {
+        return java.util.Set.of("ok");
+    }
+
     /** What the task does, for listings and error messages. */
     default String getDescription() {
         return "";

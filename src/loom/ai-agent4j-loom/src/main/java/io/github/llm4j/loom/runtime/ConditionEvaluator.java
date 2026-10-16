@@ -31,6 +31,13 @@ public class ConditionEvaluator {
 
         String cond = condition.trim();
 
+        // `x is ok` / `x is not ok`: did a run step do what it was for? Fails closed: anything that is not a run result, or never ran, is not ok.
+        java.util.regex.Matcher isOk = IS_OK.matcher(cond);
+        if (isOk.matches()) {
+            boolean ok = ok(isOk.group(1), context);
+            return isOk.group(2) == null ? ok : !ok;
+        }
+
         // Multi-char operators must be checked before their single-char sub-strings.
         if (cond.contains("==")) {
             return evaluateBinary(cond, "==", context);
@@ -49,6 +56,14 @@ public class ConditionEvaluator {
             Object val = context.getVariable(cond);
             return "true".equalsIgnoreCase(val != null ? val.toString() : "");
         }
+    }
+
+    private static final java.util.regex.Pattern IS_OK = java.util.regex.Pattern.compile("(\\S+) is (not )?ok");
+
+    /** True when {@code path} names the result of a {@code run} step whose task called its outcome ok, or that was only described in a simulated run. */
+    static boolean ok(String path, VariableContext context) {
+        int dot = path.indexOf('.');
+        return Boolean.TRUE.equals(context.getVariable("_ok:" + (dot < 0 ? path : path.substring(0, dot))));
     }
 
     private static boolean evaluateBinary(String cond, String operator, VariableContext context) {

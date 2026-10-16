@@ -452,6 +452,7 @@ final class Decider {
             try {
                 run.setVariable("_decide_task", task + reminder);
                 DelegateStmt del = new DelegateStmt("{_decide_task}", agent.getName(), "_decide_proposal");
+                del.setLenientSchema(true); // the decision checks the proposal itself (a missing confidence is fine, a missing choice sends a reminder)
                 run.delegateAt(where, del);
                 raw = journal.get(where).map(e -> e.value()).orElse(null);
             } catch (Replay.Unreplayable | io.github.llm4j.loom.runtime.RunStopped | io.github.llm4j.agent.AgentInterrupt e) {

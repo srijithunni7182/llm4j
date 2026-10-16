@@ -15,7 +15,7 @@ const Hero = ({ onStart }) => {
             onStart(data.projectId, idea);
         } catch (error) {
             console.error(error);
-            alert('Failed to launch Nirmaan Yantra. Check backend.');
+            alert(error.message || 'Failed to launch Nirmaan Yantra. Is the factory running?');
         } finally {
             setLoading(false);
         }
