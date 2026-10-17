@@ -18,6 +18,8 @@ No llm4j module depends on this one, and the starter adds almost no behaviour: e
 </dependency>
 ```
 
+**Running a Loom workflow in your application?** Start with the [developer guide](../../../docs/SPRING_BOOT_LOOM_GUIDE.md): dependencies, configuration, running, answering questions, persistence, schedules.
+
 ## The rules it keeps
 
 1. **Nothing you did not configure.** With no `llm4j.*` settings you get an empty `ToolRegistry` and a `ToolCatalog`, nothing else.
