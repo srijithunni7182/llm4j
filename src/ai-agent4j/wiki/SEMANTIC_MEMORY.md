@@ -52,7 +52,7 @@ Full offline capability. Requires the `ai-agent4j-addons` dependency.
 <dependency>
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j-addons</artifactId>
-    <version>5.0</version>
+    <version>6.0.0</version>
 </dependency>
 ```
 

@@ -82,6 +82,7 @@ Test code is almost as large as production code: about 111,000 test lines agains
 | **2026-10-12** | **loom-inspect and Fabric**: live observability, incidents, controls and a simulator. |
 | 2026-10-13 | Tools can act as the person running the workflow (invoker credentials). Fabric configuration page. |
 | 2026-10-15 | Context management and call telemetry. Runs can be steered, paused, resumed or cancelled from another thread. |
+| 2026-10-16 | `LoomHost` runs workflows from an application and resumes them after a restart. The Spring Boot starter. |
 
 Release dates for 1.0 to 5.0 come from the git tags. The other entries are dates of the commits that introduced the
 feature.

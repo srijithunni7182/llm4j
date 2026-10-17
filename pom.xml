@@ -6,7 +6,7 @@
 
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>llm4j-parent</artifactId>
-    <version>5.0</version>
+    <version>6.0.0</version>
     <packaging>pom</packaging>
 
     <name>llm4j Parent</name>

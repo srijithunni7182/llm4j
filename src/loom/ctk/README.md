@@ -76,7 +76,7 @@ mvn test
 
 - Java 17 or higher
 - Maven 3.6 or higher
-- ai-agent4j runtime built and available at `../ai-agent4j/target/ai-agent4j-5.0.jar`
+- ai-agent4j runtime built and available at `../ai-agent4j/target/ai-agent4j-6.0.0.jar`
 
 ## License
 

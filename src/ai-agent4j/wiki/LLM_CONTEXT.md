@@ -18,7 +18,7 @@
 <dependency>
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j</artifactId>
-    <version>5.0</version>
+    <version>6.0.0</version>
 </dependency>
 ```
 

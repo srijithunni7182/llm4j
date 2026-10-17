@@ -11,12 +11,12 @@ Nothing here makes llm4j depend on Spring. The starter wires `LoomHost` (in `ai-
 <dependency>
   <groupId>io.github.srijithunni7182</groupId>
   <artifactId>llm4j-spring-boot-starter</artifactId>
-  <version>5.0</version>
+  <version>6.0.0</version>
 </dependency>
 <dependency>
   <groupId>io.github.srijithunni7182</groupId>
   <artifactId>ai-agent4j-loom</artifactId>
-  <version>5.0</version>
+  <version>6.0.0</version>
 </dependency>
 ```
 
