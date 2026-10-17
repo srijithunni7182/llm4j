@@ -13,6 +13,9 @@ on:
     paths: [ 'src/spring/**', 'src/loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/host/**', '.github/workflows/spring-starter.yml' ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   starter:
     name: Starter (JDK ${{ matrix.java }}, Spring Boot ${{ matrix.boot }})
