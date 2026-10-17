@@ -97,6 +97,18 @@ see [API keys in the Quick Start](src/ai-agent4j/wiki/Getting-Started.md#set-up-
 
 [Module details and diagram](docs/THE_STACK.md)
 
+## Agent skills
+
+Three [Claude skills](docs/PUBLISHING_SKILL.md) live in [`.claude/skills/`](.claude/skills/), so a coding agent can walk you through the whole job, one gate at a time:
+
+| Skill | Use it to |
+|---|---|
+| [`llm4j-harness-design`](.claude/skills/llm4j-harness-design/SKILL.md) | **Design** the harness around an autonomous workflow before building it (what agents may touch, how a run is bounded, fails, survives a crash and is stopped, who steps in) and write it down as a `HARNESS.md` |
+| [`llm4j-workflow-guide`](.claude/skills/llm4j-workflow-guide/SKILL.md) | **Build** it: agents, golden dataset, prompt and agent tests, the Loom workflow, `weave check` and `weave audit`, steering and stopping, going live under budgets ([the guide](docs/guide/README.md)) |
+| [`llm4j-loom-deployer`](.claude/skills/llm4j-loom-deployer/SKILL.md) | **Run** it watched: the security decisions, the rules file, a Fabric server, launching both, reading the pages |
+
+They hand over to each other in that order and each works alone. `weave guide --install-skill` installs all three into your project ([how the skills are published](docs/PUBLISHING_SKILL.md)).
+
 ## Secure by construction
 
 The model reasons; **the code holds the authority**. What an agent may touch, spend, send and decide is declared in Java
@@ -117,7 +129,7 @@ and a [Gmail MCP app](src/examples/gmail-mcp-app/). [All examples](docs/EXAMPLES
 [**Docs index**](docs/README.md) ·
 [Quick Start](src/ai-agent4j/wiki/Getting-Started.md) ·
 [Loom guide](src/loom/ai-agent4j-loom/LOOM_GUIDE.md) ·
-[Observability](docs/OBSERVABILITY.md) · [Deploying observability](docs/OBSERVABILITY_DEPLOYMENT.md) · [Agent skills: build it, deploy it](docs/PUBLISHING_SKILL.md) ·
+[Observability](docs/OBSERVABILITY.md) · [Deploying observability](docs/OBSERVABILITY_DEPLOYMENT.md) · [Agent skills: design it, build it, deploy it](docs/PUBLISHING_SKILL.md) ·
 [Secret Store](src/ai-agent4j/wiki/Secret-Store.md) ·
 [Security](SECURITY.md) ·
 [eval4j](src/eval4j/README.md) ·

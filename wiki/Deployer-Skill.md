@@ -3,7 +3,7 @@
 A coding agent can take a finished Loom workflow to a **running, watched** one, and teach you to read the pages. The skill is **`llm4j-loom-deployer`**; the workflow itself is built and tested with its sibling, `llm4j-workflow-guide`.
 
 ```
-weave guide --install-skill          # installs both into .claude/skills/ of this folder
+weave guide --install-skill          # installs the harness-design, workflow and deployer skills into .claude/skills/ of this folder
 weave guide --install-skill --skill deployer
 weave guide deploy                   # the map; weave guide d1 ... d8 print the chapters
 ```

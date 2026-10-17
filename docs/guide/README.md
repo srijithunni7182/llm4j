@@ -66,7 +66,7 @@ the [Loom workflow](https://github.com/srijithunni7182/llm4j/blob/main/src/examp
 
 ## Use it as a Claude skill
 
-The same path is available as a skill, so Claude can walk you through it stage by stage and check each gate: in this repo it is `.claude/skills/llm4j-workflow-guide/` (and `.claude/skills/llm4j-loom-deployer/` for running it, watched), and `scripts/package-skill.sh` builds a standalone bundle (`dist/llm4j-workflow-guide.zip`) from these chapters for distribution.
+The same path is available as a skill, so Claude can walk you through it stage by stage and check each gate: in this repo it is `.claude/skills/llm4j-workflow-guide/` (with `.claude/skills/llm4j-harness-design/` to design the harness before you build, and `.claude/skills/llm4j-loom-deployer/` for running it, watched), and `scripts/package-skill.sh` builds a standalone bundle (`dist/llm4j-workflow-guide.zip`) from these chapters for distribution.
 
 ## Be honest about the edges
 
