@@ -75,9 +75,16 @@ class MetadataAndReadmeTest {
                     .withPropertyValues("llm4j.loom.script=classpath:scripts/three-steps.loom", "llm4j.loom.validate=" + v).run(ctx -> assertThat(ctx).hasNotFailed());
         }
         for (String v : hints.get("llm4j.loom.executor")) {
+            boolean needsNewerJava = v.equals("virtual-threads") && Runtime.version().feature() < 21;
             Fixtures.runner().withBean(io.github.llm4j.loom.execution.LLMClientFactory.class, LoomFixtures.Models::new)
-                    .withBean(java.util.concurrent.Executor.class, () -> Runnable::run)
-                    .withPropertyValues("llm4j.loom.script=classpath:scripts/three-steps.loom", "llm4j.loom.executor=" + v).run(ctx -> assertThat(ctx.getStartupFailure() == null ? "" : String.valueOf(ctx.getStartupFailure().getMessage())).doesNotContain("executor"));
+                    .withBean("applicationTaskExecutor", java.util.concurrent.Executor.class, () -> Runnable::run)
+                    .withPropertyValues("llm4j.loom.script=classpath:scripts/three-steps.loom", "llm4j.loom.executor=" + v).run(ctx -> {
+                String failure = ctx.getStartupFailure() == null ? "" : String.valueOf(ctx.getStartupFailure().getMessage());
+                // a value the starter does not know says "is not known"; virtual threads on Java 17 says what it needs
+                assertThat(failure).doesNotContain("is not known");
+                if (needsNewerJava) assertThat(failure).contains("needs Java 21");
+                else assertThat(ctx).hasNotFailed();
+            });
         }
         for (String v : hints.get("llm4j.routing.strategy")) {
             if (v.equals("none")) Fixtures.runner().withPropertyValues("llm4j.routing.strategy=none").run(ctx -> assertThat(ctx).hasNotFailed());

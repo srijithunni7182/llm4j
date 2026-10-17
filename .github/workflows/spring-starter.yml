@@ -22,11 +22,16 @@ jobs:
       matrix:
         java: [ '17', '21' ]
         boot: [ '3.2.3', '3.5.6' ]
+        include:
+          - boot: '3.2.3'
+            spring: '6.1.4'
+          - boot: '3.5.6'
+            spring: '6.2.11'
     services:
       pgvector:
         image: pgvector/pgvector:pg16
         env:
-          POSTGRES_PASSWORD: test
+          POSTGRES_HOST_AUTH_METHOD: trust   # a throw-away database on the runner; any password is accepted
           POSTGRES_DB: vdb
         ports: [ '5432:5432' ]
         options: >-
@@ -39,9 +44,13 @@ jobs:
         java-version: ${{ matrix.java }}
         distribution: 'temurin'
         cache: 'maven'
-    - name: Build and test the starter (and the libraries it needs)
+    - name: Install the libraries the starter needs (no tests: the main build tests them)
+      run: mvn -B -pl src/spring/llm4j-spring-boot-starter -am install -DskipTests -Djacoco.skip=true
+    - name: Test the starter
+      run: mvn -B -pl src/spring/llm4j-spring-boot-starter verify -Dspring-boot.version=${{ matrix.boot }} -Dspring.version=${{ matrix.spring }}
+    - name: Test the starter against a real pgvector database (V7.5)
       env:
         LLM4J_TEST_PGVECTOR_URL: jdbc:postgresql://localhost:5432/vdb
         LLM4J_TEST_PGVECTOR_USER: postgres
-        LLM4J_TEST_PGVECTOR_PASSWORD: test
-      run: mvn -B -pl src/spring/llm4j-spring-boot-starter -am verify -Dspring-boot.version=${{ matrix.boot }} -Dtest.excluded=live,fragile
+        LLM4J_TEST_PGVECTOR_PASSWORD: ${{ github.run_id }}
+      run: mvn -B -pl src/spring/llm4j-spring-boot-starter test -Dtest=PgvectorIntegrationTest -Dtest.excluded=live,fragile -Djacoco.skip=true -Dspring-boot.version=${{ matrix.boot }} -Dspring.version=${{ matrix.spring }}
