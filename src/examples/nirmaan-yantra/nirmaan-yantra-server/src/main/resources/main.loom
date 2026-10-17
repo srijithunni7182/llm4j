@@ -1,0 +1,100 @@
+// Nirmaan Yantra: "You dream it. We build it."  One sentence in, a tested, reviewed, zipped software project out.
+//
+//   Aditi (product) -> Rishi (architecture) -> Vihaan (code, test first) with Dhruv (builds and runs, as code, no model)
+//   -> Vishnu (review) -> Drishti's end to end suite (QA) -> Vishnu (sign-off)
+//
+// Agents read and write; code decides and acts. The story below runs top to bottom with no loops. The one place anything is retried is
+// the Fix step (flows/fix.loom): run a command, let Vihaan fix the code up to 3 times, then ask a person. Open this file with the
+// Loom extension and run "Loom: Show Workflow Graph"; the numbered comments are the phases.
+//
+// Two rules keep it honest:
+//  * Every check fails closed. `x is ok` is true only when a step's task calls its outcome ok (RunCommand: "passed"); a hang, a refused
+//    command, an unexpected word or a step that never ran is not ok. The one thing that counts as ok unchecked is a step Loom only
+//    described in a simulated run (`weave eval --mock`), so the free wiring tests reach the end without weakening a real run.
+//  * Tests are locked. SaveFiles refuses to change an existing test, and nothing but Drishti may write under e2e-tests/.
+
+import "agents/crew.loom"
+import "flows/fix.loom"
+
+// When the run budget is used up a person is asked whether to extend it (yes adds the same amount again); the answer is recorded and
+// the run carries on from the refused step. See COST.md.
+budget { tokens: 1500000  calls: 100  cost: "$3.00"  warn_at: 70%  when_exhausted: ask }   // cost needs --prices
+audit  { logger: "file"  path: "nirmaan-audit.json" }
+
+workflow Main(idea_text, project_id) {
+    // 1. Plan: the idea becomes a PRD, then a spec that names the exact build, test, run and end to end commands
+    delegate "Write the PRD for this idea:\n{idea_text}" to Aditi -> prd_doc
+    run SaveDocument(project = project_id, path = "PRD.md", content = prd_doc) -> prd_saved
+    delegate "PRD:\n{prd_doc}" to Rishi -> spec_out
+        retry 2
+    run SaveSpec(project = project_id, spec = spec_out) -> spec_saved
+    alt (spec_saved is not ok) {
+        halt "Rishi's spec was refused: {spec_saved.reason}"
+    }
+    run LoadSpec(project = project_id) -> spec_doc
+
+    // 2. Prepare: the first failing unit test and the end to end suite need only the spec, so they are written at the same time
+    parallel {
+        delegate "MODE: RED\nSPEC:\n{spec_doc.markdown}" to Vihaan -> red_out
+        delegate "MODE: WRITE\nSPEC:\n{spec_doc.markdown}" to Drishti -> e2e_out
+    }
+    run SaveFiles(project = project_id, files = red_out.files) -> red_saved
+    run SaveFiles(project = project_id, files = e2e_out.files, may_change = "e2e") -> e2e_saved
+
+    // 3. Build: the test must fail first (red), then Vihaan writes the code, then Fix until the tests pass (green)
+    run RunCommand(project = project_id, command = spec_doc.test_command, label = "red") -> red_run
+    alt (red_run.outcome != "failed") {
+        note "The tests did not fail before any code existed ({red_run.outcome}), so they may prove nothing."
+    }
+    run ReadCode(project = project_id, focus = "") -> code_dump
+    delegate "MODE: GREEN\nSPEC:\n{spec_doc.markdown}\nCODE:\n{code_dump.value}" to Vihaan -> green_out
+        retry 2
+    run SaveFiles(project = project_id, files = green_out.files) -> green_saved
+    call Fix(project_id = "{project_id}", command_line = "{spec_doc.test_command}") -> tests_green
+
+    // 4. Review: code decides whether tests exist; Vishnu judges the rest. A rejection gets one polish, then the tests are re-run.
+    run CheckTestsExist(project = project_id) -> tests_found
+    run ReadCode(project = project_id, focus = "") -> review_code
+    alt (tests_found is not ok) {
+        set first_review = { verdict: "REJECTED", detail: "{tests_found.reason}. Add unit tests for the behaviour in the spec." }
+    } else {
+        delegate "STAGE: first\nSPEC:\n{spec_doc.markdown}\nFILES:\n{review_code.value}" to Vishnu -> first_review
+            retry 2
+    }
+    alt (first_review.verdict != "APPROVED") {
+        delegate "MODE: REFACTOR\nSPEC:\n{spec_doc.markdown}\nFEEDBACK:\n{first_review.detail}\nCODE:\n{review_code.value}" to Vihaan -> polish_out
+            retry 2
+        run SaveFiles(project = project_id, files = polish_out.files) -> polish_saved
+        call Fix(project_id = "{project_id}", command_line = "{spec_doc.test_command}") -> polished
+    }
+
+    // 5. Assure: a clean build, then Drishti's end to end suite, then the unit tests again in case a fix broke one.
+    //    The clean build is one command and no model: the tests have already compiled and run the code, so a build that fails now is
+    //    packaging or configuration, not something worth paying a model to loop on. A person decides what to do about it.
+    run RunCommand(project = project_id, command = spec_doc.build_command, label = "build") -> build_run
+    alt (build_run is not ok) {
+        human_prompt "The clean build fails (probably packaging):\n{build_run.reason}\n{build_run.value}\n\nCarry on anyway? Answer exactly: yes or no" -> build_waiver
+        alt (build_waiver != "yes") {
+            halt "The clean build fails and a person chose to stop: {build_run.reason}"
+        }
+    }
+    call Fix(project_id = "{project_id}", command_line = "{spec_doc.e2e_command}") -> e2e_passed
+    call Fix(project_id = "{project_id}", command_line = "{spec_doc.test_command}") -> still_green
+    run SaveDocument(project = project_id, path = "QA_REPORT.md", content = "# QA Report\n**Status**: PASSED\n\nClean build: {build_run.outcome}\nEnd to end: {e2e_passed.detail}\nUnit tests: {still_green.detail}") -> qa_saved
+
+    // 6. Release: Vishnu signs off; if he refuses, a person decides. Then the project is zipped.
+    run ReadCode(project = project_id, focus = "") -> final_code
+    delegate "STAGE: final\nSPEC:\n{spec_doc.markdown}\nFILES:\n{final_code.value}" to Vishnu -> sign_off
+        retry 2
+    alt (sign_off.verdict == "APPROVED") {
+        run SaveDocument(project = project_id, path = "APPROVAL.md", content = "# Deployment Approval\n**Reviewer**: Vishnu approved.\n\n{sign_off.detail}") -> approval_saved
+    } else {
+        human_prompt "Vishnu does not approve the release:\n{sign_off.detail}\n\nRelease it anyway? Answer exactly: yes or no" -> release_waiver
+        alt (release_waiver != "yes") {
+            halt "Release refused: {sign_off.detail}"
+        }
+        run SaveDocument(project = project_id, path = "APPROVAL.md", content = "# Deployment Approval\n**Reviewer**: Vishnu did NOT approve.\n**Released anyway by a person.**\n\n{sign_off.detail}") -> approval_saved
+    }
+    run PackageProject(project = project_id) -> archive
+    note "Released. Let through by a person despite a failure: tests {tests_green.waived}, end to end {e2e_passed.waived}; clean build {build_run.outcome}. Archive: {archive.value}"
+}

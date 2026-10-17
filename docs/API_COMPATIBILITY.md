@@ -39,6 +39,10 @@ the tables `LoomHost.createSchema` creates, including `llm4j_loom_runs` and `llm
 `LootLoader.loadIntoRegistry(Reader, ToolRegistry)` and `LootLoader.reaches(Reader)` do the same for a loot file, and `LoomRun.start(executor, label, workflow, inputs, origin, invoker, runner, onDone)` runs on a thread the
 application provides, for a named person, and reports when it ends. `LoomLoader.load(String)`, `LootLoader.loadIntoRegistry(String, ToolRegistry)`, `LootLoader.reaches(Path)` and the other `LoomRun.start` forms are unchanged.
 
+Loom adds the statements `halt`, `set` and `return` and the condition `x is ok` / `x is not ok`; a script that does not use them is unchanged (the words are contextual, so a variable called `set` or `ok` keeps working). `io.github.llm4j.agent.task.Task` gains the default method `okOutcomes()` (`{ok}`), so every existing task keeps working. `HarnessExecutor.executeWorkflow` can now throw `io.github.llm4j.loom.runtime.RunHalted` (a `RuntimeException`) when a script halts, next to `BudgetExceeded`, `RunSuspended` and `RunStopped`; `weave run` exits with code 6. The trace gains the events `halt` and `schema_violation`, the run's final status `halted`, and the graph JSON the node kinds `halt`, `set` and `return`; loom-inspect shows a halted run as stopped.
+
+**One behaviour change, deliberately.** An agent's answer is now checked against its `output_schema` / `expecting`. Before, an answer that was not JSON (or did not match) reached the script as raw text; now the step is retried once with a correction, and then fails into `on_failure`. A script that relied on the raw text must handle the failure (or drop the schema). Decision proposals (`decide`) keep reading answers leniently.
+
 Internal implementation details may change without notice, especially:
 
 - `io.github.llm4j.http`

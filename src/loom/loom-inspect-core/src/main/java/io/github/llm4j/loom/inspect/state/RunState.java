@@ -371,7 +371,7 @@ public final class RunState {
         switch (outcome) {
             case Semconv.STATUS_COMPLETED -> status = Status.FINISHED;
             case Semconv.STATUS_FAILED -> status = Status.FAILED;
-            case Semconv.STATUS_STOPPED, Semconv.STATUS_BUDGET -> status = Status.STOPPED;
+            case Semconv.STATUS_STOPPED, Semconv.STATUS_BUDGET, Semconv.STATUS_HALTED -> status = Status.STOPPED;
             case Semconv.STATUS_SUSPENDED -> {
                 if (status != Status.SLEEPING && status != Status.WAITING) status = Status.PAUSED;
             }

@@ -1,93 +1,119 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    nirmaan-yantra-server: the Nirmaan Yantra software factory, written as a Loom workflow.
+      src/main/resources            main.loom (the workflow), agents/ and flows/ (its parts) and prompts/ (one markdown file per agent)
+      src/main/java                 the deterministic steps the workflow runs as tasks (write files, run the build, ...)
+      src/test/resources/eval/golden  the golden dataset (example requests and what a good answer does)
+      src/test/java                 unit tests for the tasks, and eval4j tests that run every golden scenario on a model that costs nothing
+    `weave` reads the same files, so `weave check`, `weave eval` and `mvn test` always agree.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.1</version>
-        <relativePath/> <!-- lookup parent from repository -->
-    </parent>
+
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>nirmaan-yantra-server</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>5.0</version>
+    <packaging>jar</packaging>
+
     <name>nirmaan-yantra-server</name>
-    <description>AI Software Development Team</description>
+    <description>An AI software development team (product, architecture, TDD build, QA, release) written as a Loom workflow.</description>
 
     <properties>
-        <java.version>17</java.version>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <llm4j.version>5.0</llm4j.version>
+        <junit.version>5.10.2</junit.version>
     </properties>
 
     <dependencies>
+        <!-- Loom, with the dataset and evaluation classes the tests use. The tasks in src/main/java use it too. -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>ai-agent4j-loom</artifactId>
+            <version>${llm4j.version}</version>
         </dependency>
+        <!-- Lets the web host report each run to a Fabric server (found by ServiceLoader at run time) -->
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-devtools</artifactId>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>loom-inspect</artifactId>
+            <version>${llm4j.version}</version>
             <scope>runtime</scope>
-            <optional>true</optional>
         </dependency>
+        <!-- With this on the test classpath, `mvn test` also writes the eval4j dashboard: target/eval4j/report/index.html -->
         <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
+            <groupId>io.github.srijithunni7182</groupId>
+            <artifactId>eval4j-report</artifactId>
+            <version>${llm4j.version}</version>
             <scope>test</scope>
         </dependency>
-        <!-- llm4j dependencies -->
-         <dependency>
-            <groupId>io.github.srijithunni7182</groupId>
-            <artifactId>ai-agent4j</artifactId>
-            <version>5.0</version>
-        </dependency>
-         <dependency>
-            <groupId>io.github.srijithunni7182</groupId>
-            <artifactId>ai-agent4j-addons</artifactId>
-            <version>5.0</version>
-        </dependency>
-        <!-- ai-agent4j-addons marks its heavy engines optional: this application names the ones it uses -->
         <dependency>
-            <groupId>com.microsoft.onnxruntime</groupId>
-            <artifactId>onnxruntime</artifactId>
-            <version>1.18.0</version>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.pgvector</groupId>
-            <artifactId>pgvector</artifactId>
-            <version>0.1.6</version>
-        </dependency>
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>42.7.12</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jsoup</groupId>
-            <artifactId>jsoup</artifactId>
-            <version>1.23.2</version>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.27.7</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <!-- Pinned: Maven's default (3.1) does not recompile a class you edited, and fails later with "cannot find symbol" -->
+                <version>3.12.1</version>
                 <configuration>
-                    <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
-                    </excludes>
+                    <release>17</release>
+                    <!-- warns when a static method is called on an instance, such as TaskResult.outcome("x").value(y), which silently drops the outcome -->
+                    <showWarnings>true</showWarnings>
+                    <compilerArgs>
+                        <arg>-Xlint:static</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.6.1</version>
+                <executions>
+                    <execution>
+                        <!-- target/lib holds what the web host needs at run time, so start_nirmaan.sh runs it with a plain java -cp -->
+                        <id>copy-runtime-libs</id>
+                        <phase>package</phase>
+                        <goals><goal>copy-dependencies</goal></goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                            <includeScope>runtime</includeScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <!-- 3.x runs JUnit 5. An old surefire finds no JUnit 5 tests and reports success: the next line makes that a failure. -->
+                <version>3.2.5</version>
+                <configuration>
+                    <failIfNoTests>true</failIfNoTests>
+                    <!-- A pretend secret in the test JVM's environment: the tests check that commands the factory starts never see it -->
+                    <environmentVariables>
+                        <NIRMAAN_TEST_SECRET>hunter2</NIRMAAN_TEST_SECRET>
+                    </environmentVariables>
+                    <!-- Tasks write to a workspace folder: the tests use a throwaway one inside target/ -->
+                    <systemPropertyVariables>
+                        <nirmaan.workspace>${project.build.directory}/workspace-test</nirmaan.workspace>
+                    </systemPropertyVariables>
+                    <!-- Loom reports progress through java.util.logging at INFO: hundreds of lines per test run. Warnings and errors still show. -->
+                    <argLine>-Djava.util.logging.config.file=${project.basedir}/src/test/resources/logging.properties</argLine>
                 </configuration>
             </plugin>
         </plugins>
     </build>
-
 </project>

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { connectToStream } from '../services/api';
+import { connectToStream, submitAnswer, stopProject } from '../services/api';
 import ChatBubble from './ChatBubble';
 import ArtifactsPanel from './ArtifactsPanel';
 
@@ -10,6 +10,11 @@ const Dashboard = ({ projectId, userIdea }) => {
     const [status, setStatus] = useState('Initializing Project...');
     const [isComplete, setIsComplete] = useState(false);
     const [showTeamModal, setShowTeamModal] = useState(false);
+    const [runStatus, setRunStatus] = useState('starting');
+    const [question, setQuestion] = useState(null);
+    const [spend, setSpend] = useState(null);
+    const [freeText, setFreeText] = useState('');
+    const [answerError, setAnswerError] = useState('');
     const messagesEndRef = useRef(null);
 
     // Helper to parse log into { agent, message }
@@ -55,6 +60,20 @@ const Dashboard = ({ projectId, userIdea }) => {
             }
         });
 
+        // What the factory tells the screen besides chat lines: its status, a question for you, and what the run has cost so far.
+        eventSource.addEventListener('status', (e) => {
+            const s = JSON.parse(e.data);
+            setRunStatus(s.status);
+            if (s.status === 'done') setIsComplete(true);
+            if (s.status !== 'waiting') setQuestion(null);
+        });
+        eventSource.addEventListener('question', (e) => {
+            setQuestion(JSON.parse(e.data));
+            setAnswerError('');
+            setFreeText('');
+        });
+        eventSource.addEventListener('spend', (e) => setSpend(JSON.parse(e.data)));
+
         eventSource.onerror = () => {
             eventSource.close();
             setMessages(prev => [...prev, { agent: 'System', message: 'Workflow connection closed.', isSystem: true }]);
@@ -70,8 +89,21 @@ const Dashboard = ({ projectId, userIdea }) => {
     }, [messages]);
 
     const handleDownload = () => {
-        window.open(`http://localhost:8080/api/project/${projectId}/download`, '_blank');
+        window.open(`/api/project/${projectId}/download`, '_blank');
     };
+
+    const answer = async (text) => {
+        try {
+            await submitAnswer(projectId, text);
+            setAnswerError('');
+        } catch (err) {
+            setAnswerError(err.message);
+        }
+    };
+
+    const running = runStatus === 'starting' || runStatus === 'running' || runStatus === 'waiting';
+    const label = { starting: 'STARTING', running: 'BUILDING', waiting: 'WAITING FOR YOU', done: 'ONLINE', failed: 'STOPPED EARLY', halted: 'HALTED', stopped: 'STOPPED' }[runStatus] || 'BUILDING';
+    const money = spend && spend.cost !== undefined ? `$${Number(spend.cost).toFixed(4)} · ${spend.calls} calls` : '';
 
     return (
         <div className="container" style={{ padding: 0, height: '100vh', maxWidth: '100%' }}>
@@ -114,8 +146,23 @@ const Dashboard = ({ projectId, userIdea }) => {
                             boxShadow: isComplete ? '0 0 10px var(--accent-green)' : 'none',
                             animation: isComplete ? 'none' : 'pulse-gold 2s infinite'
                         }} />
-                        {isComplete ? 'ONLINE' : 'BUILDING'}
+                        {label}
                     </div>
+
+                    {money && (
+                        <span title="What this run has cost so far, by the factory's own count" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
+                            {money}
+                        </span>
+                    )}
+
+                    {running && (
+                        <button
+                            onClick={() => stopProject(projectId).catch((err) => setAnswerError(err.message))}
+                            style={{ padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--brand-red)', color: 'var(--brand-red)', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', letterSpacing: '1px', textTransform: 'uppercase' }}
+                        >
+                            Stop
+                        </button>
+                    )}
 
                     <button
                         onClick={() => setShowTeamModal(true)}
@@ -320,6 +367,39 @@ const Dashboard = ({ projectId, userIdea }) => {
                         ))}
                         <div ref={messagesEndRef} />
                     </div>
+
+                    {/* A question for you: an approval, "carry on anyway?", or a budget extension */}
+                    {question && (
+                        <div style={{ padding: '1.2rem 2rem', borderTop: '1px solid var(--brand-gold)', background: 'rgba(255, 215, 0, 0.06)' }}>
+                            <div style={{ color: 'var(--brand-gold)', fontSize: '0.8rem', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '0.6rem' }}>
+                                The factory needs your decision
+                            </div>
+                            <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', maxHeight: '220px', overflowY: 'auto', marginBottom: '0.9rem', color: 'var(--text-primary)' }}>
+                                {question.text.replace(/\\n/g, '\n')}
+                            </div>
+                            {question.choices.length > 0 ? (
+                                <div style={{ display: 'flex', gap: '0.8rem' }}>
+                                    {question.choices.map((choice) => (
+                                        <button
+                                            key={choice}
+                                            onClick={() => answer(choice)}
+                                            style={{ padding: '0.6rem 1.6rem', background: choice === 'yes' ? 'var(--accent-green)' : 'var(--bg-tertiary)', color: choice === 'yes' ? 'black' : 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', textTransform: 'uppercase' }}
+                                        >
+                                            {choice}
+                                        </button>
+                                    ))}
+                                </div>
+                            ) : (
+                                <form onSubmit={(e) => { e.preventDefault(); answer(freeText); }} style={{ display: 'flex', gap: '0.8rem' }}>
+                                    <input value={freeText} onChange={(e) => setFreeText(e.target.value)} style={{ flex: 1, padding: '0.6rem', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '4px' }} />
+                                    <button type="submit" style={{ padding: '0.6rem 1.4rem', background: 'var(--brand-gold)', color: 'black', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer' }}>Send</button>
+                                </form>
+                            )}
+                        </div>
+                    )}
+                    {answerError && (
+                        <div style={{ padding: '0.5rem 2rem', color: 'var(--brand-red)', fontSize: '0.85rem' }}>{answerError}</div>
+                    )}
 
                     {/* Status Bar / Input placeholder */}
                     <div style={{

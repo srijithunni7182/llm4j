@@ -1,0 +1,9 @@
+- id: drishti-001
+  name: Writes a headless suite behind the spec's E2E command
+  input: "MODE: WRITE\nSPEC:\n# Technical Specification\n## Tech Stack\nPython 3\n## Requirements\n- word_count.py FILE prints the number of words in FILE\n- a missing file prints an error and exits with code 1\n## Commands\nBuild Command: None\nTest Command: pytest\nRun Command: python3 word_count.py\nE2E Command: bash e2e-tests/run.sh"
+  dimensions: [exactness, grounding]
+  expected_output_contains: "e2e-tests/run.sh"
+  rubric:
+    - "Creates e2e-tests/run.sh, which exits 0 only when every check passes"
+    - "Checks both the word count and the missing-file exit code 1"
+    - "Needs no browser, no Docker and no person"

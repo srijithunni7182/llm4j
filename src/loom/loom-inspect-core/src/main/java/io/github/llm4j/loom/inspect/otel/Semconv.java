@@ -153,5 +153,7 @@ public final class Semconv {
     public static final String STATUS_SUSPENDED = "suspended";
     public static final String STATUS_STOPPED = "stopped";
     public static final String STATUS_BUDGET = "budget";
+    /** The workflow's own {@code halt} ended the run: shown as stopped, with the reason in the run's trace. */
+    public static final String STATUS_HALTED = "halted";
     public static final String STATUS_FAILED = "failed";
 }

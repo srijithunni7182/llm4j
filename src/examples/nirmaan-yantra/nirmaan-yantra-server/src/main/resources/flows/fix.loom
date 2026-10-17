@@ -1,0 +1,30 @@
+// Fix: the factory's only loop. Dhruv runs a command; while it fails Vihaan reads the log and fixes the code, at most 3 times.
+// Used for the unit tests and the end to end suite (and to prove a polish or a later fix broke nothing).
+//
+// If it still fails, a person decides: carry on anyway, or stop the factory. Tests are locked (SaveFiles refuses a fix that
+// changes one, and nothing but Drishti may write under e2e-tests/), so Vihaan cannot make a command pass by weakening its test;
+// a test that is truly wrong is a person's call.
+// Returns {verdict: "PASSED", waived: "no" | "yes", detail}. The run stops here if the person says no.
+workflow Fix(project_id, command_line) {
+    run LoadSpec(project = project_id) -> spec_doc
+    run RunCommand(project = project_id, command = command_line, label = "fix") -> check_run
+
+    loop until (check_run is ok) max 3 budget 250000 tokens {
+        run ReadCode(project = project_id, focus = check_run.value) -> code_dump
+        delegate "MODE: FIX\nSPEC:\n{spec_doc.markdown}\nFAILED COMMAND: {command_line}\nRESULT: {check_run.outcome} {check_run.reason}\nLOG:\n{check_run.value}\nLAST SAVE PROBLEM: {fix_saved.reason}\nCODE:\n{code_dump.value}" to Vihaan -> fix_out
+            retry 2
+        run SaveFiles(project = project_id, files = fix_out.files) -> fix_saved
+        run RunCommand(project = project_id, command = command_line, label = "fix") -> check_run
+    } on_exhausted {
+        note "Stopped trying to make {command_line} pass after {_loopRounds} rounds."
+    }
+
+    alt (check_run is ok) {
+        return { verdict: "PASSED", waived: "no", detail: "passes: {command_line}" }
+    }
+    human_prompt "{command_line} still fails after 3 fixes:\n{check_run.reason}\n{check_run.value}\n\nCarry on anyway? Answer exactly: yes or no" -> fix_waiver
+    alt (fix_waiver != "yes") {
+        halt "{command_line} does not pass and a person chose to stop: {check_run.reason}"
+    }
+    return { verdict: "PASSED", waived: "yes", detail: "a person let it through although it fails: {command_line}" }
+}

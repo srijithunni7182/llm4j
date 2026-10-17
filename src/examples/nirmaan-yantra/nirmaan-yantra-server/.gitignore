@@ -1,0 +1,17 @@
+# Keys never go in version control.
+.env
+.env.*
+!.env.example
+*.store
+
+# Maven build output
+target/
+
+# What the factory builds and logs while it runs
+workspace/
+nirmaan-audit.json
+runs/
+
+# The secret store and its master key, and the Fabric server's data (vault, master key, admin password)
+.loom/
+fabric-data/

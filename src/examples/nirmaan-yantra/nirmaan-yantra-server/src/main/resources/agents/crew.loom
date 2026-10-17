@@ -1,0 +1,76 @@
+// The crew. Each agent has one job, and its standing instructions live in prompts/<name>.md (try editing one, then `weave run --prompt`).
+// Dhruv, the build engineer, is not here on purpose: building and running tests must happen exactly as written, so he is the RunCommand task.
+//
+// Models: all on gemini-2.5-flash, the one model checked against a real key (2026-10-15). gemini-2.5-pro now answers 404 "no longer available
+// to new users"; to use a stronger model for Rishi and Vihaan, pick one your key can call, add its price to prices.properties (the name
+// must match exactly), and change the two lines below.
+//
+// Answer length: with any budget active, Loom caps every answer at 1,024 tokens unless the agent says how long it may be, and on
+// Gemini that cap also has to cover the model's hidden thinking. The first real run showed Rishi's spec cut off mid-sentence. So every agent
+// declares per_call, the longest answer it may give (thinking included); it is also the most one call can add to the bill.
+//
+// Temperatures: the roles that write (Aditi) run warm; the roles that decide or produce exact files run cool.
+
+agent Aditi {
+    model: "gemini-2.5-flash"
+    budget { per_call: 8192 }   // longest answer, thinking included
+    prompt: "aditi"
+    temperature: 0.6
+}
+
+agent Rishi {
+    model: "gemini-2.5-flash"
+    budget { per_call: 16384 }   // the whole spec as fields, thinking included
+    prompt: "rishi"
+    temperature: 0.2
+    max_iterations: 6
+    tools: [web_search]                              // looks up library names and versions instead of guessing them
+    output_schema: {
+        stack: string,
+        rationale: string,
+        requirements: list<string>,
+        unit_test_strategy: string,
+        e2e_strategy: string,
+        build_command: string,
+        test_command: string,
+        run_command: string,
+        e2e_command: string,
+        structure: list<string>,
+        plan: list<string>
+    }
+}
+
+agent Vihaan {
+    model: "gemini-2.5-flash"
+    budget { per_call: 32768 }   // complete files, thinking included
+    prompt: "vihaan"
+    temperature: 0.2
+    max_iterations: 6
+    tools: [web_search]                              // dependency versions for the build file
+    output_schema: {
+        summary: string,
+        files: list<{ path: string, content: string }>
+    }
+}
+
+agent Drishti {
+    model: "gemini-2.5-flash"
+    budget { per_call: 32768 }   // an end to end suite is real code, thinking included
+    prompt: "drishti"
+    temperature: 0.2
+    output_schema: {
+        notes: string,
+        files: list<{ path: string, content: string }>
+    }
+}
+
+agent Vishnu {
+    model: "gemini-2.5-flash"
+    budget { per_call: 8192 }   // a verdict and its reasons, thinking included
+    prompt: "vishnu"
+    temperature: 0.1
+    output_schema: {
+        verdict: enum["APPROVED", "REJECTED"],
+        detail: string
+    }
+}
