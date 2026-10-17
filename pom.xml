@@ -41,7 +41,7 @@
         <url>https://github.com/srijithunni7182/llm4j/issues</url>
     </issueManagement>
 
-    <!-- The libraries published to Maven Central. Everything else (engram, the example applications) is built only with -Pextended. -->
+    <!-- The libraries published to Maven Central. Everything else (engram, the example applications) is built only with -Pextended. src/release/bundle-cleanup must stay LAST: see docs/PUBLISHING.md. -->
     <modules>
         <module>src/ai-agent4j</module>
         <module>src/ai-agent4j-addons</module>
@@ -53,6 +53,7 @@
         <module>src/loom/loom-inspect</module>
         <module>src/loom/loom-fabric</module>
         <module>src/spring/llm4j-spring-boot-starter</module>
+        <module>src/release/bundle-cleanup</module>
     </modules>
 
     <properties>
@@ -264,6 +265,32 @@
                                         <arg>--pinentry-mode</arg>
                                         <arg>loopback</arg>
                                     </gpgArguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!-- The Central bundle is zipped from target/central-staging in the last module of the reactor. On the CI runner Maven leaves bookkeeping files there that the
+                         Portal rejects: maven-metadata-local.xml in every artifact folder and _remote.repositories (with checksums) in every version folder. Each module stages its
+                         own files in its deploy phase, so they are removed in the last module (src/release/bundle-cleanup), after all of them, and before the bundle is built. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-clean-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>strip-bookkeeping-files-from-bundle</id>
+                                <phase>deploy</phase>
+                                <goals><goal>clean</goal></goals>
+                                <configuration>
+                                    <excludeDefaultDirectories>true</excludeDefaultDirectories>
+                                    <filesets>
+                                        <fileset>
+                                            <directory>${maven.multiModuleProjectDirectory}/target/central-staging</directory>
+                                            <includes>
+                                                <include>**/maven-metadata-local.xml</include>
+                                                <include>**/_remote.repositories*</include>
+                                            </includes>
+                                        </fileset>
+                                    </filesets>
                                 </configuration>
                             </execution>
                         </executions>
