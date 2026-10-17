@@ -1,0 +1,43 @@
+commit 58c4bb15e13f0dd96bd38dd0a28031252e7aa210
+Fri Oct 16 14:08:45 UTC 2026
+-- run 1 
+   BUILD SUCCESS
+   src/ai-agent4j: tests=2758 failures=0 errors=0 skipped=2
+   src/ai-agent4j-addons: tests=17 failures=0 errors=0 skipped=0
+   src/ai-agent4j-tools: tests=364 failures=0 errors=0 skipped=0
+   src/eval4j: tests=500 failures=0 errors=0 skipped=0
+   src/eval4j-report: tests=68 failures=0 errors=0 skipped=0
+   src/loom/ai-agent4j-loom: tests=2079 failures=0 errors=0 skipped=1
+   src/loom/loom-inspect-core: tests=333 failures=0 errors=0 skipped=0
+   src/loom/loom-inspect: tests=210 failures=0 errors=0 skipped=0
+   src/loom/loom-fabric: tests=56 failures=0 errors=0 skipped=0
+   src/spring/llm4j-spring-boot-starter: tests=135 failures=0 errors=0 skipped=0
+[INFO] Tests run: 134, Failures: 0, Errors: 0, Skipped: 0
+-- run 2 
+   BUILD SUCCESS
+   src/ai-agent4j: tests=2758 failures=0 errors=0 skipped=2
+   src/ai-agent4j-addons: tests=17 failures=0 errors=0 skipped=0
+   src/ai-agent4j-tools: tests=364 failures=0 errors=0 skipped=0
+   src/eval4j: tests=500 failures=0 errors=0 skipped=0
+   src/eval4j-report: tests=68 failures=0 errors=0 skipped=0
+   src/loom/ai-agent4j-loom: tests=2079 failures=0 errors=0 skipped=1
+   src/loom/loom-inspect-core: tests=333 failures=0 errors=0 skipped=0
+   src/loom/loom-inspect: tests=210 failures=0 errors=0 skipped=0
+   src/loom/loom-fabric: tests=56 failures=0 errors=0 skipped=0
+   src/spring/llm4j-spring-boot-starter: tests=135 failures=0 errors=0 skipped=0
+[INFO] Tests run: 134, Failures: 0, Errors: 0, Skipped: 0
+-- run 3 -Dsurefire.runOrder=random
+   BUILD SUCCESS
+   src/ai-agent4j: tests=2758 failures=0 errors=0 skipped=2
+   src/ai-agent4j-addons: tests=17 failures=0 errors=0 skipped=0
+   src/ai-agent4j-tools: tests=364 failures=0 errors=0 skipped=0
+   src/eval4j: tests=500 failures=0 errors=0 skipped=0
+   src/eval4j-report: tests=68 failures=0 errors=0 skipped=0
+   src/loom/ai-agent4j-loom: tests=2079 failures=0 errors=0 skipped=1
+   src/loom/loom-inspect-core: tests=333 failures=0 errors=0 skipped=0
+   src/loom/loom-inspect: tests=210 failures=0 errors=0 skipped=0
+   src/loom/loom-fabric: tests=56 failures=0 errors=0 skipped=0
+   src/spring/llm4j-spring-boot-starter: tests=135 failures=0 errors=0 skipped=0
+[INFO] Tests run: 134, Failures: 0, Errors: 0, Skipped: 0
+-- extended pass for the starter (pgvector: jdbc:postgresql://127.0.0.1:54329/vdb)
+   BUILD SUCCESS; starter: tests=135 failures=0 errors=0 skipped=0

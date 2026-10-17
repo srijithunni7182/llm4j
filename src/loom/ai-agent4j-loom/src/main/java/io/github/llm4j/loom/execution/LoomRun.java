@@ -33,14 +33,15 @@ public final class LoomRun {
     private final CountDownLatch done = new CountDownLatch(1);
     private volatile Status status = Status.RUNNING;
     private volatile Throwable failure;
-    private final Thread thread;
+    private final Runnable body;
 
-    private LoomRun(HarnessExecutor executor, String label, String workflow, Map<String, String> inputs, String origin) {
+    private LoomRun(HarnessExecutor executor, String label, String workflow, Map<String, String> inputs, String origin,
+                    io.github.llm4j.secret.InvokerCredentials invoker, java.util.function.Consumer<LoomRun> onDone) {
         this.executor = executor;
         this.origin = origin;
-        this.thread = new Thread(() -> {
+        this.body = () -> {
             try (AutoCloseable registered = LiveRuns.shared().register(label, executor)) {
-                executor.executeWorkflow(workflow, inputs);
+                executor.executeWorkflow(workflow, inputs, invoker);
                 status = Status.COMPLETED;
             } catch (RunSuspended suspended) {
                 status = Status.SUSPENDED;
@@ -52,10 +53,13 @@ public final class LoomRun {
                 status = Status.FAILED;
                 failure = t;
             } finally {
-                done.countDown();
+                try {
+                    if (onDone != null) onDone.accept(this);
+                } finally {
+                    done.countDown();
+                }
             }
-        }, "loom-run-" + label);
-        this.thread.setDaemon(true);
+        };
     }
 
     /** Starts the workflow; its label is the workflow's name and the origin of what the application does to it is {@code "app"}. */
@@ -65,8 +69,22 @@ public final class LoomRun {
 
     /** @param label how a person names this run to a console or chat ({@code #label}); @param origin who the journal and audit say acted */
     public static LoomRun start(HarnessExecutor executor, String label, String workflow, Map<String, String> inputs, String origin) {
-        LoomRun run = new LoomRun(executor, label, workflow, inputs, origin);
-        run.thread.start();
+        LoomRun run = new LoomRun(executor, label, workflow, inputs, origin, null, null);
+        Thread thread = new Thread(run.body, "loom-run-" + label);
+        thread.setDaemon(true);
+        thread.start();
+        return run;
+    }
+
+    /**
+     * Starts the workflow for the person {@code invoker} stands for (may be null), on a thread the application provides, and calls {@code onDone} with the
+     * finished run, whatever the outcome, before {@link #await} returns. {@code runner} must run the task or throw; if it throws, nothing has started.
+     */
+    public static LoomRun start(HarnessExecutor executor, String label, String workflow, Map<String, String> inputs, String origin,
+                                io.github.llm4j.secret.InvokerCredentials invoker, java.util.concurrent.Executor runner,
+                                java.util.function.Consumer<LoomRun> onDone) {
+        LoomRun run = new LoomRun(executor, label, workflow, inputs, origin, invoker, onDone);
+        runner.execute(run.body);
         return run;
     }
 

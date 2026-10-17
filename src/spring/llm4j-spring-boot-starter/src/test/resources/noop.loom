@@ -1,0 +1,3 @@
+workflow Hello(name) {
+    note "hello {name}"
+}

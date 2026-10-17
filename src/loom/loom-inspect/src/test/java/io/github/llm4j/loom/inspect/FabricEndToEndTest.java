@@ -221,7 +221,8 @@ class FabricEndToEndTest {
             session.attach(e.observable());
             e.initialize();
             e.executeWorkflow("Main", Map.of());
-            until(() -> bodies.stream().anyMatch(b -> b.startsWith("/v1/traces")) && bodies.stream().anyMatch(b -> b.startsWith("/v1/logs")));
+            until(() -> bodies.stream().anyMatch(b -> b.startsWith("/v1/traces")) && bodies.stream().anyMatch(b -> b.startsWith("/v1/logs"))
+                    && String.join("\n", bodies).contains("execute_tool Lookup")); // the tool span is exported in a later batch than the first one
             assertThat(bodies).allSatisfy(b -> assertThat(b).contains("Bearer tok-123"));
             assertThat(String.join("\n", bodies)).contains("\"service.name\"").contains("alpha").contains("invoke_agent Researcher").contains("execute_tool Lookup");
         } finally {

@@ -1,0 +1,59 @@
+name: Spring Boot starter
+
+# Gate G8 of .kiro/specs/spring-boot-starter: the starter on JDK 17 and 21, against the Spring Boot it is built for and the newest 3.x.
+# Only the starter and what it needs are built (-am), so the rest of the reactor is not built four times. A pgvector database is
+# provided so the one integration check (V7.5) runs.
+
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'src/spring/**', 'src/loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/host/**', '.github/workflows/spring-starter.yml' ]
+  pull_request:
+    branches: [ main ]
+    paths: [ 'src/spring/**', 'src/loom/ai-agent4j-loom/src/main/java/io/github/llm4j/loom/host/**', '.github/workflows/spring-starter.yml' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  starter:
+    name: Starter (JDK ${{ matrix.java }}, Spring Boot ${{ matrix.boot }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [ '17', '21' ]
+        boot: [ '3.2.3', '3.5.6' ]
+        include:
+          - boot: '3.2.3'
+            spring: '6.1.4'
+          - boot: '3.5.6'
+            spring: '6.2.11'
+    services:
+      pgvector:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust   # a throw-away database on the runner; any password is accepted
+          POSTGRES_DB: vdb
+        ports: [ '5432:5432' ]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up JDK ${{ matrix.java }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: 'temurin'
+        cache: 'maven'
+    - name: Install the libraries the starter needs (no tests, the main build tests them)
+      run: mvn -B -pl src/spring/llm4j-spring-boot-starter -am install -DskipTests -Djacoco.skip=true
+    - name: Test the starter
+      run: mvn -B -pl src/spring/llm4j-spring-boot-starter verify -Dspring-boot.version=${{ matrix.boot }} -Dspring.version=${{ matrix.spring }}
+    - name: Test the starter against a real pgvector database (V7.5)
+      env:
+        LLM4J_TEST_PGVECTOR_URL: jdbc:postgresql://localhost:5432/vdb
+        LLM4J_TEST_PGVECTOR_USER: postgres
+        LLM4J_TEST_PGVECTOR_PASSWORD: ${{ github.run_id }}
+      run: mvn -B -pl src/spring/llm4j-spring-boot-starter test -Dtest=PgvectorIntegrationTest -Dtest.excluded=live,fragile -Djacoco.skip=true -Dspring-boot.version=${{ matrix.boot }} -Dspring.version=${{ matrix.spring }}

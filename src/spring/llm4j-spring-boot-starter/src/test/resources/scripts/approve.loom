@@ -1,0 +1,7 @@
+agent Writer { model: "test/model" system: "You are Writer." }
+
+workflow Main() {
+    delegate "draft" to Writer -> draft
+    human_prompt "Publish? (yes/no)" -> ok
+    run Notify(msg = ok) -> sent
+}

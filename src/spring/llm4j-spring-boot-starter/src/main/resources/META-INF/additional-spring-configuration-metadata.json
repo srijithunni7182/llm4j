@@ -1,0 +1,673 @@
+{
+  "properties": [
+    {
+      "name": "llm4j.agent.client",
+      "description": "Which named client; the primary when unset."
+    },
+    {
+      "name": "llm4j.agent.context.compaction",
+      "description": "Strategy name (any strategy the library or a jar provides)."
+    },
+    {
+      "name": "llm4j.agent.context.compaction-client",
+      "description": "Named client used to summarize."
+    },
+    {
+      "name": "llm4j.agent.context.compaction-options",
+      "description": "Options for the strategy."
+    },
+    {
+      "name": "llm4j.agent.context.window",
+      "description": "Tokens the model accepts."
+    },
+    {
+      "name": "llm4j.agent.context.windows-file",
+      "description": "File of model = tokens lines."
+    },
+    {
+      "name": "llm4j.agent.instructions",
+      "description": "Extra instructions appended to the prompt."
+    },
+    {
+      "name": "llm4j.agent.max-iterations",
+      "description": "Reasoning steps allowed."
+    },
+    {
+      "name": "llm4j.agent.max-tokens-per-call",
+      "description": "Cap on a single call."
+    },
+    {
+      "name": "llm4j.agent.on-budget-exhausted",
+      "description": "return-partial or fail."
+    },
+    {
+      "name": "llm4j.agent.reasoning",
+      "description": "Ask for visible reasoning."
+    },
+    {
+      "name": "llm4j.agent.skills",
+      "description": "Names of loaded skills."
+    },
+    {
+      "name": "llm4j.agent.streaming",
+      "description": "Stream tokens."
+    },
+    {
+      "name": "llm4j.agent.system-prompt",
+      "description": "Literal system prompt."
+    },
+    {
+      "name": "llm4j.agent.system-prompt-id",
+      "description": "Id of a prompt in the prompt registry."
+    },
+    {
+      "name": "llm4j.agent.temperature",
+      "description": "Sampling temperature."
+    },
+    {
+      "name": "llm4j.agent.tool-calling",
+      "description": "auto or native."
+    },
+    {
+      "name": "llm4j.agent.tools",
+      "description": "Names of tools from the tool catalog."
+    },
+    {
+      "name": "llm4j.agent.validate-tool-arguments",
+      "description": "Check tool arguments against their schema."
+    },
+    {
+      "name": "llm4j.api-key",
+      "description": "Shorthand for llm4j.clients.default.api-key (a literal; prefer api-key-secret on a named client)."
+    },
+    {
+      "name": "llm4j.audit.file",
+      "description": "Where to write it."
+    },
+    {
+      "name": "llm4j.audit.max-file-size",
+      "description": "Rotate at this size."
+    },
+    {
+      "name": "llm4j.audit.max-files",
+      "description": "Rotated files to keep."
+    },
+    {
+      "name": "llm4j.base-url",
+      "description": "Shorthand for llm4j.clients.default.base-url."
+    },
+    {
+      "name": "llm4j.budget.calls",
+      "description": "Call cap."
+    },
+    {
+      "name": "llm4j.budget.cost",
+      "description": "Cost cap, for example 5.00 (needs prices)."
+    },
+    {
+      "name": "llm4j.budget.per-call-max-tokens",
+      "description": "Largest single call allowed (needed with a token cap)."
+    },
+    {
+      "name": "llm4j.budget.tokens",
+      "description": "Token cap."
+    },
+    {
+      "name": "llm4j.budget.warn-at",
+      "description": "Fraction of the cap at which a warning is logged."
+    },
+    {
+      "name": "llm4j.budget.window",
+      "description": "minute, hour or day; unset means a total for the life of the application."
+    },
+    {
+      "name": "llm4j.clients",
+      "description": "The provider clients, by name."
+    },
+    {
+      "name": "llm4j.connect-timeout",
+      "description": "Shorthand for llm4j.clients.default.connect-timeout."
+    },
+    {
+      "name": "llm4j.enabled",
+      "description": "Switch the whole starter off."
+    },
+    {
+      "name": "llm4j.loom.allow-non-durable",
+      "description": "Allow approvals without persistence."
+    },
+    {
+      "name": "llm4j.loom.audit.fail-on",
+      "description": "high, medium, low or info: refuse to start at this severity or worse."
+    },
+    {
+      "name": "llm4j.loom.budget.calls",
+      "description": "Call cap."
+    },
+    {
+      "name": "llm4j.loom.budget.cost",
+      "description": "Cost cap."
+    },
+    {
+      "name": "llm4j.loom.budget.tokens",
+      "description": "Token cap."
+    },
+    {
+      "name": "llm4j.loom.context.windows-files",
+      "description": "Files of model = tokens lines."
+    },
+    {
+      "name": "llm4j.loom.datasource",
+      "description": "Name of the DataSource bean for jdbc persistence."
+    },
+    {
+      "name": "llm4j.loom.dir",
+      "description": "Directory for file persistence."
+    },
+    {
+      "name": "llm4j.loom.executor",
+      "description": "platform, virtual-threads or application."
+    },
+    {
+      "name": "llm4j.loom.initialize-schema",
+      "description": "always, embedded or never."
+    },
+    {
+      "name": "llm4j.loom.loot",
+      "description": "The tool-reach file (classpath: or file:)."
+    },
+    {
+      "name": "llm4j.loom.max-concurrent-runs",
+      "description": "Runs allowed at once."
+    },
+    {
+      "name": "llm4j.loom.persistence",
+      "description": "none, file or jdbc."
+    },
+    {
+      "name": "llm4j.loom.script",
+      "description": "The workflow file (classpath: or file:)."
+    },
+    {
+      "name": "llm4j.loom.shutdown-grace",
+      "description": "How long running runs are given to finish on shutdown."
+    },
+    {
+      "name": "llm4j.loom.triggers.enabled",
+      "description": "Start the trigger runner."
+    },
+    {
+      "name": "llm4j.loom.triggers.owner",
+      "description": "Name this application claims triggers under."
+    },
+    {
+      "name": "llm4j.loom.triggers.poll-interval",
+      "description": "How often triggers are checked."
+    },
+    {
+      "name": "llm4j.loom.triggers.stale-after",
+      "description": "A claimed trigger is taken back after this long."
+    },
+    {
+      "name": "llm4j.loom.validate",
+      "description": "strict or lenient."
+    },
+    {
+      "name": "llm4j.memory.conversations",
+      "description": "memory or file."
+    },
+    {
+      "name": "llm4j.memory.dir",
+      "description": "Directory for file storage."
+    },
+    {
+      "name": "llm4j.memory.max-history",
+      "description": "Messages kept per conversation."
+    },
+    {
+      "name": "llm4j.model",
+      "description": "Shorthand for llm4j.clients.default.model."
+    },
+    {
+      "name": "llm4j.observe.bind",
+      "description": "Address to listen on."
+    },
+    {
+      "name": "llm4j.observe.detail",
+      "description": "full, truncated or metadata."
+    },
+    {
+      "name": "llm4j.observe.enabled",
+      "description": "Open the page."
+    },
+    {
+      "name": "llm4j.observe.fabric.ca",
+      "description": "CA certificate file."
+    },
+    {
+      "name": "llm4j.observe.fabric.outbox",
+      "description": "Directory for undelivered events."
+    },
+    {
+      "name": "llm4j.observe.fabric.url",
+      "description": "Fabric address."
+    },
+    {
+      "name": "llm4j.observe.linger",
+      "description": "Keep the page open this long after the last run."
+    },
+    {
+      "name": "llm4j.observe.name",
+      "description": "Name shown on the page."
+    },
+    {
+      "name": "llm4j.observe.port",
+      "description": "Port; 0 picks a free one."
+    },
+    {
+      "name": "llm4j.observe.rules-file",
+      "description": "Alert rules file."
+    },
+    {
+      "name": "llm4j.pricing.file",
+      "description": "A prices file (file: or classpath:)."
+    },
+    {
+      "name": "llm4j.pricing.models",
+      "description": "Prices by model name."
+    },
+    {
+      "name": "llm4j.primary",
+      "description": "Which named client is the {@code LLMClient} bean."
+    },
+    {
+      "name": "llm4j.privacy.mask-pii",
+      "description": "Mask personal data in prompts."
+    },
+    {
+      "name": "llm4j.privacy.types",
+      "description": "Which kinds of data to mask; all when unset."
+    },
+    {
+      "name": "llm4j.prompts.location",
+      "description": "Folder (file: or classpath:) of prompt files."
+    },
+    {
+      "name": "llm4j.provider",
+      "description": "Shorthand for llm4j.clients.default.provider."
+    },
+    {
+      "name": "llm4j.rag.api-key",
+      "description": "Embedding key (a literal)."
+    },
+    {
+      "name": "llm4j.rag.api-key-secret",
+      "description": "Name of the embedding key in the secret store."
+    },
+    {
+      "name": "llm4j.rag.base-url",
+      "description": "Override the embedding address."
+    },
+    {
+      "name": "llm4j.rag.embedding",
+      "description": "gemini, onnx or djl."
+    },
+    {
+      "name": "llm4j.rag.file",
+      "description": "File for the file store."
+    },
+    {
+      "name": "llm4j.rag.model",
+      "description": "Embedding model."
+    },
+    {
+      "name": "llm4j.rag.pgvector.dimension",
+      "description": "Embedding dimension."
+    },
+    {
+      "name": "llm4j.rag.pgvector.password",
+      "description": "Database password (a literal)."
+    },
+    {
+      "name": "llm4j.rag.pgvector.password-secret",
+      "description": "Name of the password in the secret store."
+    },
+    {
+      "name": "llm4j.rag.pgvector.table",
+      "description": "Table name."
+    },
+    {
+      "name": "llm4j.rag.pgvector.url",
+      "description": "JDBC url; spring.datasource.* is used when unset."
+    },
+    {
+      "name": "llm4j.rag.pgvector.user",
+      "description": "Database user."
+    },
+    {
+      "name": "llm4j.rag.pinecone.api-key",
+      "description": "Key (a literal)."
+    },
+    {
+      "name": "llm4j.rag.pinecone.api-key-secret",
+      "description": "Name of the key in the secret store."
+    },
+    {
+      "name": "llm4j.rag.pinecone.index",
+      "description": "Index name."
+    },
+    {
+      "name": "llm4j.rag.pinecone.namespace",
+      "description": "Namespace."
+    },
+    {
+      "name": "llm4j.rag.store",
+      "description": "memory, file, pgvector or pinecone."
+    },
+    {
+      "name": "llm4j.rag.tokenizer",
+      "description": "Tokenizer for local models."
+    },
+    {
+      "name": "llm4j.routing.clients",
+      "description": "The clients to route over, in order."
+    },
+    {
+      "name": "llm4j.routing.strategy",
+      "description": "none, fallback or cost-aware."
+    },
+    {
+      "name": "llm4j.secrets.chain",
+      "description": "Stores to try in order (chained store): env, encrypted-file."
+    },
+    {
+      "name": "llm4j.secrets.file",
+      "description": "The encrypted secrets file (encrypted-file store)."
+    },
+    {
+      "name": "llm4j.secrets.master-key-env",
+      "description": "Name of the environment variable holding the master key."
+    },
+    {
+      "name": "llm4j.secrets.master-key-file",
+      "description": "File holding the master key."
+    },
+    {
+      "name": "llm4j.secrets.store",
+      "description": "The secret store: env, encrypted-file or chained."
+    },
+    {
+      "name": "llm4j.skills.allow-remote",
+      "description": "Allow skills fetched over the network."
+    },
+    {
+      "name": "llm4j.skills.locations",
+      "description": "Skill files or folders (file: or classpath:)."
+    },
+    {
+      "name": "llm4j.tasks.discover",
+      "description": "Register every Task bean and Loom task found."
+    },
+    {
+      "name": "llm4j.timeout",
+      "description": "Shorthand for llm4j.clients.default.timeout."
+    },
+    {
+      "name": "llm4j.tools.base-dir",
+      "description": "The directory guarded tools may touch."
+    },
+    {
+      "name": "llm4j.tools.builtin",
+      "description": "Built-in tools to register: calculator, current-time, date-time, echo, duckduckgo."
+    },
+    {
+      "name": "llm4j.tools.custom",
+      "description": "Guarded tools by name."
+    }
+  ],
+  "hints": [
+    {
+      "name": "llm4j.secrets.store",
+      "values": [
+        {
+          "value": "env"
+        },
+        {
+          "value": "encrypted-file"
+        },
+        {
+          "value": "chained"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.secrets.chain",
+      "values": [
+        {
+          "value": "env"
+        },
+        {
+          "value": "encrypted-file"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.routing.strategy",
+      "values": [
+        {
+          "value": "none"
+        },
+        {
+          "value": "fallback"
+        },
+        {
+          "value": "cost-aware"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.budget.window",
+      "values": [
+        {
+          "value": "minute"
+        },
+        {
+          "value": "hour"
+        },
+        {
+          "value": "day"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.agent.tool-calling",
+      "values": [
+        {
+          "value": "auto"
+        },
+        {
+          "value": "native"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.agent.on-budget-exhausted",
+      "values": [
+        {
+          "value": "return-partial"
+        },
+        {
+          "value": "fail"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.memory.conversations",
+      "values": [
+        {
+          "value": "memory"
+        },
+        {
+          "value": "file"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.rag.embedding",
+      "values": [
+        {
+          "value": "gemini"
+        },
+        {
+          "value": "onnx"
+        },
+        {
+          "value": "djl"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.rag.store",
+      "values": [
+        {
+          "value": "memory"
+        },
+        {
+          "value": "file"
+        },
+        {
+          "value": "pgvector"
+        },
+        {
+          "value": "pinecone"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.tools.builtin",
+      "values": [
+        {
+          "value": "calculator"
+        },
+        {
+          "value": "current-time"
+        },
+        {
+          "value": "date-time"
+        },
+        {
+          "value": "echo"
+        },
+        {
+          "value": "duckduckgo"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.loom.validate",
+      "values": [
+        {
+          "value": "strict"
+        },
+        {
+          "value": "lenient"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.loom.persistence",
+      "values": [
+        {
+          "value": "none"
+        },
+        {
+          "value": "file"
+        },
+        {
+          "value": "jdbc"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.loom.initialize-schema",
+      "values": [
+        {
+          "value": "always"
+        },
+        {
+          "value": "embedded"
+        },
+        {
+          "value": "never"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.loom.executor",
+      "values": [
+        {
+          "value": "platform"
+        },
+        {
+          "value": "virtual-threads"
+        },
+        {
+          "value": "application"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.loom.audit.fail-on",
+      "values": [
+        {
+          "value": "high"
+        },
+        {
+          "value": "medium"
+        },
+        {
+          "value": "low"
+        },
+        {
+          "value": "info"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.observe.detail",
+      "values": [
+        {
+          "value": "full"
+        },
+        {
+          "value": "truncated"
+        },
+        {
+          "value": "metadata"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.primary",
+      "values": [
+        {
+          "value": "default"
+        }
+      ]
+    },
+    {
+      "name": "llm4j.provider",
+      "values": [
+        {
+          "value": "gemini"
+        },
+        {
+          "value": "anthropic"
+        },
+        {
+          "value": "ollama"
+        }
+      ]
+    }
+  ]
+}

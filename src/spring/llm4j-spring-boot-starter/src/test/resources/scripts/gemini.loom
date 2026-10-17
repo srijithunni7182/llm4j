@@ -1,0 +1,3 @@
+agent Writer { model: "gemini-2.5-flash" system: "You are Writer." }
+
+workflow Main() { delegate "x" to Writer -> out }

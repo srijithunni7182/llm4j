@@ -1,0 +1,7 @@
+agent Writer { model: "test/model" system: "You are Writer." }
+
+workflow Main() {
+    delegate "x" to Nobody -> a
+    run NoSuchTask(a = a) -> b
+    delegate "y" to Ghost -> c
+}

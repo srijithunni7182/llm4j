@@ -1,0 +1,8 @@
+io.github.llm4j.spring.Llm4jGuardAutoConfiguration
+io.github.llm4j.spring.Llm4jSecretsAutoConfiguration
+io.github.llm4j.spring.Llm4jClientsAutoConfiguration
+io.github.llm4j.spring.Llm4jToolsAutoConfiguration
+io.github.llm4j.spring.Llm4jAgentsAutoConfiguration
+io.github.llm4j.spring.Llm4jRagAutoConfiguration
+io.github.llm4j.spring.Llm4jObserveAutoConfiguration
+io.github.llm4j.spring.Llm4jLoomAutoConfiguration
