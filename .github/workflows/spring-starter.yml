@@ -44,7 +44,7 @@ jobs:
         java-version: ${{ matrix.java }}
         distribution: 'temurin'
         cache: 'maven'
-    - name: Install the libraries the starter needs (no tests: the main build tests them)
+    - name: Install the libraries the starter needs (no tests, the main build tests them)
       run: mvn -B -pl src/spring/llm4j-spring-boot-starter -am install -DskipTests -Djacoco.skip=true
     - name: Test the starter
       run: mvn -B -pl src/spring/llm4j-spring-boot-starter verify -Dspring-boot.version=${{ matrix.boot }} -Dspring.version=${{ matrix.spring }}
