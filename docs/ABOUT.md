@@ -62,7 +62,7 @@ Test code is almost as large as production code: about 111,000 test lines agains
 | 2026-01-04 | Local embedding providers (ONNX/DJL) and the RAG add-ons split into their own module. **Release 2.0.** |
 | 2026-01-10 | Nirmaan Yantra, an autonomous software factory built on the library. |
 | 2026-01-15 | Model Context Protocol (MCP) support, conversation memory and streaming thoughts. The explainable-AI features land: audit logging, confidence scoring, PII detection and bias monitoring. **Release 3.0.** |
-| 2026-02-14 | Rebrand to **ai-agent4j**. First release to Maven Central. **Release 4.0.** |
+| 2026-02-14 | Rebrand to **ai-agent4j**. First release to Maven Central (as version 0.1.0). **Release 4.0** (git tag). |
 | 2026-02-16 | CI pipeline, a hardened test suite and Spotless formatting. |
 | 2026-02-21 | Agent skills: markdown-based domain knowledge for agents. |
 | 2026-02-28 | Foundations for autonomous agents: delegation, background tasks and semantic memory. |
@@ -70,7 +70,7 @@ Test code is almost as large as production code: about 111,000 test lines agains
 | **2026-04-17** | **Loom** arrives: the DSL for agent orchestration, the `weave` CLI, multi-file imports and a conformance test kit. |
 | 2026-04-21 | VS Code extension for Loom; the repository is reorganised into Loom and example modules. |
 | 2026-04-26 | The Engram memory engine joins Loom. |
-| 2026-05-23 | **Release 5.0** published to Maven Central. |
+| 2026-05-23 | **Release 5.0** (git tag). |
 | **2026-09-26** | **eval4j** arrives: a ground-up evaluation framework with trajectory testing. |
 | 2026-10-02 | Generic tools (webhook, email, HTTP, file, shell, SQL). Loom checkpoints, rewind and fork, `weave audit` and the security guide. |
 | 2026-10-03 | The eval4j report dashboard. Relicensed from MIT to Apache License 2.0. |
@@ -83,8 +83,9 @@ Test code is almost as large as production code: about 111,000 test lines agains
 | 2026-10-13 | Tools can act as the person running the workflow (invoker credentials). Fabric configuration page. |
 | 2026-10-15 | Context management and call telemetry. Runs can be steered, paused, resumed or cancelled from another thread. |
 | 2026-10-16 | `LoomHost` runs workflows from an application and resumes them after a restart. The Spring Boot starter. |
+| 2026-10-17 | **Release 6.0.0** published to Maven Central: eleven artifacts, including the Spring Boot starter, `eval4j` and Fabric. |
 
-Release dates for 1.0 to 5.0 come from the git tags. The other entries are dates of the commits that introduced the
+Release dates for 1.0 to 5.0 come from the git tags; 4.0 and 5.0 were not published to Maven Central (its only earlier version is 0.1.0), so 6.0.0 is the first Central release since then. The other entries are dates of the commits that introduced the
 feature.
 
 ## Where to go next

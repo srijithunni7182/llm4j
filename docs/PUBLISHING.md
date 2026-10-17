@@ -1,6 +1,6 @@
 # Publishing to Maven Central
 
-One command from the repository root builds, tests, signs and uploads **six libraries** as a single bundle to the
+One command from the repository root builds, tests, signs and uploads **ten libraries and the parent pom** as a single bundle to the
 [Sonatype Central Portal](https://central.sonatype.com/):
 
 | Artifact (`io.github.srijithunni7182`) | What it is |
@@ -11,6 +11,8 @@ One command from the repository root builds, tests, signs and uploads **six libr
 | `ai-agent4j-tools` | built-in tools |
 | `eval4j`, `eval4j-report` | evaluation library and its reports |
 | `ai-agent4j-loom` | Loom: the thin library jar, plus the runnable `weave` jar as the `cli` classifier |
+| `loom-inspect-core`, `loom-inspect`, `loom-fabric` | live observability for Loom runs, and the Fabric server (`-all` jar) |
+| `llm4j-spring-boot-starter` | Spring Boot auto-configuration (Loom, tools, addons and spring-jdbc are optional) |
 
 Not published: `engram` and the example applications (they are built only with `-Pextended`).
 
@@ -72,6 +74,11 @@ mvn -B -s settings.xml -Prelease deploy
   `<classifier>cli</classifier>` or the file from the GitHub release.
 
 ## Troubleshooting
+
+- **`Bundle has content that does NOT have a .pom file`, or `Filename '_remote.repositories' is not valid`**: on the CI runner Maven leaves bookkeeping files in the staging folder
+  (`maven-metadata-local.xml` in each artifact folder, `_remote.repositories` and its checksums in each version folder) and the Portal rejects them. The last module of the reactor,
+  `src/release/bundle-cleanup`, deletes them before the bundle is zipped; keep it last in the root pom's `<modules>`. The deploy job also prints the bundle's contents and keeps
+  the zip as the `central-bundle` artifact, so a rejection can be inspected (or the zip cleaned with `zip -d` and uploaded by hand under *Publish Component*).
 
 - **401 Unauthorized**: the token pair is wrong, or you used your login instead of the generated token.
 - **Signing failed**: `MAVEN_GPG_PASSPHRASE` is missing or wrong, or the key import secret was truncated; run the deploy step locally to see gpg's message.
