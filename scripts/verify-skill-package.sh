@@ -55,3 +55,22 @@ if [ -f "$dzip" ]; then
 else
   echo "(no deployer package at $dzip: run scripts/package-skill.sh)"
 fi
+
+# ---------------------------------------------------------------------------------------------------------------------------------------
+# The harness-design skill, from its own zip, away from the repository: text only, so it must be complete and point at no repository path.
+hzip="${3:-$root/dist/llm4j-harness-design.zip}"
+if [ -f "$hzip" ]; then
+  hwork="$(mktemp -d)"; trap 'rm -rf "$hwork" "${work:-}" "${dwork:-}"' EXIT
+  unzip -q "$hzip" -d "$hwork"
+  har="$hwork/llm4j-harness-design"
+  for f in SKILL.md references/principles.md references/failure-modes.md references/loom-mapping.md references/design-record.md; do
+    [ -e "$har/$f" ] || { echo "missing from the harness-design package: $f" >&2; exit 1; }
+  done
+  grep -q '^name: llm4j-harness-design' "$har/SKILL.md" || { echo "the harness-design SKILL.md has no name" >&2; exit 1; }
+  if grep -rEn 'docs/(guide|deploy)|\]\(\.\./' "$har/SKILL.md" "$har/references" | grep -v "https://" >/dev/null; then
+    echo "the harness-design skill points at a repository path" >&2; exit 1
+  fi
+  echo "ok: the harness-design package is complete and stands alone"
+else
+  echo "(no harness-design package at $hzip: run scripts/package-skill.sh)"
+fi

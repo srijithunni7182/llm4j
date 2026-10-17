@@ -54,6 +54,9 @@ public final class Guide {
     public static final List<String> DEPLOYER_SCRIPTS = List.of("lib.sh", "fabric-up.sh", "fabric-status.sh", "fabric-down.sh", "run-observed.sh",
             "lib.ps1", "fabric-up.ps1", "fabric-status.ps1", "fabric-down.ps1", "run-observed.ps1");
 
+    /** The references that travel with the harness-design skill. */
+    public static final List<String> HARNESS_REFERENCES = List.of("principles.md", "failure-modes.md", "loom-mapping.md", "design-record.md");
+
     private Guide() {}
 
     public static List<Page> pages() {
@@ -127,6 +130,33 @@ public final class Guide {
             Files.writeString(target, read("skill-deployer/scripts/" + script).orElseThrow(() -> new IllegalStateException("this jar has no script " + script)), StandardCharsets.UTF_8);
             if (script.endsWith(".sh")) target.toFile().setExecutable(true, false);
             written.add("scripts/" + script);
+        }
+        return written;
+    }
+
+    /** Where the harness-design skill goes inside a project. */
+    public static Path harnessFolder(Path project) {
+        return project.resolve(".claude").resolve("skills").resolve("llm4j-harness-design");
+    }
+
+    /**
+     * Writes the harness-design skill into {@code project/.claude/skills/llm4j-harness-design}: {@code SKILL.md} and {@code references/}. It is text
+     * only: it needs no jar and no script. Without {@code force} nothing is written when the skill is already there.
+     *
+     * @return the files written, relative to the skill folder; empty when it was already there
+     */
+    public static List<String> installHarnessSkill(Path project, boolean force) throws IOException {
+        Path folder = harnessFolder(project);
+        if (Files.exists(folder.resolve("SKILL.md")) && !force) return List.of();
+        String skill = read("skill-harness/SKILL.md").orElseThrow(() -> new IllegalStateException("this jar has no harness-design skill (a broken jar?)"));
+        List<String> written = new ArrayList<>();
+        Files.createDirectories(folder.resolve("references"));
+        Files.writeString(folder.resolve("SKILL.md"), skill, StandardCharsets.UTF_8);
+        written.add("SKILL.md");
+        for (String ref : HARNESS_REFERENCES) {
+            Files.writeString(folder.resolve("references").resolve(ref),
+                    read("skill-harness/references/" + ref).orElseThrow(() -> new IllegalStateException("this jar has no " + ref)), StandardCharsets.UTF_8);
+            written.add("references/" + ref);
         }
         return written;
     }

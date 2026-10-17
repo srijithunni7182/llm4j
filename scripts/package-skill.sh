@@ -69,3 +69,13 @@ for f in "$DEP"/references/*.md; do
 done
 ( cd "$root/dist" && zip -qr llm4j-loom-deployer.zip llm4j-loom-deployer )
 echo "built $DEP and $DEP.zip ($(du -h "$DEP.zip" | cut -f1), $(ls "$DEP/references" | wc -l) chapters, $(ls "$DEP/scripts" | wc -l) scripts)"
+
+# ---------------------------------------------------------------------------------------------------------------------------------------
+# The harness-design skill: text only (SKILL.md and references/), straight from the weave jar, so it needs no jar of its own.
+HAR="$root/dist/llm4j-harness-design"
+rm -rf "$HAR" "$HAR.zip" "$root/dist/.stage"; mkdir -p "$root/dist/.stage"
+( cd "$root/dist/.stage" && java -jar "$jar" guide --install-skill --skill harness >/dev/null )
+mv "$root/dist/.stage/.claude/skills/llm4j-harness-design" "$HAR"
+rm -rf "$root/dist/.stage"
+( cd "$root/dist" && zip -qr llm4j-harness-design.zip llm4j-harness-design )
+echo "built $HAR and $HAR.zip ($(du -h "$HAR.zip" | cut -f1), $(ls "$HAR/references" | wc -l) reference files)"

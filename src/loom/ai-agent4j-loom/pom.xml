@@ -191,6 +191,12 @@
                 <targetPath>skill-deployer</targetPath>
                 <includes><include>SKILL.md</include><include>scripts/*</include></includes>
             </resource>
+            <!-- the harness-design skill: text only (its SKILL.md and references) -->
+            <resource>
+                <directory>../../../.claude/skills/llm4j-harness-design</directory>
+                <targetPath>skill-harness</targetPath>
+                <includes><include>SKILL.md</include><include>references/*.md</include></includes>
+            </resource>
         </resources>
         <plugins>
             <plugin>
