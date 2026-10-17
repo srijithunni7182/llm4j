@@ -1,6 +1,23 @@
 # Publishing the llm4j skills
 
-There are two skills. **`llm4j-workflow-guide`** builds, tests, secures and ships a workflow (chapters 1 to 14 of the guide). **`llm4j-loom-deployer`** takes the finished workflow to a running, watched one: the security decisions, the rules file, a Fabric server, launching the application and the server with scripts, and reading the pages. They hand over to each other by name; a team can install only the second on a server. `weave guide --install-skill` installs both into a project (`--skill workflow` or `--skill deployer` for one).
+There are three skills. **`llm4j-harness-design`** comes first: it designs the harness around an autonomous workflow (what agents may touch, how a run is bounded, how it fails, survives a crash and is stopped, who steps in) and writes the decisions down as a `HARNESS.md` design record. **`llm4j-workflow-guide`** builds, tests, secures and ships the workflow (chapters 1 to 15 of the guide). **`llm4j-loom-deployer`** takes the finished workflow to a running, watched one: the security decisions, the rules file, a Fabric server, launching the application and the server with scripts, and reading the pages. They hand over to each other by name, in that order, and each can be used alone; a team can install only the deployer on a server. `weave guide --install-skill` installs the workflow and deployer skills into a project (`--skill workflow` or `--skill deployer` for one). **The harness-design skill is not part of that command or of `make skill-package` yet**: it lives in this repository at `.claude/skills/llm4j-harness-design/` and is published by copying that folder (see below).
+
+## The harness-design skill
+
+`llm4j-harness-design` writes no Loom script and needs no jar. It is a folder of text, so there is nothing to build:
+
+```
+llm4j-harness-design/
+  SKILL.md                      the skill: ten rules, a ten-stage path with a gate for each, what is the user's to decide, the hand-over
+  references/principles.md      the practices by area, each with why it matters and how to check it
+  references/failure-modes.md   how harnesses go wrong: symptom, cause, fix
+  references/loom-mapping.md    each decision, the Loom construct and guide chapter that carries it, and what Loom does not cover
+  references/design-record.md   the HARNESS.md template filled in with the user
+```
+
+To publish it, hand over the folder (or zip it) as it is. It refers to nothing outside itself: it never sends the user to a repository path, and when `weave` is installed it uses `weave guide loom` and `weave <command> --help` for the names of Loom constructs, otherwise it designs anyway and leaves the mapping for the build. Its last stage hands over to `llm4j-workflow-guide`, so install the two together; the deployer is the step after that.
+
+Not done yet: the skill is not in the weave jar, so `weave guide --install-skill` does not install it (`--skill` takes `workflow`, `deployer` or `all`), `make skill-package` builds no zip for it, and `verify-skill-package.sh` does not check it. Until it is, keep `references/loom-mapping.md` in step with the Loom reference by hand when a construct changes.
 
 ## The workflow skill
 
