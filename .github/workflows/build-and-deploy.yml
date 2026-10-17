@@ -146,3 +146,27 @@ jobs:
         CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
         CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
         MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+    # What was uploaded, kept for diagnosis when the Portal rejects a bundle.
+    - name: Show and keep the Central bundle
+      if: always()
+      run: |
+        if [ -f target/central-publishing/central-bundle.zip ]; then
+          ls -la target/central-publishing/central-bundle.zip
+          echo "-- entries outside a version folder (there should be none):"
+          unzip -Z1 target/central-publishing/central-bundle.zip | awk -F/ 'NF!=6' | head -40
+          echo "-- entries per artifact folder:"
+          unzip -Z1 target/central-publishing/central-bundle.zip | awk -F/ '{print $5}' | sort | uniq -c
+          echo "-- poms:"
+          unzip -Z1 target/central-publishing/central-bundle.zip | grep -E '\.pom$'
+        else
+          echo "no bundle was built"
+        fi
+        find target/central-staging -maxdepth 6 -type f ! -path '*/6.*' | head -40
+    - name: Keep the bundle
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: central-bundle
+        path: target/central-publishing/central-bundle.zip
+        if-no-files-found: warn
