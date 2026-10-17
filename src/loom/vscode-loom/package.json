@@ -2,7 +2,7 @@
   "name": "vscode-loom",
   "displayName": "Loom",
   "description": "VS Code extension for Loom DSL (.loom and .loot files). Provides syntax highlighting, LSP diagnostics, workflow outline, a workflow graph, and run command.",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "publisher": "srijithunni7182",
   "homepage": "https://github.com/srijithunni7182/llm4j/tree/main/src/loom",
   "bugs": {

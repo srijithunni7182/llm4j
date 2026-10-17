@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
 
 - `halt`, `set` and `return` are highlighted, `is ok` / `is not ok` read as a condition, and there are four snippets (`halt`, `set`, `return`, `isok`). The graph draws a halt as an "Ends the run" step that goes straight to the end, and `set` and `return` as steps of their own.
 
