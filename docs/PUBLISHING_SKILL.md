@@ -27,7 +27,7 @@ can go to a skills marketplace or be handed to someone with nothing else install
 ```
 llm4j-workflow-guide/
   SKILL.md              the skill; says where weave is
-  references/           the ten chapters, the Loom reference, the recipes, llms.txt
+  references/           the guide's chapters, the Loom reference, the recipes, llms.txt
   bin/weave.jar         the runnable weave jar (the Loom `cli` build)
   scripts/weave         launcher (macOS, Linux): runs bin/weave.jar
   scripts/weave.cmd     launcher (Windows)
