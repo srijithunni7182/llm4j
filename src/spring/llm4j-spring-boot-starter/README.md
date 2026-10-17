@@ -8,13 +8,13 @@ No llm4j module depends on this one, and the starter adds almost no behaviour: e
 <dependency>
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>llm4j-spring-boot-starter</artifactId>
-    <version>5.0</version>
+    <version>6.0.0</version>
 </dependency>
 <!-- optional, add only what you use; the starter tells you by name if a setting needs one you left out -->
 <dependency>
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>ai-agent4j-loom</artifactId>        <!-- also ai-agent4j-tools, ai-agent4j-addons, spring-boot-starter-jdbc -->
-    <version>5.0</version>
+    <version>6.0.0</version>
 </dependency>
 ```
 

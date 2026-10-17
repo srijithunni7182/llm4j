@@ -73,9 +73,9 @@ Without the jars, `--observe` says so and nothing runs. The page is read-only un
 
 ```bash
 # on the server
-LOOM_FABRIC_ADMIN_PASSWORD='a long password' java -jar loom-fabric-5.0-all.jar init --data /var/lib/fabric
-java -jar loom-fabric-5.0-all.jar clients add getviral-prod --data /var/lib/fabric     # prints the process's key once
-java -jar loom-fabric-5.0-all.jar serve --data /var/lib/fabric --port 9090
+LOOM_FABRIC_ADMIN_PASSWORD='a long password' java -jar loom-fabric-6.0.0-all.jar init --data /var/lib/fabric
+java -jar loom-fabric-6.0.0-all.jar clients add getviral-prod --data /var/lib/fabric     # prints the process's key once
+java -jar loom-fabric-6.0.0-all.jar serve --data /var/lib/fabric --port 9090
 
 # on each process
 weave secrets set LOOM_FABRIC_CLIENT_KEY --secrets keys.store                         # paste the key

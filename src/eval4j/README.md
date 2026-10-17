@@ -144,7 +144,7 @@ assertThat(result)
 <dependency>
     <groupId>io.github.srijithunni7182</groupId>
     <artifactId>eval4j</artifactId>
-    <version>5.0</version>
+    <version>6.0.0</version>
 </dependency>
 ```
 
@@ -192,7 +192,7 @@ assertThat(result)
 > ```xml
 > <dependency>
 >   <groupId>io.github.srijithunni7182</groupId><artifactId>eval4j-report</artifactId>
->   <version>5.0</version><scope>test</scope>
+>   <version>6.0.0</version><scope>test</scope>
 > </dependency>
 > ```
 > 👉 [**Tour of every view**](../eval4j-report/docs/USER-GUIDE.md) · [Open the sample report](../eval4j-report/docs/sample/report/index.html)
