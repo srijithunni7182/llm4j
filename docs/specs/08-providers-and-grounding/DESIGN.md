@@ -1,6 +1,6 @@
 # Phase 8 design: more providers, then native grounding (ai-agent4j, Loom, eval4j)
 
-Status: **draft, awaiting review**. Layers: ai-agent4j (providers, the grounding contract), Loom (provider kinds, a `grounding` option, audit), eval4j
+Status: **approved; decisions in §9, scope for 6.1.0 in §10**. Layers: ai-agent4j (providers, the grounding contract), Loom (provider kinds, a `grounding` option, audit), eval4j
 (citation assertions). Companion documents: [TEST_STRATEGY.md](TEST_STRATEGY.md), [VERIFICATION.md](VERIFICATION.md), [roadmap](../README.md).
 Builds on the provider SPI and `ProviderContract` tests, the model-window catalog ([Phase 1](../01-context-management/DESIGN.md)), call telemetry
 ([Phase 2](../02-call-telemetry/DESIGN.md)) and Loom's provider declarations ([Phase 3](../03-loom-integration/DESIGN.md)).
@@ -248,16 +248,33 @@ opt-in per request, never implicit, because the two differ in cost, latency and 
 A grounded query leaves the process for a search service in addition to the model vendor. `weave audit` and the docs say so; the PII masker that applies
 to model requests applies to the text that can reach a search query (the prompt), and the docs warn that the model forms the query.
 
-## 9. Open questions
+## 9. Decisions
 
-| # | Question | Recommendation |
+The questions raised in the draft, answered. Nothing starts with a question open that changes the API.
+
+| # | Decision |
+|---|---|
+| Q1 | The per-vendor facts (§3.2 dialect fields, §4.3 table) are a *precondition task* for each sub-phase, not a design question: the first step of 8a/8b is reading the vendor's current API reference and correcting this spec's table in the same commit; fixtures are recorded from the real API (8c-live). A vendor whose documentation cannot be read or whose API cannot be called waits; the others proceed |
+| Q2 | **OpenAI**: Part A ships chat completions. Grounding for OpenAI is a separate `OpenAiResponsesProvider` in Part B, selected with `use: openai { api: responses }`; `openai` alone stays on chat completions |
+| Q3 | **Kimi** `$web_search` is run as a bounded loop inside the provider (bound = `maxSearches`, default 3), returning one response; a test covers a model that never stops asking |
+| Q4 | Citation `spans` stay **optional**; no assertion or Loom feature depends on them |
+| Q5 | `lenient()` is **kept, default off** (it exists so one `Grounding` can be shared across providers in a router). Loom scripts have no `lenient` |
+| Q6 | No dedicated "claims supported by cited sources" metric in this phase; reuse the RAG metrics with citation snippets as `retrievalContext` (§6) |
+| Q7 | Part A builds **all five presets and the generic kind in one contract-tested sweep** (8a OpenAI first, 8b the rest) |
+| Q8 | The generic kind supports a configurable **header name** and **static query parameters** only; no Azure-specific preset |
+| Q9 | Part B begins (8d) with a throwaway script that prints each vendor's raw grounded response; the §4.3 table is revised from it before any Java for 8e/8f |
+
+## 10. Scope for release 6.1.0
+
+The release does not wait for everything in this phase. In priority order:
+
+| Tier | Contents | Why |
 |---|---|---|
-| Q1 | Vendor interfaces (every row of §4.3, the dialect fields in §3.2) are from memory and move often | The first task of every sub-phase is to read the vendor's current API reference and update this spec's table; fixtures are recorded from the real API once a key is available. If a vendor's docs are unreachable from the build environment, that vendor's row waits |
-| Q2 | OpenAI's web search tool and newest features live in its Responses API, not in chat completions | Part A ships OpenAI on chat completions. Grounding for OpenAI is built as `OpenAiResponsesProvider` in Part B (it shares the dialect's auth/usage code), selectable with `use: openai { api: responses }`; `openai` without it stays on chat completions |
-| Q3 | Kimi's `$web_search` needs the client to answer a tool call before the answer exists | The provider runs that loop internally, bounded by `maxSearches`, and returns one response; a test covers a model that never stops asking |
-| Q4 | Citation `spans` are rich on Google and Anthropic, absent on some others | Keep `spans` optional; eval4j assertions must not depend on them |
-| Q5 | Is `lenient()` needed, or is refusing always better? | Keep, default off. It exists so one `Grounding` can be shared across providers in a router |
-| Q6 | eval4j: a dedicated "claims supported by cited sources" metric in this phase? | Not in this phase; reuse the RAG metrics (§6), design the metric once the citation shapes are real |
-| Q7 | Part A scope: all five presets at once, or OpenAI first? | All five in one contract-tested sweep: the dialect is where the risk is, and the fixtures are cheap |
-| Q8 | Generic `openai_compatible` auth variants (header name, query parameter) | Support a configurable header name and static query parameters only |
-| Q9 | Should the Phase 7 spike-style quick look (a throwaway script against a real vendor) precede the Java work for grounding too? | Yes for Part B: a short script that calls each vendor's grounded API and prints the raw responses, so the citation mapping is built from real payloads |
+| **Must** | Part A: 8a, 8b, 8c (OpenAI, xAI, Kimi, Qwen, Perplexity, generic; Loom kinds; resolver; secrets; catalogs; docs) | The providers are independently useful and low risk: one shared class, proven by `ProviderContract` |
+| **Should** | 8d (payload look), 8e (grounding contract: types, capability check, citations, telemetry, `searches` budget), 8f for Google, Anthropic and Perplexity | The grounding feature on the three vendors with the simplest, best-documented interfaces |
+| **Stretch** | 8f for OpenAI (Responses API), xAI, Kimi, Qwen; 8g (`ReActAgent.grounding`, Loom `grounding:`, eval4j assertions); 8c-live; 8h tooling | Can follow in 6.1.x |
+
+Rules for the release:
+- Grounding **does not ship without** its Java-API refusal checks (R6) and budget/telemetry (R11); a vendor that cannot meet R7–R9 is left out of the release, not released partially.
+- Loom `grounding:` ships only **together with** its `weave check` rules and its audit rule (R10); if those are not ready the keyword is held back and grounding is documented as Java-API-only.
+- A provider appears in the docs as supported only when its contract test passes on **recorded real-API fixtures** (hand-written fixtures mean "preview" in the docs).

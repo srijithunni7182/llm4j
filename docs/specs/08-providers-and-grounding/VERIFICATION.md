@@ -72,6 +72,13 @@ Javadoc, module READMEs and hub links, `llms.txt`, and the Loom guide chapter. O
 `README.md`, `wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`), the provider list in the root README badge row, and the `llm4j-workflow-guide` and
 `llm4j-loom-deployer` skills (new provider kinds; grounding and the audit change).
 
+## 6a. Release 6.1.0 gate
+
+For this work to be part of 6.1.0: every **Must** and **Should** item of DESIGN §10 that is included has its acceptance criteria ticked in §2; the
+release notes (`RELEASE_NOTES_6_1_0.md`) list each provider as *supported* (contract test on recorded real-API fixtures) or *preview*
+(hand-written fixtures only), and each grounding vendor likewise; `docs/VERSION_MATRIX.md`, `docs/API_COMPATIBILITY.md` and the provider list in
+the root README are updated; the publish steps in `docs/PUBLISHING.md` are followed. Items not ready are listed as "coming", never described as working.
+
 ## 7. Result
 
 _Not started._ Smoke-run results, fixture dates and models, and live spend per vendor go here.
