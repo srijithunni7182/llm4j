@@ -10,6 +10,7 @@ is recorded in §6.
 | 7a | Contract and chat backend | `io.github.llm4j.classify` types, `LlmClassifier`, `ScriptedClassifier`, `ClassifierContract` |
 | 7b | eval4j | `llmJudged(...).classifier(...)`, cache/telemetry integration, `CalibrationRunner` mode |
 | 7c | Jev provider | `JevProvider`, `JevWire`, `jev` as a provider name, resolver; blocked on DESIGN Q1 |
+| 7c-live | Live study | `JevVsLlmStudyIntegrationTest`, the two new labelled datasets, the report; run as soon as 7c is done and **before 7d**, so the findings can shape Loom's defaults and the docs |
 | 7d | Loom | `intentclassifier` block, `intentclassify` statement, checks, execution, trace event, budget, audit, graph |
 | 7e | Tooling and docs | VS Code grammar/completion/diagnostics, wiki page, Loom guide chapter, `llms.txt`, examples |
 
@@ -33,6 +34,7 @@ is recorded in §6.
 | A14 | `weave audit` lists a hosted classifier backend as a data flow; the graph marks `uncalibrated` | §5.5 | audit and graph tests |
 | A15 | `Classifier.using(chat)` and `Classifier.using(jev)` can be compared on a dataset with `CalibrationRunner`, giving agreement, calibration curve, cost and latency | §7.3 | eval4j calibration tests |
 | A16 | All documentation samples execute in tests | docs | docs examples test |
+| A17 | The live study runs end to end with a real Jev key and at least one chat model, writes its report and CSV, stays inside its spend cap, and its results are recorded in §7 with the verdict rule applied as written in advance | §5 of the test strategy | `JevVsLlmStudyIntegrationTest` (live, opt-in) |
 
 ## 3. Traceability
 
@@ -55,7 +57,7 @@ the phase.
 ## 5. Manual and live checks (owed, opt-in)
 
 - [ ] A recorded session against the real Jev API replaces the fixtures (Q1), and the contract suite still passes.
-- [ ] `Classifier.using(jev)` vs `Classifier.using(chat)` on a real intent set and a real judging dataset: results recorded in §6.
+- [ ] The live study (TEST_STRATEGY §5): `Classifier.using(jev)` against a strong and a cheap chat model on the judging, intent and safe/unsafe tasks. Results recorded in §7 and the Jev recommendations in the guide and wiki written from them.
 - [ ] An end-to-end triage workflow in Loom with Jev, run once with `--observe` to see the call events in Fabric.
 - [ ] The VS Code extension on the new syntax: highlighting, completion, diagnostics.
 
@@ -68,4 +70,4 @@ classifier-backed judge).
 
 ## 7. Result
 
-_Not started._
+_Not started._ The live study's results go here, with the date, the models and versions compared, the spend, and the verdict.

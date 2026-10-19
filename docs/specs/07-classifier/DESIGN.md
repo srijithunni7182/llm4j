@@ -307,7 +307,8 @@ phase delivers the single-criterion and dimensions paths (§9 Q5).
 `CalibrationRunner` already compares a judge against human-labelled cases. It gains a run mode that takes a `Classifier` so a team can compare
 `Classifier.using(chatClient)` and `Classifier.using(jev)` on **their** criteria and datasets: agreement with the labels, a calibration curve for
 the calibrated backend, cost and latency per judgement. We recommend Jev for judging only where this measurement shows it holds up on the
-team's own cases.
+team's own cases. This phase ships with a **live head-to-head study** (TEST_STRATEGY §5) that runs that comparison on labelled datasets with
+the real Jev API against real chat models, so the recommendations in our guide and wiki rest on measured results, not on vendor claims.
 
 ## 8. Cost, latency and privacy
 
@@ -328,4 +329,5 @@ team's own cases.
 | Q5 | eval4j scope for this phase: single criterion and dimensions only, or also pairwise/RAG/conversation? | Single and dimensions now; the rest in a follow-up once the calibration comparison exists |
 | Q6 | Where does the resolver for `model: "Jev/jev-latest"` live so Loom and eval4j share it? | ai-agent4j, `ClassifierResolver`, taking the same provider declarations Loom already reads |
 | Q7 | Jev's `Score` question returns a probability-weighted position on an ordered scale. Is `position` in [0,1] along the scale the right abstraction, or should we expose the weighted point label too? | Expose both: `position()` and `nearest()` (the closest scale point) |
+| Q9 | The live study's pass thresholds (TEST_STRATEGY §5.4): within 2 points of the cheap chat model, ECE ≤ 0.10, 3× on latency or cost; and the "high-stakes" rule at 80% coverage | Keep as the proposal, fixed before the first run |
 | Q8 | Rationale for a Jev-backed judge: none. If a failing test needs a reason, a second call to a chat model on the failures only? | Out of scope; mention in the guide as a pattern |
