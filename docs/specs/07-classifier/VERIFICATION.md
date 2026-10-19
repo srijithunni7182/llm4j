@@ -10,7 +10,7 @@ is recorded in §6.
 | 7a | Contract and chat backend | `io.github.llm4j.classify` types, `LlmClassifier`, `ScriptedClassifier`, `ClassifierContract` |
 | 7b | eval4j | `llmJudged(...).classifier(...)`, cache/telemetry integration, `CalibrationRunner` mode |
 | 7c | Jev provider | `JevProvider`, `JevWire`, `jev` as a provider name, resolver; blocked on DESIGN Q1 |
-| 7d | Loom | `classifier` block, `classify` statement, checks, execution, trace event, budget, audit, graph |
+| 7d | Loom | `intentclassifier` block, `intentclassify` statement, checks, execution, trace event, budget, audit, graph |
 | 7e | Tooling and docs | VS Code grammar/completion/diagnostics, wiki page, Loom guide chapter, `llms.txt`, examples |
 
 ## 2. Acceptance criteria
@@ -24,7 +24,7 @@ is recorded in §6.
 | A5 | The Jev key never appears in exceptions, logs, events or traces | R6 | canary-key test |
 | A6 | A judge backed by a classifier passes/fails at the threshold and keeps `samples`, cache, dimensions and telemetry | R10 | eval4j tests |
 | A7 | `.judge(LLMClient)` and every existing judge test behave exactly as before | R11 | full existing eval4j suite |
-| A8 | `classify` routes an `alt` on label and confidence; the three confidence actions work at the boundaries | §5.2, §5.3 | Loom execution tests |
+| A8 | `intentclassify` routes an `alt` on label and confidence; the three confidence actions work at the boundaries | §5.2, §5.3 | Loom execution tests |
 | A9 | `unsure` appears only from a confidence rule | R7 | Loom tests |
 | A10 | `weave check` rejects: unknown classifier, unbound `on`, duplicate or fewer than two labels, a declared `unsure`, an `alt` on a label never produced, a `confidence` line with no available confidence | R8 | validator tests |
 | A11 | A classify step is charged to the budget and a breach halts | R9 | budget tests |
@@ -46,7 +46,7 @@ the phase.
 ## 4. Quality gates
 
 - The repo's own build, formatting, and static checks pass on every changed module.
-- Line and branch coverage on the new packages meets the repository's existing thresholds; mutation testing (PIT) is run on `classify` and its
+- Line and branch coverage on the new packages meets the repository's existing thresholds; mutation testing (PIT) is run on `intentclassify` and its
   validators like the other core packages.
 - `weave check` and `weave audit` run clean on all new example scripts.
 - No new runtime dependency in ai-agent4j (Jev goes through `HttpClientWrapper`).
@@ -63,7 +63,7 @@ the phase.
 
 Per the spec method, at the end of each sub-phase: the wiki page (`src/ai-agent4j/wiki/Classification.md`), its executed samples, Javadoc, module
 READMEs and hub links, `llms.txt`, and the Loom guide chapter. Once, at the end of the whole phase: the stack-level pages (root `README.md`,
-`wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`) and the `llm4j-workflow-guide` skill (so it can advise on `classify` and on a
+`wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`) and the `llm4j-workflow-guide` skill (so it can advise on `intentclassify` and on a
 classifier-backed judge).
 
 ## 7. Result

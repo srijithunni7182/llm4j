@@ -1,7 +1,7 @@
 # Phase 7 design: classification as a first-class capability (ai-agent4j, Loom, eval4j)
 
-Status: **draft, awaiting review**. Layers: ai-agent4j (the contract, the LLM-backed classifier, the Jev provider), Loom (a `classifier`
-block and a `classify` statement), eval4j (a classifier-backed judge). Companion documents: [TEST_STRATEGY.md](TEST_STRATEGY.md),
+Status: **draft, awaiting review**. Layers: ai-agent4j (the contract, the LLM-backed classifier, the Jev provider), Loom (an `intentclassifier`
+block and an `intentclassify` statement), eval4j (a classifier-backed judge). Companion documents: [TEST_STRATEGY.md](TEST_STRATEGY.md),
 [VERIFICATION.md](VERIFICATION.md), [roadmap](../README.md). Builds on the provider SPI pattern (`TranslationProvider` and friends), the
 `JudgeCache`/`JudgeTelemetry` machinery of eval4j and the call telemetry of [Phase 2](../02-call-telemetry/DESIGN.md).
 
@@ -26,7 +26,7 @@ the choice of backend must be a one-word change.
 - G1. One small, typed contract, `Classifier`, that takes a state and typed questions and returns typed answers. Callers never parse text.
 - G2. Two interchangeable backends behind it: `LlmClassifier` (any `LLMClient`: Gemini, Claude, Sarvam, Ollama) and `JevProvider` (TypeSafe Jev).
   Jev is a first-class provider **in ai-agent4j** (`io.github.llm4j.provider.typesafe`), like the others; there is no separate module.
-- G3. **Loom**: a `classifier` block and a `classify` statement, so an intent classifier is a workflow primitive with a validated set of labels,
+- G3. **Loom**: an `intentclassifier` block and an `intentclassify` statement, so an intent classifier is a workflow primitive with a validated set of labels,
   an explicit confidence rule, and a place in budgets, audit, traces and the graph.
 - G4. **eval4j**: `llmJudged(...)` can be backed by a `Classifier`, so a judgement costs one short call; every judge feature (threshold,
   `samples`, cache, telemetry, dimensions) keeps working.
@@ -37,7 +37,7 @@ the choice of backend must be a one-word change.
 **Non-goals**
 
 - Training, fine-tuning or hosting a classifier. Embedding- or rule-based classifiers can implement `Classifier`, but none ships in this phase.
-- Replacing `decide`/`decision` (earned autonomy), `guardrail` or `routing`. Those stay as they are; `classify` can *feed* them (§5.6).
+- Replacing `decide`/`decision` (earned autonomy), `guardrail` or `routing`. Those stay as they are; `intentclassify` can *feed* them (§5.6).
 - Free-text generation from a classifier. If a question needs prose, it is an `agent`.
 - Streaming, batching across requests, multimodal input (text/structured state only in this phase).
 - Verifying Jev's quality claims. We measure it against the chat backends with the existing calibration tooling (§8, V-gates) and report; we do not assert it.
@@ -104,7 +104,7 @@ public sealed interface Question permits Question.Choice, Question.YesNo, Questi
     record Score (String name, String instructions, Scale scale)           implements Question { }
 }
 record Option(String label, String description) { }          // description optional; sent to the backend when present
-record Scale(List<String> points)  { static Scale of(String... points) … }   // ordered, at least 2
+record Scale(List<String> points)  { static Scale of(String... points) … }   // ordered, 2 to 10 points (Jev's limit; enforced for every backend)
 
 public record ClassifyResult(Map<String, Answer> answers, ClassifyUsage usage) { … typed accessors above … }
 public sealed interface Answer permits ChoiceAnswer, YesNoAnswer, ScoreAnswer { boolean calibrated(); }
@@ -142,9 +142,26 @@ Classifier jev = Classifier.using(new JevProvider(cfg));
 ```
 
 It implements `ClassificationProvider` only (Jev does not chat), uses the repo's `HttpClientWrapper` (so retries, 429 waits, call telemetry and
-timeouts behave like every other provider), reads the key through the same per-request key mechanism as the others, and maps our three
-question kinds to Jev's choice, score and yes/no questions. Its answers have `calibrated == true`. All of Jev's wire format lives in **one
-class** (`JevWire`), so a change in the vendor's API touches one file and one contract test (§9 Q1).
+timeouts behave like every other provider) and reads the key through the same per-request key mechanism as the others. Its answers have
+`calibrated == true`. All of Jev's wire format lives in **one class** (`JevWire`), so a change in the vendor's API touches one file and one
+contract test.
+
+What the public docs state ([docs.typesafe.ai](https://docs.typesafe.ai/api)), which `JevWire` is built to:
+
+| Aspect | Jev |
+|---|---|
+| Endpoint, auth | `POST https://api.typesafe.ai/v1/systemone`, bearer token, JSON body; the base URL is configurable (`LLMConfig.baseUrl`) |
+| Request | `state`, `model` (e.g. `jev-latest`), `questions`: a map whose keys we choose and whose values are the typed questions |
+| `Choice` | `instructions` + a `criteria` map of option name → description. Answer: the chosen label, a probability per option, a confidence |
+| `Score` | `instructions` + an **ordered** `criteria` array of 2 to 10 levels. Answer: a numeric score, a legend of the levels, probabilities, a confidence |
+| yes/no | a single value from 0 to 1 (the docs name this question type `noul`) |
+| Response | the model version that ran, an `answers` map under our keys, token usage |
+| Cost shape | questions run in parallel; extra questions add little latency but cost tokens |
+
+Mapping: our `Choice` options become the `criteria` map (the option `description` is sent when present, else the label); our `Scale` becomes
+the ordered array, which is why a scale is limited to 2–10 points for every backend, so a script behaves the same on either; `position` is the
+returned score normalised to [0,1] over the scale. The exact field names (including the yes/no type's name and the `state` shape, a string or
+a map) are taken from the reference by `JevWire` and pinned by recorded fixtures.
 
 ### 4.4 Choosing a backend by configuration
 
@@ -160,7 +177,7 @@ and eval4j.
 ```
 provider Jev { use: jev  api_key: env("JEV_API_KEY") }
 
-classifier Intent {
+intentclassifier Intent {
     model: "Jev/jev-latest"                         // or "gemini-2.5-flash", "Box/llama3": same block, other backend
     choose kind: refund | order_status | complaint | other
     ask urgent: "Is the customer threatening to leave?"
@@ -169,14 +186,14 @@ classifier Intent {
 ```
 
 `choose`, `ask` (yes/no) and `rate` (score, with its scale) are the three question kinds. Each question's *instructions* default to a sentence
-built from its name and may be written out (`choose kind "What does the customer want?": …`). A `classifier` has no `system:` and no tools;
+built from its name and may be written out (`choose kind "What does the customer want?": …`). An `intentclassifier` has no `system:` and no tools;
 that is the point of it.
 
 ### 5.2 Using
 
 ```
 workflow Triage(message) {
-    classify Intent on message -> intent
+    intentclassify Intent on message -> intent
     alt (intent.kind == "refund") {
         run RefundFlow(message) -> out
     } else {
@@ -186,7 +203,7 @@ workflow Triage(message) {
 }
 ```
 
-`classify <Classifier> on <expr> -> name` binds a record. `name.<question>` is the label (for `choose`), `"yes"`/`"no"` (for `ask`) or the scale
+`intentclassify <IntentClassifier> on <expr> -> name` binds a record. `name.<question>` is the label (for `choose`), `"yes"`/`"no"` (for `ask`) or the scale
 point (for `rate`); `name.confidence`, `name.urgent_probability`-style fields give the numbers; `name.calibrated` is a boolean. On several
 questions, `-> intent` gives all of them by name. The state is one expression, or a map: `on { message: message, history: past }`.
 
@@ -206,7 +223,7 @@ the classifier is marked `uncalibrated` in the graph and in `weave audit` output
 
 ### 5.4 Execution
 
-A `classify` step makes one `Classifier.classify` call. It is charged to the workflow's budget like a model call (tokens as the backend
+An `intentclassify` step makes one `Classifier.classify` call. It is charged to the workflow's budget like a model call (tokens as the backend
 reports them; Jev's input-only pricing is handled by the existing price table), appears as one call event with backend, model, tokens, latency
 and finish state, and the trace carries a new `ClassifyEvent` (classifier name, per-question label and confidence, backend, calibrated flag). It
 never carries the state text unless the detail level allows it, exactly as for other trace events. A failing call (timeout, rate limit, invalid
@@ -214,13 +231,13 @@ key) retries per the provider layer, then fails the step.
 
 ### 5.5 What `weave` checks
 
-- A `classify` names a declared classifier; the `on` expression is bound.
+- An `intentclassify` names a declared `intentclassifier`; the `on` expression is bound.
 - Labels in `choose` are unique, at least two (the reserved `unsure` does not count and cannot be declared).
 - An `alt` comparing a classifier field to a literal that is not one of its labels is a **check error** ("`intent.kind` can be refund, order_status,
   complaint, other, unsure; `\"refunds\"` is never produced"). This is the main gain over the one-word-agent pattern.
 - `weave audit`: a classifier on a backend that sends data off-machine is listed as a data flow, with the same treatment as a model provider.
   Jev is listed like any hosted provider.
-- The graph and the VS Code extension show `classify` as a node with the classifier's backend and labels, and highlight `uncalibrated`.
+- The graph and the VS Code extension show `intentclassify` as a node with the classifier's backend and labels, and highlight `uncalibrated`.
 
 ### 5.6 Relationship to other constructs
 
@@ -228,7 +245,7 @@ key) retries per the provider layer, then fails the step.
 |---|---|
 | `decide` / `decision` (earned autonomy) | Unchanged. A decision's `proposed by` is still an agent. A later phase may allow a classifier there; not now |
 | `guardrail` | Unchanged. A classifier may be *used inside* a guardrail check later; not now |
-| `routing` (model routing) | Unrelated: it picks which *model* answers; `classify` picks which *branch* the workflow takes |
+| `routing` (model routing) | Unrelated: it picks which *model* answers; `intentclassify` picks which *branch* the workflow takes |
 | `agent` | A classifier is deliberately not an agent: no tools, no memory, no loop. Authors who need more write an agent |
 
 ## 6. Behaviour and invariants
@@ -246,7 +263,7 @@ key) retries per the provider layer, then fails the step.
   API key anywhere but its configured endpoint; the key is not in an exception message, a log line or an event.
 - **R7**: Loom: `unsure` is produced only by a `confidence … else escalate` rule, never by a backend.
 - **R8**: Loom: an `alt` on a classifier label that can never be produced is a `weave check` error (§5.5).
-- **R9**: Loom: a classify step is bounded: its token charge counts toward the workflow budget; a budget breach halts as for any other call.
+- **R9**: Loom: an `intentclassify` step is bounded: its token charge counts toward the workflow budget; a budget breach halts as for any other call.
 - **R10**: eval4j: a classifier-backed judge yields the same `JudgeVerdict` type and honours `threshold`, `samples`, the cache and telemetry.
 - **R11**: Nothing in the existing agent, judge or workflow paths changes unless a classifier is declared or injected (a test pins this).
 - **R12**: Telemetry records backend, model, tokens, latency and outcome for every classify call; it never records the state or the answers'
@@ -304,8 +321,8 @@ team's own cases.
 
 | # | Question | Recommendation |
 |---|---|---|
-| Q1 | **Jev's wire format is unverified.** Everything we know of it is from third-party guides (an evaluate/`systemone` endpoint; state + named questions; choice/score/yes-no; probabilities, confidence, usage). TypeSafe's reference was not reachable when this was drafted | Before step 4 of the plan, obtain the official API reference and an early-access key. `JevWire` is built to the reference and pinned by a recorded contract test. If the API differs from §4.3, only §4.3 and that class change |
-| Q2 | Loom keyword: `classify`/`classifier` (proposed). `decision` is taken (earned autonomy) | Keep `classifier`/`classify`; `decide` stays for earned autonomy |
+| Q1 | **Jev's exact field names.** The public docs give the shape above, but this session could only read search summaries of them, not the pages (the environment's network policy blocks `docs.typesafe.ai`). Exact names (the yes/no type, the `state` shape, the `usage` fields) are unconfirmed | Before sub-phase 7c, read the reference pages (`/api`, `/primitives/choice`, `/primitives/score`, `/primitives/noul`, `/concepts/state`) from a session with that host allowed, record fixtures from the real API with a key, and adjust `JevWire` only |
+| Q2 | Loom keywords. `decision` is taken (earned autonomy) | **Decided:** `intentclassifier` (declaration) and `intentclassify` (statement); `decide` stays for earned autonomy |
 | Q3 | Should the reserved `unsure` label exist, or should low confidence fail the step by default? | Keep `unsure` (an `alt` can route it); default action when a `confidence` line is present is `escalate` |
 | Q4 | Uncalibrated confidence: allow a `confidence at least` rule on a chat backend? | Allow, require `samples > 1` or self-report, mark `uncalibrated` in graph/audit (§5.3) |
 | Q5 | eval4j scope for this phase: single criterion and dimensions only, or also pairwise/RAG/conversation? | Single and dimensions now; the rest in a follow-up once the calibration comparison exists |
