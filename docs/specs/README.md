@@ -80,4 +80,4 @@ done, so that what we learn building a lower layer shapes the spec above it.
 | 4 | approved, built | all written | all done (4a–4e) | verified (live and manual checks owed); **awaiting review** |
 | 5 | approved, built | all written | all done (5a–5e) | verified (live and manual checks owed); **awaiting review** |
 | 6 | not started | | | |
-| 7 | draft, **awaiting review** | | | |
+| 7 | approved (decisions recorded; scope for 6.1.0 set) | | | |

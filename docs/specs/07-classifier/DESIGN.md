@@ -1,6 +1,6 @@
 # Phase 7 design: classification as a first-class capability (ai-agent4j, Loom, eval4j)
 
-Status: **draft, awaiting review**. Layers: ai-agent4j (the contract, the LLM-backed classifier, the Jev provider), Loom (an `intentclassifier`
+Status: **approved; decisions in §9, scope for 6.1.0 in §10**. Layers: ai-agent4j (the contract, the LLM-backed classifier, the Jev provider), Loom (an `intentclassifier`
 block and an `intentclassify` statement), eval4j (a classifier-backed judge). Companion documents: [TEST_STRATEGY.md](TEST_STRATEGY.md),
 [VERIFICATION.md](VERIFICATION.md), [roadmap](../README.md). Builds on the provider SPI pattern (`TranslationProvider` and friends), the
 `JudgeCache`/`JudgeTelemetry` machinery of eval4j and the call telemetry of [Phase 2](../02-call-telemetry/DESIGN.md).
@@ -300,7 +300,7 @@ A judgement becomes a classification, so the judge's job fits the primitive:
 
 `JudgeVerdict(score, reason)` is unchanged; `reason` is `""` when the backend produced none, and the failure text says so rather than inventing
 one. Pairwise (`PairwiseJudge`), RAG chunk scoring (`RagScoring`) and conversation turns reuse the classifier path in a second step, but this
-phase delivers the single-criterion and dimensions paths (§9 Q5).
+phase delivers the single-criterion and dimensions paths (§9, Q5).
 
 ### 7.3 Making the choice measurable
 
@@ -318,16 +318,30 @@ the real Jev API against real chat models, so the recommendations in our guide a
 - The state leaves the process for a hosted backend. `weave audit` and the docs say so for Jev as for any hosted model; PII masking that applies
   to model requests applies to classify states (the same masker, configured the same way).
 
-## 9. Open questions
+## 9. Decisions
 
-| # | Question | Recommendation |
+The questions raised in the draft, answered. Nothing starts with a question open that changes the API.
+
+| # | Decision |
+|---|---|
+| Q1 | **Jev's exact field names** (the yes/no type's name, the `state` shape, the `usage` fields) are a *precondition task*, not a design question. The 7.0 spike's `--probe` mode is the first contact with the real API; sub-phase 7c begins by reading the reference (`/api`, `/primitives/*`, `/concepts/state`) and recording fixtures from the real API. If the wire format differs from §4.3, only §4.3 and `JevWire` change; the public API above does not |
+| Q2 | Loom keywords are **`intentclassifier`** (declaration) and **`intentclassify`** (statement). `decide`/`decision` stay for earned autonomy |
+| Q3 | The reserved label **`unsure`** exists, is produced only by a `confidence … else escalate` rule (R7), and `escalate` is the default action when a `confidence` line is present without one |
+| Q4 | A `confidence at least` rule is **allowed on a chat backend**, which must then have `samples > 1` or a self-report; such a classifier is marked `uncalibrated` in the graph and in `weave audit` (§5.3) |
+| Q5 | eval4j scope for this phase: **single criterion and `dimensions`**. Pairwise, RAG-chunk and conversation judging follow once the calibration comparison exists |
+| Q6 | The resolver for `model: "Jev/jev-latest"` lives in ai-agent4j as `ClassifierResolver`, reading the same provider declarations Loom already reads |
+| Q7 | A `Score` answer exposes **both** `position()` (0–1 along the scale) and `nearest()` (the closest scale point) |
+| Q8 | No prose reason from a Jev-backed judge. A second call to a chat model on failures only is a documented *pattern* in the guide, not a feature |
+| Q9 | The live study's pass thresholds are **as proposed in TEST_STRATEGY §5.4** (within 2 points of the cheap chat model, ECE ≤ 0.10, 3× on latency or cost; the high-stakes rule at 80% coverage) and are fixed before the first run |
+
+## 10. Scope for release 6.1.0
+
+The release does not wait for everything in this phase. In priority order:
+
+| Tier | Contents | Why |
 |---|---|---|
-| Q1 | **Jev's exact field names.** The public docs give the shape above, but this session could only read search summaries of them, not the pages (the environment's network policy blocks `docs.typesafe.ai`). Exact names (the yes/no type, the `state` shape, the `usage` fields) are unconfirmed | Before sub-phase 7c, read the reference pages (`/api`, `/primitives/choice`, `/primitives/score`, `/primitives/noul`, `/concepts/state`) from a session with that host allowed, record fixtures from the real API with a key, and adjust `JevWire` only |
-| Q2 | Loom keywords. `decision` is taken (earned autonomy) | **Decided:** `intentclassifier` (declaration) and `intentclassify` (statement); `decide` stays for earned autonomy |
-| Q3 | Should the reserved `unsure` label exist, or should low confidence fail the step by default? | Keep `unsure` (an `alt` can route it); default action when a `confidence` line is present is `escalate` |
-| Q4 | Uncalibrated confidence: allow a `confidence at least` rule on a chat backend? | Allow, require `samples > 1` or self-report, mark `uncalibrated` in graph/audit (§5.3) |
-| Q5 | eval4j scope for this phase: single criterion and dimensions only, or also pairwise/RAG/conversation? | Single and dimensions now; the rest in a follow-up once the calibration comparison exists |
-| Q6 | Where does the resolver for `model: "Jev/jev-latest"` live so Loom and eval4j share it? | ai-agent4j, `ClassifierResolver`, taking the same provider declarations Loom already reads |
-| Q7 | Jev's `Score` question returns a probability-weighted position on an ordered scale. Is `position` in [0,1] along the scale the right abstraction, or should we expose the weighted point label too? | Expose both: `position()` and `nearest()` (the closest scale point) |
-| Q9 | The live study's pass thresholds (TEST_STRATEGY §5.4): within 2 points of the cheap chat model, ECE ≤ 0.10, 3× on latency or cost; and the "high-stakes" rule at 80% coverage | Keep as the proposal, fixed before the first run |
-| Q8 | Rationale for a Jev-backed judge: none. If a failing test needs a reason, a second call to a chat model on the failures only? | Out of scope; mention in the guide as a pattern |
+| **Must** | 7.0 (the study and its verdict), 7a (`Classifier`, `LlmClassifier`), 7b (eval4j `classifier(...)` judge, calibration mode) | Useful on their own with any chat model; they do not depend on Jev |
+| **Should** | 7c (`JevProvider`), 7d (Loom `intentclassifier`/`intentclassify`, checks, audit, trace, budget) | The headline feature; 7c's presence and wording follow the 7.0 verdict (VERIFICATION §1a) |
+| **Stretch** | 7c-live (the study as a Java test), 7e (VS Code grammar and diagnostics, extra examples) | Polish and tooling; can follow in 6.1.x |
+
+Rule: a Loom statement ships only together with its `weave check` rules (§5.5) and its audit entry; if those are not ready, the statement is held back.

@@ -97,7 +97,7 @@ To keep the conclusions honest, the verdict rule is written **before** the first
   its accuracy is at least that of the strong model at the same coverage.
 - Otherwise the report says where it falls short, and the guide and wiki are written to match: Jev as an option, not a default.
 
-These thresholds are proposals for review (DESIGN Q9). The numbers that come out are recorded, whatever they are, in VERIFICATION §7.
+These thresholds are fixed before the first run (DESIGN Q9). The numbers that come out are recorded, whatever they are, in VERIFICATION §7.
 
 ### 5.5 Limits of the study
 

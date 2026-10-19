@@ -10,7 +10,7 @@ is recorded in §6.
 | 7.0 | **Study first (gate)** | `scripts/jev-spike/`: the head-to-head study of TEST_STRATEGY §5, run with the Python harness on the labelled sets **before any production code**. Its results decide what 7a–7e build (see §1a) |
 | 7a | Contract and chat backend | `io.github.llm4j.classify` types, `LlmClassifier`, `ScriptedClassifier`, `ClassifierContract` |
 | 7b | eval4j | `llmJudged(...).classifier(...)`, cache/telemetry integration, `CalibrationRunner` mode |
-| 7c | Jev provider | `JevProvider`, `JevWire`, `jev` as a provider name, resolver; blocked on DESIGN Q1 |
+| 7c | Jev provider | `JevProvider`, `JevWire`, `jev` as a provider name, resolver; begins by reading Jev's reference and recording fixtures (DESIGN Q1) |
 | 7c-live | Study in Java | `JevVsLlmStudyIntegrationTest` ports the 7.0 study onto `Classifier`, so the team can rerun it on their own data with the same runner. It must reproduce the 7.0 results within noise |
 | 7d | Loom | `intentclassifier` block, `intentclassify` statement, checks, execution, trace event, budget, audit, graph |
 | 7e | Tooling and docs | VS Code grammar/completion/diagnostics, wiki page, Loom guide chapter, `llms.txt`, examples |
@@ -79,6 +79,13 @@ Per the spec method, at the end of each sub-phase: the wiki page (`src/ai-agent4
 READMEs and hub links, `llms.txt`, and the Loom guide chapter. Once, at the end of the whole phase: the stack-level pages (root `README.md`,
 `wiki/Home.md`, `docs/README.md`, `docs/THE_STACK.md`) and the `llm4j-workflow-guide` skill (so it can advise on `intentclassify` and on a
 classifier-backed judge).
+
+## 6a. Release 6.1.0 gate
+
+For the classifier work to be part of 6.1.0: every **Must** and **Should** item of DESIGN §10 that is included has its acceptance criteria ticked in §2;
+the release notes (`RELEASE_NOTES_6_1_0.md`) describe it, including what Jev is and the 7.0 verdict in plain words; `docs/VERSION_MATRIX.md` and
+`docs/API_COMPATIBILITY.md` are updated (the additions are new types and default-less additive methods only); the publish steps in `docs/PUBLISHING.md`
+are followed. Items not ready are listed in the release notes as "coming", never described as working.
 
 ## 7. Result
 
