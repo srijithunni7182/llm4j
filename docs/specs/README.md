@@ -66,6 +66,7 @@ Order matters: each phase builds on the one below and is shippable on its own.
 | 5 | [The Fabric page](05-fabric-ui/DESIGN.md) | loom-inspect-core, loom-fabric | Context gauge and compaction timeline; tools table with success rate and latency percentiles; thresholds on the Configuration page; model-window catalog beside the price table; simulator scenarios | 4 |
 | 6 | The profile | all | A written, versioned **Loom Agent Observability Profile**; a conformance suite other runtimes can run; a proposal for the missing pieces upstream | 1–5 |
 | 7 | [Classification](07-classifier/DESIGN.md) | ai-agent4j, Loom, eval4j | A `Classifier` contract with a chat-model backend and a Jev provider; a Loom `classifier`/`classify` primitive for intent routing; classifier-backed `llmJudged` in eval4j | provider SPI, 2 (telemetry) |
+| 8 | [Providers and grounding](08-providers-and-grounding/DESIGN.md) | ai-agent4j, Loom, eval4j | OpenAI, xAI, Kimi, Qwen, Perplexity and a generic OpenAI-compatible provider; then provider-neutral native grounding (web search with typed citations, search budgets, audit) across all providers that offer it | provider SPI, 1, 2, 3 |
 
 Phases 2–6 get their own folders and specs when their turn comes. Each is specified in detail only when the one below it is
 done, so that what we learn building a lower layer shapes the spec above it.
@@ -81,3 +82,4 @@ done, so that what we learn building a lower layer shapes the spec above it.
 | 5 | approved, built | all written | all done (5a–5e) | verified (live and manual checks owed); **awaiting review** |
 | 6 | not started | | | |
 | 7 | draft, **awaiting review** | | | |
+| 8 | draft, **awaiting review** | | | |
