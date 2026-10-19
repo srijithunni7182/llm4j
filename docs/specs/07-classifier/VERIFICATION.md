@@ -7,6 +7,7 @@ is recorded in §6.
 
 | # | Sub-phase | Delivers |
 |---|---|---|
+| 7.0 | **Spike (first)** | `scripts/jev-spike/`: a throwaway stdlib-Python script and ~120 hand-labelled cases that compare Jev with real chat models, run before any implementation. Its findings can still change this spec; the full study in 7c-live supersedes it |
 | 7a | Contract and chat backend | `io.github.llm4j.classify` types, `LlmClassifier`, `ScriptedClassifier`, `ClassifierContract` |
 | 7b | eval4j | `llmJudged(...).classifier(...)`, cache/telemetry integration, `CalibrationRunner` mode |
 | 7c | Jev provider | `JevProvider`, `JevWire`, `jev` as a provider name, resolver; blocked on DESIGN Q1 |
