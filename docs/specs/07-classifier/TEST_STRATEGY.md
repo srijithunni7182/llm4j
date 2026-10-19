@@ -53,7 +53,7 @@ The goal is first-hand evidence of how good Jev is for the two jobs this phase s
 
 ### 5.1 How it runs
 
-- Class `JevVsLlmStudyIntegrationTest` (eval4j integration tests, next to `CalibrationStudy*IntegrationTest`), skipped unless `JEV_API_KEY` and
+- **First run (sub-phase 7.0):** `scripts/jev-spike/jev_spike.py`, before any production code exists. **Later (7c-live):** the same study as class `JevVsLlmStudyIntegrationTest` (eval4j integration tests, next to `CalibrationStudy*IntegrationTest`), skipped unless `JEV_API_KEY` and
   at least one chat key are set (`EVAL4J_ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, or an Ollama model, as the existing studies read them). It writes a
   Markdown report and a CSV of every call to `target/`, like `CalibrationRunner`.
 - Every case goes to **every contender with identical inputs**: the same state, the same labels and instructions (through the same

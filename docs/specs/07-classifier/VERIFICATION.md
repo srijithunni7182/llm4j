@@ -7,13 +7,24 @@ is recorded in §6.
 
 | # | Sub-phase | Delivers |
 |---|---|---|
-| 7.0 | **Spike (first)** | `scripts/jev-spike/`: a throwaway stdlib-Python script and ~120 hand-labelled cases that compare Jev with real chat models, run before any implementation. Its findings can still change this spec; the full study in 7c-live supersedes it |
+| 7.0 | **Study first (gate)** | `scripts/jev-spike/`: the head-to-head study of TEST_STRATEGY §5, run with the Python harness on the labelled sets **before any production code**. Its results decide what 7a–7e build (see §1a) |
 | 7a | Contract and chat backend | `io.github.llm4j.classify` types, `LlmClassifier`, `ScriptedClassifier`, `ClassifierContract` |
 | 7b | eval4j | `llmJudged(...).classifier(...)`, cache/telemetry integration, `CalibrationRunner` mode |
 | 7c | Jev provider | `JevProvider`, `JevWire`, `jev` as a provider name, resolver; blocked on DESIGN Q1 |
-| 7c-live | Live study | `JevVsLlmStudyIntegrationTest`, the two new labelled datasets, the report; run as soon as 7c is done and **before 7d**, so the findings can shape Loom's defaults and the docs |
+| 7c-live | Study in Java | `JevVsLlmStudyIntegrationTest` ports the 7.0 study onto `Classifier`, so the team can rerun it on their own data with the same runner. It must reproduce the 7.0 results within noise |
 | 7d | Loom | `intentclassifier` block, `intentclassify` statement, checks, execution, trace event, budget, audit, graph |
 | 7e | Tooling and docs | VS Code grammar/completion/diagnostics, wiki page, Loom guide chapter, `llms.txt`, examples |
+
+### 1a. The 7.0 gate
+
+7.0 is done when the study has been run with real keys, the results are in §7, and the verdict rule of TEST_STRATEGY §5.4 has been applied as
+written in advance. Then, before 7a starts, the spec is revised from the evidence:
+
+| Outcome | Effect on the plan |
+|---|---|
+| Jev meets the rule | Proceed as written; the guide and wiki recommend Jev for routing and judging |
+| Jev meets it for some tasks only | Proceed; the docs name the tasks; Loom's `confidence` guidance is written from the calibration results |
+| Jev does not meet it | The `Classifier` contract, `LlmClassifier`, the Loom primitive and the eval4j judge are still built (they stand on their own); `JevProvider` is built as an option and the docs say Jev is not recommended on our data. Or it is deferred, if the results are poor enough |
 
 ## 2. Acceptance criteria
 
@@ -35,7 +46,7 @@ is recorded in §6.
 | A14 | `weave audit` lists a hosted classifier backend as a data flow; the graph marks `uncalibrated` | §5.5 | audit and graph tests |
 | A15 | `Classifier.using(chat)` and `Classifier.using(jev)` can be compared on a dataset with `CalibrationRunner`, giving agreement, calibration curve, cost and latency | §7.3 | eval4j calibration tests |
 | A16 | All documentation samples execute in tests | docs | docs examples test |
-| A17 | The live study runs end to end with a real Jev key and at least one chat model, writes its report and CSV, stays inside its spend cap, and its results are recorded in §7 with the verdict rule applied as written in advance | §5 of the test strategy | `JevVsLlmStudyIntegrationTest` (live, opt-in) |
+| A17 | The 7.0 study runs end to end with a real Jev key and at least one chat model, writes its report and CSV, stays inside its spend cap, and its results are recorded in §7 with the verdict rule applied as written in advance | §5 of the test strategy | `JevVsLlmStudyIntegrationTest` (live, opt-in) |
 
 ## 3. Traceability
 
