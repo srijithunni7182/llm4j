@@ -3,11 +3,12 @@
 
 Standard library only. Not llm4j code and not shipped: it exists to look at real results before the real implementation starts.
 
-  JEV_API_KEY=... ANTHROPIC_API_KEY=... python3 jev_spike.py --probe          # print raw Jev replies, fix the wire format first
-  JEV_API_KEY=... ANTHROPIC_API_KEY=... python3 jev_spike.py --limit 10       # cheap first run
-  JEV_API_KEY=... ANTHROPIC_API_KEY=... python3 jev_spike.py --repeats 3      # full run, report in ./results/
+  JEV_API_KEY=... SPIKE_ANTHROPIC_API_KEY=... python3 jev_spike.py --probe          # print raw Jev replies, fix the wire format first
+  JEV_API_KEY=... SPIKE_ANTHROPIC_API_KEY=... python3 jev_spike.py --limit 10       # cheap first run
+  JEV_API_KEY=... SPIKE_ANTHROPIC_API_KEY=... python3 jev_spike.py --repeats 3      # full run, report in ./results/
   python3 jev_spike.py --dry-run                                              # no network: checks the metrics code with fake contenders
 
+Cloud sessions may not pass ANTHROPIC_API_KEY through; use SPIKE_ANTHROPIC_API_KEY there.
 Contenders: jev, plus chat models via Anthropic (--claude-strong, --claude-cheap) and/or Gemini (GEMINI_API_KEY).
 Ground truth is the human label in data.py, never another model.
 """
@@ -343,7 +344,7 @@ def main():
         cts = [Fake("jev(fake)", .9, True, 250), Fake("strong(fake)", .93, False, 1800), Fake("cheap(fake)", .85, False, 700)]
     else:
         cts = []
-        jk, ak, gk = os.environ.get("JEV_API_KEY"), os.environ.get("ANTHROPIC_API_KEY"), os.environ.get("GEMINI_API_KEY")
+        jk, ak, gk = os.environ.get("JEV_API_KEY"), os.environ.get("SPIKE_ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"), os.environ.get("GEMINI_API_KEY")
         if not jk:
             sys.exit("JEV_API_KEY is not set (use --dry-run to test the script offline)")
         cts.append(Jev(jk))
@@ -353,7 +354,7 @@ def main():
         if gk:
             cts.append(Gemini(gk, a.gemini))
         if len(cts) < 2:
-            sys.exit("Need at least one chat key too: ANTHROPIC_API_KEY and/or GEMINI_API_KEY")
+            sys.exit("Need at least one chat key too: SPIKE_ANTHROPIC_API_KEY (or ANTHROPIC_API_KEY) and/or GEMINI_API_KEY")
     if a.probe:
         jev = cts[0]
         for kind in ("choice", "yesno"):
