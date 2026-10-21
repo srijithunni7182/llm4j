@@ -39,7 +39,7 @@ for f in "$OUT"/references/*.md; do
   sed -E "s#\]\((\.\./)+([^)#]*)#](${REPO}/\2#g" "$f" > "$f.tmp" && mv "$f.tmp" "$f"
 done
 # the guide's README tells repository readers where the skill lives; for a reader of the skill, this folder is it
-sed -i -E 's#in this repo it is `[^`]*`( \(and `[^`]*` for running it, watched\))?, and `[^`]*` builds a standalone bundle \([^)]*\) from these chapters for distribution\.#this folder is that skill (the llm4j-loom-deployer skill, for running it watched, is a separate folder).#' "$OUT/references/README.md"
+sed -i -E 's#in this repo it is `[^`]*`( \([^)]*\))?, and `[^`]*` builds a standalone bundle \([^)]*\) from these chapters for distribution\.#this folder is that skill (the llm4j-loom-deployer skill, for running it watched, is a separate folder).#' "$OUT/references/README.md"
 
 # Tell the agent where weave is: wherever the guide says `weave`, it means this launcher unless weave is already on the PATH.
 note='**`weave` is bundled with this skill.** If `weave` is not on the PATH, run `scripts/weave` (Windows: `scripts\\weave.cmd`) from this skill'"'"'s folder wherever a step says `weave`; it runs `bin/weave.jar` and needs Java 17 or newer (`java -version`). Run it from the user'"'"'s project folder, with the launcher'"'"'s full path.'

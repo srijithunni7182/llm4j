@@ -1,0 +1,19 @@
+// Canonical CTK test: classify_unsure
+// Tests the confidence rule: an answer below the threshold becomes the label "unsure", never a guess.
+// The classifier backend is supplied by the runtime; mocks/classify_unsure.json defines what it answers.
+
+intentclassifier Intent {
+    model: "Jev/jev-latest"
+    choose kind: refund | order_status | complaint | other
+    ask urgent: "Is the customer threatening to leave?"
+    confidence at least 0.8 else escalate
+}
+
+workflow main(message) {
+    intentclassify Intent on message -> intent
+    alt (intent.kind == "refund") {
+        note "route:refund"
+    } else {
+        note "route:other"
+    }
+}

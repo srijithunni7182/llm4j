@@ -43,6 +43,7 @@ LLM Top 10 coverage table. The rules:
 | LA12 | a `file` tool that may overwrite |
 | LA13 / LA14 | indexed documents (info) / opaque Java or host tools |
 | LA15 | a tool whose reach is its author's declaration (info): read its code once to confirm |
+| LA19 | an `intentclassifier` on a hosted backend (info): its state leaves this machine; says which fields, whether `pii:` masks them, and that a chat model's confidence is uncalibrated |
 
 **Your own tools.** The audit never loads or runs your Java, so it cannot see what a custom tool does and assumes the worst (it reads untrusted content, reaches private data and acts), which is a high finding as soon as the agent also has any other tool. Say what the tool really reaches, in the `.loot` file next to the class mapping, and give the file to the audit: `weave audit main.loom --loot tools.loot`.
 

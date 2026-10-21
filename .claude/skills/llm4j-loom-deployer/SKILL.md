@@ -33,7 +33,7 @@ Stages 4 (try it) and 5 and 6 (keep it) are alternatives for the first look: sta
 
 1. **Find out where they are.** Is there a finished workflow? Is `weave` there? Has anything been deployed? Do not start at stage 1 for someone who already has a Fabric: ask for its address and who gives out client keys, and start at stage 6.
 2. **Ask the questions of stage 1 in plain words** (where does it run, who looks, may text leave the machine, is anything reachable from beyond this computer) and write the answer in the project README.
-3. **Do stage 2 with the user, not for them.** Run the audit, read every finding aloud, and ask them to decide each trifecta. A reason that is only "ok" is not a reason: ask who looked and when.
+3. **Do stage 2 with the user, not for them.** Run the audit, read every finding aloud, and ask them to decide each trifecta. A reason that is only "ok" is not a reason: ask who looked and when. If the script has an `intentclassifier` on a hosted backend (Jev or a hosted chat model), the audit reports LA19: the text of its `intentclassify` steps leaves the machine; ask whether `pii: mask` is set and who may see that text at the provider, and set `JEV_API_KEY` in the environment, never in the script.
 4. **Write the rules file with them** (stage 3): propose the defaults you would keep, ask which agents are touchy, write only what they decide, and check it with `weave observe rules`.
 5. **Launch, then look.** Use the scripts, read what they print, open the page with the user, and tick the gate only when you saw it.
 6. **Show them the page** (stage 7): have them find one thing on each page. A page nobody has been shown is a page nobody reads.

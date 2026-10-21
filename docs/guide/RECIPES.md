@@ -160,6 +160,32 @@ agent Writer {
 }
 ```
 
+## Route a message with a classifier
+
+When a step only has to choose, use an `intentclassifier` instead of asking an agent to write an answer: it returns a label, with a confidence, in one cheap call.
+
+> Ask your agent: *"Route each incoming message to refund, order status or complaint, and ask a person when the classifier is not sure."*
+
+```loom
+intentclassifier Intent {
+    model: "claude-haiku-5-5"
+    samples: 3
+    choose kind: refund | order_status | complaint | other
+    confidence at least 0.8 else escalate
+}
+
+workflow Triage(message) {
+    intentclassify Intent on message -> intent
+    alt (intent.kind == "unsure") {
+        human_prompt "Which team should take: {message}" -> team
+    } else {
+        note "route:{intent.kind}"
+    }
+}
+```
+
+Use `model: "Scorer/jev-latest"` with a `provider Scorer { use: jev  api_key: env.JEV_API_KEY }` to run it on Jev instead. Chapter 6 explains the choice.
+
 ## Change how the editor behaves
 
 This one is not a change to the script at all. Each agent's prompt is a markdown file in `prompts/`: edit `prompts/editor.md`. To compare two wordings fairly, keep both as versions
